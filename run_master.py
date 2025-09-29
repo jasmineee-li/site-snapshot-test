@@ -173,6 +173,12 @@ def main():
         action="store_true",
         help="Force recreation of snapshots even if they exist",
     )
+    parser.add_argument(
+        "--agent-type",
+        choices=["deterministic", "llm"],
+        default="deterministic",
+        help="Type of agent to run (deterministic or LLM-powered)",
+    )
 
     args = parser.parse_args()
 
@@ -189,15 +195,16 @@ def main():
     # Choose base config file and create timestamped run directory
     if args.mode == "synthetic":
         base_config_file = "synthetic_flows_config.example.json"
-        run_dir = f"snapshots/flow_run_synthetic_{now}"
+        run_dir = f"runs/synthetic_{now}"
     else:
         base_config_file = "snapshot_flows_config.example.json"
-        run_dir = f"snapshots/flow_run_snapshot_{now}"
+        run_dir = f"runs/snapshot_{now}"
 
         # Create snapshot if needed
         if not create_snapshot_if_needed(args.news_url, args.force_snapshot):
             sys.exit(1)
 
+    Path(run_dir).mkdir(parents=True, exist_ok=True)
     if not Path(base_config_file).exists():
         print(f"❌ Config file not found: {base_config_file}")
         sys.exit(1)
@@ -231,12 +238,16 @@ def main():
 
         print(f"✓ Server ready at http://localhost:{args.port}")
 
-        # Run the simulated agent
-        print("🤖 Running simulated agent...")
+        # Run the agent
+        if args.agent_type == "llm":
+            print("🤖 Running LLM agent...")
+            agent_cmd = f"python agent/llm_executor.py --base-url http://localhost:{args.port} --flow-type {args.mode} --run-dir {run_dir}"
+        else:
+            print("🤖 Running deterministic agent...")
+            agent_cmd = f"python simulated_agent.py --base http://localhost:{args.port} --screens {args.screens} --run-dir {run_dir +"_deterministic"}"
+
         try:
-            run_cmd(
-                f"python simulated_agent.py --base http://localhost:{args.port} --screens {args.screens}"
-            )
+            run_cmd(agent_cmd)
             print("✓ Agent completed successfully")
         except subprocess.CalledProcessError as e:
             print(f"❌ Agent failed: {e}")
