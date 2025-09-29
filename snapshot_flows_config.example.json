@@ -1,0 +1,15 @@
+{
+  "run_dir": "snapshots/flow_run_snapshot",
+  "stages": {
+    "news": {
+      "mode": "snapshot",
+      "bundle_dir": "snapshots/run_news_bundle"
+    },
+    "drive": {
+      "mode": "synthetic"
+    },
+    "mail": {
+      "mode": "synthetic"
+    }
+  }
+}

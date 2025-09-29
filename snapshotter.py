@@ -39,7 +39,9 @@ def snapshot(url: str, out_dir: str):
             record_har_path=str(out / "page.har"), record_har_content="embed"
         )
         page = context.new_page()
-        page.goto(url, wait_until="networkidle")
+        NAV_TIMEOUT = 60000
+
+        page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
 
         # Save DOM after JS executed
         (out / "index.html").write_text(page.content(), encoding="utf-8")
