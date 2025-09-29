@@ -1,0 +1,9 @@
+snapshots/
+venv/
+.env
+.DS_Store
+.idea/
+.vscode/
+.pytest_cache/
+.ruff_cache/
+.ruff_cache/
