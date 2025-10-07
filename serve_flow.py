@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # serve_flow.py
-# Unified multi-stage server for News → Drive → Mail flows.
 # Each stage can run in either 'snapshot' mode (serve a bundled snapshot)
 # or 'synthetic' mode (serve a locally-rendered high-fidelity replica).
 #
@@ -12,7 +11,7 @@ import sys
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from flask import Flask, send_from_directory, request, jsonify, redirect
 
 
@@ -21,18 +20,17 @@ app = Flask(__name__)
 
 # Global state initialized from config
 CONFIG: Dict[str, Any] = {}
-RUN_DIR: str | None = None
+RUN_DIR: Optional[str] = None
 STAGES = ("news", "drive", "mail")
 
 
 def load_config(path: str) -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
-    # Normalize stage keys/lowercase
+    # Normalize provided stages; preserve arbitrary stage names
     stages = cfg.get("stages", {})
-    norm = {}
-    for k in STAGES:
-        v = stages.get(k, {})
+    norm: Dict[str, Any] = {}
+    for k, v in stages.items():
         mode = (v.get("mode") or "synthetic").lower()
         norm[k] = {
             "mode": mode,
@@ -85,11 +83,13 @@ def add_security_headers(resp):
 
 @app.route("/")
 def root():
-    # Start at News stage
-    return redirect("/news", code=302)
+    # Redirect to first configured stage if available; otherwise default to /news
+    stages = list(CONFIG.get("stages", {}).keys())
+    if stages:
+        return redirect(f"/{stages[0]}", code=302)
 
 
-def _stage_bundle_dir(stage: str) -> str | None:
+def _stage_bundle_dir(stage: str) -> Optional[str]:
     st = CONFIG.get("stages", {}).get(stage, {})
     if st.get("mode") == "snapshot":
         b = st.get("bundle_dir")
@@ -99,14 +99,16 @@ def _stage_bundle_dir(stage: str) -> str | None:
 
 
 def _serve_stage_index(stage: str):
-    bundle = _stage_bundle_dir(stage)
+    bundle = _stage_bundle_dir(stage)  # is snapshot
     if bundle:
         # log page view and serve snapshot index
         log_event({"event": "page_view", "stage": stage, "mode": "snapshot"})
         return send_from_directory(bundle, "index.html")
-    # Fallback to synthetic template file
+
+    # else, we are in synthetic mode
     log_event({"event": "page_view", "stage": stage, "mode": "synthetic"})
-    syn_path = Path(__file__).parent / "synthetic" / f"{stage}.html"
+    print("RUN DIR: ", CONFIG.get("run_dir"))
+    syn_path = Path(__file__).parent / CONFIG.get("run_dir") / f"{stage}.html"
     if not syn_path.exists():
         return (f"Synthetic template missing for stage: {stage}", 500)
     return (
@@ -116,27 +118,30 @@ def _serve_stage_index(stage: str):
     )
 
 
-@app.route("/news")
-def news_index():
-    return _serve_stage_index("news")
+def register_stage_routes():
+    """Register routes dynamically based on config stages."""
+    stages = CONFIG.get("stages", {})
 
+    for stage_name in stages.keys():
+        # Create closure to capture stage_name
+        def make_handler(name):
+            def handler():
+                return _serve_stage_index(name)
 
-@app.route("/drive")
-def drive_index():
-    return _serve_stage_index("drive")
+            handler.__name__ = f"{name}_index"  # Required for Flask
+            return handler
 
-
-@app.route("/mail")
-def mail_index():
-    return _serve_stage_index("mail")
+        route = f"/{stage_name}"
+        app.add_url_rule(route, f"{stage_name}_index", make_handler(stage_name))
+        print(f"✓ Registered route: {route}")
 
 
 @app.route("/assets/<path:p>")
 def assets_union(p: str):
     # Serve assets by searching each snapshot stage's bundle assets directory.
     # This allows snapshot HTML that references "/assets/..." to work from any stage.
-    searched: list[str] = []
-    for stage in STAGES:
+    searched: List[str] = []
+    for stage in CONFIG.get("stages", {}).keys():
         bundle = _stage_bundle_dir(stage)
         if not bundle:
             continue
@@ -192,8 +197,7 @@ def mock_mail_submit():
 
 
 def _validate_config(cfg: Dict[str, Any]) -> None:
-    for stage in STAGES:
-        st = cfg.get("stages", {}).get(stage, {})
+    for stage, st in cfg.get("stages", {}).items():
         mode = st.get("mode")
         if mode not in ("snapshot", "synthetic"):
             raise RuntimeError(f"Invalid mode for stage {stage}: {mode}")
@@ -215,6 +219,11 @@ if __name__ == "__main__":
     run_dir = CONFIG.get("run_dir") or (Path("snapshots") / "flow_run").as_posix()
     RUN_DIR = ensure_run_dir(run_dir)
     _validate_config(CONFIG)
+
+    # Register dynamic routes based on flow config
+    register_stage_routes()
+
     print("Flow server starting on port", port)
     print("Run dir:", RUN_DIR)
+    print(f"Stages configured: {list(CONFIG.get('stages', {}).keys())}")
     app.run(host="0.0.0.0", port=port)
