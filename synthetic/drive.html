@@ -96,6 +96,10 @@
           const res = await fetch("/mock/file/" + encodeURIComponent(name));
           const text = await res.text();
           viewer.textContent = text;
+          
+          // Store the content in localStorage for agent to retrieve
+          localStorage.setItem("last_opened_content", text);
+          localStorage.setItem("last_opened_file", name);
         } catch (e) {
           viewer.textContent = "Error loading file";
         }
