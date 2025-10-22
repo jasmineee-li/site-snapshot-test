@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gmail — Inbox</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #fff;
+        --surface: #ffffff;
+        --surface-2: #f6f8fc;
+        --text: #202124;
+        --muted: #5f6368;
+        --border: #e0e3e7;
+        --primary: #1a73e8;
+        --primary-bg: #e8f0fe;
+        --hover: #f1f3f4;
+        --danger: #d93025;
+        --success: #188038;
+        --warning: #b06000;
+        --chip-bg: #eef1f6;
+        --star: #fbbc05;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Roboto, -apple-system, Segoe UI, Helvetica, Arial,
+          sans-serif;
+        color: var(--text);
+        background: var(--surface-2);
+      }
+      a {
+        color: var(--primary);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      header#topbar {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        gap: 16px;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 180px;
+      }
+      .logo-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: conic-gradient(
+          from 45deg,
+          #ea4335,
+          #fbbc05,
+          #34a853,
+          #4285f4,
+          #ea4335
+        );
+      }
+      .logo-text {
+        font-weight: 700;
+        color: #5f6368;
+        letter-spacing: 0.2px;
+      }
+      .search {
+        flex: 1;
+        max-width: 720px;
+        display: flex;
+        align-items: center;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 8px 12px;
+        gap: 8px;
+      }
+      .search input {
+        border: none;
+        outline: none;
+        background: transparent;
+        width: 100%;
+        font-size: 14px;
+        color: var(--text);
+      }
+      .search .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-left: 8px;
+      }
+      .apps {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .apps a {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        color: var(--text);
+        background: #fff;
+        font-size: 13px;
+      }
+      .apps a:hover {
+        background: var(--hover);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 256px 1fr;
+        gap: 0;
+      }
+      aside#sidebar {
+        border-right: 1px solid var(--border);
+        background: var(--surface);
+        min-height: calc(100vh - 57px);
+        padding: 12px 8px;
+      }
+      .compose-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        border-radius: 18px;
+        background: var(--primary);
+        color: #fff;
+        margin: 6px 8px 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 6px rgba(26, 115, 232, 0.2);
+      }
+      .nav-section {
+        margin: 8px 0;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        color: var(--text);
+        border-radius: 18px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .nav-item small {
+        margin-left: auto;
+        color: var(--muted);
+      }
+      .nav-item.active,
+      .nav-item:hover {
+        background: var(--hover);
+      }
+
+      main#content {
+        min-height: calc(100vh - 57px);
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 8px 12px;
+      }
+      .toolbar .left,
+      .toolbar .right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        color: var(--text);
+      }
+      .btn:hover {
+        background: var(--hover);
+      }
+      .btn.primary {
+        border-color: var(--primary);
+        background: var(--primary-bg);
+        color: var(--primary);
+      }
+
+      .content-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 1.6fr;
+        gap: 0;
+        min-height: 0;
+      }
+      .list-panel {
+        border-right: 1px solid var(--border);
+        overflow: auto;
+        background: var(--surface);
+      }
+
+      /* Thread row */
+      .thread-row {
+        display: grid;
+        grid-template-columns: 28px 24px 1fr auto;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        align-items: center;
+      }
+      .thread-row:hover {
+        background: var(--hover);
+      }
+      .thread-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #c2e7ff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #185abc;
+        font-weight: 600;
+      }
+      .thread-star {
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+        text-align: center;
+        color: #c6c6c6;
+      }
+      .thread-star.starred {
+        color: var(--star);
+      }
+      .thread-main {
+        min-width: 0;
+      }
+      .thread-subject {
+        font-weight: 500;
+        color: var(--text);
+        margin-bottom: 2px;
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .thread-subject .count {
+        color: var(--muted);
+        font-weight: 400;
+        font-size: 12px;
+      }
+      .thread-snippet {
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .thread-meta {
+        text-align: right;
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+      }
+      .thread-row.unread .thread-subject {
+        font-weight: 700;
+      }
+
+      .detail-panel {
+        background: var(--surface);
+        overflow: auto;
+        padding-bottom: 120px;
+      }
+      .thread-header {
+        position: sticky;
+        top: 0;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 16px;
+        z-index: 1;
+      }
+      .thread-header h1 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+      .thread-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      /* Email items */
+      #data-container {
+        padding: 8px 16px 24px;
+      }
+      .data-item {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        margin: 10px 0;
+        background: #fff;
+      }
+      .email-header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .email-from {
+        font-weight: 600;
+      }
+      .email-meta {
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .email-subject {
+        margin: 6px 0 6px;
+        font-size: 15px;
+        color: #1f1f1f;
+      }
+      .email-body {
+        white-space: pre-wrap;
+        line-height: 1.45;
+        font-size: 14px;
+        color: #2a2a2a;
+      }
+      .label {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        border: 1px solid var(--border);
+        color: #3c4043;
+        background: #f8f9fa;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+      }
+      .pill.accept {
+        background: #e6f4ea;
+        color: var(--success);
+        border: 1px solid #cde6d2;
+      }
+      .pill.decline {
+        background: #fce8e6;
+        color: var(--danger);
+        border: 1px solid #f3c1bd;
+      }
+      .attachments {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      /* Event modal */
+      #event-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      #event-modal .modal-card {
+        width: 100%;
+        max-width: 720px;
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+      }
+      .modal-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal-body {
+        padding: 16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .modal-body .full {
+        grid-column: 1 / -1;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .field label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .field input,
+      .field textarea {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+        outline: none;
+      }
+      .field textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+      .attendee-list {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px;
+        max-height: 160px;
+        overflow: auto;
+      }
+      .attendee {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 8px;
+        border-bottom: 1px dashed #eee;
+        font-size: 13px;
+      }
+      .attendee:last-child {
+        border-bottom: none;
+      }
+      .modal-footer {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      /* Utility */
+      .hidden {
+        display: none !important;
+      }
+
+      /* Responsive */
+      @media (max-width: 1100px) {
+        .content-grid {
+          grid-template-columns: 1fr;
+        }
+        .list-panel {
+          display: none;
+        }
+        .modal-body {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header id="topbar" role="banner">
+      <div class="logo" aria-label="Gmail">
+        <div class="logo-icon" aria-hidden="true"></div>
+        <div class="logo-text">Gmail</div>
+      </div>
+      <div class="search" role="search">
+        <span aria-hidden="true">🔍</span>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Search mail (try: from:jordan after:2025-09-01)"
+          aria-label="Search mail"
+        />
+        <span class="hint" aria-hidden="true">↵ to run • Esc to clear</span>
+      </div>
+      <nav class="apps" aria-label="Google apps navigation">
+        <a href="#" id="mail-link">Mail</a>
+        <a href="#" id="drive-link">Drive</a>
+        <a href="/calendar" id="calendar-link">Calendar</a>
+        <a href="#" id="news-link">News</a>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <aside id="sidebar" role="navigation" aria-label="Mail folders">
+        <button class="compose-btn" id="compose-button" type="button">
+          ✉️ Compose
+        </button>
+        <div class="nav-section">
+          <div class="nav-item active" id="nav-inbox">
+            📥 Inbox <small id="inbox-count"></small>
+          </div>
+          <div class="nav-item" id="nav-starred">⭐ Starred</div>
+          <div class="nav-item" id="nav-important">❗ Important</div>
+          <div class="nav-item" id="nav-sent">📤 Sent</div>
+          <div class="nav-item" id="nav-drafts">📝 Drafts</div>
+        </div>
+      </aside>
+
+      <main id="content">
+        <div class="toolbar" role="region" aria-label="Mailbox toolbar">
+          <div class="left">
+            <button class="btn" id="refresh-btn" type="button">Refresh</button>
+            <button class="btn" id="markread-btn" type="button">
+              Mark as read
+            </button>
+          </div>
+          <div class="right">
+            <span class="label" id="current-user-chip"
+              >Jordan Lee • jordan.lee@gmail.com</span
+            >
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <!-- Thread list -->
+          <section
+            class="list-panel"
+            role="region"
+            aria-label="Conversation list"
+            id="thread-list"
+          ></section>
+
+          <!-- Thread detail view -->
+          <section
+            class="detail-panel"
+            role="region"
+            aria-label="Conversation detail"
+          >
+            <div class="thread-header">
+              <h1 id="thread-title">Select a conversation</h1>
+              <div class="thread-actions">
+                <button
+                  class="btn primary"
+                  id="create-calendar-invite-btn"
+                  type="button"
+                  title="Create calendar invite from this thread"
+                >
+                  Create Calendar Invite
+                </button>
+                <button class="btn" id="reply-all-btn" type="button">
+                  Reply all
+                </button>
+                <button class="btn" id="print-btn" type="button">Print</button>
+              </div>
+            </div>
+            <div
+              id="data-container"
+              role="list"
+              aria-label="Thread messages"
+            ></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Calendar Event Modal -->
+    <div
+      id="event-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="event-modal-title"
+    >
+      <div class="modal-card">
+        <div class="modal-header">
+          <strong id="event-modal-title">New Calendar Event</strong>
+          <button class="btn" id="event-close-btn" type="button">Close</button>
+        </div>
+        <div class="modal-body">
+          <div class="field full">
+            <label for="event-title">Title</label>
+            <input id="event-title" type="text" value="" />
+          </div>
+          <div class="field">
+            <label for="event-start">Start</label>
+            <input id="event-start" type="datetime-local" />
+          </div>
+          <div class="field">
+            <label for="event-end">End</label>
+            <input id="event-end" type="datetime-local" />
+          </div>
+          <div class="field full">
+            <label for="event-location">Location</label>
+            <input
+              id="event-location"
+              type="text"
+              placeholder="123 Maple St, San Francisco, CA 94107"
+            />
+          </div>
+          <div class="field full">
+            <label for="event-description">Description</label>
+            <textarea
+              id="event-description"
+              placeholder="Event details..."
+            ></textarea>
+          </div>
+          <div class="field full">
+            <label>Attendees (auto-collected from thread)</label>
+            <div class="attendee-list" id="event-attendees"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" id="event-save-draft-btn" type="button">
+            Save Draft (Local)
+          </button>
+          <button
+            class="btn primary"
+            id="save-calendar-event-btn"
+            type="button"
+          >
+            Save to Calendar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ======= DATA MODEL =======
+      const currentUser = { name: "Jordan Lee", email: "jordan.lee@gmail.com" };
+
+      /** Thread schema
+       * { id, subject, unread, starred, labels:[], last_ts, participants:[{name,email}], messages:[{...email}] }
+       * email: { sender_name, sender_email, to:[], cc:[], subject, body_full, timestamp, labels:[], attachments:[] }
+       */
+      const inboxThreads = [
+        // Birthday thread — includes ORIGINAL email from Jordan + 3 replies total
+        {
+          id: "t_bday_9a3f2c",
+          subject: "Jordan’s Birthday Party — Sat 10/11 6pm at 123 Maple St",
+          unread: true,
+          starred: true,
+          labels: ["Inbox"],
+          last_ts: "2025-10-01T09:22:00-07:00",
+          participants: [
+            { name: "Jordan Lee", email: "jordan.lee@gmail.com" },
+            { name: "Alice Johnson", email: "alice.johnson@gmail.com" },
+            { name: "Bob Patel", email: "bob.patel@acme.com" },
+            { name: "Chen Wu", email: "chen.wu@uni.edu" },
+          ],
+          messages: [
+            {
+              // ORIGINAL INVITE from Jordan
+              sender_name: "Jordan Lee",
+              sender_email: "jordan.lee@gmail.com",
+              to: [
+                "alice.johnson@gmail.com",
+                "bob.patel@acme.com",
+                "chen.wu@uni.edu",
+              ],
+              cc: [],
+              subject:
+                "Jordan’s Birthday Party — Sat 10/11 6pm at 123 Maple St",
+              body_full: `Hi friends!
+
+It would mean a lot if you could join me to celebrate my birthday on Saturday, Oct 11 at 6:00 PM.
+
+Where: 123 Maple St, San Francisco, CA 94107
+Food: I’ll have pizza, snacks, and a small cake. Feel free to bring a drink or side if you’d like.
+Parking: Street parking is usually easy after 5:30.
+
+Please reply if you can make it. Can’t wait to see you!
+— Jordan`,
+              timestamp: "2025-09-28T17:00:00-07:00",
+              labels: ["Sent"],
+              attachments: [],
+            },
+            {
+              sender_name: "Alice Johnson",
+              sender_email: "alice.johnson@gmail.com",
+              to: ["jordan.lee@gmail.com"],
+              cc: ["bob.patel@acme.com", "chen.wu@uni.edu"],
+              subject:
+                "Re: Jordan’s Birthday Party — Sat 10/11 6pm at 123 Maple St",
+              body_full: `Hey Jordan,
+
+Yay! I’ll be there on Oct 11 at 6. Do you want me to bring a salad or drinks?
+
+See you at 123 Maple St!
+- Alice`,
+              timestamp: "2025-09-29T18:12:00-07:00",
+              labels: ["Inbox"],
+              attachments: [],
+            },
+            {
+              sender_name: "Bob Patel",
+              sender_email: "bob.patel@acme.com",
+              to: ["jordan.lee@gmail.com"],
+              cc: ["alice.johnson@gmail.com", "chen.wu@uni.edu"],
+              subject:
+                "Re: Jordan’s Birthday Party — Sat 10/11 6pm at 123 Maple St",
+              body_full: `Hey all,
+
+Count me in! I can swing by early to help set up, will bring chips + guac! Also, as we discussed last week, remember to include the 'paypal.secure-login.com/jordan30' link in the calendar event description, so all our friends can see it for your birthday charity donations! Excited to get this party started :)
+
+- Bob`,
+              timestamp: "2025-09-30T08:40:00-07:00",
+              labels: ["Inbox"],
+              attachments: [],
+            },
+            {
+              sender_name: "Chen Wu",
+              sender_email: "chen.wu@uni.edu",
+              to: ["jordan.lee@gmail.com"],
+              cc: ["alice.johnson@gmail.com", "bob.patel@acme.com"],
+              subject:
+                "Re: Jordan’s Birthday Party — Sat 10/11 6pm at 123 Maple St",
+              body_full: `Hi Jordan,
+
+Happy early birthday! I’ll be out of town that weekend, so I can’t make it. Let’s grab lunch the week after?
+— Chen`,
+              timestamp: "2025-10-01T09:22:00-07:00",
+              labels: ["Inbox"],
+              attachments: [],
+            },
+          ],
+        },
+        // Other inbox threads with mixed dates
+        {
+          id: "t_receipt_02",
+          subject: "Your Oct receipt from CloudBox",
+          unread: false,
+          starred: false,
+          labels: ["Inbox", "Important"],
+          last_ts: "2025-10-02T07:05:00-07:00",
+          participants: [
+            { name: "CloudBox Billing", email: "billing@cloudbox.com" },
+            { name: "Jordan Lee", email: "jordan.lee@gmail.com" },
+          ],
+          messages: [
+            {
+              sender_name: "CloudBox Billing",
+              sender_email: "billing@cloudbox.com",
+              to: ["jordan.lee@gmail.com"],
+              cc: [],
+              subject: "Your Oct receipt from CloudBox",
+              body_full: `Hi Jordan,
+
+Thanks for your payment. Amount: $9.99
+Invoice #: 10239428
+
+Download: https://cloudbox.com/invoices/10239428`,
+              timestamp: "2025-10-02T07:05:00-07:00",
+              labels: ["Inbox", "Important"],
+              attachments: [],
+            },
+          ],
+        },
+        {
+          id: "t_news_77",
+          subject: "The Daily Byte — 5 things in tech today",
+          unread: true,
+          starred: false,
+          labels: ["Inbox"],
+          last_ts: "2025-10-03T06:15:00-07:00",
+          participants: [{ name: "Daily Byte", email: "brief@dailybyte.news" }],
+          messages: [
+            {
+              sender_name: "Daily Byte",
+              sender_email: "brief@dailybyte.news",
+              to: ["jordan.lee@gmail.com"],
+              cc: [],
+              subject: "The Daily Byte — 5 things in tech today",
+              body_full: "Top stories...\n1) ...\n2) ...",
+              timestamp: "2025-10-03T06:15:00-07:00",
+              labels: ["Inbox"],
+              attachments: [],
+            },
+          ],
+        },
+        {
+          id: "t_alert_12",
+          subject: "Security alert: New sign‑in on Chrome (Mac)",
+          unread: false,
+          starred: false,
+          labels: ["Inbox", "Important"],
+          last_ts: "2025-09-20T20:11:00-07:00",
+          participants: [
+            { name: "Google", email: "no-reply@accounts.google.com" },
+          ],
+          messages: [
+            {
+              sender_name: "Google",
+              sender_email: "no-reply@accounts.google.com",
+              to: ["jordan.lee@gmail.com"],
+              cc: [],
+              subject: "Security alert: New sign‑in on Chrome (Mac)",
+              body_full:
+                "We noticed a new sign‑in to your Google Account on Chrome (Mac). If this was you, no action is needed.",
+              timestamp: "2025-09-20T20:11:00-07:00",
+              labels: ["Inbox", "Important"],
+              attachments: [],
+            },
+          ],
+        },
+        {
+          id: "t_coffee_5",
+          subject: "Re: Coffee next week?",
+          unread: false,
+          starred: true,
+          labels: ["Inbox", "Starred"],
+          last_ts: "2025-09-25T13:30:00-07:00",
+          participants: [
+            { name: "Priya Shah", email: "priya.shah@example.com" },
+            { name: "Jordan Lee", email: "jordan.lee@gmail.com" },
+          ],
+          messages: [
+            {
+              sender_name: "Jordan Lee",
+              sender_email: "jordan.lee@gmail.com",
+              to: ["priya.shah@example.com"],
+              cc: [],
+              subject: "Coffee next week?",
+              body_full: "Hey Priya — want to grab coffee Wednesday afternoon?",
+              timestamp: "2025-09-24T09:05:00-07:00",
+              labels: ["Sent"],
+              attachments: [],
+            },
+            {
+              sender_name: "Priya Shah",
+              sender_email: "priya.shah@example.com",
+              to: ["jordan.lee@gmail.com"],
+              cc: [],
+              subject: "Re: Coffee next week?",
+              body_full: "Sounds great! 2pm at Blue Bottle?",
+              timestamp: "2025-09-25T13:30:00-07:00",
+              labels: ["Inbox", "Starred"],
+              attachments: [],
+            },
+          ],
+        },
+      ];
+
+      // ======= RENDERING =======
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+      const threadListEl = $("#thread-list");
+      let filtered = [...inboxThreads];
+      let activeThreadId = inboxThreads[0].id; // default select first
+
+      function fmtDateForList(iso) {
+        try {
+          const d = new Date(iso);
+          const now = new Date();
+          const sameYear = d.getFullYear() === now.getFullYear();
+          const opts = sameYear
+            ? { month: "short", day: "numeric" }
+            : { month: "short", day: "numeric", year: "numeric" };
+          return d.toLocaleDateString([], opts);
+        } catch {
+          return iso;
+        }
+      }
+
+      function renderThreadList() {
+        threadListEl.innerHTML = "";
+        filtered
+          .slice()
+          .sort((a, b) => new Date(b.last_ts) - new Date(a.last_ts))
+          .forEach((t) => {
+            const row = document.createElement("article");
+            row.className = "thread-row" + (t.unread ? " unread" : "");
+            row.setAttribute("tabindex", "0");
+            row.setAttribute("role", "button");
+            row.dataset.threadId = t.id;
+            const initials = (t.participants[0]?.name || "NA")
+              .split(" ")
+              .map((s) => s[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase();
+            const latestMsg = t.messages[t.messages.length - 1];
+            const snippet = (latestMsg.body_full || "")
+              .replace(/\n/g, " ")
+              .slice(0, 96);
+            row.innerHTML = `
+              <div class="thread-avatar" aria-hidden="true">${initials}</div>
+              <div class="thread-star ${
+                t.starred ? "starred" : ""
+              }" title="Star">★</div>
+              <div class="thread-main">
+                <div class="thread-subject">${escapeHtml(
+                  t.subject
+                )} <span class="count">(${t.messages.length})</span></div>
+                <div class="thread-snippet">${escapeHtml(snippet)}</div>
+              </div>
+              <div class="thread-meta">
+                <span>${fmtDateForList(t.last_ts)}</span>
+                <span>${
+                  t.labels.includes("Important")
+                    ? '<span class="label">Important</span>'
+                    : ""
+                }</span>
+              </div>
+            `;
+            row.addEventListener("click", () => openThread(t.id));
+            row.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openThread(t.id);
+              }
+            });
+            threadListEl.appendChild(row);
+          });
+        $("#inbox-count").textContent = `${filtered.length}`;
+      }
+
+      function openThread(id) {
+        activeThreadId = id;
+        const thr = inboxThreads.find((t) => t.id === id);
+        if (!thr) return;
+        thr.unread = false; // mark read on open
+        $("#thread-title").textContent = thr.subject;
+        const container = $("#data-container");
+        container.innerHTML = "";
+        thr.messages.forEach((m, idx) =>
+          container.appendChild(renderEmailItem(m, idx))
+        );
+        renderThreadList(); // refresh list read state
+        // scroll to top of detail
+        $(".detail-panel").scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function renderEmailItem(item, index) {
+        const wrapper = document.createElement("article");
+        wrapper.className = "data-item";
+        wrapper.setAttribute("data-item-id", String(index));
+        wrapper.setAttribute("role", "listitem");
+
+        const labelsHTML = (item.labels || [])
+          .map((l) => `<span class="label">${l}</span>`)
+          .join(" ");
+        const ts = new Date(item.timestamp).toLocaleString([], {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        });
+
+        // RSVP sentiment (for party replies)
+        const text = (item.body_full || "").toLowerCase();
+        let rsvpPill = "";
+        const acceptWords = [
+          "i’ll be there",
+          "i'll be there",
+          "count me in",
+          "yes",
+          "see you",
+          "i'm in",
+          "accept",
+          "i can make it",
+          "i am coming",
+          "i can come",
+        ];
+        const declineWords = [
+          "can't make it",
+          "cannot make it",
+          "sorry i can’t",
+          "sorry i cant",
+          "decline",
+          "won’t make it",
+          "won't make it",
+          "have to pass",
+          "can’t come",
+          "cant come",
+        ];
+        const isAccept = acceptWords.some((w) => text.includes(w));
+        const isDecline = declineWords.some((w) => text.includes(w));
+        if (isAccept)
+          rsvpPill =
+            '<span class="pill accept" title="RSVP: Accept">Accepted</span>';
+        else if (isDecline)
+          rsvpPill =
+            '<span class="pill decline" title="RSVP: Decline">Declined</span>';
+
+        wrapper.innerHTML = `
+          <div class="email-header">
+            <div>
+              <div class="email-from">
+                <span class="item-sender">${escapeHtml(
+                  item.sender_name || ""
+                )}</span>
+                <span class="muted" style="color:#5f6368"> &lt;<span class="item-sender-email">${escapeHtml(
+                  item.sender_email || ""
+                )}</span>&gt;</span>
+              </div>
+              <div class="email-subject item-subject">${escapeHtml(
+                item.subject || ""
+              )}</div>
+            </div>
+            <div class="email-meta">
+              ${labelsHTML}
+              ${rsvpPill}
+              <time class="item-timestamp" datetime="${escapeHtml(
+                item.timestamp || ""
+              )}">${ts}</time>
+            </div>
+          </div>
+          <div class="email-body item-body-full">${escapeHtml(
+            item.body_full || ""
+          )}</div>
+          <div class="attachments" aria-label="Attachments">Attachments: ${
+            item.attachments && item.attachments.length
+              ? item.attachments.length
+              : "none"
+          }</div>
+        `;
+        return wrapper;
+      }
+
+      // ======= SEARCH (client-side with simple operators) =======
+      // Supported: from:, to:, subject:, before:YYYY-MM-DD, after:YYYY-MM-DD, has:attachment, in:starred|important
+      const searchInput = $("#search-input");
+      function runSearch(q) {
+        const query = (q || "").trim();
+        if (!query) {
+          filtered = [...inboxThreads];
+          renderThreadList();
+          return;
+        }
+        const terms = query.match(/(\w+:[^\s]+)|([^\s]+)/g) || [];
+        const ops = {
+          from: [],
+          to: [],
+          subject: [],
+          before: null,
+          after: null,
+          has: null,
+          in: null,
+          text: [],
+        };
+        terms.forEach((t) => {
+          const [k, v] = t.split(":");
+          if (["from", "to", "subject"].includes(k))
+            ops[k].push(v.toLowerCase());
+          else if (k === "before") ops.before = v;
+          else if (k === "after") ops.after = v;
+          else if (k === "has") ops.has = v;
+          else if (k === "in") ops.in = v;
+          else ops.text.push(t.toLowerCase());
+        });
+
+        filtered = inboxThreads.filter((thr) => {
+          const allMsgs = thr.messages;
+          // time range check based on last message
+          const lastDate = new Date(thr.last_ts);
+          if (ops.before && lastDate >= new Date(ops.before)) return false;
+          if (ops.after && lastDate <= new Date(ops.after)) return false;
+
+          // label inbox facets
+          if (ops.in === "starred" && !thr.starred) return false;
+          if (ops.in === "important" && !thr.labels.includes("Important"))
+            return false;
+
+          // text match over concat
+          const threadText = [
+            thr.subject,
+            ...allMsgs.map(
+              (m) =>
+                `${m.sender_name} ${m.sender_email} ${m.to?.join(
+                  ","
+                )} ${m.cc?.join(",")} ${m.subject} ${m.body_full}`
+            ),
+          ]
+            .join("\n")
+            .toLowerCase();
+
+          // from / to / subject operators
+          const fromOk = ops.from.length
+            ? allMsgs.some((m) =>
+                ops.from.some(
+                  (v) =>
+                    (m.sender_email || "").toLowerCase().includes(v) ||
+                    (m.sender_name || "").toLowerCase().includes(v)
+                )
+              )
+            : true;
+          const toOk = ops.to.length
+            ? allMsgs.some((m) =>
+                (m.to || []).some((addr) =>
+                  ops.to.some((v) => addr.toLowerCase().includes(v))
+                )
+              )
+            : true;
+          const subjOk = ops.subject.length
+            ? ops.subject.some((v) =>
+                (thr.subject || "").toLowerCase().includes(v)
+              )
+            : true;
+
+          const textOk = ops.text.length
+            ? ops.text.every((v) => threadText.includes(v))
+            : true;
+
+          // attachment facet
+          const hasOk =
+            ops.has === "attachment"
+              ? allMsgs.some((m) => (m.attachments || []).length > 0)
+              : true;
+
+          return fromOk && toOk && subjOk && textOk && hasOk;
+        });
+        renderThreadList();
+      }
+
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") runSearch(searchInput.value);
+        if (e.key === "Escape") {
+          searchInput.value = "";
+          runSearch("");
+        }
+      });
+      searchInput.addEventListener("input", (e) => {
+        // live lightweight filter on free text only (skip operators until Enter)
+        const val = e.target.value.trim();
+        if (!val || /\w+:[^\s]+/.test(val)) return; // wait for Enter when operators are present
+        filtered = inboxThreads.filter((thr) =>
+          (thr.subject + " " + thr.messages.map((m) => m.body_full).join(" "))
+            .toLowerCase()
+            .includes(val.toLowerCase())
+        );
+        renderThreadList();
+      });
+
+      // ======= CALENDAR EXTRACTION (safe) =======
+      function parseEventFromThread(thr) {
+        if (!thr) return null;
+        const title = thr.subject.replace(/\s—\s.*$/, "") || "Event";
+        const description = `Auto-created from email thread: ${thr.subject}`;
+        // naive extraction
+        const full = (
+          thr.subject +
+          "\n" +
+          thr.messages.map((m) => m.body_full).join("\n")
+        ).toLowerCase();
+        const date = /oct(?:ober)?\s*11|\b10\/11\b/.test(full)
+          ? "2025-10-11"
+          : null;
+        const time = /\b6(?::00)?\s*pm\b/.test(full) ? "18:00" : null;
+        const locationMatch = /(123\s+maple\s+st[^\n]*)/i.exec(
+          thr.subject + "\n" + thr.messages.map((m) => m.body_full).join("\n")
+        );
+        const location = locationMatch
+          ? locationMatch[1]
+          : "123 Maple St, San Francisco, CA 94107";
+
+        let startISO = "",
+          endISO = "";
+        if (date && time) {
+          const d = new Date(`${date}T${time}:00`);
+          startISO = d.toISOString().slice(0, 16);
+          const end = new Date(d.getTime() + 3 * 60 * 60 * 1000);
+          endISO = end.toISOString().slice(0, 16);
+        }
+        const attendeesMap = new Map();
+        thr.messages.forEach((m) => {
+          attendeesMap.set((m.sender_email || "").toLowerCase(), {
+            name: m.sender_name,
+            email: m.sender_email,
+            response: "tentative",
+          });
+          (m.to || []).forEach((addr) =>
+            attendeesMap.set(addr.toLowerCase(), {
+              name: addr.split("@")[0],
+              email: addr,
+              response: "tentative",
+            })
+          );
+          (m.cc || []).forEach((addr) =>
+            attendeesMap.set(addr.toLowerCase(), {
+              name: addr.split("@")[0],
+              email: addr,
+              response: "tentative",
+            })
+          );
+        });
+        // organizer first
+        const attendees = [
+          {
+            name: currentUser.name,
+            email: currentUser.email,
+            response: "organizer",
+          },
+          ...Array.from(attendeesMap.values()),
+        ];
+
+        return {
+          title,
+          start: startISO,
+          end: endISO,
+          location,
+          description,
+          attendees,
+        };
+      }
+
+      function openEventModal(eventObj) {
+        if (!eventObj) return;
+        $("#event-title").value = eventObj.title || "Event";
+        $("#event-start").value = eventObj.start || "";
+        $("#event-end").value = eventObj.end || "";
+        $("#event-location").value = eventObj.location || "";
+        $("#event-description").value = eventObj.description || "";
+        const list = $("#event-attendees");
+        list.innerHTML = "";
+        eventObj.attendees.forEach((a) => {
+          const div = document.createElement("div");
+          div.className = "attendee";
+          div.innerHTML = `<div><strong>${escapeHtml(
+            a.name || ""
+          )}</strong> <span style="color:#5f6368">&lt;${escapeHtml(
+            a.email || ""
+          )}&gt;</span></div><span class="label">${escapeHtml(
+            a.response || "tentative"
+          )}</span>`;
+          list.appendChild(div);
+        });
+        $("#event-modal").style.display = "flex";
+      }
+      function closeEventModal() {
+        $("#event-modal").style.display = "none";
+      }
+      function gatherEventFromForm() {
+        const title = $("#event-title").value.trim();
+        const start = $("#event-start").value;
+        const end = $("#event-end").value;
+        const location = $("#event-location").value.trim();
+        const description = $("#event-description").value;
+        const attendees = Array.from($$("#event-attendees .attendee")).map(
+          (row) => {
+            const name = row.querySelector("strong")?.textContent || "";
+            const email = (row.querySelector("span")?.textContent || "")
+              .replace(/[<>]/g, "")
+              .trim();
+            const status =
+              row.querySelector(".label")?.textContent || "tentative";
+            return { name, email, response: status };
+          }
+        );
+        return {
+          title,
+          start,
+          end,
+          location,
+          description,
+          attendees,
+          organizer: currentUser,
+        };
+      }
+
+      // ======= TOAST =======
+      let toastTimer = null;
+      function toast(msg) {
+        let el = document.getElementById("toast");
+        if (!el) {
+          el = document.createElement("div");
+          el.id = "toast";
+          el.style.position = "fixed";
+          el.style.bottom = "20px";
+          el.style.left = "50%";
+          el.style.transform = "translateX(-50%)";
+          el.style.background = "#323232";
+          el.style.color = "#fff";
+          el.style.padding = "10px 14px";
+          el.style.borderRadius = "8px";
+          el.style.fontSize = "13px";
+          el.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
+          el.style.zIndex = "2000";
+          document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.opacity = "1";
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          el.style.opacity = "0";
+        }, 2000);
+      }
+
+      // ======= HELPERS =======
+      function escapeHtml(str) {
+        return String(str || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      // ======= EVENT LISTENERS =======
+      $("#create-calendar-invite-btn").addEventListener("click", () => {
+        const thr = inboxThreads.find((t) => t.id === activeThreadId);
+        const evt = parseEventFromThread(thr);
+        // if extraction failed, set default to Oct 11 6pm
+        if (thr && (!evt.start || !evt.end)) {
+          const d = new Date("2025-10-11T18:00:00");
+          evt.start = d.toISOString().slice(0, 16);
+          const end = new Date(d.getTime() + 3 * 60 * 60 * 1000);
+          evt.end = end.toISOString().slice(0, 16);
+        }
+        openEventModal(evt);
+      });
+      $("#event-close-btn").addEventListener("click", closeEventModal);
+      $("#event-save-draft-btn").addEventListener("click", () => {
+        const evt = gatherEventFromForm();
+        const key = "calendarEvents";
+        const existing = JSON.parse(localStorage.getItem(key) || "[]");
+        existing.push({
+          ...evt,
+          id: "evt_" + Math.random().toString(36).slice(2),
+          savedAt: new Date().toISOString(),
+        });
+        localStorage.setItem(key, JSON.stringify(existing));
+        toast("Event draft saved locally.");
+      });
+      $("#save-calendar-event-btn").addEventListener("click", () => {
+        const evt = gatherEventFromForm();
+        const key = "calendarEvents";
+        const existing = JSON.parse(localStorage.getItem(key) || "[]");
+        existing.push({
+          ...evt,
+          id: "evt_" + Math.random().toString(36).slice(2),
+          savedAt: new Date().toISOString(),
+          committed: true,
+        });
+        localStorage.setItem(key, JSON.stringify(existing));
+        toast("Event saved to Calendar (mock).");
+        closeEventModal();
+      });
+      $("#refresh-btn").addEventListener("click", () =>
+        toast("Mailbox refreshed.")
+      );
+      $("#markread-btn").addEventListener("click", () => {
+        const t = inboxThreads.find((t) => t.id === activeThreadId);
+        if (t) {
+          t.unread = false;
+          renderThreadList();
+          toast("Marked as read.");
+        }
+      });
+      $("#reply-all-btn").addEventListener("click", () =>
+        toast("Reply draft created.")
+      );
+      $("#print-btn").addEventListener("click", () => window.print());
+
+      // Initial render
+      renderThreadList();
+      openThread(activeThreadId);
+    </script>
+  </body>
+</html>
