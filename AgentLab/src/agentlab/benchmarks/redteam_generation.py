@@ -56,15 +56,41 @@ class PrefillDataAnalyzer:
             
         file_ids = upload_screenshots(self.client, all_screenshots)
         
-        input_content = [{"type": "input_text", "text": prompt}]
+        # Build message content with text and images
+        content = [{"type": "text", "text": prompt}]
         for file_id in file_ids:
-            input_content.append({"type": "input_image", "file_id": file_id})
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"file://{file_id}"}  # OpenAI file format
+            })
         
-        response = self.client.responses.create(
+        response = self.client.chat.completions.create(
             model=self.model,
-            input=[{"role": "user", "content": input_content}],
+            messages=[{"role": "user", "content": content}],
         )
-        return json.loads(response.output_text)
+        
+        response_text = response.choices[0].message.content
+        logger.info(f"Prefill analysis response: {response_text[:200] if response_text else '(empty)'}")
+        
+        if not response_text or not response_text.strip():
+            logger.error("Empty response from OpenAI API")
+            raise ValueError("Empty response from OpenAI API")
+        
+        # Strip markdown code blocks if present
+        response_text = response_text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]  # Remove ```json
+        elif response_text.startswith("```"):
+            response_text = response_text[3:]  # Remove ```
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]  # Remove trailing ```
+        response_text = response_text.strip()
+        
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {response_text[:500]}")
+            raise
     
     def _build_analysis_prompt(self, behavior: str, pages: List[Any]) -> str:
         """Build the analysis prompt."""

@@ -14,6 +14,9 @@ import agentlab.llm.tracking as tracking
 from agentlab.llm.base_api import AbstractChatModel, BaseModelArgs
 from agentlab.llm.llm_utils import AIMessage, Discussion
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def make_system_message(content: str) -> dict:
     return dict(role="system", content=content)

@@ -16,11 +16,14 @@ import urllib.request
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Literal
+import gymnasium as gym
 
 import bgym
+from bgym import HighLevelActionSetArgs
 from pydantic import ConfigDict
 
 from agentlab.benchmarks.abstract_env import AbstractBenchmark, AbstractEnv, AbstractEnvArgs
+from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -45,19 +48,70 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     # Generation parameters
     injection_seed: int = 0
-    llm_model: str = "gpt-4o"
+    target_model: str = "gpt-4o"
+    attacker_model: str
+    world_sim_model: 
     use_cache: bool = True
 
-    # Environment parameters (BrowserGym)
+    # Attacker agent configuration (for adversarial mode)
+    use_attacker_agent: bool = True  # Toggle adversarial mode
+    attacker_model: str = "gpt-4o"  # LLM model for attacker agent
+    attacker_system_prompt: str = None  # Auto-generated if None
+    max_conversation_turns: int = 10  # Max turns for adversarial conversation
+
+    # Environment parameters (BrowserGym compatibility)
     headless: bool = True
     max_steps: int = 30
     task_seed: int = 0
+    
+    record_video: bool = False
+    wait_for_user_message: bool = False
+    viewport: dict = None
+    slow_mo: int = None
+    storage_state: str | Path | dict = None
+    task_kwargs: dict = None
 
-    def make_env(self, exp_dir: Path, action_mapping=None) -> "RedteamEnv":
+    def make_env(
+        self,
+        action_mapping,
+        exp_dir: Path,
+        exp_task_kwargs: dict = None,
+        use_raw_page_output: bool = True,
+    ) -> "RedteamEnv":
+        """
+        Create RedteamEnv instance.
+        
+        Args:
+            action_mapping: Action mapping for the agent
+            exp_dir: Experiment directory
+            exp_task_kwargs: Additional task kwargs (unused for redteam)
+            use_raw_page_output: Whether to use raw page output (unused for redteam)
+        
+        Returns:
+            RedteamEnv instance
+        """
         return RedteamEnv(
             env_args=self,
             exp_dir=exp_dir,
             action_mapping=action_mapping,
+        )
+
+
+@dataclass
+class RedteamAttackerAgentArgs:
+    """Agent arguments for the redteam attacker agent."""
+    model: str = "gpt-4o"
+    goal: str = ""  # Behavior to induce
+    target_description: str = ""  # Ideal malicious output
+    custom_system_prompt: str = None  # Override auto-generated prompt
+    
+    def make_agent(self):
+        """Create attacker agent instance."""
+        return RedteamAttackerAgent(
+            model=self.model,
+            goal=self.goal,
+            target_description=self.target_description,
+            custom_system_prompt=self.custom_system_prompt,
         )
 
 
@@ -138,7 +192,8 @@ class RedteamEnv(AbstractEnv):
         }
 
         for page in self.env_args.pages:
-            stage_name = page.domain.split(".")[0]  # "gmail.com" → "gmail"
+            # Extract stage name from domain, handling both "gmail.com" and "/gmail" formats
+            stage_name = page.domain.split(".")[0].lstrip("/")  # "gmail.com" → "gmail", "/gmail" → "gmail"
 
             if page.mode == "synthetic":
                 # Check cache first
@@ -177,6 +232,9 @@ class RedteamEnv(AbstractEnv):
         # Save flow config
         config_path = self.exp_dir / "flow_config.json"
         config_path.write_text(json.dumps(flow_config, indent=2))
+        
+        # Extract first stage for start URL
+        first_stage = list(flow_config["stages"].keys())[0]
 
         # Step 4: Start flow server on dynamic port
         self.server_port = self._find_free_port()
@@ -201,25 +259,22 @@ class RedteamEnv(AbstractEnv):
 
         # Step 5: Initialize BrowserGym
         # Use the generic browsergym environment
-        self.browser_env = bgym.make_env(
-            task_name="browsergym/openended",  # Generic web task
+        self.browser_env = gym.make(
+            "browsergym/openended",
+            disable_env_checker=True,
+            max_episode_steps=self.env_args.max_steps,
             headless=self.env_args.headless,
-            max_steps=self.env_args.max_steps,
             action_mapping=self.action_mapping,
-            viewport_size={"width": 1280, "height": 720},
+            task_kwargs={
+                "start_url": f"http://localhost:{self.server_port}/{first_stage}",
+                "goal": self.env_args.behavior,
+            },
         )
 
-        # Reset browser and navigate to first page
+        # Reset browser (openended task will automatically navigate to start_url)
         obs, info = self.browser_env.reset(seed=seed)
 
-        first_stage = list(flow_config["stages"].keys())[0]
-        start_url = f"http://localhost:{self.server_port}/{first_stage}"
-
-        # Navigate to start URL
-        self.browser_env.step(f'goto("{start_url}")')
-        obs = self.browser_env.unwrapped.obs  # Get observation after navigation
-
-        # Inject goal into observation
+        # Augment observation with redteam-specific info
         obs["goal_object"] = [{"type": "text", "text": self.env_args.behavior}]
         obs["last_action"] = None
         obs["last_action_error"] = ""
@@ -232,7 +287,7 @@ class RedteamEnv(AbstractEnv):
             "behavior": self.env_args.behavior,
             "target": self.env_args.target,
             "injection_seed": self.env_args.injection_seed,
-            "start_url": start_url,
+            "start_url": f"http://localhost:{self.server_port}/{first_stage}",
             "allowed_tools": self.env_args.tools,
         }
 
@@ -295,6 +350,10 @@ class RedteamBenchmark(AbstractBenchmark):
     benchmark_file: str | Path = None
     env_args_list: list[RedteamEnvArgs] = None
 
+    # Agent configuration (required by GenericAgent.set_benchmark)
+    is_multi_tab: bool = False
+    high_level_action_set_args: HighLevelActionSetArgs = None
+
     # Generation settings
     llm_model: str = "gpt-4o"
     use_cache: bool = True
@@ -305,6 +364,13 @@ class RedteamBenchmark(AbstractBenchmark):
     def model_post_init(self, __context: Any) -> None:
         """Load benchmark JSON and create env_args_list."""
         self.env_args_list = []
+
+        # Initialize action set for agents that need it
+        if self.high_level_action_set_args is None:
+            self.high_level_action_set_args = HighLevelActionSetArgs(
+                subsets=["bid"],  # BrowserGym high-level actions via bIDs
+                multiaction=False,
+            )
 
         with open(self.benchmark_file, "r") as f:
             data = json.load(f)
