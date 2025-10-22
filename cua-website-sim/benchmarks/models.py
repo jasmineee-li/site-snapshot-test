@@ -10,12 +10,16 @@ class Page:
 
     domain: str
     mode: str  # "synthetic" or "snapshot"
+    real_site: str = None  # e.g., "gmail.com"
+    screenshots: List[str] = None  # List of screenshot paths
 
     def __post_init__(self):
         if self.mode not in ("synthetic", "snapshot"):
             raise ValueError(
                 f"Invalid mode: {self.mode}. Must be 'synthetic' or 'snapshot'"
             )
+        if self.screenshots is None:
+            self.screenshots = []
 
 
 @dataclass

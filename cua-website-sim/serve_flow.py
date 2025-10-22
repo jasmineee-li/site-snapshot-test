@@ -216,6 +216,7 @@ if __name__ == "__main__":
     cfg_path = sys.argv[1]
     port = int(sys.argv[2])
     CONFIG = load_config(cfg_path)
+    print("CONFIG: ", CONFIG)
     run_dir = CONFIG.get("run_dir") or (Path("snapshots") / "flow_run").as_posix()
     RUN_DIR = ensure_run_dir(run_dir)
     _validate_config(CONFIG)

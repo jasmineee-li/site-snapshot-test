@@ -104,4 +104,12 @@ class BenchmarkLoader:
         if not isinstance(mode, str):
             raise ValueError("Page 'mode' must be a string")
 
-        return Page(domain=domain, mode=mode)
+        real_site = page_data.get("real_site")
+        screenshots = page_data.get("screenshots")
+
+        return Page(
+            domain=domain,
+            mode=mode,
+            real_site=real_site,
+            screenshots=screenshots
+        )

@@ -47,10 +47,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from benchmarks.loader import BenchmarkLoader
-from generation.page_provider import PageProvider
 from generation.page_cache import PageCacheManager
 from generation.synthetic_generator import SyntheticPageGenerator
 from generation.prefill_analyzer import PrefillDataAnalyzer
+
+def _get_snapshot_bundle(domain: str) -> str:
+    """Get path to snapshot bundle."""
+    # Convert domain to bundle directory name
+    safe_name = domain.replace(".", "_").replace("/", "_")
+    bundle_path = Path(f"snapshots/{safe_name}_bundle")
+    
+    if not bundle_path.exists():
+        raise FileNotFoundError(
+            f"Snapshot bundle not found: {bundle_path}\n"
+            f"Please create a snapshot for {domain} using snapshotter.py"
+        )
+    
+    return str(bundle_path)
 
 
 def wait_for_server(port: int, timeout: int = 10) -> bool:
@@ -98,43 +111,57 @@ def run_benchmark_case(case, port, run_dir, use_cua):
     # prefill_spec = analyzer.analyze(case.behavior, case.pages)
 
     # print(f"  ✓ Prefill spec generated:")
-    # print(f"    - {len(prefill_spec.entities)} entity type(s) needed")
-    # print(f"    - Required tools: {prefill_spec.required_tools}")
-
-    # # Save prefill spec for debugging
+    # print(f"    - {len(prefill_spec.get('pages', []))} page(s) specified")
+    
     # spec_path = Path(run_dir) / "prefill_spec.json"
-    # spec_dict = prefill_spec.to_dict()
-    # spec_path.write_text(json.dumps(spec_dict, indent=2, default=str), encoding="utf-8")
+    # spec_path.write_text(json.dumps(prefill_spec, indent=2), encoding="utf-8")
     # print(f"  ✓ Saved: {spec_path}")
 
-    # # 3. Generate/fetch pages WITH prefill spec (scaffold-first)
+    # # 3. Generate/fetch pages WITH prefill spec
     # print("\n🌐 Step 3: Generating/fetching pages...")
     # cache = PageCacheManager()
     # generator = SyntheticPageGenerator(model="gpt-5")
-    # provider = PageProvider(cache, generator)
 
     # stages = {}
     # for i, page in enumerate(case.pages):
-    #     # Extract stage name from domain (gmail.com -> gmail)
-    #     stage_name = page.domain.split(".")[0]
+    #     # Extract stage name from domain (e.g., /gmail -> gmail)
+    #     stage_name = page.domain.strip("/").split("/")[0]
 
     #     print(f"  Processing page {i+1}/{len(case.pages)}: {page.domain} ({page.mode})")
 
     #     if page.mode == "synthetic":
-    #         # Ensure page exists (generate if needed) WITH prefill spec (scaffold)
-    #         html = provider.get_page(page, case.behavior, prefill_data=prefill_spec)
-
-    #         # Save the generated page to a specific location for this run
+    #         # Generate synthetic page WITH prefill spec
+    #         domain = page.domain
+            
+    #         # Check cache first (but only if no prefill context)
+    #         if prefill_spec is None and cache.exists(domain):
+    #             print(f"    ✓ Using cached page: {domain}")
+    #             html = cache.load(domain)
+    #         else:
+    #             html = generator.generate(
+    #                 domain=domain,
+    #                 context={"behavior": case.behavior},
+    #                 prefill=prefill_spec,
+    #                 real_site=page.real_site,
+    #                 screenshots=page.screenshots,
+    #             )
+                
+    #             # Save to cache (only if no prefill data)
+    #             if prefill_spec is None:
+    #                 cache.save(domain, html)
+    #             else:
+    #                 print(f"    (Skipping cache due to prefill data)")
+            
     #         page_path = Path(run_dir) / f"{stage_name}.html"
     #         page_path.write_text(html, encoding="utf-8")
     #         print(f"    ✓ Saved: {page_path}")
 
     #         stages[stage_name] = {"mode": "synthetic"}
     #     else:
-    #         # Use snapshot bundle
-    #         # Note: For snapshots, prefill data would need to be injected via rewrite
-    #         bundle = provider.get_page(page, case.behavior, prefill_data=None)
-    #         stages[stage_name] = {"mode": "snapshot", "bundle_dir": bundle}
+    #         # Use snapshot bundle (don't generate)
+    #         bundle_path = _get_snapshot_bundle(page.domain)
+    #         print(f"    ✓ Using snapshot: {bundle_path}")
+    #         stages[stage_name] = {"mode": "snapshot", "bundle_dir": bundle_path}
 
     # # 4. Create dynamic flow config
     # print("\n⚙️  Step 4: Creating flow config...")
@@ -145,6 +172,7 @@ def run_benchmark_case(case, port, run_dir, use_cua):
 
     # 5. Start flow server (background)
     config_path = "runs/v1_case0_2025-10-05_15-56-00/flow_config.json"
+    # config_path = "runs/v1_case0_2025-10-19_13-50-51/flow_config.json"
     port = 8000
     print("\n🚀 Step 5: Starting flow server...")
     server_proc = subprocess.Popen(
