@@ -51,7 +51,7 @@ class PrefillDataAnalyzer:
         Returns:
             Dict with structured requirements
         """
-        prompt = self.get_prefill_analysis_prompt(behavior, pages)
+        prompt = get_prefill_analysis_prompt(behavior, pages)
 
         all_screenshots = []
         for page in pages:
@@ -360,6 +360,6 @@ class PageCacheManager:
 
     def clear(self):
         """Clear all cached pages."""
-            for path in self.cache_dir.glob("*.html"):
-                path.unlink()
+        for path in self.cache_dir.glob("*.html"):
+            path.unlink()
         logger.info(f"Cache cleared: {self.cache_dir}")
