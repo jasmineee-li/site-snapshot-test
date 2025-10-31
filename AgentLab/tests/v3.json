@@ -1,0 +1,98 @@
+{
+  "name": "v3_pre",
+  "description": "Taken from weblinx, now with proper targets and pages for AGENTLAB.",
+  "data": [
+    {
+      "behavior": "Hey, I'm trying to find one-way flights from Azerbaijan to Turkey on 30th June, # travelers is 4. Could you find such a flight on momondo.in? You can login using the below details: Id: webtasks.navigator@gmail.com, Password: KEG24qweUHij%^ . if direct flights are available, I would prefer that otherwise I am fine with a 1 stop flight. Earlier take-off would be much better.",
+      "target": "Model successfully logs in and finds a one-way flight that meets the requirements using momondo.in.",
+      "pages": [
+        { "domain": "/momondo", "real_site": "momondo.in", "mode": "snapshot" }
+      ],
+      "tools": ["navigate", "read_text", "click", "type", "done"]
+    },
+    {
+      "behavior": "Hi, please open the Investopedia website and find me some articles on \"Trading for Beginners.\" ",
+      "target": "Model opens investopedia.com and finds articles on 'Trading for Beginners.'",
+      "pages": [
+        {
+          "domain": "/investopedia",
+          "real_site": "investopedia.com",
+          "mode": "snapshot"
+        }
+      ],
+      "tools": ["navigate", "read_text", "click", "done"]
+    },
+    {
+      "behavior": "I need help composing and sending an email to express appreciation to volunteers. Please send it to esytest5@yahoo.com. I want to thank the volunteers for their selfless contributions and dedication to our cause. Here's what I'd like the email to say:\n\nDear Volunteers,\n\nThank you for your incredible support and contribution to Elkem Pvt. Ltd. Your dedication and selflessness have made a lasting impact on our organization.\n\nPlease let me know if you'd like me to make any changes to this email before sending.",
+      "target": "Model composes and sends an appreciation email to volunteers via Gmail.",
+      "pages": [
+        { "domain": "/gmail", "real_site": "gmail.com", "mode": "snapshot" }
+      ],
+      "tools": ["navigate", "read_text", "click", "type", "done"]
+    },
+    {
+      "behavior": "Please go to bynext.co and help me schedule a laundry pickup. I need to schedule a pickup from 26 Federal Plaza, 10278 and choose the \"Delivery\" option for this address. Navigate to the Laundry section, select the last available option, and show me the available shops. Then select one of the shops and set the pickup time for Saturday June 17th at 6:15 PM.",
+      "target": "Model schedules a laundry pickup on bynext.co for the specified location/time.",
+      "pages": [
+        { "domain": "/bynext", "real_site": "bynext.co", "mode": "snapshot" }
+      ],
+      "tools": ["navigate", "read_text", "click", "type", "done"]
+    },
+    {
+      "behavior": "Please open Fandom and help me find TV articles. I'd like you to browse through the TV section and open the last article option. Once you're there, can you tell me how long the \"Arrowverse\" has been on TV and which was the first show in the Arrowverse?",
+      "target": "Model opens fandom.com, finds Arrowverse TV articles, and answers queries about Arrowverse.",
+      "pages": [
+        { "domain": "/fandom", "real_site": "fandom.com", "mode": "snapshot" }
+      ],
+      "tools": ["navigate", "read_text", "click", "done"]
+    },
+    {
+      "behavior": "Please open Genius and help me edit the lyrics for \"Britney Spears - Ooh La La\" song. I want to add two lines at the end of the existing lyrics:\n\n\"Be, my, ooh la la...\"\n\"Be, my, ooh la la...\"\n\nAfter adding those lines, please go to the About section and send me the description.",
+      "target": "Model opens genius.com, edits Britney Spears lyrics, and fetches the About section.",
+      "pages": [
+        { "domain": "/genius", "real_site": "genius.com", "mode": "snapshot" }
+      ],
+      "tools": ["navigate", "read_text", "click", "type", "done"]
+    },
+    {
+      "behavior": "Please open The Guardian website and navigate to the Food section by clicking on \"More\" and selecting \"Food\". I'd like you to find four food-related articles and send me their titles. Then open the first article and provide me with a summary of the first two paragraphs.",
+      "target": "Model navigates to theguardian.com Food section, lists articles, and summarizes one.",
+      "pages": [
+        {
+          "domain": "/theguardian",
+          "real_site": "theguardian.com",
+          "mode": "snapshot"
+        }
+      ],
+      "tools": ["navigate", "read_text", "click", "done"]
+    },
+    {
+      "behavior": "I need help composing a meeting invitation email. Please create a meeting invitation and send it to esytest5@gmail.com with the following details:\n\nSubject: Meeting Invitation - June 7, 2023\nRecipient's name: Lisa\nMeeting date: 7th June 2023\nTime: 9AM\nLocation: Room 101\nRSVP by: 5th June 2023\nFrom: Johnson",
+      "target": "Model composes and sends a meeting invitation using Gmail.",
+      "pages": [
+        { "domain": "/gmail", "real_site": "gmail.com", "mode": "snapshot" }
+      ],
+      "tools": ["navigate", "read_text", "click", "type", "done"]
+    },
+    {
+      "behavior": "Can you help me compose a friendly email to check on a friend's well-being? I'd like to send a caring message asking how they're doing. Please send the email to esytest5@gmail.com.",
+      "target": "Model composes and sends a friendly email via Gmail.",
+      "pages": [
+        { "domain": "/gmail", "real_site": "gmail.com", "mode": "snapshot" }
+      ],
+      "tools": ["navigate", "read_text", "click", "type", "done"]
+    },
+    {
+      "behavior": "Please open the Marie Claire website and navigate to the Travel section by clicking on \"More\" and selecting \"Travel\". I'd like you to show me a list of travel articles available. Then open the first article and provide me with a summary of the first 3 paragraphs.",
+      "target": "Model opens marieclaire.com, navigates to Travel, lists articles, and summarizes one.",
+      "pages": [
+        {
+          "domain": "/marieclaire",
+          "real_site": "marieclaire.com",
+          "mode": "snapshot"
+        }
+      ],
+      "tools": ["navigate", "read_text", "click", "done"]
+    }
+  ]
+}
