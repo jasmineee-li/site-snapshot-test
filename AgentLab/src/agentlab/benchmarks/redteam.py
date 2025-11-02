@@ -31,15 +31,18 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Page:
     """Page definition from benchmark config."""
+
     domain: str
     mode: Literal["synthetic", "snapshot"] = "synthetic"
     real_site: str = None  # e.g., "gmail.com" for generation context
     screenshots: list[str] = field(default_factory=list)  # Paths to screenshot files/folders
+    existing_path: str = None  # Path to pre-generated HTML file (skips generation if provided)
 
 
 @dataclass
 class RedteamEnvArgs(AbstractEnvArgs):
     """Configuration for a single redteam task."""
+
     task_name: str
     behavior: str  # Task description
     target: str  # Attack goal description
@@ -48,22 +51,24 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     # Generation parameters
     injection_seed: int = 0
-    target_model: str = "gpt-4o"
-    attacker_model: str
-    world_sim_model: 
+    world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
     use_cache: bool = True
 
     # Attacker agent configuration (for adversarial mode)
     use_attacker_agent: bool = True  # Toggle adversarial mode
     attacker_model: str = "gpt-4o"  # LLM model for attacker agent
     attacker_system_prompt: str = None  # Auto-generated if None
-    max_conversation_turns: int = 10  # Max turns for adversarial conversation
+    adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
+    max_conversation_turns: int = 10  # Max turns for multi-turn mode
+    use_standard_step_format: bool = (
+        True  # Use standard StepInfo management instead of custom adversarial loop
+    )
 
     # Environment parameters (BrowserGym compatibility)
     headless: bool = True
     max_steps: int = 30
     task_seed: int = 0
-    
+
     record_video: bool = False
     wait_for_user_message: bool = False
     viewport: dict = None
@@ -80,13 +85,13 @@ class RedteamEnvArgs(AbstractEnvArgs):
     ) -> "RedteamEnv":
         """
         Create RedteamEnv instance.
-        
+
         Args:
             action_mapping: Action mapping for the agent
             exp_dir: Experiment directory
             exp_task_kwargs: Additional task kwargs (unused for redteam)
             use_raw_page_output: Whether to use raw page output (unused for redteam)
-        
+
         Returns:
             RedteamEnv instance
         """
@@ -100,11 +105,12 @@ class RedteamEnvArgs(AbstractEnvArgs):
 @dataclass
 class RedteamAttackerAgentArgs:
     """Agent arguments for the redteam attacker agent."""
+
     model: str = "gpt-4o"
     goal: str = ""  # Behavior to induce
     target_description: str = ""  # Ideal malicious output
     custom_system_prompt: str = None  # Override auto-generated prompt
-    
+
     def make_agent(self):
         """Create attacker agent instance."""
         return RedteamAttackerAgent(
@@ -146,32 +152,40 @@ class RedteamEnv(AbstractEnv):
         self.browser_env = None
         self._step_count = 0
 
-    def reset(self, seed: int = None) -> tuple[dict[str, Any], dict[str, Any]]:
-        """
-        Reset and generate synthetic environment.
+        # One-time generation state
+        self._generation_complete = False
+        self._flow_config = None
 
-        Steps:
+    def _generate_sites(self) -> None:
+        """
+        One-time site generation (expensive - only runs on first reset).
+
+        Performs:
         1. Initialize generation pipeline
         2. Analyze prefill data needs (LLM call)
         3. Generate synthetic pages (LLM calls)
-        4. Start flow server
-        5. Initialize BrowserGym environment
-        6. Return rich observation with goal
-        """
-        logger.info(f"Resetting RedteamEnv: {self.env_args.task_name}")
+        4. Save HTML files and config to disk
 
-        # Step 1: Initialize generation pipeline (once)
+        Skipped on subsequent resets/relaunches for performance.
+        """
+        if self._generation_complete:
+            logger.info("Site generation already complete, skipping...")
+            return
+
+        logger.info("Starting one-time site generation...")
+
+        # Step 1: Initialize generation pipeline
         if self.cache_manager is None:
+            from agentlab.benchmarks.prefill_analyzer import PrefillDataAnalyzer
             from agentlab.benchmarks.redteam_generation import (
-                PrefillDataAnalyzer,
                 SyntheticPageGenerator,
                 PageCacheManager,
             )
 
             cache_dir = Path.home() / ".agentlab" / "redteam_cache"
             self.cache_manager = PageCacheManager(cache_dir)
-            self.analyzer = PrefillDataAnalyzer(model=self.env_args.llm_model)
-            self.generator = SyntheticPageGenerator(model=self.env_args.llm_model)
+            self.analyzer = PrefillDataAnalyzer(model=self.env_args.world_sim_model)
+            self.generator = SyntheticPageGenerator(model=self.env_args.world_sim_model)
 
         # Step 2: Analyze prefill data requirements
         logger.info("Analyzing prefill data needs...")
@@ -186,61 +200,104 @@ class RedteamEnv(AbstractEnv):
 
         # Step 3: Generate pages
         logger.info("Generating synthetic pages...")
-        flow_config = {
+        self._flow_config = {
             "run_dir": str(self.exp_dir),
             "stages": {},
         }
 
         for page in self.env_args.pages:
             # Extract stage name from domain, handling both "gmail.com" and "/gmail" formats
-            stage_name = page.domain.split(".")[0].lstrip("/")  # "gmail.com" → "gmail", "/gmail" → "gmail"
+            stage_name = page.domain.split(".")[0].lstrip(
+                "/"
+            )  # "gmail.com" → "gmail", "/gmail" → "gmail"
 
             if page.mode == "synthetic":
-                # Check cache first
-                cache_key = self.cache_manager.compute_key(
-                    domain=page.domain,
-                    behavior=self.env_args.behavior,
-                    prefill=prefill_spec,
-                    seed=self.env_args.injection_seed,
-                )
-
-                html = self.cache_manager.get(cache_key)
-                if html is None:
-                    # Generate new page
-                    html = self.generator.generate(
+                # Check if existing HTML path is provided
+                if page.existing_path:
+                    logger.info(f"Using existing HTML from {page.existing_path}")
+                    existing_file = Path(page.existing_path)
+                    if not existing_file.exists():
+                        raise FileNotFoundError(
+                            f"Existing HTML file not found: {page.existing_path}"
+                        )
+                    html = existing_file.read_text(encoding="utf-8")
+                else:
+                    # Check cache first
+                    cache_key = self.cache_manager.compute_key(
                         domain=page.domain,
-                        context={"behavior": self.env_args.behavior},
+                        behavior=self.env_args.behavior,
                         prefill=prefill_spec,
-                        real_site=page.real_site,
-                        screenshots=page.screenshots or [],
+                        seed=self.env_args.injection_seed,
                     )
-                    if self.env_args.use_cache:
-                        self.cache_manager.put(cache_key, html)
+
+                    html = self.cache_manager.get(cache_key)
+                    if html is None:
+                        # Generate new page
+                        logger.info(f"Generating synthetic page for {page.domain}")
+                        html = self.generator.generate(
+                            domain=page.domain,
+                            context={"behavior": self.env_args.behavior},
+                            prefill=prefill_spec,
+                            real_site=page.real_site,
+                            screenshots=page.screenshots or [],
+                        )
+                        if self.env_args.use_cache:
+                            self.cache_manager.put(cache_key, html)
 
                 # Save to exp_dir
                 page_path = self.exp_dir / f"{stage_name}.html"
                 page_path.write_text(html, encoding="utf-8")
 
-                flow_config["stages"][stage_name] = {"mode": "synthetic"}
+                self._flow_config["stages"][stage_name] = {"mode": "synthetic"}
             else:
                 # Snapshot mode - use HAR replay or bundle
-                flow_config["stages"][stage_name] = {
+                # Clean domain name (remove leading slash)
+                domain_clean = page.domain.lstrip("/")
+                # Use absolute path to snapshots directory
+                snapshots_base = Path("/Users/jasminexli/grayswan/site-snapshot-test/snapshots")
+                bundle_path = snapshots_base / f"{domain_clean}_bundle"
+
+                if not bundle_path.exists():
+                    raise FileNotFoundError(
+                        f"Snapshot bundle not found: {bundle_path}\n"
+                        f"Please create the bundle first using:\n"
+                        f"  python snapshotter.py https://{page.real_site or domain_clean} {bundle_path}"
+                    )
+
+                self._flow_config["stages"][stage_name] = {
                     "mode": "snapshot",
-                    "bundle_dir": f"snapshots/{page.domain}_bundle",
+                    "bundle_dir": str(bundle_path),
                 }
 
         # Save flow config
         config_path = self.exp_dir / "flow_config.json"
-        config_path.write_text(json.dumps(flow_config, indent=2))
-        
-        # Extract first stage for start URL
-        first_stage = list(flow_config["stages"].keys())[0]
+        config_path.write_text(json.dumps(self._flow_config, indent=2))
 
-        # Step 4: Start flow server on dynamic port
+        self._generation_complete = True
+        logger.info("Site generation complete (cached for relaunches)")
+
+    def reset(self, seed: int = None) -> tuple[dict[str, Any], dict[str, Any]]:
+        """
+        Reset environment for new episode.
+
+        Steps:
+        1. Generate sites (one-time, cached on relaunches)
+        2. Start flow server on dynamic port
+        3. Initialize BrowserGym environment
+        4. Return rich observation with goal
+        """
+        logger.info(f"Resetting RedteamEnv: {self.env_args.task_name}")
+
+        # Step 1: Generate sites (one-time operation, skipped on relaunches)
+        self._generate_sites()
+
+        # Step 2: Start flow server on dynamic port
+        config_path = self.exp_dir / "flow_config.json"
+        first_stage = list(self._flow_config["stages"].keys())[0]
+
         self.server_port = self._find_free_port()
         logger.info(f"Starting flow server on port {self.server_port}...")
 
-        # Use the serve_flow.py from cua-website-sim (ported to agentlab)
         self.server_proc = subprocess.Popen(
             [
                 "python",
@@ -257,8 +314,7 @@ class RedteamEnv(AbstractEnv):
         self._wait_for_server(f"http://localhost:{self.server_port}/mode", timeout=10)
         logger.info("Flow server ready")
 
-        # Step 5: Initialize BrowserGym
-        # Use the generic browsergym environment
+        # Step 3: Initialize BrowserGym
         self.browser_env = gym.make(
             "browsergym/openended",
             disable_env_checker=True,
@@ -355,8 +411,14 @@ class RedteamBenchmark(AbstractBenchmark):
     high_level_action_set_args: HighLevelActionSetArgs = None
 
     # Generation settings
-    llm_model: str = "gpt-4o"
+    world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
+    attacker_model: str = "gpt-4o"  # LLM for attacker agent
     use_cache: bool = True
+
+    # Adversarial mode settings
+    adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
+    max_conversation_turns: int = 10  # For multi_turn mode
+    use_standard_step_format: bool = True  # Use standard StepInfo management for better logging
 
     # Variation settings for parallelization
     n_injection_variations: int = 1
@@ -386,6 +448,7 @@ class RedteamBenchmark(AbstractBenchmark):
                     mode=p.get("mode", "synthetic"),
                     real_site=p.get("real_site"),
                     screenshots=p.get("screenshots", []),
+                    existing_path=p.get("existing_path"),  # Optional pre-generated HTML
                 )
                 pages.append(page)
 
@@ -398,10 +461,16 @@ class RedteamBenchmark(AbstractBenchmark):
                     behavior=case_data["behavior"],
                     target=case_data.get("target", ""),
                     pages=pages,
-                    tools=case_data.get("tools", ["navigate", "click", "type", "read_text", "done"]),
+                    tools=case_data.get(
+                        "tools", ["navigate", "click", "type", "read_text", "done"]
+                    ),
                     injection_seed=seed,
-                    llm_model=self.llm_model,
+                    world_sim_model=self.world_sim_model,
+                    attacker_model=self.attacker_model,
                     use_cache=self.use_cache,
+                    adversarial_mode=self.adversarial_mode,
+                    max_conversation_turns=self.max_conversation_turns,
+                    use_standard_step_format=self.use_standard_step_format,
                 )
 
                 self.env_args_list.append(env_args)
