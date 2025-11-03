@@ -1,5 +1,6 @@
 import base64
 import html
+import json
 import os
 import traceback
 from copy import deepcopy
@@ -352,6 +353,9 @@ clicking the refresh button.
             with gr.Tab("Episode") as tab_episode:
                 episode = gr.HTML()
 
+            with gr.Tab("🌟 Generated Websites") as tab_website:
+                website_viewer = gr.HTML()
+
             with gr.Tab("DOM HTML") as tab_html:
                 html_code = gr.Code(language="html", **code_args)
 
@@ -413,6 +417,7 @@ clicking the refresh button.
                     fn=submit_action, inputs=prompt_tests_textbox, outputs=result_box
                 )
 
+
         # Handle Events #
         # ===============#
 
@@ -462,6 +467,7 @@ clicking the refresh button.
         )
         screenshot_gallery.select(fn=gallery_step_change, inputs=episode_id, outputs=step_id)
         episode_id.change(fn=if_active("Episode")(update_episode), outputs=episode)
+        episode_id.change(fn=if_active("Generated Website")(update_website_viewer), outputs=website_viewer)
         step_id.change(fn=if_active("DOM HTML")(update_html), outputs=html_code)
         step_id.change(
             fn=if_active("Pruned DOM HTML")(update_pruned_html), outputs=pruned_html_code
@@ -491,6 +497,7 @@ clicking the refresh button.
             fn=update_screenshot_gallery, inputs=som_or_not, outputs=[screenshot_gallery]
         )
         tab_episode.select(fn=update_episode, outputs=episode)
+        tab_website.select(fn=update_website_viewer, outputs=website_viewer)
         tab_html.select(fn=update_html, outputs=html_code)
         tab_pruned_html.select(fn=update_pruned_html, outputs=pruned_html_code)
         tab_axtree.select(fn=update_axtree, outputs=axtree_code)
@@ -661,9 +668,37 @@ def update_episode():
     html_content = exp_result_to_html(info.exp_result)
 
     # Use srcdoc instead of data URL
-    return f"""<iframe srcdoc="{html.escape(html_content, quote=True)}" 
+    return f"""<iframe srcdoc="{html.escape(html_content, quote=True)}"
                       style="width: 100%; height: 800px; border: none; background-color: white;">
               </iframe>"""
+
+
+def update_website_viewer():
+    """Display generated website HTML for redteam experiments."""
+    if info.exp_result is None:
+        return "<p>No experiment selected</p>"
+
+    # Look for HTML files in the experiment directory
+    exp_dir = Path(info.exp_result.exp_dir)
+    html_files = list(exp_dir.glob("*.html"))
+
+    if not html_files:
+        return "<p>No generated HTML files found in this experiment</p>"
+
+    # For now, just show the first HTML file found
+    # TODO: Add dropdown to select between multiple HTML files
+    html_file = html_files[0]
+
+    try:
+        html_content = html_file.read_text(encoding='utf-8')
+        # Use srcdoc instead of data URL for better compatibility
+        return f"""<iframe srcdoc="{html.escape(html_content, quote=True)}"
+                      style="width: 100%; height: 800px; border: none; background-color: white;">
+              </iframe>"""
+    except Exception as e:
+        return f"<p>Error loading HTML file {html_file.name}: {e}</p>"
+
+
 
 
 def update_html():
