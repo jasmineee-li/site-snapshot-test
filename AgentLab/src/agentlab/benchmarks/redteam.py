@@ -37,6 +37,7 @@ class Page:
     real_site: str = None  # e.g., "gmail.com" for generation context
     screenshots: list[str] = field(default_factory=list)  # Paths to screenshot files/folders
     existing_path: str = None  # Path to pre-generated HTML file (skips generation if provided)
+    details: str = None
 
 
 @dataclass
@@ -486,6 +487,7 @@ class RedteamBenchmark(AbstractBenchmark):
     world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
     attacker_model: str = "gpt-4o"  # LLM for attacker agent
     use_cache: bool = True
+    use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Adversarial mode settings
     adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
@@ -521,6 +523,7 @@ class RedteamBenchmark(AbstractBenchmark):
                     real_site=p.get("real_site"),
                     screenshots=p.get("screenshots", []),
                     existing_path=p.get("existing_path"),  # Optional pre-generated HTML
+                    details=p.get("details"),  # Optional details for prefill analysis
                 )
                 pages.append(page)
 
@@ -540,6 +543,7 @@ class RedteamBenchmark(AbstractBenchmark):
                     world_sim_model=self.world_sim_model,
                     attacker_model=self.attacker_model,
                     use_cache=self.use_cache,
+                    use_trajectory=self.use_trajectory,
                     adversarial_mode=self.adversarial_mode,
                     max_conversation_turns=self.max_conversation_turns,
                     use_standard_step_format=self.use_standard_step_format,
