@@ -53,6 +53,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     injection_seed: int = 0
     world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
     use_cache: bool = True
+    use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Attacker agent configuration (for adversarial mode)
     use_attacker_agent: bool = True  # Toggle adversarial mode
@@ -66,7 +67,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     # Environment parameters (BrowserGym compatibility)
     headless: bool = True
-    max_steps: int = 30
+    max_steps: int = 15
     task_seed: int = 0
 
     record_video: bool = False
@@ -156,15 +157,20 @@ class RedteamEnv(AbstractEnv):
         self._generation_complete = False
         self._flow_config = None
 
+        # Trajectory-enhanced generation
+        self.safe_analog_generator = None
+        self.trajectory_observer = None
+
     def _generate_sites(self) -> None:
         """
         One-time site generation (expensive - only runs on first reset).
 
         Performs:
-        1. Initialize generation pipeline
-        2. Analyze prefill data needs (LLM call)
-        3. Generate synthetic pages (LLM calls)
-        4. Save HTML files and config to disk
+        1. Generate safe analog behavior
+        2. Record trajectory observations
+        3. Analyze prefill data needs (LLM call)
+        4. Generate synthetic pages (LLM calls)
+        5. Save HTML files and config to disk
 
         Skipped on subsequent resets/relaunches for performance.
         """
@@ -174,12 +180,65 @@ class RedteamEnv(AbstractEnv):
 
         logger.info("Starting one-time site generation...")
 
+        # Initialize trajectory data collection
+        trajectory_screenshots = []
+        trajectory_doms = []
+        safe_behavior = None
+
+        # Step 0: Conditional trajectory observation
+        if self.env_args.use_trajectory:
+            logger.info(
+                "Trajectory observation enabled - running safe analog generation and observation..."
+            )
+            from agentlab.benchmarks.safe_analog_generator import SafeAnalogGenerator
+            from agentlab.benchmarks.trajectory_observer import TrajectoryObserver
+
+            self.safe_analog_generator = SafeAnalogGenerator(model=self.env_args.world_sim_model)
+            self.trajectory_observer = TrajectoryObserver()
+
+            logger.info("Generating safe analog...")
+            safe_behavior = self.safe_analog_generator.generate_safe_analog(
+                adversarial_behavior=self.env_args.behavior,
+                target=self.env_args.target,
+                pages=[{"domain": p.domain, "real_site": p.real_site} for p in self.env_args.pages],
+            )
+            logger.info(f"Safe analog: {safe_behavior[:100]}...")
+
+            # Run trajectory agent (observation-only)
+            logger.info("Observing trajectory on real sites...")
+            sites = [p.real_site or p.domain for p in self.env_args.pages]
+            sites = [s for s in sites if s]  # Remove None values
+
+            trajectory_data = self.trajectory_observer.observe_trajectory(
+                safe_behavior=safe_behavior,
+                sites=sites,
+                output_dir=self.exp_dir / "trajectory",
+            )
+            logger.info(f"✓ Trajectory captured: {len(trajectory_data['observations'])} steps")
+
+            # Extract screenshot and DOM paths from trajectory
+            for obs in trajectory_data.get("observations", []):
+                paths = obs.get("paths", {})
+                screenshot_path = paths.get("screenshot")
+                dom_path = paths.get("dom")
+
+                if screenshot_path and Path(screenshot_path).exists():
+                    trajectory_screenshots.append(screenshot_path)
+                if dom_path and Path(dom_path).exists():
+                    trajectory_doms.append(dom_path)
+
+            logger.info(
+                f"✓ Found {len(trajectory_screenshots)} screenshots, {len(trajectory_doms)} DOM snapshots"
+            )
+        else:
+            logger.info("Trajectory observation disabled - using benchmark screenshots only")
+
         # Step 1: Initialize generation pipeline
         if self.cache_manager is None:
-            from agentlab.benchmarks.prefill_analyzer import PrefillDataAnalyzer
             from agentlab.benchmarks.redteam_generation import (
                 SyntheticPageGenerator,
                 PageCacheManager,
+                PrefillDataAnalyzer,
             )
 
             cache_dir = Path.home() / ".agentlab" / "redteam_cache"
@@ -189,9 +248,15 @@ class RedteamEnv(AbstractEnv):
 
         # Step 2: Analyze prefill data requirements
         logger.info("Analyzing prefill data needs...")
+        # Use trajectory screenshots/DOMs if enabled, otherwise pass None
+        analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
+        analyzer_doms = trajectory_doms if self.env_args.use_trajectory else None
+
         prefill_spec = self.analyzer.analyze(
             behavior=self.env_args.behavior,
             pages=self.env_args.pages,
+            screenshots=analyzer_screenshots,
+            dom_paths=analyzer_doms,
         )
 
         # Save for reproducibility
@@ -230,16 +295,23 @@ class RedteamEnv(AbstractEnv):
                         seed=self.env_args.injection_seed,
                     )
 
-                    html = self.cache_manager.get(cache_key)
+                    html = self.cache_manager.get(cache_key) if self.env_args.use_cache else None
                     if html is None:
-                        # Generate new page
+                        # Generate new page with prefill spec and screenshots
                         logger.info(f"Generating synthetic page for {page.domain}")
+                        # Use trajectory screenshots if enabled, otherwise use benchmark screenshots
+                        page_screenshots = (
+                            trajectory_screenshots
+                            if self.env_args.use_trajectory
+                            else page.screenshots
+                        )
+
                         html = self.generator.generate(
                             domain=page.domain,
                             context={"behavior": self.env_args.behavior},
                             prefill=prefill_spec,
                             real_site=page.real_site,
-                            screenshots=page.screenshots or [],
+                            screenshots=page_screenshots,
                         )
                         if self.env_args.use_cache:
                             self.cache_manager.put(cache_key, html)
