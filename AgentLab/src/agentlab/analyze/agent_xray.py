@@ -354,6 +354,9 @@ clicking the refresh button.
                 episode = gr.HTML()
 
             with gr.Tab("🌟 Generated Websites") as tab_website:
+                website_file_selector = gr.Dropdown(
+                    label="Select HTML File", choices=[], value=None, interactive=True
+                )
                 website_viewer = gr.HTML()
 
             with gr.Tab("DOM HTML") as tab_html:
@@ -417,7 +420,6 @@ clicking the refresh button.
                     fn=submit_action, inputs=prompt_tests_textbox, outputs=result_box
                 )
 
-
         # Handle Events #
         # ===============#
 
@@ -467,7 +469,15 @@ clicking the refresh button.
         )
         screenshot_gallery.select(fn=gallery_step_change, inputs=episode_id, outputs=step_id)
         episode_id.change(fn=if_active("Episode")(update_episode), outputs=episode)
-        episode_id.change(fn=if_active("Generated Website")(update_website_viewer), outputs=website_viewer)
+        episode_id.change(
+            fn=if_active("Generated Website")(update_website_viewer),
+            outputs=[website_file_selector, website_viewer],
+        )
+        website_file_selector.change(
+            fn=if_active("Generated Website")(update_website_viewer),
+            inputs=website_file_selector,
+            outputs=[website_file_selector, website_viewer],
+        )
         step_id.change(fn=if_active("DOM HTML")(update_html), outputs=html_code)
         step_id.change(
             fn=if_active("Pruned DOM HTML")(update_pruned_html), outputs=pruned_html_code
@@ -497,7 +507,9 @@ clicking the refresh button.
             fn=update_screenshot_gallery, inputs=som_or_not, outputs=[screenshot_gallery]
         )
         tab_episode.select(fn=update_episode, outputs=episode)
-        tab_website.select(fn=update_website_viewer, outputs=website_viewer)
+        tab_website.select(
+            fn=update_website_viewer, outputs=[website_file_selector, website_viewer]
+        )
         tab_html.select(fn=update_html, outputs=html_code)
         tab_pruned_html.select(fn=update_pruned_html, outputs=pruned_html_code)
         tab_axtree.select(fn=update_axtree, outputs=axtree_code)
@@ -550,7 +562,7 @@ clicking the refresh button.
     port = os.getenv("AGENTXRAY_APP_PORT", None)
     if isinstance(port, str):
         port = int(port)
-    demo.launch(server_port=port, share=do_share)
+    demo.launch(server_port=port, share=True)
 
 
 def handle_key_event(key_event, step_id: StepId):
@@ -673,32 +685,41 @@ def update_episode():
               </iframe>"""
 
 
-def update_website_viewer():
+def update_website_viewer(selected_file=None):
     """Display generated website HTML for redteam experiments."""
     if info.exp_result is None:
-        return "<p>No experiment selected</p>"
+        return gr.update(choices=[], value=None), "<p>No experiment selected</p>"
 
     # Look for HTML files in the experiment directory
     exp_dir = Path(info.exp_result.exp_dir)
     html_files = list(exp_dir.glob("*.html"))
 
     if not html_files:
-        return "<p>No generated HTML files found in this experiment</p>"
+        return (
+            gr.update(choices=[], value=None),
+            "<p>No generated HTML files found in this experiment</p>",
+        )
 
-    # For now, just show the first HTML file found
-    # TODO: Add dropdown to select between multiple HTML files
-    html_file = html_files[0]
+    # Create dropdown choices from HTML file names
+    file_choices = [f.name for f in html_files]
+
+    # If no file is selected, default to the first one
+    if selected_file is None or selected_file not in file_choices:
+        selected_file = file_choices[0]
+
+    # Find the selected file
+    html_file = next((f for f in html_files if f.name == selected_file), html_files[0])
 
     try:
-        html_content = html_file.read_text(encoding='utf-8')
+        html_content = html_file.read_text(encoding="utf-8")
         # Use srcdoc instead of data URL for better compatibility
-        return f"""<iframe srcdoc="{html.escape(html_content, quote=True)}"
+        iframe_html = f"""<iframe srcdoc="{html.escape(html_content, quote=True)}"
                       style="width: 100%; height: 800px; border: none; background-color: white;">
               </iframe>"""
+        return gr.update(choices=file_choices, value=selected_file), iframe_html
     except Exception as e:
-        return f"<p>Error loading HTML file {html_file.name}: {e}</p>"
-
-
+        error_html = f"<p>Error loading HTML file {html_file.name}: {e}</p>"
+        return gr.update(choices=file_choices, value=selected_file), error_html
 
 
 def update_html():
