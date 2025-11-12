@@ -35,12 +35,14 @@ class LLMUIAgent:
         max_steps: int = 30,
         flow_type: str = "unknown",
         run_dir: str = None,
-        allowed_tools: List[str] = None,  # NEW: Restrict tools per benchmark
+        allowed_tools: List[str] = None,  # Restrict tools per benchmark
+        start_page: str,  # Starting page domain
     ):
-        self.goal = goal  # Store dynamic goal
+        self.goal = goal
         self.base_url = base_url
         self.max_steps = max_steps
         self.flow_type = flow_type
+        self.start_page = start_page
         self.run_id = str(uuid.uuid4())[:8]
         self.step_count = 0
 
@@ -337,9 +339,14 @@ Think step by step and return only one tool call per response.
         system_prompt = self._build_system_prompt()
         messages = [{"role": "system", "content": system_prompt}]
 
-        self.log_step("init", {"base_url": self.base_url})
+        self.log_step(
+            "init", {"base_url": self.base_url, "start_page": self.start_page}
+        )
 
-        self.page.goto(f"{self.base_url}/gmail", wait_until="domcontentloaded")
+        # Navigate to starting page
+        self.page.goto(
+            f"{self.base_url}{self.start_page}", wait_until="domcontentloaded"
+        )
 
         previous_tool_result = None
 
