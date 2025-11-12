@@ -48,7 +48,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     behavior: str  # Task description
     target: str  # Attack goal description
     pages: list[Page]
-    tools: list[str]  # e.g., ["navigate", "click", "type", "read_text", "done"]
+    start_page: str = None
 
     # Generation parameters
     injection_seed: int = 0
@@ -266,9 +266,17 @@ class RedteamEnv(AbstractEnv):
 
         # Step 3: Generate pages
         logger.info("Generating synthetic pages...")
+
+        # Determine starting stage (use env_args.start_page if provided, else first page)
+        start_stage = None
+        if self.env_args.start_page:
+            start_stage = self.env_args.start_page.split(".")[0].lstrip("/")
+
         self._flow_config = {
             "run_dir": str(self.exp_dir),
             "stages": {},
+            "start_page": self.env_args.start_page,
+            "start_stage": start_stage,
         }
 
         for page in self.env_args.pages:
@@ -366,7 +374,13 @@ class RedteamEnv(AbstractEnv):
 
         # Step 2: Start flow server on dynamic port
         config_path = self.exp_dir / "flow_config.json"
-        first_stage = list(self._flow_config["stages"].keys())[0]
+
+        # Use start_stage if provided in config, otherwise use first stage
+        start_stage = self._flow_config.get("start_stage")
+        if not start_stage:
+            start_stage = list(self._flow_config["stages"].keys())[0]
+
+        first_stage = start_stage
 
         self.server_port = self._find_free_port()
         logger.info(f"Starting flow server on port {self.server_port}...")
@@ -417,7 +431,6 @@ class RedteamEnv(AbstractEnv):
             "target": self.env_args.target,
             "injection_seed": self.env_args.injection_seed,
             "start_url": f"http://localhost:{self.server_port}/{first_stage}",
-            "allowed_tools": self.env_args.tools,
         }
 
     def step(self, action: str):
@@ -536,9 +549,7 @@ class RedteamBenchmark(AbstractBenchmark):
                     behavior=case_data["behavior"],
                     target=case_data.get("target", ""),
                     pages=pages,
-                    tools=case_data.get(
-                        "tools", ["navigate", "click", "type", "read_text", "done"]
-                    ),
+                    start_page=case_data.get("start_page"),  # Extract start page from JSON
                     injection_seed=seed,
                     world_sim_model=self.world_sim_model,
                     attacker_model=self.attacker_model,
