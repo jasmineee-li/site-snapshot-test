@@ -18,8 +18,11 @@ RESULTS_DIR = os.environ.get("AGENTLAB_EXP_ROOT", None)
 if RESULTS_DIR is None:
     RESULTS_DIR = os.environ.get("UI_COPILOT_RESULTS_DIR", None)
 if RESULTS_DIR is None:
-    logging.info("$AGENTLAB_EXP_ROOT is not defined, Using $HOME/agentlab_results.")
-    RESULTS_DIR = Path.home() / "agentlab_results"
+    agentlab_package_dir = Path(__file__).parents[
+        2
+    ]
+    RESULTS_DIR = agentlab_package_dir / "agentlab_results_v4"
+    logging.info(f"$AGENTLAB_EXP_ROOT is not defined, Using {RESULTS_DIR}")
 else:
     RESULTS_DIR = Path(RESULTS_DIR)
 
