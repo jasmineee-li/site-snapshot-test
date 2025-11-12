@@ -68,7 +68,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     # Environment parameters (BrowserGym compatibility)
     headless: bool = True
-    max_steps: int = 15
+    max_steps: int = 45
     task_seed: int = 0
 
     record_video: bool = False
@@ -517,7 +517,7 @@ class RedteamBenchmark(AbstractBenchmark):
         # Initialize action set for agents that need it
         if self.high_level_action_set_args is None:
             self.high_level_action_set_args = HighLevelActionSetArgs(
-                subsets=["bid"],  # BrowserGym high-level actions via bIDs
+                subsets=["bid", "nav", "tab", "chat"],
                 multiaction=False,
             )
 
