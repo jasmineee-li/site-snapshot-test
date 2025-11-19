@@ -16,7 +16,9 @@ import urllib.request
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Literal
+from datetime import datetime
 import gymnasium as gym
+from urllib.parse import urlparse
 
 import bgym
 from bgym import HighLevelActionSetArgs
@@ -279,6 +281,13 @@ class RedteamEnv(AbstractEnv):
             "start_stage": start_stage,
         }
 
+        # URL mapping
+        url_mapping = {}
+        for page in self.env_args.pages:
+            if page.simulated_url:
+                url_mapping[page.domain] = page.simulated_url
+        logger.info(f"URL mapping: {url_mapping}")
+
         for page in self.env_args.pages:
             # Extract stage name from domain, handling both "gmail.com" and "/gmail" formats
             stage_name = page.domain.split(".")[0].lstrip(
@@ -416,6 +425,38 @@ class RedteamEnv(AbstractEnv):
 
         # Reset browser (openended task will automatically navigate to start_url)
         obs, info = self.browser_env.reset(seed=seed)
+
+        # Set up Playwright route interception for simulated URLs
+
+        # Get browser context
+        page = self.browser_env.unwrapped.page
+        context = page.context
+
+        for page_config in self.env_args.pages:
+            if page_config.simulated_url and page_config.mode == "synthetic":
+                # Get HTML file path for this page
+                stage_name = page_config.domain.lstrip("/")
+                html_path = self.exp_dir / f"{stage_name}.html"
+
+                if not html_path.exists():
+                    logger.warning(f"HTML file does not exist: {html_path}")
+                    continue
+
+                # Extract domain from simulated URL for glob pattern
+                parsed = urlparse(page_config.simulated_url)
+                domain_pattern = f"**://{parsed.netloc}/**"
+
+                def make_handler(fpath=html_path, sim_url=page_config.simulated_url):
+                    def handler(route, request):
+                        logger.info(f"🔀 ROUTE INTERCEPTED: {request.url}")
+                        logger.info(f"   Serving: {fpath}")
+                        route.fulfill(path=str(fpath))
+
+                    return handler
+
+                # Register on context
+                context.route(domain_pattern, make_handler())
+                logger.info(f"📍 Registered route on CONTEXT: {domain_pattern} -> {html_path}")
 
         # Augment observation with redteam-specific info
         obs["goal_object"] = [{"type": "text", "text": self.env_args.behavior}]

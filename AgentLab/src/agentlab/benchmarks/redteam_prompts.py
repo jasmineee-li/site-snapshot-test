@@ -339,6 +339,7 @@ def get_page_generation_prompt(
     spec_for_page: Optional[Dict[str, Any]],
     real_site: str = None,
     screenshots: List[str] | str = None,
+    url_mapping: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Build the synthetic page generation prompt.
@@ -352,6 +353,7 @@ def get_page_generation_prompt(
         spec_for_page: Prefill spec dict for this specific page (contains functionality, prefill data, selectors from trajectory analysis)
         real_site: Real site name (e.g., "gmail.com")
         screenshots: Screenshot paths from trajectory observation (actual images passed separately to API)
+        url_mapping: Dict mapping page domains to their simulated URLs (e.g., {"/gmail": "https://mail.google.com/mail/u/0"})
 
     Returns:
         Prompt string for page generation
@@ -367,6 +369,17 @@ def get_page_generation_prompt(
     screenshots_info = ""
     if screenshots:
         screenshots_info = f"\n\nReference screenshot(s) from real site observations are provided as images in this input. Use these to match the visual style, layout, colors, typography, and UI patterns of the real site; note, however, that you should exercise best judgment to create realistic *content* and *data* based closely on the specifications."
+
+    url_mapping_info = ""
+    if url_mapping:
+        url_list = "\n".join([f"- {domain_key}: {url}" for domain_key, url in url_mapping.items()])
+        url_mapping_info = f"""
+
+### CROSS-PAGE LINKS
+When creating links to other simulated pages, use these exact URLs:
+{url_list}
+
+These URLs will be intercepted and routed to the correct local pages. Use them in all hyperlinks, navigation elements, and JavaScript redirects."""
 
     site_name = real_site if real_site else domain
 

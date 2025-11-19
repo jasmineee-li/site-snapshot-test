@@ -272,6 +272,7 @@ class SyntheticPageGenerator:
         prefill: Optional[dict] = None,
         real_site: str = None,
         screenshots: List[str] | str = None,
+        url_mapping: Optional[Dict[str, str]] = None,
     ) -> str:
         """
         Generate synthetic HTML for a domain with prefill data.
@@ -282,6 +283,7 @@ class SyntheticPageGenerator:
             prefill: Pre-generated spec dict from analyzer
             real_site: Real site name (e.g., "gmail.com")
             screenshots: List of screenshot paths from trajectory observation
+            url_mapping: Dict mapping page domains to their simulated URLs
 
         Returns:
             HTML string with embedded data
@@ -301,6 +303,7 @@ class SyntheticPageGenerator:
             spec_for_page=spec_for_page,
             real_site=real_site,
             screenshots=screenshots,
+            url_mapping=url_mapping,
         )
 
         try:
