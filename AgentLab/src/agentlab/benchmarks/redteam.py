@@ -27,6 +27,13 @@ from pydantic import ConfigDict
 from agentlab.benchmarks.abstract_env import AbstractBenchmark, AbstractEnv, AbstractEnvArgs
 from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
 
+from agentlab.benchmarks.redteam_generation import (
+    SyntheticPageGenerator,
+    PrefillDataAnalyzer,
+    save_site_to_toolbox,
+    load_toolbox_site,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +46,8 @@ class Page:
     real_site: str = None  # e.g., "gmail.com" for generation context
     screenshots: list[str] = field(default_factory=list)  # Paths to screenshot files/folders
     existing_path: str = None  # Path to pre-generated HTML file (skips generation if provided)
+    skip_modification: bool = False
+    simulated_url: str = None
     details: str = None
 
 
@@ -55,22 +64,18 @@ class RedteamEnvArgs(AbstractEnvArgs):
     # Generation parameters
     injection_seed: int = 0
     world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
-    use_cache: bool = True
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Attacker agent configuration (for adversarial mode)
     use_attacker_agent: bool = True  # Toggle adversarial mode
+    attack_type: str = "indirect"  # "direct" or "indirect"
     attacker_model: str = "gpt-4o"  # LLM model for attacker agent
     attacker_system_prompt: str = None  # Auto-generated if None
     adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
     max_conversation_turns: int = 10  # Max turns for multi-turn mode
-    use_standard_step_format: bool = (
-        True  # Use standard StepInfo management instead of custom adversarial loop
-    )
-
     # Environment parameters (BrowserGym compatibility)
     headless: bool = True
-    max_steps: int = 45
+    max_steps: int = 20
     task_seed: int = 0
 
     record_video: bool = False
@@ -110,9 +115,11 @@ class RedteamEnvArgs(AbstractEnvArgs):
 class RedteamAttackerAgentArgs:
     """Agent arguments for the redteam attacker agent."""
 
-    model: str = "gpt-4o"
+    model: str
     goal: str = ""  # Behavior to induce
     target_description: str = ""  # Ideal malicious output
+    attack_type: str = "indirect"  # "direct" or "indirect"
+    mode: str = "single_turn"  # "single_turn" or "multi_turn"
     custom_system_prompt: str = None  # Override auto-generated prompt
 
     def make_agent(self):
@@ -121,6 +128,8 @@ class RedteamAttackerAgentArgs:
             model=self.model,
             goal=self.goal,
             target_description=self.target_description,
+            attack_type=self.attack_type,
+            mode=self.mode,
             custom_system_prompt=self.custom_system_prompt,
         )
 
@@ -144,7 +153,6 @@ class RedteamEnv(AbstractEnv):
         self.action_mapping = action_mapping
 
         # Page generation (lazy init)
-        self.cache_manager = None
         self.analyzer = None
         self.generator = None
 
@@ -237,30 +245,33 @@ class RedteamEnv(AbstractEnv):
             logger.info("Trajectory observation disabled - using benchmark screenshots only")
 
         # Step 1: Initialize generation pipeline
-        if self.cache_manager is None:
-            from agentlab.benchmarks.redteam_generation import (
-                SyntheticPageGenerator,
-                PageCacheManager,
-                PrefillDataAnalyzer,
-            )
-
-            cache_dir = Path.home() / ".agentlab" / "redteam_cache"
-            self.cache_manager = PageCacheManager(cache_dir)
+        if self.analyzer is None:
             self.analyzer = PrefillDataAnalyzer(model=self.env_args.world_sim_model)
             self.generator = SyntheticPageGenerator(model=self.env_args.world_sim_model)
 
         # Step 2: Analyze prefill data requirements
-        logger.info("Analyzing prefill data needs...")
-        # Use trajectory screenshots/DOMs if enabled, otherwise pass None
-        analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
-        analyzer_doms = trajectory_doms if self.env_args.use_trajectory else None
-
-        prefill_spec = self.analyzer.analyze(
-            behavior=self.env_args.behavior,
-            pages=self.env_args.pages,
-            screenshots=analyzer_screenshots,
-            dom_paths=analyzer_doms,
+        synthetic_pages = [p for p in self.env_args.pages if p.mode == "synthetic"]
+        skip_analysis = synthetic_pages and all(
+            p.existing_path and p.skip_modification for p in synthetic_pages
         )
+
+        if skip_analysis:
+            logger.info(
+                "Skipping prefill analysis (all synthetic pages use existing HTML without modification)"
+            )
+            prefill_spec = {"pages": []}
+        else:
+            logger.info("Analyzing prefill data needs...")
+            # Use trajectory screenshots/DOMs if enabled, otherwise pass None
+            analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
+            analyzer_doms = trajectory_doms if self.env_args.use_trajectory else None
+
+            prefill_spec = self.analyzer.analyze(
+                behavior=self.env_args.behavior,
+                pages=self.env_args.pages,
+                screenshots=analyzer_screenshots,
+                dom_paths=analyzer_doms,
+            )
 
         # Save for reproducibility
         spec_path = self.exp_dir / "prefill_spec.json"
@@ -295,44 +306,68 @@ class RedteamEnv(AbstractEnv):
             )  # "gmail.com" → "gmail", "/gmail" → "gmail"
 
             if page.mode == "synthetic":
-                # Check if existing HTML path is provided
+                html = None
+
                 if page.existing_path:
-                    logger.info(f"Using existing HTML from {page.existing_path}")
-                    existing_file = Path(page.existing_path)
-                    if not existing_file.exists():
-                        raise FileNotFoundError(
-                            f"Existing HTML file not found: {page.existing_path}"
+                    if page.skip_modification:
+# TODO: clean up this code                        logger.info(
+                            f"Using existing HTML as-is from {page.existing_path} (skip_modification=True)"
                         )
-                    html = existing_file.read_text(encoding="utf-8")
-                else:
-                    # Check cache first
-                    cache_key = self.cache_manager.compute_key(
-                        domain=page.domain,
-                        behavior=self.env_args.behavior,
-                        prefill=prefill_spec,
-                        seed=self.env_args.injection_seed,
+                        try:
+                            html = load_toolbox_site(Path(page.existing_path))
+                            logger.info(f"✓ Loaded existing site without modification")
+                        except Exception as e:
+                            logger.warning(f"Failed to load existing site: {e}")
+                            logger.info("Falling back to full generation")
+                            html = None
+                    else:
+                        # Try to modify existing HTML for new context
+                        logger.info(f"Attempting to modify existing site from {page.existing_path}")
+                        try:
+                            # Load base site from toolbox
+                            base_html = load_toolbox_site(Path(page.existing_path))
+
+                            # Try modification first
+                            html = self.generator.modify_base_site(
+                                base_html=base_html,
+                                # base_metadata=base_metadata,
+                                new_prefill_spec=prefill_spec,
+                                domain=page.domain,
+                                context={"behavior": self.env_args.behavior},
+                            )
+                            logger.info(f"✓ Successfully modified existing site")
+                        except Exception as e:
+                            logger.warning(f"Modification failed: {e}")
+                            logger.info("Falling back to full generation")
+                            html = None
+
+                # Generate from scratch if no existing path or modification failed
+                if html is None:
+                    logger.info(f"Generating synthetic page for {page.domain}")
+                    # Use trajectory screenshots if enabled, otherwise use benchmark screenshots
+                    page_screenshots = (
+                        trajectory_screenshots if self.env_args.use_trajectory else page.screenshots
                     )
 
-                    html = self.cache_manager.get(cache_key) if self.env_args.use_cache else None
-                    if html is None:
-                        # Generate new page with prefill spec and screenshots
-                        logger.info(f"Generating synthetic page for {page.domain}")
-                        # Use trajectory screenshots if enabled, otherwise use benchmark screenshots
-                        page_screenshots = (
-                            trajectory_screenshots
-                            if self.env_args.use_trajectory
-                            else page.screenshots
-                        )
+                    html = self.generator.generate(
+                        domain=page.domain,
+                        context={"behavior": self.env_args.behavior},
+                        prefill=prefill_spec,
+                        real_site=page.real_site,
+                        screenshots=page_screenshots,
+                        url_mapping=url_mapping,
+                    )
 
-                        html = self.generator.generate(
-                            domain=page.domain,
-                            context={"behavior": self.env_args.behavior},
-                            prefill=prefill_spec,
-                            real_site=page.real_site,
-                            screenshots=page_screenshots,
-                        )
-                        if self.env_args.use_cache:
-                            self.cache_manager.put(cache_key, html)
+                # Save to toolbox for future reuse
+                metadata = {
+                    "timestamp": datetime.now().isoformat(),
+                    "behavior": self.env_args.behavior,
+                    "prefill_spec": prefill_spec,
+                    "domain": page.domain,
+                    "real_site": page.real_site,
+                    "injection_seed": self.env_args.injection_seed,
+                }
+                save_site_to_toolbox(page.domain, html, metadata)
 
                 # Save to exp_dir
                 page_path = self.exp_dir / f"{stage_name}.html"
@@ -391,7 +426,8 @@ class RedteamEnv(AbstractEnv):
 
         first_stage = start_stage
 
-        self.server_port = self._find_free_port()
+        # self.server_port = self._find_free_port()
+        self.server_port = 8000 # TODO: hardcoded, should be fine for now
         logger.info(f"Starting flow server on port {self.server_port}...")
 
         self.server_proc = subprocess.Popen(
@@ -497,13 +533,13 @@ class RedteamEnv(AbstractEnv):
             except subprocess.TimeoutExpired:
                 self.server_proc.kill()
 
-    def _find_free_port(self) -> int:
-        """Find an available port for the server."""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("", 0))
-            s.listen(1)
-            port = s.getsockname()[1]
-        return port
+    # def _find_free_port(self) -> int:
+    #     """Find an available port for the server."""
+    #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    #         s.bind(("", 0))
+    #         s.listen(1)
+    #         port = s.getsockname()[1]
+    #     return port
 
     def _wait_for_server(self, url: str, timeout: int = 10):
         """Wait for server to be ready."""
@@ -540,13 +576,11 @@ class RedteamBenchmark(AbstractBenchmark):
     # Generation settings
     world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
     attacker_model: str = "gpt-4o"  # LLM for attacker agent
-    use_cache: bool = True
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Adversarial mode settings
     adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
     max_conversation_turns: int = 10  # For multi_turn mode
-    use_standard_step_format: bool = True  # Use standard StepInfo management for better logging
 
     # Variation settings for parallelization
     n_injection_variations: int = 1
@@ -576,8 +610,10 @@ class RedteamBenchmark(AbstractBenchmark):
                     mode=p.get("mode", "synthetic"),
                     real_site=p.get("real_site"),
                     screenshots=p.get("screenshots", []),
-                    existing_path=p.get("existing_path"),  # Optional pre-generated HTML
-                    details=p.get("details"),  # Optional details for prefill analysis
+                    existing_path=p.get("existing_path"),
+                    skip_modification=p.get("skip_modification", False),
+                    simulated_url=p.get("simulated_url"),
+                    details=p.get("details"),
                 )
                 pages.append(page)
 
@@ -593,12 +629,11 @@ class RedteamBenchmark(AbstractBenchmark):
                     start_page=case_data.get("start_page"),  # Extract start page from JSON
                     injection_seed=seed,
                     world_sim_model=self.world_sim_model,
+                    attack_type=case_data.get("attack_type", "indirect"),
                     attacker_model=self.attacker_model,
-                    use_cache=self.use_cache,
                     use_trajectory=self.use_trajectory,
-                    adversarial_mode=self.adversarial_mode,
+                    adversarial_mode=case_data.get("adversarial_mode", self.adversarial_mode),
                     max_conversation_turns=self.max_conversation_turns,
-                    use_standard_step_format=self.use_standard_step_format,
                 )
 
                 self.env_args_list.append(env_args)
