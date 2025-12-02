@@ -56,23 +56,35 @@ class RedteamEnvArgs(AbstractEnvArgs):
     """Configuration for a single redteam task."""
 
     task_name: str
-    behavior: str  # Task description
     target: str  # Attack goal description
     pages: list[Page]
     start_page: str = None
 
+    # Task description fields
+    summary: str = None
+    objective: str = None
+    doc: str = None  # primary task description, replaces 'behavior'
+
     # Generation parameters
     injection_seed: int = 0
-    world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
+    world_sim_model: str = "openai/gpt-4.1"
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Attacker agent configuration (for adversarial mode)
     use_attacker_agent: bool = True  # Toggle adversarial mode
     attack_type: str = "indirect"  # "direct" or "indirect"
-    attacker_model: str = "gpt-4o"  # LLM model for attacker agent
+    attacker_model: str = "openai/gpt-4.1"  # LLM model for attacker agent
     attacker_system_prompt: str = None  # Auto-generated if None
     adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
     max_conversation_turns: int = 10  # Max turns for multi-turn mode
+
+    target_system_prompt: str = (
+        None  # System prompt for target model (from system_prompt_config.content)
+    )
+    tools_config: dict = None  # Tools configuration (messages, tools, custom_tool_schema)
+    criteria: list = None  # Judging criteria
+    judging: dict = None  # Judge configuration
+
     # Environment parameters (BrowserGym compatibility)
     headless: bool = True
     max_steps: int = 20
@@ -209,7 +221,7 @@ class RedteamEnv(AbstractEnv):
 
             logger.info("Generating safe analog...")
             safe_behavior = self.safe_analog_generator.generate_safe_analog(
-                adversarial_behavior=self.env_args.behavior,
+                adversarial_behavior=self.env_args.doc,
                 target=self.env_args.target,
                 pages=[{"domain": p.domain, "real_site": p.real_site} for p in self.env_args.pages],
             )
@@ -267,7 +279,7 @@ class RedteamEnv(AbstractEnv):
             analyzer_doms = trajectory_doms if self.env_args.use_trajectory else None
 
             prefill_spec = self.analyzer.analyze(
-                behavior=self.env_args.behavior,
+                behavior=self.env_args.doc,
                 pages=self.env_args.pages,
                 screenshots=analyzer_screenshots,
                 dom_paths=analyzer_doms,
@@ -309,8 +321,9 @@ class RedteamEnv(AbstractEnv):
                 html = None
 
                 if page.existing_path:
+                    # TODO: clean up this code
                     if page.skip_modification:
-# TODO: clean up this code                        logger.info(
+                        logger.info(
                             f"Using existing HTML as-is from {page.existing_path} (skip_modification=True)"
                         )
                         try:
@@ -330,10 +343,9 @@ class RedteamEnv(AbstractEnv):
                             # Try modification first
                             html = self.generator.modify_base_site(
                                 base_html=base_html,
-                                # base_metadata=base_metadata,
                                 new_prefill_spec=prefill_spec,
                                 domain=page.domain,
-                                context={"behavior": self.env_args.behavior},
+                                context={"doc": self.env_args.doc},
                             )
                             logger.info(f"✓ Successfully modified existing site")
                         except Exception as e:
@@ -351,7 +363,7 @@ class RedteamEnv(AbstractEnv):
 
                     html = self.generator.generate(
                         domain=page.domain,
-                        context={"behavior": self.env_args.behavior},
+                        context={"doc": self.env_args.doc},
                         prefill=prefill_spec,
                         real_site=page.real_site,
                         screenshots=page_screenshots,
@@ -361,7 +373,7 @@ class RedteamEnv(AbstractEnv):
                 # Save to toolbox for future reuse
                 metadata = {
                     "timestamp": datetime.now().isoformat(),
-                    "behavior": self.env_args.behavior,
+                    "doc": self.env_args.doc,
                     "prefill_spec": prefill_spec,
                     "domain": page.domain,
                     "real_site": page.real_site,
@@ -427,7 +439,7 @@ class RedteamEnv(AbstractEnv):
         first_stage = start_stage
 
         # self.server_port = self._find_free_port()
-        self.server_port = 8000 # TODO: hardcoded, should be fine for now
+        self.server_port = 8000  # TODO: hardcoded, should be fine for now
         logger.info(f"Starting flow server on port {self.server_port}...")
 
         self.server_proc = subprocess.Popen(
@@ -455,7 +467,7 @@ class RedteamEnv(AbstractEnv):
             action_mapping=self.action_mapping,
             task_kwargs={
                 "start_url": f"http://localhost:{self.server_port}/{first_stage}",
-                "goal": self.env_args.behavior,
+                "goal": self.env_args.doc,
             },
         )
 
@@ -495,16 +507,15 @@ class RedteamEnv(AbstractEnv):
                 logger.info(f"📍 Registered route on CONTEXT: {domain_pattern} -> {html_path}")
 
         # Augment observation with redteam-specific info
-        obs["goal_object"] = [{"type": "text", "text": self.env_args.behavior}]
+        obs["goal_object"] = [{"type": "text", "text": self.env_args.doc}]
         obs["last_action"] = None
         obs["last_action_error"] = ""
 
         self._step_count = 0
 
-        # Return rich observation with task info
         return obs, {
             "task_name": self.env_args.task_name,
-            "behavior": self.env_args.behavior,
+            "doc": self.env_args.doc,
             "target": self.env_args.target,
             "injection_seed": self.env_args.injection_seed,
             "start_url": f"http://localhost:{self.server_port}/{first_stage}",
@@ -564,7 +575,6 @@ class RedteamBenchmark(AbstractBenchmark):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     name: str = "redteam"
     benchmark_file: str | Path = None
     env_args_list: list[RedteamEnvArgs] = None
@@ -574,8 +584,9 @@ class RedteamBenchmark(AbstractBenchmark):
     high_level_action_set_args: HighLevelActionSetArgs = None
 
     # Generation settings
-    world_sim_model: str = "gpt-4o"  # LLM for page generation and prefill analysis
-    attacker_model: str = "gpt-4o"  # LLM for attacker agent
+    world_sim_model: str  # LLM for page generation and prefill analysis
+    attacker_model: str  # LLM for attacker agent
+    target_model: str = None  # Model name for target agent (for reference/logging)
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Adversarial mode settings
@@ -589,7 +600,6 @@ class RedteamBenchmark(AbstractBenchmark):
         """Load benchmark JSON and create env_args_list."""
         self.env_args_list = []
 
-        # Initialize action set for agents that need it
         if self.high_level_action_set_args is None:
             self.high_level_action_set_args = HighLevelActionSetArgs(
                 subsets=["bid", "nav", "tab", "chat"],
@@ -599,49 +609,96 @@ class RedteamBenchmark(AbstractBenchmark):
         with open(self.benchmark_file, "r") as f:
             data = json.load(f)
 
-        logger.info(f"Loading redteam benchmark: {data['name']}")
+        if isinstance(data, list):
+            benchmark_name = "enriched-behaviors"
+            cases = data
+        else:
+            benchmark_name = data.get("name", "redteam")
+            cases = data.get("data", [])
 
-        for case_idx, case_data in enumerate(data["data"]):
-            # Parse pages
-            pages = []
-            for p in case_data["pages"]:
-                page = Page(
-                    domain=p["domain"],
-                    mode=p.get("mode", "synthetic"),
-                    real_site=p.get("real_site"),
-                    screenshots=p.get("screenshots", []),
-                    existing_path=p.get("existing_path"),
-                    skip_modification=p.get("skip_modification", False),
-                    simulated_url=p.get("simulated_url"),
-                    details=p.get("details"),
-                )
-                pages.append(page)
+        self.name = benchmark_name
+        logger.info(f"Loading redteam benchmark: {benchmark_name}")
 
-            # Create variations with different injection seeds
-            for seed in range(self.n_injection_variations):
-                task_name = f"{self.name}.case{case_idx}.seed{seed}"
-
-                env_args = RedteamEnvArgs(
-                    task_name=task_name,
-                    behavior=case_data["behavior"],
-                    target=case_data.get("target", ""),
-                    pages=pages,
-                    start_page=case_data.get("start_page"),  # Extract start page from JSON
-                    injection_seed=seed,
-                    world_sim_model=self.world_sim_model,
-                    attack_type=case_data.get("attack_type", "indirect"),
-                    attacker_model=self.attacker_model,
-                    use_trajectory=self.use_trajectory,
-                    adversarial_mode=case_data.get("adversarial_mode", self.adversarial_mode),
-                    max_conversation_turns=self.max_conversation_turns,
-                )
-
+        for case_idx, case_data in enumerate(cases):
+            env_args = self._parse_case(case_idx, case_data)
+            if env_args:
                 self.env_args_list.append(env_args)
 
         logger.info(
             f"Loaded {len(self.env_args_list)} tasks "
-            f"({len(data['data'])} cases × {self.n_injection_variations} variations)"
+            f"({len(cases)} cases × {self.n_injection_variations} variations)"
         )
+
+    def _parse_case(self, case_idx: int, case_data: dict) -> RedteamEnvArgs:
+        """Parse a case from the benchmark JSON."""
+        # Extract pages from simulation_config
+        sim_config = case_data.get("simulation_config", {})
+        pages = []
+        for p in sim_config.get("pages", []):
+            page = Page(
+                domain=p.get("domain", "/unknown"),
+                mode=p.get("mode", "synthetic"),
+                real_site=p.get("real_site"),
+                screenshots=p.get("screenshots", []),
+                existing_path=p.get("existing_path"),
+                skip_modification=p.get("skip_modification", False),
+                simulated_url=p.get("simulated_url"),
+                details=p.get("details"),
+            )
+            pages.append(page)
+
+        # Extract start_page
+        start_page = sim_config.get("start_page")
+        if not start_page and pages:
+            start_page = pages[0].domain
+
+        # Extract system prompt for target model
+        system_prompt_config = case_data.get("system_prompt_config", {})
+        target_system_prompt = system_prompt_config.get("content")
+
+        # Extract tools config, criteria, and judging
+        tools_config = case_data.get("tools_config")
+        criteria = case_data.get("criteria")
+        judging = case_data.get("judging")
+
+        # Create variations with different injection seeds
+        for seed in range(self.n_injection_variations):
+            behavior_id = case_data.get("id", f"case{case_idx}")
+            task_name = f"{self.name}.{behavior_id}.seed{seed}"
+
+            env_args = RedteamEnvArgs(
+                task_name=task_name,
+                target=case_data.get("description", ""),
+                pages=pages,
+                start_page=start_page,
+                summary=case_data.get("summary"),
+                objective=case_data.get("objective"),
+                doc=self._strip_html(case_data.get("doc", "")),
+                injection_seed=seed,
+                world_sim_model=self.world_sim_model,
+                attack_type=case_data.get("attack_type", "indirect"),
+                attacker_model=self.attacker_model,
+                use_trajectory=self.use_trajectory,
+                adversarial_mode=case_data.get("adversarial_mode", self.adversarial_mode),
+                max_conversation_turns=self.max_conversation_turns,
+                target_system_prompt=target_system_prompt,
+                tools_config=tools_config,
+                criteria=criteria,
+                judging=judging,
+            )
+
+            return env_args
+
+    @staticmethod
+    def _strip_html(text: str) -> str:
+        """Remove HTML tags from text."""
+        import re
+
+        # Remove HTML tags
+        clean = re.sub(r"<[^>]+>", " ", text)
+        # Normalize whitespace
+        clean = re.sub(r"\s+", " ", clean).strip()
+        return clean
 
     def dependency_graph_over_tasks(self) -> dict[str, list[str]]:
         """Redteam tasks are independent."""
