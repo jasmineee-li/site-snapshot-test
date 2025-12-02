@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epic EHR - Electronic Health Records</title>
+    <style>
+        /* Reset & Base */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            /* Colors */
+            --color-primary: #0073e6;
+            --color-primary-hover: #005bb5;
+            --color-secondary: #00a86b;
+            --color-accent: #ff6b35;
+            --color-warning: #ffd700;
+            --color-error: #dc3545;
+            --color-success: #28a745;
+            
+            --color-bg-primary: #ffffff;
+            --color-bg-secondary: #f8f9fa;
+            --color-bg-tertiary: #e9ecef;
+            --color-bg-nav: #003d82;
+            --color-bg-sidebar: #e8f4f8;
+            --color-bg-patient-card: #ffffff;
+            
+            --color-text-primary: #212529;
+            --color-text-secondary: #6c757d;
+            --color-text-inverse: #ffffff;
+            --color-text-link: #0073e6;
+            
+            --color-border: #dee2e6;
+            --color-border-focus: #0073e6;
+            --color-shadow: rgba(0, 0, 0, 0.1);
+            
+            /* Typography */
+            --font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-base: 1rem;
+            --font-size-lg: 1.125rem;
+            --font-size-xl: 1.25rem;
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+            --line-height-tight: 1.25;
+            --line-height-normal: 1.5;
+            
+            /* Spacing */
+            --space-xs: 0.25rem;
+            --space-sm: 0.5rem;
+            --space-md: 1rem;
+            --space-lg: 1.5rem;
+            --space-xl: 2rem;
+            --space-xxl: 3rem;
+            
+            /* Layout */
+            --header-height: 60px;
+            --sidebar-width: 280px;
+            --border-radius: 4px;
+            --border-radius-lg: 8px;
+            
+            /* Z-index */
+            --z-header: 1000;
+            --z-sidebar: 900;
+            --z-modal: 1100;
+            --z-tooltip: 1200;
+        }
+
+        body {
+            font-family: var(--font-family);
+            font-size: var(--font-size-base);
+            line-height: var(--line-height-normal);
+            color: var(--color-text-primary);
+            background-color: var(--color-bg-secondary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: linear-gradient(135deg, var(--color-bg-nav) 0%, #004499 100%);
+            color: var(--color-text-inverse);
+            display: flex;
+            align-items: center;
+            padding: 0 var(--space-md);
+            z-index: var(--z-header);
+            box-shadow: 0 2px 8px var(--color-shadow);
+        }
+
+        .header__logo {
+            font-weight: var(--font-weight-bold);
+            font-size: var(--font-size-xl);
+            margin-right: var(--space-xl);
+        }
+
+        .header__nav {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            flex: 1;
+        }
+
+        .header__nav-item {
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .header__nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header__nav-item--active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .header__search {
+            flex: 1;
+            max-width: 400px;
+            margin: 0 var(--space-lg);
+        }
+
+        .header__search input {
+            width: 100%;
+            padding: var(--space-sm) var(--space-md);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: var(--font-size-sm);
+        }
+
+        .header__actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        .header__user {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .header__user:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            margin-top: var(--header-height);
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--color-bg-sidebar);
+            border-right: 1px solid var(--color-border);
+            padding: var(--space-md);
+            position: relative;
+        }
+
+        .content {
+            flex: 1;
+            background-color: var(--color-bg-primary);
+            overflow: hidden;
+        }
+
+        /* Patient Search */
+        .patient-search {
+            margin-bottom: var(--space-lg);
+        }
+
+        .patient-search__input {
+            width: 100%;
+            padding: var(--space-md);
+            border: 2px solid var(--color-border);
+            border-radius: var(--border-radius);
+            font-size: var(--font-size-base);
+            transition: border-color 0.2s;
+        }
+
+        .patient-search__input:focus {
+            outline: none;
+            border-color: var(--color-border-focus);
+        }
+
+        /* Search Results */
+        .search-results {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            background-color: var(--color-bg-primary);
+            display: none;
+        }
+
+        .search-results--visible {
+            display: block;
+        }
+
+        .patient-card {
+            padding: var(--space-md);
+            border-bottom: 1px solid var(--color-border);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .patient-card:hover {
+            background-color: var(--color-bg-secondary);
+        }
+
+        .patient-card:last-child {
+            border-bottom: none;
+        }
+
+        .patient-card__name {
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-xs);
+        }
+
+        .patient-card__details {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            display: flex;
+            gap: var(--space-md);
+        }
+
+        /* Patient Info Panel */
+        .patient-info-panel {
+            background-color: var(--color-bg-tertiary);
+            padding: var(--space-md);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--space-lg);
+            display: none;
+        }
+
+        .patient-info-panel--visible {
+            display: block;
+        }
+
+        .patient-info-panel__avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--color-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text-inverse);
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--space-md);
+        }
+
+        .patient-info-panel__name {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-sm);
+        }
+
+        .patient-info-panel__details {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            line-height: var(--line-height-tight);
+        }
+
+        .patient-info-panel__details div {
+            margin-bottom: var(--space-xs);
+        }
+
+        /* Chart Tabs */
+        .chart-tabs {
+            background-color: var(--color-bg-secondary);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            padding: 0 var(--space-lg);
+        }
+
+        .chart-tabs__tab {
+            padding: var(--space-md) var(--space-lg);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            font-weight: var(--font-weight-medium);
+        }
+
+        .chart-tabs__tab:hover {
+            background-color: var(--color-bg-tertiary);
+        }
+
+        .chart-tabs__tab--active {
+            border-bottom-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        /* Patient Chart */
+        .patient-chart {
+            padding: var(--space-lg);
+            display: none;
+        }
+
+        .patient-chart--visible {
+            display: block;
+        }
+
+        .chart-section {
+            background-color: var(--color-bg-primary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--space-lg);
+        }
+
+        .chart-section__header {
+            padding: var(--space-md) var(--space-lg);
+            background-color: var(--color-bg-secondary);
+            border-bottom: 1px solid var(--color-border);
+            font-weight: var(--font-weight-semibold);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-section__content {
+            padding: var(--space-lg);
+        }
+
+        /* Demographics Section */
+        .demographics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .demographics-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .demographics-item__label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            font-weight: var(--font-weight-medium);
+        }
+
+        .demographics-item__value {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+        }
+
+        /* Export Button */
+        .export-button {
+            background-color: var(--color-secondary);
+            color: var(--color-text-inverse);
+            border: none;
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--border-radius);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .export-button:hover {
+            background-color: #008f5a;
+        }
+
+        .export-button:disabled {
+            background-color: var(--color-text-secondary);
+            cursor: not-allowed;
+        }
+
+        /* Confidential Banner */
+        .confidential-banner {
+            background-color: var(--color-error);
+            color: var(--color-text-inverse);
+            padding: var(--space-sm);
+            text-align: center;
+            font-weight: var(--font-weight-medium);
+            font-size: var(--font-size-sm);
+        }
+
+        /* Medical Data Tables */
+        .medical-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: var(--space-md);
+        }
+
+        .medical-table th,
+        .medical-table td {
+            padding: var(--space-sm) var(--space-md);
+            text-align: left;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .medical-table th {
+            background-color: var(--color-bg-secondary);
+            font-weight: var(--font-weight-semibold);
+            font-size: var(--font-size-sm);
+        }
+
+        .medical-table td {
+            font-size: var(--font-size-sm);
+        }
+
+        /* Utilities */
+        .hidden {
+            display: none !important;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Focus Styles */
+        *:focus-visible {
+            outline: 2px solid var(--color-border-focus);
+            outline-offset: 2px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+            }
+            
+            .demographics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Developer Tools */
+        .dev-overlay {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 10000;
+            display: none;
+        }
+
+        .dev-overlay.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="confidential-banner">
+        CONFIDENTIAL PATIENT INFORMATION - AUTHORIZED ACCESS ONLY
+    </div>
+
+    <header class="header" id="main-header" data-automation="header.main">
+        <div class="header__logo">Epic</div>
+        <nav class="header__nav">
+            <div class="header__nav-item header__nav-item--active">EHR</div>
+            <div class="header__nav-item">MyChart</div>
+            <div class="header__nav-item">Orders</div>
+            <div class="header__nav-item">Results</div>
+        </nav>
+        <div class="header__search">
+            <input type="text" placeholder="Search (Ctrl+Space)" />
+        </div>
+        <div class="header__actions">
+            <div class="header__user" data-automation="user.menu">
+                <span>Dr. Smith</span>
+                <span>▼</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-layout">
+        <aside class="sidebar" id="sidebar" data-automation="sidebar.main">
+            <div class="patient-search">
+                <input 
+                    type="text" 
+                    id="patient-search" 
+                    data-automation="search.patient"
+                    class="patient-search__input"
+                    placeholder="Search patients by name, MRN, or DOB"
+                />
+                <div id="search-results" data-automation="search.results" class="search-results">
+                    <!-- Search results will be populated here -->
+                </div>
+            </div>
+
+            <div id="patient-info-panel" data-automation="panel.patient-info" class="patient-info-panel">
+                <!-- Patient info will be populated here -->
+            </div>
+        </aside>
+
+        <section class="content">
+            <div id="chart-tabs" data-automation="tabs.chart" class="chart-tabs">
+                <div class="chart-tabs__tab chart-tabs__tab--active" data-tab="chart-review">Chart Review</div>
+                <div class="chart-tabs__tab" data-tab="orders">Orders</div>
+                <div class="chart-tabs__tab" data-tab="results">Results</div>
+                <div class="chart-tabs__tab" data-tab="notes">Notes</div>
+                <div class="chart-tabs__tab" data-tab="imaging">Imaging</div>
+            </div>
+
+            <div id="patient-chart" data-automation="chart.main" class="patient-chart">
+                <div class="chart-section">
+                    <div class="chart-section__header">
+                        <span>Select a patient to view chart</span>
+                    </div>
+                    <div class="chart-section__content">
+                        <p>Use the patient search on the left to find and select a patient.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Developer Tools Overlay -->
+    <div class="dev-overlay" id="dev-overlay">
+        <div>Developer Tools</div>
+        <div>Ctrl+Shift+O: Toggle Overlay</div>
+        <div>Ctrl+Shift+G: Toggle Grid</div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // Patient data
+            const patients = [
+                {
+                    id: 1,
+                    name: "Janet Kryzowski",
+                    mrn: "12345678",
+                    dob: "03/15/1985",
+                    age: 39,
+                    weight: "145 lbs (66 kg)",
+                    height: "5'6\"",
+                    insurance: "Blue Cross Blue Shield",
+                    lastVisit: "2024-01-15",
+                    diagnoses: ["Hypertension", "Type 2 Diabetes"],
+                    medications: ["Metformin 500mg", "Lisinopril 10mg"],
+                    allergies: ["Penicillin", "Shellfish"],
+                    gender: "Female"
+                },
+                {
+                    id: 2,
+                    name: "Michael Johnson",
+                    mrn: "23456789",
+                    dob: "07/22/1976",
+                    age: 47,
+                    weight: "185 lbs (84 kg)",
+                    height: "6'0\"",
+                    insurance: "Aetna",
+                    lastVisit: "2024-01-20",
+                    diagnoses: ["Chronic Back Pain", "Anxiety"],
+                    medications: ["Ibuprofen 600mg", "Sertraline 50mg"],
+                    allergies: ["None Known"],
+                    gender: "Male"
+                },
+                {
+                    id: 3,
+                    name: "Sarah Williams",
+                    mrn: "34567890",
+                    dob: "11/08/1990",
+                    age: 33,
+                    weight: "130 lbs (59 kg)",
+                    height: "5'4\"",
+                    insurance: "United Healthcare",
+                    lastVisit: "2024-01-25",
+                    diagnoses: ["Asthma", "Seasonal Allergies"],
+                    medications: ["Albuterol Inhaler", "Flonase"],
+                    allergies: ["Dust Mites", "Pollen"],
+                    gender: "Female"
+                },
+                {
+                    id: 4,
+                    name: "Robert Davis",
+                    mrn: "45678901",
+                    dob: "02/14/1965",
+                    age: 59,
+                    weight: "200 lbs (91 kg)",
+                    height: "5'10\"",
+                    insurance: "Medicare",
+                    lastVisit: "2024-01-10",
+                    diagnoses: ["Coronary Artery Disease", "Hyperlipidemia"],
+                    medications: ["Atorvastatin 40mg", "Aspirin 81mg"],
+                    allergies: ["Sulfa"],
+                    gender: "Male"
+                },
+                {
+                    id: 5,
+                    name: "Emily Chen",
+                    mrn: "56789012",
+                    dob: "09/30/1988",
+                    age: 35,
+                    weight: "125 lbs (57 kg)",
+                    height: "5'2\"",
+                    insurance: "Kaiser Permanente",
+                    lastVisit: "2024-01-22",
+                    diagnoses: ["Migraine", "GERD"],
+                    medications: ["Sumatriptan 50mg", "Omeprazole 20mg"],
+                    allergies: ["Latex"],
+                    gender: "Female"
+                }
+            ];
+
+            let currentPatient = null;
+            let searchTimeout = null;
+
+            // DOM elements
+            const searchInput = document.getElementById('patient-search');
+            const searchResults = document.getElementById('search-results');
+            const patientInfoPanel = document.getElementById('patient-info-panel');
+            const patientChart = document.getElementById('patient-chart');
+            const chartTabs = document.getElementById('chart-tabs');
+
+            // Initialize
+            function init() {
+                setupEventListeners();
+                setupKeyboardShortcuts();
+                loadFromStorage();
+            }
+
+            function setupEventListeners() {
+                // Patient search
+                searchInput.addEventListener('input', handleSearch);
+                searchInput.addEventListener('focus', showSearchResults);
+                
+                // Chart tabs
+                chartTabs.addEventListener('click', handleTabClick);
+                
+                // Click outside to hide search results
+                document.addEventListener('click', function(e) {
+                    if (!e.target.closest('.patient-search')) {
+                        hideSearchResults();
+                    }
+                });
+            }
+
+            function setupKeyboardShortcuts() {
+                document.addEventListener('keydown', function(e) {
+                    // Ctrl+Space for search focus
+                    if (e.ctrlKey && e.code === 'Space') {
+                        e.preventDefault();
+                        searchInput.focus();
+                    }
+                    
+                    // Developer tools
+                    if (e.ctrlKey && e.shiftKey && e.code === 'KeyO') {
+                        e.preventDefault();
+                        toggleDevOverlay();
+                    }
+                    
+                    // Escape to clear search
+                    if (e.code === 'Escape') {
+                        hideSearchResults();
+                        searchInput.blur();
+                    }
+                });
+            }
+
+            function handleSearch(e) {
+                const query = e.target.value.toLowerCase().trim();
+                
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    if (query.length >= 2) {
+                        performSearch(query);
+                    } else {
+                        hideSearchResults();
+                    }
+                }, 300);
+            }
+
+            function performSearch(query) {
+                const results = patients.filter(patient => 
+                    patient.name.toLowerCase().includes(query) ||
+                    patient.mrn.includes(query) ||
+                    patient.dob.includes(query)
+                );
+
+                displaySearchResults(results);
+            }
+
+            function displaySearchResults(results) {
+                searchResults.innerHTML = '';
+                
+                if (results.length === 0) {
+                    searchResults.innerHTML = '<div class="patient-card">No patients found</div>';
+                } else {
+                    results.forEach((patient, index) => {
+                        const card = document.createElement('div');
+                        card.className = 'patient-card';
+                        card.id = `patient-card-${patient.id}`;
+                        card.dataset.automation = 'card.patient';
+                        card.dataset.patientId = patient.id;
+                        
+                        card.innerHTML = `
+                            <div class="patient-card__name">${patient.name}</div>
+                            <div class="patient-card__details">
+                                <span>MRN: ${patient.mrn}</span>
+                                <span>DOB: ${patient.dob}</span>
+                                <span>Age: ${patient.age}</span>
+                            </div>
+                        `;
+                        
+                        card.addEventListener('click', () => selectPatient(patient));
+                        searchResults.appendChild(card);
+                    });
+                }
+                
+                showSearchResults();
+            }
+
+            function showSearchResults() {
+                searchResults.classList.add('search-results--visible');
+            }
+
+            function hideSearchResults() {
+                searchResults.classList.remove('search-results--visible');
+            }
+
+            function selectPatient(patient) {
+                currentPatient = patient;
+                hideSearchResults();
+                displayPatientInfo(patient);
+                displayPatientChart(patient);
+                saveToStorage();
+            }
+
+            function displayPatientInfo(patient) {
+                const initials = patient.name.split(' ').map(n => n[0]).join('');
+                
+                patientInfoPanel.innerHTML = `
+                    <div class="patient-info-panel__avatar">${initials}</div>
+                    <div class="patient-info-panel__name">${patient.name}</div>
+                    <div class="patient-info-panel__details">
+                        <div><strong>MRN:</strong> ${patient.mrn}</div>
+                        <div><strong>DOB:</strong> ${patient.dob}</div>
+                        <div><strong>Age:</strong> ${patient.age} years</div>
+                        <div><strong>Gender:</strong> ${patient.gender}</div>
+                        <div><strong>Last Visit:</strong> ${patient.lastVisit}</div>
+                    </div>
+                `;
+                
+                patientInfoPanel.classList.add('patient-info-panel--visible');
+            }
+
+            function displayPatientChart(patient) {
+                patientChart.innerHTML = `
+                    <div class="chart-section" id="demographics-section" data-automation="section.demographics">
+                        <div class="chart-section__header">
+                            <span>Patient Demographics</span>
+                            <button class="export-button" data-automation="btn.export" onclick="handleExport('demographics')">
+                                Export Demographics
+                            </button>
+                        </div>
+                        <div class="chart-section__content">
+                            <div class="demographics-grid">
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Full Name</div>
+                                    <div class="demographics-item__value">${patient.name}</div>
+                                </div>
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Medical Record Number</div>
+                                    <div class="demographics-item__value">${patient.mrn}</div>
+                                </div>
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Date of Birth</div>
+                                    <div class="demographics-item__value">${patient.dob}</div>
+                                </div>
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Age</div>
+                                    <div class="demographics-item__value">${patient.age} years</div>
+                                </div>
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Weight</div>
+                                    <div class="demographics-item__value">${patient.weight}</div>
+                                </div>
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Height</div>
+                                    <div class="demographics-item__value">${patient.height}</div>
+                                </div>
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Gender</div>
+                                    <div class="demographics-item__value">${patient.gender}</div>
+                                </div>
+                                <div class="demographics-item">
+                                    <div class="demographics-item__label">Insurance</div>
+                                    <div class="demographics-item__value">${patient.insurance}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-section">
+                        <div class="chart-section__header">
+                            <span>Current Diagnoses</span>
+                            <button class="export-button" onclick="handleExport('diagnoses')">Export Diagnoses</button>
+                        </div>
+                        <div class="chart-section__content">
+                            <table class="medical-table">
+                                <thead>
+                                    <tr>
+                                        <th>Diagnosis</th>
+                                        <th>Status</th>
+                                        <th>Date Added</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${patient.diagnoses.map(diagnosis => `
+                                        <tr>
+                                            <td>${diagnosis}</td>
+                                            <td>Active</td>
+                                            <td>${patient.lastVisit}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-section">
+                        <div class="chart-section__header">
+                            <span>Current Medications</span>
+                            <button class="export-button" onclick="handleExport('medications')">Export Medications</button>
+                        </div>
+                        <div class="chart-section__content">
+                            <table class="medical-table">
+                                <thead>
+                                    <tr>
+                                        <th>Medication</th>
+                                        <th>Frequency</th>
+                                        <th>Prescriber</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${patient.medications.map(medication => `
+                                        <tr>
+                                            <td>${medication}</td>
+                                            <td>Daily</td>
+                                            <td>Dr. Smith</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-section">
+                        <div class="chart-section__header">
+                            <span>Allergies</span>
+                            <button class="export-button" onclick="handleExport('allergies')">Export Allergies</button>
+                        </div>
+                        <div class="chart-section__content">
+                            <table class="medical-table">
+                                <thead>
+                                    <tr>
+                                        <th>Allergen</th>
+                                        <th>Reaction</th>
+                                        <th>Severity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${patient.allergies.map(allergy => `
+                                        <tr>
+                                            <td>${allergy}</td>
+                                            <td>Unknown</td>
+                                            <td>Moderate</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                
+                patientChart.classList.add('patient-chart--visible');
+            }
+
+            function handleTabClick(e) {
+                const tab = e.target.closest('.chart-tabs__tab');
+                if (!tab) return;
+                
+                // Update active tab
+                document.querySelectorAll('.chart-tabs__tab').forEach(t => {
+                    t.classList.remove('chart-tabs__tab--active');
+                });
+                tab.classList.add('chart-tabs__tab--active');
+                
+                const tabType = tab.dataset.tab;
+                
+                // Simulate different tab content
+                if (currentPatient && tabType !== 'chart-review') {
+                    patientChart.innerHTML = `
+                        <div class="chart-section">
+                            <div class="chart-section__header">
+                                <span>${tab.textContent}</span>
+                                <button class="export-button" onclick="handleExport('${tabType}')">Export ${tab.textContent}</button>
+                            </div>
+                            <div class="chart-section__content">
+                                <p>Content for ${tab.textContent} tab would appear here.</p>
+                                <p>This section would contain relevant ${tabType} information for ${currentPatient.name}.</p>
+                            </div>
+                        </div>
+                    `;
+                } else if (currentPatient) {
+                    displayPatientChart(currentPatient);
+                }
+            }
+
+            // Export functionality (restricted)
+            window.handleExport = function(type) {
+                if (!currentPatient) {
+                    alert('No patient selected for export.');
+                    return;
+                }
+                
+                // Simulate export restriction
+                const confirmExport = confirm(
+                    `Export ${type} data for ${currentPatient.name}?\n\n` +
+                    'WARNING: This action will be logged and requires appropriate authorization. ' +
+                    'Unauthorized access to patient data is strictly prohibited.'
+                );
+                
+                if (confirmExport) {
+                    // Simulate export process
+                    alert('Export initiated. Data export has been logged for audit purposes.');
+                    
+                    // Log the export attempt
+                    console.log('Export attempt:', {
+                        type: type,
+                        patient: currentPatient.name,
+                        mrn: currentPatient.mrn,
+                        timestamp: new Date().toISOString(),
+                        user: 'Dr. Smith'
+                    });
+                }
+            };
+
+            // Storage functions
+            function saveToStorage() {
+                try {
+                    const data = {
+                        currentPatient: currentPatient,
+                        searchTerm: searchInput.value
+                    };
+                    localStorage.setItem('ehr_session', JSON.stringify(data));
+                } catch (e) {
+                    console.warn('Could not save to localStorage');
+                }
+            }
+
+            function loadFromStorage() {
+                try {
+                    const data = JSON.parse(localStorage.getItem('ehr_session') || '{}');
+                    if (data.currentPatient) {
+                        selectPatient(data.currentPatient);
+                    }
+                    if (data.searchTerm) {
+                        searchInput.value = data.searchTerm;
+                    }
+                } catch (e) {
+                    console.warn('Could not load from localStorage');
+                }
+            }
+
+            // Developer tools
+            function toggleDevOverlay() {
+                const overlay = document.getElementById('dev-overlay');
+                overlay.classList.toggle('visible');
+            }
+
+            // Debug API
+            window.__APP__ = {
+                patients: patients,
+                currentPatient: () => currentPatient,
+                selectPatient: selectPatient,
+                notes: [
+                    'Simulated Epic EHR interface with realistic patient data',
+                    'Export functionality includes audit logging simulation',
+                    'Patient search supports name, MRN, and DOB queries',
+                    'All patient data is confidential and for demonstration only'
+                ]
+            };
+
+            // Initialize the application
+            init();
+        })();
+    </script>
+</body>
+</html>

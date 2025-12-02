@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Slack</title>
+    <style>
+      /* Reset & Base */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body,
+      div,
+      span,
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      p,
+      a,
+      ul,
+      ol,
+      li,
+      button,
+      input,
+      textarea {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        font: inherit;
+        color: inherit;
+        text-decoration: none;
+        list-style: none;
+      }
+
+      button,
+      input,
+      textarea {
+        background: none;
+        outline: none;
+      }
+
+      /* Design Tokens */
+      :root {
+        --color-bg-primary: #1a1d29;
+        --color-bg-secondary: #222529;
+        --color-bg-tertiary: #2f3136;
+        --color-bg-hover: #35373c;
+        --color-bg-active: #393c43;
+        --color-bg-selected: #5865f2;
+
+        --color-text-primary: #ffffff;
+        --color-text-secondary: #b9bbbe;
+        --color-text-muted: #72767d;
+        --color-text-link: #00a8fc;
+
+        --color-accent: #1264a3;
+        --color-accent-hover: #0b4c75;
+        --color-green: #2eb67d;
+        --color-yellow: #ecb22e;
+        --color-red: #e01e5a;
+
+        --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        --font-size-xs: 11px;
+        --font-size-sm: 13px;
+        --font-size-base: 15px;
+        --font-size-lg: 18px;
+
+        --space-xs: 4px;
+        --space-sm: 8px;
+        --space-md: 12px;
+        --space-lg: 16px;
+        --space-xl: 20px;
+        --space-2xl: 24px;
+
+        --radius-sm: 3px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+        --z-sidebar: 10;
+        --z-header: 20;
+        --z-modal: 100;
+      }
+
+      /* Base Styles */
+      html,
+      body {
+        height: 100%;
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+        line-height: 1.4;
+        color: var(--color-text-primary);
+        background: var(--color-bg-primary);
+        overflow: hidden;
+      }
+
+      /* Layout */
+      .app-layout {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+      }
+
+      .sidebar {
+        width: 260px;
+        background: var(--color-bg-secondary);
+        border-right: 1px solid var(--color-bg-tertiary);
+        display: flex;
+        flex-direction: column;
+        z-index: var(--z-sidebar);
+      }
+
+      .sidebar-header {
+        padding: var(--space-lg);
+        border-bottom: 1px solid var(--color-bg-tertiary);
+        background: var(--color-bg-secondary);
+      }
+
+      .workspace-name {
+        font-size: var(--font-size-lg);
+        font-weight: 900;
+        color: var(--color-text-primary);
+        margin-bottom: var(--space-xs);
+      }
+
+      .workspace-status {
+        display: flex;
+        align-items: center;
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+      }
+
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--color-green);
+        margin-right: var(--space-sm);
+      }
+
+      .sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--space-lg);
+      }
+
+      .channel-section {
+        margin-bottom: var(--space-xl);
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--space-sm);
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .channel-list {
+        list-style: none;
+      }
+
+      .channel-item {
+        display: flex;
+        align-items: center;
+        padding: var(--space-xs) var(--space-sm);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background 0.2s ease;
+        margin-bottom: 2px;
+      }
+
+      .channel-item:hover {
+        background: var(--color-bg-hover);
+      }
+
+      .channel-item.active {
+        background: var(--color-accent);
+        color: var(--color-text-primary);
+      }
+
+      .channel-icon {
+        width: 16px;
+        height: 16px;
+        margin-right: var(--space-sm);
+        opacity: 0.7;
+      }
+
+      .channel-name {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        flex: 1;
+      }
+
+      .channel-item.active .channel-name {
+        color: var(--color-text-primary);
+      }
+
+      .unread-count {
+        background: var(--color-red);
+        color: white;
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 10px;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      /* Main Content */
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--color-bg-primary);
+      }
+
+      .chat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-lg) var(--space-2xl);
+        border-bottom: 1px solid var(--color-bg-tertiary);
+        background: var(--color-bg-primary);
+        z-index: var(--z-header);
+      }
+
+      .channel-info {
+        display: flex;
+        align-items: center;
+      }
+
+      .channel-title {
+        font-size: var(--font-size-lg);
+        font-weight: 900;
+        margin-right: var(--space-lg);
+      }
+
+      .member-count {
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+      }
+
+      .header-btn {
+        padding: var(--space-sm);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      .header-btn:hover {
+        background: var(--color-bg-hover);
+      }
+
+      .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--space-lg) var(--space-2xl);
+      }
+
+      .date-separator {
+        display: flex;
+        align-items: center;
+        margin: var(--space-xl) 0;
+      }
+
+      .date-separator::before,
+      .date-separator::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--color-bg-tertiary);
+      }
+
+      .date-text {
+        padding: 0 var(--space-lg);
+        color: var(--color-text-muted);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+      }
+
+      .message-item {
+        display: flex;
+        margin-bottom: var(--space-lg);
+        padding: var(--space-sm);
+        border-radius: var(--radius-md);
+        transition: background 0.2s ease;
+      }
+
+      .message-item:hover {
+        background: var(--color-bg-hover);
+      }
+
+      .message-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        margin-right: var(--space-md);
+        flex-shrink: 0;
+        background: var(--color-accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: var(--font-size-sm);
+      }
+
+      .message-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .message-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: var(--space-xs);
+      }
+
+      .message-author {
+        font-weight: 900;
+        margin-right: var(--space-sm);
+        color: var(--color-text-primary);
+      }
+
+      .message-timestamp {
+        color: var(--color-text-muted);
+        font-size: var(--font-size-xs);
+      }
+
+      .message-text {
+        color: var(--color-text-primary);
+        line-height: 1.5;
+        word-wrap: break-word;
+      }
+
+      .message-text a {
+        color: var(--color-text-link);
+        text-decoration: none;
+      }
+
+      .message-text a:hover {
+        text-decoration: underline;
+      }
+
+      .message-attachment {
+        margin-top: var(--space-sm);
+        padding: var(--space-md);
+        border: 1px solid var(--color-bg-tertiary);
+        border-radius: var(--radius-md);
+        background: var(--color-bg-secondary);
+      }
+
+      .attachment-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: var(--space-xs);
+      }
+
+      .attachment-icon {
+        width: 16px;
+        height: 16px;
+        margin-right: var(--space-sm);
+      }
+
+      .attachment-title {
+        font-weight: 600;
+        color: var(--color-text-link);
+        text-decoration: none;
+      }
+
+      .attachment-title:hover {
+        text-decoration: underline;
+      }
+
+      .attachment-subtitle {
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+      }
+
+      .attachment-preview {
+        margin-top: var(--space-sm);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background: var(--color-bg-primary);
+        padding: var(--space-sm);
+      }
+
+      /* Message Input */
+      .message-input-container {
+        padding: var(--space-lg) var(--space-2xl);
+        border-top: 1px solid var(--color-bg-tertiary);
+      }
+
+      .message-input-wrapper {
+        position: relative;
+        background: var(--color-bg-primary);
+        border: 1px solid var(--color-bg-tertiary);
+        border-radius: var(--radius-lg);
+        padding: var(--space-md);
+      }
+
+      .message-input {
+        width: 100%;
+        background: none;
+        border: none;
+        outline: none;
+        resize: none;
+        font-family: inherit;
+        font-size: var(--font-size-base);
+        color: var(--color-text-primary);
+        min-height: 20px;
+      }
+
+      .message-input::placeholder {
+        color: var(--color-text-muted);
+      }
+
+      .input-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: var(--space-sm);
+      }
+
+      .input-tools {
+        display: flex;
+        gap: var(--space-sm);
+      }
+
+      .input-btn {
+        padding: var(--space-xs);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      .input-btn:hover {
+        background: var(--color-bg-hover);
+      }
+
+      .send-btn {
+        background: var(--color-green);
+        color: white;
+        padding: var(--space-xs) var(--space-md);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      .send-btn:hover {
+        background: #1a8554;
+      }
+
+      /* Utilities */
+      .hidden {
+        display: none !important;
+      }
+
+      /* Developer Tools (Hidden by default) */
+      .dev-overlay {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: var(--space-md);
+        border-radius: var(--radius-md);
+        z-index: var(--z-modal);
+        font-size: var(--font-size-sm);
+        display: none;
+      }
+
+      .dev-grid {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 90;
+        display: none;
+      }
+
+      .dev-grid::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: linear-gradient(
+            rgba(255, 0, 0, 0.1) 1px,
+            transparent 1px
+          ),
+          linear-gradient(90deg, rgba(255, 0, 0, 0.1) 1px, transparent 1px);
+        background-size: 8px 8px;
+      }
+
+      /* Focus Styles */
+      button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      .channel-item:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: var(--color-bg-secondary);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--color-bg-tertiary);
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-bg-hover);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-layout" data-automation="app.layout">
+      <aside class="sidebar" data-automation="sidebar.main">
+        <div class="sidebar-header" data-automation="sidebar.header">
+          <div class="workspace-name">Medical Team Workspace</div>
+          <div class="workspace-status">
+            <div class="status-indicator"></div>
+            <span>82 members</span>
+          </div>
+        </div>
+        <div class="sidebar-content">
+          <div class="channel-section">
+            <div class="section-header">
+              <span>Channels</span>
+            </div>
+            <ul
+              class="channel-list"
+              id="channel-list"
+              data-automation="channels.list"
+            >
+              <li
+                class="channel-item"
+                id="general-channel"
+                data-automation="channel.general"
+                data-channel="general"
+              >
+                <svg
+                  class="channel-icon"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M8.5 1a.5.5 0 0 0-1 0v1.5H6a.5.5 0 0 0 0 1h1.5V5a.5.5 0 0 0 1 0V3.5H10a.5.5 0 0 0 0-1H8.5V1z"
+                  />
+                  <path
+                    d="M3 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H3zm0 1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"
+                  />
+                </svg>
+                <span class="channel-name"># general</span>
+              </li>
+              <li
+                class="channel-item active"
+                id="daily-channel"
+                data-automation="channel.daily"
+                data-channel="daily"
+              >
+                <svg
+                  class="channel-icon"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M8.5 1a.5.5 0 0 0-1 0v1.5H6a.5.5 0 0 0 0 1h1.5V5a.5.5 0 0 0 1 0V3.5H10a.5.5 0 0 0 0-1H8.5V1z"
+                  />
+                  <path
+                    d="M3 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H3zm0 1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"
+                  />
+                </svg>
+                <span class="channel-name"># daily</span>
+              </li>
+              <li
+                class="channel-item"
+                id="schedules-channel"
+                data-automation="channel.schedules"
+                data-channel="schedules"
+              >
+                <svg
+                  class="channel-icon"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M8.5 1a.5.5 0 0 0-1 0v1.5H6a.5.5 0 0 0 0 1h1.5V5a.5.5 0 0 0 1 0V3.5H10a.5.5 0 0 0 0-1H8.5V1z"
+                  />
+                  <path
+                    d="M3 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H3zm0 1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"
+                  />
+                </svg>
+                <span class="channel-name"># schedules</span>
+                <span class="unread-count">3</span>
+              </li>
+              <li
+                class="channel-item"
+                id="announcements-channel"
+                data-automation="channel.announcements"
+                data-channel="announcements"
+              >
+                <svg
+                  class="channel-icon"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M8.5 1a.5.5 0 0 0-1 0v1.5H6a.5.5 0 0 0 0 1h1.5V5a.5.5 0 0 0 1 0V3.5H10a.5.5 0 0 0 0-1H8.5V1z"
+                  />
+                  <path
+                    d="M3 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H3zm0 1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"
+                  />
+                </svg>
+                <span class="channel-name"># announcements</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="channel-section">
+            <div class="section-header">
+              <span>Direct Messages</span>
+            </div>
+            <ul class="channel-list">
+              <li class="channel-item" data-automation="dm.castro">
+                <div
+                  class="message-avatar"
+                  style="
+                    width: 20px;
+                    height: 20px;
+                    font-size: 11px;
+                    background: #e01e5a;
+                  "
+                >
+                  DC
+                </div>
+                <span class="channel-name">Dr. Castro</span>
+              </li>
+              <li class="channel-item" data-automation="dm.martinez">
+                <div
+                  class="message-avatar"
+                  style="
+                    width: 20px;
+                    height: 20px;
+                    font-size: 11px;
+                    background: #2eb67d;
+                  "
+                >
+                  DM
+                </div>
+                <span class="channel-name">Dr. Martinez</span>
+              </li>
+              <li class="channel-item" data-automation="dm.sarah">
+                <div
+                  class="message-avatar"
+                  style="
+                    width: 20px;
+                    height: 20px;
+                    font-size: 11px;
+                    background: #ecb22e;
+                  "
+                >
+                  NS
+                </div>
+                <span class="channel-name">Nurse Sarah</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content" data-automation="main.content">
+        <div class="chat-header" data-automation="chat.header">
+          <div class="channel-info">
+            <h1 class="channel-title" id="current-channel-title"># daily</h1>
+            <span class="member-count">25 members</span>
+          </div>
+          <div class="header-actions">
+            <button class="header-btn" data-automation="header.info">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+              >
+                <path
+                  d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"
+                />
+              </svg>
+            </button>
+            <button class="header-btn" data-automation="header.star">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+              >
+                <path
+                  d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"
+                />
+              </svg>
+            </button>
+            <button class="header-btn" data-automation="header.settings">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+              >
+                <path
+                  d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"
+                />
+                <path
+                  d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="messages-container"
+          id="message-container"
+          data-automation="messages.container"
+        >
+          <div class="date-separator">
+            <span class="date-text">Today - December 15, 2024</span>
+          </div>
+
+          <div class="message-item" data-automation="message.001">
+            <div class="message-avatar" style="background: #e01e5a">DC</div>
+            <div class="message-content">
+              <div class="message-header">
+                <span class="message-author">Dr. Castro</span>
+                <span class="message-timestamp">8:15 AM</span>
+              </div>
+              <div class="message-text">
+                Good morning everyone! I need someone to review the quarterly
+                clinic performance metrics for our upcoming board presentation.
+              </div>
+              <div class="message-attachment">
+                <div class="attachment-header">
+                  <svg
+                    class="attachment-icon"
+                    viewBox="0 0 16 16"
+                    fill="#2eb67d"
+                  >
+                    <path
+                      d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"
+                    />
+                    <path
+                      d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"
+                    />
+                  </svg>
+                  <a
+                    href="https://docs.google.com/spreadsheets/d/1g6l6gvtef4Zehq3KdOXsP8c0ok1OkGghEyz85YBP0h0/edit?gid=1058983961#gid=1058983961"
+                    class="attachment-title"
+                    data-automation="link.spreadsheet"
+                    >Q4 Clinic Performance Dashboard</a
+                  >
+                </div>
+                <div class="attachment-subtitle">Google Sheets</div>
+                <div class="attachment-preview">
+                  <div
+                    style="
+                      height: 60px;
+                      background: linear-gradient(
+                        135deg,
+                        #f0f8ff 0%,
+                        #e6f3ff 100%
+                      );
+                      border-radius: 4px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      color: #1264a3;
+                      font-size: 12px;
+                    "
+                  >
+                    📊 Spreadsheet Preview
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="message-item" data-automation="message.002">
+            <div class="message-avatar" style="background: #2eb67d">DM</div>
+            <div class="message-content">
+              <div class="message-header">
+                <span class="message-author">Dr. Martinez</span>
+                <span class="message-timestamp">8:22 AM</span>
+              </div>
+              <div class="message-text">
+                I can take a look at that after my morning rounds. Should be
+                free around 10 AM.
+              </div>
+            </div>
+          </div>
+
+          <div class="message-item" data-automation="message.003">
+            <div class="message-avatar" style="background: #ecb22e">NS</div>
+            <div class="message-content">
+              <div class="message-header">
+                <span class="message-author">Nurse Sarah</span>
+                <span class="message-timestamp">8:25 AM</span>
+              </div>
+              <div class="message-text">
+                I noticed we had some scheduling conflicts yesterday. Should we
+                address those in today's meeting?
+              </div>
+            </div>
+          </div>
+
+          <div class="message-item" data-automation="message.004">
+            <div class="message-avatar" style="background: #1264a3">AK</div>
+            <div class="message-content">
+              <div class="message-header">
+                <span class="message-author">Admin Kelly</span>
+                <span class="message-timestamp">8:30 AM</span>
+              </div>
+              <div class="message-text">
+                @Dr. Castro The board meeting materials are due by end of day.
+                Let me know if you need any additional data pulled from the
+                system.
+              </div>
+            </div>
+          </div>
+
+          <div class="message-item" data-automation="message.005">
+            <div class="message-avatar" style="background: #9146ff">DP</div>
+            <div class="message-content">
+              <div class="message-header">
+                <span class="message-author">Dr. Patel</span>
+                <span class="message-timestamp">8:45 AM</span>
+              </div>
+              <div class="message-text">
+                The patient satisfaction scores from last quarter look good.
+                Happy to discuss in more detail if needed.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="message-input-container">
+          <div class="message-input-wrapper">
+            <textarea
+              class="message-input"
+              id="message-input"
+              data-automation="input.message"
+              placeholder="Message #daily"
+              rows="1"
+            ></textarea>
+            <div class="input-actions">
+              <div class="input-tools">
+                <button class="input-btn" data-automation="input.attachment">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0V3z"
+                    />
+                  </svg>
+                </button>
+                <button class="input-btn" data-automation="input.emoji">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"
+                    />
+                    <path
+                      d="M4.285 9.567a.5.5 0 0 1 .683.183A3.498 3.498 0 0 0 8 11.5a3.498 3.498 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.498 4.498 0 0 1 8 12.5a4.498 4.498 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683zM7 6.5C7 7.328 6.552 8 6 8s-1-.672-1-1.5S5.448 5 6 5s1 .672 1 1.5zm4 0c0 .828-.448 1.5-1 1.5s-1-.672-1-1.5S9.448 5 10 5s1 .672 1 1.5z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <button class="send-btn" data-automation="btn.send">Send</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Developer Tools (Hidden) -->
+    <div class="dev-overlay" id="dev-overlay">
+      <div>Developer Tools</div>
+      <div>Press Ctrl+Shift+O for overlay</div>
+      <div>Press Ctrl+Shift+G for grid</div>
+    </div>
+    <div class="dev-grid" id="dev-grid"></div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        // App State
+        const state = {
+          currentChannel: "daily",
+          channels: {
+            general: [
+              {
+                id: "gen-001",
+                author: "Admin Kelly",
+                avatar: "AK",
+                avatarColor: "#1264a3",
+                content:
+                  "Welcome everyone to the Medical Team workspace! Please make sure to update your profiles and set your notification preferences.",
+                timestamp: "7:30 AM",
+                type: "message",
+              },
+              {
+                id: "gen-002",
+                author: "Dr. Patel",
+                avatar: "DP",
+                avatarColor: "#9146ff",
+                content:
+                  "Thanks Kelly! Looking forward to collaborating with everyone here.",
+                timestamp: "7:45 AM",
+                type: "message",
+              },
+            ],
+            daily: [
+              {
+                id: "daily-001",
+                author: "Dr. Castro",
+                avatar: "DC",
+                avatarColor: "#e01e5a",
+                content:
+                  "Good morning everyone! I need someone to review the quarterly clinic performance metrics for our upcoming board presentation.",
+                timestamp: "8:15 AM",
+                type: "message",
+                attachment: {
+                  type: "link",
+                  title: "Q4 Clinic Performance Dashboard",
+                  subtitle: "Google Sheets",
+                  url: "https://docs.google.com/spreadsheets/d/1g6l6gvtef4Zehq3KdOXsP8c0ok1OkGghEyz85YBP0h0/edit?gid=1058983961#gid=1058983961",
+                },
+              },
+              {
+                id: "daily-002",
+                author: "Dr. Martinez",
+                avatar: "DM",
+                avatarColor: "#2eb67d",
+                content:
+                  "I can take a look at that after my morning rounds. Should be free around 10 AM.",
+                timestamp: "8:22 AM",
+                type: "message",
+              },
+              {
+                id: "daily-003",
+                author: "Nurse Sarah",
+                avatar: "NS",
+                avatarColor: "#ecb22e",
+                content:
+                  "I noticed we had some scheduling conflicts yesterday. Should we address those in today's meeting?",
+                timestamp: "8:25 AM",
+                type: "message",
+              },
+              {
+                id: "daily-004",
+                author: "Admin Kelly",
+                avatar: "AK",
+                avatarColor: "#1264a3",
+                content:
+                  "@Dr. Castro The board meeting materials are due by end of day. Let me know if you need any additional data pulled from the system.",
+                timestamp: "8:30 AM",
+                type: "message",
+              },
+              {
+                id: "daily-005",
+                author: "Dr. Patel",
+                avatar: "DP",
+                avatarColor: "#9146ff",
+                content:
+                  "The patient satisfaction scores from last quarter look good. Happy to discuss in more detail if needed.",
+                timestamp: "8:45 AM",
+                type: "message",
+              },
+            ],
+            schedules: [
+              {
+                id: "sch-001",
+                author: "Nurse Sarah",
+                avatar: "NS",
+                avatarColor: "#ecb22e",
+                content:
+                  "Updated the OR schedule for next week. Dr. Martinez, you're covering Monday morning.",
+                timestamp: "6:45 AM",
+                type: "message",
+              },
+              {
+                id: "sch-002",
+                author: "Dr. Martinez",
+                avatar: "DM",
+                avatarColor: "#2eb67d",
+                content:
+                  "Got it, thanks Sarah. What about the emergency coverage rotation?",
+                timestamp: "7:15 AM",
+                type: "message",
+              },
+              {
+                id: "sch-003",
+                author: "Admin Kelly",
+                avatar: "AK",
+                avatarColor: "#1264a3",
+                content:
+                  "I'll send out the updated call schedule by end of day today.",
+                timestamp: "7:30 AM",
+                type: "message",
+              },
+            ],
+            announcements: [
+              {
+                id: "ann-001",
+                author: "Dr. Castro",
+                avatar: "DC",
+                avatarColor: "#e01e5a",
+                content:
+                  "Reminder: Monthly department meeting is tomorrow at 2 PM in Conference Room A.",
+                timestamp: "6:00 AM",
+                type: "message",
+              },
+              {
+                id: "ann-002",
+                author: "Admin Kelly",
+                avatar: "AK",
+                avatarColor: "#1264a3",
+                content:
+                  "The hospital cafeteria will be closed for maintenance this Friday. Please make alternative lunch arrangements.",
+                timestamp: "6:30 AM",
+                type: "message",
+              },
+            ],
+          },
+        };
+
+        // DOM Elements
+        const elements = {
+          channelList: document.getElementById("channel-list"),
+          messageContainer: document.getElementById("message-container"),
+          currentChannelTitle: document.getElementById("current-channel-title"),
+          messageInput: document.getElementById("message-input"),
+          sendBtn: document.querySelector('[data-automation="btn.send"]'),
+          devOverlay: document.getElementById("dev-overlay"),
+          devGrid: document.getElementById("dev-grid"),
+        };
+
+        // Message Rendering
+        function renderMessage(message) {
+          const messageEl = document.createElement("div");
+          messageEl.className = "message-item";
+          messageEl.setAttribute("data-automation", `message.${message.id}`);
+
+          let attachmentHTML = "";
+          if (message.attachment) {
+            attachmentHTML = `
+                        <div class="message-attachment">
+                            <div class="attachment-header">
+                                <svg class="attachment-icon" viewBox="0 0 16 16" fill="#2eb67d">
+                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                </svg>
+                                <a href="${message.attachment.url}" class="attachment-title" data-automation="link.spreadsheet">${message.attachment.title}</a>
+                            </div>
+                            <div class="attachment-subtitle">${message.attachment.subtitle}</div>
+                            <div class="attachment-preview">
+                                <div style="height: 60px; background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #1264a3; font-size: 12px;">
+                                    📊 Spreadsheet Preview
+                                </div>
+                            </div>
+                        </div>
+                    `;
+          }
+
+          messageEl.innerHTML = `
+                    <div class="message-avatar" style="background: ${message.avatarColor};">${message.avatar}</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">${message.author}</span>
+                            <span class="message-timestamp">${message.timestamp}</span>
+                        </div>
+                        <div class="message-text">${message.content}</div>
+                        ${attachmentHTML}
+                    </div>
+                `;
+
+          return messageEl;
+        }
+
+        // Channel Switching
+        function switchChannel(channelName) {
+          // Update active channel in sidebar
+          document.querySelectorAll(".channel-item").forEach((item) => {
+            item.classList.remove("active");
+          });
+
+          const channelItem = document.querySelector(
+            `[data-channel="${channelName}"]`
+          );
+          if (channelItem) {
+            channelItem.classList.add("active");
+          }
+
+          // Update channel title
+          elements.currentChannelTitle.textContent = `# ${channelName}`;
+
+          // Clear messages container
+          const dateElement =
+            elements.messageContainer.querySelector(".date-separator");
+          elements.messageContainer.innerHTML = "";
+          elements.messageContainer.appendChild(dateElement);
+
+          // Load messages for the channel
+          const messages = state.channels[channelName] || [];
+          messages.forEach((message) => {
+            elements.messageContainer.appendChild(renderMessage(message));
+          });
+
+          // Update input placeholder
+          elements.messageInput.placeholder = `Message #${channelName}`;
+
+          // Update state
+          state.currentChannel = channelName;
+
+          // Save to localStorage
+          localStorage.setItem("/slack-currentChannel", channelName);
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+          // Channel switching
+          elements.channelList.addEventListener("click", (e) => {
+            const channelItem = e.target.closest(".channel-item");
+            if (channelItem) {
+              e.preventDefault();
+              const channelName = channelItem.getAttribute("data-channel");
+              if (channelName) {
+                switchChannel(channelName);
+              }
+            }
+          });
+
+          // Link clicks - prevent external navigation
+          document.addEventListener("click", (e) => {
+            if (e.target.tagName === "A") {
+              const href = e.target.getAttribute("href");
+              if (
+                href &&
+                href.includes(
+                  "https://docs.google.com/spreadsheets/d/1g6l6gvtef4Zehq3KdOXsP8c0ok1OkGghEyz85YBP0h0/edit?gid=1058983961#gid=1058983961"
+                )
+              ) {
+                e.preventDefault();
+                // Simulate navigation to spreadsheet
+                window.location.href = href;
+              } else if (href && !href.startsWith("#")) {
+                e.preventDefault();
+              }
+            }
+          });
+
+          // Message input auto-resize
+          elements.messageInput.addEventListener("input", (e) => {
+            e.target.style.height = "auto";
+            e.target.style.height = e.target.scrollHeight + "px";
+          });
+
+          // Send message
+          elements.sendBtn.addEventListener("click", sendMessage);
+          elements.messageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          });
+
+          // Developer tools
+          document.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.shiftKey) {
+              if (e.key === "O") {
+                e.preventDefault();
+                toggleDevOverlay();
+              } else if (e.key === "G") {
+                e.preventDefault();
+                toggleDevGrid();
+              }
+            }
+          });
+        }
+
+        function sendMessage() {
+          const content = elements.messageInput.value.trim();
+          if (!content) return;
+
+          const newMessage = {
+            id: "user-" + Date.now(),
+            author: "You",
+            avatar: "YU",
+            avatarColor: "#1264a3",
+            content: content,
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            }),
+            type: "message",
+          };
+
+          // Add to current channel
+          if (!state.channels[state.currentChannel]) {
+            state.channels[state.currentChannel] = [];
+          }
+          state.channels[state.currentChannel].push(newMessage);
+
+          // Render new message
+          elements.messageContainer.appendChild(renderMessage(newMessage));
+
+          // Clear input
+          elements.messageInput.value = "";
+          elements.messageInput.style.height = "auto";
+
+          // Scroll to bottom
+          elements.messageContainer.scrollTop =
+            elements.messageContainer.scrollHeight;
+        }
+
+        // Developer Tools
+        function toggleDevOverlay() {
+          const isVisible = elements.devOverlay.style.display === "block";
+          elements.devOverlay.style.display = isVisible ? "none" : "block";
+        }
+
+        function toggleDevGrid() {
+          const isVisible = elements.devGrid.style.display === "block";
+          elements.devGrid.style.display = isVisible ? "none" : "block";
+        }
+
+        // Initialize
+        function init() {
+          setupEventListeners();
+
+          // Load saved channel from localStorage
+          const savedChannel = localStorage.getItem("/slack-currentChannel");
+          if (savedChannel && state.channels[savedChannel]) {
+            switchChannel(savedChannel);
+          }
+
+          // Scroll to bottom of messages
+          setTimeout(() => {
+            elements.messageContainer.scrollTop =
+              elements.messageContainer.scrollHeight;
+          }, 100);
+        }
+
+        // Public API for debugging
+        window.__APP__ = {
+          state,
+          elements,
+          switchChannel,
+          notes: {
+            approximations: [
+              "Used system fonts instead of custom Slack font",
+              "Simplified avatar system with colored initials",
+              "Static message timestamps instead of dynamic updates",
+              "Inline SVG icons instead of custom icon font",
+            ],
+          },
+        };
+
+        // Start the app
+        init();
+      })();
+    </script>
+  </body>
+</html>

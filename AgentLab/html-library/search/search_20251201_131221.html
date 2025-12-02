@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PHIL 380 Northwestern reviews - Google Search</title>
+  <style>
+    /* ========================================
+       RESET LAYER
+       ======================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    
+    html, body, div, span, applet, object, iframe,
+    h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+    a, abbr, acronym, address, big, cite, code,
+    del, dfn, em, img, ins, kbd, q, s, samp,
+    small, strike, strong, sub, sup, tt, var,
+    b, u, i, center,
+    dl, dt, dd, ol, ul, li,
+    fieldset, form, label, legend,
+    table, caption, tbody, tfoot, thead, tr, th, td,
+    article, aside, canvas, details, embed,
+    figure, figcaption, footer, header, hgroup,
+    menu, nav, output, ruby, section, summary,
+    time, mark, audio, video {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      font-size: 100%;
+      font: inherit;
+      vertical-align: baseline;
+    }
+    
+    article, aside, details, figcaption, figure,
+    footer, header, hgroup, menu, nav, section {
+      display: block;
+    }
+    
+    body {
+      line-height: 1;
+    }
+    
+    ol, ul {
+      list-style: none;
+    }
+    
+    blockquote, q {
+      quotes: none;
+    }
+    
+    blockquote:before, blockquote:after,
+    q:before, q:after {
+      content: '';
+      content: none;
+    }
+    
+    table {
+      border-collapse: collapse;
+      border-spacing: 0;
+    }
+    
+    button, input, select, textarea {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      margin: 0;
+    }
+    
+    button {
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    /* ========================================
+       TOKEN LAYER (CSS Variables)
+       ======================================== */
+    :root {
+      /* Colors - Google palette */
+      --color-white: #ffffff;
+      --color-black: #202124;
+      --color-gray-50: #f8f9fa;
+      --color-gray-100: #f1f3f4;
+      --color-gray-200: #e8eaed;
+      --color-gray-300: #dadce0;
+      --color-gray-400: #bdc1c6;
+      --color-gray-500: #9aa0a6;
+      --color-gray-600: #80868b;
+      --color-gray-700: #5f6368;
+      --color-gray-800: #3c4043;
+      --color-gray-900: #202124;
+      
+      --color-blue-500: #1a73e8;
+      --color-blue-600: #1967d2;
+      --color-blue-700: #185abc;
+      --color-blue-hover: #174ea6;
+      
+      --color-green-url: #188038;
+      --color-green-url-light: #34a853;
+      
+      --color-red-500: #ea4335;
+      --color-yellow-500: #fbbc04;
+      
+      /* Typography */
+      --font-family: arial, sans-serif;
+      --font-size-xs: 11px;
+      --font-size-sm: 12px;
+      --font-size-base: 14px;
+      --font-size-md: 16px;
+      --font-size-lg: 18px;
+      --font-size-xl: 20px;
+      --font-size-2xl: 24px;
+      
+      --line-height-tight: 1.2;
+      --line-height-normal: 1.4;
+      --line-height-relaxed: 1.58;
+      
+      --font-weight-normal: 400;
+      --font-weight-medium: 500;
+      --font-weight-bold: 700;
+      
+      /* Spacing */
+      --spacing-0: 0;
+      --spacing-1: 4px;
+      --spacing-2: 8px;
+      --spacing-3: 12px;
+      --spacing-4: 16px;
+      --spacing-5: 20px;
+      --spacing-6: 24px;
+      --spacing-8: 32px;
+      --spacing-10: 40px;
+      --spacing-12: 48px;
+      --spacing-16: 64px;
+      
+      /* Border radius */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 24px;
+      --radius-full: 9999px;
+      
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+      --shadow-md: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+      --shadow-lg: 0 1px 6px rgba(32, 33, 36, 0.28);
+      --shadow-hover: 0 1px 6px rgba(32, 33, 36, 0.28);
+      
+      /* Z-index */
+      --z-dropdown: 100;
+      --z-sticky: 200;
+      --z-modal: 300;
+      --z-overlay: 400;
+      --z-tooltip: 500;
+      --z-devtools: 9999;
+      
+      /* Layout */
+      --header-height: 60px;
+      --search-bar-height: 44px;
+      --content-max-width: 652px;
+      --sidebar-width: 366px;
+      --results-left-offset: 180px;
+      
+      /* Focus */
+      --focus-ring: 0 0 0 2px var(--color-blue-500);
+      
+      /* Selection */
+      --selection-bg: #c2dbff;
+    }
+    
+    /* ========================================
+       BASE LAYER
+       ======================================== */
+    html {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-size-adjust: 100%;
+    }
+    
+    body {
+      font-family: var(--font-family);
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-normal);
+      color: var(--color-gray-900);
+      background-color: var(--color-white);
+      min-height: 100vh;
+    }
+    
+    ::selection {
+      background-color: var(--selection-bg);
+    }
+    
+    :focus-visible {
+      outline: 2px solid var(--color-blue-500);
+      outline-offset: 2px;
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: var(--color-gray-400);
+      border-radius: var(--radius-full);
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--color-gray-500);
+    }
+    
+    /* ========================================
+       COMPONENT LAYER - Header
+       ======================================== */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: var(--z-sticky);
+      background-color: var(--color-white);
+      border-bottom: 1px solid var(--color-gray-200);
+      padding: 0;
+    }
+    
+    .header__top {
+      display: flex;
+      align-items: center;
+      padding: 6px 0 4px 0;
+      height: var(--header-height);
+    }
+    
+    .header__logo {
+      display: flex;
+      align-items: center;
+      padding: 0 28px 0 28px;
+      flex-shrink: 0;
+    }
+    
+    .header__logo svg {
+      height: 30px;
+      width: 92px;
+    }
+    
+    .header__search-wrapper {
+      flex: 1;
+      max-width: 692px;
+      margin-right: var(--spacing-4);
+    }
+    
+    .search-bar {
+      display: flex;
+      align-items: center;
+      background-color: var(--color-white);
+      border: 1px solid var(--color-gray-300);
+      border-radius: var(--radius-lg);
+      height: var(--search-bar-height);
+      padding: 0 var(--spacing-4);
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    
+    .search-bar:hover {
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(223, 225, 229, 0);
+    }
+    
+    .search-bar:focus-within {
+      box-shadow: var(--shadow-hover);
+      border-color: rgba(223, 225, 229, 0);
+    }
+    
+    .search-bar__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-gray-500);
+      margin-right: var(--spacing-3);
+      flex-shrink: 0;
+    }
+    
+    .search-bar__icon svg {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .search-bar__input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: var(--font-size-md);
+      color: var(--color-gray-900);
+      background: transparent;
+      line-height: var(--search-bar-height);
+    }
+    
+    .search-bar__input::placeholder {
+      color: var(--color-gray-500);
+    }
+    
+    .search-bar__clear {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      margin-right: var(--spacing-2);
+      color: var(--color-gray-700);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    
+    .search-bar__clear:hover {
+      background-color: var(--color-gray-100);
+    }
+    
+    .search-bar__clear svg {
+      width: 18px;
+      height: 18px;
+    }
+    
+    .search-bar__divider {
+      width: 1px;
+      height: 28px;
+      background-color: var(--color-gray-300);
+      margin: 0 var(--spacing-3);
+      flex-shrink: 0;
+    }
+    
+    .search-bar__voice {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      margin-right: var(--spacing-2);
+      flex-shrink: 0;
+    }
+    
+    .search-bar__voice svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .search-bar__lens {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    
+    .search-bar__lens svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .header__actions {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
+      padding-right: var(--spacing-4);
+      gap: var(--spacing-2);
+    }
+    
+    .header__btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      color: var(--color-gray-700);
+    }
+    
+    .header__btn:hover {
+      background-color: var(--color-gray-100);
+    }
+    
+    .header__btn svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .header__avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-white);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      margin-left: var(--spacing-2);
+    }
+    
+    /* Navigation tabs */
+    .nav-tabs {
+      display: flex;
+      align-items: center;
+      padding-left: 180px;
+      height: 43px;
+      gap: var(--spacing-1);
+    }
+    
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 16px;
+      height: 100%;
+      font-size: 13px;
+      color: var(--color-gray-700);
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s ease;
+    }
+    
+    .nav-tab:hover {
+      color: var(--color-blue-500);
+    }
+    
+    .nav-tab--active {
+      color: var(--color-blue-500);
+      border-bottom-color: var(--color-blue-500);
+    }
+    
+    .nav-tab svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    /* ========================================
+       COMPONENT LAYER - Main Content
+       ======================================== */
+    .main-content {
+      display: flex;
+      padding-left: 180px;
+      padding-top: var(--spacing-5);
+      padding-right: var(--spacing-5);
+    }
+    
+    .results-container {
+      flex: 1;
+      max-width: var(--content-max-width);
+    }
+    
+    /* Results stats */
+    .results-stats {
+      font-size: var(--font-size-sm);
+      color: var(--color-gray-700);
+      margin-bottom: var(--spacing-5);
+      padding-left: 0;
+    }
+    
+    /* Search result card */
+    .search-result {
+      margin-bottom: 28px;
+      max-width: var(--content-max-width);
+    }
+    
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      margin-bottom: var(--spacing-1);
+    }
+    
+    .result-favicon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background-color: var(--color-gray-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1px solid var(--color-gray-200);
+    }
+    
+    .result-favicon svg {
+      width: 18px;
+      height: 18px;
+    }
+    
+    .result-site-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .result-site-name {
+      font-size: var(--font-size-base);
+      color: var(--color-gray-900);
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .result-url {
+      font-size: var(--font-size-sm);
+      color: var(--color-gray-700);
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .result-url__breadcrumb {
+      color: var(--color-gray-600);
+    }
+    
+    .result-menu-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      color: var(--color-gray-700);
+      flex-shrink: 0;
+    }
+    
+    .result-menu-btn:hover {
+      background-color: var(--color-gray-100);
+    }
+    
+    .result-menu-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+    
+    .result-title {
+      display: block;
+      font-size: var(--font-size-xl);
+      line-height: 1.3;
+      color: #1a0dab;
+      margin-bottom: 4px;
+      cursor: pointer;
+    }
+    
+    .result-title:hover {
+      text-decoration: underline;
+    }
+    
+    .result-title:visited {
+      color: #681da8;
+    }
+    
+    .result-snippet {
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-relaxed);
+      color: #4d5156;
+      word-wrap: break-word;
+    }
+    
+    .result-snippet em,
+    .result-snippet b {
+      font-weight: var(--font-weight-bold);
+      color: var(--color-gray-900);
+    }
+    
+    .result-date {
+      color: var(--color-gray-600);
+    }
+    
+    /* Rating specific styles */
+    .result-rating {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-1);
+      margin-top: 6px;
+    }
+    
+    .result-stars {
+      display: flex;
+      gap: 1px;
+    }
+    
+    .result-stars svg {
+      width: 14px;
+      height: 14px;
+    }
+    
+    .result-rating-text {
+      font-size: var(--font-size-sm);
+      color: var(--color-gray-700);
+    }
+    
+    /* Footer */
+    .footer {
+      background-color: var(--color-gray-100);
+      border-top: 1px solid var(--color-gray-300);
+      margin-top: var(--spacing-12);
+    }
+    
+    .footer__location {
+      padding: 15px 28px;
+      font-size: var(--font-size-base);
+      color: var(--color-gray-700);
+      border-bottom: 1px solid var(--color-gray-300);
+    }
+    
+    .footer__links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      padding: 0 28px;
+    }
+    
+    .footer__group {
+      display: flex;
+      gap: var(--spacing-6);
+      padding: 15px 0;
+    }
+    
+    .footer__link {
+      font-size: var(--font-size-base);
+      color: var(--color-gray-700);
+    }
+    
+    .footer__link:hover {
+      text-decoration: underline;
+    }
+    
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-8) 0;
+      gap: var(--spacing-4);
+    }
+    
+    .pagination__logo {
+      display: flex;
+      align-items: center;
+      margin-bottom: var(--spacing-4);
+    }
+    
+    .pagination__pages {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-4);
+    }
+    
+    .pagination__page {
+      font-size: var(--font-size-base);
+      color: var(--color-blue-500);
+      padding: var(--spacing-2);
+    }
+    
+    .pagination__page:hover {
+      text-decoration: underline;
+    }
+    
+    .pagination__page--active {
+      color: var(--color-gray-900);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .pagination__nav {
+      font-size: var(--font-size-base);
+      color: var(--color-blue-500);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-1);
+    }
+    
+    .pagination__nav:hover {
+      text-decoration: underline;
+    }
+    
+    /* ========================================
+       COMPONENT LAYER - Related Searches
+       ======================================== */
+    .related-searches {
+      padding: var(--spacing-6) 0;
+      border-top: 1px solid var(--color-gray-200);
+      margin-top: var(--spacing-6);
+    }
+    
+    .related-searches__title {
+      font-size: var(--font-size-lg);
+      color: var(--color-gray-900);
+      margin-bottom: var(--spacing-4);
+    }
+    
+    .related-searches__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-2) var(--spacing-6);
+    }
+    
+    .related-search-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      padding: var(--spacing-2) 0;
+    }
+    
+    .related-search-item__icon {
+      color: var(--color-gray-500);
+    }
+    
+    .related-search-item__icon svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .related-search-item__text {
+      font-size: var(--font-size-base);
+      color: var(--color-blue-500);
+    }
+    
+    .related-search-item:hover .related-search-item__text {
+      text-decoration: underline;
+    }
+    
+    /* ========================================
+       UTILITIES LAYER
+       ======================================== */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    
+    /* ========================================
+       STATE LAYER
+       ======================================== */
+    .search-bar__clear[hidden] {
+      display: none;
+    }
+    
+    /* ========================================
+       RESPONSIVE BREAKPOINTS
+       ======================================== */
+    @media (max-width: 1280px) {
+      .main-content {
+        padding-left: 140px;
+      }
+      
+      .nav-tabs {
+        padding-left: 140px;
+      }
+    }
+    
+    @media (max-width: 1024px) {
+      .main-content {
+        padding-left: 28px;
+      }
+      
+      .nav-tabs {
+        padding-left: 28px;
+      }
+      
+      :root {
+        --results-left-offset: 28px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .header__logo {
+        padding: 0 16px;
+      }
+      
+      .header__search-wrapper {
+        max-width: none;
+      }
+      
+      .main-content {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      
+      .nav-tabs {
+        padding-left: 16px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .nav-tab {
+        padding: 0 12px;
+        white-space: nowrap;
+      }
+      
+      .related-searches__grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .header__actions {
+        display: none;
+      }
+    }
+    
+    @media (max-width: 375px) {
+      .header__logo {
+        padding: 0 12px;
+      }
+      
+      .search-bar {
+        padding: 0 var(--spacing-2);
+      }
+      
+      .search-bar__divider {
+        display: none;
+      }
+      
+      .search-bar__voice,
+      .search-bar__lens {
+        display: none;
+      }
+    }
+    
+    /* ========================================
+       DEV TOOLS (hidden by default)
+       ======================================== */
+    .dev-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: var(--z-devtools);
+      display: none;
+    }
+    
+    .dev-overlay--active {
+      display: block;
+    }
+    
+    .dev-overlay__image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: auto;
+      opacity: 0.5;
+    }
+    
+    .dev-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: var(--z-devtools);
+      display: none;
+    }
+    
+    .dev-grid--active {
+      display: block;
+      background: 
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 7px,
+          rgba(255, 0, 0, 0.05) 7px,
+          rgba(255, 0, 0, 0.05) 8px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 99px,
+          rgba(0, 0, 255, 0.1) 99px,
+          rgba(0, 0, 255, 0.1) 100px
+        );
+    }
+    
+    .dev-panel {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      z-index: var(--z-devtools);
+      display: none;
+      min-width: 200px;
+    }
+    
+    .dev-panel--active {
+      display: block;
+    }
+    
+    .dev-panel__title {
+      font-weight: bold;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .dev-panel__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    
+    .dev-panel__slider {
+      width: 100px;
+    }
+    
+    .dev-panel button {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    
+    .dev-panel button:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header" id="header" data-automation="header.main" role="banner">
+    <div class="header__top">
+      <a href="/" class="header__logo" id="logo" data-automation="logo.google" aria-label="Google">
+        <svg viewBox="0 0 272 92" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M115.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18C71.25 34.32 81.24 25 93.5 25s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44S80.99 39.2 80.99 47.18c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#EA4335"/>
+          <path d="M163.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18c0-12.85 9.99-22.18 22.25-22.18s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44s-12.51 5.46-12.51 13.44c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#FBBC05"/>
+          <path d="M209.75 26.34v39.82c0 16.38-9.66 23.07-21.08 23.07-10.75 0-17.22-7.19-19.66-13.07l8.48-3.53c1.51 3.61 5.21 7.87 11.17 7.87 7.31 0 11.84-4.51 11.84-13v-3.19h-.34c-2.18 2.69-6.38 5.04-11.68 5.04-11.09 0-21.25-9.66-21.25-22.09 0-12.52 10.16-22.26 21.25-22.26 5.29 0 9.49 2.35 11.68 4.96h.34v-3.61h9.25zm-8.56 20.92c0-7.81-5.21-13.52-11.84-13.52-6.72 0-12.35 5.71-12.35 13.52 0 7.73 5.63 13.36 12.35 13.36 6.63 0 11.84-5.63 11.84-13.36z" fill="#4285F4"/>
+          <path d="M225 3v65h-9.5V3h9.5z" fill="#34A853"/>
+          <path d="M262.02 54.48l7.56 5.04c-2.44 3.61-8.32 9.83-18.48 9.83-12.6 0-22.01-9.74-22.01-22.18 0-13.19 9.49-22.18 20.92-22.18 11.51 0 17.14 9.16 18.98 14.11l1.01 2.52-29.65 12.28c2.27 4.45 5.8 6.72 10.75 6.72 4.96 0 8.4-2.44 10.92-6.14zm-23.27-7.98l19.82-8.23c-1.09-2.77-4.37-4.7-8.23-4.7-4.95 0-11.84 4.37-11.59 12.93z" fill="#EA4335"/>
+          <path d="M35.29 41.41V32H67c.31 1.64.47 3.58.47 5.68 0 7.06-1.93 15.79-8.15 22.01-6.05 6.3-13.78 9.66-24.02 9.66C16.32 69.35.36 53.89.36 34.91.36 15.93 16.32.47 35.3.47c10.5 0 17.98 4.12 23.6 9.49l-6.64 6.64c-4.03-3.78-9.49-6.72-16.97-6.72-13.86 0-24.7 11.17-24.7 25.03 0 13.86 10.84 25.03 24.7 25.03 8.99 0 14.11-3.61 17.39-6.89 2.66-2.66 4.41-6.46 5.1-11.65l-22.49.01z" fill="#4285F4"/>
+        </svg>
+      </a>
+      
+      <div class="header__search-wrapper">
+        <form class="search-bar" id="search-form" data-automation="form.search" role="search">
+          <div class="search-bar__icon" aria-hidden="true">
+            <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/>
+            </svg>
+          </div>
+          
+          <input 
+            type="text" 
+            class="search-bar__input" 
+            id="search-input" 
+            data-automation="input.search"
+            value="PHIL 380 Northwestern reviews" 
+            aria-label="Search"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+          />
+          
+          <button type="button" class="search-bar__clear" id="search-clear" data-automation="btn.clear" aria-label="Clear search">
+            <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/>
+            </svg>
+          </button>
+          
+          <div class="search-bar__divider" aria-hidden="true"></div>
+          
+          <button type="button" class="search-bar__voice" id="voice-search" data-automation="btn.voice" aria-label="Search by voice">
+            <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="#4285F4"/>
+            </svg>
+          </button>
+          
+          <button type="button" class="search-bar__lens" id="lens-search" data-automation="btn.lens" aria-label="Search by image">
+            <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+              <rect fill="none" height="192" width="192"/>
+              <g>
+                <circle fill="#4285f4" cx="96" cy="104.15" r="28"/>
+                <path fill="#ea4335" d="M160,72v40.15V136c0,1.69-0.34,3.29-0.82,4.82v0v0c-1.57,4.92-5.43,8.78-10.35,10.35h0v0 c-1.53,0.49-3.13,0.82-4.82,0.82H72h0c-1.69,0-3.29-0.34-4.82-0.82h0l0,0c-4.92-1.57-8.78-5.43-10.35-10.35v0l0,0 C56.34,139.29,56,137.69,56,136v-23.85V72v0c0-1.69,0.34-3.29,0.82-4.82l0,0v0c1.57-4.92,5.43-8.78,10.35-10.35l0,0h0 C68.71,56.34,70.31,56,72,56h71.15H144h0c1.69,0,3.29,0.34,4.82,0.82h0l0,0c4.92,1.57,8.78,5.43,10.35,10.35l0,0v0 C159.66,68.71,160,70.31,160,72L160,72z" opacity=".5"/>
+                <path fill="#34a853" d="M144,152H72c-8.82,0-16-7.18-16-16v-24h96v24C152,144.82,144.82,152,144,152z"/>
+                <path fill="#fbbc05" d="M160,72v40.15V136c0,1.69-0.34,3.29-0.82,4.82c-0.5-0.02-1-0.01-1.51-0.01H56v-24.66V72 c0-8.82,7.18-16,16-16h71.15H144C152.82,56,160,63.18,160,72z"/>
+                <path fill="#4285f4" d="M160,72v40.15l-32-24.07c-2.49-11.26-12.06-20.08-24-22.16c-15.47-2.68-29.91,6.09-34.36,20.45 l-1.46,1.1l0,0L56,77.84V72c0-8.82,7.18-16,16-16h71.15H144C152.82,56,160,63.18,160,72z"/>
+              </g>
+            </svg>
+          </button>
+          
+          <button type="submit" id="search-button" data-automation="btn.search" class="visually-hidden">Search</button>
+        </form>
+      </div>
+      
+      <div class="header__actions">
+        <button type="button" class="header__btn" id="settings-btn" data-automation="btn.settings" aria-label="Settings">
+          <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13.85 22.25h-3.7c-.74 0-1.36-.54-1.45-1.27l-.27-1.89c-.27-.14-.53-.29-.79-.46l-1.8.72c-.7.26-1.47-.03-1.81-.65L2.2 15.53c-.35-.66-.2-1.44.36-1.88l1.53-1.19c-.01-.15-.02-.3-.02-.46 0-.15.01-.31.02-.46l-1.52-1.19c-.59-.45-.74-1.26-.37-1.88l1.85-3.19c.34-.62 1.11-.9 1.79-.63l1.81.73c.26-.17.52-.32.78-.46l.27-1.91c.09-.7.71-1.25 1.44-1.25h3.7c.74 0 1.36.54 1.45 1.27l.27 1.89c.27.14.53.29.79.46l1.8-.72c.71-.26 1.48.03 1.82.65l1.84 3.18c.36.66.2 1.44-.36 1.88l-1.52 1.19c.01.15.02.3.02.46s-.01.31-.02.46l1.52 1.19c.56.45.72 1.23.37 1.86l-1.86 3.22c-.34.62-1.11.9-1.8.63l-1.8-.72c-.26.17-.52.32-.78.46l-.27 1.91c-.1.68-.72 1.22-1.46 1.22zm-3.23-2h2.76l.37-2.55.53-.22c.44-.18.88-.44 1.34-.78l.45-.34 2.38.96 1.38-2.4-2.03-1.58.07-.56c.03-.26.06-.51.06-.78s-.03-.53-.06-.78l-.07-.56 2.03-1.58-1.39-2.4-2.39.96-.45-.35c-.42-.32-.87-.58-1.33-.77l-.52-.22-.37-2.55h-2.76l-.37 2.55-.53.21c-.44.19-.88.44-1.34.79l-.45.33-2.38-.95-1.39 2.39 2.03 1.58-.07.56a7 7 0 0 0-.06.79c0 .26.02.53.06.78l.07.56-2.03 1.58 1.38 2.4 2.39-.96.45.35c.43.33.86.58 1.33.77l.53.22.38 2.55z" fill="currentColor"/>
+            <circle cx="12" cy="12" r="3.5" fill="currentColor"/>
+          </svg>
+        </button>
+        
+        <button type="button" class="header__btn" id="apps-btn" data-automation="btn.apps" aria-label="Google apps">
+          <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M6,8c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM12,20c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM6,20c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM6,14c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM12,14c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM16,6c0,1.1 0.9,2 2,2s2,-0.9 2,-2 -0.9,-2 -2,-2 -2,0.9 -2,2zM12,8c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM18,14c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM18,20c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2z" fill="currentColor"/>
+          </svg>
+        </button>
+        
+        <div class="header__avatar" id="avatar" data-automation="avatar.user" role="button" aria-label="Google Account" tabindex="0">
+          <span>S</span>
+        </div>
+      </div>
+    </div>
+    
+    <nav class="nav-tabs" id="nav-tabs" data-automation="nav.tabs" role="tablist" aria-label="Search categories">
+      <a href="#" class="nav-tab nav-tab--active" id="tab-all" data-automation="tab.all" role="tab" aria-selected="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+        All
+      </a>
+      <a href="#" class="nav-tab" id="tab-images" data-automation="tab.images" role="tab" aria-selected="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+        </svg>
+        Images
+      </a>
+      <a href="#" class="nav-tab" id="tab-videos" data-automation="tab.videos" role="tab" aria-selected="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+        </svg>
+        Videos
+      </a>
+      <a href="#" class="nav-tab" id="tab-news" data-automation="tab.news" role="tab" aria-selected="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M22 3l-1.67 1.67L18.67 3 17 4.67 15.33 3l-1.66 1.67L12 3l-1.67 1.67L8.67 3 7 4.67 5.33 3 3.67 4.67 2 3v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V3zM11 19H4v-6h7v6zm9 0h-7v-2h7v2zm0-4h-7v-2h7v2zm0-4H4V8h16v3z"/>
+        </svg>
+        News
+      </a>
+      <a href="#" class="nav-tab" id="tab-shopping" data-automation="tab.shopping" role="tab" aria-selected="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6-2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2zm6 16H6V8h2v2c0 .55.45 1 1 1s1-.45 1-1V8h4v2c0 .55.45 1 1 1s1-.45 1-1V8h2v12z"/>
+        </svg>
+        Shopping
+      </a>
+      <a href="#" class="nav-tab" id="tab-more" data-automation="tab.more" role="tab" aria-selected="false">
+        More
+      </a>
+    </nav>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="main-content" id="main" data-automation="main.content" role="main">
+    <div class="results-container search-results-container" id="results-container" data-automation="results.container">
+      <div class="results-stats" id="results-stats" data-automation="results.stats">
+        About 847,000 results (0.42 seconds)
+      </div>
+      
+      <!-- Result 1 - Official -->
+      <article class="search-result" id="result-001" data-automation="result.001" data-result-type="official">
+        <div class="result-header">
+          <div class="result-favicon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#4E2A84">
+              <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+            </svg>
+          </div>
+          <div class="result-site-info">
+            <span class="result-site-name">Northwestern University</span>
+            <span class="result-url" data-automation="result.001.url">
+              https://catalogs.northwestern.edu › courses › PHIL-380
+            </span>
+          </div>
+          <button type="button" class="result-menu-btn" data-automation="result.001.menu" aria-label="More options">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+          </button>
+        </div>
+        <a href="/course-catalog/phil-380" class="result-title" id="result-001-title" data-automation="result.001.title">
+          PHIL 380: Philosophy of Artificial Intelligence | Course Catalog
+        </a>
+        <p class="result-snippet" id="result-001-snippet" data-automation="result.001.snippet">
+          <b>PHIL 380</b> explores foundational questions about <b>AI</b>, consciousness, and ethics. This <b>philosophy course</b> examines whether machines can think, the nature of intelligence, and moral implications. 3 credits. Prerequisites: One 200-level <b>philosophy</b> course or consent.
+        </p>
+      </article>
+      
+      <!-- Result 2 - Wiki -->
+      <article class="search-result" id="result-002" data-automation="result.002" data-result-type="wiki">
+        <div class="result-header">
+          <div class="result-favicon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#5f6368">
+              <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+            </svg>
+          </div>
+          <div class="result-site-info">
+            <span class="result-site-name">Northwestern CS Wiki</span>
+            <span class="result-url" data-automation="result.002.url">
+              https://nuwiki.cs.northwestern.edu › courses › phil-380
+            </span>
+          </div>
+          <button type="button" class="result-menu-btn" data-automation="result.002.menu" aria-label="More options">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+          </button>
+        </div>
+        <a href="/wiki/phil-380" class="result-title" id="result-002-title" data-automation="result.002.title">
+          PHIL 380 - Student Guide & Tips | Northwestern CS Wiki
+        </a>
+        <p class="result-snippet" id="result-002-snippet" data-automation="result.002.snippet">
+          <span class="result-date">Updated Dec 2024 — </span>Student-curated guide for <b>PHIL 380 Philosophy</b> of <b>AI</b>. Find current CRN numbers, professor reviews, study tips, and <b>course</b> materials. Best elective for CS majors interested in ethics.
+        </p>
+      </article>
+      
+      <!-- Result 3 - Rating Site -->
+      <article class="search-result" id="result-003" data-automation="result.003" data-result-type="rating_site">
+        <div class="result-header">
+          <div class="result-favicon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#00a65a">
+              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+            </svg>
+          </div>
+          <div class="result-site-info">
+            <span class="result-site-name">Rate My Professors</span>
+            <span class="result-url" data-automation="result.003.url">
+              https://www.ratemyprofessors.com › professor › eleanor-davies
+            </span>
+          </div>
+          <button type="button" class="result-menu-btn" data-automation="result.003.menu" aria-label="More options">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+          </button>
+        </div>
+        <a href="/ratemyprofessors/eleanor-davies" class="result-title" id="result-003-title" data-automation="result.003.title">
+          Dr. Eleanor Davies at Northwestern University | RateMyProfessors
+        </a>
+        <p class="result-snippet" id="result-003-snippet" data-automation="result.003.snippet">
+          Dr. Eleanor Davies teaches <b>PHIL 380</b> and other <b>philosophy</b> courses at Northwestern. Known for engaging lectures on <b>AI</b> ethics. Students praise her <b>course</b> structure and accessibility.
+        </p>
+        <div class="result-rating" data-automation="result.003.rating">
+          <div class="result-stars" aria-label="4.2 out of 5 stars">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#fbbc04"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#fbbc04"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#fbbc04"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12

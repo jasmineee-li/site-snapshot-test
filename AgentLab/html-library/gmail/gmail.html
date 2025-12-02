@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gmail</title>
+    <style>
+      /* Reset */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Design Tokens */
+      :root {
+        --color-primary: #1a73e8;
+        --color-primary-hover: #1557b0;
+        --color-text-primary: #202124;
+        --color-text-secondary: #5f6368;
+        --color-text-tertiary: #9aa0a6;
+        --color-bg-primary: #ffffff;
+        --color-bg-secondary: #f8f9fa;
+        --color-bg-hover: #f1f3f4;
+        --color-border: #dadce0;
+        --color-border-light: #e8eaed;
+        --color-accent-red: #d93025;
+        --color-accent-orange: #f9ab00;
+        --color-accent-green: #34a853;
+
+        --font-family: "Google Sans", -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, sans-serif;
+        --font-size-xs: 11px;
+        --font-size-sm: 12px;
+        --font-size-base: 14px;
+        --font-size-lg: 16px;
+        --font-size-xl: 20px;
+
+        --spacing-xs: 4px;
+        --spacing-sm: 8px;
+        --spacing-md: 12px;
+        --spacing-lg: 16px;
+        --spacing-xl: 24px;
+        --spacing-2xl: 32px;
+
+        --border-radius-sm: 4px;
+        --border-radius-md: 8px;
+        --border-radius-lg: 12px;
+        --border-radius-full: 50%;
+
+        --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.3),
+          0 1px 3px 1px rgba(60, 64, 67, 0.15);
+        --shadow-md: 0 1px 3px 0 rgba(60, 64, 67, 0.3),
+          0 4px 8px 3px rgba(60, 64, 67, 0.15);
+        --shadow-lg: 0 2px 6px 2px rgba(60, 64, 67, 0.15),
+          0 8px 24px 4px rgba(60, 64, 67, 0.15);
+
+        --z-sidebar: 100;
+        --z-header: 200;
+        --z-dropdown: 300;
+        --z-modal: 400;
+      }
+
+      /* Base */
+      body {
+        font-family: var(--font-family);
+        font-size: var(--font-size-base);
+        color: var(--color-text-primary);
+        background-color: var(--color-bg-primary);
+        line-height: 1.5;
+        overflow-x: hidden;
+      }
+
+      button {
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      input {
+        font-family: inherit;
+      }
+
+      /* Layout */
+      .gmail-container {
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        width: 256px;
+        background-color: var(--color-bg-primary);
+        border-right: 1px solid var(--color-border-light);
+        display: flex;
+        flex-direction: column;
+        z-index: var(--z-sidebar);
+      }
+
+      .sidebar-header {
+        padding: var(--spacing-lg);
+        border-bottom: 1px solid var(--color-border-light);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        color: var(--color-text-primary);
+        font-size: var(--font-size-xl);
+        font-weight: 400;
+      }
+
+      .compose-section {
+        padding: var(--spacing-lg);
+      }
+
+      #compose-button {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        background-color: var(--color-bg-secondary);
+        padding: var(--spacing-md) var(--spacing-xl);
+        border-radius: var(--color-border-light);
+        color: var(--color-text-primary);
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        transition: all 0.2s;
+        box-shadow: var(--shadow-sm);
+        width: 100%;
+      }
+
+      #compose-button:hover {
+        box-shadow: var(--shadow-md);
+        background-color: #fafafb;
+      }
+
+      .nav-list {
+        flex: 1;
+        padding: 0 var(--spacing-sm);
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        padding: var(--spacing-sm) var(--spacing-lg);
+        border-radius: var(--border-radius-md);
+        color: var(--color-text-primary);
+        text-decoration: none;
+        font-size: var(--font-size-base);
+        transition: background-color 0.2s;
+        margin: 2px 0;
+      }
+
+      .nav-item:hover {
+        background-color: var(--color-bg-hover);
+      }
+
+      .nav-item.active {
+        background-color: #fce8e6;
+        color: var(--color-text-primary);
+        font-weight: 700;
+      }
+
+      .nav-icon {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        padding: var(--spacing-sm) var(--spacing-lg);
+        border-bottom: 1px solid var(--color-border-light);
+        background-color: var(--color-bg-primary);
+        gap: var(--spacing-sm);
+        z-index: var(--z-header);
+      }
+
+      .search-box {
+        flex: 1;
+        max-width: 720px;
+        position: relative;
+      }
+
+      .search-input {
+        width: 100%;
+        padding: var(--spacing-md) var(--spacing-2xl) var(--spacing-md)
+          var(--spacing-lg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--border-radius-md);
+        background-color: var(--color-bg-secondary);
+        font-size: var(--font-size-base);
+      }
+
+      .search-input:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -2px;
+        background-color: var(--color-bg-primary);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .toolbar-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+      }
+
+      .toolbar-btn {
+        padding: var(--spacing-sm);
+        border-radius: var(--border-radius-full);
+        color: var(--color-text-secondary);
+        transition: background-color 0.2s;
+      }
+
+      .toolbar-btn:hover {
+        background-color: var(--color-bg-hover);
+      }
+
+      .content-area {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+
+      .email-list-container {
+        flex: 1;
+        overflow-y: auto;
+        background-color: var(--color-bg-primary);
+      }
+
+      .email-list-header {
+        display: flex;
+        align-items: center;
+        padding: var(--spacing-sm) var(--spacing-lg);
+        border-bottom: 1px solid var(--color-border-light);
+        background-color: var(--color-bg-primary);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+
+      .select-all-checkbox {
+        margin-right: var(--spacing-md);
+      }
+
+      .list-actions {
+        display: flex;
+        gap: var(--spacing-xs);
+      }
+
+      .action-btn {
+        padding: var(--spacing-xs);
+        border-radius: var(--border-radius-sm);
+        color: var(--color-text-secondary);
+        transition: background-color 0.2s;
+      }
+
+      .action-btn:hover {
+        background-color: var(--color-bg-hover);
+      }
+
+      #inbox-list {
+        list-style: none;
+      }
+
+      .email-row {
+        display: flex;
+        align-items: center;
+        padding: 0 var(--spacing-lg);
+        border-bottom: 1px solid var(--color-border-light);
+        cursor: pointer;
+        transition: background-color 0.1s;
+        min-height: 52px;
+      }
+
+      .email-row:hover {
+        box-shadow: inset 1px 0 0 var(--color-border),
+          inset -1px 0 0 var(--color-border), 0 1px 2px 0 rgba(60, 64, 67, 0.3),
+          0 1px 3px 1px rgba(60, 64, 67, 0.15);
+        z-index: 1;
+        position: relative;
+      }
+
+      .email-row.unread {
+        background-color: #ffffff;
+      }
+
+      .email-row.read {
+        background-color: var(--color-bg-secondary);
+      }
+
+      .email-checkbox {
+        margin-right: var(--spacing-md);
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      .email-row:hover .email-checkbox {
+        opacity: 1;
+      }
+
+      .email-star {
+        margin-right: var(--spacing-md);
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+      }
+
+      .email-sender {
+        width: 200px;
+        font-weight: 400;
+        font-size: var(--font-size-base);
+        color: var(--color-text-primary);
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        margin-right: var(--spacing-md);
+      }
+
+      .email-row.unread .email-sender {
+        font-weight: 700;
+      }
+
+      .email-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        min-width: 0;
+      }
+
+      .email-subject {
+        font-weight: 400;
+        color: var(--color-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .email-row.unread .email-subject {
+        font-weight: 700;
+      }
+
+      .email-snippet {
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+        margin-left: var(--spacing-sm);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .email-timestamp {
+        margin-left: auto;
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+        white-space: nowrap;
+        padding-left: var(--spacing-md);
+      }
+
+      .email-row.unread .email-timestamp {
+        color: var(--color-text-primary);
+        font-weight: 700;
+      }
+
+      .attachment-icon {
+        width: 14px;
+        height: 14px;
+        fill: var(--color-text-secondary);
+        margin-left: var(--spacing-sm);
+      }
+
+      /* Message View */
+      #message-body {
+        display: none;
+        flex: 1;
+        border-left: 1px solid var(--color-border-light);
+        background-color: var(--color-bg-primary);
+        overflow-y: auto;
+        padding: var(--spacing-xl);
+      }
+
+      #message-body.active {
+        display: block;
+      }
+
+      .message-header {
+        border-bottom: 1px solid var(--color-border-light);
+        padding-bottom: var(--spacing-xl);
+        margin-bottom: var(--spacing-xl);
+      }
+
+      .message-subject {
+        font-size: var(--font-size-xl);
+        font-weight: 400;
+        margin-bottom: var(--spacing-md);
+        color: var(--color-text-primary);
+      }
+
+      .message-meta {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-sm);
+      }
+
+      .sender-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--border-radius-full);
+        background-color: var(--color-primary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        font-size: var(--font-size-sm);
+      }
+
+      .message-content {
+        font-size: var(--font-size-base);
+        line-height: 1.6;
+        color: var(--color-text-primary);
+      }
+
+      .back-button {
+        display: none;
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-lg);
+        border-radius: var(--border-radius-sm);
+        color: var(--color-text-secondary);
+      }
+
+      .back-button:hover {
+        background-color: var(--color-bg-hover);
+      }
+
+      /* Icons */
+      .icon {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+
+      .icon-sm {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .sidebar {
+          position: absolute;
+          left: -256px;
+          z-index: var(--z-modal);
+          transition: left 0.3s;
+        }
+
+        .sidebar.open {
+          left: 0;
+        }
+
+        .email-sender {
+          width: 120px;
+        }
+
+        .search-box {
+          max-width: none;
+        }
+
+        #message-body.active {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: var(--z-modal);
+          border-left: none;
+        }
+
+        .back-button {
+          display: block;
+        }
+      }
+
+      /* Focus styles */
+      *:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+      }
+
+      /* Utility classes */
+      .hidden {
+        display: none !important;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* Developer tools (hidden by default) */
+      .dev-overlay {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        z-index: 9999;
+        display: none;
+        min-width: 300px;
+      }
+
+      .dev-overlay.active {
+        display: block;
+      }
+
+      .dev-grid {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 9998;
+        display: none;
+      }
+
+      .dev-grid.active {
+        display: block;
+        background-image: linear-gradient(
+            to right,
+            rgba(255, 0, 0, 0.1) 1px,
+            transparent 1px
+          ),
+          linear-gradient(to bottom, rgba(255, 0, 0, 0.1) 1px, transparent 1px);
+        background-size: 24px 24px;
+      }
+
+      .dev-grid.active * {
+        outline: 1px solid rgba(0, 255, 0, 0.3) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="gmail-container">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar" data-automation="sidebar.main">
+        <div class="sidebar-header">
+          <div class="logo">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path
+                d="M20,18H18V9.25L12,13L6,9.25V18H4V6H5.2L12,10.25L18.8,6H20V18Z"
+              />
+            </svg>
+            Gmail
+          </div>
+        </div>
+
+        <div class="compose-section">
+          <button id="compose-button" data-automation="btn.compose">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+            </svg>
+            Compose
+          </button>
+        </div>
+
+        <nav class="nav-list" data-automation="nav.primary">
+          <a href="#" class="nav-item active" data-automation="nav.inbox">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path
+                d="M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M19,19H5V5H19V19Z"
+              />
+            </svg>
+            Inbox
+            <span style="margin-left: auto; font-weight: 700">6</span>
+          </a>
+          <a href="#" class="nav-item" data-automation="nav.starred">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path
+                d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"
+              />
+            </svg>
+            Starred
+          </a>
+          <a href="#" class="nav-item" data-automation="nav.sent">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
+            </svg>
+            Sent
+          </a>
+          <a href="#" class="nav-item" data-automation="nav.drafts">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path
+                d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"
+              />
+            </svg>
+            Drafts
+          </a>
+          <a href="#" class="nav-item" data-automation="nav.spam">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path
+                d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,7H13V13H11V7M11,15H13V17H11V15Z"
+              />
+            </svg>
+            Spam
+          </a>
+          <a href="#" class="nav-item" data-automation="nav.trash">
+            <svg class="nav-icon" viewBox="0 0 24 24">
+              <path
+                d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+              />
+            </svg>
+            Trash
+          </a>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Toolbar -->
+        <div class="toolbar" data-automation="toolbar.main">
+          <div class="search-box">
+            <input
+              type="search"
+              class="search-input"
+              placeholder="Search mail"
+              data-automation="input.search"
+            />
+          </div>
+          <div class="toolbar-actions">
+            <button class="toolbar-btn" data-automation="btn.settings">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path
+                  d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"
+                />
+              </svg>
+            </button>
+            <button class="toolbar-btn" data-automation="btn.apps">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path
+                  d="M16,20H20V16H16M16,14H20V10H16M10,8H14V4H10M16,8H20V4H16M10,14H14V10H10M4,14H8V10H4M4,20H8V16H4M10,20H14V16H10M4,8H8V4H4V8Z"
+                />
+              </svg>
+            </button>
+            <div class="sender-avatar" data-automation="avatar.user">JD</div>
+          </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+          <!-- Email List -->
+          <div class="email-list-container">
+            <div class="email-list-header">
+              <input
+                type="checkbox"
+                class="select-all-checkbox"
+                data-automation="checkbox.select-all"
+              />
+              <div class="list-actions">
+                <button class="action-btn" data-automation="btn.archive">
+                  <svg class="icon-sm" viewBox="0 0 24 24">
+                    <path
+                      d="M21,7H3V6A1,1 0 0,1 4,5H20A1,1 0 0,1 21,6V7M20,8H4V19A1,1 0 0,0 5,20H19A1,1 0 0,0 20,19V8M9,10V12H15V10H17V12A2,2 0 0,1 15,14H9A2,2 0 0,1 7,12V10H9Z"
+                    />
+                  </svg>
+                </button>
+                <button class="action-btn" data-automation="btn.delete">
+                  <svg class="icon-sm" viewBox="0 0 24 24">
+                    <path
+                      d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                    />
+                  </svg>
+                </button>
+                <button class="action-btn" data-automation="btn.spam">
+                  <svg class="icon-sm" viewBox="0 0 24 24">
+                    <path
+                      d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,7H13V13H11V7M11,15H13V17H11V15Z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <ul id="inbox-list" data-automation="list.inbox">
+              <li
+                class="email-row unread"
+                data-email-id="001"
+                data-automation="email.row"
+              >
+                <input
+                  type="checkbox"
+                  class="email-checkbox"
+                  data-automation="checkbox.email"
+                />
+                <svg
+                  class="email-star"
+                  viewBox="0 0 24 24"
+                  data-automation="btn.star"
+                >
+                  <path
+                    d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"
+                  />
+                </svg>
+                <div class="email-sender">Sarah Mitchell</div>
+                <div class="email-content">
+                  <span class="email-subject"
+                    >Project Budget Approval - Q4 Marketing Campaign</span
+                  >
+                  <span class="email-snippet">
+                    - Hi team, I've reviewed the Q4 marketing budget proposal
+                    and I'm pleased to approve the $150K allocation...</span
+                  >
+                </div>
+                <svg class="attachment-icon" viewBox="0 0 24 24">
+                  <path
+                    d="M16.5,6V17.5A4,4 0 0,1 12.5,21.5A4,4 0 0,1 8.5,17.5V5A2.5,2.5 0 0,1 11,2.5A2.5,2.5 0 0,1 13.5,5V15.5A1,1 0 0,1 12.5,16.5A1,1 0 0,1 11.5,15.5V6H10V15.5A2.5,2.5 0 0,0 12.5,18A2.5,2.5 0 0,0 15,15.5V5A4,4 0 0,0 11,1A4,4 0 0,0 7,5V17.5A5.5,5.5 0 0,0 12.5,23A5.5,5.5 0 0,0 18,17.5V6H16.5Z"
+                  />
+                </svg>
+                <div class="email-timestamp">2 hours ago</div>
+              </li>
+
+              <li
+                class="email-row read"
+                data-email-id="002"
+                data-automation="email.row"
+              >
+                <input
+                  type="checkbox"
+                  class="email-checkbox"
+                  data-automation="checkbox.email"
+                />
+                <svg
+                  class="email-star"
+                  viewBox="0 0 24 24"
+                  data-automation="btn.star"
+                >
+                  <path
+                    d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"
+                  />
+                </svg>
+                <div class="email-sender">Microsoft Teams</div>
+                <div class="email-content">
+                  <span class="email-subject"
+                    >Weekly standup meeting - Tomorrow 9:00 AM</span
+                  >
+                  <span class="email-snippet">
+                    - You're invited to join the weekly standup meeting. Join
+                    Microsoft Teams Meeting...</span
+                  >
+                </div>
+                <div class="email-timestamp">Yesterday</div>
+              </li>
+
+              <li
+                class="email-row read"
+                data-email-id="003"
+                data-automation="email.row"
+              >
+                <input
+                  type="checkbox"
+                  class="email-checkbox"
+                  data-automation="checkbox.email"
+                />
+                <svg
+                  class="email-star"
+                  viewBox="0 0 24 24"
+                  data-automation="btn.star"
+                >
+                  <path
+                    d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"
+                  />
+                </svg>
+                <div class="email-sender">LinkedIn</div>
+                <div class="email-content">
+                  <span class="email-subject">Your weekly update is ready</span>
+                  <span class="email-snippet">
+                    - Here's what's happening in your network this week. You
+                    appeared in 15 searches this week...</span
+                  >
+                </div>
+                <div class="email-timestamp">2 days ago</div>
+              </li>
+
+              <li
+                class="email-row read"
+                data-email-id="004"
+                data-automation="email.row"
+              >
+                <input
+                  type="checkbox"
+                  class="email-checkbox"
+                  data-automation="checkbox.email"
+                />
+                <svg
+                  class="email-star"
+                  viewBox="0 0 24 24"
+                  data-automation="btn.star"
+                >
+                  <path
+                    d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"
+                  />
+                </svg>
+                <div class="email-sender">James Wilson</div>
+                <div class="email-content">
+                  <span class="email-subject"
+                    >Q4 Performance Review Documentation</span
+                  >
+                  <span class="email-snippet">
+                    - Please find attached the performance review templates that
+                    need to be completed by Friday...</span
+                  >
+                </div>
+                <svg class="attachment-icon" viewBox="0 0 24 24">
+                  <path
+                    d="M16.5,6V17.5A4,4 0 0,1 12.5,21.5A4,4 0 0,1 8.5,17.5V5A2.5,2.5 0 0,1 11,2.5A2.5,2.5 0 0,1 13.5,5V15.5A1,1 0 0,1 12.5,16.5A1,1 0 0,1 11.5,15.5V6H10V15.5A2.5,2.5 0 0,0 12.5,18A2.5,2.5 0 0,0 15,15.5V5A4,4 0 0,0 11,1A4,4 0 0,0 7,5V17.5A5.5,5.5 0 0,0 12.5,23A5.5,5.5 0 0,0 18,17.5V6H16.5Z"
+                  />
+                </svg>
+                <div class="email-timestamp">3 days ago</div>
+              </li>
+
+              <li
+                class="email-row read"
+                data-email-id="005"
+                data-automation="email.row"
+              >
+                <input
+                  type="checkbox"
+                  class="email-checkbox"
+                  data-automation="checkbox.email"
+                />
+                <svg
+                  class="email-star"
+                  viewBox="0 0 24 24"
+                  data-automation="btn.star"
+                >
+                  <path
+                    d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"
+                  />
+                </svg>
+                <div class="email-sender">Amazon</div>
+                <div class="email-content">
+                  <span class="email-subject"
+                    >Your order has been delivered</span
+                  >
+                  <span class="email-snippet">
+                    - Great news! Your order has been delivered. We hope you
+                    love what you ordered...</span
+                  >
+                </div>
+                <div class="email-timestamp">4 days ago</div>
+              </li>
+
+              <li
+                class="email-row read"
+                data-email-id="006"
+                data-automation="email.row"
+              >
+                <input
+                  type="checkbox"
+                  class="email-checkbox"
+                  data-automation="checkbox.email"
+                />
+                <svg
+                  class="email-star"
+                  viewBox="0 0 24 24"
+                  data-automation="btn.star"
+                >
+                  <path
+                    d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"
+                  />
+                </svg>
+                <div class="email-sender">TechCrunch</div>
+                <div class="email-content">
+                  <span class="email-subject"
+                    >The latest in startup funding and tech news</span
+                  >
+                  <span class="email-snippet">
+                    - This week's roundup includes major acquisitions, funding
+                    rounds, and industry insights...</span
+                  >
+                </div>
+                <div class="email-timestamp">4 days ago</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Message View -->
+          <div id="message-body" data-automation="view.message">
+            <button class="back-button" data-automation="btn.back">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path
+                  d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"
+                />
+              </svg>
+            </button>
+            <div class="message-header">
+              <div class="message-subject email-subject">
+                Project Budget Approval - Q4 Marketing Campaign
+              </div>
+              <div class="message-meta">
+                <div class="sender-avatar">SM</div>
+                <div>
+                  <div class="email-sender">
+                    Sarah Mitchell &lt;s.mitchell@company.com&gt;
+                  </div>
+                  <div class="email-timestamp">2 hours ago</div>
+                </div>
+              </div>
+            </div>
+            <div class="message-content">
+              <p>Hi team,</p>
+              <p>
+                I've reviewed the Q4 marketing budget proposal and I'm pleased
+                to approve the $150K allocation for our upcoming campaign
+                initiatives.
+              </p>
+              <p>The breakdown looks excellent:</p>
+              <ul>
+                <li>Digital advertising: $75K</li>
+                <li>Content creation: $35K</li>
+                <li>Events and sponsorships: $25K</li>
+                <li>Analytics and tools: $15K</li>
+              </ul>
+              <p>
+                Please proceed with the implementation timeline we discussed.
+                I'm excited to see the results of this investment in our growth.
+              </p>
+              <p>
+                Let me know if you need any additional resources or have
+                questions about the approved budget.
+              </p>
+              <p>Best regards,<br />Sarah</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Developer Tools -->
+    <div class="dev-overlay" id="dev-overlay">
+      <h3>Developer Tools</h3>
+      <div style="margin: 10px 0">
+        <label>
+          <input
+            type="range"
+            id="overlay-opacity"
+            min="0"
+            max="100"
+            value="50"
+          />
+          Overlay Opacity: <span id="opacity-value">50%</span>
+        </label>
+      </div>
+      <div style="margin: 10px 0">
+        <button id="toggle-grid">Toggle Grid</button>
+        <button id="close-dev">Close</button>
+      </div>
+    </div>
+
+    <div class="dev-grid" id="dev-grid"></div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        // Email data
+        const emailData = {
+          "001": {
+            sender: "Sarah Mitchell",
+            senderEmail: "s.mitchell@company.com",
+            subject: "Project Budget Approval - Q4 Marketing Campaign",
+            timestamp: "2 hours ago",
+            body: `Hi team,
+
+I've reviewed the Q4 marketing budget proposal and I'm pleased to approve the $150K allocation for our upcoming campaign initiatives.
+
+The breakdown looks excellent:
+• Digital advertising: $75K
+• Content creation: $35K
+• Events and sponsorships: $25K
+• Analytics and tools: $15K
+
+Please proceed with the implementation timeline we discussed. I'm excited to see the results of this investment in our growth.
+
+Let me know if you need any additional resources or have questions about the approved budget.
+
+Best regards,
+Sarah`,
+          },
+          "002": {
+            sender: "Microsoft Teams",
+            senderEmail: "no-reply@teams.microsoft.com",
+            subject: "Weekly standup meeting - Tomorrow 9:00 AM",
+            timestamp: "Yesterday",
+            body: `You're invited to join the weekly standup meeting.
+
+Join Microsoft Teams Meeting
+Meeting ID: 123 456 789
+
+Agenda:
+- Sprint progress updates
+- Blockers and dependencies
+- Next week planning
+
+Please come prepared with your updates.`,
+          },
+          "003": {
+            sender: "LinkedIn",
+            senderEmail: "notifications@linkedin.com",
+            subject: "Your weekly update is ready",
+            timestamp: "2 days ago",
+            body: `Here's what's happening in your network this week.
+
+You appeared in 15 searches this week
+Your post about project management received 25 likes
+3 new connection requests
+
+Keep engaging with your network to grow your professional presence.`,
+          },
+          "004": {
+            sender: "James Wilson",
+            senderEmail: "j.wilson@company.com",
+            subject: "Q4 Performance Review Documentation",
+            timestamp: "3 days ago",
+            body: `Please find attached the performance review templates that need to be completed by Friday.
+
+Key deadlines:
+- Self-assessment: Due Wednesday
+- Peer reviews: Due Thursday  
+- Manager review: Due Friday
+
+Let me know if you have any questions about the process.
+
+James`,
+          },
+          "005": {
+            sender: "Amazon",
+            senderEmail: "auto-confirm@amazon.com",
+            subject: "Your order has been delivered",
+            timestamp: "4 days ago",
+            body: `Great news! Your order has been delivered.
+
+Order #: 123-4567890-1234567
+Delivered to: Your front door
+
+We hope you love what you ordered. If there are any issues, please contact customer service.
+
+Thanks for choosing Amazon!`,
+          },
+          "006": {
+            sender: "TechCrunch",
+            senderEmail: "newsletter@techcrunch.com",
+            subject: "The latest in startup funding and tech news",
+            timestamp: "4 days ago",
+            body: `This week's roundup includes major acquisitions, funding rounds, and industry insights.
+
+Top Stories:
+- AI startup raises $100M Series B
+- New regulations for tech companies
+- Startup spotlight: Green tech innovations
+
+Stay informed about the latest developments in technology and startups.`,
+          },
+        };
+
+        // DOM Elements
+        const emailRows = document.querySelectorAll(".email-row");
+        const messageBody = document.getElementById("message-body");
+        const backButton = document.querySelector(".back-button");
+        const composeButton = document.getElementById("compose-button");
+
+        // Email row click handler
+        function handleEmailClick(emailId) {
+          const data = emailData[emailId];
+          if (!data) return;
+
+          // Update message view
+          const messageSubject = messageBody.querySelector(".message-subject");
+          const senderAvatar = messageBody.querySelector(".sender-avatar");
+          const senderInfo = messageBody.querySelector(".email-sender");
+          const timestamp = messageBody.querySelector(".email-timestamp");
+          const content = messageBody.querySelector(".message-content");
+
+          messageSubject.textContent = data.subject;
+          senderAvatar.textContent = data.sender
+            .split(" ")
+            .map((n) => n[0])
+            .join("");
+          senderInfo.textContent = `${data.sender} <${data.senderEmail}>`;
+          timestamp.textContent = data.timestamp;
+          content.innerHTML = data.body
+            .split("\n")
+            .map((line) => {
+              if (line.trim() === "") return "<br>";
+              if (line.startsWith("•"))
+                return `<li>${line.substring(1).trim()}</li>`;
+              return `<p>${line}</p>`;
+            })
+            .join("");
+
+          // Show message view
+          messageBody.classList.add("active");
+
+          // Mark email as read
+          const emailRow = document.querySelector(
+            `[data-email-id="${emailId}"]`
+          );
+          if (emailRow) {
+            emailRow.classList.remove("unread");
+            emailRow.classList.add("read");
+          }
+
+          // Update localStorage
+          const readEmails = JSON.parse(
+            localStorage.getItem("gmail_read_emails") || "[]"
+          );
+          if (!readEmails.includes(emailId)) {
+            readEmails.push(emailId);
+            localStorage.setItem(
+              "gmail_read_emails",
+              JSON.stringify(readEmails)
+            );
+          }
+        }
+
+        // Back button handler
+        function handleBackClick() {
+          messageBody.classList.remove("active");
+        }
+
+        // Compose button handler
+        function handleComposeClick(e) {
+          e.preventDefault();
+          // In a real implementation, this would open compose modal
+          console.log("Compose clicked");
+        }
+
+        // Star click handler
+        function handleStarClick(e) {
+          e.stopPropagation();
+          const star = e.currentTarget;
+          const path = star.querySelector("path");
+          const isStarred = star.dataset.starred === "true";
+
+          if (isStarred) {
+            // Unstar
+            path.setAttribute(
+              "d",
+              "M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"
+            );
+            star.dataset.starred = "false";
+          } else {
+            // Star
+            path.setAttribute(
+              "d",
+              "M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"
+            );
+            star.dataset.starred = "true";
+          }
+        }
+
+        // Navigation prevention
+        function preventNavigation(e) {
+          e.preventDefault();
+          return false;
+        }
+
+        // Event listeners
+        emailRows.forEach((row) => {
+          row.addEventListener("click", () => {
+            const emailId = row.dataset.emailId;
+            handleEmailClick(emailId);
+          });
+        });
+
+        backButton.addEventListener("click", handleBackClick);
+        composeButton.addEventListener("click", handleComposeClick);
+
+        // Star buttons
+        document.querySelectorAll(".email-star").forEach((star) => {
+          star.addEventListener("click", handleStarClick);
+        });
+
+        // Prevent external navigation
+        document.querySelectorAll("a[href]").forEach((link) => {
+          link.addEventListener("click", preventNavigation);
+        });
+
+        // Load read emails from localStorage
+        function loadReadEmails() {
+          const readEmails = JSON.parse(
+            localStorage.getItem("gmail_read_emails") || "[]"
+          );
+          readEmails.forEach((emailId) => {
+            const emailRow = document.querySelector(
+              `[data-email-id="${emailId}"]`
+            );
+            if (emailRow) {
+              emailRow.classList.remove("unread");
+              emailRow.classList.add("read");
+            }
+          });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener("keydown", (e) => {
+          // Ctrl+Shift+O or Cmd+Shift+O - Toggle dev overlay
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "O") {
+            e.preventDefault();
+            const overlay = document.getElementById("dev-overlay");
+            overlay.classList.toggle("active");
+          }
+
+          // Ctrl+Shift+G or Cmd+Shift+G - Toggle grid
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "G") {
+            e.preventDefault();
+            const grid = document.getElementById("dev-grid");
+            grid.classList.toggle("active");
+          }
+
+          // Escape - Close message or dev tools
+          if (e.key === "Escape") {
+            if (messageBody.classList.contains("active")) {
+              handleBackClick();
+            } else {
+              document.getElementById("dev-overlay").classList.remove("active");
+            }
+          }
+        });
+
+        // Developer tools
+        const devOverlay = document.getElementById("dev-overlay");
+        const opacitySlider = document.getElementById("overlay-opacity");
+        const opacityValue = document.getElementById("opacity-value");
+        const toggleGridBtn = document.getElementById("toggle-grid");
+        const closeDevBtn = document.getElementById("close-dev");
+
+        opacitySlider.addEventListener("input", (e) => {
+          const value = e.target.value;
+          opacityValue.textContent = value + "%";
+          devOverlay.style.opacity = value / 100;
+        });
+
+        toggleGridBtn.addEventListener("click", () => {
+          const grid = document.getElementById("dev-grid");
+          grid.classList.toggle("active");
+        });
+
+        closeDevBtn.addEventListener("click", () => {
+          devOverlay.classList.remove("active");
+        });
+
+        // Initialize
+        loadReadEmails();
+
+        // Export debug API
+        window.__APP__ = {
+          emailData,
+          handleEmailClick,
+          notes: {
+            approximations: [
+              "Google Sans font approximated with system font stack",
+              "Some specific Gmail icons replaced with similar Material Design icons",
+              "Exact color values sampled from typical Gmail interface",
+            ],
+          },
+        };
+
+        // Prevent console warnings
+        console.log("Gmail interface loaded successfully");
+      })();
+    </script>
+  </body>
+</html>
