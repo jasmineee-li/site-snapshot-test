@@ -2,7 +2,6 @@
 Generation modules for redteam benchmark.
 
 This module provides:
-- LLMClient: Unified interface for OpenAI and Anthropic APIs
 - PrefillDataAnalyzer: Analyzes behaviors to determine prefill data requirements
 - SyntheticPageGenerator: Generates HTML pages using LLMs
 - Site toolbox utilities: Save and load generated sites for reuse
@@ -10,16 +9,11 @@ This module provides:
 
 import json
 import logging
-import os
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Literal
+from typing import Dict, Any, Optional, List
 from datetime import datetime
-from dotenv import load_dotenv
 
-load_dotenv()
-
-from openai import OpenAI
-import anthropic
+from agentlab.benchmarks.llm_utils import OpenRouterLLMClient, strip_code_fences
 from agentlab.benchmarks.redteam_prompts import (
     get_prefill_analysis_prompt,
     get_page_generation_prompt,
@@ -28,174 +22,11 @@ from agentlab.benchmarks.redteam_prompts import (
 
 logger = logging.getLogger(__name__)
 
-TOOLBOX_DIR = Path(__file__).parent.parent.parent / "assets" / "site-toolbox"
-
-MODEL_CONFIGS = {
-    "gpt-5": {
-        "provider": "openai",
-        "api_key_var": "OPENAI_API_KEY",
-    },
-    "gpt-4o": {
-        "provider": "openai",
-        "api_key_var": "OPENAI_API_KEY",
-    },
-    "gpt-4o-mini": {
-        "provider": "openai",
-        "api_key_var": "OPENAI_API_KEY",
-    },
-    "claude-sonnet-4-20250514": {
-        "provider": "anthropic",
-        "api_key_var": "ANTHROPIC_API_KEY",
-    },
-    "claude-3-5-sonnet-20241022": {
-        "provider": "anthropic",
-        "api_key_var": "ANTHROPIC_API_KEY",
-    },
-    "claude-3-opus-20240229": {
-        "provider": "anthropic",
-        "api_key_var": "ANTHROPIC_API_KEY",
-    },
-}
+TOOLBOX_DIR = Path(__file__).parent.parent.parent / "html-library"
 
 
-def get_model_provider(model: str) -> Literal["openai", "anthropic"]:
-    """Determine which provider to use based on model name."""
-    # Check exact match first
-    if model in MODEL_CONFIGS:
-        return MODEL_CONFIGS[model]["provider"]
-
-    # Fallback: check if model name contains provider identifier
-    if "claude" in model.lower():
-        return "anthropic"
-    elif "gpt" in model.lower() or "o1" in model.lower():
-        return "openai"
-
-    # Default to OpenAI for backward compatibility
-    logger.warning(f"Unknown model '{model}', defaulting to OpenAI provider")
-    return "openai"
-
-
-def strip_code_fences(text: str) -> str:
-    """Strip markdown code fences from text."""
-    text = text.strip()
-
-    # Remove opening code fence
-    if text.startswith("```json"):
-        text = text[7:]
-    elif text.startswith("```html"):
-        text = text[7:]
-    elif text.startswith("```"):
-        text = text[3:]
-
-    # Remove closing code fence
-    if text.endswith("```"):
-        text = text[:-3]
-
-    return text.strip()
-
-
-def upload_screenshots(
-    client: OpenAI | anthropic.Anthropic,
-    screenshots: List[str] | str,
-    provider: Literal["openai", "anthropic"],
-) -> List[str]:
-    """
-    Upload screenshots to appropriate API and return file IDs.
-
-    Args:
-        client: API client instance
-        screenshots: List of screenshot paths or folder path
-        provider: Which provider to use
-
-    Returns:
-        List of file IDs
-    """
-    if provider == "openai":
-        return upload_screenshots_openai(client, screenshots)
-    else:
-        return upload_screenshots_anthropic(client, screenshots)
-
-
-class LLMClient:
-    """Unified client for OpenAI and Anthropic APIs."""
-
-    def __init__(self, model: str):
-        """
-        Initialize LLM client with automatic provider detection.
-
-        Args:
-            model: Model name (e.g., "gpt-5", "claude-sonnet-4-20250514")
-        """
-        self.model = model
-        self.provider = get_model_provider(model)
-
-        if self.provider == "openai":
-            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        else:
-            self.client = anthropic.Anthropic(
-                api_key=os.getenv("ANTHROPIC_API_KEY"),
-                default_headers={"anthropic-beta": "files-api-2025-04-14"},
-            )
-
-    def call_with_images(
-        self,
-        prompt: str,
-        screenshots: Optional[List[str] | str] = None,
-        max_tokens: int = 16000,
-    ) -> str:
-        """
-        Call LLM with prompt and optional images.
-
-        Args:
-            prompt: Text prompt
-            screenshots: Optional screenshot paths (files or folders)
-            max_tokens: Maximum tokens in response
-
-        Returns:
-            Response text
-        """
-        screenshots = screenshots or []
-
-        if self.provider == "openai":
-            return self._call_openai(prompt, screenshots)
-        else:
-            return self._call_anthropic(prompt, screenshots, max_tokens)
-
-    def _call_openai(self, prompt: str, screenshots: List[str] | str) -> str:
-        """Call OpenAI Responses API."""
-        file_ids = upload_screenshots(self.client, screenshots, "openai")
-
-        input_content = [{"type": "input_text", "text": prompt}]
-        for file_id in file_ids:
-            input_content.append({"type": "input_image", "file_id": file_id})
-
-        response = self.client.responses.create(
-            model=self.model,
-            input=[{"role": "user", "content": input_content}],
-        )
-
-        return getattr(response, "output_text", "")
-
-    def _call_anthropic(
-        self,
-        prompt: str,
-        screenshots: List[str] | str,
-        max_tokens: int,
-    ) -> str:
-        """Call Anthropic Messages API."""
-        file_ids = upload_screenshots(self.client, screenshots, "anthropic")
-
-        content = [{"type": "text", "text": prompt}]
-        for file_id in file_ids:
-            content.append({"type": "image", "source": {"type": "file", "file_id": file_id}})
-
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": content}],
-        )
-
-        return response.content[0].text
+# Backward compatibility alias
+LLMClient = OpenRouterLLMClient
 
 
 class PrefillDataAnalyzer:
@@ -347,10 +178,9 @@ class SyntheticPageGenerator:
 
         prompt = get_html_modification_prompt(
             base_html=base_html,
-            # base_metadata=base_metadata,
             new_prefill_spec=new_prefill_spec,
             domain=domain,
-            new_behavior=context.get("behavior", ""),
+            new_behavior=context.get("doc", ""),
         )
 
         try:
@@ -381,161 +211,6 @@ class SyntheticPageGenerator:
             logger.warning("Generated HTML missing <body> tag")
 
         return html
-
-
-def upload_file_to_openai(client: OpenAI, file_path: str) -> Optional[str]:
-    """
-    Upload a file to OpenAI Files API.
-
-    Args:
-        client: OpenAI client instance
-        file_path: Path to the file (relative or absolute)
-
-    Returns:
-        File ID if successful, None otherwise
-    """
-    # Handle relative paths from assets/ folder
-    if not Path(file_path).is_absolute():
-        # Avoid double-prepending assets/ if path already contains it
-        if str(file_path).startswith("assets/"):
-            file_path = Path(file_path)
-        else:
-            file_path = Path("assets") / file_path
-
-    if not Path(file_path).exists():
-        logger.warning(f"Screenshot not found: {file_path}")
-        return None
-
-    if Path(file_path).is_dir():
-        logger.warning(f"Expected file but got directory: {file_path}")
-        return None
-
-    try:
-        with open(file_path, "rb") as file_content:
-            result = client.files.create(
-                file=file_content,
-                purpose="vision",
-            )
-            logger.info(f"Uploaded {file_path}: {result.id}")
-            return result.id
-    except Exception as e:
-        logger.warning(f"Failed to upload {file_path}: {e}")
-        return None
-
-
-def upload_screenshots_openai(client: OpenAI, screenshots: List[str] | str) -> List[str]:
-    """
-    Upload multiple screenshots to OpenAI and return their file IDs.
-    Screenshots can be individual file paths or folder paths.
-    If folder path, uploads all files in the folder (non-recursive).
-
-    Args:
-        client: OpenAI client instance
-        screenshots: List of screenshot paths or string for folder path
-
-    Returns:
-        List of file IDs (excludes failed uploads)
-    """
-
-    def resolve(p: str | Path) -> Path:
-        p = Path(p)
-        return p if p.is_absolute() else Path("assets") / p
-
-    paths: List[Path] = []
-
-    if isinstance(screenshots, str):
-        dir_path = resolve(screenshots)
-        if dir_path.is_dir():
-            paths = [f for f in dir_path.iterdir() if f.is_file() and not f.name.startswith(".")]
-        else:
-            return []
-    else:
-        for s in screenshots:
-            p = resolve(s)
-            if p.is_file():
-                paths.append(p)
-            elif p.is_dir():
-                paths.extend(f for f in p.iterdir() if f.is_file() and not f.name.startswith("."))
-
-    return [fid for fid in (upload_file_to_openai(client, str(p)) for p in paths) if fid]
-
-
-def upload_file_to_anthropic(client: anthropic.Anthropic, file_path: str) -> Optional[str]:
-    """
-    Upload a file to Anthropic Files API.
-
-    Args:
-        client: Anthropic client instance
-        file_path: Path to the file (relative or absolute)
-
-    Returns:
-        File ID if successful, None otherwise
-    """
-    # Handle relative paths from assets/ folder
-    if not Path(file_path).is_absolute():
-        # Avoid double-prepending assets/ if path already contains it
-        if str(file_path).startswith("assets/"):
-            file_path = Path(file_path)
-        else:
-            file_path = Path("assets") / file_path
-
-    if not Path(file_path).exists():
-        logger.warning(f"Screenshot not found: {file_path}")
-        return None
-
-    if Path(file_path).is_dir():
-        logger.warning(f"Expected file but got directory: {file_path}")
-        return None
-
-    try:
-        with open(file_path, "rb") as f:
-            response = client.beta.files.upload(
-                file=(Path(file_path).name, f, "image/png"),
-            )
-            logger.info(f"Uploaded {file_path}: {response.id}")
-            return response.id
-    except Exception as e:
-        logger.warning(f"Failed to upload {file_path}: {e}")
-        return None
-
-
-def upload_screenshots_anthropic(
-    client: anthropic.Anthropic, screenshots: List[str] | str
-) -> List[str]:
-    """
-    Upload multiple screenshots to Anthropic and return their file IDs.
-    Screenshots can be individual file paths or folder paths.
-    If folder path, uploads all files in the folder (non-recursive).
-
-    Args:
-        client: Anthropic client instance
-        screenshots: List of screenshot paths or string for folder path
-
-    Returns:
-        List of file IDs (excludes failed uploads)
-    """
-
-    def resolve(p: str | Path) -> Path:
-        p = Path(p)
-        return p if p.is_absolute() else Path("assets") / p
-
-    paths: List[Path] = []
-
-    if isinstance(screenshots, str):
-        dir_path = resolve(screenshots)
-        if dir_path.is_dir():
-            paths = [f for f in dir_path.iterdir() if f.is_file() and not f.name.startswith(".")]
-        else:
-            return []
-    else:
-        for s in screenshots:
-            p = resolve(s)
-            if p.is_file():
-                paths.append(p)
-            elif p.is_dir():
-                paths.extend(f for f in p.iterdir() if f.is_file() and not f.name.startswith("."))
-
-    return [fid for fid in (upload_file_to_anthropic(client, str(p)) for p in paths) if fid]
 
 
 # ============================================================================
