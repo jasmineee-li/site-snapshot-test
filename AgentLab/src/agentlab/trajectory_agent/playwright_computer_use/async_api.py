@@ -89,9 +89,7 @@ class PlaywrightToolbox:
         self,
         page: Page,
         use_cursor: bool = True,
-        screenshot_wait_until: (
-            Literal["load", "domcontentloaded", "networkidle"] | None
-        ) = None,
+        screenshot_wait_until: Literal["load", "domcontentloaded", "networkidle"] | None = None,
         beta_version: Literal["20241022", "20250124", "20251124"] = "20251124",
         save_dir: str = "./downloads",
     ):
@@ -119,23 +117,21 @@ class PlaywrightToolbox:
             | PlaywrightBackTool
             | PlaywrightSaveScreenshotTool
             | PlaywrightDownloadImageTool
+            | PlaywrightElementScreenshotTool
         ] = [
-            ComputerTool(
-                page, use_cursor=use_cursor, screenshot_wait_until=screenshot_wait_until
-            ),
+            ComputerTool(page, use_cursor=use_cursor, screenshot_wait_until=screenshot_wait_until),
             PlaywrightSetURLTool(page),
             PlaywrightBackTool(page),
             PlaywrightSaveScreenshotTool(page, save_dir=save_dir),
             PlaywrightDownloadImageTool(save_dir=save_dir),
+            PlaywrightElementScreenshotTool(page, save_dir=save_dir),
         ]
 
     def to_params(self) -> list[BetaToolParam]:
         """Expose the params of all the tools in the toolbox."""
         return [tool.to_params() for tool in self.tools]
 
-    async def run_tool(
-        self, name: str, input: dict, tool_use_id: str
-    ) -> BetaToolResultBlockParam:
+    async def run_tool(self, name: str, input: dict, tool_use_id: str) -> BetaToolResultBlockParam:
         """Pick the right tool using `name` and run it."""
         if name not in [tool.name for tool in self.tools]:
             return ToolError(message=f"Unknown tool {name}, only computer use allowed")
@@ -240,7 +236,7 @@ class PlaywrightSaveScreenshotTool:
         """Params describing the tool."""
         return BetaToolParam(
             name=self.name,
-            description="Save a screenshot of the current page to a file. Returns the file path where the screenshot was saved.",
+            description="Save a screenshot of the current page to a file. Returns the file path where the screenshot was saved. Supports full page capture or clipping to a specific region.",
             input_schema={
                 "type": "object",
                 "properties": {
@@ -252,12 +248,37 @@ class PlaywrightSaveScreenshotTool:
                         "type": "boolean",
                         "description": "Whether to capture the full scrollable page or just the visible viewport. Default is False.",
                     },
+                    "clip_x": {
+                        "type": "number",
+                        "description": "X coordinate of the top-left corner of the clip region (in pixels). Must be used with clip_y, clip_width, and clip_height.",
+                    },
+                    "clip_y": {
+                        "type": "number",
+                        "description": "Y coordinate of the top-left corner of the clip region (in pixels). Must be used with clip_x, clip_width, and clip_height.",
+                    },
+                    "clip_width": {
+                        "type": "number",
+                        "description": "Width of the clip region (in pixels). Must be used with clip_x, clip_y, and clip_height.",
+                    },
+                    "clip_height": {
+                        "type": "number",
+                        "description": "Height of the clip region (in pixels). Must be used with clip_x, clip_y, and clip_width.",
+                    },
                 },
                 "required": ["filename"],
             },
         )
 
-    async def __call__(self, *, filename: str, full_page: bool = False):
+    async def __call__(
+        self,
+        *,
+        filename: str,
+        full_page: bool = False,
+        clip_x: float | None = None,
+        clip_y: float | None = None,
+        clip_width: float | None = None,
+        clip_height: float | None = None,
+    ):
         """Save a screenshot to a file."""
         try:
             # Ensure filename has an extension
@@ -265,10 +286,29 @@ class PlaywrightSaveScreenshotTool:
                 filename += ".png"
 
             filepath = self.save_dir / filename
-            await self.page.screenshot(path=str(filepath), full_page=full_page)
+
+            clip = None
+            if (
+                clip_x is not None
+                and clip_y is not None
+                and clip_width is not None
+                and clip_height is not None
+            ):
+                clip = {"x": clip_x, "y": clip_y, "width": clip_width, "height": clip_height}
+            elif any(p is not None for p in [clip_x, clip_y, clip_width, clip_height]):
+                return ToolResult(
+                    error="All clip parameters (clip_x, clip_y, clip_width, clip_height) must be provided together."
+                )
+
+            # Add timeout to avoid hanging on slow pages (e.g., waiting for fonts)
+            await self.page.screenshot(
+                path=str(filepath), full_page=full_page, clip=clip, timeout=10000
+            )
             return ToolResult(output=f"Screenshot saved to: {filepath.absolute()}")
         except Exception as e:
-            return ToolResult(error=f"Failed to save screenshot: {str(e)}")
+            return ToolResult(
+                error=f"Failed to save screenshot: {str(e)}. Consider navigating to a different page."
+            )
 
 
 class PlaywrightDownloadImageTool:
@@ -311,9 +351,7 @@ class PlaywrightDownloadImageTool:
         """Download an image from a URL and save it to a file."""
         try:
             # Infer extension from URL if filename doesn't have one
-            if not filename.lower().endswith(
-                (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
-            ):
+            if not filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")):
                 # Try to get extension from URL
                 url_path = url.split("?")[0]  # Remove query params
                 if "." in url_path.split("/")[-1]:
@@ -330,9 +368,7 @@ class PlaywrightDownloadImageTool:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
                     if response.status != 200:
-                        return ToolResult(
-                            error=f"Failed to download image: HTTP {response.status}"
-                        )
+                        return ToolResult(error=f"Failed to download image: HTTP {response.status}")
 
                     content = await response.read()
 
@@ -340,13 +376,84 @@ class PlaywrightDownloadImageTool:
                     with open(filepath, "wb") as f:
                         f.write(content)
 
-            return ToolResult(
-                output=f"Image downloaded and saved to: {filepath.absolute()}"
-            )
+            return ToolResult(output=f"Image downloaded and saved to: {filepath.absolute()}")
         except aiohttp.ClientError as e:
             return ToolResult(error=f"Network error downloading image: {str(e)}")
         except Exception as e:
             return ToolResult(error=f"Failed to download image: {str(e)}")
+
+
+class PlaywrightElementScreenshotTool:
+    """Tool to screenshot a specific element on the page using a CSS selector."""
+
+    name: Literal["screenshot_element"] = "screenshot_element"
+
+    def __init__(self, page: Page, save_dir: str = "./downloads"):
+        """Create a new PlaywrightElementScreenshotTool.
+
+        Args:
+            page: The Async Playwright page to interact with.
+            save_dir: Directory to save screenshots to.
+        """
+        super().__init__()
+        self.page = page
+        self.save_dir = Path(save_dir)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
+
+    def to_params(self) -> BetaToolParam:
+        """Params describing the tool."""
+        return BetaToolParam(
+            name=self.name,
+            description="Take a screenshot of a specific element on the page using a CSS selector. Useful for capturing images, buttons, or specific UI components.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "description": "CSS selector for the element to screenshot (e.g., 'img[alt=\"Cat photo\"]', '#product-image', '.profile-picture')",
+                    },
+                    "filename": {
+                        "type": "string",
+                        "description": "The filename to save the screenshot as (e.g., 'element.png'). Will be saved in the downloads directory.",
+                    },
+                    "index": {
+                        "type": "number",
+                        "description": "If multiple elements match the selector, which one to screenshot (0-indexed). Default is 0 (first match).",
+                    },
+                },
+                "required": ["selector", "filename"],
+            },
+        )
+
+    async def __call__(self, *, selector: str, filename: str, index: int = 0):
+        """Screenshot a specific element on the page."""
+        try:
+            # Ensure filename has an extension
+            if not filename.lower().endswith((".png", ".jpg", ".jpeg")):
+                filename += ".png"
+
+            filepath = self.save_dir / filename
+
+            # Locate the element
+            locator = self.page.locator(selector)
+
+            # Check if element exists
+            count = await locator.count()
+            if count == 0:
+                return ToolResult(error=f"No elements found matching selector: {selector}")
+
+            if index >= count:
+                return ToolResult(
+                    error=f"Index {index} out of range. Found {count} element(s) matching selector: {selector}"
+                )
+
+            # Screenshot the specific element (with timeout to avoid hanging)
+            element = locator.nth(index)
+            await element.screenshot(path=str(filepath), timeout=10000)
+
+            return ToolResult(output=f"Element screenshot saved to: {filepath.absolute()}")
+        except Exception as e:
+            return ToolResult(error=f"Failed to screenshot element: {str(e)}")
 
 
 class BasePlaywrightComputerTool:
@@ -381,9 +488,7 @@ class BasePlaywrightComputerTool:
         self,
         page: Page,
         use_cursor: bool = True,
-        screenshot_wait_until: (
-            Literal["load", "domcontentloaded", "networkidle"] | None
-        ) = None,
+        screenshot_wait_until: Literal["load", "domcontentloaded", "networkidle"] | None = None,
     ):
         """Initializes the PlaywrightComputerTool.
 
@@ -459,9 +564,7 @@ class BasePlaywrightComputerTool:
             if action == "screenshot":
                 return await self.screenshot()
             elif action == "cursor_position":
-                return ToolResult(
-                    output=f"X={self.mouse_position[0]},Y={self.mouse_position[1]}"
-                )
+                return ToolResult(output=f"X={self.mouse_position[0]},Y={self.mouse_position[1]}")
             else:
                 click_arg = {
                     "left_click": {"button": "left", "click_count": 1},
@@ -480,8 +583,22 @@ class BasePlaywrightComputerTool:
         """Take a screenshot of the current screen and return the base64 encoded image."""
         if self.screenshot_wait_until is not None:
             await self.page.wait_for_load_state(self.screenshot_wait_until)
-        await self.page.wait_for_load_state()
-        screenshot = await self.page.screenshot()
+        # Use domcontentloaded with timeout to avoid hanging on heavy sites with ads/trackers
+        try:
+            await self.page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+
+        # Take screenshot with timeout to avoid hanging on slow pages
+        try:
+            screenshot = await self.page.screenshot(timeout=10000)
+        except Exception as e:
+            # Return error so Claude can navigate away or retry
+            return ToolResult(
+                error=f"Screenshot failed (page may still be loading): {str(e)}. "
+                "Consider navigating to a different page or waiting a moment."
+            )
+
         image = Image.open(io.BytesIO(screenshot))
         img_small = image.resize((self.width, self.height), Image.LANCZOS)
         if self.use_cursor:
@@ -547,12 +664,8 @@ class PlaywrightComputerTool20250124(BasePlaywrightComputerTool):
             )
             return ToolResult()
         if action == "scroll":
-            if scroll_direction is None or scroll_direction not in get_args(
-                ScrollDirection
-            ):
-                raise ToolError(
-                    f"{scroll_direction=} must be 'up', 'down', 'left', or 'right'"
-                )
+            if scroll_direction is None or scroll_direction not in get_args(ScrollDirection):
+                raise ToolError(f"{scroll_direction=} must be 'up', 'down', 'left', or 'right'")
             if not isinstance(scroll_amount, int) or scroll_amount < 0:
                 raise ToolError(f"{scroll_amount=} must be a non-negative int")
             if coordinate is not None:
@@ -612,9 +725,7 @@ class PlaywrightComputerTool20250124(BasePlaywrightComputerTool):
             }[action]
             if key:
                 self.page.keyboard.down(to_playwright_key(key))
-            await self.page.mouse.click(
-                self.mouse_position[0], self.mouse_position[1], **click_arg
-            )
+            await self.page.mouse.click(self.mouse_position[0], self.mouse_position[1], **click_arg)
             if key:
                 self.page.keyboard.up(to_playwright_key(key))
 
@@ -697,9 +808,7 @@ def load_cursor_image():
     return image
 
 
-def _make_api_tool_result(
-    result: ToolResult, tool_use_id: str
-) -> BetaToolResultBlockParam:
+def _make_api_tool_result(result: ToolResult, tool_use_id: str) -> BetaToolResultBlockParam:
     """Convert an agent ToolResult to an API ToolResultBlockParam."""
     if result.error:
         return BetaToolResultBlockParam(
