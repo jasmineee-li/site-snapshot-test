@@ -33,7 +33,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-SEED_MAX = 2 ^ 32  # arbitrary max value (exclusive), seems large enough
+SEED_MAX = 2**32
 
 
 @dataclass
@@ -304,96 +304,34 @@ class StepInfo:
 
 
 @dataclass
-class AdversarialTurnTimestamps:
-    """Timestamps for one adversarial turn (attacker + target + env)."""
-    attacker_start: float = 0
-    attacker_stop: float = 0
-    target_start: float = 0
-    target_stop: float = 0
-    env_start: float = 0
-    env_stop: float = 0
-
-
-@dataclass
-class AdversarialStepInfo:
-    """Tracks one conversation turn in adversarial evaluation.
-    
-    Each turn consists of:
-    1. Attacker generates message
-    2. Target agent responds with action(s)
-    3. Environment executes action
-    
-    A turn includes both attacker and target actions, whereas a step in single-agent mode is just one agent action.
-    """
-    turn: int
-    attacker_message: str = None
-    target_obs: dict = None  # Observation seen by target (includes attacker message)
-    target_action: str = None
-    target_agent_info: dict = field(default_factory=dict)
-    env_reward: float = 0
-    env_terminated: bool = False
-    env_truncated: bool = False
-    profiling: AdversarialTurnTimestamps = field(default_factory=AdversarialTurnTimestamps)
-    
-    def save_turn_info(self, exp_dir: Path):
-        """Save adversarial turn to pickle and JSON."""
-        # Save full turn info as pickle (like StepInfo does)
-        with gzip.open(exp_dir / f"adversarial_turn_{self.turn:03d}.pkl.gz", "wb") as f:
-            pickle.dump(self, f)
-        
-        # Calculate timing statistics
-        p = self.profiling
-        timing_stats = {
-            "attacker_elapsed": p.attacker_stop - p.attacker_start,
-            "target_elapsed": p.target_stop - p.target_start,
-            "env_elapsed": p.env_stop - p.env_start,
-            "total_elapsed": p.env_stop - p.attacker_start,
-        }
-        
-        # Save simplified JSON version (without complex objects like AgentInfo)
-        turn_json_file = exp_dir / f"adversarial_turn_{self.turn:03d}.json"
-        turn_json_file.write_text(json.dumps({
-            "turn": self.turn,
-            "attacker_message": self.attacker_message,
-            "target_action": self.target_action,
-            "reward": self.env_reward,
-            "terminated": self.env_terminated,
-            "truncated": self.env_truncated,
-            "timing": timing_stats,
-            # Note: target_agent_info omitted from JSON (contains non-serializable objects)
-            # Full data available in .pkl.gz file
-        }, indent=2))
-
-
-@dataclass
 class ExpArgs:
     """Arguments to run an experiment, i.e. run agent in an environment until done.
 
-    This dataclass is used to store experiments arguments. It contains
-agent_args and env_args which follows the same principle. It contains helper
-    functions to prepare and run experiments.
+        This dataclass is used to store experiments arguments. It contains
+    agent_args and env_args which follows the same principle. It contains helper
+        functions to prepare and run experiments.
 
-    Attributes:
-    -----------
-    agent_args: AbstractAgentArgs
-        The arguments to instantiate the agent.
-    env_args: EnvArgs
-        The arguments to instantiate the environment.
-    exp_dir: str
-        The directory where the experiment will be saved.
-    exp_name: str
-        The name of the experiment. If None, it will be generated from the
-        agent and environment names.
-    enable_debug: bool
-        If python is running in debug mode and `enable_debug` is True, errors
-        will be raised instead of only logged
-    error_msg: str
-        Error that occured while running the experiment (if any).
-    stack_trace: str
-        Stack trace of the error (if any).
-    order: int (internal)
-        The order of the experiment in the batch. It is used to keep track of
-        the original order of the experiments in case they are shuffled.
+        Attributes:
+        -----------
+        agent_args: AbstractAgentArgs
+            The arguments to instantiate the agent.
+        env_args: EnvArgs
+            The arguments to instantiate the environment.
+        exp_dir: str
+            The directory where the experiment will be saved.
+        exp_name: str
+            The name of the experiment. If None, it will be generated from the
+            agent and environment names.
+        enable_debug: bool
+            If python is running in debug mode and `enable_debug` is True, errors
+            will be raised instead of only logged
+        error_msg: str
+            Error that occured while running the experiment (if any).
+        stack_trace: str
+            Stack trace of the error (if any).
+        order: int (internal)
+            The order of the experiment in the batch. It is used to keep track of
+            the original order of the experiments in case they are shuffled.
     """
 
     agent_args: AbstractAgentArgs
@@ -473,130 +411,182 @@ agent_args and env_args which follows the same principle. It contains helper
         # log python environment info
         save_package_versions(Path(self.exp_dir))
 
-        # TODO: Route to adversarial mode if attacker agent is configured
         if self.attacker_agent_args is not None:
             return self._run_adversarial()
+        return self._run_standard()
+
+    def _run_standard(self):
+        """Run standard (non-adversarial) experiment."""
+        logger.info(f"Running experiment {self.exp_name} in:\n  {self.exp_dir}")
 
         episode_info = []
-        agent = None
-        env, step_info, err_msg, stack_trace = None, None, None, None
+        agent, env, step_info = None, None, None
+        err_msg, stack_trace = None, None
+
         try:
-            logger.info(f"Running experiment {self.exp_name} in:\n  {self.exp_dir}")
+            # Create agent
             agent = self.agent_args.make_agent()
             if hasattr(agent, "set_task_name"):
                 agent.set_task_name(self.env_args.task_name)
 
-            logger.debug("Agent created.")
-
+            # Create environment
             env = self.env_args.make_env(
                 action_mapping=agent.action_set.to_python_code,
                 exp_dir=self.exp_dir,
                 use_raw_page_output=getattr(self.agent_args, "use_raw_page_output", False),
             )
 
-            logger.debug("Environment created.")
+            # Reset environment
             step_info = StepInfo(step=0)
             episode_info = [step_info]
             step_info.from_reset(
                 env, seed=self.env_args.task_seed or 0, obs_preprocessor=agent.obs_preprocessor
             )
-            logger.debug("Environment reset.")
 
-            while not step_info.is_done:  # set a limit
-                logger.debug(f"Starting step {step_info.step}.")
-                action = step_info.from_action(agent)
-                logger.debug(f"Agent chose action:\n {action}")
-
-                if action is None:
-                    # will end the episode after saving the step info.
-                    step_info.truncated = True
-
-                step_info.save_step_info(
-                    self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
-                )
-                logger.debug("Step info saved.")
-
-                if hasattr(env.unwrapped, "chat") and isinstance(env.unwrapped.chat, Chat):
-                    _send_chat_info(env.unwrapped.chat, action, step_info.agent_info)
-                    logger.debug("Chat info sent.")
-
-                if action is None:
-                    logger.debug("Agent returned None action. Ending episode.")
-                    break
-
-                step_info = StepInfo(step=step_info.step + 1)
-                episode_info.append(step_info)
-
-                logger.debug("Sending action to environment.")
-                step_info.from_step(env, action, obs_preprocessor=agent.obs_preprocessor)
-                logger.debug("Environment stepped.")
-                if step_info.is_done:
-                    logger.debug(
-                        f"Episode done: terminated: {step_info.terminated}, truncated: {step_info.truncated}."
-                    )
+            # Run step loop
+            episode_info, step_info = self._run_step_loop(agent, env, step_info, episode_info)
 
         except Exception as e:
-            err_msg = f"Exception uncaught by agent or environment in task {self.env_args.task_name}.\n{type(e).__name__}:\n{e}"
+            err_msg = f"Exception in task {self.env_args.task_name}.\n{type(e).__name__}:\n{e}"
             stack_trace = traceback.format_exc()
-
             self.err_msg = err_msg
             self.stack_trace = stack_trace
-
             logger.warning(err_msg + "\n" + stack_trace)
             if _is_debugging() and self.enable_debug:
-                logger.warning("Debug mode is enabled. Raising the error.")
                 raise
 
         finally:
-            try:
-                if step_info is not None:
-                    step_info.save_step_info(
-                        self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
-                    )
-            except Exception as e:
-                logger.error(f"Error while saving step info in the finally block: {e}")
-            try:
-                if (
-                    not err_msg
-                    and len(episode_info) > 0
-                    and not (episode_info[-1].terminated or episode_info[-1].truncated)
-                ):
-                    e = KeyboardInterrupt("Early termination??")
-                    err_msg = f"Exception uncaught by agent or environment in task {self.env_args.task_name}.\n{type(e).__name__}:\n{e}"
-                logger.info("Saving experiment info.")
-                self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
-                if TapeAgent is not None and isinstance(agent, TapeAgent):
-                    task = getattr(env, "task", {})
-                    save_tape(self.exp_dir, episode_info, task, agent.final_tape)
-            except Exception as e:
-                logger.exception(f"Error while saving experiment info: {e}")
-            try:
-                if env is not None:
-                    env.close()
-            except Exception as e:
-                logger.exception(f"Error while closing the environment: {e}")
-            try:
-                self._unset_logger()  # stop writing logs to run logfile
-            except Exception as e:
-                logger.exception(f"Error while unsetting the logger: {e}")
+            self._cleanup_experiment(agent, env, step_info, episode_info, err_msg, stack_trace)
+
+    def _run_step_loop(self, agent, env, step_info, episode_info):
+        """Common step loop used by standard and single-turn adversarial modes."""
+        while not step_info.is_done:
+            action = step_info.from_action(agent)
+
+            if action is None:
+                step_info.truncated = True
+
+            step_info.save_step_info(
+                self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
+            )
+
+            if hasattr(env.unwrapped, "chat") and isinstance(env.unwrapped.chat, Chat):
+                _send_chat_info(env.unwrapped.chat, action, step_info.agent_info)
+
+            if action is None:
+                break
+
+            step_info = StepInfo(step=step_info.step + 1)
+            episode_info.append(step_info)
+            step_info.from_step(env, action, obs_preprocessor=agent.obs_preprocessor)
+
+        return episode_info, step_info
+
+    def _cleanup_experiment(self, agent, env, step_info, episode_info, err_msg, stack_trace):
+        """Common cleanup logic for all experiment modes."""
+        # Save final step info
+        try:
+            if step_info is not None:
+                step_info.save_step_info(
+                    self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
+                )
+        except Exception as e:
+            logger.error(f"Error saving step info: {e}")
+
+        # Check for early termination
+        try:
+            if (
+                not err_msg
+                and len(episode_info) > 0
+                and not (episode_info[-1].terminated or episode_info[-1].truncated)
+            ):
+                err_msg = f"Early termination in task {self.env_args.task_name}"
+            self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
+            if TapeAgent is not None and isinstance(agent, TapeAgent):
+                task = getattr(env, "task", {})
+                save_tape(self.exp_dir, episode_info, task, agent.final_tape)
+        except Exception as e:
+            logger.error(f"Error saving summary info: {e}")
+
+        # Close environment
+        try:
+            if env is not None:
+                env.close()
+        except Exception as e:
+            logger.error(f"Error closing environment: {e}")
+
+        # Close agent
+        try:
+            if agent and hasattr(agent, "close"):
+                agent.close()
+        except Exception as e:
+            logger.error(f"Error closing agent: {e}")
+
+        # Unset logger
+        try:
+            self._unset_logger()
+        except Exception as e:
+            logger.error(f"Error unsetting logger: {e}")
+
+    def _save_experiment_results(self, step_info, episode_info, err_msg, stack_trace):
+        """Save step info and summary (used by adversarial modes where cleanup is handled separately)."""
+        try:
+            if step_info is not None:
+                step_info.save_step_info(
+                    self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
+                )
+        except Exception as e:
+            logger.error(f"Error saving step info: {e}")
+
+        try:
+            self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
+        except Exception as e:
+            logger.error(f"Error saving summary info: {e}")
 
     def _run_adversarial(self):
         """Run adversarial evaluation with attacker and target agent."""
-        logger.info(f"Running ADVERSARIAL experiment {self.exp_name}")
-        
+        # Check adversarial mode
+        adversarial_mode = getattr(self.env_args, "adversarial_mode", "single_turn")
+        logger.info(f"Running ADVERSARIAL experiment {self.exp_name} (mode: {adversarial_mode})")
+
         adversarial_episode = []
         agent, attacker_agent, env = None, None, None
-        
+
         try:
+            # Generate attacker system prompt if not already set
+            if not getattr(self.attacker_agent_args, "custom_system_prompt", None):
+                from agentlab.benchmarks.redteam_prompts import get_attacker_system_prompt
+
+                attack_type = getattr(self.env_args, "attack_type", "indirect")
+                attacker_prompt = get_attacker_system_prompt(
+                    attack_type=attack_type,
+                    mode=adversarial_mode,
+                    behavior=getattr(self.env_args, "doc", ""),
+                    target=getattr(self.env_args, "target", ""),
+                )
+                # Set on attacker_agent_args so make_agent() uses it
+                self.attacker_agent_args.custom_system_prompt = attacker_prompt
+                logger.info(
+                    f"Generated attacker system prompt for {attack_type} {adversarial_mode} attack"
+                )
+
             # Create both agents
             logger.info("Creating target agent...")
             agent = self.agent_args.make_agent()
             if hasattr(agent, "set_task_name"):
                 agent.set_task_name(self.env_args.task_name)
-            
+
+            # Pass behavior-specific system prompt to target agent if available
+            target_system_prompt = getattr(self.env_args, "target_system_prompt", None)
+            if target_system_prompt and hasattr(agent, "custom_system_prompt"):
+                agent.custom_system_prompt = target_system_prompt
+                logger.info(
+                    f"Set custom system prompt for target agent ({len(target_system_prompt)} chars)"
+                )
+
             logger.info("Creating attacker agent...")
             attacker_agent = self.attacker_agent_args.make_agent()
-            
+
             # Create environment
             logger.info("Creating environment...")
             env = self.env_args.make_env(
@@ -604,141 +594,210 @@ agent_args and env_args which follows the same principle. It contains helper
                 exp_dir=self.exp_dir,
                 use_raw_page_output=getattr(self.agent_args, "use_raw_page_output", False),
             )
-            
+
             # Reset environment - target agent sees initial observation
             logger.info("Resetting environment...")
             initial_obs, env_info = env.reset(seed=self.env_args.task_seed or 0)
             if agent.obs_preprocessor:
                 initial_obs = agent.obs_preprocessor(initial_obs)
-            
-            # Attacker speaks first
-            turn = 0
-            done = False
-            conversation_history = []  # Track full conversation for attacker context
-            
-            logger.info(f"Starting adversarial loop (max {self.max_conversation_turns} turns)...")
-            
-            while not done and turn < self.max_conversation_turns:
-                turn_info = AdversarialStepInfo(turn=turn)
-                adversarial_episode.append(turn_info)
-                
+
+            if adversarial_mode == "single_turn":
+                return self._run_single_turn_adversarial(agent, attacker_agent, env, initial_obs)
+            else:  # multi_turn
+                return self._run_multi_turn_adversarial(agent, attacker_agent, env, initial_obs)
+
+        except Exception as e:
+            err_msg = f"Exception in adversarial experiment {self.env_args.task_name}: {e}"
+            logger.exception(err_msg)
+            self.err_msg = err_msg
+            self.stack_trace = traceback.format_exc()
+            return None
+        finally:
+            if env:
+                env.close()
+            if agent and hasattr(agent, "close"):
+                agent.close()
+
+    def _run_single_turn_adversarial(self, agent, attacker_agent, env, initial_obs):
+        """
+        Single-turn adversarial: Attacker generates one message injected as the agent's goal.
+        """
+        logger.info("Running SINGLE-TURN adversarial mode")
+
+        episode_info = []
+        err_msg, stack_trace = None, None
+        step_info = None
+
+        try:
+            # Generate attacker's initial message
+            attacker_obs = {"chat_messages": [], "turn": 0}
+            attacker_message, _ = attacker_agent.get_action(attacker_obs)
+            logger.info(f"Attacker message: {attacker_message[:200]}...")
+
+            # Save attacker message
+            (self.exp_dir / "attacker_message.txt").write_text(attacker_message, encoding="utf-8")
+
+            # Inject as goal
+            obs = initial_obs.copy()
+            obs["goal_object"] = [{"type": "text", "text": attacker_message}]
+            obs["goal"] = attacker_message
+            if agent.obs_preprocessor:
+                obs = agent.obs_preprocessor(obs)
+
+            # Initialize step and run loop
+            step_info = StepInfo(step=0)
+            episode_info = [step_info]
+            step_info.obs = obs
+            step_info.reward, step_info.terminated, step_info.truncated = 0, False, False
+
+            episode_info, step_info = self._run_step_loop(agent, env, step_info, episode_info)
+
+        except Exception as e:
+            err_msg = f"Exception in adversarial task {self.env_args.task_name}.\n{type(e).__name__}:\n{e}"
+            stack_trace = traceback.format_exc()
+            self.err_msg = err_msg
+            self.stack_trace = stack_trace
+            logger.warning(err_msg + "\n" + stack_trace)
+            if _is_debugging() and self.enable_debug:
+                raise
+
+        finally:
+            self._save_experiment_results(step_info, episode_info, err_msg, stack_trace)
+
+        logger.info(f"Single-turn adversarial completed: {len(episode_info)} steps")
+        return episode_info
+
+    def _run_multi_turn_adversarial(self, agent, attacker_agent, env, initial_obs):
+        """
+        Multi-turn: Attacker and target exchange messages via chat.
+
+        Agent can take MULTIPLE browser actions between conversation turns.
+        A "turn" ends when agent explicitly calls send_msg_to_user().
+        """
+        logger.info(
+            f"Running MULTI-TURN adversarial mode (max {self.env_args.max_conversation_turns} turns)"
+        )
+
+        # Ensure target agent is in chat mode
+        if hasattr(agent, "flags") and hasattr(agent.flags, "enable_chat"):
+            agent.flags.enable_chat = True
+
+        chat_messages = []
+        episode_info = []
+        step_count = 0
+        err_msg, stack_trace = None, None
+
+        try:
+            for turn in range(self.env_args.max_conversation_turns):
+                logger.info(f"=== Conversation Turn {turn} ===")
+
                 # 1. Attacker generates message
-                logger.debug(f"Turn {turn}: Attacker generating message...")
-                turn_info.profiling.attacker_start = time.time()
                 attacker_obs = {
-                    "conversation_history": conversation_history,
+                    "chat_messages": chat_messages,
                     "turn": turn,
                 }
                 attacker_message, attacker_info = attacker_agent.get_action(attacker_obs)
-                turn_info.attacker_message = attacker_message
-                turn_info.profiling.attacker_stop = time.time()
-                
                 logger.info(f"Turn {turn} - Attacker: {attacker_message[:100]}...")
-                
-                # Add attacker message to conversation
-                conversation_history.append({
-                    "role": "attacker",
-                    "content": attacker_message,
-                    "turn": turn,
-                })
-                
-                # 2. Target agent responds to attacker + environment
-                # Inject attacker message into observation
-                target_obs = initial_obs.copy()
-                target_obs["attacker_message"] = attacker_message
-                target_obs["conversation_turn"] = turn
-                turn_info.target_obs = target_obs  # Save what target saw
-                
-                logger.debug(f"Turn {turn}: Target agent responding...")
-                turn_info.profiling.target_start = time.time()
-                target_action, target_info = agent.get_action(target_obs)
-                turn_info.target_action = target_action
-                turn_info.target_agent_info = target_info
-                turn_info.profiling.target_stop = time.time()
-                
-                logger.info(f"Turn {turn} - Target action: {target_action[:100]}...")
-                
-                # Add target response to conversation
-                conversation_history.append({
-                    "role": "target",
-                    "content": target_action,
-                    "agent_info": target_info,
-                    "turn": turn,
-                })
-                
-                # 3. Environment executes target's action
-                logger.debug(f"Turn {turn}: Environment executing action...")
-                turn_info.profiling.env_start = time.time()
-                obs, reward, terminated, truncated, env_info = env.step(target_action)
-                turn_info.env_reward = reward
-                turn_info.env_terminated = terminated
-                turn_info.env_truncated = truncated
-                turn_info.profiling.env_stop = time.time()
-                
-                logger.debug(f"Turn {turn} - Reward: {reward}, Terminated: {terminated}, Truncated: {truncated}")
-                
-                if agent.obs_preprocessor:
-                    obs = agent.obs_preprocessor(obs)
-                initial_obs = obs  # Update for next turn
-                
-                # Save turn
-                turn_info.save_turn_info(self.exp_dir)
-                
-                done = terminated or truncated
-                turn += 1
-            
-            # Save full conversation log
-            logger.info(f"Saving adversarial conversation ({turn} turns)...")
-            conversation_file = self.exp_dir / "adversarial_conversation.json"
-            
-            # Create a serializable version of conversation_history (without agent_info)
-            serializable_history = []
-            for entry in conversation_history:
-                serializable_entry = {
-                    "role": entry["role"],
-                    "content": entry["content"],
-                    "turn": entry["turn"],
-                }
-                # Note: agent_info omitted from JSON (contains non-serializable objects)
-                # Full data available in adversarial_turn_NNN.pkl.gz files
-                serializable_history.append(serializable_entry)
-            
-            conversation_file.write_text(json.dumps({
-                "total_turns": turn,
-                "conversation_history": serializable_history,
-                "final_terminated": adversarial_episode[-1].env_terminated if adversarial_episode else False,
-                "final_truncated": adversarial_episode[-1].env_truncated if adversarial_episode else False,
-                "final_reward": adversarial_episode[-1].env_reward if adversarial_episode else 0,
-            }, indent=2))
-            
-            logger.info(f"Adversarial experiment completed: {turn} turns")
-            
+
+                chat_messages.append(
+                    {"role": "user", "timestamp": time.time(), "message": attacker_message}
+                )
+
+                # Save attacker messages to file
+                attacker_msgs_path = self.exp_dir / "attacker_messages.json"
+                attacker_msgs_path.write_text(json.dumps(chat_messages, indent=2), encoding="utf-8")
+
+                # 2. Agent executes MULTIPLE STEPS until it sends a message back
+                turn_complete = False
+                obs = initial_obs.copy() if turn == 0 else episode_info[-1].obs
+
+                while not turn_complete:
+                    # Create step info
+                    step_info = StepInfo(step=step_count)
+                    episode_info.append(step_info)
+                    step_count += 1
+
+                    # Inject chat messages into observation
+                    obs["chat_messages"] = chat_messages
+                    if agent.obs_preprocessor:
+                        obs = agent.obs_preprocessor(obs)
+
+                    step_info.obs = obs
+                    step_info.reward, step_info.terminated, step_info.truncated = 0, False, False
+
+                    # 3. Agent takes action
+                    action = step_info.from_action(agent)
+                    logger.debug(f"Turn {turn}, Step {step_count} - Action: {action}")
+
+                    # 4. Check if agent sent a message (ends turn)
+                    if action and "send_msg_to_user" in str(action):
+                        target_message = self._extract_message_from_action(str(action))
+                        chat_messages.append(
+                            {
+                                "role": "assistant",
+                                "timestamp": time.time(),
+                                "message": target_message,
+                            }
+                        )
+                        logger.info(f"Turn {turn} - Target responds: {target_message[:100]}...")
+                        turn_complete = True
+                        # Save step info before breaking (action not sent to env)
+                        step_info.save_step_info(
+                            self.exp_dir,
+                            save_screenshot=self.save_screenshot,
+                            save_som=self.save_som,
+                        )
+                        break  # Don't send chat action to environment
+
+                    # 5. Save step info
+                    step_info.save_step_info(
+                        self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
+                    )
+
+                    # Send to environment chat if available
+                    if hasattr(env.unwrapped, "chat") and isinstance(env.unwrapped.chat, Chat):
+                        _send_chat_info(env.unwrapped.chat, action, step_info.agent_info)
+
+                    if action is None:
+                        logger.warning("Agent returned None action")
+                        turn_complete = True
+                        break
+
+                    # 6. Execute action in environment
+                    next_step = StepInfo(step=step_count)
+                    next_step.from_step(env, action, agent.obs_preprocessor)
+                    episode_info.append(next_step)  # Always record the step
+                    step_count += 1
+                    obs = next_step.obs
+
+                    # Check if episode ended
+                    if next_step.is_done:
+                        logger.info(f"Episode ended after {step_count} steps")
+                        return episode_info
+
+                # Turn complete - attacker will respond next iteration
+
+            logger.info(f"Multi-turn conversation ended after {turn + 1} turns, {step_count} steps")
+
         except Exception as e:
-            err_msg = f"Exception in adversarial experiment {self.env_args.task_name}: {e}"
+            err_msg = f"Exception in multi-turn adversarial task {self.env_args.task_name}.\n{type(e).__name__}:\n{e}"
             stack_trace = traceback.format_exc()
-            logger.error(err_msg + "\n" + stack_trace)
-            
-            # Save error info
-            try:
-                error_file = self.exp_dir / "adversarial_error.json"
-                error_file.write_text(json.dumps({
-                    "error_message": err_msg,
-                    "stack_trace": stack_trace,
-                }, cls=DataclassJSONEncoder,indent=2))
-            except:
-                pass
-            
-            raise
-        
+            self.err_msg = err_msg
+            self.stack_trace = stack_trace
+            logger.warning(err_msg + "\n" + stack_trace)
+            if _is_debugging() and self.enable_debug:
+                raise
+
         finally:
-            try:
-                if env:
-                    logger.debug("Closing environment...")
-                    env.close()
-            except Exception as e:
-                logger.error(f"Error closing environment: {e}")
-        
-        return adversarial_episode
+            self._save_experiment_results(None, episode_info, err_msg, stack_trace)
+
+        return episode_info
+
+    def _extract_message_from_action(self, action: str) -> str:
+        """Extract message text from send_msg_to_user action."""
+        # Parse action string like: send_msg_to_user("Hello user")
+        match = re.search(r'send_msg_to_user\(["\'](.+?)["\']\)', action)
+        return match.group(1) if match else action
 
     def _set_logger(self):
         # output logging traces to a log file
