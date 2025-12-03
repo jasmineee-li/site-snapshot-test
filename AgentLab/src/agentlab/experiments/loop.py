@@ -544,46 +544,24 @@ class ExpArgs:
             logger.error(f"Error saving summary info: {e}")
 
     def _run_adversarial(self):
-        """Run adversarial evaluation with attacker and target agent."""
+        """Run adversarial redteam evaluation with attacker and target agent."""
         # Check adversarial mode
         adversarial_mode = getattr(self.env_args, "adversarial_mode", "single_turn")
         logger.info(f"Running ADVERSARIAL experiment {self.exp_name} (mode: {adversarial_mode})")
 
-        adversarial_episode = []
         agent, attacker_agent, env = None, None, None
 
         try:
-            # Generate attacker system prompt if not already set
-            if not getattr(self.attacker_agent_args, "custom_system_prompt", None):
-                from agentlab.benchmarks.redteam_prompts import get_attacker_system_prompt
-
-                attack_type = getattr(self.env_args, "attack_type", "indirect")
-                attacker_prompt = get_attacker_system_prompt(
-                    attack_type=attack_type,
-                    mode=adversarial_mode,
-                    behavior=getattr(self.env_args, "doc", ""),
-                    target=getattr(self.env_args, "target", ""),
-                )
-                # Set on attacker_agent_args so make_agent() uses it
-                self.attacker_agent_args.custom_system_prompt = attacker_prompt
-                logger.info(
-                    f"Generated attacker system prompt for {attack_type} {adversarial_mode} attack"
-                )
-
-            # Create both agents
+            # Create target agent
             logger.info("Creating target agent...")
             agent = self.agent_args.make_agent()
             if hasattr(agent, "set_task_name"):
                 agent.set_task_name(self.env_args.task_name)
+            if target_prompt := getattr(self.env_args, "target_system_prompt", None):
+                agent.custom_system_prompt = target_prompt
+                logger.info(f"Set target system prompt ({len(target_prompt)} chars)")
 
-            # Pass behavior-specific system prompt to target agent if available
-            target_system_prompt = getattr(self.env_args, "target_system_prompt", None)
-            if target_system_prompt and hasattr(agent, "custom_system_prompt"):
-                agent.custom_system_prompt = target_system_prompt
-                logger.info(
-                    f"Set custom system prompt for target agent ({len(target_system_prompt)} chars)"
-                )
-
+            # Create attacker agent (generates its own system prompt if not set)
             logger.info("Creating attacker agent...")
             attacker_agent = self.attacker_agent_args.make_agent()
 

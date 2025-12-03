@@ -27,7 +27,7 @@ from agentlab.experiments.launch_exp import (
 )
 from agentlab.experiments.loop import EnvArgs, ExpArgs
 from agentlab.experiments.multi_server import BaseServer
-from agentlab.benchmarks.redteam import RedteamAttackerAgentArgs
+from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -316,7 +316,7 @@ class Study(AbstractStudy):
         n_jobs=1,
         parallel_backend="ray",
         strict_reproducibility=False,
-        n_relaunch=3,
+        n_relaunch=1,
         relaunch_errors=True,
         exp_root=RESULTS_DIR,
     ):
@@ -379,6 +379,7 @@ class Study(AbstractStudy):
             raise ValueError("exp_args_list is None. Please set exp_args_list before running.")
 
         logger.info("Preparing backends...")
+
         self.benchmark.prepare_backends()
         logger.info("Backends ready.")
 
@@ -498,16 +499,18 @@ class Study(AbstractStudy):
                 # Check if this is a redteam benchmark with attacker agent
                 attacker_agent_args = None
                 max_conversation_turns = 10  # Default
-                
-                if hasattr(env_args, 'use_attacker_agent') and env_args.use_attacker_agent:
-                    attacker_agent_args = RedteamAttackerAgentArgs(
+
+                if hasattr(env_args, "use_attacker_agent") and env_args.use_attacker_agent:
+                    attacker_agent_args = RedteamAttackerAgent(
                         model=env_args.attacker_model,
-                        goal=env_args.behavior,
+                        goal=env_args.doc,
                         target_description=env_args.target,
+                        attack_type=getattr(env_args, "attack_type", "indirect"),
+                        mode=getattr(env_args, "adversarial_mode", "single_turn"),
                         custom_system_prompt=env_args.attacker_system_prompt,
                     )
                     max_conversation_turns = env_args.max_conversation_turns
-                
+
                 exp_args = ExpArgs(
                     agent_args=agent,
                     env_args=env_args,
@@ -582,7 +585,7 @@ class SequentialStudies(AbstractStudy):
         n_jobs=1,
         parallel_backend="ray",
         strict_reproducibility=False,
-        n_relaunch=3,
+        n_relaunch=1,
         exp_root=RESULTS_DIR,
     ):
         # This sequence of of making directories is important to make sure objects are materialized

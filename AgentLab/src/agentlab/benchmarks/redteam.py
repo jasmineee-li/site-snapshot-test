@@ -25,14 +25,14 @@ from bgym import HighLevelActionSetArgs
 from pydantic import ConfigDict
 
 from agentlab.benchmarks.abstract_env import AbstractBenchmark, AbstractEnv, AbstractEnvArgs
-from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
-
 from agentlab.benchmarks.redteam_generation import (
     SyntheticPageGenerator,
     PrefillDataAnalyzer,
     save_site_to_toolbox,
     load_toolbox_site,
 )
+from agentlab.benchmarks.redteam_prompts import get_safe_transformation_prompt
+from agentlab.benchmarks.llm_utils import OpenRouterLLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     task_name: str
     target: str  # Attack goal description
+    attacker_model: str
     pages: list[Page]
     start_page: str = None
 
@@ -73,7 +74,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     # Attacker agent configuration (for adversarial mode)
     use_attacker_agent: bool = True  # Toggle adversarial mode
     attack_type: str = "indirect"  # "direct" or "indirect"
-    attacker_model: str = "openai/gpt-4.1"  # LLM model for attacker agent
+
     attacker_system_prompt: str = None  # Auto-generated if None
     adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
     max_conversation_turns: int = 10  # Max turns for multi-turn mode
@@ -123,29 +124,6 @@ class RedteamEnvArgs(AbstractEnvArgs):
         )
 
 
-@dataclass
-class RedteamAttackerAgentArgs:
-    """Agent arguments for the redteam attacker agent."""
-
-    model: str
-    goal: str = ""  # Behavior to induce
-    target_description: str = ""  # Ideal malicious output
-    attack_type: str = "indirect"  # "direct" or "indirect"
-    mode: str = "single_turn"  # "single_turn" or "multi_turn"
-    custom_system_prompt: str = None  # Override auto-generated prompt
-
-    def make_agent(self):
-        """Create attacker agent instance."""
-        return RedteamAttackerAgent(
-            model=self.model,
-            goal=self.goal,
-            target_description=self.target_description,
-            attack_type=self.attack_type,
-            mode=self.mode,
-            custom_system_prompt=self.custom_system_prompt,
-        )
-
-
 class RedteamEnv(AbstractEnv):
     """
     Environment for redteam testing with on-the-fly synthetic page generation.
@@ -180,8 +158,7 @@ class RedteamEnv(AbstractEnv):
         self._generation_complete = False
         self._flow_config = None
 
-        # Trajectory-enhanced generation
-        self.safe_analog_generator = None
+        # Trajectory observation
         self.trajectory_observer = None
 
     def _generate_sites(self) -> None:
@@ -203,56 +180,76 @@ class RedteamEnv(AbstractEnv):
 
         logger.info("Starting one-time site generation...")
 
-        # Initialize trajectory data collection
+        # Initialize trajectory data
         trajectory_screenshots = []
-        trajectory_doms = []
         safe_behavior = None
 
         # Step 0: Conditional trajectory observation
         if self.env_args.use_trajectory:
-            logger.info(
-                "Trajectory observation enabled - running safe analog generation and observation..."
+            trajectory_dir = self.exp_dir / "trajectory"
+            html_library_dir = (
+                Path(__file__).parent.parent.parent.parent
+                / "html-library"
+                / "screenshots"
+                / self.env_args.task_name.replace(".", "_")
             )
-            from agentlab.benchmarks.safe_analog_generator import SafeAnalogGenerator
-            from agentlab.benchmarks.trajectory_observer import TrajectoryObserver
 
-            self.safe_analog_generator = SafeAnalogGenerator(model=self.env_args.world_sim_model)
-            self.trajectory_observer = TrajectoryObserver()
-
-            logger.info("Generating safe analog...")
-            safe_behavior = self.safe_analog_generator.generate_safe_analog(
-                adversarial_behavior=self.env_args.doc,
-                target=self.env_args.target,
-                pages=[{"domain": p.domain, "real_site": p.real_site} for p in self.env_args.pages],
+            # Check for existing screenshots in trajectory dir or html-library
+            existing_screenshots = (
+                list(trajectory_dir.glob("*.png")) if trajectory_dir.exists() else []
             )
-            logger.info(f"Safe analog: {safe_behavior[:100]}...")
+            if not existing_screenshots and html_library_dir.exists():
+                existing_screenshots = list(html_library_dir.glob("*.png"))
+                if existing_screenshots:
+                    logger.info(f"Found screenshots in html-library: {html_library_dir}")
 
-            # Run trajectory agent (observation-only)
-            logger.info("Observing trajectory on real sites...")
-            sites = [p.real_site or p.domain for p in self.env_args.pages]
-            sites = [s for s in sites if s]  # Remove None values
+            if existing_screenshots:
+                # Use existing trajectory screenshots (skip observation)
+                logger.info(
+                    f"Found {len(existing_screenshots)} existing trajectory screenshots, skipping observation"
+                )
+                trajectory_screenshots = [str(p) for p in existing_screenshots]
+            else:
+                # Run trajectory observation
+                logger.info("Trajectory observation enabled - running observation...")
+                from agentlab.benchmarks.trajectory_observer import TrajectoryObserver
 
-            trajectory_data = self.trajectory_observer.observe_trajectory(
-                safe_behavior=safe_behavior,
-                sites=sites,
-                output_dir=self.exp_dir / "trajectory",
-            )
-            logger.info(f"✓ Trajectory captured: {len(trajectory_data['observations'])} steps")
+                self.trajectory_observer = TrajectoryObserver()
 
-            # Extract screenshot and DOM paths from trajectory
-            for obs in trajectory_data.get("observations", []):
-                paths = obs.get("paths", {})
-                screenshot_path = paths.get("screenshot")
-                dom_path = paths.get("dom")
+                # Generate safe analog behavior
+                logger.info("Generating safe analog...")
+                pages_for_prompt = [
+                    {"domain": p.domain, "real_site": p.real_site} for p in self.env_args.pages
+                ]
+                prompt = get_safe_transformation_prompt(
+                    adversarial_behavior=self.env_args.doc,
+                    target=self.env_args.target,
+                    pages=pages_for_prompt,
+                )
+                llm = OpenRouterLLMClient(self.env_args.world_sim_model)
+                safe_behavior = llm.chat_simple([{"role": "user", "content": prompt}])
+                logger.info(f"Safe analog: {safe_behavior[:100]}...")
 
-                if screenshot_path and Path(screenshot_path).exists():
-                    trajectory_screenshots.append(screenshot_path)
-                if dom_path and Path(dom_path).exists():
-                    trajectory_doms.append(dom_path)
+                # Prepare page details and sites
+                sites = [p.real_site for p in self.env_args.pages if p.real_site]
+                page_details = [
+                    {"domain": p.domain, "real_site": p.real_site, "details": p.details}
+                    for p in self.env_args.pages
+                ]
 
-            logger.info(
-                f"✓ Found {len(trajectory_screenshots)} screenshots, {len(trajectory_doms)} DOM snapshots"
-            )
+                # Run trajectory observation
+                logger.info("Observing trajectory on real sites...")
+                trajectory_data = self.trajectory_observer.observe_trajectory(
+                    safe_behavior=safe_behavior,
+                    sites=sites,
+                    output_dir=trajectory_dir,
+                    page_details=page_details,
+                    html_library_dir=html_library_dir,
+                )
+
+                # Collect screenshot paths
+                trajectory_screenshots = trajectory_data.get("screenshots", [])
+                logger.info(f"✓ Captured {len(trajectory_screenshots)} screenshots")
         else:
             logger.info("Trajectory observation disabled - using benchmark screenshots only")
 
@@ -267,27 +264,25 @@ class RedteamEnv(AbstractEnv):
             p.existing_path and p.skip_modification for p in synthetic_pages
         )
 
-        if skip_analysis:
-            logger.info(
-                "Skipping prefill analysis (all synthetic pages use existing HTML without modification)"
-            )
-            prefill_spec = {"pages": []}
-        else:
-            logger.info("Analyzing prefill data needs...")
-            # Use trajectory screenshots/DOMs if enabled, otherwise pass None
-            analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
-            analyzer_doms = trajectory_doms if self.env_args.use_trajectory else None
+        # if skip_analysis:
+        #     logger.info(
+        #         "Skipping prefill analysis (all synthetic pages use existing HTML without modification)"
+        #     )
+        #     prefill_spec = {"pages": []}
+        # else:
+        #     logger.info("Analyzing prefill data needs...")
+        #     # Use trajectory screenshots if enabled
+        #     analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
 
-            prefill_spec = self.analyzer.analyze(
-                behavior=self.env_args.doc,
-                pages=self.env_args.pages,
-                screenshots=analyzer_screenshots,
-                dom_paths=analyzer_doms,
-            )
+        #     prefill_spec = self.analyzer.analyze(
+        #         behavior=self.env_args.doc,
+        #         pages=self.env_args.pages,
+        #         screenshots=analyzer_screenshots,
+        #     )
 
-        # Save for reproducibility
-        spec_path = self.exp_dir / "prefill_spec.json"
-        spec_path.write_text(json.dumps(prefill_spec, indent=2), encoding="utf-8")
+        # For now, skip detailed prefill analysis and use an empty spec.
+        # This still satisfies the generator interface (expects a dict with 'pages').
+        prefill_spec = {"pages": []}
 
         # Step 3: Generate pages
         logger.info("Generating synthetic pages...")
@@ -575,6 +570,7 @@ class RedteamBenchmark(AbstractBenchmark):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    target_model: str
     name: str = "redteam"
     benchmark_file: str | Path = None
     env_args_list: list[RedteamEnvArgs] = None
@@ -586,7 +582,6 @@ class RedteamBenchmark(AbstractBenchmark):
     # Generation settings
     world_sim_model: str  # LLM for page generation and prefill analysis
     attacker_model: str  # LLM for attacker agent
-    target_model: str = None  # Model name for target agent (for reference/logging)
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Adversarial mode settings
