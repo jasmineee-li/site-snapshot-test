@@ -470,11 +470,11 @@ clicking the refresh button.
         screenshot_gallery.select(fn=gallery_step_change, inputs=episode_id, outputs=step_id)
         episode_id.change(fn=if_active("Episode")(update_episode), outputs=episode)
         episode_id.change(
-            fn=if_active("Generated Website")(update_website_viewer),
+            fn=if_active("🌟 Generated Websites")(update_website_viewer),
             outputs=[website_file_selector, website_viewer],
         )
         website_file_selector.change(
-            fn=if_active("Generated Website")(update_website_viewer),
+            fn=if_active("🌟 Generated Websites")(update_website_viewer),
             inputs=website_file_selector,
             outputs=[website_file_selector, website_viewer],
         )
