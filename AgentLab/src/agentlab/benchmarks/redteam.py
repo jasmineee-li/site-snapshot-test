@@ -264,25 +264,25 @@ class RedteamEnv(AbstractEnv):
             p.existing_path and p.skip_modification for p in synthetic_pages
         )
 
-        # if skip_analysis:
-        #     logger.info(
-        #         "Skipping prefill analysis (all synthetic pages use existing HTML without modification)"
-        #     )
-        #     prefill_spec = {"pages": []}
-        # else:
-        #     logger.info("Analyzing prefill data needs...")
-        #     # Use trajectory screenshots if enabled
-        #     analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
+        if skip_analysis:
+            logger.info(
+                "Skipping prefill analysis (all synthetic pages use existing HTML without modification)"
+            )
+            prefill_spec = {"pages": []}
+        else:
+            logger.info("Analyzing prefill data needs...")
+            # Use trajectory screenshots if enabled
+            analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
 
-        #     prefill_spec = self.analyzer.analyze(
-        #         behavior=self.env_args.doc,
-        #         pages=self.env_args.pages,
-        #         screenshots=analyzer_screenshots,
-        #     )
+            prefill_spec = self.analyzer.analyze(
+                behavior=self.env_args.doc,
+                pages=self.env_args.pages,
+                screenshots=analyzer_screenshots,
+            )
 
         # For now, skip detailed prefill analysis and use an empty spec.
         # This still satisfies the generator interface (expects a dict with 'pages').
-        prefill_spec = {"pages": []}
+        # prefill_spec = {"pages": []}
 
         # Step 3: Generate pages
         logger.info("Generating synthetic pages...")
@@ -378,6 +378,7 @@ class RedteamEnv(AbstractEnv):
 
                 # Save to exp_dir
                 page_path = self.exp_dir / f"{stage_name}.html"
+                page_path.parent.mkdir(parents=True, exist_ok=True)
                 page_path.write_text(html, encoding="utf-8")
 
                 self._flow_config["stages"][stage_name] = {"mode": "synthetic"}
