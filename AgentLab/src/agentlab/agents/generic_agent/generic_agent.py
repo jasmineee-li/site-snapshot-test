@@ -78,11 +78,13 @@ class GenericAgent(Agent):
         chat_model_args: BaseModelArgs,
         flags: GenericPromptFlags,
         max_retry: int = 4,
+        custom_system_prompt: str = None,
     ):
 
         self.chat_llm = chat_model_args.make_model()
         self.chat_model_args = chat_model_args
         self.max_retry = max_retry
+        self.custom_system_prompt = custom_system_prompt
 
         self.flags = flags
         self.action_set = self.flags.action.action_set.make_action_set()
@@ -111,7 +113,14 @@ class GenericAgent(Agent):
 
         max_prompt_tokens, max_trunc_itr = self._get_maxes()
 
-        system_prompt = SystemMessage(dp.SystemPrompt().prompt)
+        # Build system prompt: combine default browser instructions with custom context
+        default_prompt = dp.SystemPrompt().prompt
+        if self.custom_system_prompt:
+            # Combine: default browser instructions + behavior-specific context
+            combined_prompt = f"{default_prompt}\n\n---\n\n{self.custom_system_prompt}"
+            system_prompt = SystemMessage(combined_prompt)
+        else:
+            system_prompt = SystemMessage(default_prompt)
 
         human_prompt = dp.fit_tokens(
             shrinkable=main_prompt,
@@ -121,7 +130,7 @@ class GenericAgent(Agent):
             additional_prompts=system_prompt,
         )
         try:
-            # TODO, we would need to further shrink the prompt if the retry
+            # TODO, we would need to further shrink the prompt if the retrya
             # cause it to be too long
 
             chat_messages = Discussion([system_prompt, human_prompt])
