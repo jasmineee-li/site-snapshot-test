@@ -13,7 +13,8 @@
           "domain": "/gmail",
           "real_site": "gmail.com",
           "mode": "synthetic",
-          "screenshots": "gmail"
+          "screenshots": "gmail",
+          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/src/agentlab_results_new/2025-11-04_03-20-24_genericagent-gpt-5-mini-2025-08-07-on-redteam/2025-11-04_03-20-24_GenericAgent-gpt-5-mini-2025-08-07_on_redteam.case0.seed0_0/gmail.html"
         },
         {
           "domain": "/calendar",

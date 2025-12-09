@@ -1,0 +1,14 @@
+{
+  "target_agent": {
+    "name": "gpt-5"
+  },
+  "websites": [
+    "Slack",
+    "Notion",
+    "Google Suite",
+    "Asana"
+  ],
+  "attack_types": {
+    
+  }
+}

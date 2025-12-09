@@ -14,14 +14,14 @@
           "real_site": "gmail.com",
           "mode": "synthetic",
           "screenshots": "gmail",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/cua-website-sim/runs/v1_case0_2025-10-05_15-56-00/gmail.html"
+          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tests/assets/html/gmail.html"
         },
         {
           "domain": "/calendar",
           "real_site": "calendar.google.com",
           "mode": "synthetic",
           "screenshots": "calendar",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/runs/v1_case0_2025-10-05_15-56-00/calendar.html"
+          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tests/assets/html/calendar.html"
         }
       ],
       "tools": [
