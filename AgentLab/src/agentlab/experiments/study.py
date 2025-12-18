@@ -496,26 +496,12 @@ class Study(AbstractStudy):
 
         for agent in agents:
             for env_args in env_args_list:
-                # Check if this is a redteam benchmark with attacker agent
-                attacker_agent_args = None
-                max_conversation_turns = 10  # Default
-
-                if hasattr(env_args, "use_attacker_agent") and env_args.use_attacker_agent:
-                    attacker_agent_args = RedteamAttackerAgent(
-                        model=env_args.attacker_model,
-                        goal=env_args.doc,
-                        target_description=env_args.target,
-                        attack_type=getattr(env_args, "attack_type", "indirect"),
-                        mode=getattr(env_args, "adversarial_mode", "single_turn"),
-                        custom_system_prompt=env_args.attacker_system_prompt,
-                    )
-                    max_conversation_turns = env_args.max_conversation_turns
 
                 exp_args = ExpArgs(
                     agent_args=agent,
                     env_args=env_args,
-                    attacker_agent_args=attacker_agent_args,
-                    max_conversation_turns=max_conversation_turns,
+                    attacker_agent_args=env_args.attacker_agent,
+                    max_conversation_turns=env_args.max_conversation_turns,
                     logging_level=logging_level,
                     logging_level_stdout=logging_level_stdout,
                 )

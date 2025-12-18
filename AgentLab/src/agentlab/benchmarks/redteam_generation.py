@@ -137,6 +137,9 @@ class SyntheticPageGenerator:
             url_mapping=url_mapping,
         )
 
+        # Debug: log prompt info before API call
+        logger.debug(f"Generated prompt length: {len(prompt)} chars, first 200: {prompt[:200]}...")
+
         try:
             html_raw = self.llm.call_with_images(prompt, screenshots or [])
             logger.debug(f"Synthetic generator response: {html_raw[:200]}...")
@@ -213,6 +216,61 @@ class SyntheticPageGenerator:
         return html
 
 
+def replace_injection_placeholders(html: str, injections: Dict[str, str]) -> str:
+    """
+    Replace INJECTION_PLACEHOLDER comments (format: `<!-- INJECTION_PLACEHOLDER: {"id": "...", ...} -->`) with actual injection HTML
+    """
+    import re
+
+    # Pattern to match injection placeholder comments
+    # Matches: <!-- INJECTION_PLACEHOLDER: {"id": "some_id", ...} -->
+    pattern = r"<!--\s*INJECTION_PLACEHOLDER:\s*(\{[^}]+\})\s*-->"
+
+    def replace_placeholder(match):
+        """Replacement function for each placeholder match."""
+        json_str = match.group(1)
+        try:
+            placeholder_data = json.loads(json_str)
+            placeholder_id = placeholder_data.get("id")
+
+            if not placeholder_id:
+                logger.warning(f"Placeholder missing 'id' field: {json_str}")
+                return match.group(0)  # Keep original placeholder
+
+            if placeholder_id not in injections:
+                logger.warning(
+                    f"No injection provided for placeholder '{placeholder_id}'. "
+                    f"Available: {list(injections.keys())}"
+                )
+                return match.group(0)  # Keep original placeholder
+
+            # Replace with injection content
+            injection_html = injections[placeholder_id]
+            logger.debug(
+                f"Replacing placeholder '{placeholder_id}' with injection ({len(injection_html)} chars)"
+            )
+            return injection_html
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse placeholder JSON: {json_str} - {e}")
+            return match.group(0)  # Keep original placeholder
+
+    # Perform replacement
+    html_with_injections = re.sub(pattern, replace_placeholder, html)
+
+    # Count replacements made
+    placeholders_found = len(re.findall(pattern, html))
+    placeholders_remaining = len(re.findall(pattern, html_with_injections))
+    replacements_made = placeholders_found - placeholders_remaining
+
+    logger.info(
+        f"Replaced {replacements_made}/{placeholders_found} placeholder(s). "
+        f"{placeholders_remaining} placeholder(s) remain."
+    )
+
+    return html_with_injections
+
+
 # ============================================================================
 # Site Toolbox Utilities
 # ============================================================================
@@ -230,16 +288,19 @@ def save_site_to_toolbox(domain: str, html: str, metadata: dict) -> Path:
     Returns:
         Path to saved HTML file
     """
-    # Normalize domain to folder name (remove leading slash)
-    domain_name = domain.lstrip("/").split(".")[0]  # "/gmail" -> "gmail", "gmail.com" -> "gmail"
+    # Normalize domain to folder path (remove leading slash)
+    # "/gmail" -> "gmail", "/unofficial-course-wiki/phil-380" -> "unofficial-course-wiki/phil-380"
+    domain_path = domain.lstrip("/").split(".")[0]
 
     # Create domain subfolder
-    domain_dir = TOOLBOX_DIR / domain_name
+    domain_dir = TOOLBOX_DIR / domain_path
     domain_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate timestamp-based filename
+    # Generate timestamp-based filename using only the last segment
+    # "unofficial-course-wiki/phil-380" -> "phil-380"
+    file_base = domain_path.split("/")[-1]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_name = f"{domain_name}_{timestamp}"
+    base_name = f"{file_base}_{timestamp}"
 
     html_path = domain_dir / f"{base_name}.html"
     json_path = domain_dir / f"{base_name}.json"
@@ -262,8 +323,8 @@ def list_toolbox_sites(domain: str) -> List[dict]:
     Returns:
         List of metadata dicts, sorted by timestamp (newest first)
     """
-    domain_name = domain.lstrip("/").split(".")[0]
-    domain_dir = TOOLBOX_DIR / domain_name
+    domain_path = domain.lstrip("/").split(".")[0]
+    domain_dir = TOOLBOX_DIR / domain_path
 
     if not domain_dir.exists():
         return []

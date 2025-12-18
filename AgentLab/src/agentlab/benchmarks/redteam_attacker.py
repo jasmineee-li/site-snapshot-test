@@ -26,9 +26,12 @@ Integration with AgentLab:
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict
-
-from agentlab.benchmarks.llm_utils import OpenRouterLLMClient
-from agentlab.benchmarks.redteam_prompts import get_attacker_system_prompt
+import json
+from agentlab.benchmarks.llm_utils import OpenRouterLLMClient, strip_code_fences
+from agentlab.benchmarks.redteam_prompts import (
+    get_attacker_system_prompt,
+    get_injection_generation_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,28 +54,34 @@ class RedteamAttackerAgent:
     attack_type: str = "indirect"  # "direct" or "indirect"
     mode: str = "single_turn"  # "single_turn" or "multi_turn"
     custom_system_prompt: str = None
+    # Optional: information about websites/pages available in the environment
+    pages: list[Any] | None = None
 
     # Lazy-initialized (not part of __init__)
     llm: OpenRouterLLMClient = field(default=None, init=False, repr=False)
     system_prompt: str = field(default=None, init=False)
     _initialized: bool = field(default=False, init=False, repr=False)
 
-    def make_agent(self):
-        """Initialize and return self (for compatibility with ExpArgs pattern)."""
-        if not self._initialized:
-            self._initialize()
-        return self
+    def initialize(self):
+        """Initialize the LLM client and system prompt if not already done."""
+        if self._initialized:
+            return
 
-    def _initialize(self):
-        """Lazy initialization of LLM client and system prompt."""
         self.llm = OpenRouterLLMClient(self.model)
         self.system_prompt = self.custom_system_prompt or get_attacker_system_prompt(
             attack_type=self.attack_type,
             mode=self.mode,
             behavior=self.goal,
             target=self.target_description,
+            pages=self.pages,
         )
         self._initialized = True
+        logger.info(f"Initialized RedteamAttackerAgent with model: {self.model}")
+
+    def make_agent(self):
+        """Initialize and return self (for compatibility with ExpArgs pattern)."""
+        self.initialize()
+        return self
 
     def get_action(self, obs: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
         """
@@ -86,8 +95,7 @@ class RedteamAttackerAgent:
         Returns:
             Tuple of (attacker_message: str, agent_info: dict)
         """
-        if not self._initialized:
-            self._initialize()
+        self.initialize()
 
         chat_messages = obs.get("chat_messages", [])
         turn = obs.get("turn", 0)
@@ -126,3 +134,63 @@ class RedteamAttackerAgent:
     def obs_preprocessor(self, obs):
         """No preprocessing needed for attacker observations."""
         return obs
+
+    def generate_injections(
+        self,
+        prefill_adversarial: dict,
+        page_domain: str,
+        variation_index: int,
+        n_total_variations: int,
+    ) -> dict[str, str]:
+        """
+        Generate adversarial injection HTML for placeholders on a page.
+
+        This method uses the attacker model to generate creative adversarial content
+        that will be injected into placeholder locations in the HTML.
+
+        Returns:
+            Dict mapping placeholder IDs to HTML content strings
+            Example: {"wiki_review_card": "<div>...</div>", "wiki_code_snippet": "<!-- ... -->"}
+        """
+        self.initialize()
+
+        # Build behavior context for the prompt
+        behavior_context = {
+            "doc": self.goal,
+            "target": self.target_description,
+            "objective": "",  # Could be extended if needed TODO
+        }
+
+        # Generate the injection prompt
+        prompt = get_injection_generation_prompt(
+            prefill_adversarial=prefill_adversarial,
+            behavior_context=behavior_context,
+            page_domain=page_domain,
+            variation_index=variation_index,
+            n_total_variations=n_total_variations,
+        )
+
+        logger.info(
+            f"Generating injection variation {variation_index + 1}/{n_total_variations} for {page_domain}..."
+        )
+
+        try:
+            # Call LLM to generate injections
+            response = self.llm.chat_simple([{"role": "user", "content": prompt}])
+
+            # Strip code fences if present
+            response_clean = strip_code_fences(response)
+            injections = json.loads(response_clean)
+            logger.info(
+                f"✓ Generated {len(injections)} injection(s) for {page_domain} (variation {variation_index})"
+            )
+            logger.debug(f"Injection keys: {list(injections.keys())}")
+            return injections
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse injection JSON: {e}")
+            logger.error(f"Response: {response_clean[:500]}")
+            raise Exception(f"Injection generation failed - invalid JSON: {e}")
+        except Exception as e:
+            logger.error(f"Injection generation error: {e}")
+            raise
