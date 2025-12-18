@@ -28,10 +28,10 @@ target_agent_config = AGENT_4o_MINI
 
 benchmark = RedteamBenchmark(
     benchmark_file="/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tests/behaviors_enriched_single_2.json",
-    world_sim_model="anthropic/claude-opus-4.5",
+    # world_sim_model="anthropic/claude-opus-4.5",
+    world_sim_model="moonshotai/kimi-k2-thinking",
     attacker_model="x-ai/grok-4",
     adversarial_mode="single_turn",
-    use_attacker_agent=True,
     n_injection_variations=1,
     use_trajectory=True,
 )
