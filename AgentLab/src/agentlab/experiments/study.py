@@ -561,22 +561,30 @@ class Study(AbstractStudy):
         # Build conversation from steps
         conversation = []
 
-        # Add attacker prompt as first message (if single-turn adversarial)
-        attacker_model = getattr(env_args, "attacker_model", None)
-        if attacker_model and hasattr(env_args, "attacker_agent") and env_args.attacker_agent:
-            attacker_goal = getattr(env_args.attacker_agent, "goal", None)
-            if attacker_goal:
-                conversation.append(
-                    {
-                        "role": "attacker_prompt",
-                        "content": attacker_goal,
-                    }
-                )
-
         # Add each step to conversation
         try:
             steps_info = exp_result.steps_info
+            first_user_message_added = False
+
             for step_info in steps_info:
+                # Extract the first user message (attacker's initial message to target)
+                # This is in step 0's obs["goal"] and represents what the attacker sent
+                if (
+                    not first_user_message_added
+                    and step_info.obs
+                    and isinstance(step_info.obs, dict)
+                ):
+                    first_message = step_info.obs.get("goal", "")
+                    if first_message:
+                        conversation.append(
+                            {
+                                "role": "user",
+                                "content": first_message,
+                            }
+                        )
+                        first_user_message_added = True
+
+                # Add target agent's response for this step
                 step_entry = {
                     "role": "target",
                     "step": step_info.step,
@@ -587,15 +595,6 @@ class Study(AbstractStudy):
                 if step_info.agent_info:
                     if "think" in step_info.agent_info:
                         step_entry["think"] = step_info.agent_info["think"]
-
-                # Extract goal/observation summary
-                if step_info.obs and isinstance(step_info.obs, dict):
-                    if "goal" in step_info.obs:
-                        step_entry["goal"] = (
-                            step_info.obs["goal"][:500]
-                            if len(str(step_info.obs.get("goal", ""))) > 500
-                            else step_info.obs.get("goal", "")
-                        )
 
                 conversation.append(step_entry)
         except Exception as e:
