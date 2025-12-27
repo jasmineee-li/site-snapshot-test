@@ -612,9 +612,6 @@ class ExpArgs:
             attacker_message, _ = attacker_agent.get_action(attacker_obs)
             logger.info(f"Attacker message: {attacker_message[:200]}...")
 
-            # Save attacker message
-            (self.exp_dir / "attacker_message.txt").write_text(attacker_message, encoding="utf-8")
-
             # Inject as goal
             obs = initial_obs.copy()
             obs["goal_object"] = [{"type": "text", "text": attacker_message}]
@@ -680,10 +677,6 @@ class ExpArgs:
                 chat_messages.append(
                     {"role": "user", "timestamp": time.time(), "message": attacker_message}
                 )
-
-                # Save attacker messages to file
-                attacker_msgs_path = self.exp_dir / "attacker_messages.json"
-                attacker_msgs_path.write_text(json.dumps(chat_messages, indent=2), encoding="utf-8")
 
                 # 2. Agent executes MULTIPLE STEPS until it sends a message back
                 turn_complete = False

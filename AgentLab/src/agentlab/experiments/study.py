@@ -1,8 +1,10 @@
 import gzip
+import json
 import logging
 import os
 import pickle
 import random
+import time
 import uuid
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
@@ -156,17 +158,11 @@ class AbstractStudy(ABC):
         with gzip.open(self.dir / "study.pkl.gz", "wb") as f:
             pickle.dump(self, f)
 
-    def get_results(self, suffix="", also_save=True):
+    def get_results(self, suffix="", also_save=False):
         """Recursively load all results from the study directory and summarize them."""
         result_df = inspect_results.load_result_df(self.dir)
         error_report = inspect_results.error_report(result_df, max_stack_trace=3, use_log=True)
         summary_df = inspect_results.summarize_study(result_df)
-
-        if also_save:
-            suffix = f"_{suffix}" if suffix else ""
-            result_df.to_csv(self.dir / f"result_df{suffix}.csv")
-            summary_df.to_csv(self.dir / f"summary_df{suffix}.csv")
-            (self.dir / f"error_report{suffix}.md").write_text(error_report)
 
         return result_df, summary_df, error_report
 
@@ -320,6 +316,8 @@ class Study(AbstractStudy):
         relaunch_errors=True,
         exp_root=RESULTS_DIR,
     ):
+        start_time = time.time()
+
         self.set_reproducibility_info(
             strict_reproducibility=strict_reproducibility, comment=self.comment
         )
@@ -327,13 +325,14 @@ class Study(AbstractStudy):
 
         n_exp = len(self.exp_args_list)
         last_error_count = None
+        result_df = None
+        summary_df = None
 
         for i in range(n_relaunch):
             logger.info(f"Launching study {self.name} - trial {i + 1} / {n_relaunch}")
             self._run(n_jobs, parallel_backend, strict_reproducibility)
 
-            suffix = f"trial_{i + 1}_of_{n_relaunch}"
-            _, summary_df, error_report = self.get_results(suffix=suffix)
+            result_df, summary_df, error_report = self.get_results()
             logger.info("\n" + str(summary_df))
 
             n_incomplete, n_error = self.find_incomplete(include_errors=relaunch_errors)
@@ -358,6 +357,9 @@ class Study(AbstractStudy):
             logger.warning(
                 f"Study {self.name} did not finish after {n_relaunch} trials. There are {n_incomplete} incomplete experiments."
             )
+
+        # Save structured run log
+        self._save_run_log(result_df, summary_df, start_time)
 
     def _run(self, n_jobs=1, parallel_backend="joblib", strict_reproducibility=False):
         """Run all experiments in the study in parallel when possible.
@@ -390,6 +392,285 @@ class Study(AbstractStudy):
             parallel_backend=parallel_backend,
             avg_step_timeout=self.avg_step_timeout,
         )
+
+    def _save_run_log(self, result_df, summary_df, start_time: float):
+        """Save a structured log.json with comprehensive run information.
+
+        Args:
+            result_df: DataFrame with experiment results
+            summary_df: DataFrame with summary statistics
+            start_time: Unix timestamp when the study started
+        """
+        from agentlab.experiments.loop import ExpResult, get_exp_result
+
+        end_time = time.time()
+        duration_seconds = end_time - start_time
+
+        # Build args section
+        benchmark_file = None
+        if hasattr(self.benchmark, "benchmark_file"):
+            benchmark_file = str(self.benchmark.benchmark_file)
+
+        # Extract model names from first experiment
+        target_model = None
+        attacker_model = None
+        world_sim_model = None
+        adversarial_mode = None
+        max_steps = None
+
+        if self.exp_args_list and len(self.exp_args_list) > 0:
+            first_exp = self.exp_args_list[0]
+            if hasattr(first_exp.agent_args, "chat_model_args"):
+                target_model = getattr(first_exp.agent_args.chat_model_args, "model_name", None)
+            if hasattr(first_exp, "env_args"):
+                env_args = first_exp.env_args
+                attacker_model = getattr(env_args, "attacker_model", None)
+                world_sim_model = getattr(env_args, "world_sim_model", None)
+                adversarial_mode = getattr(env_args, "adversarial_mode", None)
+                max_steps = getattr(env_args, "max_steps", None)
+
+        log_data = {
+            "args": {
+                "study_name": self.name,
+                "benchmark_name": self.benchmark.name if hasattr(self.benchmark, "name") else None,
+                "benchmark_file": benchmark_file,
+                "target_model": target_model,
+                "attacker_model": attacker_model,
+                "world_sim_model": world_sim_model,
+                "adversarial_mode": adversarial_mode,
+                "max_steps": max_steps,
+            },
+            "time": datetime.now().isoformat(),
+            "duration_seconds": round(duration_seconds, 2),
+            "summary": {
+                "n_experiments": len(self.exp_args_list) if self.exp_args_list else 0,
+                "n_completed": 0,
+                "n_errors": 0,
+                "avg_reward": 0.0,
+                "total_cost": 0.0,
+            },
+            "experiments": [],
+            "token_usage": {
+                "target": {"input": 0, "output": 0, "total": 0},
+                "attacker": {"input": 0, "output": 0, "total": 0},
+                "world_sim": {"input": 0, "output": 0, "total": 0},
+                "totals": {"input": 0, "output": 0, "total": 0},
+            },
+        }
+
+        # Extract summary stats from summary_df if available
+        if summary_df is not None and len(summary_df) > 0:
+            try:
+                log_data["summary"]["avg_reward"] = (
+                    float(summary_df["avg_reward"].iloc[0]) if "avg_reward" in summary_df else 0.0
+                )
+                if "n_completed" in summary_df:
+                    n_completed_str = str(summary_df["n_completed"].iloc[0])
+                    if "/" in n_completed_str:
+                        log_data["summary"]["n_completed"] = int(n_completed_str.split("/")[0])
+                if "n_err" in summary_df:
+                    log_data["summary"]["n_errors"] = int(summary_df["n_err"].iloc[0])
+                if "cum_cost" in summary_df:
+                    log_data["summary"]["total_cost"] = float(summary_df["cum_cost"].iloc[0])
+            except Exception as e:
+                logger.warning(f"Error extracting summary stats: {e}")
+
+        # Process each experiment
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        try:
+            for exp_result in inspect_results.yield_all_exp_results(self.dir, progress_fn=None):
+                try:
+                    exp_data = self._extract_experiment_data(exp_result)
+                    log_data["experiments"].append(exp_data)
+
+                    # Aggregate token usage
+                    if "token_usage" in exp_data:
+                        total_input_tokens += exp_data["token_usage"].get("input", 0)
+                        total_output_tokens += exp_data["token_usage"].get("output", 0)
+                except Exception as e:
+                    logger.warning(f"Error processing experiment {exp_result.exp_dir}: {e}")
+                    continue
+        except Exception as e:
+            logger.warning(f"Error iterating experiments: {e}")
+
+        # Update total token usage
+        log_data["token_usage"]["target"]["input"] = total_input_tokens
+        log_data["token_usage"]["target"]["output"] = total_output_tokens
+        log_data["token_usage"]["target"]["total"] = total_input_tokens + total_output_tokens
+        log_data["token_usage"]["totals"]["input"] = total_input_tokens
+        log_data["token_usage"]["totals"]["output"] = total_output_tokens
+        log_data["token_usage"]["totals"]["total"] = total_input_tokens + total_output_tokens
+
+        # Save log.json
+        log_path = self.dir / "log.json"
+        try:
+            with open(log_path, "w", encoding="utf-8") as f:
+                json.dump(log_data, f, indent=2, default=str)
+            logger.info(f"Saved run log to {log_path}")
+        except Exception as e:
+            logger.error(f"Error saving log.json: {e}")
+
+    def _extract_experiment_data(self, exp_result) -> dict:
+        """Extract structured data from an experiment result.
+
+        Args:
+            exp_result: ExpResult object
+
+        Returns:
+            Dictionary with experiment data for log.json
+        """
+        exp_args = exp_result.exp_args
+        env_args = exp_args.env_args
+
+        # Extract behavior/task info
+        behavior_id = (
+            getattr(env_args, "task_name", "").split(".")[-1]
+            if hasattr(env_args, "task_name")
+            else None
+        )
+
+        # Extract goal/doc from env_args
+        goal = (
+            getattr(env_args, "doc", None)
+            or getattr(env_args, "goal", None)
+            or getattr(env_args, "objective", "")
+        )
+
+        # Extract pages info
+        pages = []
+        if hasattr(env_args, "pages") and env_args.pages:
+            for page in env_args.pages:
+                if isinstance(page, dict):
+                    pages.append(
+                        {
+                            "domain": page.get("domain", ""),
+                            "real_site": page.get("real_site", ""),
+                            "html_path": page.get("existing_path", ""),
+                        }
+                    )
+
+        # Extract target info
+        target_model = None
+        if hasattr(exp_args, "agent_args") and hasattr(exp_args.agent_args, "chat_model_args"):
+            target_model = getattr(exp_args.agent_args.chat_model_args, "model_name", None)
+
+        target_system_prompt = getattr(env_args, "target_system_prompt", None)
+
+        # Build conversation from steps
+        conversation = []
+
+        # Add attacker prompt as first message (if single-turn adversarial)
+        attacker_model = getattr(env_args, "attacker_model", None)
+        if attacker_model and hasattr(env_args, "attacker_agent") and env_args.attacker_agent:
+            attacker_goal = getattr(env_args.attacker_agent, "goal", None)
+            if attacker_goal:
+                conversation.append(
+                    {
+                        "role": "attacker_prompt",
+                        "content": attacker_goal,
+                    }
+                )
+
+        # Add each step to conversation
+        try:
+            steps_info = exp_result.steps_info
+            for step_info in steps_info:
+                step_entry = {
+                    "role": "target",
+                    "step": step_info.step,
+                    "action": step_info.action,
+                }
+
+                # Extract think/reasoning if available
+                if step_info.agent_info:
+                    if "think" in step_info.agent_info:
+                        step_entry["think"] = step_info.agent_info["think"]
+
+                # Extract goal/observation summary
+                if step_info.obs and isinstance(step_info.obs, dict):
+                    if "goal" in step_info.obs:
+                        step_entry["goal"] = (
+                            step_info.obs["goal"][:500]
+                            if len(str(step_info.obs.get("goal", ""))) > 500
+                            else step_info.obs.get("goal", "")
+                        )
+
+                conversation.append(step_entry)
+        except Exception as e:
+            logger.warning(f"Error extracting steps: {e}")
+
+        # Extract result info from summary
+        result_data = {
+            "n_steps": 0,
+            "terminated": False,
+            "truncated": False,
+            "reward": 0,
+            "cost": 0.0,
+        }
+
+        try:
+            summary = exp_result.summary_info
+            result_data["n_steps"] = summary.get("n_steps", 0)
+            result_data["terminated"] = summary.get("terminated", False)
+            result_data["truncated"] = summary.get("truncated", False)
+            result_data["reward"] = summary.get("cum_reward", 0)
+            result_data["cost"] = summary.get("stats.cum_cost", 0.0)
+        except Exception:
+            pass
+
+        # Extract criteria scores if available
+        criteria_scores = {}
+        if hasattr(env_args, "criteria") and env_args.criteria:
+            for criterion in env_args.criteria:
+                if isinstance(criterion, dict):
+                    crit_id = criterion.get("id", "")
+                    criteria_scores[crit_id] = {
+                        "name": criterion.get("name", ""),
+                        "threshold": criterion.get("threshold", 0),
+                        "score": None,  # Would need judge results
+                    }
+
+        # Token usage from summary
+        token_usage = {
+            "input": 0,
+            "output": 0,
+            "total": 0,
+        }
+        try:
+            summary = exp_result.summary_info
+            token_usage["input"] = summary.get("stats.cum_input_tokens", 0)
+            token_usage["output"] = summary.get("stats.cum_output_tokens", 0)
+            token_usage["total"] = token_usage["input"] + token_usage["output"]
+        except Exception:
+            pass
+
+        return {
+            "behavior_id": behavior_id,
+            "behavior_name": getattr(env_args, "target", None) or behavior_id,
+            "goal": goal,
+            "pages": pages,
+            "target": {
+                "model_name": target_model,
+                "system_prompt": (
+                    target_system_prompt[:500]
+                    if target_system_prompt and len(target_system_prompt) > 500
+                    else target_system_prompt
+                ),
+            },
+            "attacker": {
+                "model_name": attacker_model,
+            },
+            "world_sim": {
+                "model_name": getattr(env_args, "world_sim_model", None),
+            },
+            "conversation": conversation,
+            "result": result_data,
+            "criteria_scores": criteria_scores if criteria_scores else None,
+            "token_usage": token_usage,
+            "exp_dir": str(exp_result.exp_dir),
+        }
 
     def append_to_journal(self, strict_reproducibility=True):
         """Append the study to the journal.
