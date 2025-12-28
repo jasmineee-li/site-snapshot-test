@@ -394,10 +394,135 @@ class RedteamEnv(AbstractEnv):
                     raise FileNotFoundError(
                         f"Snapshot bundle not found: {bundle_path}\n"
                         f"Please create the bundle first using:\n"
-                        f"  python snapshotter.py https://{page.real_site or domain_clean} {bundle_path}"
+                        f"  python snapshotter.py {page.base_site_url or f'https://{domain_clean}'} {bundle_path}"
+                    )
+                # For snapshot mode, mark all subdomains as None
+                for subdomain in page.subdomains:
+                    route_key = f"{domain_name}{subdomain}".replace("//", "/")
+                    base_html_by_subdomain[route_key] = None
+
+        # Step 4: Generate injection variations for subdomains that have adversarial content
+        if subdomains_needing_injections:
+            logger.info(
+                f"Found {len(subdomains_needing_injections)} subdomain(s) needing adversarial injections"
+            )
+
+            # Use the attacker agent for injection generation
+            logger.info(f"Using attacker agent (model: {self.env_args.attacker_model})...")
+            attacker_agent = self.env_args.attacker_agent
+            attacker_agent.make_agent()
+
+            n_variations_to_generate = 1
+            variation_indices = [self.env_args.injection_seed]
+
+            logger.info(f"Generating injection variation(s): {variation_indices}")
+
+            for var_idx in variation_indices:
+                logger.info(f"=== Generating variation {var_idx} ===")
+
+                variation_dir = self.exp_dir / f"variation_{var_idx}"
+                variation_dir.mkdir(parents=True, exist_ok=True)
+
+                # For each subdomain, either copy base HTML or generate injections
+                for route_key, html in base_html_by_subdomain.items():
+                    if html is None:
+                        continue
+
+                    # Check if this subdomain needs injections
+                    needs_injection = any(
+                        rk == route_key for rk, _, _, _ in subdomains_needing_injections
                     )
 
-                self._flow_config["stages"][stage_name] = {
+                    # Sanitize route_key for filename: gmail/mail/u/0/#inbox -> gmail_mail_u_0_inbox
+                    file_name = (
+                        route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                    )
+
+                    if needs_injection:
+                        # Find the spec for this subdomain
+                        spec_for_subdomain = None
+                        page_obj = None
+                        for rk, p, sd, spec in subdomains_needing_injections:
+                            if rk == route_key:
+                                page_obj = p
+                                spec_for_subdomain = spec
+                                break
+
+                        prefill_adv = spec_for_subdomain.get("prefill_adversarial", {})
+                        logger.info(f"Generating injections for {route_key}...")
+
+                        pre_injection_path = self.exp_dir / f"{file_name}_pre_injection.html"
+                        pre_injection_path.write_text(html, encoding="utf-8")
+                        logger.info(f"✓ Saved {file_name}_pre_injection.html (before injection)")
+
+                        try:
+                            injections = attacker_agent.generate_injections(
+                                prefill_adversarial=prefill_adv,
+                                page_domain=route_key,
+                                variation_index=var_idx,
+                                n_total_variations=n_variations_to_generate,
+                            )
+
+                            html_with_injections = replace_injection_placeholders(html, injections)
+                            page_path = variation_dir / f"{file_name}.html"
+                            page_path.write_text(html_with_injections, encoding="utf-8")
+                            logger.info(f"✓ Saved {file_name}.html with injections")
+
+                        except Exception as e:
+                            logger.error(f"Failed to generate injections for {route_key}: {e}")
+                            page_path = variation_dir / f"{file_name}.html"
+                            page_path.write_text(html, encoding="utf-8")
+                            logger.warning(
+                                f"⚠ Saved {file_name}.html with placeholders (injection failed)"
+                            )
+                    else:
+                        # Benign subdomain - just copy base HTML
+                        page_path = variation_dir / f"{file_name}.html"
+                        page_path.write_text(html, encoding="utf-8")
+
+                logger.info(f"✓ Variation {var_idx} complete")
+        else:
+            logger.info("No subdomains need adversarial injections - using base HTML as-is")
+            variation_dir = self.exp_dir / "variation_0"
+            variation_dir.mkdir(parents=True, exist_ok=True)
+            for route_key, html in base_html_by_subdomain.items():
+                if html is not None:
+                    file_name = (
+                        route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                    )
+                    page_path = variation_dir / f"{file_name}.html"
+                    page_path.write_text(html, encoding="utf-8")
+
+        # Step 5: Validate internal links (fail-fast if broken)
+        self._validate_internal_links(variation_dir, base_html_by_subdomain.keys())
+
+        # Step 6: Set up flow config to point to the correct variation folder
+        variation_dir = self.exp_dir / f"variation_{self.env_args.injection_seed}"
+
+        self._flow_config = {
+            "run_dir": str(variation_dir),
+            "stages": {},
+            "start_page": self.env_args.start_page,
+            "start_stage": start_stage,
+        }
+
+        # Configure stages from the variation folder - each subdomain is a stage
+        for route_key in base_html_by_subdomain.keys():
+            # Find the page this route belongs to
+            page_obj = None
+            for p in self.env_args.pages:
+                domain_name = p.domain.lstrip("/")
+                if route_key.startswith(domain_name):
+                    page_obj = p
+                    break
+
+            if page_obj and page_obj.mode == "synthetic":
+                self._flow_config["stages"][route_key] = {"mode": "synthetic"}
+            elif page_obj and page_obj.mode == "snapshot":
+                domain_clean = page_obj.domain.lstrip("/")
+                snapshots_base = Path("/Users/jasminexli/grayswan/site-snapshot-test/snapshots")
+                bundle_path = snapshots_base / f"{domain_clean}_bundle"
+                self._flow_config["stages"][route_key] = {
                     "mode": "snapshot",
                     "bundle_dir": str(bundle_path),
                 }
