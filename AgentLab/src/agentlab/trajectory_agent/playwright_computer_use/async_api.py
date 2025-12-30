@@ -118,6 +118,8 @@ class PlaywrightToolbox:
             | PlaywrightSaveScreenshotTool
             | PlaywrightDownloadImageTool
             | PlaywrightElementScreenshotTool
+            | PlaywrightExtractImageUrlTool
+            | PlaywrightListImagesOnPageTool
         ] = [
             ComputerTool(page, use_cursor=use_cursor, screenshot_wait_until=screenshot_wait_until),
             PlaywrightSetURLTool(page),
@@ -125,6 +127,8 @@ class PlaywrightToolbox:
             PlaywrightSaveScreenshotTool(page, save_dir=save_dir),
             PlaywrightDownloadImageTool(save_dir=save_dir),
             PlaywrightElementScreenshotTool(page, save_dir=save_dir),
+            PlaywrightExtractImageUrlTool(page),
+            PlaywrightListImagesOnPageTool(page),
         ]
 
     def to_params(self) -> list[BetaToolParam]:
@@ -454,6 +458,205 @@ class PlaywrightElementScreenshotTool:
             return ToolResult(output=f"Element screenshot saved to: {filepath.absolute()}")
         except Exception as e:
             return ToolResult(error=f"Failed to screenshot element: {str(e)}")
+
+
+class PlaywrightExtractImageUrlTool:
+    """Tool to extract the source URL from an image element on the page."""
+
+    name: Literal["extract_image_url"] = "extract_image_url"
+
+    def __init__(self, page: Page):
+        """Create a new PlaywrightExtractImageUrlTool.
+
+        Args:
+            page: The Async Playwright page to interact with.
+        """
+        super().__init__()
+        self.page = page
+
+    def to_params(self) -> BetaToolParam:
+        """Params describing the tool."""
+        return BetaToolParam(
+            name=self.name,
+            description=(
+                "Extract the source URL (src attribute) from an image element on the page. "
+                "Use this to get the direct image URL which can then be used with download_image. "
+                "This is especially useful for Google Image search results - instead of clicking "
+                "on images (which redirects to websites), use this tool to extract the image URL "
+                "and then download it directly."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "description": (
+                            "CSS selector for the image element (e.g., 'img.rg_i', 'img[data-src]', "
+                            "'img[alt=\"Cat photo\"]'). For Google Images, try 'img.rg_i' for thumbnails."
+                        ),
+                    },
+                    "index": {
+                        "type": "number",
+                        "description": "If multiple elements match the selector, which one to extract from (0-indexed). Default is 0 (first match).",
+                    },
+                    "attribute": {
+                        "type": "string",
+                        "description": (
+                            "Which attribute to extract. Default is 'src'. Other options: 'data-src', "
+                            "'data-iurl' (Google Images full URL), 'srcset'. For Google Image search, "
+                            "try 'data-src' or inspect the element attributes."
+                        ),
+                    },
+                },
+                "required": ["selector"],
+            },
+        )
+
+    async def __call__(self, *, selector: str, index: int = 0, attribute: str = "src"):
+        """Extract the image URL from an element."""
+        try:
+            # Locate the element
+            locator = self.page.locator(selector)
+
+            # Check if element exists
+            count = await locator.count()
+            if count == 0:
+                return ToolResult(error=f"No elements found matching selector: {selector}")
+
+            if index >= count:
+                return ToolResult(
+                    error=f"Index {index} out of range. Found {count} element(s) matching selector: {selector}"
+                )
+
+            # Get the element
+            element = locator.nth(index)
+
+            # Extract the attribute
+            url = await element.get_attribute(attribute)
+
+            if not url:
+                # Try to get all available attributes to help debugging
+                all_attrs = await element.evaluate(
+                    "el => Array.from(el.attributes).map(a => `${a.name}=${a.value.substring(0, 100)}`).join(', ')"
+                )
+                return ToolResult(
+                    error=f"Attribute '{attribute}' not found or empty on element. "
+                    f"Available attributes: {all_attrs}"
+                )
+
+            return ToolResult(output=f"Extracted URL: {url}")
+        except Exception as e:
+            return ToolResult(error=f"Failed to extract image URL: {str(e)}")
+
+
+class PlaywrightListImagesOnPageTool:
+    """Tool to list all images on the current page with their URLs and attributes."""
+
+    name: Literal["list_images"] = "list_images"
+
+    def __init__(self, page: Page):
+        """Create a new PlaywrightListImagesOnPageTool.
+
+        Args:
+            page: The Async Playwright page to interact with.
+        """
+        super().__init__()
+        self.page = page
+
+    def to_params(self) -> BetaToolParam:
+        """Params describing the tool."""
+        return BetaToolParam(
+            name=self.name,
+            description=(
+                "List all images currently visible on the page, showing their URLs and key attributes. "
+                "Useful for discovering what images are available to download and what selectors to use. "
+                "Returns up to 20 images with their src, alt text, and CSS selector hints."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "filter_selector": {
+                        "type": "string",
+                        "description": "Optional CSS selector to filter which images to list (e.g., '.main-content img'). If not provided, lists all images.",
+                    },
+                    "max_results": {
+                        "type": "number",
+                        "description": "Maximum number of images to return. Default is 20.",
+                    },
+                },
+                "required": [],
+            },
+        )
+
+    async def __call__(self, *, filter_selector: str = "img", max_results: int = 20):
+        """List images on the page."""
+        try:
+            # Use JavaScript to gather image information
+            images_info = await self.page.evaluate(
+                """
+                (args) => {
+                    const selector = args.selector;
+                    const maxResults = args.maxResults;
+                    const images = document.querySelectorAll(selector);
+                    const results = [];
+                    
+                    for (let i = 0; i < Math.min(images.length, maxResults); i++) {
+                        const img = images[i];
+                        const rect = img.getBoundingClientRect();
+                        
+                        // Skip tiny or hidden images
+                        if (rect.width < 20 || rect.height < 20) continue;
+                        
+                        results.push({
+                            index: results.length,
+                            src: img.src || img.dataset.src || '',
+                            dataSrc: img.dataset.src || '',
+                            alt: img.alt || '',
+                            width: Math.round(rect.width),
+                            height: Math.round(rect.height),
+                            classes: img.className,
+                            id: img.id || ''
+                        });
+                    }
+                    return results;
+                }
+                """,
+                {"selector": filter_selector, "maxResults": max_results},
+            )
+
+            if not images_info:
+                return ToolResult(output="No images found matching the filter.")
+
+            # Format the output
+            output_lines = [f"Found {len(images_info)} images:\n"]
+            for img in images_info:
+                lines = [f"[{img['index']}]"]
+                if img["src"]:
+                    # Truncate long URLs
+                    src = img["src"][:150] + "..." if len(img["src"]) > 150 else img["src"]
+                    lines.append(f"  src: {src}")
+                if img["dataSrc"] and img["dataSrc"] != img["src"]:
+                    ds = (
+                        img["dataSrc"][:150] + "..."
+                        if len(img["dataSrc"]) > 150
+                        else img["dataSrc"]
+                    )
+                    lines.append(f"  data-src: {ds}")
+                if img["alt"]:
+                    lines.append(f"  alt: {img['alt'][:80]}")
+                lines.append(f"  size: {img['width']}x{img['height']}")
+
+                # Suggest selector
+                if img["id"]:
+                    lines.append(f"  selector: #{img['id']}")
+                elif img["classes"]:
+                    first_class = img["classes"].split()[0]
+                    lines.append(f"  selector: img.{first_class}")
+                output_lines.append("\n".join(lines))
+
+            return ToolResult(output="\n\n".join(output_lines))
+        except Exception as e:
+            return ToolResult(error=f"Failed to list images: {str(e)}")
 
 
 class BasePlaywrightComputerTool:
