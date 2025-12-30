@@ -227,7 +227,7 @@ def get_reproducibility_info(
         if len(modified_files) > 0:
             msg = (
                 f"Module {module_name} has uncommitted changes. "
-                f"Modified files:  \n{modified_files_str}\n"
+                # f"Modified files:  \n{modified_files_str}\n"
             )
             if ignore_changes:
                 logging.warning(
