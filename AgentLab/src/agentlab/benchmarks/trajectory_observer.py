@@ -133,7 +133,7 @@ class TrajectoryObserver:
                 "screenshots": [str(p) for p in screenshots],
                 "output_dir": str(output_dir),
                 "timestamp": datetime.now().isoformat(),
-            }
+                }
 
     def _copy_to_library(self, output_dir: Path, html_library_dir: Path):
         """Copy screenshots to html-library for reuse."""
