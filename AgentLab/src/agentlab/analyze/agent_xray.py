@@ -690,14 +690,23 @@ def update_website_viewer(selected_file=None):
     if info.exp_result is None:
         return gr.update(choices=[], value=None), "<p>No experiment selected</p>"
 
-    # Look for HTML files in the experiment directory
     exp_dir = Path(info.exp_result.exp_dir)
-    html_files = list(exp_dir.glob("*.html"))
+
+    variation_dir = exp_dir / "variation_0"
+    html_files = []
+
+    if variation_dir.exists():
+        html_files = list(variation_dir.glob("*.html"))
+
+    if not html_files:
+        html_files = list(exp_dir.glob("*.html"))
+
+    html_files = [f for f in html_files if "_pre_injection" not in f.name]
 
     if not html_files:
         return (
             gr.update(choices=[], value=None),
-            "<p>No generated HTML files found in this experiment</p>",
+            "<p>No generated HTML files found in this experiment (checked variation_0/ and experiment root)</p>",
         )
 
     # Create dropdown choices from HTML file names
