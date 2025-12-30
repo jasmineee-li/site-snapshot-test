@@ -107,10 +107,18 @@ def _serve_stage_index(stage: str):
 
     # else, we are in synthetic mode
     log_event({"event": "page_view", "stage": stage, "mode": "synthetic"})
-    print("RUN DIR: ", CONFIG.get("run_dir"))
-    syn_path = Path(__file__).parent / CONFIG.get("run_dir") / f"{stage}.html"
+    run_dir = CONFIG.get("run_dir")
+    print("RUN DIR: ", run_dir)
+    # Convert nested paths to underscore-separated filenames
+    # Handle special characters: gmail/mail/u/0/#inbox -> gmail_mail_u_0__inbox
+    file_name = stage.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+    # Handle both absolute and relative run_dir paths
+    run_dir_path = Path(run_dir)
+    if not run_dir_path.is_absolute():
+        run_dir_path = Path(__file__).parent / run_dir
+    syn_path = run_dir_path / f"{file_name}.html"
     if not syn_path.exists():
-        return (f"Synthetic template missing for stage: {stage}", 500)
+        return (f"Synthetic template missing for stage: {stage} (looked for {syn_path})", 500)
     return (
         syn_path.read_text(encoding="utf-8"),
         200,
@@ -128,12 +136,17 @@ def register_stage_routes():
             def handler():
                 return _serve_stage_index(name)
 
-            handler.__name__ = f"{name}_index"  # Required for Flask
+            # Sanitize function name - replace slashes with underscores
+            # Python function names cannot contain slashes
+            safe_name = name.replace("/", "_")
+            handler.__name__ = f"{safe_name}_index"  # Required for Flask
             return handler
 
         route = f"/{stage_name}"
-        app.add_url_rule(route, f"{stage_name}_index", make_handler(stage_name))
-        print(f"✓ Registered route: {route}")
+        # Sanitize endpoint name - replace slashes with underscores
+        safe_endpoint = stage_name.replace("/", "_")
+        app.add_url_rule(route, f"{safe_endpoint}_index", make_handler(stage_name))
+        print(f"✓ Registered route: {route} -> endpoint: {safe_endpoint}_index")
 
 
 @app.route("/assets/<path:p>")
@@ -191,9 +204,7 @@ def mock_mail_submit():
         "raw_body_len": len(body),
     }
     log_event(record)
-    return jsonify(
-        {"status": "captured", "note": "This is a captured intent only, no email sent."}
-    )
+    return jsonify({"status": "captured", "note": "This is a captured intent only, no email sent."})
 
 
 def _validate_config(cfg: Dict[str, Any]) -> None:
@@ -204,9 +215,7 @@ def _validate_config(cfg: Dict[str, Any]) -> None:
         if mode == "snapshot":
             b = st.get("bundle_dir")
             if not b or not Path(b).exists():
-                raise RuntimeError(
-                    f"bundle_dir missing for snapshot stage {stage}: {b}"
-                )
+                raise RuntimeError(f"bundle_dir missing for snapshot stage {stage}: {b}")
 
 
 if __name__ == "__main__":

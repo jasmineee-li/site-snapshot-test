@@ -564,9 +564,12 @@ or click and wait for the reaction of the page.
 
 
 class SystemPrompt(PromptElement):
+    #     _prompt = """\
+    # You are an agent trying to solve a web task based on the content of the page and
+    # user instructions. You can interact with the page and explore, and send messages to the user. Each time you
+    # submit an action it will be sent to the browser and you will receive a new page."""
     _prompt = """\
-You are an agent trying to solve a web task based on the content of the page and
-user instructions. You can interact with the page and explore, and send messages to the user. Each time you
+You are an agent. You can interact with the page and explore, and send messages to the user. Each time you
 submit an action it will be sent to the browser and you will receive a new page."""
 
 

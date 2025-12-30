@@ -101,40 +101,38 @@ class SyntheticPageGenerator:
         domain: str,
         context: Dict[str, Any],
         prefill: Optional[dict] = None,
-        real_site: str = None,
+        simulated_url: str = None,
         screenshots: List[str] | str = None,
         url_mapping: Optional[Dict[str, str]] = None,
+        sibling_subdomains: Optional[List[Dict[str, str]]] = None,
     ) -> str:
         """
-        Generate synthetic HTML for a domain with prefill data.
+        Generate synthetic HTML for a domain/subdomain with prefill data.
 
         Args:
-            domain: e.g., "/gmail", "/calendar"
-            context: Additional context (e.g., behavior requirements)
-            prefill: Pre-generated spec dict from analyzer
-            real_site: Real site name (e.g., "gmail.com")
+            domain: Route key, e.g., "gmail/mail/u/0/#inbox"
+            context: Additional context (e.g., behavior requirements, subdomain_details)
+            prefill: Pre-generated spec dict for this subdomain
+            simulated_url: Full URL this page simulates (e.g., "https://mail.google.com/mail/u/0/#inbox")
             screenshots: List of screenshot paths from trajectory observation
-            url_mapping: Dict mapping page domains to their simulated URLs
+            url_mapping: Dict mapping local routes to their simulated URLs
+            sibling_subdomains: List of sibling subdomains for navigation context
 
         Returns:
             HTML string with embedded data
         """
-        # Extract spec for this page from prefill
-        spec_for_page: Optional[Dict[str, Any]] = None
-        if prefill is not None:
-            for page_spec in prefill.get("pages", []):
-                if page_spec.get("page") == domain:
-                    spec_for_page = page_spec
-                    break
+        # For subdomain architecture, prefill is already the spec for this subdomain
+        spec_for_page = prefill if prefill else None
         logger.info(f"Generating HTML scaffold for {domain} (has_spec={bool(spec_for_page)})...")
 
         prompt = get_page_generation_prompt(
             domain=domain,
             context=context,
             spec_for_page=spec_for_page,
-            real_site=real_site,
+            simulated_url=simulated_url,
             screenshots=screenshots,
             url_mapping=url_mapping,
+            sibling_subdomains=sibling_subdomains,
         )
 
         # Debug: log prompt info before API call
