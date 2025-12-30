@@ -30,6 +30,10 @@ try:
 except ImportError:
     TapeAgent = None
 
+try:
+    from agentlab.benchmarks.redteam_judge import JudgeRunner
+except ImportError:
+    JudgeRunner = None
 
 logger = logging.getLogger(__name__)
 
@@ -485,63 +489,73 @@ class ExpArgs:
     def _cleanup_experiment(self, agent, env, step_info, episode_info, err_msg, stack_trace):
         """Common cleanup logic for all experiment modes."""
         # Save final step info
-        try:
-            if step_info is not None:
-                step_info.save_step_info(
-                    self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
-                )
-        except Exception as e:
-            logger.error(f"Error saving step info: {e}")
+        if step_info is not None:
+            step_info.save_step_info(
+                self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
+            )
 
         # Check for early termination
-        try:
-            if (
-                not err_msg
-                and len(episode_info) > 0
-                and not (episode_info[-1].terminated or episode_info[-1].truncated)
-            ):
-                err_msg = f"Early termination in task {self.env_args.task_name}"
-            self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
-            if TapeAgent is not None and isinstance(agent, TapeAgent):
-                task = getattr(env, "task", {})
-                save_tape(self.exp_dir, episode_info, task, agent.final_tape)
-        except Exception as e:
-            logger.error(f"Error saving summary info: {e}")
+        if (
+            not err_msg
+            and len(episode_info) > 0
+            and not (episode_info[-1].terminated or episode_info[-1].truncated)
+        ):
+            err_msg = f"Early termination in task {self.env_args.task_name}"
+        self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
+        if TapeAgent is not None and isinstance(agent, TapeAgent):
+            task = getattr(env, "task", {})
+            save_tape(self.exp_dir, episode_info, task, agent.final_tape)
+
+        # Run judge evaluation for redteam experiments
+        self._run_judge_evaluation(episode_info)
 
         # Close environment
-        try:
-            if env is not None:
-                env.close()
-        except Exception as e:
-            logger.error(f"Error closing environment: {e}")
+        if env is not None:
+            env.close()
 
         # Close agent
-        try:
-            if agent and hasattr(agent, "close"):
-                agent.close()
-        except Exception as e:
-            logger.error(f"Error closing agent: {e}")
+        if agent and hasattr(agent, "close"):
+            agent.close()
 
         # Unset logger
-        try:
-            self._unset_logger()
-        except Exception as e:
-            logger.error(f"Error unsetting logger: {e}")
+        self._unset_logger()
+
+    def _run_judge_evaluation(self, episode_info):
+        """Run judge evaluation for redteam experiments."""
+        # Only run for redteam experiments with judging config
+        if not hasattr(self.env_args, "judging") or not self.env_args.judging:
+            return
+
+        if JudgeRunner is None:
+            logger.warning("JudgeRunner not available, skipping judge evaluation")
+            return
+
+        logger.info("Running judge evaluation...")
+
+        # Create JudgeRunner from env_args
+        runner = JudgeRunner(self.env_args)
+
+        # Run evaluation
+        result = runner.evaluate(Path(self.exp_dir), episode_info)
+
+        # Save result to exp_dir/judge_result.json
+        runner.save_result(Path(self.exp_dir), result)
+
+        logger.info(
+            f"Judge evaluation complete: success={result.get('overall_success')}, "
+            f"score={result.get('overall_score')}"
+        )
 
     def _save_experiment_results(self, step_info, episode_info, err_msg, stack_trace):
         """Save step info and summary (used by adversarial modes where cleanup is handled separately)."""
-        try:
-            if step_info is not None:
-                step_info.save_step_info(
-                    self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
-                )
-        except Exception as e:
-            logger.error(f"Error saving step info: {e}")
+        if step_info is not None:
+            step_info.save_step_info(
+                self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
+            )
 
-        try:
-            self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
-        except Exception as e:
-            logger.error(f"Error saving summary info: {e}")
+        self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
+
+        self._run_judge_evaluation(episode_info)
 
     def _run_adversarial(self):
         """Run adversarial redteam evaluation with attacker and target agent."""
