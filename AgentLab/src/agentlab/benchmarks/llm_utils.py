@@ -36,6 +36,8 @@ def get_openrouter_client() -> OpenAI:
     return OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
+        max_retries=3,
+        timeout=60.0,
     )
 
 
@@ -276,30 +278,6 @@ class OpenRouterLLMClient:
                     except:
                         pass
 
-            debug_data = {
-                "hypothesisId": "API_RESPONSE_ERROR",
-                "location": "llm_utils.py:223",
-                "message": "OpenRouter API JSON parse error",
-                "data": {
-                    "error_type": error_type,
-                    "error_message": error_msg,
-                    "model": self.model,
-                    "response_status": response_status,
-                    "has_raw_response": raw_response is not None,
-                    "response_content_preview": (
-                        response_content[:2000] if response_content else None
-                    ),
-                    "response_content_length": len(response_content) if response_content else None,
-                    "error_traceback": (
-                        error_traceback[-1000:] if len(error_traceback) > 1000 else error_traceback
-                    ),
-                },
-                "timestamp": __import__("time").time(),
-            }
-            open("/Users/jasminexli/grayswan/site-snapshot-test/.cursor/debug.log", "a").write(
-                json.dumps(debug_data) + "\n"
-            )
-            # #endregion
             logger.error(f"OpenRouter API call failed: {e}")
             if response_content:
                 logger.error(

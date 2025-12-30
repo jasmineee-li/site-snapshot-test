@@ -406,10 +406,16 @@ Examples: `gmail_inbox.png`, `gmail_settings.png`, `ratemyprof_professor.png`
 - Capture the general UI structure for replication
 - For auth-walled pages, search for public screenshots instead
 
-### CRITICAL: When you are doing image search as fallback, NEVER screenshot search engine results pages! Instead, use ONE of these approaches:
-1. **Capture thumbnail**: `screenshot_element(selector, filename)` - screenshots just the image element
-2. **Click through**: Click image → navigate to source → `save_screenshot(filename)`
-3. **Direct download** (best quality): `extract_image_url(selector)` → `download_image(url, filename)`
+### CRITICAL: When using image search as fallback, NEVER screenshot search engine pages directly!
+
+**Best approach (full resolution, no tint):**
+1. Click on image thumbnail to open preview panel
+2. Use `list_images` to find image URLs in the preview
+3. Use `download_image(url, filename)` to save the full-res image
+
+**Alternative:** Click "Visit" link to go to source site, then `save_screenshot(filename)`.
+
+Avoid `screenshot_element` on search pages - it captures low-res thumbnails with overlays.
 
 When done, send a final message summarizing what you captured for each subdomain."""
     return prompt

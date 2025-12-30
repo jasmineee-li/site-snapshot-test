@@ -496,7 +496,8 @@ class RedteamEnv(AbstractEnv):
             else:
                 # Snapshot mode - use HAR replay or bundle
                 domain_clean = page.domain.lstrip("/")
-                snapshots_base = Path("/Users/jasminexli/grayswan/site-snapshot-test/snapshots")
+                snapshots_base = Path(__file__).resolve().parents[4] / "snapshots"
+
                 bundle_path = snapshots_base / f"{domain_clean}_bundle"
                 if not bundle_path.exists():
                     raise FileNotFoundError(
@@ -631,7 +632,7 @@ class RedteamEnv(AbstractEnv):
                 self._flow_config["stages"][route_key] = {"mode": "synthetic"}
             elif page_obj and page_obj.mode == "snapshot":
                 domain_clean = page_obj.domain.lstrip("/")
-                snapshots_base = Path("/Users/jasminexli/grayswan/site-snapshot-test/snapshots")
+                snapshots_base = Path(__file__).resolve().parents[4] / "snapshots"
                 bundle_path = snapshots_base / f"{domain_clean}_bundle"
                 self._flow_config["stages"][route_key] = {
                     "mode": "snapshot",
@@ -961,49 +962,8 @@ class RedteamEnv(AbstractEnv):
     def _wait_for_server(self, url: str, timeout: int = 10):
         """Wait for server to be ready."""
         for i in range(timeout):
-            try:
-                urllib.request.urlopen(url, timeout=1)
-                return
-            except Exception as e:
-                # #region agent log
-                # Check if process has died and capture stderr
-                if self.server_proc and self.server_proc.poll() is not None:
-                    stdout, stderr = self.server_proc.communicate()
-
-                    open(
-                        "/Users/jasminexli/grayswan/site-snapshot-test/.cursor/debug.log", "a"
-                    ).write(
-                        json.dumps(
-                            {
-                                "hypothesisId": "SERVER_CRASH",
-                                "location": "redteam.py:_wait_for_server",
-                                "message": "Server process died during startup",
-                                "data": {
-                                    "return_code": self.server_proc.returncode,
-                                    "stdout": (
-                                        stdout.decode("utf-8", errors="replace")[-2000:]
-                                        if stdout
-                                        else None
-                                    ),
-                                    "stderr": (
-                                        stderr.decode("utf-8", errors="replace")[-2000:]
-                                        if stderr
-                                        else None
-                                    ),
-                                    "attempt": i,
-                                    "url": url,
-                                },
-                                "timestamp": __import__("time").time(),
-                            }
-                        )
-                        + "\n"
-                    )
-                    logger.error(f"Server process died with code {self.server_proc.returncode}")
-                    logger.error(
-                        f"Server stderr: {stderr.decode('utf-8', errors='replace') if stderr else 'N/A'}"
-                    )
-                # #endregion
-                time.sleep(1)
+            urllib.request.urlopen(url, timeout=1)
+            return
 
         # Final check - capture any output
         # #region agent log
