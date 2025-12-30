@@ -30,7 +30,9 @@ from agentlab.benchmarks.redteam_generation import (
     PrefillDataAnalyzer,
     save_site_to_toolbox,
     load_toolbox_site,
+    replace_injection_placeholders,
 )
+from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
 from agentlab.benchmarks.redteam_prompts import get_safe_transformation_prompt
 from agentlab.benchmarks.llm_utils import OpenRouterLLMClient
 
@@ -39,16 +41,22 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Page:
-    """Page definition from benchmark config."""
+    """Page definition from benchmark config.
+
+    Each Page represents a website with multiple subdomains/routes.
+    For example, Gmail might have subdomains: ["/mail/u/0/#inbox", "/mail/u/0/#settings"]
+    """
 
     domain: str
+    base_site_url: str = None  # Root URL, e.g., "https://mail.google.com"
+    subdomains: list[str] = field(
+        default_factory=list
+    )  # Paths to generate, e.g., ["/mail/u/0/#inbox"]
+    details: dict[str, str] = field(default_factory=dict)  # subdomain -> description
     mode: Literal["synthetic", "snapshot"] = "synthetic"
-    real_site: str = None  # e.g., "gmail.com" for generation context
     screenshots: list[str] = field(default_factory=list)  # Paths to screenshot files/folders
     existing_path: str = None  # Path to pre-generated HTML file (skips generation if provided)
     skip_modification: bool = False
-    simulated_url: str = None
-    details: str = None
 
 
 @dataclass
@@ -71,8 +79,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     world_sim_model: str = "openai/gpt-4.1"
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
-    # Attacker agent configuration (for adversarial mode)
-    use_attacker_agent: bool = True  # Toggle adversarial mode
+    # Attacker agent configuration
     attack_type: str = "indirect"  # "direct" or "indirect"
 
     attacker_system_prompt: str = None  # Auto-generated if None
@@ -97,6 +104,15 @@ class RedteamEnvArgs(AbstractEnvArgs):
     slow_mo: int = None
     storage_state: str | Path | dict = None
     task_kwargs: dict = None
+
+    # Resume from existing run (skip HTML regeneration)
+    resume_from_dir: str | Path = None
+
+    # Skip link validation
+    skip_link_validation: bool = False
+
+    # Shared attacker agent instance (initialized in benchmark)
+    attacker_agent: RedteamAttackerAgent = field(default=None, init=False)
 
     def make_env(
         self,
@@ -178,6 +194,51 @@ class RedteamEnv(AbstractEnv):
             logger.info("Site generation already complete, skipping...")
             return
 
+        # Check if resuming from existing run
+        if self.env_args.resume_from_dir:
+            resume_dir = Path(self.env_args.resume_from_dir)
+            variation_dir = resume_dir / f"variation_{self.env_args.injection_seed}"
+
+            if variation_dir.exists() and list(variation_dir.glob("*.html")):
+                logger.info(f"Resuming from existing HTML files in: {variation_dir}")
+
+                # Copy HTML files to current exp_dir
+                target_variation_dir = self.exp_dir / f"variation_{self.env_args.injection_seed}"
+                target_variation_dir.mkdir(parents=True, exist_ok=True)
+
+                import shutil
+
+                for html_file in variation_dir.glob("*.html"):
+                    target_path = target_variation_dir / html_file.name
+                    shutil.copy2(html_file, target_path)
+                    logger.info(f"  Copied {html_file.name}")
+
+                # Also copy flow_config.json if it exists
+                flow_config_path = resume_dir / "flow_config.json"
+                if flow_config_path.exists():
+                    target_config_path = self.exp_dir / "flow_config.json"
+                    shutil.copy2(flow_config_path, target_config_path)
+                    with open(target_config_path, "r") as f:
+                        self._flow_config = json.load(f)
+                    # Update the run_dir to point to new location
+                    self._flow_config["run_dir"] = str(target_variation_dir)
+                    with open(target_config_path, "w") as f:
+                        json.dump(self._flow_config, f, indent=2)
+                    logger.info("  Copied and updated flow_config.json")
+                else:
+                    # Rebuild flow_config from copied HTML files
+                    self._build_flow_config_from_html(target_variation_dir)
+
+                self._generation_complete = True
+                logger.info(
+                    f"Resume complete - using {len(list(target_variation_dir.glob('*.html')))} HTML files"
+                )
+                return
+            else:
+                logger.warning(
+                    f"Resume dir not found or empty: {variation_dir}, generating fresh..."
+                )
+
         logger.info("Starting one-time site generation...")
 
         # Initialize trajectory data
@@ -219,7 +280,12 @@ class RedteamEnv(AbstractEnv):
                 # Generate safe analog behavior
                 logger.info("Generating safe analog...")
                 pages_for_prompt = [
-                    {"domain": p.domain, "real_site": p.real_site} for p in self.env_args.pages
+                    {
+                        "domain": p.domain,
+                        "base_site_url": p.base_site_url,
+                        "subdomains": p.subdomains,
+                    }
+                    for p in self.env_args.pages
                 ]
                 prompt = get_safe_transformation_prompt(
                     adversarial_behavior=self.env_args.doc,
@@ -230,10 +296,15 @@ class RedteamEnv(AbstractEnv):
                 safe_behavior = llm.chat_simple([{"role": "user", "content": prompt}])
                 logger.info(f"Safe analog: {safe_behavior[:100]}...")
 
-                # Prepare page details and sites
-                sites = [p.real_site for p in self.env_args.pages if p.real_site]
+                # Prepare page details and sites with subdomain info
+                sites = [p.base_site_url for p in self.env_args.pages if p.base_site_url]
                 page_details = [
-                    {"domain": p.domain, "real_site": p.real_site, "details": p.details}
+                    {
+                        "domain": p.domain,
+                        "base_site_url": p.base_site_url,
+                        "subdomains": p.subdomains,
+                        "details": p.details,
+                    }
                     for p in self.env_args.pages
                 ]
 
@@ -284,112 +355,149 @@ class RedteamEnv(AbstractEnv):
         # This still satisfies the generator interface (expects a dict with 'pages').
         # prefill_spec = {"pages": []}
 
-        # Step 3: Generate pages
-        logger.info("Generating synthetic pages...")
+        # Step 3: Generate base HTML pages (with placeholders for adversarial content)
+        logger.info("Generating base HTML pages (with placeholders)...")
 
-        # Determine starting stage (use env_args.start_page if provided, else first page)
+        # Determine starting stage (use env_args.start_page if provided, else first page/subdomain)
         start_stage = None
         if self.env_args.start_page:
-            start_stage = self.env_args.start_page.split(".")[0].lstrip("/")
+            start_stage = self.env_args.start_page.lstrip("/")
 
-        self._flow_config = {
-            "run_dir": str(self.exp_dir),
-            "stages": {},
-            "start_page": self.env_args.start_page,
-            "start_stage": start_stage,
-        }
-
-        # URL mapping
+        # Build URL mapping for cross-page navigation
+        # Maps local routes to full simulated URLs
         url_mapping = {}
         for page in self.env_args.pages:
-            if page.simulated_url:
-                url_mapping[page.domain] = page.simulated_url
+            for subdomain in page.subdomains:
+                local_route = f"{page.domain}{subdomain}".replace("//", "/")
+                full_url = f"{page.base_site_url}{subdomain}" if page.base_site_url else local_route
+                url_mapping[local_route] = full_url
         logger.info(f"URL mapping: {url_mapping}")
 
+        # Store base HTML (with placeholders) for each subdomain
+        # Key format: "gmail/mail/u/0/#inbox" (domain + subdomain)
+        base_html_by_subdomain = {}
+        subdomains_needing_injections = []  # List of (route_key, page, subdomain, spec)
+
+        # Generate base HTML for all pages and their subdomains
         for page in self.env_args.pages:
-            # Extract stage name from domain, handling both "gmail.com" and "/gmail" formats
-            stage_name = page.domain.split(".")[0].lstrip(
-                "/"
-            )  # "gmail.com" → "gmail", "/gmail" → "gmail"
+            domain_name = page.domain.lstrip("/")  # "gmail"
 
             if page.mode == "synthetic":
-                html = None
+                # Extract spec for this page from prefill
+                page_spec = None
+                if prefill_spec:
+                    for ps in prefill_spec.get("pages", []):
+                        if ps.get("page") == page.domain:
+                            page_spec = ps
+                            break
 
-                if page.existing_path:
-                    # TODO: clean up this code
-                    if page.skip_modification:
-                        logger.info(
-                            f"Using existing HTML as-is from {page.existing_path} (skip_modification=True)"
-                        )
+                # Get shared functionality from page spec
+                shared_functionality = (
+                    page_spec.get("shared_functionality", {}) if page_spec else {}
+                )
+                subdomain_specs = page_spec.get("subdomains", {}) if page_spec else {}
+
+                # Generate HTML for each subdomain
+                for subdomain in page.subdomains:
+                    route_key = f"{domain_name}{subdomain}".replace("//", "/")
+                    full_url = (
+                        f"{page.base_site_url}{subdomain}" if page.base_site_url else subdomain
+                    )
+                    subdomain_details = (
+                        page.details.get(subdomain, "") if isinstance(page.details, dict) else ""
+                    )
+
+                    # Get subdomain-specific spec
+                    subdomain_spec = subdomain_specs.get(subdomain, {})
+
+                    # Combine shared + subdomain-specific for generation
+                    combined_spec = {
+                        "page": page.domain,
+                        "subdomain": subdomain,
+                        "shared_functionality": shared_functionality,
+                        "functionality": subdomain_spec.get("functionality", {}),
+                        "prefill_benign": subdomain_spec.get("prefill_benign", {}),
+                        "prefill_adversarial": subdomain_spec.get("prefill_adversarial", {}),
+                    }
+
+                    html = None
+
+                    # Check for existing path (skip generation if provided)
+                    if page.existing_path and page.skip_modification:
+                        logger.info(f"Using existing HTML as-is from {page.existing_path}")
                         try:
                             html = load_toolbox_site(Path(page.existing_path))
-                            logger.info(f"✓ Loaded existing site without modification")
                         except Exception as e:
                             logger.warning(f"Failed to load existing site: {e}")
-                            logger.info("Falling back to full generation")
-                            html = None
-                    else:
-                        # Try to modify existing HTML for new context
-                        logger.info(f"Attempting to modify existing site from {page.existing_path}")
-                        try:
-                            # Load base site from toolbox
-                            base_html = load_toolbox_site(Path(page.existing_path))
-
-                            # Try modification first
-                            html = self.generator.modify_base_site(
-                                base_html=base_html,
-                                new_prefill_spec=prefill_spec,
-                                domain=page.domain,
-                                context={"doc": self.env_args.doc},
-                            )
-                            logger.info(f"✓ Successfully modified existing site")
-                        except Exception as e:
-                            logger.warning(f"Modification failed: {e}")
-                            logger.info("Falling back to full generation")
                             html = None
 
-                # Generate from scratch if no existing path or modification failed
-                if html is None:
-                    logger.info(f"Generating synthetic page for {page.domain}")
-                    # Use trajectory screenshots if enabled, otherwise use benchmark screenshots
-                    page_screenshots = (
-                        trajectory_screenshots if self.env_args.use_trajectory else page.screenshots
-                    )
+                    # Generate from scratch if needed
+                    if html is None:
+                        logger.info(f"Generating synthetic page for {route_key} ({full_url})")
+                        page_screenshots = (
+                            trajectory_screenshots
+                            if self.env_args.use_trajectory
+                            else page.screenshots
+                        )
 
-                    html = self.generator.generate(
-                        domain=page.domain,
-                        context={"doc": self.env_args.doc},
-                        prefill=prefill_spec,
-                        real_site=page.real_site,
-                        screenshots=page_screenshots,
-                        url_mapping=url_mapping,
-                    )
+                        # Build sibling subdomains for navigation context
+                        sibling_subdomains = [
+                            {
+                                "subdomain": sd,
+                                "route": f"{page.domain}{sd}".replace("//", "/"),
+                                "full_url": (
+                                    f"{page.base_site_url}{sd}" if page.base_site_url else sd
+                                ),
+                                "details": (
+                                    page.details.get(sd, "")[:100]
+                                    if isinstance(page.details, dict)
+                                    else ""
+                                ),
+                            }
+                            for sd in page.subdomains
+                            if sd != subdomain
+                        ]
 
-                # Save to toolbox for future reuse
-                metadata = {
-                    "timestamp": datetime.now().isoformat(),
-                    "doc": self.env_args.doc,
-                    "prefill_spec": prefill_spec,
-                    "domain": page.domain,
-                    "real_site": page.real_site,
-                    "injection_seed": self.env_args.injection_seed,
-                }
-                save_site_to_toolbox(page.domain, html, metadata)
+                        html = self.generator.generate(
+                            domain=route_key,
+                            context={
+                                "doc": self.env_args.doc,
+                                "subdomain_details": subdomain_details,
+                            },
+                            prefill=combined_spec,
+                            simulated_url=full_url,
+                            screenshots=page_screenshots,
+                            url_mapping=url_mapping,
+                            sibling_subdomains=sibling_subdomains,
+                        )
 
-                # Save to exp_dir
-                page_path = self.exp_dir / f"{stage_name}.html"
-                page_path.parent.mkdir(parents=True, exist_ok=True)
-                page_path.write_text(html, encoding="utf-8")
+                    # Save base HTML
+                    base_html_by_subdomain[route_key] = html
 
-                self._flow_config["stages"][stage_name] = {"mode": "synthetic"}
+                    # Check if this subdomain needs adversarial injections
+                    prefill_adv = subdomain_spec.get("prefill_adversarial", {})
+                    if prefill_adv.get("needed", False):
+                        subdomains_needing_injections.append(
+                            (route_key, page, subdomain, combined_spec)
+                        )
+                        logger.info(f"Subdomain {route_key} needs adversarial injections")
+
+                    # Save to toolbox for future reuse
+                    metadata = {
+                        "timestamp": datetime.now().isoformat(),
+                        "doc": self.env_args.doc,
+                        "domain": page.domain,
+                        "subdomain": subdomain,
+                        "base_site_url": page.base_site_url,
+                        "injection_seed": self.env_args.injection_seed,
+                    }
+                    save_site_to_toolbox(route_key, html, metadata)
+
             else:
                 # Snapshot mode - use HAR replay or bundle
-                # Clean domain name (remove leading slash)
                 domain_clean = page.domain.lstrip("/")
-                # Use absolute path to snapshots directory
                 snapshots_base = Path("/Users/jasminexli/grayswan/site-snapshot-test/snapshots")
                 bundle_path = snapshots_base / f"{domain_clean}_bundle"
-
                 if not bundle_path.exists():
                     raise FileNotFoundError(
                         f"Snapshot bundle not found: {bundle_path}\n"
@@ -494,7 +602,10 @@ class RedteamEnv(AbstractEnv):
                     page_path.write_text(html, encoding="utf-8")
 
         # Step 5: Validate internal links (fail-fast if broken)
-        self._validate_internal_links(variation_dir, base_html_by_subdomain.keys())
+        if self.env_args.skip_link_validation:
+            logger.warning("Skipping internal link validation (skip_link_validation=True)")
+        else:
+            self._validate_internal_links(variation_dir, base_html_by_subdomain.keys())
 
         # Step 6: Set up flow config to point to the correct variation folder
         variation_dir = self.exp_dir / f"variation_{self.env_args.injection_seed}"
@@ -532,7 +643,126 @@ class RedteamEnv(AbstractEnv):
         config_path.write_text(json.dumps(self._flow_config, indent=2))
 
         self._generation_complete = True
-        logger.info("Site generation complete (cached for relaunches)")
+        logger.info(
+            f"Site generation complete for variation {self.env_args.injection_seed} (cached for relaunches)"
+        )
+
+    def _build_flow_config_from_html(self, variation_dir: Path) -> None:
+        """
+        Rebuild flow config from existing HTML files when resuming.
+
+        Args:
+            variation_dir: Directory containing the HTML files
+        """
+        self._flow_config = {
+            "run_dir": str(variation_dir),
+            "stages": {},
+            "start_page": self.env_args.start_page,
+            "start_stage": None,
+        }
+
+        # Extract routes from HTML filenames
+        for html_file in variation_dir.glob("*.html"):
+            # Skip pre_injection files
+            if "_pre_injection" in html_file.name:
+                continue
+
+            # Convert filename back to route key
+            filename = html_file.stem  # e.g., "gmail_settings_forwarding"
+            # Replace underscores with slashes to approximate original route
+            route_key = filename.replace("_", "/")
+
+            self._flow_config["stages"][route_key] = {"mode": "synthetic"}
+
+            # Set first stage if not set
+            if self._flow_config["start_stage"] is None:
+                self._flow_config["start_stage"] = route_key
+
+        # Use start_page if available
+        if self.env_args.start_page:
+            # Convert start_page to a stage key format
+            start_key = (
+                self.env_args.start_page.lstrip("/")
+                .replace("/", "_")
+                .replace("#", "_")
+                .replace("?", "_")
+                .strip("_")
+            )
+            for route_key in self._flow_config["stages"]:
+                if start_key in route_key.replace("/", "_"):
+                    self._flow_config["start_stage"] = route_key
+                    break
+
+        # Save flow config
+        config_path = self.exp_dir / "flow_config.json"
+        config_path.write_text(json.dumps(self._flow_config, indent=2))
+        logger.info(
+            f"Built flow_config with {len(self._flow_config['stages'])} stages from HTML files"
+        )
+
+    def _validate_internal_links(self, variation_dir: Path, valid_routes: set) -> None:
+        """
+        Validate that all internal links in generated HTML files resolve to valid routes.
+
+        Args:
+            variation_dir: Directory containing the generated HTML files
+            valid_routes: Set of valid route keys (e.g., {"gmail/mail/u/0/#inbox", "gmail/mail/u/0/#settings"})
+
+        Raises:
+            ValueError: If any internal links point to non-existent routes
+        """
+        import re
+
+        # Build set of valid local routes (with leading slash)
+        valid_local_routes = set()
+        for route in valid_routes:
+            valid_local_routes.add(f"/{route}")
+            # Also add without leading slash
+            valid_local_routes.add(route)
+
+        broken_links = []
+
+        # Check all HTML files in variation_dir
+        for html_file in variation_dir.glob("*.html"):
+            html_content = html_file.read_text(encoding="utf-8")
+
+            # Extract all href attributes
+            href_pattern = r'href=["\']([^"\']+)["\']'
+            hrefs = re.findall(href_pattern, html_content)
+
+            for href in hrefs:
+                # Skip external links, anchors, javascript, and special protocols
+                if href.startswith(
+                    ("http://", "https://", "#", "javascript:", "mailto:", "tel:", "data:")
+                ):
+                    continue
+
+                # Skip empty or placeholder hrefs
+                if not href or href == "/" or href == "#":
+                    continue
+
+                # Normalize the href (remove leading slash for comparison)
+                normalized_href = href.lstrip("/")
+
+                # Check if this is a valid internal route
+                if normalized_href not in valid_routes and href not in valid_local_routes:
+                    broken_links.append(
+                        {
+                            "file": html_file.name,
+                            "href": href,
+                            "normalized": normalized_href,
+                        }
+                    )
+
+        if broken_links:
+            error_msg = f"Found {len(broken_links)} broken internal link(s):\n"
+            for bl in broken_links[:10]:  # Show first 10
+                error_msg += f"  - {bl['file']}: href='{bl['href']}'\n"
+            error_msg += f"\nValid routes: {sorted(valid_routes)[:10]}..."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        logger.info(f"✓ Link validation passed - all internal links resolve to valid routes")
 
     def reset(self, seed: int = None) -> tuple[dict[str, Any], dict[str, Any]]:
         """
@@ -560,7 +790,7 @@ class RedteamEnv(AbstractEnv):
         first_stage = start_stage
 
         # self.server_port = self._find_free_port()
-        self.server_port = 8000  # TODO: hardcoded, should be fine for now
+        self.server_port = 8001  # TODO: hardcoded, should be fine for now
         logger.info(f"Starting flow server on port {self.server_port}...")
 
         self.server_proc = subprocess.Popen(
@@ -601,31 +831,86 @@ class RedteamEnv(AbstractEnv):
         page = self.browser_env.unwrapped.page
         context = page.context
 
+        # Build a lookup table: domain -> {path -> html_file}
+        # This allows ONE handler per domain that routes by path
+        domain_routes: dict[str, dict[str, Path]] = {}
+        variation_dir = Path(self._flow_config["run_dir"])
+
         for page_config in self.env_args.pages:
-            if page_config.simulated_url and page_config.mode == "synthetic":
-                # Get HTML file path for this page
-                stage_name = page_config.domain.lstrip("/")
-                html_path = self.exp_dir / f"{stage_name}.html"
+            # Only intercept routes for synthetic pages with base_site_url
+            if not page_config.base_site_url or page_config.mode != "synthetic":
+                continue
+
+            # Parse the base URL to get the netloc (domain)
+            base_parsed = urlparse(page_config.base_site_url)
+            netloc = base_parsed.netloc
+
+            if netloc not in domain_routes:
+                domain_routes[netloc] = {}
+
+            # Iterate over subdomains to build the path lookup
+            for subdomain in page_config.subdomains:
+                # Compute simulated URL (external URL to intercept)
+                simulated_url = f"{page_config.base_site_url}{subdomain}"
+                sim_parsed = urlparse(simulated_url)
+
+                # Build the path key (normalize by stripping trailing slash)
+                path_key = sim_parsed.path.rstrip("/")
+                # Include query if present (for URLs like ?focusedCommentId=1005)
+                if sim_parsed.query:
+                    path_key = f"{path_key}?{sim_parsed.query}"
+
+                # Get HTML file path for this subdomain
+                route_key = f"{page_config.domain}{subdomain}".replace("//", "/")
+                stage_name = route_key.lstrip("/")
+                file_name = (
+                    stage_name.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                )
+                html_path = variation_dir / f"{file_name}.html"
 
                 if not html_path.exists():
                     logger.warning(f"HTML file does not exist: {html_path}")
                     continue
 
-                # Extract domain from simulated URL for glob pattern
-                parsed = urlparse(page_config.simulated_url)
-                domain_pattern = f"**://{parsed.netloc}/**"
+                domain_routes[netloc][path_key] = html_path
+                logger.debug(f"  Added route: {netloc}{path_key} -> {html_path.name}")
 
-                def make_handler(fpath=html_path, sim_url=page_config.simulated_url):
-                    def handler(route, request):
+        # Register ONE handler per domain that uses the lookup table
+        for netloc, path_map in domain_routes.items():
+            domain_pattern = f"**://{netloc}/**"
+
+            def make_domain_handler(paths=path_map, domain=netloc):
+                def handler(route, request):
+                    req_parsed = urlparse(request.url)
+                    req_path = req_parsed.path.rstrip("/")
+                    # Build path key with query if present
+                    path_key = req_path
+                    if req_parsed.query:
+                        path_key = f"{req_path}?{req_parsed.query}"
+
+                    # Try exact match first
+                    html_path = paths.get(path_key)
+
+                    # If no exact match, try without query params
+                    if html_path is None and req_parsed.query:
+                        html_path = paths.get(req_path)
+
+                    if html_path:
                         logger.info(f"🔀 ROUTE INTERCEPTED: {request.url}")
-                        logger.info(f"   Serving: {fpath}")
-                        route.fulfill(path=str(fpath))
+                        logger.info(f"   Serving: {html_path}")
+                        route.fulfill(path=str(html_path))
+                    else:
+                        # No matching route - let the request continue normally
+                        # This allows the request to fail naturally (404) or reach the actual server
+                        logger.debug(
+                            f"⚠️ No route match for {request.url}, available paths: {list(paths.keys())}"
+                        )
+                        route.continue_()
 
-                    return handler
+                return handler
 
-                # Register on context
-                context.route(domain_pattern, make_handler())
-                logger.info(f"📍 Registered route on CONTEXT: {domain_pattern} -> {html_path}")
+            context.route(domain_pattern, make_domain_handler())
+            logger.info(f"📍 Registered domain handler: {domain_pattern} ({len(path_map)} paths)")
 
         # Augment observation with redteam-specific info
         obs["goal_object"] = [{"type": "text", "text": self.env_args.doc}]
@@ -675,12 +960,95 @@ class RedteamEnv(AbstractEnv):
 
     def _wait_for_server(self, url: str, timeout: int = 10):
         """Wait for server to be ready."""
-        for _ in range(timeout):
+        for i in range(timeout):
             try:
                 urllib.request.urlopen(url, timeout=1)
                 return
-            except:
+            except Exception as e:
+                # #region agent log
+                # Check if process has died and capture stderr
+                if self.server_proc and self.server_proc.poll() is not None:
+                    stdout, stderr = self.server_proc.communicate()
+
+                    open(
+                        "/Users/jasminexli/grayswan/site-snapshot-test/.cursor/debug.log", "a"
+                    ).write(
+                        json.dumps(
+                            {
+                                "hypothesisId": "SERVER_CRASH",
+                                "location": "redteam.py:_wait_for_server",
+                                "message": "Server process died during startup",
+                                "data": {
+                                    "return_code": self.server_proc.returncode,
+                                    "stdout": (
+                                        stdout.decode("utf-8", errors="replace")[-2000:]
+                                        if stdout
+                                        else None
+                                    ),
+                                    "stderr": (
+                                        stderr.decode("utf-8", errors="replace")[-2000:]
+                                        if stderr
+                                        else None
+                                    ),
+                                    "attempt": i,
+                                    "url": url,
+                                },
+                                "timestamp": __import__("time").time(),
+                            }
+                        )
+                        + "\n"
+                    )
+                    logger.error(f"Server process died with code {self.server_proc.returncode}")
+                    logger.error(
+                        f"Server stderr: {stderr.decode('utf-8', errors='replace') if stderr else 'N/A'}"
+                    )
+                # #endregion
                 time.sleep(1)
+
+        # Final check - capture any output
+        # #region agent log
+        if self.server_proc:
+            # Check if still running
+            poll_result = self.server_proc.poll()
+            if poll_result is not None:
+                stdout, stderr = self.server_proc.communicate()
+            else:
+                # Process still running but not responding - try to get any available output
+                stdout, stderr = None, None
+                try:
+                    import select
+
+                    if (
+                        self.server_proc.stderr
+                        and select.select([self.server_proc.stderr], [], [], 0)[0]
+                    ):
+                        stderr = self.server_proc.stderr.read()
+                except:
+                    pass
+
+            open("/Users/jasminexli/grayswan/site-snapshot-test/.cursor/debug.log", "a").write(
+                json.dumps(
+                    {
+                        "hypothesisId": "SERVER_TIMEOUT",
+                        "location": "redteam.py:_wait_for_server",
+                        "message": "Server failed to respond within timeout",
+                        "data": {
+                            "poll_result": poll_result,
+                            "stdout": (
+                                stdout.decode("utf-8", errors="replace")[-2000:] if stdout else None
+                            ),
+                            "stderr": (
+                                stderr.decode("utf-8", errors="replace")[-2000:] if stderr else None
+                            ),
+                            "url": url,
+                            "timeout": timeout,
+                        },
+                        "timestamp": __import__("time").time(),
+                    }
+                )
+                + "\n"
+            )
+        # #endregion
         raise RuntimeError(f"Flow server failed to start (url: {url}, timeout: {timeout}s)")
 
 
@@ -696,7 +1064,6 @@ class RedteamBenchmark(AbstractBenchmark):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    target_model: str
     name: str = "redteam"
     benchmark_file: str | Path = None
     env_args_list: list[RedteamEnvArgs] = None
@@ -716,6 +1083,12 @@ class RedteamBenchmark(AbstractBenchmark):
 
     # Variation settings for parallelization
     n_injection_variations: int = 1
+
+    # Resume from existing run (skip HTML regeneration)
+    resume_from_dir: str | Path = None  # Path to existing experiment results dir
+
+    # Skip link validation (useful for debugging when LLM generates broken links)
+    skip_link_validation: bool = False
 
     def model_post_init(self, __context: Any) -> None:
         """Load benchmark JSON and create env_args_list."""
@@ -758,13 +1131,13 @@ class RedteamBenchmark(AbstractBenchmark):
         for p in sim_config.get("pages", []):
             page = Page(
                 domain=p.get("domain", "/unknown"),
+                base_site_url=p.get("base_site_url", ""),
+                subdomains=p.get("subdomains", ["/"]),
+                details=p.get("details", {}),
                 mode=p.get("mode", "synthetic"),
-                real_site=p.get("real_site"),
                 screenshots=p.get("screenshots", []),
                 existing_path=p.get("existing_path"),
                 skip_modification=p.get("skip_modification", False),
-                simulated_url=p.get("simulated_url"),
-                details=p.get("details"),
             )
             pages.append(page)
 
@@ -806,7 +1179,20 @@ class RedteamBenchmark(AbstractBenchmark):
                 tools_config=tools_config,
                 criteria=criteria,
                 judging=judging,
+                resume_from_dir=self.resume_from_dir,
+                skip_link_validation=self.skip_link_validation,
             )
+
+            # initialize attacker agent
+            attacker_agent = RedteamAttackerAgent(
+                model=self.attacker_model,
+                goal=env_args.doc,
+                target_description=env_args.target,
+                attack_type=env_args.attack_type,
+                mode=env_args.adversarial_mode,
+                pages=pages,
+            )
+            env_args.attacker_agent = attacker_agent
 
             return env_args
 
