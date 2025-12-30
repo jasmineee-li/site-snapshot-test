@@ -12,20 +12,9 @@ from agentlab.experiments.loop import ExpArgs, yield_all_exp_results
 
 logger = logging.getLogger(__name__)  # Get logger based on module name
 
-
-# TODO move this to a more appropriate place
-RESULTS_DIR = os.environ.get("AGENTLAB_EXP_ROOT", None)
-if RESULTS_DIR is None:
-    RESULTS_DIR = os.environ.get("UI_COPILOT_RESULTS_DIR", None)
-if RESULTS_DIR is None:
-    agentlab_package_dir = Path(__file__).parents[
-        2
-    ]
-    RESULTS_DIR = agentlab_package_dir / "agentlab_results_v4"
-    logging.info(f"$AGENTLAB_EXP_ROOT is not defined, Using {RESULTS_DIR}")
-else:
-    RESULTS_DIR = Path(RESULTS_DIR)
-
+agentlab_package_dir = Path(__file__).parents[2]
+RESULTS_DIR = agentlab_package_dir.parent.parent / "results"
+RESULTS_DIR = Path(RESULTS_DIR)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
