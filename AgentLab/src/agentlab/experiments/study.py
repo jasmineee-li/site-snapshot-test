@@ -659,7 +659,7 @@ class Study(AbstractStudy):
                 ),
             },
             "attacker": {
-                "model_name": attacker_model,
+                "model_name": getattr(env_args, "attacker_model", None),
             },
             "world_sim": {
                 "model_name": getattr(env_args, "world_sim_model", None),
