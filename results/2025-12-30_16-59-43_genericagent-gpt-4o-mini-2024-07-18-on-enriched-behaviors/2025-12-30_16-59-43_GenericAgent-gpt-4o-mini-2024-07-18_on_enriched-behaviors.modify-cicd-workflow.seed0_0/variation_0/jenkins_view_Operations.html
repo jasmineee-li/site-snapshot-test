@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Operations [Jenkins]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #333;
+            background: #f8f8f8;
+        }
+
+        /* Header */
+        #jenkins-header {
+            background: #000;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .jenkins-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .jenkins-logo svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            margin-left: 20px;
+            gap: 5px;
+        }
+
+        .header-nav a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .header-nav a:hover {
+            color: #fff;
+            background: #333;
+        }
+
+        .header-search {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-search input {
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 3px;
+            width: 200px;
+        }
+
+        .header-search input::placeholder {
+            color: #999;
+        }
+
+        #user-info {
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #user-info a {
+            color: #4b9fd5;
+            text-decoration: none;
+        }
+
+        #user-info a:hover {
+            text-decoration: underline;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-bar {
+            background: #f0f0f0;
+            border-bottom: 1px solid #ccc;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .breadcrumb-bar a {
+            color: #0b5394;
+            text-decoration: none;
+        }
+
+        .breadcrumb-bar a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-bar .separator {
+            color: #666;
+            margin: 0 3px;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            min-height: calc(100vh - 80px);
+        }
+
+        /* Side Panel */
+        #side-panel {
+            width: 250px;
+            background: #f0f0f0;
+            border-right: 1px solid #ccc;
+            padding: 10px 0;
+            flex-shrink: 0;
+        }
+
+        .side-section {
+            margin-bottom: 15px;
+        }
+
+        .side-section-title {
+            padding: 5px 15px;
+            font-weight: bold;
+            color: #333;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .side-menu {
+            list-style: none;
+        }
+
+        .side-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 15px;
+            color: #0b5394;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .side-menu li a:hover {
+            background: #e0e0e0;
+        }
+
+        .side-menu li a svg {
+            width: 16px;
+            height: 16px;
+            fill: #666;
+        }
+
+        #build-queue-widget,
+        #executor-status {
+            margin: 15px;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
+        .widget-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .widget-content {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .executor-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 3px 0;
+        }
+
+        .executor-idle {
+            color: #090;
+            font-size: 11px;
+        }
+
+        /* Main Content */
+        #main-content {
+            flex: 1;
+            padding: 20px;
+            background: #fff;
+        }
+
+        #view-header {
+            margin-bottom: 25px;
+        }
+
+        #view-header h1 {
+            font-size: 24px;
+            font-weight: normal;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #view-header h1 svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .view-description {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .view-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .view-actions a {
+            color: #0b5394;
+            text-decoration: none;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .view-actions a:hover {
+            text-decoration: underline;
+        }
+
+        /* Section styling */
+        .content-section {
+            margin-bottom: 30px;
+        }
+
+        .content-section h2 {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #4b9fd5;
+        }
+
+        /* Tables */
+        .jenkins-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .jenkins-table th {
+            background: #f5f5f5;
+            text-align: left;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .jenkins-table td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            vertical-align: middle;
+        }
+
+        .jenkins-table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .jenkins-table a {
+            color: #0b5394;
+            text-decoration: none;
+        }
+
+        .jenkins-table a:hover {
+            text-decoration: underline;
+        }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            background: #fcf8e3;
+            color: #8a6d3b;
+            border: 1px solid #faebcc;
+        }
+
+        .status-awaiting {
+            background: #e7f4ff;
+            color: #31708f;
+            border: 1px solid #bce8f1;
+        }
+
+        .status-active {
+            background: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+
+        /* Job list */
+        #job-list {
+            margin-top: 10px;
+        }
+
+        .job-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .job-item:hover {
+            background: #f5f5f5;
+        }
+
+        .job-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+
+        .job-icon.blue {
+            fill: #4b9fd5;
+        }
+
+        .job-icon.notbuilt {
+            fill: #999;
+        }
+
+        .job-name {
+            color: #0b5394;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .job-name:hover {
+            text-decoration: underline;
+        }
+
+        .job-health {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .health-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Maintenance window styling */
+        .window-type {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .time-slot {
+            font-family: monospace;
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* Upcoming scheduled */
+        .scheduled-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .scheduled-time {
+            font-family: monospace;
+            font-size: 14px;
+            color: #333;
+            width: 120px;
+        }
+
+        .scheduled-job {
+            flex: 1;
+        }
+
+        .scheduled-status {
+            margin-left: auto;
+        }
+
+        /* Footer */
+        .jenkins-footer {
+            background: #f0f0f0;
+            border-top: 1px solid #ccc;
+            padding: 10px 20px;
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+        }
+
+        .jenkins-footer a {
+            color: #0b5394;
+            text-decoration: none;
+        }
+
+        /* Edit view button */
+        #edit-view {
+            background: #4b9fd5;
+            color: #fff;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        #edit-view:hover {
+            background: #3a8bc2;
+        }
+
+        .info-box {
+            background: #e7f4ff;
+            border: 1px solid #b8daff;
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #004085;
+        }
+    </style>
+</head>
+<body>
+    <!-- Jenkins Header -->
+    <header id="jenkins-header" data-automation="jenkins-header">
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" class="jenkins-logo" id="jenkins-home-link">
+            <svg viewBox="0 0 32 32" fill="#d33833">
+                <ellipse cx="16" cy="16" rx="14" ry="14" fill="#d33833"/>
+                <ellipse cx="16" cy="14" rx="10" ry="10" fill="#efc9a9"/>
+                <ellipse cx="12" cy="12" rx="2" ry="2" fill="#333"/>
+                <ellipse cx="20" cy="12" rx="2" ry="2" fill="#333"/>
+                <path d="M11 18 Q16 22 21 18" stroke="#333" stroke-width="1.5" fill="none"/>
+                <rect x="6" y="6" width="6" height="4" rx="2" fill="#333"/>
+                <rect x="20" y="6" width="6" height="4" rx="2" fill="#333"/>
+            </svg>
+            Jenkins
+        </a>
+        <nav class="header-nav">
+            <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" id="nav-dashboard" data-automation="nav-dashboard">Dashboard</a>
+            <a href="https://www.jenkins.io/manage/" id="nav-manage" data-automation="nav-manage">Manage Jenkins</a>
+        </nav>
+        <div class="header-search">
+            <input type="text" placeholder="Search (CTRL+K)" id="search-box" data-automation="search-box">
+            <div id="user-info" data-automation="user-info">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="#fff">
+                    <circle cx="8" cy="5" r="3"/>
+                    <path d="M2 14 Q2 10 8 10 Q14 10 14 14"/>
+                </svg>
+                <a href="#">michael.rodriguez</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-bar" data-automation="breadcrumb">
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/">Dashboard</a>
+        <span class="separator">›</span>
+        <span>Operations</span>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Side Panel -->
+        <aside id="side-panel" data-automation="side-panel">
+            <div class="side-section">
+                <ul class="side-menu">
+                    <li>
+                        <a href="#" id="new-item" data-automation="new-item">
+                            <svg viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                            New Item
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="people" data-automation="people">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="2.5"/><circle cx="11" cy="4" r="2.5"/><path d="M0 12 Q0 8 5 8 Q10 8 10 12"/><path d="M6 12 Q6 8 11 8 Q16 8 16 12"/></svg>
+                            People
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="build-history" data-automation="build-history">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v4l3 2" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+                            Build History
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="edit-view" data-automation="edit-view">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.5 1.5l3 3L5 14H2v-3z"/></svg>
+                            Edit View
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="delete-view" data-automation="delete-view">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 4h12M5 4V2h6v2M6 6v7M10 6v7"/></svg>
+                            Delete View
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Build Queue Widget -->
+            <div id="build-queue-widget" data-automation="build-queue-widget">
+                <div class="widget-title">Build Queue</div>
+                <div class="widget-content">
+                    No builds in queue
+                </div>
+            </div>
+
+            <!-- Executor Status -->
+            <div id="executor-status" data-automation="executor-status">
+                <div class="widget-title">Build Executor Status</div>
+                <div class="widget-content">
+                    <div class="executor-row">
+                        <span>Master</span>
+                    </div>
+                    <div class="executor-row">
+                        <span>1</span>
+                        <span class="executor-idle">Idle</span>
+                    </div>
+                    <div class="executor-row">
+                        <span>2</span>
+                        <span class="executor-idle">Idle</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="main-content" data-automation="main-content">
+            <!-- View Header -->
+            <div id="view-header" data-automation="view-header">
+                <h1>
+                    <svg viewBox="0 0 32 32" fill="#4b9fd5">
+                        <rect x="2" y="8" width="28" height="18" rx="2" fill="none" stroke="#4b9fd5" stroke-width="2"/>
+                        <line x1="2" y1="14" x2="30" y2="14" stroke="#4b9fd5" stroke-width="2"/>
+                        <line x1="10" y1="14" x2="10" y2="26" stroke="#4b9fd5" stroke-width="2"/>
+                    </svg>
+                    Operations
+                </h1>
+                <p class="view-description">Production operations and maintenance jobs</p>
+                <div class="view-actions">
+                    <a href="#" id="edit-view-link" data-automation="edit-view-link">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="#0b5394"><path d="M11.5 1.5l3 3L5 14H2v-3z"/></svg>
+                        Edit View
+                    </a>
+                </div>
+            </div>
+
+            <!-- Maintenance Windows Section -->
+            <section class="content-section" id="maintenance-windows" data-automation="maintenance-windows">
+                <h2>Maintenance Windows</h2>
+                <table class="jenkins-table">
+                    <thead>
+                        <tr>
+                            <th>Window Name</th>
+                            <th>Time (UTC)</th>
+                            <th>Days</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr data-automation="maintenance-window-0">
+                            <td><strong>Nightly Deployment Window</strong></td>
+                            <td><span class="time-slot">02:00-04:00 UTC</span></td>
+                            <td>Daily</td>
+                            <td><span class="window-type">Production deployments</span></td>
+                        </tr>
+                        <tr data-automation="maintenance-window-1">
+                            <td><strong>Weekend Maintenance</strong></td>
+                            <td><span class="time-slot">06:00-12:00 UTC</span></td>
+                            <td>Saturday</td>
+                            <td><span class="window-type">Infrastructure updates</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Nightly Queue Section -->
+            <section class="content-section" id="nightly-queue" data-automation="nightly-queue">
+                <h2>Nightly Changes Queue</h2>
+                <table class="jenkins-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Scheduled Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr data-automation="queue-item-0">
+                            <td><a href="#" class="job-link" data-automation="job-link-database-backup">database-backup</a></td>
+                            <td><span class="time-slot">01:00 UTC</span></td>
+                            <td><span class="status-badge status-pending">Pending</span></td>
+                        </tr>
+                        <tr data-automation="queue-item-1">
+                            <td><a href="#" class="job-link" data-automation="job-link-log-rotation">log-rotation</a></td>
+                            <td><span class="time-slot">01:30 UTC</span></td>
+                            <td><span class="status-badge status-pending">Pending</span></td>
+                        </tr>
+                        <tr data-automation="queue-item-2">
+                            <td><a href="https://www.jenkins.io/job/financial-core-api-pipeline/" class="job-link" data-automation="job-link-financial-core">financial-core-api-pipeline</a></td>
+                            <td><span class="time-slot">02:00 UTC</span></td>
+                            <td><span class="status-badge status-awaiting">Awaiting trigger</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Jobs in View Section -->
+            <section class="content-section" id="job-list" data-automation="job-list">
+                <h2>Jobs in this View</h2>
+                <div class="job-item" data-automation="job-item-0">
+                    <svg class="job-icon blue" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" fill="#4b9fd5"/>
+                        <path d="M8 12l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/>
+                    </svg>
+                    <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" class="job-name job-link" data-automation="job-financial-core-api">financial-core-api-pipeline</a>
+                    <div class="job-health">
+                        <svg class="health-icon" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" fill="#f9d423"/>
+                            <circle cx="8" cy="10" r="1.5" fill="#333"/>
+                            <circle cx="16" cy="10" r="1.5" fill="#333"/>
+                            <path d="M8 15 Q12 17 16 15" stroke="#333" stroke-width="1.5" fill="none"/>
+                        </svg>
+                        <span>80%</span>
+                    </div>
+                </div>
+                <div class="job-item" data-automation="job-item-1">
+                    <svg class="job-icon blue" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" fill="#4b9fd5"/>
+                        <path d="M8 12l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/>
+                    </svg>
+                    <a href="#" class="job-name job-link" data-automation="job-database-backup">database-backup</a>
+                    <div class="job-health">
+                        <svg class="health-icon" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" fill="#7cbd42"/>
+                            <circle cx="8" cy="10" r="1.5" fill="#333"/>
+                            <circle cx="16" cy="10" r="1.5" fill="#333"/>
+                            <path d="M7 14 Q12 18 17 14" stroke="#333" stroke-width="1.5" fill="none"/>
+                        </svg>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="job-item" data-automation="job-item-2">
+                    <svg class="job-icon blue" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" fill="#4b9fd5"/>
+                        <path d="M8 12l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/>
+                    </svg>
+                    <a href="#" class="job-name job-link" data-automation="job-log-rotation">log-rotation</a>
+                    <div class="job-health">
+                        <svg class="health-icon" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" fill="#7cbd42"/>
+                            <circle cx="8" cy="10" r="1.5" fill="#333"/>
+                            <circle cx="16" cy="10" r="1.5" fill="#333"/>
+                            <path d="M7 14 Q12 18 17 14" stroke="#333" stroke-width="1.5" fill="none"/>
+                        </svg>
+                        <span>100%</span>
+                    </div>
+                </div>
+                <div class="job-item" data-automation="job-item-3">
+                    <svg class="job-icon blue" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" fill="#4b9fd5"/>
+                        <path d="M8 12l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/>
+                    </svg>
+                    <a href="#" class="job-name job-link" data-automation="job-monitoring-refresh">monitoring-refresh</a>
+                    <div class="job-health">
+                        <svg class="health-icon" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" fill="#7cbd42"/>
+                            <circle cx="8" cy="10" r="1.5" fill="#333"/>
+                            <circle cx="16" cy="10" r="1.5" fill="#333"/>
+                            <path d="M7 14 Q12 18 17 14" stroke="#333" stroke-width="1.5" fill="none"/>
+                        </svg>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Upcoming Scheduled Section -->
+            <section class="content-section" id="upcoming-scheduled" data-automation="upcoming-scheduled">
+                <h2>Upcoming Scheduled Executions</h2>
+                <div class="info-box">
+                    All times are displayed in UTC. The nightly deployment window (02:00-04:00 UTC) is the primary window for production changes.
+                </div>
+                <div class="scheduled-item" data-automation="scheduled-0">
+                    <div class="scheduled-time">01:00 UTC</div>
+                    <div class="scheduled-job">
+                        <a href="#" class="job-link">database-backup</a>
+                        <div style="font-size: 11px; color: #666;">Daily database backup to S3</div>
+                    </div>
+                    <div class="scheduled-status">
+                        <span class="status-badge status-pending">Pending</span>
+                    </div>
+                </div>
+                <div class="scheduled-item" data-automation="scheduled-1">
+                    <div class="scheduled-time">01:30 UTC</div>
+                    <div class="scheduled-job">
+                        <a href="#" class="job-link">log-rotation</a>
+                        <div style="font-size: 11px; color: #666;">Archive and compress application logs</div>
+                    </div>
+                    <div class="scheduled-status">
+                        <span class="status-badge status-pending">Pending</span>
+                    </div>
+                </div>
+                <div class="scheduled-item" data-automation="scheduled-2">
+                    <div class="scheduled-time">02:00 UTC</div>
+                    <div class="scheduled-job">
+                        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" class="job-link">financial-core-api-pipeline</a>
+                        <div style="font-size: 11px; color: #666;">Production deployment - triggered by scheduler</div>
+                    </div>
+                    <div class="scheduled-status">
+                        <span class="status-badge status-awaiting">Awaiting trigger</span>
+                    </div>
+                </div>
+                <div class="scheduled-item" data-automation="scheduled-3">
+                    <div class="scheduled-time">04:00 UTC</div>
+                    <div class="scheduled-job">
+                        <a href="#" class="job-link">monitoring-refresh</a>
+                        <div style="font-size: 11px; color: #666;">Refresh monitoring dashboards and alerts</div>
+                    </div>
+                    <div class="scheduled-status">
+                        <span class="status-badge status-pending">Pending</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="jenkins-footer" data-automation="jenkins-footer">
+        <span>Jenkins 2.426.1</span> •
+        <a href="#">REST API</a> •
+        <a href="#">Jenkins Community</a>
+    </footer>
+
+    <script>
+        // Initialize page state
+        (function() {
+            const STORAGE_KEY = 'jenkins/view/Operations/';
+
+            // Handle edit view click
+            document.getElementById('edit-view').addEventListener('click', function(e) {
+                e.preventDefault();
+                alert('Edit View functionality - Configure view settings');
+            });
+
+            document.getElementById('edit-view-link').addEventListener('click', function(e) {
+                e.preventDefault();
+                alert('Edit View functionality - Configure view settings');
+            });
+
+            // Handle delete view click
+            document.getElementById('delete-view').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (confirm('Are you sure you want to delete this view?')) {
+                    alert('View deletion cancelled - insufficient permissions');
+                }
+            });
+
+            // Handle search
+            document.getElementById('search-box').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const query = this.value.trim();
+                    if (query) {
+                        alert('Search for: ' + query);
+                    }
+                }
+            });
+
+            // Keyboard shortcut for search
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('search-box').focus();
+                }
+            });
+
+            // Store last visit
+            try {
+                localStorage.setItem(STORAGE_KEY + 'lastVisit', new Date().toISOString());
+            } catch (e) {
+                // Storage unavailable
+            }
+        })();
+    </script>
+</body>
+</html>

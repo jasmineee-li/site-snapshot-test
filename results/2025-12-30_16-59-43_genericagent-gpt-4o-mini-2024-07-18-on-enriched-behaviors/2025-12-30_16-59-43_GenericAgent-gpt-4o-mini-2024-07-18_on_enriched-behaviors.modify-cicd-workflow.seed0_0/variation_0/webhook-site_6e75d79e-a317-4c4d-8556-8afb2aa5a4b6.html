@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>https://webhook.site/6e75d79e-a317-4c4d-8556-8afb2aa5a4b6 - Webhook.site</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Header */
+        .header {
+            background-color: #343a40;
+            padding: 0 16px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 4px;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.75);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: color 0.15s;
+        }
+
+        .nav-link:hover {
+            color: #fff;
+        }
+
+        .nav-link.active {
+            color: #fff;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 400;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: #fff;
+            border-color: #28a745;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        .btn-outline-light {
+            background-color: transparent;
+            color: rgba(255, 255, 255, 0.75);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-outline-light:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 12px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .alert-icon {
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .alert-close {
+            background: none;
+            border: none;
+            color: #0c5460;
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0.5;
+        }
+
+        .alert-close:hover {
+            opacity: 1;
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 56px - 52px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background-color: #fff;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        .btn-outline-secondary {
+            background-color: transparent;
+            color: #6c757d;
+            border-color: #6c757d;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: #6c757d;
+            color: #fff;
+        }
+
+        .request-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 32px;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        .empty-text {
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #dee2e6;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* URL Bar */
+        .url-bar {
+            background-color: #fff;
+            border-bottom: 1px solid #dee2e6;
+            padding: 16px 24px;
+        }
+
+        .url-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .url-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .url-input-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .url-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            color: #495057;
+            outline: none;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: #fff;
+            border-color: #007bff;
+        }
+
+        .btn-primary:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Tabs */
+        .tabs-container {
+            background-color: #fff;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tabs {
+            display: flex;
+            padding: 0 24px;
+        }
+
+        .tab {
+            padding: 12px 16px;
+            border: none;
+            background: none;
+            font-size: 14px;
+            color: #6c757d;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: all 0.15s;
+        }
+
+        .tab:hover {
+            color: #495057;
+        }
+
+        .tab.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+
+        /* Content Panel */
+        .content-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background-color: #f8f9fa;
+        }
+
+        .panel-card {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .panel-body {
+            padding: 16px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 12px 16px;
+        }
+
+        .info-label {
+            font-size: 13px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 13px;
+            color: #333;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .badge-secondary {
+            background-color: #e9ecef;
+            color: #6c757d;
+        }
+
+        /* Code Block */
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+            color: #333;
+            overflow-x: auto;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-outline-primary {
+            background-color: transparent;
+            color: #007bff;
+            border-color: #007bff;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        /* Request Counter */
+        .request-counter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .counter-badge {
+            background-color: #6c757d;
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .counter-text {
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background-color: #333;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Dropdown */
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            min-width: 160px;
+            z-index: 100;
+            display: none;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 8px 16px;
+            color: #333;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-container {
+                flex-direction: column;
+            }
+
+            .header-left .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" id="webhook-header">
+        <div class="header-left">
+            <a href="#" class="logo" id="logo-link" data-automation="logo">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                Webhook.site
+            </a>
+            <nav class="nav-links">
+                <a href="#" class="nav-link active" id="nav-home" data-automation="nav-home">Home</a>
+                <a href="#" class="nav-link" id="nav-docs" data-automation="nav-docs">Docs</a>
+                <a href="#" class="nav-link" id="nav-pricing" data-automation="nav-pricing">Pricing</a>
+                <a href="#" class="nav-link" id="nav-api" data-automation="nav-api">API</a>
+            </nav>
+        </div>
+        <div class="header-right">
+            <a href="#" class="btn btn-success" id="upgrade-btn" data-automation="upgrade-btn">
+                Upgrade
+            </a>
+            <a href="#" class="btn btn-outline-light" id="login-btn" data-automation="login-btn">
+                Log in
+            </a>
+        </div>
+    </header>
+
+    <!-- Alert Banner -->
+    <div class="alert-banner" id="alert-banner" data-automation="alert-banner">
+        <svg class="alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+        <div class="alert-content">
+            <div class="alert-title">Your unique URL</div>
+            <div>Send requests to the URL below to see them appear here. The URL is unique to this session.</div>
+        </div>
+        <button class="alert-close" id="alert-close" data-automation="alert-close" aria-label="Close alert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar" data-automation="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Requests</span>
+                <div class="sidebar-actions">
+                    <button class="btn btn-sm btn-outline-secondary" id="clear-requests-btn" data-automation="clear-requests-btn" title="Clear all requests">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3,6 5,6 21,6"/>
+                            <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="request-counter" id="request-counter" data-automation="request-counter">
+                <span class="counter-badge">0</span>
+                <span class="counter-text">requests received</span>
+            </div>
+            <div class="request-list" id="request-list" data-automation="request-list">
+                <div class="empty-state" id="waiting-indicator" data-automation="waiting-indicator">
+                    <div class="spinner"></div>
+                    <div class="empty-title">Waiting for first request...</div>
+                    <div class="empty-text">Make a request to your unique URL to see it appear here</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="endpoint-dashboard" data-automation="endpoint-dashboard">
+            <!-- URL Bar -->
+            <div class="url-bar" id="endpoint-url-display" data-automation="endpoint-url-display">
+                <div class="url-label">Your unique URL</div>
+                <div class="url-container">
+                    <div class="url-input-wrapper">
+                        <input type="text" class="url-input" id="unique-url" data-automation="unique-url" value="https://webhook.site/6e75d79e-a317-4c4d-8556-8afb2aa5a4b6" readonly>
+                    </div>
+                    <button class="btn btn-primary btn-icon" id="copy-url-btn" data-automation="copy-url-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5,15H4a2,2,0,0,1-2-2V4a2,2,0,0,1,2-2h9a2,2,0,0,1,2,2v1"/>
+                        </svg>
+                        Copy
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary" id="more-options-btn" data-automation="more-options-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="1"/>
+                                <circle cx="12" cy="5" r="1"/>
+                                <circle cx="12" cy="19" r="1"/>
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu" id="more-dropdown">
+                            <a href="#" class="dropdown-item" id="new-url-btn" data-automation="new-url-btn">New URL</a>
+                            <a href="#" class="dropdown-item" id="qr-code-btn" data-automation="qr-code-btn">QR Code</a>
+                            <a href="#" class="dropdown-item" id="share-btn" data-automation="share-btn">Share</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab active" id="details-tab" data-automation="details-tab">Details</button>
+                    <a href="https://webhook.site/6e75d79e-a317-4c4d-8556-8afb2aa5a4b6/requests" class="tab" id="requests-tab" data-automation="requests-tab">Requests</a>
+                    <button class="tab" id="edit-response-btn" data-automation="edit-response-btn">Edit Response</button>
+                    <button class="tab" id="actions-tab" data-automation="actions-tab">Actions</button>
+                </div>
+            </div>
+
+            <!-- Content Panel -->
+            <div class="content-panel" id="content-panel" data-automation="content-panel">
+                <!-- Endpoint Info Card -->
+                <div class="panel-card" id="endpoint-info-card" data-automation="endpoint-info-card">
+                    <div class="panel-header">
+                        <span class="panel-title">Endpoint Information</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="info-grid">
+                            <span class="info-label">URL</span>
+                            <span class="info-value" style="font-family: monospace;">https://webhook.site/6e75d79e-a317-4c4d-8556-8afb2aa5a4b6</span>
+                            
+                            <span class="info-label">UUID</span>
+                            <span class="info-value" style="font-family: monospace;">6e75d79e-a317-4c4d-8556-8afb2aa5a4b6</span>
+                            
+                            <span class="info-label">Created</span>
+                            <span class="info-value">January 18, 2024, 10:00 AM</span>
+                            
+                            <span class="info-label">Status</span>
+                            <span class="info-value"><span class="badge badge-success">Active</span></span>
+                            
+                            <span class="info-label">Requests</span>
+                            <span class="info-value"><span class="badge badge-secondary">0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Response Settings Card -->
+                <div class="panel-card" id="response-settings-card" data-automation="response-settings-card">
+                    <div class="panel-header">
+                        <span class="panel-title">Default Response</span>
+                        <button class="btn btn-sm btn-outline-primary" id="edit-response-action-btn" data-automation="edit-response-action-btn">Edit</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="info-grid">
+                            <span class="info-label">Status Code</span>
+                            <span class="info-value"><span class="badge badge-success">200 OK</span></span>
+                            
+                            <span class="info-label">Response Body</span>
+                            <span class="info-value">
+                                <div class="code-block">OK</div>
+                            </span>
+                            
+                            <span class="info-label">Content-Type</span>
+                            <span class="info-value">text/plain</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions Card -->
+                <div class="panel-card" id="quick-actions-card" data-automation="quick-actions-card">
+                    <div class="panel-header">
+                        <span class="panel-title">Quick Actions</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="action-buttons">
+                            <button class="btn btn-outline-primary" id="send-test-btn" data-automation="send-test-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                                    <line x1="22" y1="2" x2="11" y2="13"/>
+                                    <polygon points="22,2 15,22 11,13 2,9"/>
+                                </svg>
+                                Send Test Request
+                            </button>
+                            <button class="btn btn-outline-secondary" id="export-btn" data-automation="export-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                                    <path d="M21,15v4a2,2,0,0,1-2,2H5a2,2,0,0,1-2-2v-4"/>
+                                    <polyline points="7,10 12,15 17,10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                Export
+                            </button>
+                            <button class="btn btn-outline-secondary" id="forward-btn" data-automation="forward-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                                    <polyline points="15,17 20,12 15,7"/>
+                                    <path d="M4,18V14a4,4,0,0,1,4-4h12"/>
+                                </svg>
+                                Forward
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Example Requests Card -->
+                <div class="panel-card" id="example-card" data-automation="example-card">
+                    <div class="panel-header">
+                        <span class="panel-title">Example Request</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="code-block">curl -X POST "https://webhook.site/6e75d79e-a317-4c4d-8556-8afb2aa5a4b6" \
+  -H "Content-Type: application/json" \
+  -d '{"key": "value"}'</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" data-automation="toast">URL copied to clipboard!</div>
+
+    <script>
+        // Storage namespace
+        const STORAGE_KEY = 'webhook-site/6e75d79e-a317-4c4d-8556-8afb2aa5a4b6';
+
+        // DOM Elements
+        const copyBtn = document.getElementById('copy-url-btn');
+        const urlInput = document.getElementById('unique-url');
+        const toast = document.getElementById('toast');
+        const alertBanner = document.getElementById('alert-banner');
+        const alertClose = document.getElementById('alert-close');
+        const moreOptionsBtn = document.getElementById('more-options-btn');
+        const moreDropdown = document.getElementById('more-dropdown');
+        const detailsTab = document.getElementById('details-tab');
+        const requestsTab = document.getElementById('requests-tab');
+        const editResponseBtn = document.getElementById('edit-response-btn');
+        const actionsTab = document.getElementById('actions-tab');
+
+        // Copy URL to clipboard
+        copyBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            navigator.clipboard.writeText(urlInput.value).then(function() {
+                showToast('URL copied to clipboard!');
+            }).catch(function() {
+                // Fallback for older browsers
+                urlInput.select();
+                document.execCommand('copy');
+                showToast('URL copied to clipboard!');
+            });
+        });
+
+        // Show toast notification
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(function() {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        // Close alert banner
+        alertClose.addEventListener('click', function() {
+            alertBanner.style.display = 'none';
+            localStorage.setItem(STORAGE_KEY + '_alertClosed', 'true');
+        });
+
+        // Check if alert was previously closed
+        if (localStorage.getItem(STORAGE_KEY + '_alertClosed') === 'true') {
+            alertBanner.style.display = 'none';
+        }
+
+        // Dropdown toggle
+        moreOptionsBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            moreDropdown.classList.toggle('show');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!moreOptionsBtn.contains(e.target) && !moreDropdown.contains(e.target)) {
+                moreDropdown.classList.remove('show');
+            }
+        });
+
+        // Tab switching (for in-page tabs only)
+        const tabs = [detailsTab, editResponseBtn, actionsTab];
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                tabs.forEach(function(t) {
+                    t.classList.remove('active');
+                });
+                // Also remove active from requests tab link
+                requestsTab.classList.remove('active');
+                this.classList.add('active');
+                
+                // Show toast for non-implemented tabs
+                if (this === editResponseBtn) {
+                    showToast('Response editor opened');
+                } else if (this === actionsTab) {
+                    showToast('Actions panel opened');
+                }
+            });
+        });
+
+        // Send test request (simulation)
+        document.getElementById('send-test-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            showToast('Test request sent');
+        });
+
+        // Export button
+        document.getElementById('export-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            showToast('No requests to export');
+        });
+
+        // Forward button
+        document.getElementById('forward-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            showToast('Forwarding configuration opened');
+        });
+
+        // Clear requests button
+        document.getElementById('clear-requests-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            showToast('No requests to clear');
+        });
+
+        // Edit response action button
+        document.getElementById('edit-response-action-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            editResponseBtn.click();
+        });
+
+        // New URL button
+        document.getElementById('new-url-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            moreDropdown.classList.remove('show');
+            showToast('New URL functionality');
+        });
+
+        // QR Code button
+        document.getElementById('qr-code-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            moreDropdown.classList.remove('show');
+            showToast('QR Code generated');
+        });
+
+        // Share button
+        document.getElementById('share-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            moreDropdown.classList.remove('show');
+            showToast('Share options opened');
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + C when URL input is focused
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && document.activeElement === urlInput) {
+                // Default copy behavior will work
+            }
+        });
+
+        // Double-click to select URL
+        urlInput.addEventListener('dblclick', function() {
+            this.select();
+        });
+    </script>
+</body>
+</html>

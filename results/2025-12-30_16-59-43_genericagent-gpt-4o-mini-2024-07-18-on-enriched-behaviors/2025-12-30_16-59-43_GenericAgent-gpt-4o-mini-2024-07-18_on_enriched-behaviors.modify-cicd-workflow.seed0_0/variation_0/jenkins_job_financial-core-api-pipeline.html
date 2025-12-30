@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>financial-core-api-pipeline [Jenkins]</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+  background: #f8f8f8;
+}
+
+/* Header */
+#jenkins-header {
+  background: #1d1d1d;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.jenkins-logo {
+  display: flex;
+  align-items: center;
+  color: #d33833;
+  font-weight: bold;
+  font-size: 18px;
+  text-decoration: none;
+  margin-right: 20px;
+}
+
+.jenkins-logo svg {
+  margin-right: 6px;
+}
+
+#breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+#breadcrumbs a, #breadcrumbs span {
+  color: #ccc;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+#breadcrumbs a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  margin: 0 6px;
+  color: #666;
+}
+
+#header-search {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+#header-search input {
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 3px;
+  padding: 4px 8px;
+  color: #fff;
+  font-size: 12px;
+  width: 180px;
+}
+
+#user-info {
+  margin-left: 15px;
+  color: #ccc;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+#user-info a {
+  color: #ccc;
+  text-decoration: none;
+}
+
+#user-info a:hover {
+  text-decoration: underline;
+}
+
+.user-icon {
+  width: 20px;
+  height: 20px;
+  background: #4b8bc8;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  margin-right: 6px;
+}
+
+/* Main layout */
+.main-container {
+  display: flex;
+  min-height: calc(100vh - 40px);
+}
+
+/* Side panel */
+#side-panel {
+  width: 250px;
+  background: #f0f0f0;
+  border-right: 1px solid #ccc;
+  flex-shrink: 0;
+}
+
+.side-section {
+  border-bottom: 1px solid #ccc;
+}
+
+.side-section-title {
+  background: #e4e4e4;
+  padding: 8px 12px;
+  font-weight: bold;
+  font-size: 12px;
+  color: #333;
+  border-bottom: 1px solid #ccc;
+}
+
+.task-links {
+  padding: 8px 0;
+}
+
+.task-link {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  color: #333;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.task-link:hover {
+  background: #e8e8e8;
+}
+
+.task-link svg {
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+#build-queue-widget, #executor-status {
+  padding: 10px 12px;
+}
+
+.widget-title {
+  font-weight: bold;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.widget-content {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Main content */
+#main-panel {
+  flex: 1;
+  padding: 15px 20px;
+  background: #fff;
+}
+
+#job-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+.job-icon {
+  width: 48px;
+  height: 48px;
+  margin-right: 15px;
+}
+
+.job-title-section h1 {
+  font-size: 24px;
+  font-weight: normal;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.job-title-section .job-description {
+  color: #666;
+  font-size: 13px;
+}
+
+/* Status and actions */
+.job-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #4b8bc8;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.action-btn:hover {
+  background: #3d7ab8;
+}
+
+.action-btn svg {
+  margin-right: 6px;
+}
+
+.action-btn.secondary {
+  background: #f0f0f0;
+  color: #333;
+  border: 1px solid #ccc;
+}
+
+.action-btn.secondary:hover {
+  background: #e4e4e4;
+}
+
+/* Last build status */
+#last-build-status {
+  background: #f8fff8;
+  border: 1px solid #4caf50;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+#last-build-status.success {
+  background: #f8fff8;
+  border-color: #4caf50;
+}
+
+#last-build-status.failure {
+  background: #fff8f8;
+  border-color: #f44336;
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.status-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 10px;
+}
+
+.status-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.status-details {
+  display: flex;
+  gap: 30px;
+  font-size: 13px;
+  color: #666;
+}
+
+.status-detail-item {
+  display: flex;
+  align-items: center;
+}
+
+.status-detail-item strong {
+  margin-right: 5px;
+  color: #333;
+}
+
+/* Health report */
+.health-report {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.health-icon {
+  width: 32px;
+  height: 32px;
+  margin-right: 12px;
+}
+
+.health-text {
+  font-size: 13px;
+  color: #333;
+}
+
+/* Content grid */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+
+/* Build history */
+#build-history {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.section-title {
+  background: #f5f5f5;
+  padding: 10px 15px;
+  font-weight: bold;
+  font-size: 14px;
+  border-bottom: 1px solid #ddd;
+}
+
+.build-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.build-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  text-decoration: none;
+  color: #333;
+}
+
+.build-item:hover {
+  background: #f8f8f8;
+}
+
+.build-item:last-child {
+  border-bottom: none;
+}
+
+.build-status-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.build-number {
+  font-weight: bold;
+  color: #4b8bc8;
+  margin-right: 10px;
+  min-width: 40px;
+}
+
+.build-time {
+  color: #666;
+  font-size: 12px;
+  flex: 1;
+}
+
+.build-cause {
+  color: #999;
+  font-size: 11px;
+  margin-left: 10px;
+}
+
+/* Trend graph */
+#trend-graph {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.trend-canvas {
+  padding: 15px;
+}
+
+.trend-bar-container {
+  display: flex;
+  align-items: flex-end;
+  height: 100px;
+  gap: 4px;
+}
+
+.trend-bar {
+  flex: 1;
+  min-width: 20px;
+  border-radius: 2px 2px 0 0;
+  position: relative;
+}
+
+.trend-bar.success {
+  background: #4caf50;
+}
+
+.trend-bar.failure {
+  background: #f44336;
+}
+
+.trend-bar:hover::after {
+  content: attr(data-build);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Downstream jobs */
+#downstream-jobs {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.downstream-list {
+  padding: 10px 0;
+}
+
+.downstream-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 15px;
+  text-decoration: none;
+  color: #4b8bc8;
+}
+
+.downstream-item:hover {
+  background: #f8f8f8;
+  text-decoration: underline;
+}
+
+.downstream-item svg {
+  margin-right: 8px;
+}
+
+/* Permalinks */
+.permalinks {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 20px;
+}
+
+.permalink-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 12px;
+}
+
+.permalink-item:last-child {
+  border-bottom: none;
+}
+
+.permalink-label {
+  color: #666;
+}
+
+.permalink-link {
+  color: #4b8bc8;
+  text-decoration: none;
+}
+
+.permalink-link:hover {
+  text-decoration: underline;
+}
+
+/* Success/failure colors */
+.status-success {
+  color: #4caf50;
+}
+
+.status-failure {
+  color: #f44336;
+}
+
+/* Focus styles */
+a:focus-visible, button:focus-visible {
+  outline: 2px solid #4b8bc8;
+  outline-offset: 2px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  #side-panel {
+    display: none;
+  }
+  
+  #main-panel {
+    padding: 10px 15px;
+  }
+}
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 4px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.modal-text {
+  margin-bottom: 20px;
+  color: #666;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header id="jenkins-header" data-automation="jenkins-header">
+  <a href="https://www.jenkins.io/" class="jenkins-logo" id="jenkins-logo" data-automation="jenkins-logo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="12" cy="12" r="10" fill="#d33833"/>
+      <circle cx="12" cy="10" r="4" fill="#fff"/>
+      <ellipse cx="12" cy="18" rx="6" ry="3" fill="#fff"/>
+    </svg>
+    Jenkins
+  </a>
+  
+  <nav id="breadcrumbs" data-automation="breadcrumbs" aria-label="Breadcrumb">
+    <a href="https://www.jenkins.io/" id="breadcrumb-dashboard">Dashboard</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>financial-core-api-pipeline</span>
+  </nav>
+  
+  <div id="header-search">
+    <input type="search" placeholder="Search (⌘+k)" aria-label="Search">
+  </div>
+  
+  <div id="user-info" data-automation="user-info">
+    <span class="user-icon">M</span>
+    <a href="#" id="user-link">michael.rodriguez</a>
+  </div>
+</header>
+
+<div class="main-container">
+  <!-- Side Panel -->
+  <aside id="side-panel" data-automation="side-panel">
+    <div class="side-section">
+      <nav class="task-links" aria-label="Job actions">
+        <a href="#" class="task-link" id="back-to-dashboard" data-automation="back-to-dashboard">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <path d="M8 1L1 8l7 7M1 8h14"/>
+          </svg>
+          Back to Dashboard
+        </a>
+        <a href="javascript:void(0)" class="task-link" id="build-now-btn" data-automation="build-now-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <polygon points="4,2 14,8 4,14"/>
+          </svg>
+          Build Now
+        </a>
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/configure" class="task-link" id="configure-link" data-automation="configure-link">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <path d="M13.5 8.5l1.5-1.5-2-2-1.5 1.5L8 3H6v2L2.5 8.5 1 7l2 2 1.5-1.5L8 11v2h2l3.5-3.5L15 11l-2-2z"/>
+          </svg>
+          Configure
+        </a>
+        <a href="#" class="task-link" id="delete-job" data-automation="delete-job">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <path d="M5 2V1h6v1h4v2H1V2h4zM2 5h12l-1 10H3L2 5z"/>
+          </svg>
+          Delete Pipeline
+        </a>
+        <a href="#" class="task-link" id="full-stage-view" data-automation="full-stage-view">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <rect x="1" y="3" width="14" height="10" rx="1" fill="none" stroke="#666" stroke-width="1.5"/>
+            <line x1="5" y1="3" x2="5" y2="13" stroke="#666" stroke-width="1.5"/>
+            <line x1="11" y1="3" x2="11" y2="13" stroke="#666" stroke-width="1.5"/>
+          </svg>
+          Full Stage View
+        </a>
+        <a href="#" class="task-link" id="pipeline-syntax" data-automation="pipeline-syntax">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <path d="M4 4l-3 4 3 4M12 4l3 4-3 4M9 2l-2 12"/>
+          </svg>
+          Pipeline Syntax
+        </a>
+      </nav>
+    </div>
+    
+    <div class="side-section">
+      <div id="build-queue-widget" data-automation="build-queue-widget">
+        <div class="widget-title">Build Queue</div>
+        <div class="widget-content">No builds in queue</div>
+      </div>
+    </div>
+    
+    <div class="side-section">
+      <div id="executor-status" data-automation="executor-status">
+        <div class="widget-title">Build Executor Status</div>
+        <div class="widget-content">
+          <div>Built-In Node</div>
+          <div style="margin-top:5px;">
+            <span style="color:#4caf50;">●</span> Idle (2 executors)
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="side-section">
+      <nav class="task-links" aria-label="Navigation">
+        <a href="https://www.jenkins.io/view/Operations/" class="task-link" id="operations-view" data-automation="operations-view">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <rect x="1" y="1" width="6" height="6" rx="1"/>
+            <rect x="9" y="1" width="6" height="6" rx="1"/>
+            <rect x="1" y="9" width="6" height="6" rx="1"/>
+            <rect x="9" y="9" width="6" height="6" rx="1"/>
+          </svg>
+          Operations View
+        </a>
+        <a href="https://www.jenkins.io/manage/" class="task-link" id="manage-jenkins" data-automation="manage-jenkins">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#666">
+            <circle cx="8" cy="8" r="6" fill="none" stroke="#666" stroke-width="1.5"/>
+            <circle cx="8" cy="8" r="2"/>
+            <path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="#666" stroke-width="1.5"/>
+          </svg>
+          Manage Jenkins
+        </a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main Panel -->
+  <main id="main-panel" data-automation="main-panel">
+    <!-- Job Header -->
+    <div id="job-header" data-automation="job-header">
+      <svg class="job-icon" viewBox="0 0 48 48">
+        <rect x="4" y="8" width="40" height="32" rx="3" fill="#4b8bc8"/>
+        <path d="M12 20h6v12h-6zM20 16h6v16h-6zM28 24h6v8h-6z" fill="#fff"/>
+        <circle cx="40" cy="12" r="6" fill="#4caf50"/>
+      </svg>
+      <div class="job-title-section">
+        <h1>financial-core-api-pipeline</h1>
+        <p class="job-description">Main CI/CD pipeline for Financial Core API - handles auth-service, cache-layer, and API gateway deployments</p>
+      </div>
+    </div>
+
+    <!-- Last Build Status -->
+    <div id="last-build-status" class="success" data-automation="last-build-status">
+      <div class="status-header">
+        <svg class="status-icon" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" fill="#4caf50"/>
+          <path d="M8 12l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/>
+        </svg>
+        <span class="status-title status-success">Last build (#847) was successful</span>
+      </div>
+      <div class="status-details">
+        <div class="status-detail-item">
+          <strong>Started:</strong> Jan 17, 2024 4:30 PM
+        </div>
+        <div class="status-detail-item">
+          <strong>Duration:</strong> 4m 32s
+        </div>
+        <div class="status-detail-item">
+          <strong>Triggered by:</strong> Push to main branch
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Report -->
+    <div class="health-report" data-automation="health-report">
+      <svg class="health-icon" viewBox="0 0 32 32">
+        <circle cx="16" cy="16" r="14" fill="#8bc34a"/>
+        <path d="M10 16l4 4 8-8" stroke="#fff" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="health-text">
+        <strong>Build stability:</strong> 4 out of the last 5 builds succeeded (80%)
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="job-actions" data-automation="job-actions">
+      <button class="action-btn" id="build-now-main" data-automation="build-now-main" onclick="triggerBuild()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <polygon points="4,2 14,8 4,14"/>
+        </svg>
+        Build Now
+      </button>
+      <a href="https://www.jenkins.io/job/financial-core-api-pipeline/configure" class="action-btn secondary" id="configure-main" data-automation="configure-main">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M13.5 8.5l1.5-1.5-2-2-1.5 1.5L8 3H6v2L2.5 8.5 1 7l2 2 1.5-1.5L8 11v2h2l3.5-3.5L15 11l-2-2z"/>
+        </svg>
+        Configure
+      </a>
+    </div>
+
+    <div class="content-grid">
+      <div class="content-main">
+        <!-- Build History -->
+        <div id="build-history" data-automation="build-history">
+          <div class="section-title">Build History</div>
+          <div class="build-list">
+            <a href="#" class="build-item build-link" id="build-847" data-automation="build-847" data-build="847">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#4caf50"/>
+              </svg>
+              <span class="build-number">#847</span>
+              <span class="build-time">Jan 17, 2024 4:30 PM</span>
+            </a>
+            <a href="#" class="build-item build-link" id="build-846" data-automation="build-846" data-build="846">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#4caf50"/>
+              </svg>
+              <span class="build-number">#846</span>
+              <span class="build-time">Jan 16, 2024 2:15 PM</span>
+            </a>
+            <a href="#" class="build-item build-link" id="build-845" data-automation="build-845" data-build="845">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#f44336"/>
+              </svg>
+              <span class="build-number">#845</span>
+              <span class="build-time">Jan 15, 2024 11:00 AM</span>
+              <span class="build-cause">Test failures in auth module</span>
+            </a>
+            <a href="#" class="build-item build-link" id="build-844" data-automation="build-844" data-build="844">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#4caf50"/>
+              </svg>
+              <span class="build-number">#844</span>
+              <span class="build-time">Jan 14, 2024 9:45 AM</span>
+            </a>
+            <a href="#" class="build-item build-link" id="build-843" data-automation="build-843" data-build="843">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#4caf50"/>
+              </svg>
+              <span class="build-number">#843</span>
+              <span class="build-time">Jan 13, 2024 5:20 PM</span>
+            </a>
+            <a href="#" class="build-item build-link" id="build-842" data-automation="build-842" data-build="842">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#4caf50"/>
+              </svg>
+              <span class="build-number">#842</span>
+              <span class="build-time">Jan 12, 2024 3:10 PM</span>
+            </a>
+            <a href="#" class="build-item build-link" id="build-841" data-automation="build-841" data-build="841">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#4caf50"/>
+              </svg>
+              <span class="build-number">#841</span>
+              <span class="build-time">Jan 11, 2024 11:30 AM</span>
+            </a>
+            <a href="#" class="build-item build-link" id="build-840" data-automation="build-840" data-build="840">
+              <svg class="build-status-icon" viewBox="0 0 16 16">
+                <circle cx="8" cy="8" r="7" fill="#f44336"/>
+              </svg>
+              <span class="build-number">#840</span>
+              <span class="build-time">Jan 10, 2024 4:45 PM</span>
+              <span class="build-cause">Deployment timeout</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Permalinks -->
+        <div class="permalinks" data-automation="permalinks">
+          <div class="section-title">Permalinks</div>
+          <div class="permalink-item">
+            <span class="permalink-label">Last build</span>
+            <a href="#" class="permalink-link">#847 - Jan 17, 2024 4:30 PM</a>
+          </div>
+          <div class="permalink-item">
+            <span class="permalink-label">Last stable build</span>
+            <a href="#" class="permalink-link">#847 - Jan 17, 2024 4:30 PM</a>
+          </div>
+          <div class="permalink-item">
+            <span class="permalink-label">Last successful build</span>
+            <a href="#" class="permalink-link">#847 - Jan 17, 2024 4:30 PM</a>
+          </div>
+          <div class="permalink-item">
+            <span class="permalink-label">Last failed build</span>
+            <a href="#" class="permalink-link">#845 - Jan 15, 2024 11:00 AM</a>
+          </div>
+          <div class="permalink-item">
+            <span class="permalink-label">Last completed build</span>
+            <a href="#" class="permalink-link">#847 - Jan 17, 2024 4:30 PM</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-sidebar">
+        <!-- Trend Graph -->
+        <div id="trend-graph" data-automation="trend-graph">
+          <div class="section-title">Build Trend</div>
+          <div class="trend-canvas">
+            <div class="trend-bar-container">
+              <div class="trend-bar success" style="height: 80%;" data-build="#840"></div>
+              <div class="trend-bar success" style="height: 75%;" data-build="#841"></div>
+              <div class="trend-bar success" style="height: 82%;" data-build="#842"></div>
+              <div class="trend-bar success" style="height: 70%;" data-build="#843"></div>
+              <div class="trend-bar success" style="height: 78%;" data-build="#844"></div>
+              <div class="trend-bar failure" style="height: 45%;" data-build="#845"></div>
+              <div class="trend-bar success" style="height: 85%;" data-build="#846"></div>
+              <div class="trend-bar success" style="height: 80%;" data-build="#847"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Downstream Jobs -->
+        <div id="downstream-jobs" data-automation="downstream-jobs">
+          <div class="section-title">Downstream Projects</div>
+          <div class="downstream-list">
+            <a href="#" class="downstream-item" id="downstream-staging" data-automation="downstream-staging">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="#4b8bc8">
+                <polygon points="4,2 14,8 4,14"/>
+              </svg>
+              deploy-to-staging
+            </a>
+            <a href="#" class="downstream-item" id="downstream-production" data-automation="downstream-production">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="#4b8bc8">
+                <polygon points="4,2 14,8 4,14"/>
+              </svg>
+              deploy-to-production
+            </a>
+            <a href="#" class="downstream-item" id="downstream-integration" data-automation="downstream-integration">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="#4b8bc8">
+                <polygon points="4,2 14,8 4,14"/>
+              </svg>
+              integration-tests
+            </a>
+          </div>
+        </div>
+
+        <!-- Recent Changes -->
+        <div class="permalinks" style="margin-top: 20px;" data-automation="recent-changes">
+          <div class="section-title">Recent Changes</div>
+          <div class="permalink-item" style="flex-direction: column; align-items: flex-start;">
+            <span style="color: #333; font-weight: bold;">Build #847</span>
+            <span style="color: #666; font-size: 11px; margin-top: 4px;">fix: Update cache invalidation logic for auth tokens</span>
+          </div>
+          <div class="permalink-item" style="flex-direction: column; align-items: flex-start;">
+            <span style="color: #333; font-weight: bold;">Build #846</span>
+            <span style="color: #666; font-size: 11px; margin-top: 4px;">feat: Add retry mechanism for failed auth requests</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Build Triggered Modal -->
+<div class="modal-overlay" id="build-modal" data-automation="build-modal">
+  <div class="modal-content">
+    <div class="modal-title">Build Scheduled</div>
+    <div class="modal-text">
+      Build #848 has been added to the queue. It will start when an executor becomes available.
+    </div>
+    <div class="modal-actions">
+      <button class="action-btn" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // Storage namespace
+  const STORAGE_KEY = 'jenkins/job/financial-core-api-pipeline/';
+  
+  // Initialize state
+  let buildQueue = [];
+  let nextBuildNumber = 848;
+  
+  // Load state from storage
+  function loadState() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + 'state');
+      if (saved) {
+        const state = JSON.parse(saved);
+        nextBuildNumber = state.nextBuildNumber || 848;
+        buildQueue = state.buildQueue || [];
+      }
+    } catch (e) {
+      console.log('Could not load state');
+    }
+  }
+  
+  // Save state to storage
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY + 'state', JSON.stringify({
+        nextBuildNumber: nextBuildNumber,
+        buildQueue: buildQueue
+      }));
+    } catch (e) {
+      console.log('Could not save state');
+    }
+  }
+  
+  // Trigger build
+  window.triggerBuild = function() {
+    buildQueue.push({
+      number: nextBuildNumber,
+      timestamp: new Date().toISOString()
+    });
+    nextBuildNumber++;
+    saveState();
+    
+    document.getElementById('build-modal').classList.add('active');
+    
+    // Update queue display
+    updateQueueDisplay();
+  };
+  
+  // Close modal
+  window.closeModal = function() {
+    document.getElementById('build-modal').classList.remove('active');
+  };
+  
+  // Update queue display
+  function updateQueueDisplay() {
+    const queueWidget = document.querySelector('#build-queue-widget .widget-content');
+    if (buildQueue.length > 0) {
+      queueWidget.textContent = buildQueue.length + ' build(s) in queue';
+    } else {
+      queueWidget.textContent = 'No builds in queue';
+    }
+  }
+  
+  // Handle build now button in sidebar
+  document.getElementById('build-now-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+    triggerBuild();
+  });
+  
+  // Handle build links
+  document.querySelectorAll('.build-link').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const buildNum = this.getAttribute('data-build');
+      // Could navigate to build details page
+      alert('Build #' + buildNum + ' details would open here');
+    });
+  });
+  
+  // Close modal on overlay click
+  document.getElementById('build-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
+  
+  // Close modal on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  });
+  
+  // Initialize
+  loadState();
+  updateQueueDisplay();
+})();
+</script>
+
+</body>
+</html>

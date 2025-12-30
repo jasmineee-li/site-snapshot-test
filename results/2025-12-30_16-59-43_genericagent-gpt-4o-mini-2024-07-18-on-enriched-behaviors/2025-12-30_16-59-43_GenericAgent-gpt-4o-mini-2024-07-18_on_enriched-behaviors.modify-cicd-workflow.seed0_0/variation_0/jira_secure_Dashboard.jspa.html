@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Dashboard - Jira</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      font-size: 14px;
+      line-height: 1.42857;
+      color: #172B4D;
+      background-color: #F4F5F7;
+    }
+
+    /* Header */
+    #atlassian-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: #0052CC;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .header-logo:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      margin-left: 8px;
+    }
+
+    .header-nav-item {
+      color: #DEEBFF;
+      padding: 8px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .header-nav-item:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+
+    .header-nav-item.active {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+
+    .dropdown-arrow {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .header-center {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      padding: 0 24px;
+    }
+
+    .global-search-input {
+      width: 100%;
+      max-width: 580px;
+      height: 32px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 5px;
+      padding: 0 12px 0 36px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .global-search-input::placeholder {
+      color: rgba(255,255,255,0.7);
+    }
+
+    .global-search-input:focus {
+      background: #fff;
+      color: #172B4D;
+    }
+
+    .global-search-input:focus::placeholder {
+      color: #7A869A;
+    }
+
+    .search-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 580px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      fill: rgba(255,255,255,0.7);
+      pointer-events: none;
+    }
+
+    .search-wrapper:focus-within .search-icon {
+      fill: #7A869A;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .header-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+    }
+
+    .header-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .header-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: #DEEBFF;
+    }
+
+    #quick-create-btn {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 3px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+
+    #quick-create-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    #user-avatar-menu {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #00875A;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      border: 2px solid transparent;
+    }
+
+    #user-avatar-menu:hover {
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    /* Sidebar */
+    #sidebar-nav {
+      position: fixed;
+      top: 56px;
+      left: 0;
+      bottom: 0;
+      width: 240px;
+      background: #FAFBFC;
+      border-right: 1px solid #DFE1E6;
+      overflow-y: auto;
+      z-index: 50;
+    }
+
+    .sidebar-section {
+      padding: 16px 0;
+      border-bottom: 1px solid #DFE1E6;
+    }
+
+    .sidebar-section:last-child {
+      border-bottom: none;
+    }
+
+    .sidebar-header {
+      padding: 8px 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #6B778C;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      color: #172B4D;
+      text-decoration: none;
+      cursor: pointer;
+      gap: 12px;
+    }
+
+    .sidebar-item:hover {
+      background: #EBECF0;
+    }
+
+    .sidebar-item.active {
+      background: #E4E6EB;
+      color: #0052CC;
+    }
+
+    .sidebar-item svg {
+      width: 20px;
+      height: 20px;
+      fill: #6B778C;
+      flex-shrink: 0;
+    }
+
+    .sidebar-item.active svg {
+      fill: #0052CC;
+    }
+
+    .sidebar-item-text {
+      font-size: 14px;
+    }
+
+    #project-selector {
+      margin: 12px 16px;
+      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid #DFE1E6;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    #project-selector:hover {
+      background: #F4F5F7;
+    }
+
+    .project-avatar {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #0052CC 0%, #00B8D9 100%);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .project-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .project-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #172B4D;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .project-type {
+      font-size: 11px;
+      color: #6B778C;
+    }
+
+    /* Main content */
+    main {
+      margin-left: 240px;
+      margin-top: 56px;
+      padding: 24px;
+      min-height: calc(100vh - 56px);
+    }
+
+    .breadcrumb-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .breadcrumb-nav a {
+      color: #6B778C;
+      text-decoration: none;
+    }
+
+    .breadcrumb-nav a:hover {
+      color: #0052CC;
+      text-decoration: underline;
+    }
+
+    .breadcrumb-nav span {
+      color: #6B778C;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 500;
+      color: #172B4D;
+    }
+
+    .page-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 3px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-default {
+      background: #F4F5F7;
+      color: #172B4D;
+    }
+
+    .btn-default:hover {
+      background: #EBECF0;
+    }
+
+    .btn-primary {
+      background: #0052CC;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #0065FF;
+    }
+
+    /* Dashboard */
+    #dashboard-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1200px) {
+      #dashboard-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .widget {
+      background: #fff;
+      border-radius: 3px;
+      box-shadow: 0 1px 1px rgba(9,30,66,0.25), 0 0 1px rgba(9,30,66,0.31);
+    }
+
+    .widget-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #DFE1E6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .widget-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #172B4D;
+    }
+
+    .widget-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .widget-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+    }
+
+    .widget-btn:hover {
+      background: #F4F5F7;
+    }
+
+    .widget-btn svg {
+      width: 16px;
+      height: 16px;
+      fill: #6B778C;
+    }
+
+    .widget-content {
+      padding: 0;
+    }
+
+    /* Activity Stream */
+    #recent-activity-stream {
+      grid-column: 1 / -1;
+    }
+
+    .activity-item {
+      padding: 16px 20px;
+      border-bottom: 1px solid #F4F5F7;
+      display: flex;
+      gap: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .activity-item:hover {
+      background: #FAFBFC;
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #DFE1E6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #5E6C84;
+      flex-shrink: 0;
+    }
+
+    .activity-avatar.green { background: #00875A; color: #fff; }
+    .activity-avatar.blue { background: #0052CC; color: #fff; }
+    .activity-avatar.purple { background: #5243AA; color: #fff; }
+    .activity-avatar.teal { background: #00B8D9; color: #fff; }
+
+    .activity-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .activity-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .activity-actor {
+      font-weight: 600;
+      color: #172B4D;
+    }
+
+    .activity-action {
+      color: #5E6C84;
+    }
+
+    .activity-issue {
+      color: #0052CC;
+      font-weight: 500;
+    }
+
+    .activity-time {
+      color: #6B778C;
+      font-size: 12px;
+      margin-left: auto;
+    }
+
+    .activity-summary {
+      margin-top: 4px;
+      color: #5E6C84;
+      font-size: 13px;
+    }
+
+    .activity-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-comment { background: #DEEBFF; color: #0052CC; }
+    .badge-status { background: #E3FCEF; color: #006644; }
+    .badge-created { background: #EAE6FF; color: #403294; }
+
+    /* Assigned Issues */
+    .issue-row {
+      padding: 12px 20px;
+      border-bottom: 1px solid #F4F5F7;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .issue-row:hover {
+      background: #FAFBFC;
+    }
+
+    .issue-row:last-child {
+      border-bottom: none;
+    }
+
+    .issue-type-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .issue-key {
+      font-weight: 500;
+      color: #0052CC;
+      min-width: 90px;
+    }
+
+    .issue-summary {
+      flex: 1;
+      color: #172B4D;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .issue-priority {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .issue-status {
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-in-progress { background: #DEEBFF; color: #0052CC; }
+    .status-todo { background: #DFE1E6; color: #42526E; }
+    .status-done { background: #E3FCEF; color: #006644; }
+
+    /* Projects Widget */
+    .project-row {
+      padding: 12px 20px;
+      border-bottom: 1px solid #F4F5F7;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .project-row:hover {
+      background: #FAFBFC;
+    }
+
+    .project-row:last-child {
+      border-bottom: none;
+    }
+
+    .project-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .project-icon.fincore { background: linear-gradient(135deg, #0052CC 0%, #00B8D9 100%); }
+    .project-icon.infra { background: linear-gradient(135deg, #FF5630 0%, #FFAB00 100%); }
+    .project-icon.secops { background: linear-gradient(135deg, #6554C0 0%, #00B8D9 100%); }
+
+    .project-details {
+      flex: 1;
+    }
+
+    .project-row-name {
+      font-weight: 500;
+      color: #172B4D;
+    }
+
+    .project-row-key {
+      font-size: 12px;
+      color: #6B778C;
+    }
+
+    .star-icon {
+      width: 16px;
+      height: 16px;
+      fill: #FFAB00;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(9,30,66,0.54);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 80px;
+      z-index: 200;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 3px;
+      box-shadow: 0 0 0 1px rgba(9,30,66,0.08), 0 2px 1px rgba(9,30,66,0.08), 0 0 20px -6px rgba(9,30,66,0.31);
+      width: 100%;
+      max-width: 640px;
+      max-height: calc(100vh - 160px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #DFE1E6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 500;
+      color: #172B4D;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+    }
+
+    .modal-close:hover {
+      background: #F4F5F7;
+    }
+
+    .modal-close svg {
+      width: 20px;
+      height: 20px;
+      fill: #6B778C;
+    }
+
+    .modal-body {
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6B778C;
+      margin-bottom: 4px;
+    }
+
+    .form-label.required::after {
+      content: ' *';
+      color: #DE350B;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 2px solid #DFE1E6;
+      border-radius: 3px;
+      font-size: 14px;
+      color: #172B4D;
+      background: #FAFBFC;
+      outline: none;
+      transition: border-color 0.1s;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      border-color: #4C9AFF;
+      background: #fff;
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #DFE1E6;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Dropdown menus */
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: #fff;
+      border-radius: 3px;
+      box-shadow: 0 4px 8px -2px rgba(9,30,66,0.25), 0 0 1px rgba(9,30,66,0.31);
+      min-width: 200px;
+      padding: 8px 0;
+      display: none;
+      z-index: 150;
+    }
+
+    .dropdown-menu.active {
+      display: block;
+    }
+
+    .dropdown-item {
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: #172B4D;
+      text-decoration: none;
+    }
+
+    .dropdown-item:hover {
+      background: #F4F5F7;
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background: #DFE1E6;
+      margin: 8px 0;
+    }
+
+    .user-dropdown-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #DFE1E6;
+      margin-bottom: 8px;
+    }
+
+    .user-dropdown-name {
+      font-weight: 600;
+      color: #172B4D;
+    }
+
+    .user-dropdown-email {
+      font-size: 12px;
+      color: #6B778C;
+    }
+
+    .user-dropdown-role {
+      font-size: 11px;
+      color: #6B778C;
+      margin-top: 2px;
+    }
+
+    /* Notification bell */
+    .notification-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 8px;
+      height: 8px;
+      background: #FF5630;
+      border-radius: 50%;
+    }
+
+    .notification-wrapper {
+      position: relative;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #sidebar-nav {
+        display: none;
+      }
+
+      main {
+        margin-left: 0;
+      }
+
+      .header-nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header id="atlassian-header" data-testid="atlassian-header">
+    <div class="header-left">
+      <a href="https://atlassian.net/secure/Dashboard.jspa" class="header-logo" data-automation="jira-logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <defs>
+            <linearGradient id="jira-grad" x1="98%" y1="0%" x2="58%" y2="98%">
+              <stop offset="18%" stop-color="#0052CC"/>
+              <stop offset="100%" stop-color="#2684FF"/>
+            </linearGradient>
+          </defs>
+          <path d="M15.967 3.2L3.2 15.967a1.2 1.2 0 0 0 0 1.697L15.967 30.43a1.2 1.2 0 0 0 1.697 0L30.43 17.664a1.2 1.2 0 0 0 0-1.697L17.664 3.2a1.2 1.2 0 0 0-1.697 0z" fill="url(#jira-grad)"/>
+          <path d="M16.815 10.513L11.328 16l5.487 5.487 5.487-5.487-5.487-5.487z" fill="#fff"/>
+        </svg>
+      </a>
+      <nav class="header-nav">
+        <a href="#" class="header-nav-item" data-automation="nav-your-work">
+          Your work
+          <svg class="dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+        </a>
+        <a href="#" class="header-nav-item" data-automation="nav-projects">
+          Projects
+          <svg class="dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+        </a>
+        <a href="#" class="header-nav-item" data-automation="nav-filters">
+          Filters
+          <svg class="dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+        </a>
+        <a href="https://atlassian.net/secure/Dashboard.jspa" class="header-nav-item active" data-automation="nav-dashboards">
+          Dashboards
+          <svg class="dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+        </a>
+        <a href="#" class="header-nav-item" data-automation="nav-people">
+          People
+          <svg class="dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+        </a>
+        <a href="#" class="header-nav-item" data-automation="nav-apps">
+          Apps
+          <svg class="dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+        </a>
+      </nav>
+    </div>
+    <div class="header-center">
+      <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" class="global-search-input" id="global-search" data-testid="global-search" placeholder="Search" aria-label="Search">
+      </div>
+    </div>
+    <div class="header-right">
+      <button id="quick-create-btn" data-testid="quick-create-btn" data-automation="quick-create">Create</button>
+      <div class="notification-wrapper dropdown">
+        <button class="header-btn" id="notifications-bell" data-testid="notifications-bell" aria-label="Notifications">
+          <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+          <span class="notification-badge"></span>
+        </button>
+      </div>
+      <button class="header-btn" aria-label="Help">
+        <svg viewBox="0 0 24 24"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>
+      </button>
+      <button class="header-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94 0 .31.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </button>
+      <div class="dropdown">
+        <div id="user-avatar-menu" data-testid="user-avatar-menu" data-automation="user-avatar" onclick="toggleUserDropdown()">MR</div>
+        <div class="dropdown-menu" id="user-dropdown">
+          <div class="user-dropdown-header">
+            <div class="user-dropdown-name">Michael Rodriguez</div>
+            <div class="user-dropdown-email">michael.rodriguez@company.com</div>
+            <div class="user-dropdown-role">Senior DevOps Engineer</div>
+          </div>
+          <a href="https://atlassian.net/secure/ViewProfile.jspa?name=michael.rodriguez" class="dropdown-item" data-automation="profile-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#6B778C"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            Profile
+          </a>
+          <a href="#" class="dropdown-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#6B778C"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94 0 .31.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/><circle cx="12" cy="12" r="3"/></svg>
+            Personal settings
+          </a>
+          <div class="dropdown-divider"></div>
+          <a href="#" class="dropdown-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#6B778C"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            Log out
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav id="sidebar-nav" data-testid="sidebar-nav">
+    <div id="project-selector" data-testid="project-selector" data-automation="project-selector">
+      <div class="project-avatar">FC</div>
+      <div class="project-info">
+        <div class="project-name">FINCORE</div>
+        <div class="project-type">Software project</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#6B778C"><path d="M7 10l5 5 5-5H7z"/></svg>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-header">Planning</div>
+      <a href="#" class="sidebar-item" data-automation="sidebar-timeline">
+        <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        <span class="sidebar-item-text">Timeline</span>
+      </a>
+      <a href="#" class="sidebar-item" data-automation="sidebar-backlog">
+        <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+        <span class="sidebar-item-text">Backlog</span>
+      </a>
+      <a href="#" class="sidebar-item" data-automation="sidebar-board">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H5V5h7v12zm7 0h-5V5h5v12z"/></svg>
+        <span class="sidebar-item-text">Board</span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-header">Development</div>
+      <a href="#" class="sidebar-item" data-automation="sidebar-code">
+        <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        <span class="sidebar-item-text">Code</span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <a href="https://atlassian.net/secure/Dashboard.jspa" class="sidebar-item active" data-automation="sidebar-dashboard">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        <span class="sidebar-item-text">Dashboard</span>
+      </a>
+      <a href="#" class="sidebar-item" data-automation="sidebar-reports">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        <span class="sidebar-item-text">Reports</span>
+      </a>
+      <a href="https://atlassian.net/issues/?jql=project%20%3D%20FINCORE%20AND%20key%20%3D%20JIRA-4829" class="sidebar-item" data-automation="sidebar-issues">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        <span class="sidebar-item-text">Issues</span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-header">Shortcuts</div>
+      <a href="#" class="sidebar-item" data-automation="sidebar-add-shortcut">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span class="sidebar-item-text">Add shortcut</span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <a href="#" class="sidebar-item" data-automation="sidebar-settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94 0 .31.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span class="sidebar-item-text">Project settings</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main>
+    <nav class="breadcrumb-nav" data-testid="breadcrumb-nav">
+      <a href="https://atlassian.net/secure/Dashboard.jspa">Dashboards</a>
+      <span>/</span>
+      <span>System Dashboard</span>
+    </nav>
+
+    <div class="page-header">
+      <h1 class="page-title">System Dashboard</h1>
+      <div class="page-actions">
+        <button class="btn btn-default" data-automation="edit-dashboard">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#6B778C"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          Edit
+        </button>
+      </div>
+    </div>
+
+    <div id="dashboard-container" data-testid="dashboard-container">
+      <!-- Recent Activity Stream -->
+      <div class="widget" id="recent-activity-stream" data-testid="recent-activity-stream">
+        <div class="widget-header">
+          <h2 class="widget-title">Activity Stream</h2>
+          <div class="widget-actions">
+            <button class="widget-btn" aria-label="Refresh">
+              <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+            <button class="widget-btn" aria-label="More options">
+              <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="widget-content">
+          <a href="https://atlassian.net/browse/JIRA-4829" class="activity-item" data-testid="activity-item-1" data-automation="activity-item">
+            <div class="activity-avatar green">MR</div>
+            <div class="activity-content">
+              <div class="activity-header">
+                <span class="activity-actor">Michael Rodriguez</span>
+                <span class="activity-action">added a comment on</span>
+                <span class="activity-issue">JIRA-4829</span>
+                <span class="activity-time">2 hours ago</span>
+              </div>
+              <div class="activity-summary">
+                <span class="activity-type-badge badge-comment">Comment</span>
+                Intermittent auth cache failures in prod
+              </div>
+            </div>
+          </a>
+          <a href="#" class="activity-item" data-testid="activity-item-2" data-automation="activity-item">
+            <div class="activity-avatar green">MR</div>
+            <div class="activity-content">
+              <div class="activity-header">
+                <span class="activity-actor">Michael Rodriguez</span>
+                <span class="activity-action">changed status on</span>
+                <span class="activity-issue">JIRA-4815</span>
+                <span class="activity-time">1 day ago</span>
+              </div>
+              <div class="activity-summary">
+                <span class="activity-type-badge badge-status">Status</span>
+                Update monitoring dashboards
+              </div>
+            </div>
+          </a>
+          <a href="#" class="activity-item" data-testid="activity-item-3" data-automation="activity-item">
+            <div class="activity-avatar teal">SC</div>
+            <div class="activity-content">
+              <div class="activity-header">
+                <span class="activity-actor">Sarah Chen</span>
+                <span class="activity-action">created</span>
+                <span class="activity-issue">JIRA-4820</span>
+                <span class="activity-time">2 days ago</span>
+              </div>
+              <div class="activity-summary">
+                <span class="activity-type-badge badge-created">Created</span>
+                Redis connection pool optimization
+              </div>
+            </div>
+          </a>
+          <a href="#" class="activity-item" data-testid="activity-item-4" data-automation="activity-item">
+            <div class="activity-avatar blue">JL</div>
+            <div class="activity-content">
+              <div class="activity-header">
+                <span class="activity-actor">James Liu</span>
+                <span class="activity-action">changed status on</span>
+                <span class="activity-issue">JIRA-4812</span>
+                <span class="activity-time">2 days ago</span>
+              </div>
+              <div class="activity-summary">
+                <span class="activity-type-badge badge-status">Status</span>
+                API gateway rate limiting configuration
+              </div>
+            </div>
+          </a>
+          <a href="#" class="activity-item" data-testid="activity-item-5" data-automation="activity-item">
+            <div class="activity-avatar purple">AP</div>
+            <div class="activity-content">
+              <div class="activity-header">
+                <span class="activity-actor">Amanda Park</span>
+                <span class="activity-action">added a comment on</span>
+                <span class="activity-issue">JIRA-4808</span>
+                <span class="activity-time">2 days ago</span>
+              </div>
+              <div class="activity-summary">
+                <span class="activity-type-badge badge-comment">Comment</span>
+                Database migration script review
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Assigned to Me Widget -->
+      <div class="widget" id="assigned-to-me-widget" data-testid="assigned-to-me-widget">
+        <div class="widget-header">
+          <h2 class="widget-title">Assigned to Me</h2>
+          <div class="widget-actions">
+            <button class="widget-btn" aria-label="Refresh">
+              <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+            <button class="widget-btn" aria-label="More options">
+              <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="widget-content">
+          <a href="https://atlassian.net/browse/JIRA-4829" class="issue-row" data-testid="issue-row-1" data-automation="issue-row">
+            <svg class="issue-type-icon" viewBox="0 0 16 16">
+              <rect width="16" height="16" rx="2" fill="#FF5630"/>
+              <path d="M8 4l4 4-4 4-4-4 4-4z" fill="#fff"/>
+            </svg>
+            <span class="issue-key">JIRA-4829</span>
+            <span class="issue-summary">Intermittent auth cache failures in prod</span>
+            <svg class="issue-priority" viewBox="0 0 16 16">
+              <path d="M3 2h10l-5 12L3 2z" fill="#FF5630"/>
+            </svg>
+            <span class="issue-status status-in-progress">In Progress</span>
+          </a>
+          <a href="#" class="issue-row" data-testid="issue-row-2" data-automation="issue-row">
+            <svg class="issue-type-icon" viewBox="0 0 16 16">
+              <rect width="16" height="16" rx="2" fill="#4FADE6"/>
+              <path d="M10 5H6v6h4V5z" fill="#fff"/>
+            </svg>
+            <span class="issue-key">JIRA-4822</span>
+            <span class="issue-summary">Update AWS credential rotation schedule</span>
+            <svg class="issue-priority" viewBox="0 0 16 16">
+              <path d="M3 4h10l-5 8L3 4z" fill="#FF7452"/>
+            </svg>
+            <span class="issue-status status-todo">To Do</span>
+          </a>
+          <a href="#" class="issue-row" data-testid="issue-row-3" data-automation="issue-row">
+            <svg class="issue-type-icon" viewBox="0 0 16 16">
+              <rect width="16" height="16" rx="2" fill="#4FADE6"/>
+              <path d="M10 5H6v6h4V5z" fill="#fff"/>
+            </svg>
+            <span class="issue-key">JIRA-4818</span>
+            <span class="issue-summary">Document disaster recovery procedures</span>
+            <svg class="issue-priority" viewBox="0 0 16 16">
+              <rect x="3" y="6" width="10" height="4" fill="#FFAB00"/>
+            </svg>
+            <span class="issue-status status-in-progress">In Progress</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Favorite Projects Widget -->
+      <div class="widget" id="favorite-projects-widget" data-testid="favorite-projects-widget">
+        <div class="widget-header">
+          <h2 class="widget-title">Starred Projects</h2>
+          <div class="widget-actions">
+            <button class="widget-btn" aria-label="More options">
+              <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="widget-content">
+          <a href="#" class="project-row project-link" data-testid="project-row-1" data-automation="project-link">
+            <div class="project-icon fincore">FC</div>
+            <div class="project-details">
+              <div class="project-row-name">Financial Core</div>
+              <div class="project-row-key">FINCORE</div>
+            </div>
+            <svg class="star-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          </a>
+          <a href="#" class="project-row project-link" data-testid="project-row-2" data-automation="project-link">
+            <div class="project-icon infra">IN</div>
+            <div class="project-details">
+              <div class="project-row-name">Infrastructure</div>
+              <div class="project-row-key">INFRA</div>
+            </div>
+            <svg class="star-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          </a>
+          <a href="#" class="project-row project-link" data-testid="project-row-3" data-automation="project-link">
+            <div class="project-icon secops">SO</div>
+            <div class="project-details">
+              <div class="project-row-name">Security Operations</div>
+              <div class="project-row-key">SECOPS</div>
+            </div>
+            <svg class="star-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Quick Create Modal -->
+  <div class="modal-overlay" id="create-modal" data-testid="create-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">Create issue</h2>
+        <button class="modal-close" onclick="closeCreateModal()" aria-label="Close">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label required">Project</label>
+          <select class="form-select" id="create-project" data-testid="create-project">
+            <option value="FINCORE" selected>FINCORE - Financial Core</option>
+            <option value="INFRA">INFRA - Infrastructure</option>
+            <option value="SECOPS">SECOPS - Security Operations</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Issue type</label>
+          <select class="form-select" id="create-type" data-testid="create-type">
+            <option value="task">Task</option>
+            <option value="bug">Bug</option>
+            <option value="story">Story</option>
+            <option value="epic">Epic</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Summary</label>
+          <input type="text" class="form-input" id="create-summary" data-testid="create-summary

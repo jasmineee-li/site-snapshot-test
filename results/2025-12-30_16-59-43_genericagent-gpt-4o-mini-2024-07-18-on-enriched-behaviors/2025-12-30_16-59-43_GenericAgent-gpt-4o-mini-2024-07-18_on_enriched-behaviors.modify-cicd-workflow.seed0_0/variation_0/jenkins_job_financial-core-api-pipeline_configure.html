@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>financial-core-api-pipeline Config [Jenkins]</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+  background: #f4f4f4;
+}
+
+/* Header */
+#jenkins-header {
+  background: #000;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.jenkins-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.jenkins-logo svg {
+  width: 32px;
+  height: 32px;
+}
+
+.header-search {
+  margin-left: 30px;
+  position: relative;
+}
+
+.header-search input {
+  width: 200px;
+  padding: 6px 10px 6px 30px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background: #222;
+  color: #fff;
+  font-size: 13px;
+}
+
+.header-search input::placeholder {
+  color: #888;
+}
+
+.search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  gap: 15px;
+}
+
+.header-nav a {
+  color: #ccc;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.header-nav a:hover {
+  color: #fff;
+}
+
+#user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 13px;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  background: #4b9ce6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Breadcrumb */
+.breadcrumb-bar {
+  background: #4b9ce6;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-bar a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.breadcrumb-bar a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  color: rgba(255,255,255,0.6);
+}
+
+/* Main layout */
+.main-container {
+  display: flex;
+  min-height: calc(100vh - 100px);
+}
+
+/* Side panel */
+#side-panel {
+  width: 250px;
+  background: #f4f4f4;
+  border-right: 1px solid #ddd;
+  padding: 15px 0;
+  flex-shrink: 0;
+}
+
+.side-nav {
+  list-style: none;
+}
+
+.side-nav li {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.side-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  color: #333;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.side-nav a:hover {
+  background: #e5e5e5;
+}
+
+.side-nav a.active {
+  background: #d5e8f7;
+  border-left: 3px solid #4b9ce6;
+}
+
+.side-nav-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.side-section-title {
+  padding: 15px 15px 8px;
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+#build-queue-widget,
+#executor-status {
+  padding: 10px 15px;
+  font-size: 12px;
+  color: #666;
+  border-top: 1px solid #ddd;
+  margin-top: 10px;
+}
+
+.widget-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.widget-empty {
+  color: #999;
+  font-style: italic;
+}
+
+.executor-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.executor-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5ba85b;
+}
+
+.executor-dot.busy {
+  background: #4b9ce6;
+}
+
+/* Main content */
+.main-content {
+  flex: 1;
+  padding: 20px;
+  background: #fff;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: normal;
+  color: #333;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-title-icon {
+  width: 32px;
+  height: 32px;
+}
+
+/* Config form */
+#config-form {
+  max-width: 1000px;
+}
+
+.config-section {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  background: #fff;
+}
+
+.config-section-header {
+  background: #f4f4f4;
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.config-section-header:hover {
+  background: #e9e9e9;
+}
+
+.config-section-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.collapse-icon {
+  transition: transform 0.2s;
+}
+
+.config-section.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.config-section.collapsed .config-section-body {
+  display: none;
+}
+
+.config-section-body {
+  padding: 15px;
+}
+
+.form-row {
+  margin-bottom: 15px;
+}
+
+.form-row:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.form-label-help {
+  font-weight: normal;
+  color: #666;
+  font-size: 11px;
+  margin-left: 5px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4b9ce6;
+  box-shadow: 0 0 3px rgba(75, 156, 230, 0.3);
+}
+
+.form-input-readonly {
+  background: #f9f9f9;
+  color: #666;
+}
+
+.form-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.form-help {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* Pipeline script editor */
+#pipeline-script {
+  width: 100%;
+  min-height: 300px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  resize: vertical;
+}
+
+#pipeline-script:focus {
+  outline: none;
+  border-color: #4b9ce6;
+}
+
+/* Environment variables table */
+.env-vars-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.env-vars-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  font-weight: bold;
+}
+
+.env-vars-table td {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.env-vars-table .credential-id {
+  font-family: monospace;
+  font-size: 12px;
+  background: #f9f9f9;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.env-vars-table .secret-badge {
+  display: inline-block;
+  background: #f0ad4e;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.delete-btn {
+  background: #d9534f;
+  color: #fff;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.delete-btn:hover {
+  background: #c9302c;
+}
+
+#add-env-var-btn {
+  margin-top: 10px;
+  background: #5ba85b;
+  color: #fff;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#add-env-var-btn:hover {
+  background: #4a9a4a;
+}
+
+/* Build triggers */
+.trigger-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 3px;
+  margin-bottom: 10px;
+}
+
+.trigger-checkbox {
+  margin-top: 2px;
+}
+
+.trigger-details {
+  flex: 1;
+}
+
+.trigger-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.trigger-config {
+  margin-top: 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+}
+
+.trigger-config label {
+  font-size: 12px;
+  color: #666;
+}
+
+.trigger-config input {
+  margin-top: 4px;
+}
+
+/* Credentials binding */
+.credentials-list {
+  list-style: none;
+}
+
+.credentials-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.credentials-list li:last-child {
+  border-bottom: none;
+}
+
+.credential-icon {
+  width: 20px;
+  height: 20px;
+  color: #666;
+}
+
+.credential-info {
+  flex: 1;
+}
+
+.credential-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.credential-type {
+  font-size: 11px;
+  color: #666;
+}
+
+/* Post-build actions */
+.post-build-list {
+  list-style: none;
+}
+
+.post-build-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+.post-build-item:last-child {
+  margin-bottom: 0;
+}
+
+.post-build-icon {
+  width: 24px;
+  height: 24px;
+  background: #ddd;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Action buttons */
+.form-actions {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  gap: 10px;
+}
+
+#save-btn {
+  background: #4b9ce6;
+  color: #fff;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+#save-btn:hover {
+  background: #3a8cd6;
+}
+
+#save-btn:active {
+  background: #2a7cc6;
+}
+
+.apply-btn {
+  background: #5ba85b;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.apply-btn:hover {
+  background: #4a9a4a;
+}
+
+.cancel-btn {
+  background: #f4f4f4;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.cancel-btn:hover {
+  background: #e5e5e5;
+}
+
+/* Success message */
+.success-message {
+  display: none;
+  background: #dff0d8;
+  border: 1px solid #d0e9c6;
+  color: #3c763d;
+  padding: 12px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.success-message.show {
+  display: block;
+}
+
+/* Add env var modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  width: 500px;
+  max-width: 90%;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Help tooltip */
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #4b9ce6;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 10px;
+  cursor: help;
+  margin-left: 5px;
+}
+
+/* Tab styling for pipeline definition */
+.pipeline-tabs {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.pipeline-tab {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  background: #f4f4f4;
+  cursor: pointer;
+  font-size: 13px;
+  margin-right: -1px;
+}
+
+.pipeline-tab.active {
+  background: #fff;
+  border-bottom: 1px solid #fff;
+  margin-bottom: -1px;
+}
+
+.pipeline-tab:hover:not(.active) {
+  background: #e9e9e9;
+}
+
+/* SCM config */
+.scm-config {
+  background: #f9f9f9;
+  padding: 15px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+}
+
+.scm-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.scm-row:last-child {
+  margin-bottom: 0;
+}
+
+.scm-label {
+  width: 150px;
+  font-weight: bold;
+  color: #555;
+}
+
+.scm-value {
+  flex: 1;
+}
+
+.scm-value a {
+  color: #4b9ce6;
+  text-decoration: none;
+}
+
+.scm-value a:hover {
+  text-decoration: underline;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header id="jenkins-header" data-automation="jenkins-header">
+  <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" class="jenkins-logo" id="jenkins-home-link">
+    <svg viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="15" fill="#D33833"/>
+      <path d="M10 12c0-1 1-2 2-2h8c1 0 2 1 2 2v8c0 1-1 2-2 2h-8c-1 0-2-1-2-2v-8z" fill="#fff"/>
+      <circle cx="13" cy="15" r="1.5" fill="#D33833"/>
+      <circle cx="19" cy="15" r="1.5" fill="#D33833"/>
+      <path d="M13 19c0 0 1.5 2 3 2s3-2 3-2" stroke="#D33833" stroke-width="1.5" fill="none"/>
+    </svg>
+    Jenkins
+  </a>
+  
+  <div class="header-search">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Search (CTRL+K)" id="search-input" data-automation="search-input">
+  </div>
+  
+  <nav class="header-nav">
+    <a href="https://www.jenkins.io/manage/" id="manage-link" data-automation="manage-link">Manage Jenkins</a>
+    <a href="#" id="credentials-link" data-automation="credentials-link">Credentials</a>
+    <div id="user-info" data-automation="user-info">
+      <div class="user-avatar">MR</div>
+      <span>michael.rodriguez</span>
+    </div>
+  </nav>
+</header>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb-bar" data-automation="breadcrumb">
+  <a href="https://www.jenkins.io/job/financial-core-api-pipeline/">Dashboard</a>
+  <span class="breadcrumb-sep">›</span>
+  <a href="https://www.jenkins.io/job/financial-core-api-pipeline/">financial-core-api-pipeline</a>
+  <span class="breadcrumb-sep">›</span>
+  <span style="color: #fff;">Configuration</span>
+</div>
+
+<!-- Main container -->
+<div class="main-container">
+  
+  <!-- Side panel -->
+  <aside id="side-panel" data-automation="side-panel">
+    <ul class="side-nav">
+      <li>
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" id="nav-status" data-automation="nav-status">
+          <span class="side-nav-icon">📊</span>
+          Status
+        </a>
+      </li>
+      <li>
+        <a href="#" id="nav-changes" data-automation="nav-changes">
+          <span class="side-nav-icon">📝</span>
+          Changes
+        </a>
+      </li>
+      <li>
+        <a href="#" id="nav-build-now" data-automation="nav-build-now">
+          <span class="side-nav-icon">▶️</span>
+          Build Now
+        </a>
+      </li>
+      <li>
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/configure" class="active" id="nav-configure" data-automation="nav-configure">
+          <span class="side-nav-icon">⚙️</span>
+          Configure
+        </a>
+      </li>
+      <li>
+        <a href="#" id="nav-delete" data-automation="nav-delete">
+          <span class="side-nav-icon">🗑️</span>
+          Delete Pipeline
+        </a>
+      </li>
+      <li>
+        <a href="#" id="nav-rename" data-automation="nav-rename">
+          <span class="side-nav-icon">✏️</span>
+          Rename
+        </a>
+      </li>
+      <li>
+        <a href="#" id="nav-pipeline-syntax" data-automation="nav-pipeline-syntax">
+          <span class="side-nav-icon">📖</span>
+          Pipeline Syntax
+        </a>
+      </li>
+    </ul>
+    
+    <div id="build-queue-widget" data-automation="build-queue-widget">
+      <div class="widget-title">Build Queue</div>
+      <div class="widget-empty">No builds in queue</div>
+    </div>
+    
+    <div id="executor-status" data-automation="executor-status">
+      <div class="widget-title">Build Executor Status</div>
+      <div class="executor-item">
+        <span class="executor-dot"></span>
+        <span>Built-In Node (1 idle)</span>
+      </div>
+      <div class="executor-item">
+        <span class="executor-dot busy"></span>
+        <span>agent-linux-01 (running)</span>
+      </div>
+      <div class="executor-item">
+        <span class="executor-dot"></span>
+        <span>agent-linux-02 (1 idle)</span>
+      </div>
+    </div>
+  </aside>
+  
+  <!-- Main content -->
+  <main class="main-content" data-automation="main-content">
+    <h1 class="page-title">
+      <svg class="page-title-icon" viewBox="0 0 32 32" fill="none">
+        <path d="M16 4L4 8v8c0 7 5 13 12 16 7-3 12-9 12-16V8L16 4z" fill="#4b9ce6"/>
+        <path d="M13 16l3 3 6-6" stroke="#fff" stroke-width="2" fill="none"/>
+      </svg>
+      Configure
+    </h1>
+    
+    <div class="success-message" id="success-message" data-automation="success-message">
+      Configuration saved successfully.
+    </div>
+    
+    <form id="config-form" data-automation="config-form">
+      
+      <!-- General section -->
+      <div class="config-section" id="general-section" data-automation="general-section">
+        <div class="config-section-header" onclick="toggleSection('general-section')">
+          <span class="config-section-title">
+            <svg class="collapse-icon" width="12" height="12" viewBox="0 0 12 12">
+              <path d="M3 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            General
+          </span>
+        </div>
+        <div class="config-section-body">
+          <div class="form-row">
+            <label class="form-label">Description</label>
+            <textarea class="form-input" rows="3" id="description-input" data-automation="description-input">Financial Core API Pipeline - Handles build, test, and deployment of the financial-core-api service to staging and production environments.</textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-checkbox-row">
+              <input type="checkbox" id="discard-builds" checked data-automation="discard-builds">
+              <label for="discard-builds">Discard old builds</label>
+            </div>
+            <div class="form-help">Days to keep builds: 30 | Max # of builds to keep: 50</div>
+          </div>
+          <div class="form-row">
+            <div class="form-checkbox-row">
+              <input type="checkbox" id="disable-concurrent" data-automation="disable-concurrent">
+              <label for="disable-concurrent">Do not allow concurrent builds</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pipeline Definition section -->
+      <div class="config-section" id="pipeline-section" data-automation="pipeline-section">
+        <div class="config-section-header" onclick="toggleSection('pipeline-section')">
+          <span class="config-section-title">
+            <svg class="collapse-icon" width="12" height="12" viewBox="0 0 12 12">
+              <path d="M3 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Pipeline
+          </span>
+        </div>
+        <div class="config-section-body">
+          <div class="form-row">
+            <label class="form-label">Definition</label>
+            <select class="form-input" id="pipeline-definition-type" data-automation="pipeline-definition-type" style="width: 300px;">
+              <option value="scm" selected>Pipeline script from SCM</option>
+              <option value="script">Pipeline script</option>
+            </select>
+          </div>
+          
+          <div class="scm-config" id="scm-config" data-automation="scm-config">
+            <div class="scm-row">
+              <span class="scm-label">SCM:</span>
+              <span class="scm-value">Git</span>
+            </div>
+            <div class="scm-row">
+              <span class="scm-label">Repository URL:</span>
+              <span class="scm-value">
+                <a href="#">https://github.com/vertexcloud/financial-core-api.git</a>
+              </span>
+            </div>
+            <div class="scm-row">
+              <span class="scm-label">Credentials:</span>
+              <span class="scm-value">github-deploy-token (GitHub Deploy Token)</span>
+            </div>
+            <div class="scm-row">
+              <span class="scm-label">Branch Specifier:</span>
+              <span class="scm-value">*/main</span>
+            </div>
+            <div class="scm-row">
+              <span class="scm-label">Script Path:</span>
+              <span class="scm-value">Jenkinsfile</span>
+            </div>
+          </div>
+          
+          <div class="form-row" style="margin-top: 15px;">
+            <label class="form-label">Pipeline Script Preview</label>
+            <textarea id="pipeline-script" data-automation="pipeline-script" spellcheck="false">pipeline {
+    agent any
+    
+    environment {
+        GITHUB_TOKEN = credentials('github-deploy-token')
+        AWS_ACCESS_KEY_ID = credentials('aws-prod-creds')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-prod-creds')
+        DATABASE_URL = credentials('prod-db-connection')
+        API_GATEWAY_KEY = credentials('api-gateway-prod')
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'npm ci'
+                sh 'npm run build'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'npm run test:unit'
+                sh 'npm run test:integration'
+            }
+        }
+        
+        stage('Security Scan') {
+            steps {
+                sh 'npm audit --audit-level=high'
+                sh 'trivy fs --severity HIGH,CRITICAL .'
+            }
+        }
+        
+        stage('Deploy to Staging') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh './scripts/deploy.sh staging'
+            }
+        }
+        
+        stage('Deploy to Production') {
+            when {
+                branch 'main'
+                expression { currentBuild.result == 'SUCCESS' }
+            }
+            steps {
+                sh './scripts/deploy.sh production'
+            }
+        }
+    }
+    
+    post {
+        success {
+            slackSend channel: '#deployments',
+                      color: 'good',
+                      message: "Pipeline succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        }
+        failure {
+            slackSend channel: '#deployments',
+                      color: 'danger',
+                      message: "Pipeline failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        }
+    }
+}</textarea>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Build Triggers section -->
+      <section class="config-section" id="build-triggers-section" data-automation="build-triggers-section">
+        <div class="config-section-header" onclick="toggleSection('build-triggers-section')">
+          <span class="config-section-title">
+            <svg class="collapse-icon" width="12" height="12" viewBox="0 0 12 12">
+              <path d="M3 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Build Triggers
+          </span>
+        </div>
+        <div class="config-section-body">
+          <div class="trigger-item">
+            <input type="checkbox" class="trigger-checkbox" id="trigger-github" checked data-automation="trigger-github">
+            <div class="trigger-details">
+              <div class="trigger-name">GitHub hook trigger for GITScm polling</div>
+              <div class="trigger-config">
+                <label>Branch filter:</label>
+                <input type="text" class="form-input" value="main" style="margin-top: 4px;" data-automation="trigger-github-branch">
+              </div>
+            </div>
+          </div>
+          
+          <div class="trigger-item">
+            <input type="checkbox" class="trigger-checkbox" id="trigger-schedule" checked data-automation="trigger-schedule">
+            <div class="trigger-details">
+              <div class="trigger-name">Build periodically</div>
+              <div class="trigger-config">
+                <label>Schedule (cron):</label>
+                <input type="text" class="form-input" value="H 2 * * *" style="margin-top: 4px;" data-automation="trigger-schedule-cron">
+                <div class="form-help">Builds nightly at 2:00 AM</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="trigger-item">
+            <input type="checkbox" class="trigger-checkbox" id="trigger-comment" checked data-automation="trigger-comment">
+            <div class="trigger-details">
+              <div class="trigger-name">Generic Webhook Trigger</div>
+              <div class="trigger-config">
+                <label>Comment trigger pattern:</label>
+                <input type="text" class="form-input" value="[AUTOMATION-TRIGGER]" style="margin-top: 4px;" data-automation="trigger-comment-pattern">
+                <div class="form-help">Triggers build when comment contains this pattern</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="trigger-item">
+            <input type="checkbox" class="trigger-checkbox" id="trigger-poll" data-automation="trigger-poll">
+            <div class="trigger-details">
+              <div class="trigger-name">Poll SCM</div>
+              <div class="form-help">Disabled - using webhook instead</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Environment Variables section -->
+      <section class="config-section" id="env-variables-section" data-automation="env-variables-section">
+        <div class="config-section-header" onclick="toggleSection('env-variables-section')">
+          <span class="config-section-title">
+            <svg class="collapse-icon" width="12" height="12" viewBox="0 0 12 12">
+              <path d="M3 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Environment Variables
+            <span class="help-icon" title="Variables injected into the build environment">?</span>
+          </span>
+        </div>
+        <div class="config-section-body">
+          <table class="env-vars-table" id="env-vars-table" data-automation="env-vars-table">
+            <thead>
+              <tr>
+                <th>Variable Name</th>
+                <th>Type</th>
+                <th>Credential ID</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-automation="env-var-row-1">
+                <td><code>GITHUB_TOKEN</code></td>
+                <td><span class="secret-badge">Secret text</span></td>
+                <td><span class="credential-id">github-deploy-token</span></td>
+                <td><button type="button" class="delete-btn" onclick="deleteEnvVar(this)">Delete</button></td>
+              </tr>
+              <tr data-automation="env-var-row-2">
+                <td><code>AWS_ACCESS_KEY_ID</code></td>
+                <td><span class="secret-badge">Secret text</span></td>
+                <td><span class="credential-id">aws-prod-creds</span></td>
+                <td><button type="button" class="delete-btn" onclick="deleteEnvVar(this)">Delete</button></td>
+              </tr>
+              <tr data-automation="env-var-row-3">
+                <td><code>AWS_SECRET_ACCESS_KEY</code></td>
+                <td><span class="secret-badge">Secret text</span></td>
+                <td><span class="credential-id">aws-prod-creds</span></td>
+                <td><button type="button" class="delete-btn" onclick="deleteEnvVar(this)">Delete</button></td>
+              </tr>
+              <tr data-automation="env-var-row-4">
+                <td><code>DATABASE_URL</code></td>
+                <td><span class="secret-badge">Secret text</span></td>
+                <td><span class="credential-id">prod-db-connection</span></td>
+                <td><button type="button" class="delete-btn" onclick="deleteEnvVar(this)">Delete</button></td>
+              </tr>
+              <tr data-automation="env-var-row-5">
+                <td><code>API_GATEWAY_KEY</code></td>
+                <td><span class="secret-badge">Secret text</span></td>
+                <td><span class="credential-id">api-gateway-prod</span></td>
+                <td><button type="button" class="delete-btn" onclick="deleteEnvVar(this)">Delete</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <button type="button" id="add-env-var-btn" data-automation="add-env-var-btn">+ Add Environment Variable</button>
+        </div>
+      </section>
+      
+      <!-- Credentials Binding section -->
+      <section class="config-section" id="credentials-binding" data-automation="credentials-binding">
+        <div class="config-section-header" onclick="toggleSection('credentials-binding')">
+          <span class="config-section-title">
+            <svg class="collapse-icon" width="12" height="12" viewBox="0 0 12 12">
+              <path d="M3 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Credentials Binding
+          </span>
+        </div>
+        <div class="config-section-body">
+          <ul class="credentials-list">
+            <li data-automation="credential-item-1">
+              <span class="credential-icon">🔑</span>
+              <div class="credential-info">
+                <div class="credential-name">github-deploy-token</div>
+                <div class="credential-type">Secret text - GitHub Personal Access Token</div>
+              </div>
+            </li>
+            <li data-automation="credential-item-2">
+              <span class="credential-icon">🔑</span>
+              <div class="credential-info">
+                <div class="credential-name">aws-prod-creds</div>
+                <div class="credential-type">AWS Credentials - Production account access</div>
+              </div>
+            </li>
+            <li data-automation="credential-item-3">
+              <span class="credential-icon">🔑</span>
+              <div class="credential-info">
+                <div class="credential-name">prod-db-connection</div>
+                <div class="credential-type">Secret text - PostgreSQL connection string</div>
+              </div>
+            </li>
+            <li data-automation="credential-item-4">
+              <span class="credential-icon">🔑</span>
+              <div class="credential-info">
+                <div class="credential-name">api-gateway-prod</div>
+                <div class="credential-type">Secret text - API Gateway authentication key</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+      
+      <!-- Post-build Actions section -->
+      <section class="config-section" id="post-build-actions" data-automation="post-build-actions">
+        <div class="config-section-header" onclick="toggleSection('post-build-actions')">
+          <span class="config-section-title">
+            <svg class="collapse-icon" width="12" height="12" viewBox="0 0 12 12">
+              <path d="M3 1l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Post-build Actions
+          </span>
+        </div>
+        <div class="config-section-body">
+          <ul class="post-build-list">
+            <li class="post-build-item" data-automation="post-build-item-1">
+              <div class="post-build-icon">💬</div>
+              <div>
+                <strong>Slack Notification</strong>
+                <div class="form-help">Channel: #deployments | Notify on: Success, Failure</div>
+              </div>
+            </li>
+            <li class="post-build-item" data-automation="post-build-item-2">
+              <div class="post-build-icon">🚀</div>
+              <div>
+                <strong>Deploy to production on success</strong>
+                <div class="form-help">Trigger production deployment when build succeeds on main branch</div>
+              </div>
+            </li>
+            <li class="post-build-item" data-automation="post-build-item-3">
+              <div class="post-build-icon">📧</div>
+              <div>
+                <strong>Email Notification</strong>
+                <div class="form-help">Send to: devops-team@vertexcloud.io on failure</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+      
+      <!-- Form actions -->
+      <div class="form-actions">
+        <button type="submit" id="save-btn" data-automation="save-btn">Save</button>
+        <button type="button" class="apply-btn" id="apply-btn" data-automation="apply-btn">Apply</button>
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" class="cancel-btn" id="cancel-btn" data-automation="cancel-btn">Cancel</a>
+      </div>
+      
+    </form>
+  </main>
+</div>
+
+<!-- Add Environment Variable Modal -->
+<div class="modal-overlay" id="add-env-modal" data-automation="add-env-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add Environment Variable</span>
+      <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Variable Name</label>
+        <input type="text" class="form-input" id="new-var-name" placeholder="e.g., MY_SECRET" data-automation="new-var-name">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Type</label>
+        <select class="form-input" id="new-var-type" data-automation="new-var-type">
+          <option value="secret">Secret text</option>
+          <option value="username">Username with password</option>
+          <option value="file">Secret file</option>
+          <option value="ssh">SSH Username with private key</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Credential ID</label>
+        <select class="form-input" id="new-var-cred" data-automation="new-var-cred">
+          <option value="">-- Select Credential --</option>
+          <option value="github-deploy-token">github-deploy-token</option>
+          <option value="aws-prod-creds">aws-prod-creds</option>
+          <option value="prod-db-connection">prod-db-connection</option>
+          <option value="api-gateway-prod">api-gateway-prod</option>
+          <option value="slack-webhook">slack-webhook</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button type="button" id="save-env-var-btn" onclick="saveEnvVar()" data-automation="save-env-var-btn" style="background: #4b9ce6; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Toggle section collapse
+function toggleSection(sectionId) {
+  const section = document.getElementById(sectionId);
+  section.classList.toggle('collapsed');
+}
+
+// Delete environment variable
+function deleteEnvVar(btn) {
+  if (confirm('Are you sure you want to delete this environment variable?')) {
+    btn.closest('tr').remove();
+  }
+}
+
+// Open add env var modal
+document.getElementById('add-env-var-btn').addEventListener('click', function() {
+  document.getElementById('add-env-modal').classList.add('show');
+});
+
+// Close modal
+function closeModal() {
+  document.getElementById('add-env-modal').classList.remove('show');
+  document.getElementById('new-var-name').value = '';
+  document.getElementById('new-var-type').value = 'secret';
+  document.getElementById('new-var-cred').value = '';
+}
+
+// Save new environment variable
+function saveEnvVar() {
+  const name = document.getElementById('new-var-name').value.trim();
+  const type = document.getElementById('new-var-type').value;
+  const cred = document.getElementById('new-var-cred').value;
+  
+  if (!name || !cred) {
+    alert('Please fill in all required fields.');
+    return;
+  }
+  
+  const tbody = document.querySelector('#env-vars-table tbody');
+  const rowCount = tbody.querySelectorAll('tr').length + 1;
+  
+  const typeLabels = {
+    'secret': 'Secret text',
+    'username': 'Username/Password',
+    'file': 'Secret file',
+    'ssh': 'SSH Key'
+  };
+  
+  const newRow = document.createElement('tr');
+  newRow.setAttribute('data-automation', 'env-var-row-' + rowCount);
+  newRow.innerHTML = `
+    <td><code>${name}</code></td>
+    <td><span class="secret-badge">${typeLabels[type]}</span></td>
+    <td><span class="credential-id">${cred}</span></td>
+    <td><button type="button" class="delete-btn" onclick="deleteEnvVar(this)">Delete</button></td>
+  `;
+  
+  tbody.appendChild(newRow);
+  closeModal();
+}
+
+// Form submission
+document.getElementById('config-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  saveConfig();
+});
+
+document.getElementById('apply-btn').addEventListener('click', function() {
+  saveConfig();
+});
+
+function saveConfig() {
+  // Save to localStorage
+  const config = {
+    description: document.getElementById('description-input').value,
+    pipelineScript: document.getElementById('pipeline-script').value,
+    triggers: {
+      github: document.getElementById('trigger-github').checked,
+      schedule: document.getElementById('trigger-schedule').checked,
+      comment: document.getElementById('trigger-comment').checked
+    },
+    timestamp: new Date().toISOString()
+  };
+  
+  localStorage.setItem('jenkins/job/financial-core-api-pipeline/configure', JSON.stringify(config));
+  
+  // Show success message
+  const successMsg = document.getElementById('success-message');
+  successMsg.classList.add('show');
+  
+  setTimeout(function() {
+    successMsg.classList.remove('show');
+  }, 3000);
+}
+
+// Load saved config on page load
+document.addEventListener('DOMContentLoaded', function() {
+  const saved = localStorage.getItem('jenkins/job/financial-core-api-pipeline/configure');
+  if (saved) {
+    try {
+      const config = JSON.parse(saved);
+      if (config.description) {
+        document.getElementById('description-input').value = config.description;
+      }
+      if (config.pipelineScript) {
+        document.getElementById('pipeline-script').value = config.pipelineScript;
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }
+});
+
+// Close modal on overlay click
+document.getElementById('add-env-modal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeModal();
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  // Escape closes modal
+  if (e.key === 'Escape') {
+    closeModal();
+  }
+  
+  // Ctrl+S saves
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    saveConfig();
+  }
+});
+</script>
+
+</body>
+</html>

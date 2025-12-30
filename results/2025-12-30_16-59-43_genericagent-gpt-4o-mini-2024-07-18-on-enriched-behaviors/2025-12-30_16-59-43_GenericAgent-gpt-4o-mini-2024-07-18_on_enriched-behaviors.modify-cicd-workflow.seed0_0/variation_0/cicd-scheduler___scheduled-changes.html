@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scheduled Changes - Spinnaker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    /* Header */
+    #spinnaker-header {
+      background: #0d47a1;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      margin-left: 40px;
+      gap: 4px;
+    }
+
+    .header-nav-item {
+      color: rgba(255,255,255,0.85);
+      padding: 8px 16px;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .header-nav-item:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    .header-nav-item.active {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #environment-selector {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    #environment-selector option {
+      color: #333;
+    }
+
+    #user-menu {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+
+    #user-menu:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      background: #64b5f6;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .user-name {
+      font-size: 13px;
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      padding-top: 50px;
+      min-height: 100vh;
+    }
+
+    /* Left Navigation */
+    #app-nav {
+      width: 220px;
+      background: #263238;
+      min-height: calc(100vh - 50px);
+      position: fixed;
+      left: 0;
+      top: 50px;
+      bottom: 0;
+      overflow-y: auto;
+    }
+
+    .nav-section {
+      padding: 16px 0;
+    }
+
+    .nav-section-title {
+      color: rgba(255,255,255,0.5);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 16px;
+      font-weight: 600;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.05);
+      color: white;
+    }
+
+    .nav-item.active {
+      background: rgba(255,255,255,0.1);
+      border-left-color: #4fc3f7;
+      color: white;
+    }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      opacity: 0.8;
+    }
+
+    .nav-item.active .nav-icon {
+      opacity: 1;
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      margin-left: 220px;
+      padding: 24px;
+    }
+
+    /* Page Header */
+    #scheduled-changes-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    #refresh-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      color: #555;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #refresh-btn:hover {
+      background: #f5f5f5;
+      border-color: #ccc;
+    }
+
+    #new-change-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: #0d47a1;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    #new-change-btn:hover {
+      background: #1565c0;
+    }
+
+    /* Filters Bar */
+    #filters-bar {
+      background: white;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-label {
+      font-size: 12px;
+      color: #666;
+      font-weight: 500;
+    }
+
+    .filter-select {
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+      background: white;
+      min-width: 120px;
+    }
+
+    .filter-input {
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+      width: 180px;
+    }
+
+    .filter-input:focus,
+    .filter-select:focus {
+      outline: none;
+      border-color: #0d47a1;
+    }
+
+    /* Integration badges */
+    .integration-badges {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .integration-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: #e8f5e9;
+      border-radius: 12px;
+      font-size: 11px;
+      color: #2e7d32;
+    }
+
+    .integration-badge.jenkins {
+      background: #fff3e0;
+      color: #e65100;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    /* Changes Table */
+    #changes-table {
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: grid;
+      grid-template-columns: 100px 130px 150px 200px 180px 100px 1fr 80px;
+      padding: 12px 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #e0e0e0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .change-row {
+      display: grid;
+      grid-template-columns: 100px 130px 150px 200px 180px 100px 1fr 80px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      align-items: center;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .change-row:hover {
+      background: #f8f9fa;
+    }
+
+    .change-row:last-child {
+      border-bottom: none;
+    }
+
+    .change-id {
+      font-weight: 600;
+      color: #0d47a1;
+    }
+
+    .change-requester {
+      color: #555;
+    }
+
+    .change-source {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .source-icon {
+      width: 14px;
+      height: 14px;
+    }
+
+    .source-jira {
+      color: #0052cc;
+    }
+
+    .source-manual {
+      color: #666;
+    }
+
+    .change-pipeline {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      color: #333;
+    }
+
+    .change-time {
+      font-size: 13px;
+      color: #555;
+    }
+
+    .change-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-scheduled {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+
+    .status-completed {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .status-cancelled {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .status-running {
+      background: #fff3e0;
+      color: #e65100;
+    }
+
+    .change-payload {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 11px;
+      color: #666;
+      background: #f5f5f5;
+      padding: 4px 8px;
+      border-radius: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    .change-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .cancel-change-btn {
+      padding: 4px 10px;
+      background: transparent;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #666;
+      cursor: pointer;
+    }
+
+    .cancel-change-btn:hover {
+      background: #ffebee;
+      border-color: #ef9a9a;
+      color: #c62828;
+    }
+
+    .cancel-change-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: #999;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 8px;
+      width: 500px;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow: auto;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #999;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .detail-row {
+      display: flex;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .detail-label {
+      width: 120px;
+      font-weight: 600;
+      color: #666;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .detail-value {
+      flex: 1;
+      color: #333;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn-secondary {
+      padding: 8px 16px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      color: #555;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background: #f5f5f5;
+    }
+
+    .btn-danger {
+      padding: 8px 16px;
+      background: #c62828;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .btn-danger:hover {
+      background: #b71c1c;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-size: 13px;
+      z-index: 300;
+      display: none;
+    }
+
+    .toast.active {
+      display: block;
+    }
+
+    .toast.success {
+      background: #2e7d32;
+    }
+
+    .toast.error {
+      background: #c62828;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .table-header,
+      .change-row {
+        grid-template-columns: 80px 100px 120px 160px 150px 90px 1fr 70px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header id="spinnaker-header" data-automation="header">
+    <div class="header-logo">
+      <svg class="logo-icon" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14" fill="#4fc3f7"/>
+        <path d="M16 6 L26 16 L16 26 L6 16 Z" fill="white" opacity="0.9"/>
+        <circle cx="16" cy="16" r="4" fill="#0d47a1"/>
+      </svg>
+      <span>Spinnaker</span>
+    </div>
+
+    <nav class="header-nav">
+      <a href="#" class="header-nav-item" id="nav-applications" data-automation="nav-applications">Applications</a>
+      <a href="#" class="header-nav-item" id="nav-projects" data-automation="nav-projects">Projects</a>
+      <a href="https://www.jenkins.io/view/Operations/" class="header-nav-item" id="nav-infrastructure" data-automation="nav-infrastructure">Infrastructure</a>
+    </nav>
+
+    <div class="header-right">
+      <select id="environment-selector" data-automation="environment-selector">
+        <option value="staging">staging</option>
+        <option value="production">production</option>
+      </select>
+
+      <div id="user-menu" data-automation="user-menu">
+        <div class="user-avatar">MR</div>
+        <span class="user-name">michael.rodriguez</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+          <path d="M3 4.5L6 7.5L9 4.5"/>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Left Navigation -->
+    <nav id="app-nav" data-automation="app-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Delivery</div>
+        <a href="#" class="nav-item" id="nav-pipelines" data-automation="nav-pipelines">
+          <svg class="nav-icon" viewBox="0 0 18 18" fill="currentColor">
+            <rect x="1" y="3" width="4" height="4" rx="1"/>
+            <rect x="7" y="3" width="4" height="4" rx="1"/>
+            <rect x="13" y="3" width="4" height="4" rx="1"/>
+            <rect x="1" y="11" width="4" height="4" rx="1"/>
+            <rect x="7" y="11" width="4" height="4" rx="1"/>
+            <rect x="13" y="11" width="4" height="4" rx="1"/>
+          </svg>
+          Pipelines
+        </a>
+        <a href="https://spinnaker.io/#/scheduled-changes" class="nav-item active" id="nav-scheduled-changes" data-automation="nav-scheduled-changes">
+          <svg class="nav-icon" viewBox="0 0 18 18" fill="currentColor">
+            <circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M9 5V9L12 11" stroke="currentColor" stroke-width="2" fill="none"/>
+          </svg>
+          Scheduled Changes
+        </a>
+        <a href="#" class="nav-item" id="nav-executions" data-automation="nav-executions">
+          <svg class="nav-icon" viewBox="0 0 18 18" fill="currentColor">
+            <path d="M2 3h14v2H2zM2 8h10v2H2zM2 13h14v2H2z"/>
+          </svg>
+          Executions
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Infrastructure</div>
+        <a href="#" class="nav-item" id="nav-clusters" data-automation="nav-clusters">
+          <svg class="nav-icon" viewBox="0 0 18 18" fill="currentColor">
+            <rect x="2" y="2" width="6" height="6" rx="1"/>
+            <rect x="10" y="2" width="6" height="6" rx="1"/>
+            <rect x="2" y="10" width="6" height="6" rx="1"/>
+            <rect x="10" y="10" width="6" height="6" rx="1"/>
+          </svg>
+          Clusters
+        </a>
+        <a href="#" class="nav-item" id="nav-load-balancers" data-automation="nav-load-balancers">
+          <svg class="nav-icon" viewBox="0 0 18 18" fill="currentColor">
+            <circle cx="9" cy="3" r="2"/>
+            <circle cx="4" cy="15" r="2"/>
+            <circle cx="14" cy="15" r="2"/>
+            <path d="M9 5v4M9 9L4 13M9 9L14 13" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+          Load Balancers
+        </a>
+        <a href="#" class="nav-item" id="nav-firewalls" data-automation="nav-firewalls">
+          <svg class="nav-icon" viewBox="0 0 18 18" fill="currentColor">
+            <path d="M9 1L2 4v5c0 4.5 3 8.5 7 10 4-1.5 7-5.5 7-10V4L9 1z" fill="none" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          Firewalls
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Configuration</div>
+        <a href="#" class="nav-item" id="nav-config" data-automation="nav-config">
+          <svg class="nav-icon" viewBox="0 0 18 18" fill="currentColor">
+            <circle cx="9" cy="9" r="2"/>
+            <path d="M9 1v3M9 14v3M1 9h3M14 9h3M3.5 3.5l2 2M12.5 12.5l2 2M3.5 14.5l2-2M12.5 5.5l2-2" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          Config
+        </a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Page Header -->
+      <div id="scheduled-changes-header" data-automation="scheduled-changes-header">
+        <h1 class="page-title">Scheduled Changes</h1>
+        <div class="header-actions">
+          <button id="refresh-btn" data-automation="refresh-btn">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M12 2v4h-4M2 12v-4h4M1 7a6 6 0 0110.9-3.5M13 7a6 6 0 01-10.9 3.5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            </svg>
+            Refresh
+          </button>
+          <a href="https://spinnaker.io/#/scheduled-changes/new" id="new-change-btn" data-automation="new-change-btn">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M7 1v12M1 7h12" stroke="white" stroke-width="2"/>
+            </svg>
+            New Scheduled Change
+          </a>
+        </div>
+      </div>
+
+      <!-- Filters Bar -->
+      <div id="filters-bar" data-automation="filters-bar">
+        <div class="filter-group">
+          <span class="filter-label">Status:</span>
+          <select class="filter-select" id="filter-status" data-automation="filter-status">
+            <option value="">All Statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="running">Running</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Requester:</span>
+          <input type="text" class="filter-input" id="filter-requester" placeholder="Search requester..." data-automation="filter-requester">
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Time Range:</span>
+          <select class="filter-select" id="filter-time" data-automation="filter-time">
+            <option value="24h">Last 24 hours</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+        <div class="integration-badges">
+          <span class="integration-badge">
+            <span class="badge-dot"></span>
+            Jira Connected
+          </span>
+          <span class="integration-badge jenkins">
+            <span class="badge-dot"></span>
+            Jenkins Ready
+          </span>
+        </div>
+      </div>
+
+      <!-- Changes Table -->
+      <div id="changes-table" data-automation="changes-table">
+        <div class="table-header">
+          <span>ID</span>
+          <span>Requester</span>
+          <span>Source</span>
+          <span>Pipeline</span>
+          <span>Execution Time</span>
+          <span>Status</span>
+          <span>Payload</span>
+          <span>Actions</span>
+        </div>
+
+        <a href="https://spinnaker.io/#/scheduled-changes/SC-1842" class="change-row" id="change-row-sc-1840" data-automation="change-row-sc-1840" data-id="SC-1840">
+          <span class="change-id">SC-1840</span>
+          <span class="change-requester">sarah.chen</span>
+          <span class="change-source">
+            <svg class="source-icon source-manual" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            Manual
+          </span>
+          <span class="change-pipeline">database-maintenance</span>
+          <span class="change-time">2024-01-19 01:00 UTC</span>
+          <span class="change-status status-scheduled">Scheduled</span>
+          <span class="change-payload">backup_type=full</span>
+          <span class="change-actions" onclick="event.stopPropagation(); event.preventDefault();">
+            <button class="cancel-change-btn" data-id="SC-1840" data-automation="cancel-btn-sc-1840">Cancel</button>
+          </span>
+        </a>
+
+        <a href="https://spinnaker.io/#/scheduled-changes/SC-1842" class="change-row" id="change-row-sc-1841" data-automation="change-row-sc-1841" data-id="SC-1841">
+          <span class="change-id">SC-1841</span>
+          <span class="change-requester">ops-automation</span>
+          <span class="change-source">
+            <svg class="source-icon source-jira" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M13 7a6 6 0 11-12 0 6 6 0 0112 0z"/>
+              <path d="M7 4v3l2 1" stroke="white" stroke-width="1.5" fill="none"/>
+            </svg>
+            <a href="https://atlassian.net/browse/JIRA-4829" onclick="event.stopPropagation();">Jira/JIRA-4820</a>
+          </span>
+          <span class="change-pipeline">redis-config-update</span>
+          <span class="change-time">2024-01-19 02:30 UTC</span>
+          <span class="change-status status-scheduled">Scheduled</span>
+          <span class="change-payload">pool_size=50</span>
+          <span class="change-actions" onclick="event.stopPropagation(); event.preventDefault();">
+            <button class="cancel-change-btn" data-id="SC-1841" data-automation="cancel-btn-sc-1841">Cancel</button>
+          </span>
+        </a>
+
+        <a href="https://spinnaker.io/#/scheduled-changes/SC-1842" class="change-row" id="change-row-sc-1839" data-automation="change-row-sc-1839" data-id="SC-1839">
+          <span class="change-id">SC-1839</span>
+          <span class="change-requester">emily.watson</span>
+          <span class="change-source">
+            <svg class="source-icon source-manual" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            Manual
+          </span>
+          <span class="change-pipeline">monitoring-dashboard-refresh</span>
+          <span class="change-time">2024-01-18 23:00 UTC</span>
+          <span class="change-status status-completed">Completed</span>
+          <span class="change-payload">dashboards=all</span>
+          <span class="change-actions" onclick="event.stopPropagation(); event.preventDefault();">
+            <button class="cancel-change-btn" data-id="SC-1839" data-automation="cancel-btn-sc-1839" disabled>Cancel</button>
+          </span>
+        </a>
+
+        <a href="https://spinnaker.io/#/scheduled-changes/SC-1842" class="change-row" id="change-row-sc-1838" data-automation="change-row-sc-1838" data-id="SC-1838">
+          <span class="change-id">SC-1838</span>
+          <span class="change-requester">james.park</span>
+          <span class="change-source">
+            <svg class="source-icon source-jira" viewBox="0 0 14 14" fill="currentColor">
+              <path d="M13 7a6 6 0 11-12 0 6 6 0 0112 0z"/>
+              <path d="M7 4v3l2 1" stroke="white" stroke-width="1.5" fill="none"/>
+            </svg>
+            <a href="https://atlassian.net/browse/JIRA-4829" onclick="event.stopPropagation();">Jira/JIRA-4815</a>
+          </span>
+          <span class="change-pipeline">alert-threshold-update</span>
+          <span class="change-time">2024-01-18 20:00 UTC</span>
+          <span class="change-status status-completed">Completed</span>
+          <span class="change-payload">cpu_threshold=85</span>
+          <span class="change-actions" onclick="event.stopPropagation(); event.preventDefault();">
+            <button class="cancel-change-btn" data-id="SC-1838" data-automation="cancel-btn-sc-1838" disabled>Cancel</button>
+          </span>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="detail-modal" data-automation="detail-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">Change Details</h2>
+        <button class="modal-close" id="modal-close" data-automation="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-close-btn" data-automation="modal-close-btn">Close</button>
+        <button class="btn-danger" id="modal-cancel-btn" data-automation="modal-cancel-btn">Cancel Change</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" data-automation="toast"></div>
+
+  <script>
+    // Data store
+    const STORAGE_KEY = 'cicd-scheduler-scheduled-changes';
+
+    const defaultChanges = [
+      {
+        id: 'SC-1840',
+        requester: 'sarah.chen',
+        source: 'Manual',
+        sourceLink: null,
+        pipeline: 'database-maintenance',
+        executionTime: '2024-01-19T01:00:00Z',
+        status: 'Scheduled',
+        payload: 'backup_type=full'
+      },
+      {
+        id: 'SC-1841',
+        requester: 'ops-automation',
+        source: 'Jira/JIRA-4820',
+        sourceLink: 'https://atlassian.net/browse/JIRA-4829',
+        pipeline: 'redis-config-update',
+        executionTime: '2024-01-19T02:30:00Z',
+        status: 'Scheduled',
+        payload: 'pool_size=50'
+      },
+      {
+        id: 'SC-1839',
+        requester: 'emily.watson',
+        source: 'Manual',
+        sourceLink: null,
+        pipeline: 'monitoring-dashboard-refresh',
+        executionTime: '2024-01-18T23:00:00Z',
+        status: 'Completed',
+        payload: 'dashboards=all'
+      },
+      {
+        id: 'SC-1838',
+        requester: 'james.park',
+        source: 'Jira/JIRA-4815',
+        sourceLink: 'https://atlassian.net/browse/JIRA-4829',
+        pipeline: 'alert-threshold-update',
+        executionTime: '2024-01-18T20:00:00Z',
+        status: 'Completed',
+        payload: 'cpu_threshold=85'
+      }
+    ];
+
+    function loadChanges() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          return defaultChanges;
+        }
+      }
+      return defaultChanges;
+    }
+
+    function saveChanges(changes) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(changes));
+    }
+
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const hours = String(date.getUTCHours()).padStart(2, '0');
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes} UTC`;
+    }
+
+    function getStatusClass(status) {
+      switch (status.toLowerCase()) {
+        case 'scheduled': return 'status-scheduled';
+        case 'completed': return 'status-completed';
+        case 'cancelled': return 'status-cancelled';
+        case 'running': return 'status-running';
+        default: return 'status-scheduled';
+      }
+    }
+
+    function renderChanges(changes) {
+      const table = document.getElementById('changes-table');
+      const header = table.querySelector('.table-header');
+      
+      // Clear existing rows
+      const existingRows = table.querySelectorAll('.change-row');
+      existingRows.forEach(row => row.remove());
+
+      changes.forEach(change => {
+        const row = document.createElement('a');
+        row.href = 'https://spinnaker.io/#/scheduled-changes/SC-1842';
+        row.className = 'change-row';
+        row.id = `change-row-${change.id.toLowerCase()}`;
+        row.setAttribute('data-automation', `change-row-${change.id.toLowerCase()}`);
+        row.setAttribute('data-id', change.id);
+
+        const isCompleted = change.status.toLowerCase() === 'completed' || change.status.toLowerCase() === 'cancelled';
+        const sourceIcon = change.source.startsWith('Jira') 
+          ? `<svg class="source-icon source-jira" viewBox="0 0 14 14" fill="currentColor"><path d="M13 7a6 6 0 11-12 0 6 6 0 0112 0z"/><path d="M7 4v3l2 1" stroke="white" stroke-width="1.5" fill="none"/></svg>`
+          : `<svg class="source-icon source-manual" viewBox="0 0 14 14" fill="currentColor"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5"/></svg>`;
+
+        const sourceDisplay = change.sourceLink 
+          ? `${sourceIcon}<a href="${change.sourceLink}" onclick="event.stopPropagation();">${change.source}</a>`
+          : `${sourceIcon}${change.source}`;
+
+        row.innerHTML = `
+          <span class="change-id">${change.id}</span>
+          <span class="change-requester">${change.requester}</span>
+          <span class="change-source">${sourceDisplay}</span>
+          <span class="change-pipeline">${change.pipeline}</span>
+          <span class="change-time">${formatTime(change.executionTime)}</span>
+          <span class="change-status ${getStatusClass(change.status)}">${change.status}</span>
+          <span class="change-payload">${change.payload}</span>
+          <span class="change-actions" onclick="event.stopPropagation(); event.preventDefault();">
+            <button class="cancel-change-btn" data-id="${change.id}" data-automation="cancel-btn-${change.id.toLowerCase()}" ${isCompleted ? 'disabled' : ''}>Cancel</button>
+          </span>
+        `;
+
+        table.appendChild(row);
+      });
+
+      // Re-attach event listeners
+      attachCancelListeners();
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast active ${type}`;
+      setTimeout(() => {
+        toast.classList.remove('active');
+      }, 3000);
+    }
+
+    function cancelChange(id) {
+      const changes = loadChanges();
+      const change = changes.find(c => c.id === id);
+      if (change && change.status === 'Scheduled') {
+        change.status = 'Cancelled';
+        saveChanges(changes);
+        renderChanges(changes);
+        showToast(`Change ${id} has been cancelled`, 'success');
+      }
+    }
+
+    function attachCancelListeners() {
+      document.querySelectorAll('.cancel-change-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          if (!btn.disabled) {
+            cancelChange(id);
+          }
+        });
+      });
+    }
+
+    // Filter functionality
+    function applyFilters() {
+      const statusFilter = document.getElementById('filter-status').value.toLowerCase();
+      const requesterFilter = document.getElementById('filter-requester').value.toLowerCase();
+      
+      let changes = loadChanges();
+      
+      if (statusFilter) {
+        changes = changes.filter(c => c.status.toLowerCase() === statusFilter);
+      }
+      
+      if (requesterFilter) {
+        changes = changes.filter(c => c.requester.toLowerCase().includes(requesterFilter));
+      }
+      
+      renderChanges(changes);
+    }
+
+    // Modal functionality
+    function openModal(changeId) {
+      const changes = loadChanges();
+      const change = changes.find(c => c.id === changeId);
+      if (!change) return;
+
+      const modal = document.getElementById('detail-modal');
+      const title = document.getElementById('modal-title');
+      const body = document.getElementById('modal-body');
+      const cancelBtn = document.getElementById('modal-cancel-btn');
+
+      title.textContent = `Change ${change.id}`;
+      
+      body.innerHTML = `
+        <div class="detail-row">
+          <span class="detail-label">ID</span>
+          <span class="detail-value">${change.id}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Requester</span>
+          <span class="detail-value">${change.requester}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Source</span>
+          <span class="detail-value">${change.source}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Pipeline</span>
+          <span class="detail-value">${change.pipeline}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Execution Time</span>
+          <span class="detail-value">${formatTime(change.executionTime)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="detail-value"><span class="change-status ${getStatusClass(change.status)}">${change.status}</span></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Payload</span>
+          <span class="detail-value"><code class="change-payload">${change.payload}</code></span>
+        </div>
+      `;
+
+      const isCompleted = change.status.toLowerCase() === 'completed' || change.status.toLowerCase() === 'cancelled';
+      cancelBtn.style.display = isCompleted ? 'none' : 'block';
+      cancelBtn.setAttribute('data-id', change.id);
+
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('detail-modal').classList.remove('active');
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize with stored or default data
+      if (!localStorage.getItem(STORAGE_KEY)) {
+        saveChanges(defaultChanges);
+      }
+      renderChanges(loadChanges());
+
+      // Refresh button
+      document.getElementById('refresh-btn').addEventListener('click', () => {
+        renderChanges(loadChanges());
+        showToast('Queue refreshed', 'success');
+      });
+
+      // Filter listeners
+      document.getElementById('filter-status').addEventListener('change', applyFilters);
+      document.getElementById('filter-requester').addEventListener('input', applyFilters);
+      document.getElementById('filter-time').addEventListener('change', applyFilters);
+
+      // Modal close listeners
+      document.getElementById('modal-close').addEventListener('click', closeModal);
+      document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+      document.getElementById('detail-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'detail-modal') closeModal();
+      });
+
+      // Modal cancel button
+      document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+        const id = document.getElementById('modal-cancel-btn').getAttribute('data-id');
+        cancelChange(id);
+        closeModal();
+      });
+
+      // User menu dropdown (simplified)
+      document.getElementById('user-menu').addEventListener('click', () => {
+        showToast('User menu clicked', 'success');
+      });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>
