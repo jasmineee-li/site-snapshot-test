@@ -478,6 +478,8 @@ class Study(AbstractStudy):
         # Process each experiment
         total_input_tokens = 0
         total_output_tokens = 0
+        judge_successes = 0
+        judge_scores = []
 
         try:
             for exp_result in inspect_results.yield_all_exp_results(self.dir, progress_fn=None):
@@ -489,11 +491,31 @@ class Study(AbstractStudy):
                     if "token_usage" in exp_data:
                         total_input_tokens += exp_data["token_usage"].get("input", 0)
                         total_output_tokens += exp_data["token_usage"].get("output", 0)
+
+                    # Aggregate judge results
+                    if exp_data.get("judge_result"):
+                        judge_result = exp_data["judge_result"]
+                        if judge_result.get("overall_success") is True:
+                            judge_successes += 1
+                        if judge_result.get("overall_score") is not None:
+                            judge_scores.append(judge_result["overall_score"])
                 except Exception as e:
                     logger.warning(f"Error processing experiment {exp_result.exp_dir}: {e}")
                     continue
         except Exception as e:
             logger.warning(f"Error iterating experiments: {e}")
+
+        # Calculate attack success rate and average judge score
+        n_experiments = len(log_data["experiments"])
+        if n_experiments > 0:
+            log_data["summary"]["attack_success_rate"] = judge_successes / n_experiments
+        else:
+            log_data["summary"]["attack_success_rate"] = 0.0
+
+        if judge_scores:
+            log_data["summary"]["avg_judge_score"] = sum(judge_scores) / len(judge_scores)
+        else:
+            log_data["summary"]["avg_judge_score"] = None
 
         # Update total token usage
         log_data["token_usage"]["target"]["input"] = total_input_tokens
@@ -628,8 +650,29 @@ class Study(AbstractStudy):
                     criteria_scores[crit_id] = {
                         "name": criterion.get("name", ""),
                         "threshold": criterion.get("threshold", 0),
-                        "score": None,  # Would need judge results
+                        "score": None,  # Will be filled from judge results
                     }
+
+        # Load judge results if available
+        judge_result = None
+        try:
+            judge_result_path = exp_result.exp_dir / "judge_result.json"
+            if judge_result_path.exists():
+                with open(judge_result_path, "r", encoding="utf-8") as f:
+                    judge_result = json.load(f)
+                logger.debug(f"Loaded judge result from {judge_result_path}")
+
+                # Update criteria scores from judge results if present
+                if judge_result and "individual_results" in judge_result:
+                    for ind_result in judge_result.get("individual_results", []):
+                        if "details" in ind_result and "criteria_scores" in ind_result["details"]:
+                            for crit_id, crit_data in ind_result["details"][
+                                "criteria_scores"
+                            ].items():
+                                if crit_id in criteria_scores:
+                                    criteria_scores[crit_id]["score"] = crit_data.get("score")
+        except Exception as e:
+            logger.debug(f"Could not load judge result: {e}")
 
         # Token usage from summary
         token_usage = {
@@ -666,6 +709,7 @@ class Study(AbstractStudy):
             },
             "conversation": conversation,
             "result": result_data,
+            "judge_result": judge_result,
             "criteria_scores": criteria_scores if criteria_scores else None,
             "token_usage": token_usage,
             "exp_dir": str(exp_result.exp_dir),

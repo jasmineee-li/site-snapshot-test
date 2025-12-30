@@ -117,7 +117,7 @@ class OpenRouterLLMClient:
     supporting both text-only and multimodal (with images) requests.
 
     Usage:
-        client = OpenRouterLLMClient("anthropic/claude-opus-4-5-20251101")
+        client = OpenRouterLLMClient("anthropic/claude-opus-4.5")
         response = client.chat(messages=[{"role": "user", "content": "Hello!"}])
         response = client.call_with_images("Describe this image", screenshots=["path/to/image.png"])
     """
@@ -127,7 +127,7 @@ class OpenRouterLLMClient:
         Initialize LLM client using OpenRouter.
 
         Args:
-            model: Model name in OpenRouter format (e.g., "openai/gpt-4o", "anthropic/claude-opus-4-5-20251101")
+            model: Model name in OpenRouter format
         """
         self.model = model
         self.client = get_openrouter_client()
@@ -198,7 +198,15 @@ class OpenRouterLLMClient:
 
         Returns:
             Response text
+
+        Raises:
+            ValueError: If prompt is empty or whitespace-only
         """
+        # Validate prompt is non-empty (some providers like Google reject empty text blocks)
+        prompt = prompt.strip() if prompt else ""
+        if not prompt:
+            raise ValueError("Prompt cannot be empty or whitespace-only")
+
         # Build content array
         content = [{"type": "text", "text": prompt}]
 
@@ -221,7 +229,82 @@ class OpenRouterLLMClient:
             return response.choices[0].message.content or ""
 
         except Exception as e:
+            # #region agent log
+            import json
+            import traceback
+
+            error_type = type(e).__name__
+            error_msg = str(e)
+            error_traceback = traceback.format_exc()
+
+            # Try to extract raw response from exception chain
+            raw_response = None
+            response_content = None
+            response_status = None
+
+            # Check exception and its causes for response object
+            exc = e
+            for _ in range(5):  # Check up to 5 levels deep
+                if hasattr(exc, "response"):
+                    raw_response = exc.response
+                    break
+                if hasattr(exc, "http_response"):
+                    raw_response = exc.http_response
+                    break
+                if hasattr(exc, "__cause__") and exc.__cause__:
+                    exc = exc.__cause__
+                else:
+                    break
+
+            # Try to extract content from response
+            if raw_response:
+                if hasattr(raw_response, "status_code"):
+                    response_status = raw_response.status_code
+                if hasattr(raw_response, "content"):
+                    try:
+                        response_content = raw_response.content.decode("utf-8", errors="replace")
+                    except:
+                        try:
+                            response_content = str(raw_response.content)
+                        except:
+                            pass
+                elif hasattr(raw_response, "text"):
+                    response_content = raw_response.text
+                elif hasattr(raw_response, "read"):
+                    try:
+                        response_content = raw_response.read().decode("utf-8", errors="replace")
+                    except:
+                        pass
+
+            debug_data = {
+                "hypothesisId": "API_RESPONSE_ERROR",
+                "location": "llm_utils.py:223",
+                "message": "OpenRouter API JSON parse error",
+                "data": {
+                    "error_type": error_type,
+                    "error_message": error_msg,
+                    "model": self.model,
+                    "response_status": response_status,
+                    "has_raw_response": raw_response is not None,
+                    "response_content_preview": (
+                        response_content[:2000] if response_content else None
+                    ),
+                    "response_content_length": len(response_content) if response_content else None,
+                    "error_traceback": (
+                        error_traceback[-1000:] if len(error_traceback) > 1000 else error_traceback
+                    ),
+                },
+                "timestamp": __import__("time").time(),
+            }
+            open("/Users/jasminexli/grayswan/site-snapshot-test/.cursor/debug.log", "a").write(
+                json.dumps(debug_data) + "\n"
+            )
+            # #endregion
             logger.error(f"OpenRouter API call failed: {e}")
+            if response_content:
+                logger.error(
+                    f"Response status: {response_status}, Content preview (first 1000 chars):\n{response_content[:1000]}"
+                )
             raise
 
 

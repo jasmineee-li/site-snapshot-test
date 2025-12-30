@@ -289,19 +289,9 @@ class LLMJudge(BaseJudge):
             behavior_doc=context.get("doc", ""),
         )
 
-        try:
-            response = self.llm.chat_simple([{"role": "user", "content": prompt}])
-            result = self._parse_response(response)
-            return result
-        except Exception as e:
-            logger.error(f"LLM judge evaluation failed: {e}")
-            return JudgeResult(
-                judge_id=self.judge_id,
-                success=False,
-                score=0.0,
-                explanation=f"Evaluation failed: {e}",
-                details={"error": str(e)},
-            )
+        response = self.llm.chat_simple([{"role": "user", "content": prompt}])
+        result = self._parse_response(response)
+        return result
 
     def _format_conversation(self, conversation: List[Dict], include_reasoning: bool = True) -> str:
         lines = []
@@ -502,6 +492,174 @@ class JudgeFactory:
             return None
 
 
+class JudgeRunner:
+    def __init__(self, env_args):
+        """
+        Initialize from RedteamEnvArgs.
+
+        Args:
+            env_args: RedteamEnvArgs containing judging config and behavior context
+        """
+        self.env_args = env_args
+        self.judging_config = getattr(env_args, "judging", None) or {}
+        self.criteria = getattr(env_args, "criteria", None) or []
+
+        # Build behavior context for judges
+        self.behavior_context = {
+            "doc": getattr(env_args, "doc", ""),
+            "target": getattr(env_args, "target", ""),
+            "summary": getattr(env_args, "summary", ""),
+            "objective": getattr(env_args, "objective", ""),
+            "short_description": getattr(env_args, "target", "")
+            or getattr(env_args, "summary", ""),
+            "criteria": self.criteria,
+        }
+
+        # Initialize the judge system if config is provided
+        self.judge = None
+        if self.judging_config:
+            self.judge = RedteamJudge(self.judging_config, self.behavior_context)
+            logger.info(f"JudgeRunner initialized with {len(self.judge.judges)} judge(s)")
+        else:
+            logger.info("JudgeRunner initialized without judging config (no judges will run)")
+
+    def evaluate(self, exp_dir: Path, episode_info: List) -> Dict[str, Any]:
+        """
+        Evaluate an experiment after it completes.
+
+        Args:
+            exp_dir: Experiment directory containing variation HTML files
+            episode_info: List of StepInfo objects from the experiment
+
+        Returns:
+            Dict with judge results, suitable for saving to judge_result.json
+        """
+        if not self.judge or not self.judge.judges:
+            logger.info("No judges configured, skipping evaluation")
+            return {
+                "overall_success": None,
+                "overall_score": None,
+                "individual_results": [],
+                "message": "No judges configured",
+            }
+
+        # Extract agent actions from episode_info
+        agent_actions = self._extract_agent_actions(episode_info)
+        logger.info(f"Extracted {len(agent_actions)} agent actions for judging")
+
+        # Build conversation from episode info
+        conversation = self._build_conversation(episode_info)
+
+        # Find variation directory
+        variation_dir = self._find_variation_dir(exp_dir)
+        if not variation_dir:
+            logger.warning(f"Could not find variation directory in {exp_dir}")
+            return {
+                "overall_success": False,
+                "overall_score": 0.0,
+                "individual_results": [],
+                "error": "Variation directory not found",
+            }
+
+        # Run judges
+        result = self.judge.evaluate(agent_actions, variation_dir, conversation)
+        result_dict = self.judge.to_dict(result)
+        logger.info(
+            f"Judge evaluation complete: success={result.overall_success}, score={result.overall_score:.2f}"
+        )
+        return result_dict
+
+    def _extract_agent_actions(self, episode_info: List) -> List[Dict[str, Any]]:
+        """Extract agent actions from step info objects."""
+        actions = []
+        for step_info in episode_info:
+            if step_info is None:
+                continue
+
+            action = getattr(step_info, "action", None)
+            if not action:
+                continue
+
+            # Parse action string to extract tool calls
+            action_dict = {
+                "step": getattr(step_info, "step", None),
+                "action": action,
+                "type": "browser_action",
+            }
+
+            # Try to extract tool name and parameters from action string
+            # Format: tool_name(arg1, arg2, key=value)
+            import re
+
+            tool_match = re.match(r"(\w+)\((.*)\)", str(action), re.DOTALL)
+            if tool_match:
+                action_dict["tool"] = tool_match.group(1)
+                args_str = tool_match.group(2)
+                # Simple arg extraction (not full parsing)
+                action_dict["args_raw"] = args_str
+
+            # Include agent reasoning if available
+            agent_info = getattr(step_info, "agent_info", {}) or {}
+            if "think" in agent_info:
+                action_dict["reasoning"] = agent_info["think"]
+
+            actions.append(action_dict)
+
+        return actions
+
+    def _build_conversation(self, episode_info: List) -> List[Dict[str, str]]:
+        """Build conversation transcript from episode info."""
+        conversation = []
+
+        for step_info in episode_info:
+            if step_info is None:
+                continue
+
+            obs = getattr(step_info, "obs", None)
+            if obs and isinstance(obs, dict):
+                # Extract goal/user message if present
+                goal = obs.get("goal", "")
+                if goal and not any(m.get("content") == goal for m in conversation):
+                    conversation.append({"role": "user", "content": goal})
+
+            # Add agent action as assistant message
+            action = getattr(step_info, "action", None)
+            if action:
+                agent_info = getattr(step_info, "agent_info", {}) or {}
+                content = action
+                if "think" in agent_info:
+                    content = f"<thinking>{agent_info['think']}</thinking>\n\n{action}"
+
+                conversation.append({"role": "assistant", "content": content})
+
+        return conversation
+
+    def _find_variation_dir(self, exp_dir: Path) -> Optional[Path]:
+        """Find the variation directory within experiment directory."""
+        exp_dir = Path(exp_dir)
+
+        # Look for variation_N directories
+        variation_dirs = list(exp_dir.glob("variation_*"))
+        if variation_dirs:
+            # Return the first one (or could use injection_seed from env_args)
+            return sorted(variation_dirs)[0]
+
+        # Maybe HTML files are directly in exp_dir
+        html_files = list(exp_dir.glob("*.html"))
+        if html_files:
+            return exp_dir
+
+        return None
+
+    def save_result(self, exp_dir: Path, result: Dict[str, Any]) -> Path:
+        """Save judge result to exp_dir/judge_result.json."""
+        result_path = Path(exp_dir) / "judge_result.json"
+        with open(result_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2, default=str)
+        logger.info(f"Saved judge result to {result_path}")
+        return result_path
+
+
 class RedteamJudge:
     """
     Main orchestrator for redteam evaluation judging.
@@ -556,22 +714,9 @@ class RedteamJudge:
         # Run each judge
         individual_results = []
         for judge in self.judges:
-            try:
-                result = judge.evaluate(agent_actions, html_state, conversation, self.context)
-                individual_results.append(result)
-                logger.info(
-                    f"Judge {judge.judge_id}: success={result.success}, score={result.score}"
-                )
-            except Exception as e:
-                logger.error(f"Judge {judge.judge_id} failed: {e}")
-                individual_results.append(
-                    JudgeResult(
-                        judge_id=judge.judge_id,
-                        success=False,
-                        score=0.0,
-                        explanation=f"Judge error: {e}",
-                    )
-                )
+            result = judge.evaluate(agent_actions, html_state, conversation, self.context)
+            individual_results.append(result)
+            logger.info(f"Judge {judge.judge_id}: success={result.success}, score={result.score}")
 
         # Aggregate results
         if not individual_results:

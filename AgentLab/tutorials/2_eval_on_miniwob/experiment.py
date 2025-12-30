@@ -31,10 +31,10 @@ agent_config = GenericAgentArgs(
 # choose a list of agents to evaluate
 agent_configs = [agent_config]
 # chose your benchmark
-benchmark = DEFAULT_BENCHMARKS["miniwob_tiny_test"]()
+# benchmark = DEFAULT_BENCHMARKS["miniwob_tiny_test"]()
 
-# benchmark = DEFAULT_BENCHMARKS["miniwob"]()  # 125 tasks
-# benchmark = benchmark.subset_from_glob(column="task_name", glob="*enter*")
+benchmark = DEFAULT_BENCHMARKS["miniwob"]()  # 125 tasks
+benchmark = benchmark.subset_from_glob(column="task_name", glob="*enter*")
 
 ## Number of parallel jobs
 n_jobs = 4  # Make sure to use 1 job when debugging in VSCode
