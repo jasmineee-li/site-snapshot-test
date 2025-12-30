@@ -7,6 +7,15 @@ repository.
 """
 
 import logging
+import os
+
+# Optimize WebLinx registration - only register the splits we need
+# This prevents each Ray worker from registering 26,410+ tasks (60+ seconds)
+# Comment these out if you need tasks from other splits
+os.environ["BROWSERGYM_WEBLINX_REGISTER_TRAIN"] = "true"   # cptbbef is in train split
+os.environ["BROWSERGYM_WEBLINX_REGISTER_VALID"] = "false"  # Skip validation tasks
+os.environ["BROWSERGYM_WEBLINX_REGISTER_TEST"] = "false"   # Skip test tasks
+os.environ["BROWSERGYM_WEBLINX_REGISTER_TEST_OOD"] = "false"  # Skip OOD test tasks
 
 from agentlab.agents.generic_agent import (
     AGENT_LLAMA3_70B,
@@ -20,21 +29,28 @@ from agentlab.agents.generic_agent import (
     AGENT_GPT5_MINI,
 )
 from agentlab.experiments.study import Study
+from bgym import DEFAULT_BENCHMARKS
 
 logging.getLogger().setLevel(logging.INFO)
 
 # choose your agent or provide a new agent
-agent_args = [AGENT_4o_MINI]
+agent_args = [AGENT_GPT5_MINI]
 # agent_args = [AGENT_4o]
 
 
 # ## select the benchmark to run on
-benchmark = "miniwob_tiny_test"
+# benchmark = "miniwob_tiny_test"
 # benchmark = "miniwob"
 # benchmark = "workarena_l1"
 # benchmark = "workarena_l2"
 # benchmark = "workarena_l3"
 # benchmark = "webarena"
+# benchmark = "weblinx"  # full benchmark with 31,586 tasks
+
+# Create a subset of WebLinx with just 10 tasks for testing
+full_weblinx = DEFAULT_BENCHMARKS["weblinx"]()
+task_names = [env_args.task_name for env_args in full_weblinx.env_args_list[:10]]
+benchmark = full_weblinx.subset_from_list(task_names, benchmark_name_suffix="first_10")
 
 # Set reproducibility_mode = True for reproducibility
 # this will "ask" agents to be deterministic. Also, it will prevent you from launching if you have
