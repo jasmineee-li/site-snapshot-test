@@ -27,13 +27,15 @@ from agentlab.agents.generic_agent.agent_configs import (
 target_agent_config = AGENT_4o_MINI
 
 benchmark = RedteamBenchmark(
-    benchmark_file="/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tests/behaviors_enriched_single_2.json",
-    # world_sim_model="anthropic/claude-opus-4.5",
-    world_sim_model="moonshotai/kimi-k2-thinking",
+    benchmark_file="/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tests/new-data/1228_behaviors_single.json",
+    world_sim_model="anthropic/claude-opus-4.5",
     attacker_model="x-ai/grok-4",
     adversarial_mode="single_turn",
     n_injection_variations=1,
     use_trajectory=True,
+    # Resume from existing run (uncomment to reuse generated HTML files):
+    resume_from_dir="/Users/jasminexli/grayswan/site-snapshot-test/results/2025-12-29_10-44-04_genericagent-gpt-4o-mini-2024-07-18-on-enriched-behaviors/2025-12-29_10-44-04_GenericAgent-gpt-4o-mini-2024-07-18_on_enriched-behaviors.modify-cicd-workflow.seed0_0",
+    skip_link_validation=True,
 )
 print("created redteambenchmark")
 # Create study - attacker agent is automatically configured from benchmark
