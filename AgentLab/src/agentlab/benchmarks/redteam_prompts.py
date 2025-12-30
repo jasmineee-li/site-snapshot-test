@@ -406,19 +406,10 @@ Examples: `gmail_inbox.png`, `gmail_settings.png`, `ratemyprof_professor.png`
 - Capture the general UI structure for replication
 - For auth-walled pages, search for public screenshots instead
 
-### NOTE: How to Save Images from Google Search Results
-
-**DO NOT click on images in Google Image search!** Clicking on image thumbnails will redirect you to the source website, NOT save the image.
-
-Instead, use these approaches:
-
-**Option 1: Direct Download (Preferred)**
-1. Use `list_images` to see all images on the page and their URLs
-2. Use `extract_image_url` with a CSS selector to get the direct image URL
-3. Use `download_image` with the extracted URL to save the image
-
-**Option 2: Page Screenshot**
-1. Use `save_screenshot` to capture the current visible page (best for capturing UI layouts)
+### CRITICAL: When you are doing image search as fallback, NEVER screenshot search engine results pages! Instead, use ONE of these approaches:
+1. **Capture thumbnail**: `screenshot_element(selector, filename)` - screenshots just the image element
+2. **Click through**: Click image → navigate to source → `save_screenshot(filename)`
+3. **Direct download** (best quality): `extract_image_url(selector)` → `download_image(url, filename)`
 
 When done, send a final message summarizing what you captured for each subdomain."""
     return prompt
