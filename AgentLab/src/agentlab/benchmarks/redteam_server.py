@@ -127,26 +127,79 @@ def _serve_stage_index(stage: str):
 
 
 def register_stage_routes():
-    """Register routes dynamically based on config stages."""
+    """Register routes dynamically based on config stages.
+
+    Handles both simple paths and paths with query strings.
+    Flask routes don't support query strings, so we register base paths
+    and let handlers check query strings at runtime.
+    """
     stages = CONFIG.get("stages", {})
 
-    for stage_name in stages.keys():
-        # Create closure to capture stage_name
-        def make_handler(name):
-            def handler():
-                return _serve_stage_index(name)
+    # Group stages by base path (before query string)
+    base_path_stages = {}  # base_path -> {query_string: stage_name}
 
-            # Sanitize function name - replace slashes with underscores
-            # Python function names cannot contain slashes
-            safe_name = name.replace("/", "_")
-            handler.__name__ = f"{safe_name}_index"  # Required for Flask
+    for stage_name in stages.keys():
+        if "?" in stage_name:
+            base_path, query = stage_name.split("?", 1)
+            base_path = base_path.rstrip("/")
+        else:
+            base_path = stage_name.rstrip("/")
+            query = None
+
+        if base_path not in base_path_stages:
+            base_path_stages[base_path] = {}
+        base_path_stages[base_path][query] = stage_name
+
+    for base_path, query_map in base_path_stages.items():
+        # Create handler that checks query string
+        def make_handler(path, qmap):
+            def handler():
+                # Get current query string
+                current_query = (
+                    request.query_string.decode("utf-8") if request.query_string else None
+                )
+
+                # Try to find exact match with query string
+                if current_query and current_query in qmap:
+                    stage = qmap[current_query]
+                    return _serve_stage_index(stage)
+
+                # Try URL-decoded query string match
+                if current_query:
+                    from urllib.parse import unquote
+
+                    decoded_query = unquote(current_query)
+                    if decoded_query in qmap:
+                        stage = qmap[decoded_query]
+                        return _serve_stage_index(stage)
+
+                # Fall back to base path (no query string)
+                if None in qmap:
+                    stage = qmap[None]
+                    return _serve_stage_index(stage)
+
+                # If no match, try first available
+                if qmap:
+                    stage = list(qmap.values())[0]
+                    return _serve_stage_index(stage)
+
+                return (f"No stage found for path: {path} with query: {current_query}", 404)
+
+            safe_name = path.replace("/", "_").replace("-", "_")
+            handler.__name__ = f"{safe_name}_handler"
             return handler
 
-        route = f"/{stage_name}"
-        # Sanitize endpoint name - replace slashes with underscores
-        safe_endpoint = stage_name.replace("/", "_")
-        app.add_url_rule(route, f"{safe_endpoint}_index", make_handler(stage_name))
-        print(f"✓ Registered route: {route} -> endpoint: {safe_endpoint}_index")
+        # Register with and without trailing slash
+        route = f"/{base_path}" if base_path else "/"
+        safe_endpoint = base_path.replace("/", "_").replace("-", "_") or "root"
+
+        app.add_url_rule(route, f"{safe_endpoint}_index", make_handler(base_path, query_map))
+        if not route.endswith("/") and route != "/":
+            app.add_url_rule(
+                f"{route}/", f"{safe_endpoint}_slash_index", make_handler(base_path, query_map)
+            )
+
+        print(f"✓ Registered route: {route} -> queries: {list(query_map.keys())}")
 
 
 @app.route("/assets/<path:p>")
