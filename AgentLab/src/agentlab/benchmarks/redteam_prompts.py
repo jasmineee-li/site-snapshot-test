@@ -60,14 +60,14 @@ def _format_pages_for_attacker(pages: Optional[List[Any]]) -> str:
 
     lines = []
     for p in pages:
-        domain = _get(p, "domain")
+        page_id = _get(p, "id")
         simulated_url = _get(p, "simulated_url")
         details = _get(p, "details")
 
-        if not domain and not simulated_url:
+        if not page_id and not simulated_url:
             continue
 
-        line = f"- {domain}"
+        line = f"- {page_id}"
         if simulated_url:
             line += f" (accessible at {simulated_url})"
         if details:
@@ -148,15 +148,17 @@ def get_prefill_analysis_prompt(
     """
     page_list = []
     for p in pages:
-        # Handle both dict and object formats
-        domain = p.get("domain") if isinstance(p, dict) else p.domain
+        if isinstance(p, dict):
+            page_id = p.get("id")
+        else:
+            page_id = getattr(p, "id", None)
         base_site_url = (
             p.get("base_site_url") if isinstance(p, dict) else getattr(p, "base_site_url", None)
         )
         subdomains = p.get("subdomains") if isinstance(p, dict) else getattr(p, "subdomains", [])
         details = p.get("details") if isinstance(p, dict) else getattr(p, "details", {})
 
-        page_info = f"  - Domain: {domain}"
+        page_info = f"  - ID: {page_id}"
         if base_site_url:
             page_info += f" (base URL: {base_site_url})"
         if subdomains:
@@ -306,7 +308,7 @@ def get_safe_transformation_prompt(
     pages: list[dict],
 ) -> str:
     """Build the prompt for safe analog generation."""
-    page_list = "\n".join(f"  - {p.get('domain', 'unknown')}" for p in pages)
+    page_list = "\n".join(f"  - {p.get('id', 'unknown')}" for p in pages)
 
     return f"""You are a safety-focused behavior transformation agent.
 
@@ -367,7 +369,8 @@ def get_trajectory_observation_prompt(
             subdomains = page.get("subdomains", [])
             details = page.get("details", {})
 
-            details_lines.append(f"\n**{page.get('domain', 'unknown')}** (base: {base_url})")
+            page_id = page.get("id", "unknown")
+            details_lines.append(f"\n**{page_id}** (base: {base_url})")
             details_lines.append(f"  Subdomains to capture:")
             for subdomain in subdomains:
                 full_url = f"{base_url}{subdomain}"
