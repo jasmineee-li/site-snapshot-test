@@ -478,6 +478,7 @@ class Study(AbstractStudy):
         # Process each experiment
         total_input_tokens = 0
         total_output_tokens = 0
+        attacker_total_tokens = 0
         judge_successes = 0
         judge_scores = []
 
@@ -487,10 +488,15 @@ class Study(AbstractStudy):
                     exp_data = self._extract_experiment_data(exp_result)
                     log_data["experiments"].append(exp_data)
 
-                    # Aggregate token usage
+                    # Aggregate target token usage
                     if "token_usage" in exp_data:
                         total_input_tokens += exp_data["token_usage"].get("input", 0)
                         total_output_tokens += exp_data["token_usage"].get("output", 0)
+
+                    # Aggregate attacker token usage
+                    if "attacker" in exp_data and exp_data["attacker"]:
+                        attacker_usage = exp_data["attacker"].get("token_usage", {})
+                        attacker_total_tokens += attacker_usage.get("total", 0)
 
                     # Aggregate judge results
                     if exp_data.get("judge_result"):
@@ -521,9 +527,12 @@ class Study(AbstractStudy):
         log_data["token_usage"]["target"]["input"] = total_input_tokens
         log_data["token_usage"]["target"]["output"] = total_output_tokens
         log_data["token_usage"]["target"]["total"] = total_input_tokens + total_output_tokens
+        log_data["token_usage"]["attacker"]["total"] = attacker_total_tokens
+        # Include attacker tokens in totals
+        grand_total = total_input_tokens + total_output_tokens + attacker_total_tokens
         log_data["token_usage"]["totals"]["input"] = total_input_tokens
         log_data["token_usage"]["totals"]["output"] = total_output_tokens
-        log_data["token_usage"]["totals"]["total"] = total_input_tokens + total_output_tokens
+        log_data["token_usage"]["totals"]["total"] = grand_total
 
         # Save log.json
         log_path = self.dir / "log.json"
@@ -586,25 +595,35 @@ class Study(AbstractStudy):
         # Add each step to conversation
         try:
             steps_info = exp_result.steps_info
-            first_user_message_added = False
+            seen_user_turns = set()  # Track which user turns we've added
 
             for step_info in steps_info:
-                # Extract the first user message (attacker's initial message to target)
-                # This is in step 0's obs["goal"] and represents what the attacker sent
-                if (
-                    not first_user_message_added
-                    and step_info.obs
-                    and isinstance(step_info.obs, dict)
-                ):
+                if not step_info.obs or not isinstance(step_info.obs, dict):
+                    continue
+
+                # Extract user messages from chat_messages
+                # or from obs["goal"] (for single-turn where attacker message is injected as goal)
+                chat_messages = step_info.obs.get("chat_messages", [])
+                for msg in chat_messages:
+                    if msg.get("role") == "user":
+                        msg_content = msg.get("message", "")
+                        # Use timestamp or message hash to dedupe
+                        msg_key = (msg.get("timestamp"), msg_content[:100] if msg_content else "")
+                        if msg_key not in seen_user_turns and msg_content:
+                            conversation.append(
+                                {
+                                    "role": "user",
+                                    "content": msg_content,
+                                }
+                            )
+                            seen_user_turns.add(msg_key)
+
+                # Fallback: if no chat_messages but we have a goal (single-turn mode)
+                if not chat_messages and not seen_user_turns:
                     first_message = step_info.obs.get("goal", "")
                     if first_message:
-                        conversation.append(
-                            {
-                                "role": "user",
-                                "content": first_message,
-                            }
-                        )
-                        first_user_message_added = True
+                        conversation.append({"role": "user", "content": first_message})
+                        seen_user_turns.add(("fallback", first_message[:100]))
 
                 # Add target agent's response for this step
                 step_entry = {
@@ -643,10 +662,12 @@ class Study(AbstractStudy):
 
         # Extract criteria scores if available
         criteria_scores = {}
+        criteria_id_list = []  # Ordered list for mapping criterion_N -> actual ID
         if hasattr(env_args, "criteria") and env_args.criteria:
             for criterion in env_args.criteria:
                 if isinstance(criterion, dict):
                     crit_id = criterion.get("id", "")
+                    criteria_id_list.append(crit_id)
                     criteria_scores[crit_id] = {
                         "name": criterion.get("name", ""),
                         "threshold": criterion.get("threshold", 0),
@@ -666,11 +687,22 @@ class Study(AbstractStudy):
                 if judge_result and "individual_results" in judge_result:
                     for ind_result in judge_result.get("individual_results", []):
                         if "details" in ind_result and "criteria_scores" in ind_result["details"]:
-                            for crit_id, crit_data in ind_result["details"][
-                                "criteria_scores"
-                            ].items():
-                                if crit_id in criteria_scores:
-                                    criteria_scores[crit_id]["score"] = crit_data.get("score")
+                            judge_criteria = ind_result["details"]["criteria_scores"]
+                            for judge_key, crit_data in judge_criteria.items():
+                                # Try direct ID match first
+                                if judge_key in criteria_scores:
+                                    criteria_scores[judge_key]["score"] = crit_data.get("score")
+                                # Also try mapping criterion_N to Nth criterion ID
+                                elif judge_key.startswith("criterion_"):
+                                    try:
+                                        idx = int(judge_key.split("_")[1]) - 1  # 1-indexed
+                                        if 0 <= idx < len(criteria_id_list):
+                                            actual_id = criteria_id_list[idx]
+                                            criteria_scores[actual_id]["score"] = crit_data.get(
+                                                "score"
+                                            )
+                                    except (ValueError, IndexError):
+                                        pass
         except Exception as e:
             logger.debug(f"Could not load judge result: {e}")
 
@@ -680,11 +712,23 @@ class Study(AbstractStudy):
             "output": 0,
             "total": 0,
         }
+        attacker_token_usage = {
+            "input": 0,
+            "output": 0,
+            "total": 0,
+        }
         try:
             summary = exp_result.summary_info
             token_usage["input"] = summary.get("stats.cum_input_tokens", 0)
             token_usage["output"] = summary.get("stats.cum_output_tokens", 0)
             token_usage["total"] = token_usage["input"] + token_usage["output"]
+
+            # Extract attacker token usage if available
+            attacker_usage = summary.get("attacker_token_usage", {})
+            if attacker_usage:
+                attacker_token_usage["input"] = attacker_usage.get("input", 0)
+                attacker_token_usage["output"] = attacker_usage.get("output", 0)
+                attacker_token_usage["total"] = attacker_usage.get("total", 0)
         except Exception:
             pass
 
@@ -703,6 +747,7 @@ class Study(AbstractStudy):
             },
             "attacker": {
                 "model_name": getattr(env_args, "attacker_model", None),
+                "token_usage": attacker_token_usage,
             },
             "world_sim": {
                 "model_name": getattr(env_args, "world_sim_model", None),
