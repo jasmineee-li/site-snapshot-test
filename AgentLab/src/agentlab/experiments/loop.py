@@ -546,14 +546,18 @@ class ExpArgs:
             f"score={result.get('overall_score')}"
         )
 
-    def _save_experiment_results(self, step_info, episode_info, err_msg, stack_trace):
+    def _save_experiment_results(
+        self, step_info, episode_info, err_msg, stack_trace, extra_info=None
+    ):
         """Save step info and summary (used by adversarial modes where cleanup is handled separately)."""
         if step_info is not None:
             step_info.save_step_info(
                 self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
             )
 
-        self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
+        self.save_summary_info(
+            episode_info, Path(self.exp_dir), err_msg, stack_trace, extra_info=extra_info
+        )
 
         self._run_judge_evaluation(episode_info)
 
@@ -619,12 +623,17 @@ class ExpArgs:
         episode_info = []
         err_msg, stack_trace = None, None
         step_info = None
+        attacker_token_usage = {"input": 0, "output": 0, "total": 0}
 
         try:
             # Generate attacker's initial message
             attacker_obs = {"chat_messages": [], "turn": 0}
-            attacker_message, _ = attacker_agent.get_action(attacker_obs)
+            attacker_message, attacker_info = attacker_agent.get_action(attacker_obs)
             logger.info(f"Attacker message: {attacker_message[:200]}...")
+
+            # Track attacker token usage
+            if attacker_info and "tokens_used" in attacker_info:
+                attacker_token_usage["total"] = attacker_info["tokens_used"]
 
             # Inject as goal
             obs = initial_obs.copy()
@@ -651,7 +660,10 @@ class ExpArgs:
                 raise
 
         finally:
-            self._save_experiment_results(step_info, episode_info, err_msg, stack_trace)
+            extra_info = {"attacker_token_usage": attacker_token_usage}
+            self._save_experiment_results(
+                step_info, episode_info, err_msg, stack_trace, extra_info=extra_info
+            )
 
         logger.info(f"Single-turn adversarial completed: {len(episode_info)} steps")
         return episode_info
@@ -675,6 +687,7 @@ class ExpArgs:
         episode_info = []
         step_count = 0
         err_msg, stack_trace = None, None
+        attacker_token_usage = {"input": 0, "output": 0, "total": 0}
 
         try:
             for turn in range(self.env_args.max_conversation_turns):
@@ -688,6 +701,10 @@ class ExpArgs:
                 attacker_message, attacker_info = attacker_agent.get_action(attacker_obs)
                 logger.info(f"Turn {turn} - Attacker: {attacker_message[:100]}...")
 
+                # Track cumulative attacker token usage
+                if attacker_info and "tokens_used" in attacker_info:
+                    attacker_token_usage["total"] += attacker_info["tokens_used"]
+
                 chat_messages.append(
                     {"role": "user", "timestamp": time.time(), "message": attacker_message}
                 )
@@ -695,12 +712,19 @@ class ExpArgs:
                 # 2. Agent executes MULTIPLE STEPS until it sends a message back
                 turn_complete = False
                 obs = initial_obs.copy() if turn == 0 else episode_info[-1].obs
+                steps_this_turn = 0
+                max_steps_per_turn = getattr(self.env_args, "max_steps", 20)
 
-                while not turn_complete:
+                if turn == 0:
+                    obs["goal"] = attacker_message
+                    obs["goal_object"] = [{"type": "text", "text": attacker_message}]
+
+                while not turn_complete and steps_this_turn < max_steps_per_turn:
                     # Create step info
                     step_info = StepInfo(step=step_count)
                     episode_info.append(step_info)
                     step_count += 1
+                    steps_this_turn += 1
 
                     # Inject chat messages into observation
                     obs["chat_messages"] = chat_messages
@@ -761,6 +785,10 @@ class ExpArgs:
                         return episode_info
 
                 # Turn complete - attacker will respond next iteration
+                if steps_this_turn >= max_steps_per_turn and not turn_complete:
+                    logger.info(
+                        f"Turn {turn} reached max steps ({max_steps_per_turn}) without agent response"
+                    )
 
             logger.info(f"Multi-turn conversation ended after {turn + 1} turns, {step_count} steps")
 
@@ -774,7 +802,10 @@ class ExpArgs:
                 raise
 
         finally:
-            self._save_experiment_results(None, episode_info, err_msg, stack_trace)
+            extra_info = {"attacker_token_usage": attacker_token_usage}
+            self._save_experiment_results(
+                None, episode_info, err_msg, stack_trace, extra_info=extra_info
+            )
 
         return episode_info
 
@@ -823,6 +854,7 @@ class ExpArgs:
         exp_dir: Path,
         err_msg: str | None,
         stack_trace: str | None,
+        extra_info: dict | None = None,
     ):
         # bring err from agent_info to the top level
         if err_msg is None:
@@ -848,6 +880,10 @@ class ExpArgs:
         if len(episode_info) > 0:
             summary_info["terminated"] = episode_info[-1].terminated
             summary_info["truncated"] = episode_info[-1].truncated
+
+        # Add extra info (e.g., attacker token usage)
+        if extra_info:
+            summary_info.update(extra_info)
 
         with open(exp_dir / "summary_info.json", "w") as f:
             json.dump(summary_info, f, indent=4)
@@ -983,7 +1019,8 @@ class ExpResult:
             step = int(file.name.split("_")[-1].split(".")[0])
             self.get_step_info(step)
 
-        return [self._steps_info[i] for i in range(len(self._steps_info))]
+        # Return steps in sorted order by step number (keys may not be contiguous)
+        return [self._steps_info[i] for i in sorted(self._steps_info.keys())]
 
     @property
     def summary_info(self) -> dict:
