@@ -53,13 +53,11 @@ class RedteamAttackerAgent:
     target_description: str = ""
     attack_type: str = "indirect"  # "direct" or "indirect"
     mode: str = "single_turn"  # "single_turn" or "multi_turn"
-    custom_system_prompt: str = None
     # Optional: information about websites/pages available in the environment
     pages: list[Any] | None = None
 
     # Lazy-initialized (not part of __init__)
     llm: OpenRouterLLMClient = field(default=None, init=False, repr=False)
-    system_prompt: str = field(default=None, init=False)
     _initialized: bool = field(default=False, init=False, repr=False)
 
     def initialize(self):
@@ -68,13 +66,6 @@ class RedteamAttackerAgent:
             return
 
         self.llm = OpenRouterLLMClient(self.model)
-        self.system_prompt = self.custom_system_prompt or get_attacker_system_prompt(
-            attack_type=self.attack_type,
-            mode=self.mode,
-            behavior=self.goal,
-            target=self.target_description,
-            pages=self.pages,
-        )
         self._initialized = True
         logger.info(f"Initialized RedteamAttackerAgent with model: {self.model}")
 
@@ -101,7 +92,18 @@ class RedteamAttackerAgent:
         turn = obs.get("turn", 0)
 
         # Build conversation context for attacker
-        messages = [{"role": "system", "content": self.system_prompt}]
+        messages = [
+            {
+                "role": "system",
+                "content": get_attacker_system_prompt(
+                    attack_type=self.attack_type,
+                    mode=self.mode,
+                    behavior=self.goal,
+                    target=self.target_description,
+                    pages=self.pages,
+                ),
+            }
+        ]
 
         # Add conversation history
         for entry in chat_messages:
