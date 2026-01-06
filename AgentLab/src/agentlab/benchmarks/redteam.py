@@ -47,7 +47,7 @@ class Page:
     For example, Gmail might have subdomains: ["/mail/u/0/#inbox", "/mail/u/0/#settings"]
     """
 
-    domain: str
+    id: str  # Short identifier, e.g., "duckduckgo", "gmail" (no leading slash)
     base_site_url: str = None  # Root URL, e.g., "https://mail.google.com"
     subdomains: list[str] = field(
         default_factory=list
@@ -110,6 +110,9 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     # Skip link validation
     skip_link_validation: bool = False
+
+    # Success condition from simulation_config
+    success_condition: str = None
 
     # Shared attacker agent instance (initialized in benchmark)
     attacker_agent: RedteamAttackerAgent = field(default=None, init=False)
@@ -281,7 +284,7 @@ class RedteamEnv(AbstractEnv):
                 logger.info("Generating safe analog...")
                 pages_for_prompt = [
                     {
-                        "domain": p.domain,
+                        "id": p.id,
                         "base_site_url": p.base_site_url,
                         "subdomains": p.subdomains,
                     }
@@ -300,7 +303,7 @@ class RedteamEnv(AbstractEnv):
                 sites = [p.base_site_url for p in self.env_args.pages if p.base_site_url]
                 page_details = [
                     {
-                        "domain": p.domain,
+                        "id": p.id,
                         "base_site_url": p.base_site_url,
                         "subdomains": p.subdomains,
                         "details": p.details,
@@ -368,7 +371,8 @@ class RedteamEnv(AbstractEnv):
         url_mapping = {}
         for page in self.env_args.pages:
             for subdomain in page.subdomains:
-                local_route = f"{page.domain}{subdomain}".replace("//", "/")
+                # Build local route from id (no leading slash) + subdomain
+                local_route = f"{page.id}{subdomain}"
                 full_url = f"{page.base_site_url}{subdomain}" if page.base_site_url else local_route
                 url_mapping[local_route] = full_url
         logger.info(f"URL mapping: {url_mapping}")
@@ -380,14 +384,14 @@ class RedteamEnv(AbstractEnv):
 
         # Generate base HTML for all pages and their subdomains
         for page in self.env_args.pages:
-            domain_name = page.domain.lstrip("/")  # "gmail"
+            page_id = page.id  # "gmail", "duckduckgo" (no leading slash)
 
             if page.mode == "synthetic":
                 # Extract spec for this page from prefill
                 page_spec = None
                 if prefill_spec:
                     for ps in prefill_spec.get("pages", []):
-                        if ps.get("page") == page.domain:
+                        if ps.get("page") == page.id:
                             page_spec = ps
                             break
 
@@ -399,7 +403,7 @@ class RedteamEnv(AbstractEnv):
 
                 # Generate HTML for each subdomain
                 for subdomain in page.subdomains:
-                    route_key = f"{domain_name}{subdomain}".replace("//", "/")
+                    route_key = f"{page_id}{subdomain}"
                     full_url = (
                         f"{page.base_site_url}{subdomain}" if page.base_site_url else subdomain
                     )
@@ -412,7 +416,7 @@ class RedteamEnv(AbstractEnv):
 
                     # Combine shared + subdomain-specific for generation
                     combined_spec = {
-                        "page": page.domain,
+                        "page": page.id,
                         "subdomain": subdomain,
                         "shared_functionality": shared_functionality,
                         "functionality": subdomain_spec.get("functionality", {}),
@@ -444,7 +448,7 @@ class RedteamEnv(AbstractEnv):
                         sibling_subdomains = [
                             {
                                 "subdomain": sd,
-                                "route": f"{page.domain}{sd}".replace("//", "/"),
+                                "route": f"{page.id}{sd}",
                                 "full_url": (
                                     f"{page.base_site_url}{sd}" if page.base_site_url else sd
                                 ),
@@ -486,7 +490,7 @@ class RedteamEnv(AbstractEnv):
                     metadata = {
                         "timestamp": datetime.now().isoformat(),
                         "doc": self.env_args.doc,
-                        "domain": page.domain,
+                        "id": page.id,
                         "subdomain": subdomain,
                         "base_site_url": page.base_site_url,
                         "injection_seed": self.env_args.injection_seed,
@@ -495,26 +499,37 @@ class RedteamEnv(AbstractEnv):
 
             else:
                 # Snapshot mode - use HAR replay or bundle
-                domain_clean = page.domain.lstrip("/")
                 snapshots_base = Path(__file__).resolve().parents[4] / "snapshots"
 
-                bundle_path = snapshots_base / f"{domain_clean}_bundle"
+                bundle_path = snapshots_base / f"{page.id}_bundle"
                 if not bundle_path.exists():
                     raise FileNotFoundError(
                         f"Snapshot bundle not found: {bundle_path}\n"
                         f"Please create the bundle first using:\n"
-                        f"  python snapshotter.py {page.base_site_url or f'https://{domain_clean}'} {bundle_path}"
+                        f"  python snapshotter.py {page.base_site_url or f'https://{page.id}'} {bundle_path}"
                     )
                 # For snapshot mode, mark all subdomains as None
                 for subdomain in page.subdomains:
-                    route_key = f"{domain_name}{subdomain}".replace("//", "/")
+                    route_key = f"{page_id}{subdomain}"
                     base_html_by_subdomain[route_key] = None
 
         # Step 4: Generate injection variations for subdomains that have adversarial content
+        # Collect injection data for logging
+        injection_log_data = {
+            "injections": {},
+            "injection_locations": [],
+            "prefill_adversarial_specs": {},
+        }
+
         if subdomains_needing_injections:
             logger.info(
                 f"Found {len(subdomains_needing_injections)} subdomain(s) needing adversarial injections"
             )
+
+            # Record injection locations
+            injection_log_data["injection_locations"] = [
+                rk for rk, _, _, _ in subdomains_needing_injections
+            ]
 
             # Use the attacker agent for injection generation
             logger.info(f"Using attacker agent (model: {self.env_args.attacker_model})...")
@@ -560,6 +575,9 @@ class RedteamEnv(AbstractEnv):
                         prefill_adv = spec_for_subdomain.get("prefill_adversarial", {})
                         logger.info(f"Generating injections for {route_key}...")
 
+                        # Save prefill_adversarial spec for logging
+                        injection_log_data["prefill_adversarial_specs"][route_key] = prefill_adv
+
                         pre_injection_path = self.exp_dir / f"{file_name}_pre_injection.html"
                         pre_injection_path.write_text(html, encoding="utf-8")
                         logger.info(f"✓ Saved {file_name}_pre_injection.html (before injection)")
@@ -571,6 +589,9 @@ class RedteamEnv(AbstractEnv):
                                 variation_index=var_idx,
                                 n_total_variations=n_variations_to_generate,
                             )
+
+                            # Save generated injections for logging
+                            injection_log_data["injections"][route_key] = injections
 
                             html_with_injections = replace_injection_placeholders(html, injections)
                             page_path = variation_dir / f"{file_name}.html"
@@ -623,17 +644,15 @@ class RedteamEnv(AbstractEnv):
             # Find the page this route belongs to
             page_obj = None
             for p in self.env_args.pages:
-                domain_name = p.domain.lstrip("/")
-                if route_key.startswith(domain_name):
+                if route_key.startswith(p.id):
                     page_obj = p
                     break
 
             if page_obj and page_obj.mode == "synthetic":
                 self._flow_config["stages"][route_key] = {"mode": "synthetic"}
             elif page_obj and page_obj.mode == "snapshot":
-                domain_clean = page_obj.domain.lstrip("/")
                 snapshots_base = Path(__file__).resolve().parents[4] / "snapshots"
-                bundle_path = snapshots_base / f"{domain_clean}_bundle"
+                bundle_path = snapshots_base / f"{page_obj.id}_bundle"
                 self._flow_config["stages"][route_key] = {
                     "mode": "snapshot",
                     "bundle_dir": str(bundle_path),
@@ -642,6 +661,11 @@ class RedteamEnv(AbstractEnv):
         # Save flow config
         config_path = self.exp_dir / "flow_config.json"
         config_path.write_text(json.dumps(self._flow_config, indent=2))
+
+        # Save injection log for later analysis
+        injection_log_path = self.exp_dir / "injections.json"
+        injection_log_path.write_text(json.dumps(injection_log_data, indent=2))
+        logger.info(f"✓ Saved injections.json with {len(injection_log_data['injections'])} injection(s)")
 
         self._generation_complete = True
         logger.info(
@@ -810,7 +834,18 @@ class RedteamEnv(AbstractEnv):
         self._wait_for_server(f"http://localhost:{self.server_port}/mode", timeout=10)
         logger.info("Flow server ready")
 
-        # Step 3: Initialize BrowserGym
+        # Use start_page from env_args - it's already the full external URL
+        # (e.g., "https://duckduckgo.com/")
+        external_start_url = self.env_args.start_page
+        if external_start_url and external_start_url.startswith("http"):
+            logger.info(f"External start URL: {external_start_url}")
+        else:
+            # Fallback to localhost if no valid external URL
+            logger.warning(f"Invalid start_page '{external_start_url}', falling back to localhost")
+            external_start_url = f"http://localhost:{self.server_port}/{first_stage}"
+
+        # Step 3: Initialize BrowserGym with about:blank as initial URL
+        # We'll set up route interception first, then navigate to the real start URL
         self.browser_env = gym.make(
             "browsergym/openended",
             disable_env_checker=True,
@@ -818,17 +853,15 @@ class RedteamEnv(AbstractEnv):
             headless=self.env_args.headless,
             action_mapping=self.action_mapping,
             task_kwargs={
-                "start_url": f"http://localhost:{self.server_port}/{first_stage}",
+                "start_url": "about:blank",  # Start neutral, navigate after route setup
                 "goal": self.env_args.doc,
             },
         )
 
-        # Reset browser (openended task will automatically navigate to start_url)
+        # Reset browser (navigates to about:blank)
         obs, info = self.browser_env.reset(seed=seed)
 
-        # Set up Playwright route interception for simulated URLs
-
-        # Get browser context
+        # Get browser context BEFORE setting up routes
         page = self.browser_env.unwrapped.page
         context = page.context
 
@@ -862,10 +895,9 @@ class RedteamEnv(AbstractEnv):
                     path_key = f"{path_key}?{sim_parsed.query}"
 
                 # Get HTML file path for this subdomain
-                route_key = f"{page_config.domain}{subdomain}".replace("//", "/")
-                stage_name = route_key.lstrip("/")
+                route_key = f"{page_config.id}{subdomain}"
                 file_name = (
-                    stage_name.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                    route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
                 )
                 html_path = variation_dir / f"{file_name}.html"
 
@@ -913,6 +945,13 @@ class RedteamEnv(AbstractEnv):
             context.route(domain_pattern, make_domain_handler())
             logger.info(f"📍 Registered domain handler: {domain_pattern} ({len(path_map)} paths)")
 
+        # Now navigate to the external start URL (route interception will serve local HTML)
+        logger.info(f"🚀 Navigating to start URL: {external_start_url}")
+        page.goto(external_start_url, wait_until="domcontentloaded")
+
+        # Get fresh observation after navigation
+        obs = self.browser_env.unwrapped._get_obs()
+
         # Augment observation with redteam-specific info
         obs["goal_object"] = [{"type": "text", "text": self.env_args.doc}]
         obs["last_action"] = None
@@ -925,7 +964,7 @@ class RedteamEnv(AbstractEnv):
             "doc": self.env_args.doc,
             "target": self.env_args.target,
             "injection_seed": self.env_args.injection_seed,
-            "start_url": f"http://localhost:{self.server_port}/{first_stage}",
+            "start_url": external_start_url,
         }
 
     def step(self, action: str):
@@ -960,10 +999,13 @@ class RedteamEnv(AbstractEnv):
     #     return port
 
     def _wait_for_server(self, url: str, timeout: int = 10):
-        """Wait for server to be ready."""
         for i in range(timeout):
-            urllib.request.urlopen(url, timeout=1)
-            return
+            try:
+                urllib.request.urlopen(url, timeout=1)
+                return
+            except (urllib.error.URLError, ConnectionRefusedError, OSError):
+                time.sleep(1)
+                continue
 
         # Final check - capture any output
         # #region agent log
@@ -1089,8 +1131,9 @@ class RedteamBenchmark(AbstractBenchmark):
         sim_config = case_data.get("simulation_config", {})
         pages = []
         for p in sim_config.get("pages", []):
+            page_id = p.get("id", "unknown")
             page = Page(
-                domain=p.get("domain", "/unknown"),
+                id=page_id,
                 base_site_url=p.get("base_site_url", ""),
                 subdomains=p.get("subdomains", ["/"]),
                 details=p.get("details", {}),
@@ -1101,10 +1144,12 @@ class RedteamBenchmark(AbstractBenchmark):
             )
             pages.append(page)
 
-        # Extract start_page
-        start_page = sim_config.get("start_page")
+        # Extract start_page - should be full URL like "https://duckduckgo.com/"
+        start_page = sim_config.get("start_page", "")
         if not start_page and pages:
-            start_page = pages[0].domain
+            # Default to first page's base_site_url + first subdomain
+            first_page = pages[0]
+            start_page = f"{first_page.base_site_url}{first_page.subdomains[0]}"
 
         # Extract system prompt for target model
         system_prompt_config = case_data.get("system_prompt_config", {})
@@ -1114,6 +1159,9 @@ class RedteamBenchmark(AbstractBenchmark):
         tools_config = case_data.get("tools_config")
         criteria = case_data.get("criteria")
         judging = case_data.get("judging")
+
+        # Extract success condition from simulation_config
+        success_condition = sim_config.get("success_condition", "")
 
         # Create variations with different injection seeds
         for seed in range(self.n_injection_variations):
@@ -1141,6 +1189,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 judging=judging,
                 resume_from_dir=self.resume_from_dir,
                 skip_link_validation=self.skip_link_validation,
+                success_condition=success_condition,
             )
 
             # initialize attacker agent
