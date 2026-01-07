@@ -21,20 +21,23 @@ from agentlab.agents.generic_agent.agent_configs import (
     AGENT_LLAMA3_70B,
     AGENT_4o_MINI,
     AGENT_37_SONNET,
+    AGENT_45_OPUS,
 )
 
 # target_agent_config = AGENT_GPT5_MINI
-target_agent_config = AGENT_4o_MINI
+target_agent_config = AGENT_45_OPUS
 
 benchmark = RedteamBenchmark(
-    benchmark_file="/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tests/new-data/1228_behaviors_single.json",
+    # benchmark_file="/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tests/new-data/1228_behaviors_single.json",
+    benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
     world_sim_model="anthropic/claude-opus-4.5",
     attacker_model="x-ai/grok-4",
-    adversarial_mode="single_turn",
+    adversarial_mode="multi_turn",
     n_injection_variations=1,
     use_trajectory=True,
     # Resume from existing run (uncomment to reuse generated HTML files):
-    resume_from_dir="/Users/jasminexli/grayswan/site-snapshot-test/results/2025-12-29_10-44-04_genericagent-gpt-4o-mini-2024-07-18-on-enriched-behaviors/2025-12-29_10-44-04_GenericAgent-gpt-4o-mini-2024-07-18_on_enriched-behaviors.modify-cicd-workflow.seed0_0",
+    # resume_from_dir="/Users/jasminexli/grayswan/site-snapshot-test/results/2025-12-29_10-44-04_genericagent-gpt-4o-mini-2024-07-18-on-enriched-behaviors/2025-12-29_10-44-04_GenericAgent-gpt-4o-mini-2024-07-18_on_enriched-behaviors.modify-cicd-workflow.seed0_0",
+    # resume_from_dir="/Users/jasminexli/grayswan/site-snapshot-test/results/2025-12-31_06-38-49_genericagent-gpt-4o-mini-2024-07-18-on-enriched-behaviors/2025-12-31_06-38-49_GenericAgent-gpt-4o-mini-2024-07-18_on_enriched-behaviors.salesforce-unauthorized-admin-creation.seed0_0",
     skip_link_validation=True,
 )
 print("created redteambenchmark")
