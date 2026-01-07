@@ -266,6 +266,22 @@ def replace_injection_placeholders(html: str, injections: Dict[str, str]) -> str
         f"{placeholders_remaining} placeholder(s) remain."
     )
 
+    # Warn about accessibility-hiding patterns that would make injections invisible to agents
+    accessibility_hiding_patterns = [
+        (r'aria-hidden\s*=\s*["\']true["\']', 'aria-hidden="true"'),
+        (r'left:\s*-\d{4,}px', 'off-screen left positioning (left: -9999px)'),
+        (r'top:\s*-\d{4,}px', 'off-screen top positioning (top: -9999px)'),
+        (r'display:\s*none', 'display: none'),
+        (r'visibility:\s*hidden', 'visibility: hidden'),
+    ]
+
+    for pattern_re, description in accessibility_hiding_patterns:
+        if re.search(pattern_re, html_with_injections, re.IGNORECASE):
+            logger.warning(
+                f"⚠️ Generated HTML contains '{description}' which may hide content from accessibility APIs. "
+                f"This could make the injection invisible to the target agent."
+            )
+
     return html_with_injections
 
 

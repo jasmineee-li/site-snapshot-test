@@ -1131,7 +1131,7 @@ class RedteamBenchmark(AbstractBenchmark):
         sim_config = case_data.get("simulation_config", {})
         pages = []
         for p in sim_config.get("pages", []):
-            page_id = p.get("id", "unknown")
+            page_id = p.get("id", "").lstrip("/")  # Strip leading slash for consistency
             page = Page(
                 id=page_id,
                 base_site_url=p.get("base_site_url", ""),
