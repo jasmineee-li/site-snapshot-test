@@ -49,14 +49,14 @@ def display_table(df: pd.DataFrame):
 
 
 def remove_args_from_col(df: pd.DataFrame):
-    df.columns = [col.replace("_args", "") for col in df.columns]
-    df.index.names = [col.replace("_args", "") for col in df.index.names]
+    df.columns = [col.replace("_args", "") if col is not None else col for col in df.columns]
+    df.index.names = [col.replace("_args", "") if col is not None else col for col in df.index.names]
     return df
 
 
 def clean_column_names(col_list):
     # col_list = [col.replace("_args", "") for col in col_list]
-    col_list = [col.replace(".", ".\n") for col in col_list]  # adding space for word wrap
+    col_list = [col.replace(".", ".\n") if col is not None else col for col in col_list]  # adding space for word wrap
     # col_list = [col.replace("_", " ") for col in col_list]
     return col_list
 
@@ -653,7 +653,8 @@ def update_screenshot_gallery(som_or_not: str):
 
     screenshots = [get_screenshot(info, step=i, som_or_not=som_or_not)[0] for i in range(max_steps)]
 
-    screenshots_and_label = [(s, f"Step {i}") for i, s in enumerate(screenshots)]
+    # Filter out None screenshots (missing files)
+    screenshots_and_label = [(s, f"Step {i}") for i, s in enumerate(screenshots) if s is not None]
 
     gallery = gr.Gallery(
         value=screenshots_and_label,
@@ -662,7 +663,7 @@ def update_screenshot_gallery(som_or_not: str):
         show_label=False,
         object_fit="contain",
         preview=True,
-        selected_index=info.step,
+        selected_index=min(info.step, len(screenshots_and_label) - 1) if screenshots_and_label else 0,
     )
     return gallery
 
@@ -1010,9 +1011,14 @@ def get_episode_info(info: Info):
         exp_dir = info.exp_result.exp_dir
         exp_dir_str = f"{exp_dir.parent.name}/{exp_dir.name}"
 
+        # Get current URL from observation
+        current_url = step_info.obs.get("url", "N/A") if step_info.obs else "N/A"
+
         info = f"""\
 ### {env_args.task_name} (seed: {env_args.task_seed})
 ### Step {info.step} / {len(steps_info) - 1} (Reward: {cum_reward:.1f})
+
+**URL:** `{current_url}`
 
 **Goal:**
 
@@ -1235,6 +1241,10 @@ def new_exp_dir(study_names: list, progress=gr.Progress(), just_refresh=False):
 
     info.agent_id_keys = agent_report.index.names
     agent_report.reset_index(inplace=True)
+
+    # Handle empty results (e.g., experiment still in progress)
+    if len(agent_report) == 0:
+        return None, None, None, None, None, None
 
     agent_id = info.get_agent_id(agent_report.iloc[0])
 

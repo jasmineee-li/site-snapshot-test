@@ -779,6 +779,13 @@ class ExpArgs:
                     step_count += 1
                     obs = next_step.obs
 
+                    # Save environment response step (with screenshot)
+                    next_step.save_step_info(
+                        self.exp_dir,
+                        save_screenshot=self.save_screenshot,
+                        save_som=self.save_som,
+                    )
+
                     # Check if episode ended
                     if next_step.is_done:
                         logger.info(f"Episode ended after {step_count} steps")
@@ -791,6 +798,10 @@ class ExpArgs:
                     )
 
             logger.info(f"Multi-turn conversation ended after {turn + 1} turns, {step_count} steps")
+
+            # Mark experiment as completed (terminated) so xray/inspect recognizes it
+            if episode_info:
+                episode_info[-1].terminated = True
 
         except Exception as e:
             err_msg = f"Exception in multi-turn adversarial task {self.env_args.task_name}.\n{type(e).__name__}:\n{e}"
