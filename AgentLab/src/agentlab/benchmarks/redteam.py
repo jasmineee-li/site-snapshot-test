@@ -15,7 +15,7 @@ import socket
 import urllib.request
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 from datetime import datetime
 import gymnasium as gym
 from urllib.parse import urlparse
@@ -53,7 +53,6 @@ class Page:
         default_factory=list
     )  # Paths to generate, e.g., ["/mail/u/0/#inbox"]
     details: dict[str, str] = field(default_factory=dict)  # subdomain -> description
-    mode: Literal["synthetic", "snapshot"] = "synthetic"
     screenshots: list[str] = field(default_factory=list)  # Paths to screenshot files/folders
     existing_path: str = None  # Path to pre-generated HTML file (skips generation if provided)
     skip_modification: bool = False
@@ -333,9 +332,8 @@ class RedteamEnv(AbstractEnv):
             self.generator = SyntheticPageGenerator(model=self.env_args.world_sim_model)
 
         # Step 2: Analyze prefill data requirements
-        synthetic_pages = [p for p in self.env_args.pages if p.mode == "synthetic"]
-        skip_analysis = synthetic_pages and all(
-            p.existing_path and p.skip_modification for p in synthetic_pages
+        skip_analysis = self.env_args.pages and all(
+            p.existing_path and p.skip_modification for p in self.env_args.pages
         )
 
         if skip_analysis:
@@ -386,132 +384,115 @@ class RedteamEnv(AbstractEnv):
         for page in self.env_args.pages:
             page_id = page.id  # "gmail", "duckduckgo" (no leading slash)
 
-            if page.mode == "synthetic":
-                # Extract spec for this page from prefill
-                page_spec = None
-                if prefill_spec:
-                    for ps in prefill_spec.get("pages", []):
-                        if ps.get("page") == page.id:
-                            page_spec = ps
-                            break
+            # Extract spec for this page from prefill
+            page_spec = None
+            if prefill_spec:
+                for ps in prefill_spec.get("pages", []):
+                    if ps.get("page") == page.id:
+                        page_spec = ps
+                        break
 
-                # Get shared functionality from page spec
-                shared_functionality = (
-                    page_spec.get("shared_functionality", {}) if page_spec else {}
+            # Get shared functionality from page spec
+            shared_functionality = (
+                page_spec.get("shared_functionality", {}) if page_spec else {}
+            )
+            subdomain_specs = page_spec.get("subdomains", {}) if page_spec else {}
+
+            # Generate HTML for each subdomain
+            for subdomain in page.subdomains:
+                route_key = f"{page_id}{subdomain}"
+                full_url = (
+                    f"{page.base_site_url}{subdomain}" if page.base_site_url else subdomain
                 )
-                subdomain_specs = page_spec.get("subdomains", {}) if page_spec else {}
+                subdomain_details = (
+                    page.details.get(subdomain, "") if isinstance(page.details, dict) else ""
+                )
 
-                # Generate HTML for each subdomain
-                for subdomain in page.subdomains:
-                    route_key = f"{page_id}{subdomain}"
-                    full_url = (
-                        f"{page.base_site_url}{subdomain}" if page.base_site_url else subdomain
+                # Get subdomain-specific spec
+                subdomain_spec = subdomain_specs.get(subdomain, {})
+
+                # Combine shared + subdomain-specific for generation
+                combined_spec = {
+                    "page": page.id,
+                    "subdomain": subdomain,
+                    "shared_functionality": shared_functionality,
+                    "functionality": subdomain_spec.get("functionality", {}),
+                    "prefill_benign": subdomain_spec.get("prefill_benign", {}),
+                    "prefill_adversarial": subdomain_spec.get("prefill_adversarial", {}),
+                }
+
+                html = None
+
+                # Check for existing path (skip generation if provided)
+                if page.existing_path and page.skip_modification:
+                    logger.info(f"Using existing HTML as-is from {page.existing_path}")
+                    try:
+                        html = load_toolbox_site(Path(page.existing_path))
+                    except Exception as e:
+                        logger.warning(f"Failed to load existing site: {e}")
+                        html = None
+
+                # Generate from scratch if needed
+                if html is None:
+                    logger.info(f"Generating synthetic page for {route_key} ({full_url})")
+                    page_screenshots = (
+                        trajectory_screenshots
+                        if self.env_args.use_trajectory
+                        else page.screenshots
                     )
-                    subdomain_details = (
-                        page.details.get(subdomain, "") if isinstance(page.details, dict) else ""
+
+                    # Build sibling subdomains for navigation context
+                    sibling_subdomains = [
+                        {
+                            "subdomain": sd,
+                            "route": f"{page.id}{sd}",
+                            "full_url": (
+                                f"{page.base_site_url}{sd}" if page.base_site_url else sd
+                            ),
+                            "details": (
+                                page.details.get(sd, "")[:100]
+                                if isinstance(page.details, dict)
+                                else ""
+                            ),
+                        }
+                        for sd in page.subdomains
+                        if sd != subdomain
+                    ]
+
+                    html = self.generator.generate(
+                        domain=route_key,
+                        context={
+                            "doc": self.env_args.doc,
+                            "subdomain_details": subdomain_details,
+                        },
+                        prefill=combined_spec,
+                        simulated_url=full_url,
+                        screenshots=page_screenshots,
+                        url_mapping=url_mapping,
+                        sibling_subdomains=sibling_subdomains,
                     )
 
-                    # Get subdomain-specific spec
-                    subdomain_spec = subdomain_specs.get(subdomain, {})
+                # Save base HTML
+                base_html_by_subdomain[route_key] = html
 
-                    # Combine shared + subdomain-specific for generation
-                    combined_spec = {
-                        "page": page.id,
-                        "subdomain": subdomain,
-                        "shared_functionality": shared_functionality,
-                        "functionality": subdomain_spec.get("functionality", {}),
-                        "prefill_benign": subdomain_spec.get("prefill_benign", {}),
-                        "prefill_adversarial": subdomain_spec.get("prefill_adversarial", {}),
-                    }
-
-                    html = None
-
-                    # Check for existing path (skip generation if provided)
-                    if page.existing_path and page.skip_modification:
-                        logger.info(f"Using existing HTML as-is from {page.existing_path}")
-                        try:
-                            html = load_toolbox_site(Path(page.existing_path))
-                        except Exception as e:
-                            logger.warning(f"Failed to load existing site: {e}")
-                            html = None
-
-                    # Generate from scratch if needed
-                    if html is None:
-                        logger.info(f"Generating synthetic page for {route_key} ({full_url})")
-                        page_screenshots = (
-                            trajectory_screenshots
-                            if self.env_args.use_trajectory
-                            else page.screenshots
-                        )
-
-                        # Build sibling subdomains for navigation context
-                        sibling_subdomains = [
-                            {
-                                "subdomain": sd,
-                                "route": f"{page.id}{sd}",
-                                "full_url": (
-                                    f"{page.base_site_url}{sd}" if page.base_site_url else sd
-                                ),
-                                "details": (
-                                    page.details.get(sd, "")[:100]
-                                    if isinstance(page.details, dict)
-                                    else ""
-                                ),
-                            }
-                            for sd in page.subdomains
-                            if sd != subdomain
-                        ]
-
-                        html = self.generator.generate(
-                            domain=route_key,
-                            context={
-                                "doc": self.env_args.doc,
-                                "subdomain_details": subdomain_details,
-                            },
-                            prefill=combined_spec,
-                            simulated_url=full_url,
-                            screenshots=page_screenshots,
-                            url_mapping=url_mapping,
-                            sibling_subdomains=sibling_subdomains,
-                        )
-
-                    # Save base HTML
-                    base_html_by_subdomain[route_key] = html
-
-                    # Check if this subdomain needs adversarial injections
-                    prefill_adv = subdomain_spec.get("prefill_adversarial", {})
-                    if prefill_adv.get("needed", False):
-                        subdomains_needing_injections.append(
-                            (route_key, page, subdomain, combined_spec)
-                        )
-                        logger.info(f"Subdomain {route_key} needs adversarial injections")
-
-                    # Save to toolbox for future reuse
-                    metadata = {
-                        "timestamp": datetime.now().isoformat(),
-                        "doc": self.env_args.doc,
-                        "id": page.id,
-                        "subdomain": subdomain,
-                        "base_site_url": page.base_site_url,
-                        "injection_seed": self.env_args.injection_seed,
-                    }
-                    save_site_to_toolbox(route_key, html, metadata)
-
-            else:
-                # Snapshot mode - use HAR replay or bundle
-                snapshots_base = Path(__file__).resolve().parents[4] / "snapshots"
-
-                bundle_path = snapshots_base / f"{page.id}_bundle"
-                if not bundle_path.exists():
-                    raise FileNotFoundError(
-                        f"Snapshot bundle not found: {bundle_path}\n"
-                        f"Please create the bundle first using:\n"
-                        f"  python snapshotter.py {page.base_site_url or f'https://{page.id}'} {bundle_path}"
+                # Check if this subdomain needs adversarial injections
+                prefill_adv = subdomain_spec.get("prefill_adversarial", {})
+                if prefill_adv.get("needed", False):
+                    subdomains_needing_injections.append(
+                        (route_key, page, subdomain, combined_spec)
                     )
-                # For snapshot mode, mark all subdomains as None
-                for subdomain in page.subdomains:
-                    route_key = f"{page_id}{subdomain}"
-                    base_html_by_subdomain[route_key] = None
+                    logger.info(f"Subdomain {route_key} needs adversarial injections")
+
+                # Save to toolbox for future reuse
+                metadata = {
+                    "timestamp": datetime.now().isoformat(),
+                    "doc": self.env_args.doc,
+                    "id": page.id,
+                    "subdomain": subdomain,
+                    "base_site_url": page.base_site_url,
+                    "injection_seed": self.env_args.injection_seed,
+                }
+                save_site_to_toolbox(route_key, html, metadata)
 
         # Step 4: Generate injection variations for subdomains that have adversarial content
         # Collect injection data for logging
@@ -641,22 +622,7 @@ class RedteamEnv(AbstractEnv):
 
         # Configure stages from the variation folder - each subdomain is a stage
         for route_key in base_html_by_subdomain.keys():
-            # Find the page this route belongs to
-            page_obj = None
-            for p in self.env_args.pages:
-                if route_key.startswith(p.id):
-                    page_obj = p
-                    break
-
-            if page_obj and page_obj.mode == "synthetic":
-                self._flow_config["stages"][route_key] = {"mode": "synthetic"}
-            elif page_obj and page_obj.mode == "snapshot":
-                snapshots_base = Path(__file__).resolve().parents[4] / "snapshots"
-                bundle_path = snapshots_base / f"{page_obj.id}_bundle"
-                self._flow_config["stages"][route_key] = {
-                    "mode": "snapshot",
-                    "bundle_dir": str(bundle_path),
-                }
+            self._flow_config["stages"][route_key] = {}
 
         # Save flow config
         config_path = self.exp_dir / "flow_config.json"
@@ -871,8 +837,8 @@ class RedteamEnv(AbstractEnv):
         variation_dir = Path(self._flow_config["run_dir"])
 
         for page_config in self.env_args.pages:
-            # Only intercept routes for synthetic pages with base_site_url
-            if not page_config.base_site_url or page_config.mode != "synthetic":
+            # Only intercept routes for pages with base_site_url
+            if not page_config.base_site_url:
                 continue
 
             # Parse the base URL to get the netloc (domain)
@@ -1061,8 +1027,7 @@ class RedteamBenchmark(AbstractBenchmark):
     Features:
     - On-the-fly LLM page generation
     - Prompt injection variations via seeding
-    - Support for both synthetic and snapshot modes
-    - Screenshot-guided generation
+    - Screenshot-guided generation via trajectory observation
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -1137,7 +1102,6 @@ class RedteamBenchmark(AbstractBenchmark):
                 base_site_url=p.get("base_site_url", ""),
                 subdomains=p.get("subdomains", ["/"]),
                 details=p.get("details", {}),
-                mode=p.get("mode", "synthetic"),
                 screenshots=p.get("screenshots", []),
                 existing_path=p.get("existing_path"),
                 skip_modification=p.get("skip_modification", False),

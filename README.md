@@ -80,11 +80,10 @@ Behaviors are defined in JSON with `simulation_config`:
     "success_condition": "Agent submits New User form with Save button...",
     "pages": [
       {
-        "domain": "/salesforce",
+        "id": "salesforce",
         "base_site_url": "https://greenwaveai.lightning.force.com",
         "subdomains": ["/lightning/page/home", "/lightning/setup/ManageUsers/..."],
-        "details": { "/lightning/page/home": "Salesforce home page..." },
-        "mode": "synthetic"
+        "details": { "/lightning/page/home": "Salesforce home page..." }
       }
     ]
   },
@@ -135,4 +134,5 @@ python tutorials/2_eval_on_miniwob/redteam_test.py
 
 # Analyze
 agentlab-xray                       # Gradio UI for experiment visualization
+python website_browser.py # cool HTML browser too!
 ```
