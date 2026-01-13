@@ -283,13 +283,18 @@ class Study(AbstractStudy):
     def _prepare_redteam_parent_dirs(
         self,
         benchmark,
-        exp_root: Path,
+        study_dir: Path,
         date_str: str,
     ) -> dict:
         """
-        Pre-create parent directories for redteam behavior runs.
+        Pre-create parent directories for redteam behavior runs inside the study directory.
 
         Groups variants by (behavior_id, variation_seed) and creates parent dirs.
+
+        Args:
+            benchmark: RedteamBenchmark instance
+            study_dir: Study directory (parent dirs will be created inside this)
+            date_str: Date string for directory naming
 
         Returns:
             Dict mapping (behavior_id, seed) -> parent_exp_dir
@@ -307,13 +312,13 @@ class Study(AbstractStudy):
                 key = (env_args.behavior_id, env_args.variation_seed)
                 behavior_groups[key].append(env_args)
 
-        # Create parent directory for each behavior group
+        # Create parent directory for each behavior group INSIDE study_dir
         parent_dirs = {}
         for (behavior_id, seed), env_args_list in behavior_groups.items():
             # Create parent directory name
             agent_name = self.agent_args[0].agent_name if self.agent_args else 'agent'
             parent_name = f"{date_str}_{agent_name}_{behavior_id}_seed{seed}"
-            parent_dir = exp_root / parent_name
+            parent_dir = study_dir / parent_name
             parent_dir.mkdir(parents=True, exist_ok=True)
 
             # Save metadata about this behavior run
@@ -384,9 +389,9 @@ class Study(AbstractStudy):
             # Extract date string from directory name
             date_str = self.dir.name.split('_')[0] + '_' + self.dir.name.split('_')[1]
 
-            # Pre-create parent directories for behavior groups
+            # Pre-create parent directories for behavior groups INSIDE the study directory
             parent_dirs = self._prepare_redteam_parent_dirs(
-                self.benchmark, Path(exp_root), date_str
+                self.benchmark, self.dir, date_str  # Use study dir, not exp_root
             )
 
             # Update env_args with parent directory info
