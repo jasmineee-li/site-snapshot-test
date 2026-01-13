@@ -575,12 +575,30 @@ class JudgeRunner:
         """
         Load definitive injection metadata from injections.json.
 
+        Checks both exp_dir and parent_dir (for variant structure).
+
         Returns:
             Dict with test_mode, injection_locations, placeholder_content
         """
+        # Try exp_dir first (old structure or variant-specific copy)
         injection_file = Path(exp_dir) / "injections.json"
+
+        # If not found, try parent dir (new variant structure)
         if not injection_file.exists():
-            logger.warning(f"injections.json not found in {exp_dir}, using empty metadata")
+            parent_metadata = Path(exp_dir).parent / "metadata.json"
+            if parent_metadata.exists():
+                try:
+                    with open(parent_metadata) as f:
+                        metadata = json.load(f)
+                        if "variants" in metadata:
+                            # This is a variant - check parent for injections.json
+                            injection_file = Path(exp_dir).parent / "injections.json"
+                            logger.debug(f"Using parent directory for injections.json: {injection_file}")
+                except Exception:
+                    pass
+
+        if not injection_file.exists():
+            logger.warning(f"injections.json not found in {exp_dir} or parent, using empty metadata")
             return {
                 "test_mode": "unknown",
                 "injection_locations": [],
