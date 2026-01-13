@@ -469,8 +469,10 @@ def global_report(
             index_names = [rename_index(name) for name in report.index.names]
             report = report.rename_axis(index=index_names)
 
-        # if has key avg_reward
-        if "avg_reward" in report.columns:
+        # Sort by appropriate metric (auto-detect which metric is available)
+        if "benign_utility" in report.columns:
+            report = report.sort_values("benign_utility", ascending=False)
+        elif "avg_reward" in report.columns:
             report = report.sort_values("avg_reward", ascending=False)
 
     return report
