@@ -370,97 +370,6 @@ class LLMJudge(BaseJudge):
 
 
 # =============================================================================
-# HTML State Parser
-# =============================================================================
-
-
-class HTMLStateParser:
-    """
-    Parses HTML files to extract adversarial elements and important components.
-
-    Used to provide context to judges about what adversarial content was present
-    in the environment during the agent's run.
-    """
-
-    # Patterns to identify adversarial content
-    ADVERSARIAL_PATTERNS = [
-        r"<!--\s*ADVERSARIAL:\s*(.*?)\s*-->",  # Comment markers
-        r'data-adversarial="([^"]*)"',  # Data attributes
-        r'class="[^"]*adversarial[^"]*"',  # Class names
-        r"(phish|malicious|injection|payload)",  # Keywords (case-insensitive)
-    ]
-
-    def __init__(self, variation_dir: Path):
-        self.variation_dir = Path(variation_dir)
-
-    def parse_all_pages(self) -> Dict[str, Any]:
-        """Parse all HTML files in the variation directory."""
-        result = {
-            "pages": {},
-            "adversarial_elements": [],
-            "injection_placements": [],
-        }
-
-        for html_file in self.variation_dir.glob("*.html"):
-            page_name = html_file.stem
-            page_data = self._parse_page(html_file)
-            result["pages"][page_name] = page_data
-            result["adversarial_elements"].extend(page_data.get("adversarial_elements", []))
-            result["injection_placements"].extend(page_data.get("injection_placements", []))
-
-        return result
-
-    def _parse_page(self, html_path: Path) -> Dict[str, Any]:
-        """Parse a single HTML file for adversarial elements."""
-        content = html_path.read_text(encoding="utf-8")
-
-        result = {
-            "file": html_path.name,
-            "adversarial_elements": [],
-            "injection_placements": [],
-            "links": [],
-            "forms": [],
-        }
-
-        # Find adversarial markers
-        for pattern in self.ADVERSARIAL_PATTERNS:
-            for match in re.finditer(pattern, content, re.IGNORECASE | re.DOTALL):
-                result["adversarial_elements"].append(
-                    {
-                        "pattern": pattern,
-                        "match": match.group(0)[:200],
-                        "position": match.start(),
-                        "page": html_path.name,
-                    }
-                )
-
-        # Find injection placements (replaced placeholders)
-        # Look for content that was injected (no longer has INJECTION_PLACEHOLDER)
-        # but may have adversarial markers or suspicious content
-
-        # Extract links for context
-        link_pattern = r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
-        for match in re.finditer(link_pattern, content, re.IGNORECASE | re.DOTALL):
-            result["links"].append(
-                {
-                    "href": match.group(1),
-                    "text": match.group(2)[:100],
-                }
-            )
-
-        # Extract forms for context
-        form_pattern = r'<form[^>]*action="([^"]*)"[^>]*>'
-        for match in re.finditer(form_pattern, content, re.IGNORECASE):
-            result["forms"].append(
-                {
-                    "action": match.group(1),
-                }
-            )
-
-        return result
-
-
-# =============================================================================
 # Judge Factory & Orchestrator
 # =============================================================================
 
@@ -561,8 +470,11 @@ class JudgeRunner:
                 "error": "Variation directory not found",
             }
 
-        # Run judges
-        result = self.judge.evaluate(agent_actions, variation_dir, conversation)
+        # Load injection metadata
+        injection_metadata = self._load_injection_metadata(exp_dir)
+
+        # Run judges with metadata
+        result = self.judge.evaluate(agent_actions, variation_dir, conversation, injection_metadata, episode_info)
         result_dict = self.judge.to_dict(result)
         logger.info(
             f"Judge evaluation complete: success={result.overall_success}, score={result.overall_score:.2f}"
@@ -659,6 +571,38 @@ class JudgeRunner:
 
         return None
 
+    def _load_injection_metadata(self, exp_dir: Path) -> Dict[str, Any]:
+        """
+        Load definitive injection metadata from injections.json.
+
+        Returns:
+            Dict with test_mode, injection_locations, placeholder_content
+        """
+        injection_file = Path(exp_dir) / "injections.json"
+        if not injection_file.exists():
+            logger.warning(f"injections.json not found in {exp_dir}, using empty metadata")
+            return {
+                "test_mode": "unknown",
+                "injection_locations": [],
+                "placeholder_content": {},
+            }
+
+        try:
+            with open(injection_file, 'r') as f:
+                metadata = json.load(f)
+                logger.info(
+                    f"Loaded injection metadata: {len(metadata.get('injection_locations', []))} "
+                    f"location(s), {len(metadata.get('placeholder_content', {}))} placeholder(s)"
+                )
+                return metadata
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to load injections.json: {e}")
+            return {
+                "test_mode": "unknown",
+                "injection_locations": [],
+                "placeholder_content": {},
+            }
+
     def save_result(self, exp_dir: Path, result: Dict[str, Any]) -> Path:
         """Save judge result to exp_dir/judge_result.json."""
         result_path = Path(exp_dir) / "judge_result.json"
@@ -703,6 +647,8 @@ class RedteamJudge:
         agent_actions: List[Dict[str, Any]],
         variation_dir: Path,
         conversation: List[Dict[str, str]],
+        injection_metadata: Dict[str, Any],
+        episode_info: List,
     ) -> AggregatedJudgeResult:
         """
         Run all judges and aggregate results.
@@ -711,13 +657,16 @@ class RedteamJudge:
             agent_actions: List of actions taken by the agent
             variation_dir: Path to the HTML variation directory
             conversation: Full conversation transcript
+            injection_metadata: Injection metadata from injections.json
+            episode_info: Episode info for extracting visited pages
 
         Returns:
             AggregatedJudgeResult with overall and individual results
         """
-        # Parse HTML state
-        parser = HTMLStateParser(variation_dir)
-        html_state = parser.parse_all_pages()
+        # Build HTML state from metadata instead of heuristic parsing
+        html_state = self._build_html_state_from_metadata(
+            injection_metadata, episode_info, variation_dir
+        )
 
         # Run each judge
         individual_results = []
@@ -747,6 +696,75 @@ class RedteamJudge:
             html_state=html_state,
         )
 
+    def _build_html_state_from_metadata(
+        self,
+        injection_metadata: Dict[str, Any],
+        episode_info: List,
+        variation_dir: Path,
+    ) -> Dict[str, Any]:
+        """
+        Build HTML state summary using definitive injection metadata.
+
+        Uses injections.json instead of heuristic pattern matching.
+        """
+        # Extract pages visited by agent from episode_info
+        pages_visited = set()
+        for step in episode_info:
+            if step is None:
+                continue
+
+            obs = getattr(step, 'obs', None)
+            if obs and isinstance(obs, dict):
+                # Extract URL from observation
+                url = obs.get('url', '')
+                if url:
+                    # Convert URL to page identifier
+                    # URL format: http://localhost:8001/path/to/page
+                    # Extract path after domain
+                    from urllib.parse import urlparse
+                    parsed = urlparse(url)
+                    path = parsed.path.strip('/')
+
+                    # Convert to file name format
+                    if path:
+                        page_name = path.replace('/', '_')
+                        # Handle query parameters
+                        if parsed.query:
+                            page_name = f"{page_name}__{parsed.query.replace('=', '=')}"
+                        pages_visited.add(page_name)
+
+        # Get injection data from metadata
+        injection_locations = injection_metadata.get("injection_locations", [])
+        placeholder_content = injection_metadata.get("placeholder_content", {})
+        test_mode = injection_metadata.get("test_mode", "unknown")
+
+        # Convert injection locations (slash-separated paths) to file names
+        injected_pages = set()
+        for location in injection_locations:
+            # Convert "greenwave-training/viewer/case-reporting-201-slide-deck"
+            # to "greenwave-training_viewer_case-reporting-201-slide-deck"
+            page_file = location.replace("/", "_")
+            injected_pages.add(page_file)
+
+        # Determine which injected pages were actually visited
+        visited_injected_pages = pages_visited & injected_pages
+
+        return {
+            "test_mode": test_mode,
+            "pages_analyzed": list(pages_visited),
+            "injection_locations": injection_locations,
+            "injected_pages": list(injected_pages),
+            "visited_injected_pages": list(visited_injected_pages),
+            "adversarial_elements_found": len(visited_injected_pages),
+            "placeholder_count": len(placeholder_content),
+            "metadata_source": "injections.json",
+            # Keep old structure for backward compat with judges
+            "pages": {p: {} for p in pages_visited},
+            "adversarial_elements": [
+                {"page": p, "source": "metadata"} for p in visited_injected_pages
+            ],
+        }
+
     def to_dict(self, result: AggregatedJudgeResult) -> Dict[str, Any]:
         """Convert result to serializable dict."""
         return {
@@ -763,9 +781,11 @@ class RedteamJudge:
                 for r in result.individual_results
             ],
             "html_state_summary": {
-                "pages_analyzed": list(result.html_state.get("pages", {}).keys()),
-                "adversarial_elements_found": len(
-                    result.html_state.get("adversarial_elements", [])
-                ),
+                "test_mode": result.html_state.get("test_mode", "unknown"),
+                "pages_analyzed": result.html_state.get("pages_analyzed", []),
+                "injection_locations": result.html_state.get("injection_locations", []),
+                "adversarial_elements_found": result.html_state.get("adversarial_elements_found", 0),
+                "visited_injected_pages": result.html_state.get("visited_injected_pages", []),
+                "metadata_source": result.html_state.get("metadata_source", "unknown"),
             },
         }
