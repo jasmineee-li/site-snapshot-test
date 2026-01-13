@@ -293,6 +293,14 @@ CHAT_MODEL_ARGS_DICT = {
         temperature=1e-1,
         vision_support=True,
     ),
+    "openrouter/anthropic/claude-opus-4.5": OpenRouterModelArgs(
+        model_name="anthropic/claude-opus-4.5",
+        max_total_tokens=200_000,
+        max_input_tokens=200_000,
+        max_new_tokens=8_192,
+        temperature=1e-1,
+        vision_support=True,
+    ),
     "openrouter/qwen/qwen-2-72b-instruct": OpenRouterModelArgs(
         model_name="qwen/qwen-2-72b-instruct",
         max_total_tokens=32_000,

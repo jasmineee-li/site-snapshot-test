@@ -280,6 +280,65 @@ class Study(AbstractStudy):
         logger.info(f"Loading experiments from {self.dir}")
         self.exp_args_list = list(inspect_results.yield_all_exp_results(savedir_base=self.dir))
 
+    def _prepare_redteam_parent_dirs(
+        self,
+        benchmark,
+        study_dir: Path,
+        date_str: str,
+    ) -> dict:
+        """
+        Pre-create parent directories for redteam behavior runs inside the study directory.
+
+        Groups variants by (behavior_id, variation_seed) and creates parent dirs.
+
+        Args:
+            benchmark: RedteamBenchmark instance
+            study_dir: Study directory (parent dirs will be created inside this)
+            date_str: Date string for directory naming
+
+        Returns:
+            Dict mapping (behavior_id, seed) -> parent_exp_dir
+        """
+        from collections import defaultdict
+
+        # Check if this is redteam benchmark
+        if not hasattr(benchmark, 'env_args_list'):
+            return {}
+
+        # Group tasks by (behavior_id, variation_seed)
+        behavior_groups = defaultdict(list)
+        for env_args in benchmark.env_args_list:
+            if hasattr(env_args, 'behavior_id') and env_args.behavior_id:
+                key = (env_args.behavior_id, env_args.variation_seed)
+                behavior_groups[key].append(env_args)
+
+        # Create parent directory for each behavior group INSIDE study_dir
+        parent_dirs = {}
+        for (behavior_id, seed), env_args_list in behavior_groups.items():
+            # Create parent directory name
+            agent_name = self.agent_args[0].agent_name if self.agent_args else 'agent'
+            parent_name = f"{date_str}_{agent_name}_{behavior_id}_seed{seed}"
+            parent_dir = study_dir / parent_name
+            parent_dir.mkdir(parents=True, exist_ok=True)
+
+            # Save metadata about this behavior run
+            metadata = {
+                "behavior_id": behavior_id,
+                "variation_seed": seed,
+                "variants": [
+                    env_args.variant_subdir for env_args in env_args_list
+                ],
+                "created_at": date_str,
+            }
+            (parent_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
+
+            # Store for later reference
+            parent_dirs[(behavior_id, seed)] = parent_dir
+
+            logger.info(f"Created parent dir for {behavior_id} seed{seed}: {parent_dir}")
+
+        return parent_dirs
+
     def set_reproducibility_info(self, strict_reproducibility=False, comment=None):
         """Gather relevant information that may affect the reproducibility of the experiment
 
@@ -322,6 +381,28 @@ class Study(AbstractStudy):
             strict_reproducibility=strict_reproducibility, comment=self.comment
         )
         self.save(exp_root=exp_root)
+
+        # For redteam: pre-create parent directories to group variants
+        from agentlab.benchmarks.redteam import RedteamBenchmark
+
+        if isinstance(self.benchmark, RedteamBenchmark):
+            # Extract date string from directory name
+            date_str = self.dir.name.split('_')[0] + '_' + self.dir.name.split('_')[1]
+
+            # Pre-create parent directories for behavior groups INSIDE the study directory
+            parent_dirs = self._prepare_redteam_parent_dirs(
+                self.benchmark, self.dir, date_str  # Use study dir, not exp_root
+            )
+
+            # Update env_args with parent directory info
+            for env_args in self.benchmark.env_args_list:
+                if hasattr(env_args, 'behavior_id') and env_args.behavior_id:
+                    key = (env_args.behavior_id, env_args.variation_seed)
+                    if key in parent_dirs:
+                        env_args.parent_exp_dir = str(parent_dirs[key])
+                        env_args.variant_name = env_args.variant_subdir
+                        env_args.is_variant_run = True
+                        logger.info(f"Configured variant {env_args.variant_name} for {env_args.behavior_id}")
 
         n_exp = len(self.exp_args_list)
         last_error_count = None
@@ -732,6 +813,20 @@ class Study(AbstractStudy):
         except Exception:
             pass
 
+        # Load adversarial content from injections.json
+        adversarial_content = None
+        try:
+            injection_path = exp_result.exp_dir / "injections.json"
+            if injection_path.exists():
+                with open(injection_path, "r", encoding="utf-8") as f:
+                    adversarial_content = json.load(f)
+                logger.debug(f"Loaded adversarial content from {injection_path}")
+        except Exception as e:
+            logger.debug(f"Could not load injections.json: {e}")
+
+        # Get success condition from env_args
+        success_condition = getattr(env_args, "success_condition", None)
+
         return {
             "behavior_id": behavior_id,
             "behavior_name": getattr(env_args, "target", None) or behavior_id,
@@ -757,6 +852,8 @@ class Study(AbstractStudy):
             "judge_result": judge_result,
             "criteria_scores": criteria_scores if criteria_scores else None,
             "token_usage": token_usage,
+            "adversarial_content": adversarial_content,
+            "success_condition": success_condition,
             "exp_dir": str(exp_result.exp_dir),
         }
 

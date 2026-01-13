@@ -355,6 +355,11 @@ class ExpArgs:
     save_screenshot: bool = True
     save_som: bool = False
 
+    @property
+    def parent_exp_dir(self):
+        """Parent directory if using variant structure."""
+        return getattr(self, '_parent_exp_dir', None)
+
     def make_id(self):
         """Create a unique id for the experiment."""
         if self.exp_id is None:
@@ -391,19 +396,37 @@ class ExpArgs:
 
     def _make_dir(self, exp_root):
         """Create a unique directory for the experiment."""
-        date_str = self.exp_date.strftime("%Y-%m-%d_%H-%M-%S")
-        exp_str = re.sub(
-            r"[\/:*?<>|]", "_", self.exp_name
-        )  # sanitize exp_name to be used as a file name (substitute forbidden characters)
+        # Check if using variant structure
+        if hasattr(self.env_args, 'is_variant_run') and self.env_args.is_variant_run:
+            # Variant structure: parent directory already created by Study
+            parent_dir = Path(self.env_args.parent_exp_dir)
+            variant_name = self.env_args.variant_name
 
-        for i in range(1000):
-            if i >= 999:  # make sure we don't loop forever
-                raise ValueError("Could not find a unique name for the experiment directory.")
+            # Use parent/variant as exp_dir
+            self.exp_dir = parent_dir / variant_name
+            self.exp_dir.mkdir(parents=True, exist_ok=True)
 
-            tag = f"_{i}" if i > 0 else ""
-            self.exp_dir = Path(exp_root) / f"{date_str}_{exp_str}{tag}"
-            if not self.exp_dir.exists():
-                break
+            # Store parent reference for accessing shared files
+            self._parent_exp_dir = parent_dir
+
+            logger.info(f"Using variant exp_dir: {self.exp_dir}")
+        else:
+            # Standard exp_dir creation
+            date_str = self.exp_date.strftime("%Y-%m-%d_%H-%M-%S")
+            exp_str = re.sub(
+                r"[\/:*?<>|]", "_", self.exp_name
+            )  # sanitize exp_name to be used as a file name (substitute forbidden characters)
+
+            for i in range(1000):
+                if i >= 999:  # make sure we don't loop forever
+                    raise ValueError("Could not find a unique name for the experiment directory.")
+
+                tag = f"_{i}" if i > 0 else ""
+                self.exp_dir = Path(exp_root) / f"{date_str}_{exp_str}{tag}"
+                if not self.exp_dir.exists():
+                    break
+
+            self._parent_exp_dir = None
 
     # TODO distinguish between agent error and environment or system error. e.g.
     # the parsing error of an action should not be re-run.
@@ -983,6 +1006,32 @@ class ExpResult:
         self._flat_exp_args = None
         self._logs = None
 
+        # Detect if this is a variant subdirectory
+        self.parent_dir = None
+        self.variant_name = None
+
+        # Check if parent has metadata.json
+        if (self.exp_dir.parent / "metadata.json").exists():
+            try:
+                with open(self.exp_dir.parent / "metadata.json") as f:
+                    metadata = json.load(f)
+                    if "variants" in metadata:
+                        self.parent_dir = self.exp_dir.parent
+                        self.variant_name = self.exp_dir.name
+                        logger.debug(f"Detected variant: {self.variant_name} in {self.parent_dir}")
+            except Exception as e:
+                logger.warning(f"Failed to load parent metadata: {e}")
+
+    @property
+    def is_variant_run(self) -> bool:
+        """Check if this is a variant subdirectory."""
+        return self.parent_dir is not None
+
+    @property
+    def shared_metadata_dir(self) -> Path:
+        """Directory for shared metadata (parent if variant, else exp_dir)."""
+        return self.parent_dir if self.is_variant_run else self.exp_dir
+
     @property
     def exp_args(self) -> ExpArgs:
         if self._exp_args is None:
@@ -1090,6 +1139,12 @@ class ExpResult:
     def get_exp_record(self) -> dict:
         """Return a dict with exp_args flattened and summary_info."""
         record = {"exp_dir": self.exp_dir}
+
+        # Add variant info if applicable
+        if self.is_variant_run:
+            record["parent_exp_dir"] = str(self.parent_dir)
+            record["variant_name"] = self.variant_name
+
         try:
             record.update(self.flat_exp_args)
         except FileNotFoundError:
@@ -1098,6 +1153,14 @@ class ExpResult:
             record.update(self.summary_info)
         except FileNotFoundError:
             pass
+
+        # Add judge results if available
+        judge_result = self.judge_result
+        if judge_result is not None:
+            record["judge.overall_success"] = judge_result.get("overall_success")
+            record["judge.overall_score"] = judge_result.get("overall_score")
+            record["judge_result_full"] = judge_result
+
         return record
 
     @property
@@ -1123,6 +1186,18 @@ class ExpResult:
         if self._logs is None:
             self._logs = (self.exp_dir / "experiment.log").read_text()
         return self._logs
+
+    @property
+    def judge_result(self) -> dict:
+        """Load judge result if available."""
+        judge_path = self.exp_dir / "judge_result.json"
+        if not judge_path.exists():
+            return None
+        try:
+            with open(judge_path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return None
 
     @property
     def status(self):
@@ -1169,6 +1244,10 @@ def yield_all_exp_results(
     This will ignore all experiments that start with "_" or ".". use
     `load_hidden=True` to load them anyway.
 
+    Detects both:
+    - Standard exp_dirs (old structure)
+    - Variant subdirectories (new structure: parent/benign/, parent/adversarial_v*/)
+
     Args:
         savedir_base: str or Path
             The base directory where the experiments are saved.
@@ -1187,22 +1266,68 @@ def yield_all_exp_results(
     if not isinstance(savedir_base, list):
         savedir_base = [savedir_base]
 
+    # Find all directories with metadata.json (potential variant parents)
+    metadata_paths = []
     exp_args_paths = []
     for exp_dir in savedir_base:
+        metadata_paths.extend(list(Path(exp_dir).glob("**/metadata.json")))
         exp_args_paths.extend(list(Path(exp_dir).glob("**/exp_args.pkl")))
 
+    # Track parent directories to avoid duplicate processing
+    variant_parent_dirs = set()
+    for metadata_path in metadata_paths:
+        try:
+            with open(metadata_path) as f:
+                metadata = json.load(f)
+                if "variants" in metadata:
+                    variant_parent_dirs.add(metadata_path.parent)
+        except Exception:
+            pass
+
+    # Process all exp_args.pkl files
     if progress_fn is not None:
         exp_args_paths = progress_fn(exp_args_paths, desc="Searching experiments directories.")
 
     for exp_args_path in exp_args_paths:
         exp_dir = exp_args_path.parent
+
+        # Skip hidden directories
         if not load_hidden:
             if exp_dir.name.startswith("_") or exp_dir.name.startswith("."):
                 continue
+
+        # Check if this is a variant subdirectory within a parent
+        # If parent is a variant parent, the variant will be yielded below
+        if exp_dir.parent in variant_parent_dirs:
+            # This is a variant subdirectory - will be handled via parent
+            continue
+
+        # Standard exp_dir (old structure or non-variant)
         if use_cache:
             yield get_exp_result(exp_dir)
         else:
             yield ExpResult(exp_dir)
+
+    # Process variant parent directories
+    for parent_dir in variant_parent_dirs:
+        if not load_hidden and (parent_dir.name.startswith("_") or parent_dir.name.startswith(".")):
+            continue
+
+        try:
+            with open(parent_dir / "metadata.json") as f:
+                metadata = json.load(f)
+                variant_names = metadata.get("variants", [])
+
+                for variant_name in variant_names:
+                    variant_dir = parent_dir / variant_name
+                    if variant_dir.exists() and (variant_dir / "exp_args.pkl").exists():
+                        logger.debug(f"Found variant: {parent_dir.name}/{variant_name}")
+                        if use_cache:
+                            yield get_exp_result(variant_dir)
+                        else:
+                            yield ExpResult(variant_dir)
+        except Exception as e:
+            logger.warning(f"Failed to process variant parent {parent_dir}: {e}")
 
 
 class DataclassJSONEncoder(json.JSONEncoder):

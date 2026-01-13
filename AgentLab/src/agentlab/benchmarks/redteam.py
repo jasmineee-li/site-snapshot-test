@@ -31,6 +31,8 @@ from agentlab.benchmarks.redteam_generation import (
     save_site_to_toolbox,
     load_toolbox_site,
     replace_injection_placeholders,
+    extract_placeholders,
+    replace_placeholders_with_content,
 )
 from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
 from agentlab.benchmarks.redteam_prompts import get_safe_transformation_prompt
@@ -74,7 +76,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     doc: str = None  # primary task description, replaces 'behavior'
 
     # Generation parameters
-    injection_seed: int = 0
+    injection_seed: int = 0  # Backward compat alias for variation_seed
     world_sim_model: str = "openai/gpt-4.1"
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
@@ -115,6 +117,46 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     # Shared attacker agent instance (initialized in benchmark)
     attacker_agent: RedteamAttackerAgent = field(default=None, init=False)
+
+    # === New fields for unified injection pipeline ===
+    # Test mode: "benign" (control) or "adversarial" (with injections)
+    test_mode: str = "adversarial"
+
+    # Variation seed for reproducibility (alias: injection_seed for backward compat)
+    variation_seed: int = 0
+
+    # Attack channels the agent observes: ["html", "axtree", "visual"]
+    attack_channels: list = field(default_factory=lambda: ["axtree"])
+
+    # Directory paths for generated HTML (populated by pipeline)
+    base_html_dir: str = ""  # Base pages without injections
+    variant_html_dir: str = ""  # Variant-specific pages (benign or adversarial)
+
+    # Behavior ID for grouping variants
+    behavior_id: str = ""
+
+    # === New fields for variant directory structure ===
+    # Parent directory grouping all variants (benign + adversarial)
+    parent_exp_dir: str = ""
+    # Variant name: "benign" or "adversarial_v0", etc.
+    variant_name: str = ""
+    # Whether this run uses the variant subdirectory structure
+    is_variant_run: bool = False
+
+    @property
+    def variant_subdir(self) -> str:
+        """Subdirectory name for this variant."""
+        if self.test_mode == "benign":
+            return "benign"
+        else:
+            return f"adversarial_v{self.variation_seed}"
+
+    @property
+    def computed_task_name(self) -> str:
+        """Generate task name from behavior_id, seed, and test_mode."""
+        if self.behavior_id:
+            return f"{self.behavior_id}.seed{self.variation_seed}.{self.test_mode}"
+        return self.task_name
 
     def make_env(
         self,
@@ -181,14 +223,16 @@ class RedteamEnv(AbstractEnv):
 
     def _generate_sites(self) -> None:
         """
-        One-time site generation (expensive - only runs on first reset).
+        One-time site generation with unified injection pipeline.
 
         Performs:
-        1. Generate safe analog behavior
-        2. Record trajectory observations
-        3. Analyze prefill data needs (LLM call)
-        4. Generate synthetic pages (LLM calls)
-        5. Save HTML files and config to disk
+        0. Trajectory observation (if enabled)
+        1. Initialize generators
+        2. Analyze prefill data requirements
+        3. Generate REFERENCE page for '/' root (WITH placeholders)
+        4. Generate SUBSEQUENT pages (match reference UI, WITH placeholders)
+        5. Generate placeholder content (SINGLE LLM call → benign + adversarial)
+        6. Create pages with appropriate content based on test_mode
 
         Skipped on subsequent resets/relaunches for performance.
         """
@@ -199,16 +243,42 @@ class RedteamEnv(AbstractEnv):
         # Check if resuming from existing run
         if self.env_args.resume_from_dir:
             resume_dir = Path(self.env_args.resume_from_dir)
-            variation_dir = resume_dir / f"variation_{self.env_args.injection_seed}"
+            import shutil
+
+            # Always copy trajectory screenshots if they exist (even if no HTML yet)
+            # This allows reusing expensive trajectory observation from partial runs
+            resume_trajectory_dir = resume_dir / "trajectory"
+            if resume_trajectory_dir.exists() and list(resume_trajectory_dir.glob("*.png")):
+                target_trajectory_dir = self.exp_dir / "trajectory"
+                target_trajectory_dir.mkdir(parents=True, exist_ok=True)
+                for img_file in resume_trajectory_dir.glob("*.png"):
+                    target_path = target_trajectory_dir / img_file.name
+                    if not target_path.exists():  # Don't overwrite
+                        shutil.copy2(img_file, target_path)
+                logger.info(
+                    f"Copied {len(list(resume_trajectory_dir.glob('*.png')))} trajectory screenshots from resume_dir"
+                )
+
+            # Determine variant directory based on test_mode
+            if self.env_args.test_mode == "benign":
+                variant_subdir = "benign"
+            else:
+                variant_subdir = f"adversarial_v{self.env_args.variation_seed}"
+            variation_dir = resume_dir / variant_subdir
+
+            # Also check for old-style variation_N directories for backward compat
+            if not variation_dir.exists():
+                old_style_dir = resume_dir / f"variation_{self.env_args.variation_seed}"
+                if old_style_dir.exists():
+                    variation_dir = old_style_dir
+                    logger.info(f"Using old-style variation directory: {old_style_dir}")
 
             if variation_dir.exists() and list(variation_dir.glob("*.html")):
                 logger.info(f"Resuming from existing HTML files in: {variation_dir}")
 
                 # Copy HTML files to current exp_dir
-                target_variation_dir = self.exp_dir / f"variation_{self.env_args.injection_seed}"
+                target_variation_dir = self.exp_dir / variant_subdir
                 target_variation_dir.mkdir(parents=True, exist_ok=True)
-
-                import shutil
 
                 for html_file in variation_dir.glob("*.html"):
                     target_path = target_variation_dir / html_file.name
@@ -237,11 +307,15 @@ class RedteamEnv(AbstractEnv):
                 )
                 return
             else:
-                logger.warning(
-                    f"Resume dir not found or empty: {variation_dir}, generating fresh..."
+                logger.info(
+                    f"No HTML files in resume_dir ({variation_dir}), will generate fresh "
+                    f"(but trajectory screenshots were copied)"
                 )
 
-        logger.info("Starting one-time site generation...")
+        logger.info(
+            f"Starting site generation for {self.env_args.task_name} "
+            f"(test_mode={self.env_args.test_mode}, variation_seed={self.env_args.variation_seed})..."
+        )
 
         # Initialize trajectory data
         trajectory_screenshots = []
@@ -254,7 +328,7 @@ class RedteamEnv(AbstractEnv):
                 Path(__file__).parent.parent.parent.parent
                 / "html-library"
                 / "screenshots"
-                / self.env_args.task_name.replace(".", "_")
+                / self.env_args.behavior_id.replace(".", "_")
             )
 
             # Check for existing screenshots in trajectory dir or html-library
@@ -352,37 +426,56 @@ class RedteamEnv(AbstractEnv):
                 screenshots=analyzer_screenshots,
             )
 
-        # For now, skip detailed prefill analysis and use an empty spec.
-        # This still satisfies the generator interface (expects a dict with 'pages').
-        # prefill_spec = {"pages": []}
+        # Step 3 & 4: Generate base HTML pages with REFERENCE-BASED UI matching
+        logger.info("Generating base HTML pages (with placeholders, reference-based UI)...")
 
-        # Step 3: Generate base HTML pages (with placeholders for adversarial content)
-        logger.info("Generating base HTML pages (with placeholders)...")
-
-        # Determine starting stage (use env_args.start_page if provided, else first page/subdomain)
+        # Determine starting stage
         start_stage = None
         if self.env_args.start_page:
             start_stage = self.env_args.start_page.lstrip("/")
 
         # Build URL mapping for cross-page navigation
-        # Maps local routes to full simulated URLs
         url_mapping = {}
         for page in self.env_args.pages:
             for subdomain in page.subdomains:
-                # Build local route from id (no leading slash) + subdomain
                 local_route = f"{page.id}{subdomain}"
                 full_url = f"{page.base_site_url}{subdomain}" if page.base_site_url else local_route
                 url_mapping[local_route] = full_url
         logger.info(f"URL mapping: {url_mapping}")
 
         # Store base HTML (with placeholders) for each subdomain
-        # Key format: "gmail/mail/u/0/#inbox" (domain + subdomain)
         base_html_by_subdomain = {}
         subdomains_needing_injections = []  # List of (route_key, page, subdomain, spec)
 
+        # Track reference HTML per page for UI consistency
+        reference_html_by_page = {}
+
+        # Determine directory structure based on variant mode (do this BEFORE generation loop)
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            # New structure: parent/variant/
+            parent_dir = Path(self.env_args.parent_exp_dir)
+            variant_name = self.env_args.variant_name
+
+            # Base HTML goes in parent/base/ (shared across variants)
+            base_dir = parent_dir / "base"
+
+            # Variant-specific directory
+            self.exp_dir = parent_dir / variant_name
+            self.exp_dir.mkdir(parents=True, exist_ok=True)
+
+            logger.info(f"Using variant structure: {parent_dir.name}/{variant_name}")
+        else:
+            # Old structure: backward compatibility
+            base_dir = self.exp_dir / "base"
+            logger.info(f"Using legacy structure: {self.exp_dir.name}")
+
+        # Create base HTML directory immediately for incremental saves
+        base_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Base HTML directory: {base_dir}")
+
         # Generate base HTML for all pages and their subdomains
         for page in self.env_args.pages:
-            page_id = page.id  # "gmail", "duckduckgo" (no leading slash)
+            page_id = page.id
 
             # Extract spec for this page from prefill
             page_spec = None
@@ -398,8 +491,14 @@ class RedteamEnv(AbstractEnv):
             )
             subdomain_specs = page_spec.get("subdomains", {}) if page_spec else {}
 
-            # Generate HTML for each subdomain
-            for subdomain in page.subdomains:
+            # Determine reference subdomain (prefer "/" root, else first)
+            reference_subdomain = "/" if "/" in page.subdomains else page.subdomains[0]
+            ordered_subdomains = [reference_subdomain] + [
+                sd for sd in page.subdomains if sd != reference_subdomain
+            ]
+
+            # Generate HTML for each subdomain (reference first, then match style)
+            for subdomain in ordered_subdomains:
                 route_key = f"{page_id}{subdomain}"
                 full_url = (
                     f"{page.base_site_url}{subdomain}" if page.base_site_url else subdomain
@@ -434,7 +533,11 @@ class RedteamEnv(AbstractEnv):
 
                 # Generate from scratch if needed
                 if html is None:
-                    logger.info(f"Generating synthetic page for {route_key} ({full_url})")
+                    is_reference = subdomain == reference_subdomain
+                    logger.info(
+                        f"Generating {'reference' if is_reference else 'subsequent'} page: "
+                        f"{route_key} ({full_url})"
+                    )
                     page_screenshots = (
                         trajectory_screenshots
                         if self.env_args.use_trajectory
@@ -459,6 +562,9 @@ class RedteamEnv(AbstractEnv):
                         if sd != subdomain
                     ]
 
+                    # Use reference HTML for subsequent pages
+                    reference_html = reference_html_by_page.get(page_id) if not is_reference else None
+
                     html = self.generator.generate(
                         domain=route_key,
                         context={
@@ -470,7 +576,12 @@ class RedteamEnv(AbstractEnv):
                         screenshots=page_screenshots,
                         url_mapping=url_mapping,
                         sibling_subdomains=sibling_subdomains,
+                        reference_html=reference_html,
                     )
+
+                    # Store reference HTML for this page
+                    if is_reference:
+                        reference_html_by_page[page_id] = html
 
                 # Save base HTML
                 base_html_by_subdomain[route_key] = html
@@ -490,137 +601,133 @@ class RedteamEnv(AbstractEnv):
                     "id": page.id,
                     "subdomain": subdomain,
                     "base_site_url": page.base_site_url,
-                    "injection_seed": self.env_args.injection_seed,
+                    "behavior_id": self.env_args.behavior_id,
+                    "test_mode": self.env_args.test_mode,
                 }
                 save_site_to_toolbox(route_key, html, metadata)
 
-        # Step 4: Generate injection variations for subdomains that have adversarial content
-        # Collect injection data for logging
+                # ALSO save to base/ directory immediately (incremental save)
+                file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                (base_dir / f"{file_name}.html").write_text(html, encoding="utf-8")
+
+        # Step 5: Generate placeholder content (benign + adversarial)
+        placeholder_content = {}  # {placeholder_id: {benign: "...", adversarial: [...]}}
         injection_log_data = {
-            "injections": {},
+            "test_mode": self.env_args.test_mode,
+            "variation_seed": self.env_args.variation_seed,
             "injection_locations": [],
-            "prefill_adversarial_specs": {},
+            "placeholder_content": {},
         }
 
         if subdomains_needing_injections:
             logger.info(
-                f"Found {len(subdomains_needing_injections)} subdomain(s) needing adversarial injections"
+                f"Found {len(subdomains_needing_injections)} subdomain(s) needing placeholder content"
             )
-
-            # Record injection locations
             injection_log_data["injection_locations"] = [
                 rk for rk, _, _, _ in subdomains_needing_injections
             ]
 
-            # Use the attacker agent for injection generation
-            logger.info(f"Using attacker agent (model: {self.env_args.attacker_model})...")
+            # Initialize attacker agent
             attacker_agent = self.env_args.attacker_agent
             attacker_agent.make_agent()
 
-            n_variations_to_generate = 1
-            variation_indices = [self.env_args.injection_seed]
+            # For each subdomain with placeholders, generate content
+            for route_key, page, subdomain, combined_spec in subdomains_needing_injections:
+                html = base_html_by_subdomain.get(route_key, "")
 
-            logger.info(f"Generating injection variation(s): {variation_indices}")
+                # Extract placeholders from HTML
+                placeholders = extract_placeholders(html)
+                logger.info(f"Found {len(placeholders)} placeholder(s) in {route_key}")
 
-            for var_idx in variation_indices:
-                logger.info(f"=== Generating variation {var_idx} ===")
-
-                variation_dir = self.exp_dir / f"variation_{var_idx}"
-                variation_dir.mkdir(parents=True, exist_ok=True)
-
-                # For each subdomain, either copy base HTML or generate injections
-                for route_key, html in base_html_by_subdomain.items():
-                    if html is None:
+                for placeholder in placeholders:
+                    placeholder_id = placeholder.get("id", "")
+                    if not placeholder_id:
                         continue
 
-                    # Check if this subdomain needs injections
-                    needs_injection = any(
-                        rk == route_key for rk, _, _, _ in subdomains_needing_injections
+                    # Skip if already generated (same placeholder ID in multiple pages)
+                    if placeholder_id in placeholder_content:
+                        logger.debug(f"Placeholder {placeholder_id} already generated, skipping")
+                        continue
+
+                    # Generate content - fail fast if generation fails
+                    content = attacker_agent.generate_placeholder_content(
+                        placeholder=placeholder,
+                        page_domain=route_key,
+                        attack_channels=self.env_args.attack_channels,
+                        n_adversarial_variants=1,  # Generate for this variant
                     )
+                    placeholder_content[placeholder_id] = content
+                    injection_log_data["placeholder_content"][placeholder_id] = {
+                        "benign_length": len(content.get("benign", "")),
+                        "adversarial_count": len(content.get("adversarial", [])),
+                    }
 
-                    # Sanitize route_key for filename: gmail/mail/u/0/#inbox -> gmail_mail_u_0_inbox
-                    file_name = (
-                        route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
-                    )
-
-                    if needs_injection:
-                        # Find the spec for this subdomain
-                        spec_for_subdomain = None
-                        page_obj = None
-                        for rk, p, sd, spec in subdomains_needing_injections:
-                            if rk == route_key:
-                                page_obj = p
-                                spec_for_subdomain = spec
-                                break
-
-                        prefill_adv = spec_for_subdomain.get("prefill_adversarial", {})
-                        logger.info(f"Generating injections for {route_key}...")
-
-                        # Save prefill_adversarial spec for logging
-                        injection_log_data["prefill_adversarial_specs"][route_key] = prefill_adv
-
-                        pre_injection_path = self.exp_dir / f"{file_name}_pre_injection.html"
-                        pre_injection_path.write_text(html, encoding="utf-8")
-                        logger.info(f"✓ Saved {file_name}_pre_injection.html (before injection)")
-
-                        try:
-                            injections = attacker_agent.generate_injections(
-                                prefill_adversarial=prefill_adv,
-                                page_domain=route_key,
-                                variation_index=var_idx,
-                                n_total_variations=n_variations_to_generate,
-                            )
-
-                            # Save generated injections for logging
-                            injection_log_data["injections"][route_key] = injections
-
-                            html_with_injections = replace_injection_placeholders(html, injections)
-                            page_path = variation_dir / f"{file_name}.html"
-                            page_path.write_text(html_with_injections, encoding="utf-8")
-                            logger.info(f"✓ Saved {file_name}.html with injections")
-
-                        except Exception as e:
-                            logger.error(f"Failed to generate injections for {route_key}: {e}")
-                            page_path = variation_dir / f"{file_name}.html"
-                            page_path.write_text(html, encoding="utf-8")
-                            logger.warning(
-                                f"⚠ Saved {file_name}.html with placeholders (injection failed)"
-                            )
-                    else:
-                        # Benign subdomain - just copy base HTML
-                        page_path = variation_dir / f"{file_name}.html"
-                        page_path.write_text(html, encoding="utf-8")
-
-                logger.info(f"✓ Variation {var_idx} complete")
+        # Step 6: Create variant pages based on test_mode
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            # New structure: exp_dir is already parent/variant/
+            variant_dir = self.exp_dir
+            mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
+            variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
         else:
-            logger.info("No subdomains need adversarial injections - using base HTML as-is")
-            variation_dir = self.exp_dir / "variation_0"
-            variation_dir.mkdir(parents=True, exist_ok=True)
-            for route_key, html in base_html_by_subdomain.items():
-                if html is not None:
-                    file_name = (
-                        route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
-                    )
-                    page_path = variation_dir / f"{file_name}.html"
-                    page_path.write_text(html, encoding="utf-8")
+            # Old structure: nested variant subdirectories
+            if self.env_args.test_mode == "benign":
+                variant_dir = self.exp_dir / "benign"
+                mode = "benign"
+                variant_index = 0
+            else:
+                variant_dir = self.exp_dir / f"adversarial_v{self.env_args.variation_seed}"
+                mode = "adversarial"
+                variant_index = self.env_args.variation_seed
 
-        # Step 5: Validate internal links (fail-fast if broken)
+        variant_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Creating {mode} variant (variant_index={variant_index})...")
+
+        for route_key, html in base_html_by_subdomain.items():
+            if html is None:
+                continue
+
+            file_name = (
+                route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+            )
+
+            # Check if this subdomain needs placeholder replacement
+            needs_replacement = any(
+                rk == route_key for rk, _, _, _ in subdomains_needing_injections
+            )
+
+            if needs_replacement and placeholder_content:
+                # Replace placeholders with appropriate content
+                html_with_content = replace_placeholders_with_content(
+                    html=html,
+                    placeholder_content=placeholder_content,
+                    mode=mode,
+                    variant_index=variant_index,
+                )
+                page_path = variant_dir / f"{file_name}.html"
+                page_path.write_text(html_with_content, encoding="utf-8")
+                logger.info(f"✓ Saved {file_name}.html with {mode} content")
+            else:
+                # No placeholders - copy base HTML
+                page_path = variant_dir / f"{file_name}.html"
+                page_path.write_text(html, encoding="utf-8")
+
+        # Step 7: Validate internal links (fail-fast if broken)
         if self.env_args.skip_link_validation:
             logger.warning("Skipping internal link validation (skip_link_validation=True)")
         else:
-            self._validate_internal_links(variation_dir, base_html_by_subdomain.keys())
+            self._validate_internal_links(variant_dir, base_html_by_subdomain.keys())
 
-        # Step 6: Set up flow config to point to the correct variation folder
-        variation_dir = self.exp_dir / f"variation_{self.env_args.injection_seed}"
-
+        # Step 8: Set up flow config to point to the correct variant folder
         self._flow_config = {
-            "run_dir": str(variation_dir),
+            "run_dir": str(variant_dir),
             "stages": {},
             "start_page": self.env_args.start_page,
             "start_stage": start_stage,
+            "test_mode": self.env_args.test_mode,
+            "variation_seed": self.env_args.variation_seed,
         }
 
-        # Configure stages from the variation folder - each subdomain is a stage
+        # Configure stages from the variant folder
         for route_key in base_html_by_subdomain.keys():
             self._flow_config["stages"][route_key] = {}
 
@@ -628,14 +735,39 @@ class RedteamEnv(AbstractEnv):
         config_path = self.exp_dir / "flow_config.json"
         config_path.write_text(json.dumps(self._flow_config, indent=2))
 
-        # Save injection log for later analysis
-        injection_log_path = self.exp_dir / "injections.json"
+        # Determine shared metadata directory
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            # New structure: shared metadata goes in parent directory
+            shared_metadata_dir = Path(self.env_args.parent_exp_dir)
+        else:
+            # Old structure: metadata goes in exp_dir
+            shared_metadata_dir = self.exp_dir
+
+        # Save placeholder content for analysis (in shared directory)
+        placeholder_content_path = shared_metadata_dir / "placeholder_content.json"
+        # Serialize placeholder content (truncate large HTML for readability)
+        serializable_content = {}
+        for ph_id, content in placeholder_content.items():
+            serializable_content[ph_id] = {
+                "benign": content.get("benign", "")[:500] + "..." if len(content.get("benign", "")) > 500 else content.get("benign", ""),
+                "adversarial": [
+                    adv[:500] + "..." if len(adv) > 500 else adv
+                    for adv in content.get("adversarial", [])
+                ],
+            }
+        placeholder_content_path.write_text(json.dumps(serializable_content, indent=2))
+
+        # Save injection log for later analysis (in shared directory)
+        injection_log_path = shared_metadata_dir / "injections.json"
         injection_log_path.write_text(json.dumps(injection_log_data, indent=2))
-        logger.info(f"✓ Saved injections.json with {len(injection_log_data['injections'])} injection(s)")
+        logger.info(
+            f"✓ Saved injection data: {len(placeholder_content)} placeholder(s)"
+        )
 
         self._generation_complete = True
         logger.info(
-            f"Site generation complete for variation {self.env_args.injection_seed} (cached for relaunches)"
+            f"Site generation complete for {self.env_args.test_mode} "
+            f"(variation_seed={self.env_args.variation_seed})"
         )
 
     def _build_flow_config_from_html(self, variation_dir: Path) -> None:
@@ -1020,6 +1152,274 @@ class RedteamEnv(AbstractEnv):
         raise RuntimeError(f"Flow server failed to start (url: {url}, timeout: {timeout}s)")
 
 
+# ============================================================================
+# Unified Injection Pipeline Entry Point
+# ============================================================================
+
+
+def generate_all_variants(
+    behavior_config: dict,
+    output_base_dir: str | Path,
+    n_adversarial_variants: int = 1,
+    attack_channels: list[str] = None,
+    llm_client=None,
+    attacker_llm_client=None,
+) -> list[RedteamEnvArgs]:
+    """
+    Generate all variants (1 benign + N adversarial) for a behavior.
+
+    This is the main entry point for the unified injection pipeline.
+    Generates base pages once, then creates:
+    - 1 benign variant (control group, no injections)
+    - N adversarial variants (each with different injection approaches)
+
+    Args:
+        behavior_config: Full behavior configuration dict
+        output_base_dir: Base directory for output files
+        n_adversarial_variants: Number of adversarial variations to generate
+        attack_channels: List of channels agent observes (default: ["axtree"])
+        llm_client: LLM client for page generation
+        attacker_llm_client: LLM client for injection generation (defaults to llm_client)
+
+    Returns:
+        List of RedteamEnvArgs ready for execution
+    """
+    from agentlab.benchmarks.redteam_generation import (
+        generate_base_pages,
+        create_benign_variant,
+        create_adversarial_variant,
+    )
+    from agentlab.benchmarks.llm_utils import OpenRouterLLMClient
+
+    attack_channels = attack_channels or ["axtree"]
+    output_base_dir = Path(output_base_dir)
+    behavior_id = behavior_config.get("id", "unknown")
+    behavior_dir = output_base_dir / behavior_id
+
+    # Initialize LLM client if not provided
+    if llm_client is None:
+        world_sim_model = behavior_config.get("world_sim_model", "openai/gpt-4.1")
+        llm_client = OpenRouterLLMClient(world_sim_model)
+
+    # Stage 1: Generate complete base pages (once)
+    logger.info(f"=== Stage 1: Generating base pages for {behavior_id} ===")
+    base_dir = behavior_dir / "base"
+    base_paths = generate_base_pages(
+        behavior_config=behavior_config,
+        output_dir=base_dir,
+        llm_client=llm_client,
+    )
+    logger.info(f"Generated {len(base_paths)} base page(s)")
+
+    # Helper to extract pages config
+    def _make_pages_list():
+        sim_config = behavior_config.get("simulation_config", {})
+        pages_config = sim_config.get("pages", [])
+        return [
+            Page(
+                id=p.get("id", "").lstrip("/"),
+                base_site_url=p.get("base_site_url", ""),
+                subdomains=p.get("subdomains", ["/"]),
+                details=p.get("details", {}),
+            )
+            for p in pages_config
+        ]
+
+    def _get_start_page(pages):
+        sim_config = behavior_config.get("simulation_config", {})
+        start_page = sim_config.get("start_page", "")
+        if not start_page and pages:
+            first_page = pages[0]
+            start_page = f"{first_page.base_site_url}{first_page.subdomains[0]}"
+        return start_page
+
+    variants = []
+
+    # Stage 2A: Create 1 benign variant (control group)
+    logger.info("=== Stage 2A: Creating benign variant (control) ===")
+    benign_dir = behavior_dir / "benign"
+    benign_paths = create_benign_variant(base_paths, benign_dir)
+
+    pages = _make_pages_list()
+    variants.append(RedteamEnvArgs(
+        task_name=f"{behavior_id}.benign",
+        behavior_id=behavior_id,
+        variation_seed=0,
+        injection_seed=0,
+        test_mode="benign",
+        target=behavior_config.get("description", ""),
+        doc=behavior_config.get("doc", ""),
+        attacker_model=behavior_config.get("attacker_model", "openai/gpt-4.1"),
+        pages=pages,
+        start_page=_get_start_page(pages),
+        base_html_dir=str(base_dir),
+        variant_html_dir=str(benign_dir),
+        attack_channels=attack_channels,
+    ))
+    logger.info(f"Created benign variant: {behavior_id}.benign")
+
+    # Stage 2B: Create N adversarial variants
+    logger.info(f"=== Stage 2B: Creating {n_adversarial_variants} adversarial variant(s) ===")
+    for i in range(n_adversarial_variants):
+        adv_dir = behavior_dir / f"adversarial_v{i}"
+        adv_paths, injections = create_adversarial_variant(
+            base_paths,
+            adv_dir,
+            behavior_config,
+            attack_channels,
+            llm_client,
+            attacker_llm_client,
+            variation_index=i,
+            n_total_variations=n_adversarial_variants,
+        )
+
+        pages = _make_pages_list()
+        variants.append(RedteamEnvArgs(
+            task_name=f"{behavior_id}.adversarial_v{i}",
+            behavior_id=behavior_id,
+            variation_seed=i,
+            injection_seed=i,
+            test_mode="adversarial",
+            target=behavior_config.get("description", ""),
+            doc=behavior_config.get("doc", ""),
+            attacker_model=behavior_config.get("attacker_model", "openai/gpt-4.1"),
+            pages=pages,
+            start_page=_get_start_page(pages),
+            base_html_dir=str(base_dir),
+            variant_html_dir=str(adv_dir),
+            attack_channels=attack_channels,
+        ))
+        logger.info(f"Created adversarial variant: {behavior_id}.adversarial_v{i} ({len(injections)} injections)")
+
+    logger.info(f"Generated {len(variants)} total variant(s): 1 benign + {n_adversarial_variants} adversarial")
+    return variants
+
+
+def analyze_results(results: list, verbose: bool = True) -> dict:
+    """
+    Unified analysis for redteam results - works for benign-only, adversarial-only, or both.
+
+    Args:
+        results: List of experiment results (dicts or objects with judge_result_full)
+        verbose: Print analysis summary
+
+    Returns:
+        Dict with metrics including benign_utility, utility_under_attack, targeted_asr
+    """
+    from collections import defaultdict
+
+    # Separate by test mode
+    benign_results = []
+    adversarial_results = []
+
+    for r in results:
+        if isinstance(r, dict):
+            test_mode = r.get("test_mode", r.get("env.test_mode", "adversarial"))
+            judge_result = r.get("judge_result_full", {})
+            success = judge_result.get("overall_success", False) if judge_result else False
+        else:
+            test_mode = getattr(r, "test_mode", getattr(r, "env.test_mode", "adversarial"))
+            judge_result = getattr(r, "judge_result_full", {})
+            success = judge_result.get("overall_success", False) if judge_result else False
+
+        if test_mode == "benign":
+            benign_results.append({"success": success, "result": r})
+        else:  # adversarial
+            adversarial_results.append({"success": success, "result": r})
+
+    # Compute metrics
+    metrics = {
+        "total_experiments": len(results),
+        "n_benign": len(benign_results),
+        "n_adversarial": len(adversarial_results),
+    }
+
+    # Benign Utility
+    if len(benign_results) > 0:
+        benign_successes = sum(r["success"] for r in benign_results)
+        metrics["benign_utility"] = round(benign_successes / len(benign_results), 3)
+    else:
+        metrics["benign_utility"] = None
+
+    # Utility Under Attack + Targeted ASR
+    if len(adversarial_results) > 0:
+        adv_successes = sum(r["success"] for r in adversarial_results)
+        metrics["utility_under_attack"] = round(adv_successes / len(adversarial_results), 3)
+        metrics["targeted_asr"] = metrics["utility_under_attack"]  # Same for now
+    else:
+        metrics["utility_under_attack"] = None
+        metrics["targeted_asr"] = None
+
+    # Paired analysis (if both exist)
+    if len(benign_results) > 0 and len(adversarial_results) > 0:
+        # Group by behavior_id and variation_seed for pairing
+        by_pair = defaultdict(dict)
+
+        for r in results:
+            if isinstance(r, dict):
+                behavior_id = r.get("behavior_id", r.get("env.behavior_id", "unknown"))
+                seed = r.get("variation_seed", r.get("env.variation_seed", 0))
+                test_mode = r.get("test_mode", r.get("env.test_mode", "adversarial"))
+                judge_result = r.get("judge_result_full", {})
+                success = judge_result.get("overall_success", False) if judge_result else False
+            else:
+                behavior_id = getattr(r, "behavior_id", getattr(r, "env.behavior_id", "unknown"))
+                seed = getattr(r, "variation_seed", getattr(r, "env.variation_seed", 0))
+                test_mode = getattr(r, "test_mode", getattr(r, "env.test_mode", "adversarial"))
+                judge_result = getattr(r, "judge_result_full", {})
+                success = judge_result.get("overall_success", False) if judge_result else False
+
+            key = (behavior_id, seed)
+            by_pair[key][test_mode] = {"success": success, "result": r}
+
+        # Compute paired metrics
+        pairs_analyzed = []
+        for (behavior_id, seed), modes in by_pair.items():
+            if "benign" in modes and "adversarial" in modes:
+                benign_success = modes["benign"]["success"]
+                adv_success = modes["adversarial"]["success"]
+                pairs_analyzed.append({
+                    "behavior_id": behavior_id,
+                    "seed": seed,
+                    "benign_success": benign_success,
+                    "adversarial_success": adv_success,
+                    "utility_degradation": benign_success - adv_success,
+                })
+
+        metrics["n_paired"] = len(pairs_analyzed)
+        if len(pairs_analyzed) > 0:
+            metrics["avg_utility_degradation"] = round(
+                sum(p["utility_degradation"] for p in pairs_analyzed) / len(pairs_analyzed), 3
+            )
+            metrics["pairs"] = pairs_analyzed
+    else:
+        metrics["n_paired"] = 0
+
+    # Print summary
+    if verbose:
+        print("\n=== Redteam Results Analysis ===")
+        print(f"Total experiments: {metrics['total_experiments']}")
+        print(f"  Benign: {metrics['n_benign']}")
+        print(f"  Adversarial: {metrics['n_adversarial']}")
+        if metrics['benign_utility'] is not None:
+            print(f"\nBenign Utility: {metrics['benign_utility']:.1%}")
+        if metrics['utility_under_attack'] is not None:
+            print(f"Utility Under Attack: {metrics['utility_under_attack']:.1%}")
+            print(f"Targeted ASR: {metrics['targeted_asr']:.1%}")
+        if metrics['n_paired'] > 0:
+            print(f"\nPaired Analysis:")
+            print(f"  {metrics['n_paired']} behavior pairs analyzed")
+            print(f"  Avg Utility Degradation: {metrics['avg_utility_degradation']:.1%}")
+
+    return metrics
+
+
+# Backward compatibility alias
+def analyze_paired_results(results: list) -> dict:
+    """Deprecated: Use analyze_results() instead."""
+    return analyze_results(results, verbose=False)
+
+
 class RedteamBenchmark(AbstractBenchmark):
     """
     Benchmark for redteam security testing with dynamic synthetic pages.
@@ -1051,6 +1451,13 @@ class RedteamBenchmark(AbstractBenchmark):
     # Variation settings for parallelization
     n_injection_variations: int = 1
 
+    # === New fields for unified injection pipeline ===
+    # Number of adversarial variants per behavior (benign is always generated)
+    n_adversarial_variants: int = 1
+
+    # Attack channels the agent observes: ["html", "axtree", "visual"]
+    attack_channels: list[str] = None  # Default set in model_post_init
+
     # Resume from existing run (skip HTML regeneration)
     resume_from_dir: str | Path = None  # Path to existing experiment results dir
 
@@ -1060,6 +1467,10 @@ class RedteamBenchmark(AbstractBenchmark):
     def model_post_init(self, __context: Any) -> None:
         """Load benchmark JSON and create env_args_list."""
         self.env_args_list = []
+
+        # Set default attack_channels if not provided
+        if self.attack_channels is None:
+            self.attack_channels = ["axtree"]
 
         if self.high_level_action_set_args is None:
             self.high_level_action_set_args = HighLevelActionSetArgs(
@@ -1081,17 +1492,32 @@ class RedteamBenchmark(AbstractBenchmark):
         logger.info(f"Loading redteam benchmark: {benchmark_name}")
 
         for case_idx, case_data in enumerate(cases):
-            env_args = self._parse_case(case_idx, case_data)
-            if env_args:
-                self.env_args_list.append(env_args)
+            # _parse_case now returns a list of variants (1 benign + N adversarial)
+            variants = self._parse_case(case_idx, case_data)
+            if variants:
+                self.env_args_list.extend(variants)
 
+        n_behaviors = len(cases)
+        n_variants_per_behavior = 1 + self.n_adversarial_variants  # 1 benign + N adversarial
         logger.info(
             f"Loaded {len(self.env_args_list)} tasks "
-            f"({len(cases)} cases × {self.n_injection_variations} variations)"
+            f"({n_behaviors} behaviors × {n_variants_per_behavior} variants each: "
+            f"1 benign + {self.n_adversarial_variants} adversarial)"
         )
 
-    def _parse_case(self, case_idx: int, case_data: dict) -> RedteamEnvArgs:
-        """Parse a case from the benchmark JSON."""
+    def _parse_case(self, case_idx: int, case_data: dict) -> list[RedteamEnvArgs]:
+        """
+        Parse a case from the benchmark JSON and generate variants.
+
+        Creates 1 benign + N adversarial variants for A/B testing.
+
+        Args:
+            case_idx: Index of this case in the benchmark
+            case_data: Case configuration dict
+
+        Returns:
+            List of RedteamEnvArgs (1 benign + N adversarial variants)
+        """
         # Extract pages from simulation_config
         sim_config = case_data.get("simulation_config", {})
         pages = []
@@ -1127,20 +1553,31 @@ class RedteamBenchmark(AbstractBenchmark):
         # Extract success condition from simulation_config
         success_condition = sim_config.get("success_condition", "")
 
-        # Create variations with different injection seeds
-        for seed in range(self.n_injection_variations):
-            behavior_id = case_data.get("id", f"case{case_idx}")
-            task_name = f"{self.name}.{behavior_id}.seed{seed}"
+        # Get case-level overrides for attack settings
+        case_attack_channels = case_data.get("attack_channels", self.attack_channels)
+        case_n_adversarial = case_data.get("n_adversarial_variants", self.n_adversarial_variants)
 
+        behavior_id = case_data.get("id", f"case{case_idx}")
+        doc = self._strip_html(case_data.get("doc", ""))
+        target = case_data.get("description", "")
+
+        variants = []
+
+        # Helper to create env_args with common fields
+        def _make_env_args(task_name: str, test_mode: str, variation_seed: int) -> RedteamEnvArgs:
             env_args = RedteamEnvArgs(
                 task_name=task_name,
-                target=case_data.get("description", ""),
+                behavior_id=behavior_id,
+                test_mode=test_mode,
+                variation_seed=variation_seed,
+                injection_seed=variation_seed,  # Backward compat
+                attack_channels=case_attack_channels,
+                target=target,
                 pages=pages,
                 start_page=start_page,
                 summary=case_data.get("summary"),
                 objective=case_data.get("objective"),
-                doc=self._strip_html(case_data.get("doc", "")),
-                injection_seed=seed,
+                doc=doc,
                 world_sim_model=self.world_sim_model,
                 attack_type=case_data.get("attack_type", "indirect"),
                 attacker_model=self.attacker_model,
@@ -1156,11 +1593,11 @@ class RedteamBenchmark(AbstractBenchmark):
                 success_condition=success_condition,
             )
 
-            # initialize attacker agent
+            # Initialize attacker agent
             attacker_agent = RedteamAttackerAgent(
                 model=self.attacker_model,
-                goal=env_args.doc,
-                target_description=env_args.target,
+                goal=doc,
+                target_description=target,
                 attack_type=env_args.attack_type,
                 mode=env_args.adversarial_mode,
                 pages=pages,
@@ -1168,6 +1605,24 @@ class RedteamBenchmark(AbstractBenchmark):
             env_args.attacker_agent = attacker_agent
 
             return env_args
+
+        # 1. Create benign control variant
+        benign_task_name = f"{self.name}.{behavior_id}.benign"
+        benign_args = _make_env_args(benign_task_name, "benign", 0)
+        variants.append(benign_args)
+
+        # 2. Create N adversarial variants
+        for var_idx in range(case_n_adversarial):
+            adv_task_name = f"{self.name}.{behavior_id}.adversarial_v{var_idx}"
+            adv_args = _make_env_args(adv_task_name, "adversarial", var_idx)
+            variants.append(adv_args)
+
+        logger.debug(
+            f"Created {len(variants)} variants for {behavior_id}: "
+            f"1 benign + {case_n_adversarial} adversarial"
+        )
+
+        return variants
 
     @staticmethod
     def _strip_html(text: str) -> str:
