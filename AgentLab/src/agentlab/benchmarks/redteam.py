@@ -135,6 +135,22 @@ class RedteamEnvArgs(AbstractEnvArgs):
     # Behavior ID for grouping variants
     behavior_id: str = ""
 
+    # === New fields for variant directory structure ===
+    # Parent directory grouping all variants (benign + adversarial)
+    parent_exp_dir: str = ""
+    # Variant name: "benign" or "adversarial_v0", etc.
+    variant_name: str = ""
+    # Whether this run uses the variant subdirectory structure
+    is_variant_run: bool = False
+
+    @property
+    def variant_subdir(self) -> str:
+        """Subdirectory name for this variant."""
+        if self.test_mode == "benign":
+            return "benign"
+        else:
+            return f"adversarial_v{self.variation_seed}"
+
     @property
     def computed_task_name(self) -> str:
         """Generate task name from behavior_id, seed, and test_mode."""
@@ -567,8 +583,26 @@ class RedteamEnv(AbstractEnv):
                 }
                 save_site_to_toolbox(route_key, html, metadata)
 
+        # Determine directory structure based on variant mode
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            # New structure: parent/variant/
+            parent_dir = Path(self.env_args.parent_exp_dir)
+            variant_name = self.env_args.variant_name
+
+            # Base HTML goes in parent/base/ (shared across variants)
+            base_dir = parent_dir / "base"
+
+            # Variant-specific directory
+            self.exp_dir = parent_dir / variant_name
+            self.exp_dir.mkdir(parents=True, exist_ok=True)
+
+            logger.info(f"Using variant structure: {parent_dir.name}/{variant_name}")
+        else:
+            # Old structure: backward compatibility
+            base_dir = self.exp_dir / "base"
+            logger.info(f"Using legacy structure: {self.exp_dir.name}")
+
         # Save base HTML directory for debugging
-        base_dir = self.exp_dir / "base"
         base_dir.mkdir(parents=True, exist_ok=True)
         for route_key, html in base_html_by_subdomain.items():
             if html is not None:
@@ -630,14 +664,21 @@ class RedteamEnv(AbstractEnv):
                     }
 
         # Step 6: Create variant pages based on test_mode
-        if self.env_args.test_mode == "benign":
-            variant_dir = self.exp_dir / "benign"
-            mode = "benign"
-            variant_index = 0
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            # New structure: exp_dir is already parent/variant/
+            variant_dir = self.exp_dir
+            mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
+            variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
         else:
-            variant_dir = self.exp_dir / f"adversarial_v{self.env_args.variation_seed}"
-            mode = "adversarial"
-            variant_index = self.env_args.variation_seed
+            # Old structure: nested variant subdirectories
+            if self.env_args.test_mode == "benign":
+                variant_dir = self.exp_dir / "benign"
+                mode = "benign"
+                variant_index = 0
+            else:
+                variant_dir = self.exp_dir / f"adversarial_v{self.env_args.variation_seed}"
+                mode = "adversarial"
+                variant_index = self.env_args.variation_seed
 
         variant_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Creating {mode} variant (variant_index={variant_index})...")
@@ -695,8 +736,16 @@ class RedteamEnv(AbstractEnv):
         config_path = self.exp_dir / "flow_config.json"
         config_path.write_text(json.dumps(self._flow_config, indent=2))
 
-        # Save placeholder content for analysis
-        placeholder_content_path = self.exp_dir / "placeholder_content.json"
+        # Determine shared metadata directory
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            # New structure: shared metadata goes in parent directory
+            shared_metadata_dir = Path(self.env_args.parent_exp_dir)
+        else:
+            # Old structure: metadata goes in exp_dir
+            shared_metadata_dir = self.exp_dir
+
+        # Save placeholder content for analysis (in shared directory)
+        placeholder_content_path = shared_metadata_dir / "placeholder_content.json"
         # Serialize placeholder content (truncate large HTML for readability)
         serializable_content = {}
         for ph_id, content in placeholder_content.items():
@@ -709,8 +758,8 @@ class RedteamEnv(AbstractEnv):
             }
         placeholder_content_path.write_text(json.dumps(serializable_content, indent=2))
 
-        # Save injection log for later analysis
-        injection_log_path = self.exp_dir / "injections.json"
+        # Save injection log for later analysis (in shared directory)
+        injection_log_path = shared_metadata_dir / "injections.json"
         injection_log_path.write_text(json.dumps(injection_log_data, indent=2))
         logger.info(
             f"✓ Saved injection data: {len(placeholder_content)} placeholder(s)"
