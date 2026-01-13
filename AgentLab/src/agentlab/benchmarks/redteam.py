@@ -450,6 +450,29 @@ class RedteamEnv(AbstractEnv):
         # Track reference HTML per page for UI consistency
         reference_html_by_page = {}
 
+        # Determine directory structure based on variant mode (do this BEFORE generation loop)
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            # New structure: parent/variant/
+            parent_dir = Path(self.env_args.parent_exp_dir)
+            variant_name = self.env_args.variant_name
+
+            # Base HTML goes in parent/base/ (shared across variants)
+            base_dir = parent_dir / "base"
+
+            # Variant-specific directory
+            self.exp_dir = parent_dir / variant_name
+            self.exp_dir.mkdir(parents=True, exist_ok=True)
+
+            logger.info(f"Using variant structure: {parent_dir.name}/{variant_name}")
+        else:
+            # Old structure: backward compatibility
+            base_dir = self.exp_dir / "base"
+            logger.info(f"Using legacy structure: {self.exp_dir.name}")
+
+        # Create base HTML directory immediately for incremental saves
+        base_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Base HTML directory: {base_dir}")
+
         # Generate base HTML for all pages and their subdomains
         for page in self.env_args.pages:
             page_id = page.id
@@ -583,32 +606,8 @@ class RedteamEnv(AbstractEnv):
                 }
                 save_site_to_toolbox(route_key, html, metadata)
 
-        # Determine directory structure based on variant mode
-        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
-            # New structure: parent/variant/
-            parent_dir = Path(self.env_args.parent_exp_dir)
-            variant_name = self.env_args.variant_name
-
-            # Base HTML goes in parent/base/ (shared across variants)
-            base_dir = parent_dir / "base"
-
-            # Variant-specific directory
-            self.exp_dir = parent_dir / variant_name
-            self.exp_dir.mkdir(parents=True, exist_ok=True)
-
-            logger.info(f"Using variant structure: {parent_dir.name}/{variant_name}")
-        else:
-            # Old structure: backward compatibility
-            base_dir = self.exp_dir / "base"
-            logger.info(f"Using legacy structure: {self.exp_dir.name}")
-
-        # Save base HTML directory for debugging
-        base_dir.mkdir(parents=True, exist_ok=True)
-        for route_key, html in base_html_by_subdomain.items():
-            if html is not None:
-                file_name = (
-                    route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
-                )
+                # ALSO save to base/ directory immediately (incremental save)
+                file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
                 (base_dir / f"{file_name}.html").write_text(html, encoding="utf-8")
 
         # Step 5: Generate placeholder content (benign + adversarial)
