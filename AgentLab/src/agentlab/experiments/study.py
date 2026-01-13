@@ -732,6 +732,20 @@ class Study(AbstractStudy):
         except Exception:
             pass
 
+        # Load adversarial content from injections.json
+        adversarial_content = None
+        try:
+            injection_path = exp_result.exp_dir / "injections.json"
+            if injection_path.exists():
+                with open(injection_path, "r", encoding="utf-8") as f:
+                    adversarial_content = json.load(f)
+                logger.debug(f"Loaded adversarial content from {injection_path}")
+        except Exception as e:
+            logger.debug(f"Could not load injections.json: {e}")
+
+        # Get success condition from env_args
+        success_condition = getattr(env_args, "success_condition", None)
+
         return {
             "behavior_id": behavior_id,
             "behavior_name": getattr(env_args, "target", None) or behavior_id,
@@ -757,6 +771,8 @@ class Study(AbstractStudy):
             "judge_result": judge_result,
             "criteria_scores": criteria_scores if criteria_scores else None,
             "token_usage": token_usage,
+            "adversarial_content": adversarial_content,
+            "success_condition": success_condition,
             "exp_dir": str(exp_result.exp_dir),
         }
 

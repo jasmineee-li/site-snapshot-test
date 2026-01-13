@@ -28,6 +28,10 @@ MANIFEST
 tutorials
 src/assets
 assets
+PLAN_*
+TRAJ*
+*.png
+project*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

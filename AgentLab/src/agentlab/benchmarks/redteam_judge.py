@@ -638,15 +638,23 @@ class JudgeRunner:
         """Find the variation directory within experiment directory."""
         exp_dir = Path(exp_dir)
 
-        # Look for variation_N directories
-        variation_dirs = list(exp_dir.glob("variation_*"))
-        if variation_dirs:
-            # Return the first one (or could use injection_seed from env_args)
-            return sorted(variation_dirs)[0]
+        # Check flow_config.json first (most reliable)
+        flow_config_path = exp_dir / "flow_config.json"
+        if flow_config_path.exists():
+            with open(flow_config_path) as f:
+                config = json.load(f)
+                run_dir = config.get("run_dir")
+                if run_dir and Path(run_dir).exists():
+                    return Path(run_dir)
 
-        # Maybe HTML files are directly in exp_dir
-        html_files = list(exp_dir.glob("*.html"))
-        if html_files:
+        # New naming: benign/ or adversarial_v*/
+        for pattern in ["benign", "adversarial_v*"]:
+            dirs = list(exp_dir.glob(pattern))
+            if dirs:
+                return sorted(dirs)[0]
+
+        # HTML files directly in exp_dir
+        if list(exp_dir.glob("*.html")):
             return exp_dir
 
         return None

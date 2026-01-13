@@ -1098,6 +1098,14 @@ class ExpResult:
             record.update(self.summary_info)
         except FileNotFoundError:
             pass
+
+        # Add judge results if available
+        judge_result = self.judge_result
+        if judge_result is not None:
+            record["judge.overall_success"] = judge_result.get("overall_success")
+            record["judge.overall_score"] = judge_result.get("overall_score")
+            record["judge_result_full"] = judge_result
+
         return record
 
     @property
@@ -1123,6 +1131,18 @@ class ExpResult:
         if self._logs is None:
             self._logs = (self.exp_dir / "experiment.log").read_text()
         return self._logs
+
+    @property
+    def judge_result(self) -> dict:
+        """Load judge result if available."""
+        judge_path = self.exp_dir / "judge_result.json"
+        if not judge_path.exists():
+            return None
+        try:
+            with open(judge_path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return None
 
     @property
     def status(self):
