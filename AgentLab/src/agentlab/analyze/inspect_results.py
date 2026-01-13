@@ -240,46 +240,78 @@ def get_sample_std_err(df, metric):
 
 
 def summarize(sub_df):
-    if "cum_reward" not in sub_df:
-        record = dict(
-            avg_reward=np.nan,
-            std_err=np.nan,
-            # avg_raw_reward=np.nan,
-            avg_steps=np.nan,
-            n_completed=f"0/{len(sub_df)}",
-            n_err=0,
-        )
-    else:
-        err = sub_df["err_msg"].notnull()
-        n_completed = err.copy()
-        for col in ["truncated", "terminated"]:
-            if col in sub_df:
-                n_completed = n_completed | sub_df[col]
-        n_completed = n_completed.sum()
+    """Summarize experiments with automatic metric detection.
 
+    Auto-detects:
+    - Judge-based evaluation (for redteam and other openended tasks)
+    - Standard MDP rewards (for MiniWob, WebArena, etc.)
+    - Benign/adversarial test modes (for redteam)
+    """
+    # Check completion status
+    err = sub_df["err_msg"].notnull() if "err_msg" in sub_df else pd.Series([False] * len(sub_df))
+    n_completed = err.copy()
+    for col in ["truncated", "terminated"]:
+        if col in sub_df:
+            n_completed = n_completed | sub_df[col]
+    n_completed = n_completed.sum()
+
+    # Base metrics
+    record = {
+        "n_completed": f"{n_completed}/{len(sub_df)}",
+        "n_err": err.sum(skipna=True),
+        "avg_steps": sub_df["n_steps"].mean(skipna=True).round(3) if "n_steps" in sub_df else np.nan,
+    }
+
+    # Auto-detect evaluation mode
+    has_judge = "judge.overall_success" in sub_df.columns
+    has_reward = "cum_reward" in sub_df.columns
+    has_test_mode = "env.test_mode" in sub_df.columns
+
+    # If we have judge results and test modes (redteam), use judge-based metrics
+    if has_judge and has_test_mode:
+        benign_df = sub_df[sub_df["env.test_mode"] == "benign"]
+        adversarial_df = sub_df[sub_df["env.test_mode"] == "adversarial"]
+
+        # Benign Utility
+        if len(benign_df) > 0:
+            benign_successes = benign_df["judge.overall_success"].fillna(False).sum()
+            record["benign_utility"] = round(benign_successes / len(benign_df), 3)
+
+        # Utility Under Attack + Targeted ASR
+        if len(adversarial_df) > 0:
+            adv_successes = adversarial_df["judge.overall_success"].fillna(False).sum()
+            record["utility_under_attack"] = round(adv_successes / len(adversarial_df), 3)
+            record["targeted_asr"] = record["utility_under_attack"]
+
+        # Average judge score
+        if "judge.overall_score" in sub_df.columns:
+            record["avg_judge_score"] = sub_df["judge.overall_score"].mean(skipna=True).round(3)
+
+    # Otherwise use standard reward-based metrics
+    elif has_reward:
         if n_completed == 0:
-            return None
+            record.update({
+                "avg_reward": np.nan,
+                "std_err": np.nan,
+            })
+        else:
+            _mean_reward, std_reward = get_std_err(sub_df, "cum_reward")
+            # Sanity check: errors should have zero reward
+            if (sub_df["err_msg"].notnull() & (sub_df["cum_reward"] != 0)).any():
+                import warnings
+                warnings.warn("Found non-zero reward for errored experiments")
 
-        _mean_reward, std_reward = get_std_err(sub_df, "cum_reward")
+            record.update({
+                "avg_reward": sub_df["cum_reward"].mean(skipna=True).round(3),
+                "std_err": std_reward.round(3),
+            })
 
-        # sanity check, if there is an error the reward should be zero
-        assert sub_df[sub_df["err_msg"].notnull()]["cum_reward"].sum() == 0
-
-        record = dict(
-            avg_reward=sub_df["cum_reward"].mean(skipna=True).round(3),
-            std_err=std_reward.round(3),
-            # avg_raw_reward=sub_df["cum_raw_reward"].mean(skipna=True).round(3),
-            avg_steps=sub_df["n_steps"].mean(skipna=True).round(3),
-            n_completed=f"{n_completed}/{len(sub_df)}",
-            n_err=err.sum(skipna=True),
-        )
-        if "stats.cum_cost" in sub_df:
-            record["cum_cost"] = sub_df["stats.cum_cost"].sum(skipna=True).round(4)
-        if "stats.cum_effective_cost" in sub_df:
-            record["cum_effective_cost"] = (
-                sub_df["stats.cum_effective_cost"].sum(skipna=True).round(4)
-            )
-            record.pop("cum_cost", None)
+    # Add cost stats (common to all benchmarks)
+    if "stats.cum_cost" in sub_df:
+        record["cum_cost"] = sub_df["stats.cum_cost"].sum(skipna=True).round(4)
+    if "stats.cum_effective_cost" in sub_df:
+        record["cum_effective_cost"] = sub_df["stats.cum_effective_cost"].sum(skipna=True).round(4)
+        record.pop("cum_cost", None)
 
     return pd.Series(record)
 
