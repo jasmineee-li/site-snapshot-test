@@ -637,14 +637,115 @@ class Study(AbstractStudy):
         log_data["token_usage"]["totals"]["output"] = total_output_tokens
         log_data["token_usage"]["totals"]["total"] = grand_total
 
-        # Save log.json
+        # Save study-level log.json
         log_path = self.dir / "log.json"
         try:
             with open(log_path, "w", encoding="utf-8") as f:
                 json.dump(log_data, f, indent=2, default=str)
-            logger.info(f"Saved run log to {log_path}")
+            logger.info(f"Saved study log to {log_path}")
         except Exception as e:
             logger.error(f"Error saving log.json: {e}")
+
+        # Save per-behavior log.json files
+        self._save_per_behavior_logs(log_data, start_time, duration_seconds)
+
+    def _save_per_behavior_logs(self, log_data: dict, start_time: float, duration_seconds: float):
+        """Save individual log.json files for each behavior.
+
+        Groups experiments by behavior_id and writes a separate log.json
+        in each behavior's parent directory.
+
+        Args:
+            log_data: The full study log data dict
+            start_time: Unix timestamp when study started
+            duration_seconds: Total study duration
+        """
+        from collections import defaultdict
+
+        # Group experiments by behavior_id
+        behavior_experiments = defaultdict(list)
+        for exp_data in log_data.get("experiments", []):
+            behavior_id = exp_data.get("behavior_id")
+            if behavior_id:
+                behavior_experiments[behavior_id].append(exp_data)
+
+        if not behavior_experiments:
+            logger.info("No behavior-grouped experiments found, skipping per-behavior logs")
+            return
+
+        # Write per-behavior log.json files
+        for behavior_id, experiments in behavior_experiments.items():
+            # Find the parent directory for this behavior
+            # Look for directory matching pattern *_{behavior_id}
+            parent_dir = None
+            for subdir in self.dir.iterdir():
+                if subdir.is_dir() and subdir.name.endswith(f"_{behavior_id}"):
+                    parent_dir = subdir
+                    break
+
+            if not parent_dir:
+                logger.warning(f"No parent directory found for behavior {behavior_id}")
+                continue
+
+            # Calculate behavior-level statistics
+            n_experiments = len(experiments)
+            judge_successes = sum(
+                1 for exp in experiments
+                if exp.get("judge_result", {}).get("overall_success") is True
+            )
+            judge_scores = [
+                exp["judge_result"]["overall_score"]
+                for exp in experiments
+                if exp.get("judge_result", {}).get("overall_score") is not None
+            ]
+
+            # Separate benign vs adversarial experiments
+            benign_exps = [e for e in experiments if e.get("test_mode") == "benign"]
+            adversarial_exps = [e for e in experiments if e.get("test_mode") == "adversarial"]
+
+            # Calculate token usage for this behavior
+            target_input = sum(exp.get("token_usage", {}).get("input", 0) for exp in experiments)
+            target_output = sum(exp.get("token_usage", {}).get("output", 0) for exp in experiments)
+            attacker_total = sum(
+                exp.get("attacker", {}).get("token_usage", {}).get("total", 0)
+                for exp in experiments
+            )
+
+            behavior_log = {
+                "behavior_id": behavior_id,
+                "behavior_name": experiments[0].get("behavior_name", behavior_id) if experiments else behavior_id,
+                "time": datetime.now().isoformat(),
+                "study_dir": str(self.dir),
+                "summary": {
+                    "n_total": n_experiments,
+                    "n_benign": len(benign_exps),
+                    "n_adversarial": len(adversarial_exps),
+                    "attack_success_rate": judge_successes / n_experiments if n_experiments > 0 else 0.0,
+                    "avg_judge_score": sum(judge_scores) / len(judge_scores) if judge_scores else None,
+                    "benign_success_rate": (
+                        sum(1 for e in benign_exps if e.get("judge_result", {}).get("overall_success"))
+                        / len(benign_exps) if benign_exps else None
+                    ),
+                    "adversarial_success_rate": (
+                        sum(1 for e in adversarial_exps if e.get("judge_result", {}).get("overall_success"))
+                        / len(adversarial_exps) if adversarial_exps else None
+                    ),
+                },
+                "token_usage": {
+                    "target": {"input": target_input, "output": target_output, "total": target_input + target_output},
+                    "attacker": {"total": attacker_total},
+                },
+                "experiments": experiments,
+            }
+
+            # Write behavior log
+            log_path = parent_dir / "log.json"
+            try:
+                with open(log_path, "w", encoding="utf-8") as f:
+                    json.dump(behavior_log, f, indent=2, default=str)
+                logger.info(f"Saved behavior log to {log_path}")
+            except Exception as e:
+                logger.error(f"Error saving behavior log for {behavior_id}: {e}")
 
     def _extract_experiment_data(self, exp_result) -> dict:
         """Extract structured data from an experiment result.
@@ -658,12 +759,19 @@ class Study(AbstractStudy):
         exp_args = exp_result.exp_args
         env_args = exp_args.env_args
 
-        # Extract behavior/task info
-        behavior_id = (
-            getattr(env_args, "task_name", "").split(".")[-1]
-            if hasattr(env_args, "task_name")
-            else None
-        )
+        # Extract behavior/task info - prefer the actual behavior_id field
+        behavior_id = getattr(env_args, "behavior_id", None)
+        if not behavior_id:
+            # Fallback: extract from task_name (e.g., "benchmark.behavior_id.variant")
+            task_name = getattr(env_args, "task_name", "")
+            parts = task_name.split(".")
+            if len(parts) >= 2:
+                behavior_id = parts[-2]  # Second to last is behavior_id
+            else:
+                behavior_id = parts[-1] if parts else None
+
+        # Extract test_mode (benign vs adversarial)
+        test_mode = getattr(env_args, "test_mode", None)
 
         # Extract goal/doc from env_args
         goal = (
@@ -852,6 +960,7 @@ class Study(AbstractStudy):
         return {
             "behavior_id": behavior_id,
             "behavior_name": getattr(env_args, "target", None) or behavior_id,
+            "test_mode": test_mode,
             "goal": goal,
             "pages": pages,
             "target": {
