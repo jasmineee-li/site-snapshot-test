@@ -39,6 +39,9 @@ select_dir_instructions = "Select Experiment Directory"
 AGENT_NAME_KEY = "agent.agent_name"
 TASK_NAME_KEY = "env.task_name"
 TASK_SEED_KEY = "env.task_seed"
+BEHAVIOR_ID_KEY = "env.behavior_id"
+TEST_MODE_KEY = "env.test_mode"
+VARIATION_SEED_KEY = "env.variation_seed"
 
 
 def display_table(df: pd.DataFrame):
@@ -179,6 +182,7 @@ def run_gradio(results_dir: Path):
         episode_id = gr.State(value=EpisodeId())
         agent_task_id = gr.State(value=None)
         step_id = gr.State(value=None)
+        behavior_data = gr.State(value=None)  # Stores behavior comparison dataframe
 
         hidden_key_input = gr.Textbox(visible=False, elem_id="key_capture")
 
@@ -267,6 +271,41 @@ clicking the refresh button.
                             show_label=False,
                             interactive=False,
                             elem_id="seed_table",
+                        )
+
+            with gr.Tab("🔬 Behavior Comparison", id="behavior_comparison"):
+                with gr.Accordion("Benign vs Adversarial Comparison (click for help)", open=False):
+                    gr.Markdown(
+                        """\
+**Compare benign vs adversarial results side-by-side.**
+
+This view groups experiments by behavior_id and shows:
+- **benign_success**: Whether the agent succeeded on the benign (control) version
+- **n_adv**: Number of adversarial variants tested
+- **adv_v0, adv_v1, ...**: Success/failure for each adversarial variant
+
+Legend: ✓ = success, ✗ = failure, - = not available
+
+Click a row to load the benign episode. Use the dropdown to switch to adversarial variants.
+"""
+                    )
+                with gr.Row():
+                    with gr.Column(scale=3):
+                        behavior_table = gr.DataFrame(
+                            max_height=400,
+                            show_label=False,
+                            interactive=False,
+                            elem_id="behavior_table",
+                        )
+                    with gr.Column(scale=1):
+                        variant_selector = gr.Dropdown(
+                            choices=["benign"],
+                            value="benign",
+                            label="Select Variant",
+                            interactive=True,
+                        )
+                        comparison_info = gr.Markdown(
+                            "Select a behavior from the table to compare variants."
                         )
 
             with gr.Tab("Constants and Variables"):
@@ -434,7 +473,7 @@ clicking the refresh button.
         exp_dir_choice.change(
             fn=new_exp_dir,
             inputs=exp_dir_choice,
-            outputs=[agent_table, agent_id, constants, variables, global_stats, error_report],
+            outputs=[agent_table, agent_id, constants, variables, global_stats, error_report, behavior_table],
         )
 
         agent_table.select(fn=on_select_agent, inputs=agent_table, outputs=[agent_id])
@@ -446,6 +485,19 @@ clicking the refresh button.
         )
         # seed_gr.change(fn=on_select_seed, inputs=[seed_gr, task_name], outputs=[episode_id])
         seed_table.select(on_select_seed, inputs=[seed_table, agent_task_id], outputs=episode_id)
+
+        # Behavior comparison tab handlers
+        behavior_table.select(
+            fn=on_select_behavior,
+            inputs=[behavior_table, agent_id],
+            outputs=[variant_selector, comparison_info, behavior_data, episode_id],
+        )
+        variant_selector.change(
+            fn=on_select_variant,
+            inputs=[variant_selector, behavior_data, agent_id],
+            outputs=episode_id,
+        )
+
         step_id.change(fn=update_step_info, outputs=[episode_info, action_info, state_error])
         episode_id.change(fn=new_episode, inputs=[episode_id], outputs=[profiling_gr, step_id])
         profiling_gr.select(select_step, inputs=[episode_id], outputs=step_id)
@@ -1085,11 +1137,26 @@ def get_seeds_df(result_df: pd.DataFrame, task_name: str):
     result_df = result_df[result_df[TASK_NAME_KEY] == task_name]
 
     def extract_columns(row: pd.Series):
+        # Get test_mode with fallback
+        test_mode = row.get(TEST_MODE_KEY, None)
+        if test_mode is None:
+            # Try to infer from task_name
+            tn = row.get(TASK_NAME_KEY, "")
+            if ".benign" in str(tn):
+                test_mode = "benign"
+            elif ".adversarial" in str(tn):
+                test_mode = "adversarial"
+
+        # Get judge success if available
+        judge_success = row.get("judge.overall_success", None)
+
         return pd.Series(
             {
                 "idx": row.get("_row_index", None),
                 "seed": row.get(TASK_SEED_KEY, None),
+                "mode": test_mode,
                 "reward": row.get("cum_reward", None),
+                "success": judge_success,
                 "err": bool(row.get("err_msg", None)),
                 "n_steps": row.get("n_steps", None),
             }
@@ -1097,8 +1164,103 @@ def get_seeds_df(result_df: pd.DataFrame, task_name: str):
 
     seed_df = result_df.apply(extract_columns, axis=1)
     # Ensure column order and readability
-    seed_df = seed_df[["seed", "reward", "err", "n_steps", "idx"]]
+    cols = ["seed", "mode", "reward", "success", "err", "n_steps", "idx"]
+    available_cols = [c for c in cols if c in seed_df.columns]
+    seed_df = seed_df[available_cols]
     return seed_df
+
+
+def get_behavior_comparison_df(result_df: pd.DataFrame):
+    """
+    Group experiments by behavior_id and compare benign vs adversarial results.
+
+    Returns a dataframe with columns for side-by-side comparison.
+    """
+    result_df = result_df.reset_index(inplace=False)
+
+    # Check if behavior_id exists
+    if BEHAVIOR_ID_KEY not in result_df.columns:
+        # Try to extract from task_name
+        def extract_behavior(task_name):
+            if pd.isna(task_name):
+                return None
+            # Task names like "enriched-behaviors.empty-box-listing.benign"
+            parts = str(task_name).split(".")
+            if len(parts) >= 2:
+                # Return the middle part (behavior_id)
+                return parts[-2] if len(parts) >= 3 else parts[0]
+            return task_name
+
+        result_df["_behavior_id"] = result_df[TASK_NAME_KEY].apply(extract_behavior)
+    else:
+        result_df["_behavior_id"] = result_df[BEHAVIOR_ID_KEY]
+
+    # Get test_mode
+    if TEST_MODE_KEY not in result_df.columns:
+        def extract_mode(task_name):
+            if pd.isna(task_name):
+                return None
+            tn = str(task_name).lower()
+            if ".benign" in tn:
+                return "benign"
+            elif ".adversarial" in tn:
+                return "adversarial"
+            return None
+        result_df["_test_mode"] = result_df[TASK_NAME_KEY].apply(extract_mode)
+    else:
+        result_df["_test_mode"] = result_df[TEST_MODE_KEY]
+
+    # Group by behavior_id
+    records = []
+    for behavior_id in result_df["_behavior_id"].unique():
+        if pd.isna(behavior_id):
+            continue
+
+        behavior_df = result_df[result_df["_behavior_id"] == behavior_id]
+
+        # Get benign results
+        benign_df = behavior_df[behavior_df["_test_mode"] == "benign"]
+        benign_success = None
+        benign_idx = None
+        if len(benign_df) > 0:
+            benign_success = benign_df["judge.overall_success"].iloc[0] if "judge.overall_success" in benign_df else None
+            benign_idx = benign_df["_row_index"].iloc[0] if "_row_index" in benign_df else None
+
+        # Get adversarial results
+        adv_df = behavior_df[behavior_df["_test_mode"] == "adversarial"]
+        adv_results = []
+        for _, row in adv_df.iterrows():
+            var_seed = row.get(VARIATION_SEED_KEY, row.get("env.injection_seed", 0))
+            adv_success = row.get("judge.overall_success", None)
+            adv_idx = row.get("_row_index", None)
+            adv_results.append({
+                "var_seed": var_seed,
+                "success": adv_success,
+                "idx": adv_idx,
+            })
+
+        record = {
+            "behavior": behavior_id,
+            "benign_success": "✓" if benign_success else ("✗" if benign_success is False else "-"),
+            "benign_idx": benign_idx,
+            "n_adv": len(adv_results),
+        }
+
+        # Add adversarial columns
+        for i, adv in enumerate(adv_results[:3]):  # Limit to 3 variants shown
+            record[f"adv_v{i}"] = "✓" if adv["success"] else ("✗" if adv["success"] is False else "-")
+            record[f"adv_v{i}_idx"] = adv["idx"]
+
+        records.append(record)
+
+    if not records:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(records)
+    # Hide idx columns in display but keep for selection
+    display_cols = ["behavior", "benign_success", "n_adv"]
+    display_cols += [c for c in df.columns if c.startswith("adv_v") and not c.endswith("_idx")]
+    return df[display_cols + ["benign_idx"] + [c for c in df.columns if c.endswith("_idx")]]
 
 
 def on_select_agent(evt: gr.SelectData, df: pd.DataFrame):
@@ -1129,6 +1291,100 @@ def on_select_seed(evt: gr.SelectData, df: pd.DataFrame, agent_task_id: tuple):
     seed = evt.row_value[col_idx]
     row_index = evt.row_value[idx_col]
     return EpisodeId(agent_id=agent_id, task_name=task_name, seed=seed, row_index=row_index)
+
+
+def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tuple]):
+    """
+    Handle behavior selection in the comparison table.
+
+    Returns:
+        - variant_selector choices and value
+        - comparison info markdown
+        - behavior_data dict for variant switching
+        - episode_id for the benign variant (default selection)
+    """
+    if df is None or len(df) == 0:
+        return gr.update(), "No data available", None, gr.update()
+
+    row = df.iloc[evt.index[0]]
+    behavior = row.get("behavior", "unknown")
+
+    # Build variant choices
+    variants = ["benign"]
+    # Check for adversarial variants (adv_v0, adv_v1, etc.)
+    for col in df.columns:
+        if col.startswith("adv_v") and not col.endswith("_idx"):
+            variants.append(col.replace("adv_", "adversarial_"))
+
+    # Build behavior data for variant switching
+    behavior_data_dict = {
+        "behavior": behavior,
+        "benign_idx": row.get("benign_idx"),
+    }
+    # Add adversarial indices
+    for col in df.columns:
+        if col.endswith("_idx") and col != "benign_idx":
+            behavior_data_dict[col] = row.get(col)
+
+    # Build comparison info
+    info_parts = [f"**Behavior:** {behavior}"]
+    benign_status = row.get("benign_success", "-")
+    info_parts.append(f"**Benign:** {benign_status}")
+    for i in range(3):
+        adv_col = f"adv_v{i}"
+        if adv_col in row:
+            info_parts.append(f"**Adversarial v{i}:** {row[adv_col]}")
+    comparison_info = "\n\n".join(info_parts)
+
+    # Create episode_id for benign (default selection)
+    benign_idx = row.get("benign_idx")
+    if pd.notna(benign_idx):
+        episode_id = EpisodeId(
+            agent_id=agent_id,
+            task_name=f"{behavior}.benign",  # Approximate
+            seed=0,
+            row_index=int(benign_idx),
+        )
+    else:
+        episode_id = gr.update()
+
+    return (
+        gr.update(choices=variants, value="benign"),
+        comparison_info,
+        behavior_data_dict,
+        episode_id,
+    )
+
+
+def on_select_variant(variant: str, behavior_data: dict, agent_id: list[tuple]):
+    """
+    Handle variant selection from dropdown.
+
+    Returns episode_id for the selected variant.
+    """
+    if behavior_data is None:
+        return gr.update()
+
+    behavior = behavior_data.get("behavior", "unknown")
+
+    if variant == "benign":
+        idx = behavior_data.get("benign_idx")
+        task_name = f"{behavior}.benign"
+    else:
+        # Convert adversarial_v0 -> adv_v0_idx
+        idx_key = variant.replace("adversarial_", "adv_") + "_idx"
+        idx = behavior_data.get(idx_key)
+        task_name = f"{behavior}.{variant}"
+
+    if idx is None or pd.isna(idx):
+        return gr.update()
+
+    return EpisodeId(
+        agent_id=agent_id,
+        task_name=task_name,
+        seed=0,
+        row_index=int(idx),
+    )
 
 
 def new_episode(episode_id: EpisodeId, progress=gr.Progress()):
@@ -1226,7 +1482,7 @@ def new_exp_dir(study_names: list, progress=gr.Progress(), just_refresh=False):
         study_names.remove(select_dir_instructions)
 
     if len(study_names) == 0:
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None
 
     info.study_dirs = [info.results_dir / study_name.split(" - ")[0] for study_name in study_names]
     info.result_df = inspect_results.load_result_df(info.study_dirs, progress_fn=progress.tqdm)
@@ -1244,11 +1500,15 @@ def new_exp_dir(study_names: list, progress=gr.Progress(), just_refresh=False):
 
     # Handle empty results (e.g., experiment still in progress)
     if len(agent_report) == 0:
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None
 
     agent_id = info.get_agent_id(agent_report.iloc[0])
 
     constants, variables = format_constant_and_variables()
+
+    # Generate behavior comparison table
+    behavior_df = get_behavior_comparison_df(info.result_df)
+
     return (
         agent_report,
         agent_id,
@@ -1256,6 +1516,7 @@ def new_exp_dir(study_names: list, progress=gr.Progress(), just_refresh=False):
         variables,
         update_global_stats(),
         update_error_report(),
+        behavior_df,
     )
 
 

@@ -289,7 +289,17 @@ class Study(AbstractStudy):
         """
         Pre-create parent directories for redteam behavior runs inside the study directory.
 
-        Groups variants by (behavior_id, variation_seed) and creates parent dirs.
+        Groups ALL variants (benign + all adversarial) by behavior_id into a single
+        parent directory. This makes it easy to compare benign vs adversarial side-by-side.
+
+        Structure:
+            study_dir/
+                behavior_X/
+                    metadata.json
+                    base/           # Shared base HTML (optional)
+                    benign/         # Control group
+                    adversarial_v0/ # First adversarial variant
+                    adversarial_v1/ # Second adversarial variant
 
         Args:
             benchmark: RedteamBenchmark instance
@@ -297,7 +307,8 @@ class Study(AbstractStudy):
             date_str: Date string for directory naming
 
         Returns:
-            Dict mapping (behavior_id, seed) -> parent_exp_dir
+            Dict mapping (behavior_id, variation_seed) -> parent_exp_dir
+            Note: All variants of a behavior map to the SAME parent dir.
         """
         from collections import defaultdict
 
@@ -305,37 +316,48 @@ class Study(AbstractStudy):
         if not hasattr(benchmark, 'env_args_list'):
             return {}
 
-        # Group tasks by (behavior_id, variation_seed)
+        # Group ALL tasks by behavior_id (not variation_seed)
         behavior_groups = defaultdict(list)
         for env_args in benchmark.env_args_list:
             if hasattr(env_args, 'behavior_id') and env_args.behavior_id:
-                key = (env_args.behavior_id, env_args.variation_seed)
-                behavior_groups[key].append(env_args)
+                # Key by behavior_id only - all variants go together
+                behavior_groups[env_args.behavior_id].append(env_args)
 
-        # Create parent directory for each behavior group INSIDE study_dir
+        # Create parent directory for each behavior INSIDE study_dir
+        # Map (behavior_id, variation_seed) -> parent_dir for lookup later
         parent_dirs = {}
-        for (behavior_id, seed), env_args_list in behavior_groups.items():
-            # Create parent directory name
+        for behavior_id, env_args_list in behavior_groups.items():
+            # Create parent directory name (no seed suffix since all variants grouped)
             agent_name = self.agent_args[0].agent_name if self.agent_args else 'agent'
-            parent_name = f"{date_str}_{agent_name}_{behavior_id}_seed{seed}"
+            parent_name = f"{date_str}_{agent_name}_{behavior_id}"
             parent_dir = study_dir / parent_name
             parent_dir.mkdir(parents=True, exist_ok=True)
+
+            # Collect all variants
+            all_variants = [env_args.variant_subdir for env_args in env_args_list]
+            # Sort so benign comes first, then adversarial_v0, v1, etc.
+            all_variants = sorted(set(all_variants), key=lambda v: (0 if v == "benign" else 1, v))
 
             # Save metadata about this behavior run
             metadata = {
                 "behavior_id": behavior_id,
-                "variation_seed": seed,
-                "variants": [
-                    env_args.variant_subdir for env_args in env_args_list
-                ],
+                "variants": all_variants,
                 "created_at": date_str,
+                "n_benign": sum(1 for v in all_variants if v == "benign"),
+                "n_adversarial": sum(1 for v in all_variants if v.startswith("adversarial")),
             }
             (parent_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
-            # Store for later reference
-            parent_dirs[(behavior_id, seed)] = parent_dir
+            # Map ALL (behavior_id, variation_seed) combinations to this parent
+            # This is the key change: every variant of a behavior uses the same parent dir
+            for env_args in env_args_list:
+                key = (behavior_id, env_args.variation_seed)
+                parent_dirs[key] = parent_dir
 
-            logger.info(f"Created parent dir for {behavior_id} seed{seed}: {parent_dir}")
+            logger.info(
+                f"Created parent dir for {behavior_id}: {parent_dir} "
+                f"({len(all_variants)} variants: {', '.join(all_variants)})"
+            )
 
         return parent_dirs
 
