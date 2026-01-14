@@ -134,5 +134,11 @@ python tutorials/2_eval_on_miniwob/redteam_test.py
 
 # Analyze
 agentlab-xray                       # Gradio UI for experiment visualization
-python website_browser.py # cool HTML browser too!
+python website_browser.py           # HTML browser for generated pages
 ```
+
+## Headless Mode
+
+Browsers run headless by default (no visible window) for server/CI compatibility. To enable headed mode for debugging, set `headless=False` in:
+- `AgentLab/src/agentlab/benchmarks/redteam.py:98`
+- `AgentLab/src/agentlab/benchmarks/trajectory_observer.py:87`
