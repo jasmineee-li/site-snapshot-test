@@ -317,26 +317,31 @@ def replace_injection_placeholders(html: str, injections: Dict[str, str]) -> str
 
 def extract_placeholders(html: str) -> list[dict]:
     """
-    Extract all INJECTION_PLACEHOLDER comments from HTML.
+    Extract all placeholder comments from HTML.
 
-    Finds all placeholders matching the format:
-    <!-- INJECTION_PLACEHOLDER: {"id": "...", "placement": "...", "type": "..."} -->
+    Supports both:
+    - New format: <!-- VARIANT_PLACEHOLDER: {"id": "...", "placement": "...", "element_type": "..."} -->
+    - Legacy format: <!-- INJECTION_PLACEHOLDER: {"id": "...", "placement": "...", "type": "..."} -->
 
     Args:
         html: HTML string to search
 
     Returns:
-        List of placeholder dicts with id, placement, type, and other metadata
+        List of placeholder dicts with id, placement, element_type/type, and other metadata
     """
     import re
 
-    pattern = r"<!--\s*INJECTION_PLACEHOLDER:\s*(\{[^}]+\})\s*-->"
+    # Match both VARIANT_PLACEHOLDER (new) and INJECTION_PLACEHOLDER (legacy)
+    pattern = r"<!--\s*(?:VARIANT_PLACEHOLDER|INJECTION_PLACEHOLDER):\s*(\{[^}]+\})\s*-->"
     matches = re.findall(pattern, html)
 
     placeholders = []
     for match in matches:
         try:
             placeholder = json.loads(match)
+            # Normalize: ensure element_type is present (map from legacy 'type' if needed)
+            if "element_type" not in placeholder and "type" in placeholder:
+                placeholder["element_type"] = placeholder["type"]
             placeholders.append(placeholder)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse placeholder JSON: {match} - {e}")
@@ -352,7 +357,11 @@ def replace_placeholders_with_content(
     variant_index: int = 0,
 ) -> str:
     """
-    Replace INJECTION_PLACEHOLDER comments with generated content.
+    Replace placeholder comments with generated content.
+
+    Supports both:
+    - New format: <!-- VARIANT_PLACEHOLDER: {...} -->
+    - Legacy format: <!-- INJECTION_PLACEHOLDER: {...} -->
 
     This is the key function for applying benign or adversarial content
     to placeholders in the unified injection pipeline.
@@ -369,7 +378,8 @@ def replace_placeholders_with_content(
     """
     import re
 
-    pattern = r"<!--\s*INJECTION_PLACEHOLDER:\s*(\{[^}]+\})\s*-->"
+    # Match both VARIANT_PLACEHOLDER and INJECTION_PLACEHOLDER
+    pattern = r"<!--\s*(?:VARIANT_PLACEHOLDER|INJECTION_PLACEHOLDER):\s*(\{[^}]+\})\s*-->"
 
     def replacer(match):
         json_str = match.group(1)
@@ -391,6 +401,10 @@ def replace_placeholders_with_content(
 
             if mode == "benign":
                 replacement = content.get("benign", "")
+                # For hidden_text elements, benign should be empty
+                element_type = placeholder.get("element_type", placeholder.get("type", ""))
+                if element_type == "hidden_text" and not replacement:
+                    replacement = ""  # Explicitly empty for hidden text in benign mode
                 logger.debug(f"Replacing '{placeholder_id}' with benign content")
             else:  # adversarial
                 adversarial_list = content.get("adversarial", [])
@@ -413,7 +427,7 @@ def replace_placeholders_with_content(
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse placeholder JSON: {json_str} - {e}")
-            return match.group(0)  # Keep original
+            return match.group(0)
 
     html_with_content = re.sub(pattern, replacer, html)
 
@@ -470,37 +484,6 @@ def save_site_to_toolbox(domain: str, html: str, metadata: dict) -> Path:
 
     logger.info(f"Saved site to toolbox: {html_path}")
     return html_path
-
-
-def list_toolbox_sites(domain: str) -> List[dict]:
-    """
-    List all saved sites for a domain.
-
-    Args:
-        domain: Domain path (e.g., "/gmail")
-
-    Returns:
-        List of metadata dicts, sorted by timestamp (newest first)
-    """
-    domain_path = domain.lstrip("/").split(".")[0]
-    domain_dir = TOOLBOX_DIR / domain_path
-
-    if not domain_dir.exists():
-        return []
-
-    sites = []
-    for json_file in domain_dir.glob("*.json"):
-        try:
-            metadata = json.loads(json_file.read_text(encoding="utf-8"))
-            metadata["html_path"] = str(json_file.with_suffix(".html"))
-            metadata["json_path"] = str(json_file)
-            sites.append(metadata)
-        except Exception as e:
-            logger.warning(f"Failed to read metadata from {json_file}: {e}")
-
-    # Sort by timestamp (newest first)
-    sites.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-    return sites
 
 
 def load_toolbox_site(html_path: Path | str) -> tuple[str, dict]:

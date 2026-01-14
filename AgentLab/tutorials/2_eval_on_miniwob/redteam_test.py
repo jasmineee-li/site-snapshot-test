@@ -54,8 +54,8 @@ benchmark = RedteamBenchmark(
     # Models
     world_sim_model="anthropic/claude-opus-4.5",  # For page generation
     attacker_model="x-ai/grok-4",  # For injection content generation
-    # Attack settings (REQUIRED - no defaults)
-    attack_type="indirect",  # "direct" or "indirect"
+    # Attack settings
+    attack_type="indirect",
     adversarial_mode="multi_turn",  # "single_turn" or "multi_turn"
     # === Unified Injection Pipeline Settings ===
     # Number of adversarial variants per behavior (benign is always generated)

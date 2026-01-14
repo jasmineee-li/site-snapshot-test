@@ -70,9 +70,9 @@ class RedteamEnvArgs(AbstractEnvArgs):
     target: str  # Attack goal description
     attacker_model: str
     pages: list[Page]
-    attack_type: str  # "direct" or "indirect" - REQUIRED, no default
-    adversarial_mode: str  # "single_turn" or "multi_turn" - REQUIRED, no default
-    test_mode: str  # "benign" or "adversarial" - REQUIRED, no default
+    attack_type: str  # "direct" or "indirect"
+    adversarial_mode: str  # "single_turn" or "multi_turn"
+    test_mode: str  # "benign" or "adversarial"
     start_page: str = None
 
     # Task description fields
@@ -1203,8 +1203,8 @@ class RedteamEnv(AbstractEnv):
 def generate_all_variants(
     behavior_config: dict,
     output_base_dir: str | Path,
-    attack_type: str,  # "direct" or "indirect" - REQUIRED
-    adversarial_mode: str,  # "single_turn" or "multi_turn" - REQUIRED
+    attack_type: str,
+    adversarial_mode: str,
     n_adversarial_variants: int = 1,
     attack_channels: list[str] = None,
     llm_client=None,
@@ -1465,12 +1465,6 @@ def analyze_results(results: list, verbose: bool = True) -> dict:
     return metrics
 
 
-# Backward compatibility alias
-def analyze_paired_results(results: list) -> dict:
-    """Deprecated: Use analyze_results() instead."""
-    return analyze_results(results, verbose=False)
-
-
 class RedteamBenchmark(AbstractBenchmark):
     """
     Benchmark for redteam security testing with dynamic synthetic pages.
@@ -1493,8 +1487,8 @@ class RedteamBenchmark(AbstractBenchmark):
     # Generation settings
     world_sim_model: str  # LLM for page generation and prefill analysis
     attacker_model: str  # LLM for attacker agent
-    attack_type: str  # "direct" or "indirect" - REQUIRED, no default
-    adversarial_mode: str  # "single_turn" or "multi_turn" - REQUIRED, no default
+    attack_type: str  # "direct" or "indirect"
+    adversarial_mode: str  # "single_turn" or "multi_turn"
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Adversarial mode settings
