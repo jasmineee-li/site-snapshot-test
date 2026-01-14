@@ -1,0 +1,1788 @@
+{
+  "metadata": {
+    "description": "Comprehensive list of websites/tools for WorldSim browser agent safety evaluation",
+    "total_count": 250,
+    "last_updated": "2026-01-14",
+    "usage": "Use as input to Stage 2 (Injection Point Analysis) of the behavior generation pipeline"
+  },
+  "websites": [
+    {
+      "domain": "salesforce.com",
+      "category": "CRM",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "hubspot.com",
+      "category": "CRM",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "zoho.com",
+      "category": "CRM",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "pipedrive.com",
+      "category": "CRM",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "jira.atlassian.com",
+      "category": "project_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "asana.com",
+      "category": "project_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "monday.com",
+      "category": "project_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "linear.app",
+      "category": "project_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "trello.com",
+      "category": "project_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "basecamp.com",
+      "category": "project_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "clickup.com",
+      "category": "project_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "slack.com",
+      "category": "communication",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "teams.microsoft.com",
+      "category": "communication",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "discord.com",
+      "category": "communication",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "zoom.us",
+      "category": "communication",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "docs.google.com",
+      "category": "document_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "notion.so",
+      "category": "document_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "confluence.atlassian.com",
+      "category": "document_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "coda.io",
+      "category": "document_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "quip.com",
+      "category": "document_management",
+      "subcategory": "enterprise",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "github.com",
+      "category": "code_development",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "gitlab.com",
+      "category": "code_development",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "bitbucket.org",
+      "category": "code_development",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "vercel.com",
+      "category": "code_development",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "netlify.com",
+      "category": "code_development",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "heroku.com",
+      "category": "code_development",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "console.aws.amazon.com",
+      "category": "cloud_platforms",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "console.cloud.google.com",
+      "category": "cloud_platforms",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "portal.azure.com",
+      "category": "cloud_platforms",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "cloud.digitalocean.com",
+      "category": "cloud_platforms",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "dash.cloudflare.com",
+      "category": "cloud_platforms",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "workday.com",
+      "category": "hr_finance",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "sap.com",
+      "category": "hr_finance",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "netsuite.com",
+      "category": "hr_finance",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "bamboohr.com",
+      "category": "hr_finance",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "gusto.com",
+      "category": "hr_finance",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "rippling.com",
+      "category": "hr_finance",
+      "subcategory": "enterprise",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "mail.google.com",
+      "category": "email",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "outlook.live.com",
+      "category": "email",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "calendar.google.com",
+      "category": "calendar",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "outlook.office.com/calendar",
+      "category": "calendar",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "obsidian.md",
+      "category": "note_taking",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "evernote.com",
+      "category": "note_taking",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "drive.google.com",
+      "category": "file_storage",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "dropbox.com",
+      "category": "file_storage",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "onedrive.live.com",
+      "category": "file_storage",
+      "subcategory": "personal_productivity",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "mychart.com",
+      "category": "healthcare_patient_portal",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "epic.com/mychartweb",
+      "category": "healthcare_patient_portal",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "cerner.com/patient-portal",
+      "category": "healthcare_patient_portal",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "teladoc.com",
+      "category": "healthcare_telehealth",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "amwell.com",
+      "category": "healthcare_telehealth",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "doctorondemand.com",
+      "category": "healthcare_telehealth",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "cvs.com/account",
+      "category": "healthcare_pharmacy",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "walgreens.com/account",
+      "category": "healthcare_pharmacy",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "express-scripts.com",
+      "category": "healthcare_pharmacy",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "goodrx.com",
+      "category": "healthcare_pharmacy",
+      "subcategory": "healthcare",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "uhc.com",
+      "category": "healthcare_insurance",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "anthem.com",
+      "category": "healthcare_insurance",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "aetna.com",
+      "category": "healthcare_insurance",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "zocdoc.com",
+      "category": "healthcare_scheduling",
+      "subcategory": "healthcare",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "healthgrades.com",
+      "category": "healthcare_scheduling",
+      "subcategory": "healthcare",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "questdiagnostics.com",
+      "category": "healthcare_lab_results",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "labcorp.com",
+      "category": "healthcare_lab_results",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "betterhelp.com",
+      "category": "healthcare_mental_health",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "talkspace.com",
+      "category": "healthcare_mental_health",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "cerebral.com",
+      "category": "healthcare_mental_health",
+      "subcategory": "healthcare",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "myfitnesspal.com",
+      "category": "healthcare_fitness",
+      "subcategory": "healthcare",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "strava.com",
+      "category": "healthcare_fitness",
+      "subcategory": "healthcare",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "fitbit.com",
+      "category": "healthcare_fitness",
+      "subcategory": "healthcare",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "docusign.com",
+      "category": "legal_documents",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "hellosign.com",
+      "category": "legal_documents",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "pandadoc.com",
+      "category": "legal_documents",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ironcladapp.com",
+      "category": "legal_contracts",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "westlaw.com",
+      "category": "legal_research",
+      "subcategory": "legal",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "lexisnexis.com",
+      "category": "legal_research",
+      "subcategory": "legal",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "casetext.com",
+      "category": "legal_research",
+      "subcategory": "legal",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "pacer.uscourts.gov",
+      "category": "legal_court_filing",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "uscis.gov",
+      "category": "legal_immigration",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "vanta.com",
+      "category": "legal_compliance",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "drata.com",
+      "category": "legal_compliance",
+      "subcategory": "legal",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "irs.gov",
+      "category": "government_tax",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "turbotax.intuit.com",
+      "category": "government_tax",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "hrblock.com",
+      "category": "government_tax",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "freetaxusa.com",
+      "category": "government_tax",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ssa.gov",
+      "category": "government_benefits",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "medicare.gov",
+      "category": "government_benefits",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "dmv.ca.gov",
+      "category": "government_dmv",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "vote.gov",
+      "category": "government_voting",
+      "subcategory": "government",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "canvas.instructure.com",
+      "category": "education_lms",
+      "subcategory": "education",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "blackboard.com",
+      "category": "education_lms",
+      "subcategory": "education",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "moodle.org",
+      "category": "education_lms",
+      "subcategory": "education",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "classroom.google.com",
+      "category": "education_lms",
+      "subcategory": "education",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "coursera.org",
+      "category": "education_online_courses",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "udemy.com",
+      "category": "education_online_courses",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "edx.org",
+      "category": "education_online_courses",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "linkedin.com/learning",
+      "category": "education_online_courses",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "khanacademy.org",
+      "category": "education_online_courses",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "jstor.org",
+      "category": "education_research",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "scholar.google.com",
+      "category": "education_research",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "pubmed.ncbi.nlm.nih.gov",
+      "category": "education_research",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "arxiv.org",
+      "category": "education_research",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "zotero.org",
+      "category": "education_citations",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "mendeley.com",
+      "category": "education_citations",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "nelnet.com",
+      "category": "education_student_loans",
+      "subcategory": "education",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "chegg.com",
+      "category": "education_tutoring",
+      "subcategory": "education",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "classdojo.com",
+      "category": "education_school_communication",
+      "subcategory": "education",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "zillow.com",
+      "category": "real_estate_listings",
+      "subcategory": "real_estate",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "redfin.com",
+      "category": "real_estate_listings",
+      "subcategory": "real_estate",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "realtor.com",
+      "category": "real_estate_listings",
+      "subcategory": "real_estate",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "trulia.com",
+      "category": "real_estate_listings",
+      "subcategory": "real_estate",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "apartments.com",
+      "category": "real_estate_rentals",
+      "subcategory": "real_estate",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "rocketmortgage.com",
+      "category": "real_estate_mortgage",
+      "subcategory": "real_estate",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "better.com",
+      "category": "real_estate_mortgage",
+      "subcategory": "real_estate",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "appfolio.com",
+      "category": "real_estate_property_management",
+      "subcategory": "real_estate",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "thumbtack.com",
+      "category": "real_estate_home_services",
+      "subcategory": "real_estate",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "angi.com",
+      "category": "real_estate_home_services",
+      "subcategory": "real_estate",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "robinhood.com",
+      "category": "financial_investment",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "etrade.com",
+      "category": "financial_investment",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "fidelity.com",
+      "category": "financial_investment",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "schwab.com",
+      "category": "financial_investment",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "vanguard.com",
+      "category": "financial_investment",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "coinbase.com",
+      "category": "financial_crypto",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "kraken.com",
+      "category": "financial_crypto",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "binance.com",
+      "category": "financial_crypto",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "creditkarma.com",
+      "category": "financial_credit",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "experian.com",
+      "category": "financial_credit",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "equifax.com",
+      "category": "financial_credit",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "mint.com",
+      "category": "financial_budgeting",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ynab.com",
+      "category": "financial_budgeting",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "progressive.com",
+      "category": "financial_insurance",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "geico.com",
+      "category": "financial_insurance",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "statefarm.com",
+      "category": "financial_insurance",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "lemonade.com",
+      "category": "financial_insurance",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "sofi.com",
+      "category": "financial_lending",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "lendingclub.com",
+      "category": "financial_lending",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "mercury.com",
+      "category": "financial_business_banking",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "brex.com",
+      "category": "financial_business_banking",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ramp.com",
+      "category": "financial_business_banking",
+      "subcategory": "financial",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "amazon.com",
+      "category": "ecommerce_shopping",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ebay.com",
+      "category": "ecommerce_shopping",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "walmart.com",
+      "category": "ecommerce_shopping",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "target.com",
+      "category": "ecommerce_shopping",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "bestbuy.com",
+      "category": "ecommerce_shopping",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "venmo.com",
+      "category": "ecommerce_payments",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "paypal.com",
+      "category": "ecommerce_payments",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "chase.com",
+      "category": "ecommerce_banking",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "bankofamerica.com",
+      "category": "ecommerce_banking",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "wellsfargo.com",
+      "category": "ecommerce_banking",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "expedia.com",
+      "category": "ecommerce_travel",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "booking.com",
+      "category": "ecommerce_travel",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "kayak.com",
+      "category": "ecommerce_travel",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "united.com",
+      "category": "ecommerce_airlines",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "delta.com",
+      "category": "ecommerce_airlines",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "aa.com",
+      "category": "ecommerce_airlines",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "southwest.com",
+      "category": "ecommerce_airlines",
+      "subcategory": "ecommerce",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "upwork.com",
+      "category": "freelance_marketplace",
+      "subcategory": "freelance",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "fiverr.com",
+      "category": "freelance_marketplace",
+      "subcategory": "freelance",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "toptal.com",
+      "category": "freelance_marketplace",
+      "subcategory": "freelance",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "drivers.uber.com",
+      "category": "freelance_gig",
+      "subcategory": "freelance",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "dasher.doordash.com",
+      "category": "freelance_gig",
+      "subcategory": "freelance",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "freshbooks.com",
+      "category": "freelance_invoicing",
+      "subcategory": "freelance",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "waveapps.com",
+      "category": "freelance_invoicing",
+      "subcategory": "freelance",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "figma.com",
+      "category": "creative_design",
+      "subcategory": "creative",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "canva.com",
+      "category": "creative_design",
+      "subcategory": "creative",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "adobe.com",
+      "category": "creative_design",
+      "subcategory": "creative",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "shutterstock.com",
+      "category": "creative_stock_media",
+      "subcategory": "creative",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "gettyimages.com",
+      "category": "creative_stock_media",
+      "subcategory": "creative",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "studio.youtube.com",
+      "category": "creative_video",
+      "subcategory": "creative",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "vimeo.com",
+      "category": "creative_video",
+      "subcategory": "creative",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "podcasters.spotify.com",
+      "category": "creative_podcast",
+      "subcategory": "creative",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "distrokid.com",
+      "category": "creative_music",
+      "subcategory": "creative",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "zendesk.com",
+      "category": "customer_service_helpdesk",
+      "subcategory": "customer_service",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "freshdesk.com",
+      "category": "customer_service_helpdesk",
+      "subcategory": "customer_service",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "intercom.com",
+      "category": "customer_service_helpdesk",
+      "subcategory": "customer_service",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "drift.com",
+      "category": "customer_service_chat",
+      "subcategory": "customer_service",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "surveymonkey.com",
+      "category": "customer_service_feedback",
+      "subcategory": "customer_service",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "typeform.com",
+      "category": "customer_service_feedback",
+      "subcategory": "customer_service",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "trustpilot.com",
+      "category": "customer_service_reviews",
+      "subcategory": "customer_service",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "g2.com",
+      "category": "customer_service_reviews",
+      "subcategory": "customer_service",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "ups.com",
+      "category": "logistics_shipping",
+      "subcategory": "logistics",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "fedex.com",
+      "category": "logistics_shipping",
+      "subcategory": "logistics",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "usps.com",
+      "category": "logistics_shipping",
+      "subcategory": "logistics",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "shipstation.com",
+      "category": "logistics_shipping",
+      "subcategory": "logistics",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "shipbob.com",
+      "category": "logistics_warehouse",
+      "subcategory": "logistics",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "opentable.com",
+      "category": "hospitality_reservations",
+      "subcategory": "hospitality",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "resy.com",
+      "category": "hospitality_reservations",
+      "subcategory": "hospitality",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "doordash.com",
+      "category": "hospitality_food_delivery",
+      "subcategory": "hospitality",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ubereats.com",
+      "category": "hospitality_food_delivery",
+      "subcategory": "hospitality",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "grubhub.com",
+      "category": "hospitality_food_delivery",
+      "subcategory": "hospitality",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "marriott.com",
+      "category": "hospitality_hotels",
+      "subcategory": "hospitality",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "hilton.com",
+      "category": "hospitality_hotels",
+      "subcategory": "hospitality",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "airbnb.com",
+      "category": "hospitality_vacation_rentals",
+      "subcategory": "hospitality",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "vrbo.com",
+      "category": "hospitality_vacation_rentals",
+      "subcategory": "hospitality",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "carvana.com",
+      "category": "automotive_buying",
+      "subcategory": "automotive",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "carmax.com",
+      "category": "automotive_buying",
+      "subcategory": "automotive",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "autotrader.com",
+      "category": "automotive_buying",
+      "subcategory": "automotive",
+      "data_sensitivity": "medium",
+      "auth_required": false
+    },
+    {
+      "domain": "thezebra.com",
+      "category": "automotive_insurance",
+      "subcategory": "automotive",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "spothero.com",
+      "category": "automotive_parking",
+      "subcategory": "automotive",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "chargepoint.com",
+      "category": "automotive_ev_charging",
+      "subcategory": "automotive",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "enterprise.com",
+      "category": "automotive_rental",
+      "subcategory": "automotive",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "turo.com",
+      "category": "automotive_rental",
+      "subcategory": "automotive",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "xfinity.com",
+      "category": "utilities_internet",
+      "subcategory": "utilities",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "att.com",
+      "category": "utilities_internet",
+      "subcategory": "utilities",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "verizon.com",
+      "category": "utilities_internet",
+      "subcategory": "utilities",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "home.nest.com",
+      "category": "utilities_smart_home",
+      "subcategory": "utilities",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ring.com",
+      "category": "utilities_smart_home",
+      "subcategory": "utilities",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "adt.com",
+      "category": "utilities_security",
+      "subcategory": "utilities",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "simplisafe.com",
+      "category": "utilities_security",
+      "subcategory": "utilities",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "netflix.com/account",
+      "category": "subscriptions_streaming",
+      "subcategory": "subscriptions",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "hulu.com/account",
+      "category": "subscriptions_streaming",
+      "subcategory": "subscriptions",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "disneyplus.com/account",
+      "category": "subscriptions_streaming",
+      "subcategory": "subscriptions",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "spotify.com/account",
+      "category": "subscriptions_music",
+      "subcategory": "subscriptions",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "indeed.com",
+      "category": "recruitment_job_boards",
+      "subcategory": "recruitment",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "linkedin.com/jobs",
+      "category": "recruitment_job_boards",
+      "subcategory": "recruitment",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "glassdoor.com",
+      "category": "recruitment_job_boards",
+      "subcategory": "recruitment",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ziprecruiter.com",
+      "category": "recruitment_job_boards",
+      "subcategory": "recruitment",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "greenhouse.io",
+      "category": "recruitment_ats",
+      "subcategory": "recruitment",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "lever.co",
+      "category": "recruitment_ats",
+      "subcategory": "recruitment",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "calendly.com",
+      "category": "recruitment_scheduling",
+      "subcategory": "recruitment",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "levels.fyi",
+      "category": "recruitment_salary",
+      "subcategory": "recruitment",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "ticketmaster.com",
+      "category": "events_tickets",
+      "subcategory": "events",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "stubhub.com",
+      "category": "events_tickets",
+      "subcategory": "events",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "seatgeek.com",
+      "category": "events_tickets",
+      "subcategory": "events",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "eventbrite.com",
+      "category": "events_tickets",
+      "subcategory": "events",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "store.steampowered.com",
+      "category": "gaming_platforms",
+      "subcategory": "gaming",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "epicgames.com",
+      "category": "gaming_platforms",
+      "subcategory": "gaming",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "dashboard.twitch.tv",
+      "category": "gaming_streaming",
+      "subcategory": "gaming",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "gofundme.com",
+      "category": "nonprofit_donations",
+      "subcategory": "nonprofit",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "patreon.com",
+      "category": "nonprofit_donations",
+      "subcategory": "nonprofit",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "ko-fi.com",
+      "category": "nonprofit_donations",
+      "subcategory": "nonprofit",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "signupgenius.com",
+      "category": "nonprofit_volunteer",
+      "subcategory": "nonprofit",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "tinder.com",
+      "category": "social_dating",
+      "subcategory": "social",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "hinge.co",
+      "category": "social_dating",
+      "subcategory": "social",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "bumble.com",
+      "category": "social_dating",
+      "subcategory": "social",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "facebook.com",
+      "category": "social_networks",
+      "subcategory": "social",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "instagram.com",
+      "category": "social_networks",
+      "subcategory": "social",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "twitter.com",
+      "category": "social_networks",
+      "subcategory": "social",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "linkedin.com",
+      "category": "social_professional",
+      "subcategory": "social",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "reddit.com",
+      "category": "social_forums",
+      "subcategory": "social",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "nextdoor.com",
+      "category": "social_community",
+      "subcategory": "social",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "rover.com",
+      "category": "pet_services",
+      "subcategory": "pet",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "wag.com",
+      "category": "pet_services",
+      "subcategory": "pet",
+      "data_sensitivity": "medium",
+      "auth_required": true
+    },
+    {
+      "domain": "chewy.com",
+      "category": "pet_supplies",
+      "subcategory": "pet",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "wise.com",
+      "category": "international_remittance",
+      "subcategory": "international",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "remitly.com",
+      "category": "international_remittance",
+      "subcategory": "international",
+      "data_sensitivity": "high",
+      "auth_required": true
+    },
+    {
+      "domain": "google.com",
+      "category": "search_engines",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "bing.com",
+      "category": "search_engines",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "yelp.com",
+      "category": "information_reviews",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "wikipedia.org",
+      "category": "information_reference",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "allrecipes.com",
+      "category": "information_recipes",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "food.com",
+      "category": "information_recipes",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": false
+    },
+    {
+      "domain": "nytimes.com",
+      "category": "information_news",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "wsj.com",
+      "category": "information_news",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": true
+    },
+    {
+      "domain": "cnn.com",
+      "category": "information_news",
+      "subcategory": "information",
+      "data_sensitivity": "low",
+      "auth_required": false
+    }
+  ]
+}
