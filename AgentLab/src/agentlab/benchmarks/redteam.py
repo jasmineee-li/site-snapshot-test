@@ -622,18 +622,21 @@ class RedteamEnv(AbstractEnv):
 
         # Step 5: Generate placeholder content (benign + adversarial)
         placeholder_content = {}  # {placeholder_id: {benign: "...", adversarial: [...]}}
-        injection_log_data = {
+        placeholder_metadata = {}  # {placeholder_id: {element_type, placement, ...}}
+        injection_data = {
+            "behavior_id": self.env_args.behavior_id,
+            "generated_at": datetime.now().isoformat(),
             "test_mode": self.env_args.test_mode,
             "variation_seed": self.env_args.variation_seed,
             "injection_locations": [],
-            "placeholder_content": {},
+            "placeholders": {},  # Consolidated: metadata + content
         }
 
         if subdomains_needing_injections:
             logger.info(
                 f"Found {len(subdomains_needing_injections)} subdomain(s) needing placeholder content"
             )
-            injection_log_data["injection_locations"] = [
+            injection_data["injection_locations"] = [
                 rk for rk, _, _, _ in subdomains_needing_injections
             ]
 
@@ -698,9 +701,19 @@ class RedteamEnv(AbstractEnv):
                         n_adversarial_variants=1,  # Generate for this variant
                     )
                     placeholder_content[placeholder_id] = content
-                    injection_log_data["placeholder_content"][placeholder_id] = {
-                        "benign_length": len(content.get("benign", "")),
-                        "adversarial_count": len(content.get("adversarial", [])),
+
+                    # Store consolidated metadata + content
+                    injection_data["placeholders"][placeholder_id] = {
+                        "element_type": placeholder.get("element_type", "unknown"),
+                        "placement": placeholder.get("placement", ""),
+                        "page": route_key,
+                        "benign": content.get("benign", ""),
+                        "adversarial": content.get("adversarial", []),
+                    }
+                    # Store metadata separately for internal use
+                    placeholder_metadata[placeholder_id] = {
+                        "element_type": placeholder.get("element_type", "unknown"),
+                        "placement": placeholder.get("placement", ""),
                     }
 
         # Step 6: Create variant pages based on test_mode
@@ -780,25 +793,13 @@ class RedteamEnv(AbstractEnv):
             # Old structure: metadata goes in exp_dir
             shared_metadata_dir = self.exp_dir
 
-        # Save placeholder content for analysis (in shared directory)
-        placeholder_content_path = shared_metadata_dir / "placeholder_content.json"
-        # Serialize placeholder content (truncate large HTML for readability)
-        serializable_content = {}
-        for ph_id, content in placeholder_content.items():
-            serializable_content[ph_id] = {
-                "benign": content.get("benign", "")[:500] + "..." if len(content.get("benign", "")) > 500 else content.get("benign", ""),
-                "adversarial": [
-                    adv[:500] + "..." if len(adv) > 500 else adv
-                    for adv in content.get("adversarial", [])
-                ],
-            }
-        placeholder_content_path.write_text(json.dumps(serializable_content, indent=2))
-
-        # Save injection log for later analysis (in shared directory)
-        injection_log_path = shared_metadata_dir / "injections.json"
-        injection_log_path.write_text(json.dumps(injection_log_data, indent=2))
+        # Save consolidated injection data (metadata + full content) to injections.json
+        injection_path = shared_metadata_dir / "injections.json"
+        injection_path.write_text(json.dumps(injection_data, indent=2))
         logger.info(
-            f"✓ Saved injection data: {len(placeholder_content)} placeholder(s)"
+            f"✓ Saved injection data to {injection_path}: "
+            f"{len(injection_data['placeholders'])} placeholder(s), "
+            f"{len(injection_data['injection_locations'])} location(s)"
         )
 
         self._generation_complete = True

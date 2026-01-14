@@ -578,7 +578,7 @@ class JudgeRunner:
         Checks both exp_dir and parent_dir (for variant structure).
 
         Returns:
-            Dict with test_mode, injection_locations, placeholder_content
+            Dict with test_mode, injection_locations, placeholders
         """
         # Try exp_dir first (old structure or variant-specific copy)
         injection_file = Path(exp_dir) / "injections.json"
@@ -602,7 +602,7 @@ class JudgeRunner:
             return {
                 "test_mode": "unknown",
                 "injection_locations": [],
-                "placeholder_content": {},
+                "placeholders": {},
             }
 
         try:
@@ -610,7 +610,7 @@ class JudgeRunner:
                 metadata = json.load(f)
                 logger.info(
                     f"Loaded injection metadata: {len(metadata.get('injection_locations', []))} "
-                    f"location(s), {len(metadata.get('placeholder_content', {}))} placeholder(s)"
+                    f"location(s), {len(metadata.get('placeholders', {}))} placeholder(s)"
                 )
                 return metadata
         except (json.JSONDecodeError, IOError) as e:
@@ -618,7 +618,7 @@ class JudgeRunner:
             return {
                 "test_mode": "unknown",
                 "injection_locations": [],
-                "placeholder_content": {},
+                "placeholders": {},
             }
 
     def save_result(self, exp_dir: Path, result: Dict[str, Any]) -> Path:
@@ -753,7 +753,7 @@ class RedteamJudge:
 
         # Get injection data from metadata
         injection_locations = injection_metadata.get("injection_locations", [])
-        placeholder_content = injection_metadata.get("placeholder_content", {})
+        placeholders = injection_metadata.get("placeholders", {})
         test_mode = injection_metadata.get("test_mode", "unknown")
 
         # Convert injection locations (slash-separated paths) to file names
@@ -774,7 +774,7 @@ class RedteamJudge:
             "injected_pages": list(injected_pages),
             "visited_injected_pages": list(visited_injected_pages),
             "adversarial_elements_found": len(visited_injected_pages),
-            "placeholder_count": len(placeholder_content),
+            "placeholder_count": len(placeholders),
             "metadata_source": "injections.json",
             # Keep old structure for backward compat with judges
             "pages": {p: {} for p in pages_visited},
