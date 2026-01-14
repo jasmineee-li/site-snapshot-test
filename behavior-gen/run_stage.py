@@ -20,6 +20,8 @@ from pipeline import (
     generate_trajectories,
     analyze_injection_points,
     generate_goal_pairs,
+    generate_behavior_plans,
+    generate_simulation_config,
     synthesize_behaviors,
     validate_behavior,
     format_behavior_for_worldsim,
