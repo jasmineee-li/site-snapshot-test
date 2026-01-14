@@ -55,6 +55,7 @@ class RedteamAttackerAgent:
     target_description: str = ""
     attack_type: str = "indirect"  # "direct" or "indirect"
     mode: str = "single_turn"  # "single_turn" or "multi_turn"
+    test_mode: str = "adversarial"  # "benign" (cooperative) or "adversarial" (red-team)
     # Optional: information about websites/pages available in the environment
     pages: list[Any] | None = None
 
@@ -103,6 +104,7 @@ class RedteamAttackerAgent:
                     behavior=self.goal,
                     target=self.target_description,
                     pages=self.pages,
+                    test_mode=self.test_mode,
                 ),
             }
         ]

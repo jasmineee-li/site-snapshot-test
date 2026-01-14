@@ -7,7 +7,9 @@ This module provides:
 - Page and RedteamEnvArgs: Data structures for configuration
 """
 
+import os
 import subprocess
+import sys
 import time
 import json
 import logging
@@ -511,11 +513,17 @@ class RedteamEnv(AbstractEnv):
                 subdomain_spec = subdomain_specs.get(subdomain, {})
 
                 # Combine shared + subdomain-specific for generation
+                # Support both new format (prefill_variant_content, prefill_invariant_content)
+                # and legacy format (prefill_benign, prefill_adversarial) for backward compatibility
                 combined_spec = {
                     "page": page.id,
                     "subdomain": subdomain,
                     "shared_functionality": shared_functionality,
                     "functionality": subdomain_spec.get("functionality", {}),
+                    # New format fields
+                    "prefill_variant_content": subdomain_spec.get("prefill_variant_content", {}),
+                    "prefill_invariant_content": subdomain_spec.get("prefill_invariant_content", {}),
+                    # Legacy format fields (for backward compatibility)
                     "prefill_benign": subdomain_spec.get("prefill_benign", {}),
                     "prefill_adversarial": subdomain_spec.get("prefill_adversarial", {}),
                 }
@@ -586,13 +594,16 @@ class RedteamEnv(AbstractEnv):
                 # Save base HTML
                 base_html_by_subdomain[route_key] = html
 
-                # Check if this subdomain needs adversarial injections
+                # Check if this subdomain needs variant content (new format)
+                # or adversarial injections (legacy format)
+                prefill_variant = subdomain_spec.get("prefill_variant_content", {})
                 prefill_adv = subdomain_spec.get("prefill_adversarial", {})
-                if prefill_adv.get("needed", False):
+                needs_variants = prefill_variant.get("needed", False) or prefill_adv.get("needed", False)
+                if needs_variants:
                     subdomains_needing_injections.append(
                         (route_key, page, subdomain, combined_spec)
                     )
-                    logger.info(f"Subdomain {route_key} needs adversarial injections")
+                    logger.info(f"Subdomain {route_key} needs variant content generation")
 
                 # Save to toolbox for future reuse
                 metadata = {
@@ -639,6 +650,23 @@ class RedteamEnv(AbstractEnv):
                 placeholders = extract_placeholders(html)
                 logger.info(f"Found {len(placeholders)} placeholder(s) in {route_key}")
 
+                # Build a lookup of spec items by placement for enriching placeholders
+                # Support both new format (prefill_variant_content) and legacy (prefill_adversarial)
+                spec_items_by_placement = {}
+                variant_content = combined_spec.get("prefill_variant_content", {})
+                if variant_content.get("items"):
+                    for item in variant_content.get("items", []):
+                        placement = item.get("placement", "")
+                        if placement:
+                            spec_items_by_placement[placement] = item
+                # Also check legacy format
+                adv_content = combined_spec.get("prefill_adversarial", {})
+                if adv_content.get("items"):
+                    for item in adv_content.get("items", []):
+                        placement = item.get("placement", "")
+                        if placement and placement not in spec_items_by_placement:
+                            spec_items_by_placement[placement] = item
+
                 for placeholder in placeholders:
                     placeholder_id = placeholder.get("id", "")
                     if not placeholder_id:
@@ -648,6 +676,20 @@ class RedteamEnv(AbstractEnv):
                     if placeholder_id in placeholder_content:
                         logger.debug(f"Placeholder {placeholder_id} already generated, skipping")
                         continue
+
+                    # Enrich placeholder with spec data (benign_description, adversarial_description)
+                    placement = placeholder.get("placement", "")
+                    if placement in spec_items_by_placement:
+                        spec_item = spec_items_by_placement[placement]
+                        # Merge spec data into placeholder (spec takes precedence for descriptions)
+                        enriched_placeholder = {**placeholder}
+                        if "benign_description" in spec_item:
+                            enriched_placeholder["benign_description"] = spec_item["benign_description"]
+                        if "adversarial_description" in spec_item:
+                            enriched_placeholder["adversarial_description"] = spec_item["adversarial_description"]
+                        if "element_type" in spec_item and "element_type" not in enriched_placeholder:
+                            enriched_placeholder["element_type"] = spec_item["element_type"]
+                        placeholder = enriched_placeholder
 
                     # Generate content - fail fast if generation fails
                     content = attacker_agent.generate_placeholder_content(
@@ -669,15 +711,11 @@ class RedteamEnv(AbstractEnv):
             mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
             variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
         else:
-            # Old structure: nested variant subdirectories
-            if self.env_args.test_mode == "benign":
-                variant_dir = self.exp_dir / "benign"
-                mode = "benign"
-                variant_index = 0
-            else:
-                variant_dir = self.exp_dir / f"adversarial_v{self.env_args.variation_seed}"
-                mode = "adversarial"
-                variant_index = self.env_args.variation_seed
+            # Old structure: exp_dir is already named after the variant (e.g., seed0/benign/)
+            # Put HTML files in a 'html/' subdirectory to avoid redundant naming like benign/benign/
+            variant_dir = self.exp_dir / "html"
+            mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
+            variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
 
         variant_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Creating {mode} variant (variant_index={variant_index})...")
@@ -916,9 +954,16 @@ class RedteamEnv(AbstractEnv):
         self.server_port = 8001  # TODO: hardcoded, should be fine for now
         logger.info(f"Starting flow server on port {self.server_port}...")
 
+        # Get the src directory path for PYTHONPATH
+        # This file is at: src/agentlab/benchmarks/redteam.py
+        # So src is 3 levels up from this file
+        src_dir = str(Path(__file__).parents[2])
+        env = os.environ.copy()
+        env["PYTHONPATH"] = src_dir + ((":" + env["PYTHONPATH"]) if "PYTHONPATH" in env else "")
+
         self.server_proc = subprocess.Popen(
             [
-                "python",
+                sys.executable,
                 "-m",
                 "agentlab.benchmarks.redteam_server",
                 str(config_path),
@@ -926,6 +971,7 @@ class RedteamEnv(AbstractEnv):
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=env,
         )
 
         # Wait for server ready
@@ -1593,13 +1639,14 @@ class RedteamBenchmark(AbstractBenchmark):
                 success_condition=success_condition,
             )
 
-            # Initialize attacker agent
+            # Initialize attacker agent with test_mode for benign/adversarial behavior
             attacker_agent = RedteamAttackerAgent(
                 model=self.attacker_model,
                 goal=doc,
                 target_description=target,
                 attack_type=env_args.attack_type,
                 mode=env_args.adversarial_mode,
+                test_mode=test_mode,  # Pass through for cooperative vs adversarial behavior
                 pages=pages,
             )
             env_args.attacker_agent = attacker_agent
