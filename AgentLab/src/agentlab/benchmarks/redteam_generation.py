@@ -41,15 +41,17 @@ class PrefillDataAnalyzer:
         pages: List[Any],
         screenshots: Optional[List[str]] = None,
         dom_paths: Optional[List[str]] = None,
+        safe_behavior: Optional[str] = None,
     ) -> dict:
         """
         Analyze behavior and determine what prefill data is needed.
 
         Args:
-            behavior: The task description
+            behavior: The adversarial task description
             pages: List of pages in the benchmark
             screenshots: List of screenshot file paths from trajectory observation
             dom_paths: List of DOM snapshot file paths from trajectory observation
+            safe_behavior: The safe analog - legitimate task for benign condition
 
         Returns:
             Dict with structured requirements
@@ -63,7 +65,9 @@ class PrefillDataAnalyzer:
                 except Exception as e:
                     logger.warning(f"Failed to read DOM from {dom_path}: {e}")
 
-        prompt = get_prefill_analysis_prompt(behavior, pages, screenshots, dom_contents)
+        prompt = get_prefill_analysis_prompt(
+            behavior, pages, screenshots, dom_contents, safe_behavior=safe_behavior
+        )
 
         response_text = self.llm.call_with_images(prompt, screenshots or [])
 

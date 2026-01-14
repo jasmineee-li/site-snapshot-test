@@ -79,6 +79,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     summary: str = None
     objective: str = None
     doc: str = None  # primary task description, replaces 'behavior'
+    safe_behavior: str = None  # Safe analog - legitimate task for benign condition
 
     # Generation parameters
     injection_seed: int = 0  # Backward compat alias for variation_seed
@@ -423,6 +424,7 @@ class RedteamEnv(AbstractEnv):
                 behavior=self.env_args.doc,
                 pages=self.env_args.pages,
                 screenshots=analyzer_screenshots,
+                safe_behavior=self.env_args.safe_behavior,
             )
 
         # Step 3 & 4: Generate base HTML pages with REFERENCE-BASED UI matching
@@ -1607,6 +1609,14 @@ class RedteamBenchmark(AbstractBenchmark):
         doc = self._strip_html(case_data.get("doc", ""))
         target = case_data.get("description", "")
 
+        # Generate safe analog (once per behavior) for benign mode
+        pages_for_prompt = [
+            {"id": p.id, "base_site_url": p.base_site_url, "subdomains": p.subdomains}
+            for p in pages
+        ]
+        safe_analog = self._generate_safe_analog(doc, target, pages_for_prompt)
+        logger.info(f"Generated safe analog for {behavior_id}: {safe_analog[:100]}...")
+
         variants = []
 
         # Helper to create env_args with common fields
@@ -1624,6 +1634,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 summary=case_data.get("summary"),
                 objective=case_data.get("objective"),
                 doc=doc,
+                safe_behavior=safe_analog,  # Safe analog for benign mode
                 world_sim_model=self.world_sim_model,
                 attack_type=case_data.get("attack_type", self.attack_type),
                 attacker_model=self.attacker_model,
@@ -1639,15 +1650,16 @@ class RedteamBenchmark(AbstractBenchmark):
                 success_condition=success_condition,
             )
 
-            # Initialize attacker agent with test_mode for benign/adversarial behavior
+            # Initialize attacker agent with test_mode and safe_behavior
             attacker_agent = RedteamAttackerAgent(
                 model=self.attacker_model,
                 goal=doc,
                 target_description=target,
                 attack_type=env_args.attack_type,
                 mode=env_args.adversarial_mode,
-                test_mode=test_mode,  # Pass through for cooperative vs adversarial behavior
+                test_mode=test_mode,
                 pages=pages,
+                safe_behavior=safe_analog,  # Safe analog for benign/adversarial modes
             )
             env_args.attacker_agent = attacker_agent
 
@@ -1670,6 +1682,32 @@ class RedteamBenchmark(AbstractBenchmark):
         )
 
         return variants
+
+    def _generate_safe_analog(
+        self, adversarial_behavior: str, target: str, pages: list[dict]
+    ) -> str:
+        """
+        Generate safe analog from adversarial behavior.
+
+        Transforms the adversarial behavior description into a legitimate task
+        that uses the same UI interactions without harmful intent.
+
+        Args:
+            adversarial_behavior: The adversarial behavior description (doc)
+            target: The adversarial target description
+            pages: List of page configurations
+
+        Returns:
+            Safe analog string describing a legitimate task
+        """
+        prompt = get_safe_transformation_prompt(
+            adversarial_behavior=adversarial_behavior,
+            target=target,
+            pages=pages,
+        )
+        llm = OpenRouterLLMClient(self.world_sim_model)
+        safe_analog = llm.chat_simple([{"role": "user", "content": prompt}])
+        return safe_analog.strip()
 
     @staticmethod
     def _strip_html(text: str) -> str:

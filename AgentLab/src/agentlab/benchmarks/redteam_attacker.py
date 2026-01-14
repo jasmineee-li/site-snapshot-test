@@ -31,7 +31,6 @@ import json
 from agentlab.benchmarks.llm_utils import OpenRouterLLMClient, strip_code_fences
 from agentlab.benchmarks.redteam_prompts import (
     get_attacker_system_prompt,
-    get_injection_generation_prompt,
     get_placeholder_content_prompt,
 )
 
@@ -58,6 +57,8 @@ class RedteamAttackerAgent:
     target_description: str = ""
     # Optional: information about websites/pages available in the environment
     pages: list[Any] | None = None
+    # Safe analog - legitimate task for benign mode (generated from adversarial behavior)
+    safe_behavior: str | None = None
 
     # Lazy-initialized (not part of __init__)
     llm: OpenRouterLLMClient = field(default=None, init=False, repr=False)
@@ -105,6 +106,7 @@ class RedteamAttackerAgent:
                     target=self.target_description,
                     pages=self.pages,
                     test_mode=self.test_mode,
+                    safe_behavior=self.safe_behavior,
                 ),
             }
         ]
