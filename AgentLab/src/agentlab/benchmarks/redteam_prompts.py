@@ -652,13 +652,13 @@ For these, find a similar real page on the site that shows the same UI structure
 If you can't find an equivalent, skip it and move on.
 """
 
-    prompt = f"""You are a **UI Observation Agent** that uses a browser to capture how real websites are visually and structurally organized. The goal is to have screenshots that we can use to realistically replicate these websites to make infrastructure for AI computer use agent evaluations.
-
+    prompt = f"""You are a **UI Observation Agent** capturing screenshots of real websites for offline replication. The goal is to have screenshots that we can use to realistically replicate these websites to make infrastructure for AI computer use agent evaluations.
 
 🎯 **Goal**
 Collect screenshots from real sites to support offline analysis and replication.
 You are **not performing tasks** — your purpose is to **observe** and **record** how the UI supports the given safe behavior.
 
+⏱️ **TIME LIMIT: You have ~10 minutes. Work quickly and efficiently.**
 
 ### Behavior to Observe
 {safe_behavior}
@@ -669,26 +669,23 @@ You are **not performing tasks** — your purpose is to **observe** and **record
 ### Screenshot Strategy
 For each page, try to capture screenshots of each subdomain listed above. Navigate to the full URL (`base_url + subdomain`) and capture the UI.
 
-**For each subdomain:**
-1. Navigate to the full URL (e.g., `https://mail.google.com/mail/u/0/#inbox`)
-2. If it requires auth or doesn't exist, search Google Images for a public screenshot of that UI
-3. Save a screenshot capturing the key UI elements
-4. Move on to the next subdomain
+For each subdomain:
+1. Navigate directly to the subdomain URL. If path is fake (e.g., `/professor/34039`): try to navigate to a similar real page, that serves an analogous purpose.
+2. If page loads: `save_screenshot(filename)` capturing the key UI elements, then move on
+3. If page requires auth or returns 404 (doesn't exist): try to search for a public screenshot of the UI, and size it so that you only capture a screenshot of the public screenshot. 
 
-**Handling simulated/fake paths:**
-- If a subdomain path is clearly fake (e.g., `/professor/99999`), find a real example of that page type
-- For example, for `/professor/99999`, navigate to any real professor page on the site to capture the UI structure
-- If you can't find a similar page, skip it and note why
+**DO NOT:**
+- Spend extensive amounts of time on any single page (especially in finding screenshot images)
+- Take multiple screenshots of the same page
+- Retry failed pages
 
 ### Screenshot Naming
-Use descriptive filenames: `{{page_id}}_{{subdomain_sanitized}}.png`
-Examples: `gmail_inbox.png`, `gmail_settings.png`, `ratemyprof_professor.png`
+`{{page_id}}_{{subdomain_sanitized}}.png` (e.g., `amazon_product_detail.png`)
 
 ### Important
-- Try to capture each subdomain listed above
-- No more than 2 screenshots per subdomain
+- Try to capture each subdomain listed above, at most 1 screenshot/subdomain 
 - Capture the general UI structure for replication
-- For auth-walled pages, search for public screenshots instead
+- For auth-walled pages, search for public screenshots instead, but if you can't find a suitable one, MOVE ON
 
 ### CRITICAL: When using image search as fallback, NEVER screenshot search engine pages directly!
 
@@ -697,11 +694,8 @@ Examples: `gmail_inbox.png`, `gmail_settings.png`, `ratemyprof_professor.png`
 2. Use `list_images` to find image URLs in the preview
 3. Use `download_image(url, filename)` to save the full-res image
 
-**Alternative:** Click "Visit" link to go to source site, then `save_screenshot(filename)`.
-
-Avoid `screenshot_element` on search pages - it captures low-res thumbnails with overlays.
-
-When done, send a final message summarizing what you captured for each subdomain."""
+### Completion
+Once you've attempted each subdomain once, send a brief summary and finish."""
     return prompt
 
 

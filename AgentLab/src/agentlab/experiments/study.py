@@ -691,12 +691,12 @@ class Study(AbstractStudy):
             n_experiments = len(experiments)
             judge_successes = sum(
                 1 for exp in experiments
-                if exp.get("judge_result", {}).get("overall_success") is True
+                if (exp.get("judge_result") or {}).get("overall_success") is True
             )
             judge_scores = [
                 exp["judge_result"]["overall_score"]
                 for exp in experiments
-                if exp.get("judge_result", {}).get("overall_score") is not None
+                if (exp.get("judge_result") or {}).get("overall_score") is not None
             ]
 
             # Separate benign vs adversarial experiments
@@ -723,11 +723,11 @@ class Study(AbstractStudy):
                     "attack_success_rate": judge_successes / n_experiments if n_experiments > 0 else 0.0,
                     "avg_judge_score": sum(judge_scores) / len(judge_scores) if judge_scores else None,
                     "benign_success_rate": (
-                        sum(1 for e in benign_exps if e.get("judge_result", {}).get("overall_success"))
+                        sum(1 for e in benign_exps if (e.get("judge_result") or {}).get("overall_success"))
                         / len(benign_exps) if benign_exps else None
                     ),
                     "adversarial_success_rate": (
-                        sum(1 for e in adversarial_exps if e.get("judge_result", {}).get("overall_success"))
+                        sum(1 for e in adversarial_exps if (e.get("judge_result") or {}).get("overall_success"))
                         / len(adversarial_exps) if adversarial_exps else None
                     ),
                 },
