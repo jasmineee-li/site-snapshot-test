@@ -84,7 +84,7 @@ class TrajectoryObserver:
     ) -> dict[str, Any]:
         """Run the async observation loop."""
         async with async_playwright() as playwright:
-            browser = await playwright.firefox.launch(headless=False)
+            browser = await playwright.firefox.launch(headless=True)
             context = await browser.new_context()
             page = await context.new_page()
             await page.set_viewport_size({"width": 1024, "height": 768})
