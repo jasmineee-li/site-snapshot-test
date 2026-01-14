@@ -274,7 +274,14 @@ def _response_to_params(
         if isinstance(block, BetaTextBlock):
             res.append({"type": "text", "text": block.text})
         else:
-            res.append(cast(BetaToolUseBlockParam, block.model_dump()))
+            # Explicitly construct tool_use to exclude extra fields like 'caller'
+            # that the API returns but doesn't accept on input
+            res.append({
+                "type": "tool_use",
+                "id": block.id,
+                "name": block.name,
+                "input": block.input,
+            })
     return res
 
 

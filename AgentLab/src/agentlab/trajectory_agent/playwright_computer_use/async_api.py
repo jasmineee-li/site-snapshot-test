@@ -806,23 +806,31 @@ class BasePlaywrightComputerTool:
         img_small = image.resize((self.width, self.height), Image.LANCZOS)
         if self.use_cursor:
             cursor = load_cursor_image()
-            img_small.paste(cursor, self.mouse_position, cursor)
+            if cursor is not None:
+                img_small.paste(cursor, self.mouse_position, cursor)
         buffered = io.BytesIO()
         img_small.save(buffered, format="PNG")
         base64_image = base64.b64encode(buffered.getvalue()).decode()
         return ToolResult(base64_image=base64_image)
 
     async def press_key(self, key: str):
-        """Press a key on the keyboard. Handle + shifts. Eg: Ctrl+Shift+T."""
-        shifts = []
-        if "+" in key:
-            shifts += key.split("+")[:-1]
-            key = key.split("+")[-1]
-        for shift in shifts:
-            await self.page.keyboard.down(shift)
-        await self.page.keyboard.press(to_playwright_key(key))
-        for shift in shifts:
-            await self.page.keyboard.up(shift)
+        """Press a key on the keyboard. Handle + shifts (e.g. Ctrl+Shift+T) and space-separated keys (e.g. Tab Tab Tab)."""
+        # Handle space-separated keys (e.g., "Tab Tab Tab")
+        keys = key.split(" ")
+        for single_key in keys:
+            single_key = single_key.strip()
+            if not single_key:
+                continue
+            # Handle modifier combinations (e.g., Ctrl+Shift+T)
+            shifts = []
+            if "+" in single_key:
+                shifts += single_key.split("+")[:-1]
+                single_key = single_key.split("+")[-1]
+            for shift in shifts:
+                await self.page.keyboard.down(shift)
+            await self.page.keyboard.press(to_playwright_key(single_key))
+            for shift in shifts:
+                await self.page.keyboard.up(shift)
 
 
 class PlaywrightComputerTool20241022(BasePlaywrightComputerTool):
@@ -927,10 +935,10 @@ class PlaywrightComputerTool20250124(BasePlaywrightComputerTool):
                 "triple_click": {"button": "left", "click_count": 3, "delay": 10},
             }[action]
             if key:
-                self.page.keyboard.down(to_playwright_key(key))
+                await self.page.keyboard.down(to_playwright_key(key))
             await self.page.mouse.click(self.mouse_position[0], self.mouse_position[1], **click_arg)
             if key:
-                self.page.keyboard.up(to_playwright_key(key))
+                await self.page.keyboard.up(to_playwright_key(key))
 
             return ToolResult()
         action = cast(Action_20241022, action)
@@ -1002,12 +1010,14 @@ def to_playwright_key(key: str) -> str:
 
 
 def load_cursor_image():
-    """Access the cursor.png file in the assets directory."""
-    with importlib.resources.open_binary(
-        "agentlab.trajectory_agent.playwright_computer_use.assets", "cursor.png"
-    ) as img_file:
-        image = Image.open(img_file)
-        image.load()  # Ensure the image is fully loaded into memory
+    """Access the cursor.png file in the assets directory. Returns None if not found."""
+    # Use file path instead of importlib.resources for Ray compatibility
+    assets_dir = Path(__file__).parent / "assets"
+    cursor_path = assets_dir / "cursor.png"
+    if not cursor_path.exists():
+        return None  # Gracefully handle missing cursor in Ray environment
+    image = Image.open(cursor_path)
+    image.load()  # Ensure the image is fully loaded into memory
     return image
 
 
