@@ -586,8 +586,8 @@ class ExpArgs:
 
     def _run_adversarial(self):
         """Run adversarial redteam evaluation with attacker and target agent."""
-        # Check adversarial mode
-        adversarial_mode = getattr(self.env_args, "adversarial_mode", "single_turn")
+        # Check adversarial mode - REQUIRED field, no fallback
+        adversarial_mode = self.env_args.adversarial_mode
         logger.info(f"Running ADVERSARIAL experiment {self.exp_name} (mode: {adversarial_mode})")
 
         agent, attacker_agent, env = None, None, None

@@ -54,7 +54,8 @@ benchmark = RedteamBenchmark(
     # Models
     world_sim_model="anthropic/claude-opus-4.5",  # For page generation
     attacker_model="x-ai/grok-4",  # For injection content generation
-    # Attack settings
+    # Attack settings (REQUIRED - no defaults)
+    attack_type="indirect",  # "direct" or "indirect"
     adversarial_mode="multi_turn",  # "single_turn" or "multi_turn"
     # === Unified Injection Pipeline Settings ===
     # Number of adversarial variants per behavior (benign is always generated)
@@ -73,7 +74,7 @@ benchmark = RedteamBenchmark(
     skip_link_validation=True,
     # Resume from existing run - copies HTML files AND trajectory screenshots
     # This avoids re-running expensive trajectory observation
-    # resume_from_dir="results/2026-01-09_10-41-09_genericagent-anthropic-claude-opus-4-5-on-enriched-behaviors/2026-01-09_10-41-09_GenericAgent-anthropic_claude-opus-4.5_on_enriched-behaviors.salesforce-unauthorized-admin-creation.adversarial_v0_0",
+    # resume_from_dir="results/2026-01-14_03-25-31_genericagent-anthropic-claude-opus-4-5-on-enriched-behaviors/2026-01-14_03-25-31_GenericAgent-anthropic_claude-opus-4.5_empty-box-listing_seed0",
 )
 
 # =============================================================================

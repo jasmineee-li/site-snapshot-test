@@ -120,8 +120,8 @@ def get_attacker_system_prompt(
     mode: str,
     behavior: str,
     target: str,
+    test_mode: str,  # "benign" or "adversarial" - REQUIRED, no default
     pages: Optional[List[Any]] = None,
-    test_mode: str = "adversarial",
 ) -> str:
     """
     Build attacker system prompt based on attack type, mode, and test_mode.

@@ -70,6 +70,9 @@ class RedteamEnvArgs(AbstractEnvArgs):
     target: str  # Attack goal description
     attacker_model: str
     pages: list[Page]
+    attack_type: str  # "direct" or "indirect" - REQUIRED, no default
+    adversarial_mode: str  # "single_turn" or "multi_turn" - REQUIRED, no default
+    test_mode: str  # "benign" or "adversarial" - REQUIRED, no default
     start_page: str = None
 
     # Task description fields
@@ -83,10 +86,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Attacker agent configuration
-    attack_type: str = "indirect"  # "direct" or "indirect"
-
     attacker_system_prompt: str = None  # Auto-generated if None
-    adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
     max_conversation_turns: int = 10  # Max turns for multi-turn mode
 
     target_system_prompt: str = (
@@ -121,9 +121,6 @@ class RedteamEnvArgs(AbstractEnvArgs):
     attacker_agent: RedteamAttackerAgent = field(default=None, init=False)
 
     # === New fields for unified injection pipeline ===
-    # Test mode: "benign" (control) or "adversarial" (with injections)
-    test_mode: str = "adversarial"
-
     # Variation seed for reproducibility (alias: injection_seed for backward compat)
     variation_seed: int = 0
 
@@ -1206,6 +1203,8 @@ class RedteamEnv(AbstractEnv):
 def generate_all_variants(
     behavior_config: dict,
     output_base_dir: str | Path,
+    attack_type: str,  # "direct" or "indirect" - REQUIRED
+    adversarial_mode: str,  # "single_turn" or "multi_turn" - REQUIRED
     n_adversarial_variants: int = 1,
     attack_channels: list[str] = None,
     llm_client=None,
@@ -1222,6 +1221,8 @@ def generate_all_variants(
     Args:
         behavior_config: Full behavior configuration dict
         output_base_dir: Base directory for output files
+        attack_type: "direct" or "indirect" attack type
+        adversarial_mode: "single_turn" or "multi_turn" conversation mode
         n_adversarial_variants: Number of adversarial variations to generate
         attack_channels: List of channels agent observes (default: ["axtree"])
         llm_client: LLM client for page generation
@@ -1292,6 +1293,8 @@ def generate_all_variants(
         behavior_id=behavior_id,
         variation_seed=0,
         injection_seed=0,
+        attack_type=attack_type,
+        adversarial_mode=adversarial_mode,
         test_mode="benign",
         target=behavior_config.get("description", ""),
         doc=behavior_config.get("doc", ""),
@@ -1325,6 +1328,8 @@ def generate_all_variants(
             behavior_id=behavior_id,
             variation_seed=i,
             injection_seed=i,
+            attack_type=attack_type,
+            adversarial_mode=adversarial_mode,
             test_mode="adversarial",
             target=behavior_config.get("description", ""),
             doc=behavior_config.get("doc", ""),
@@ -1488,10 +1493,11 @@ class RedteamBenchmark(AbstractBenchmark):
     # Generation settings
     world_sim_model: str  # LLM for page generation and prefill analysis
     attacker_model: str  # LLM for attacker agent
+    attack_type: str  # "direct" or "indirect" - REQUIRED, no default
+    adversarial_mode: str  # "single_turn" or "multi_turn" - REQUIRED, no default
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
 
     # Adversarial mode settings
-    adversarial_mode: str = "single_turn"  # "single_turn" or "multi_turn"
     max_conversation_turns: int = 10  # For multi_turn mode
 
     # Variation settings for parallelization
@@ -1625,7 +1631,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 objective=case_data.get("objective"),
                 doc=doc,
                 world_sim_model=self.world_sim_model,
-                attack_type=case_data.get("attack_type", "indirect"),
+                attack_type=case_data.get("attack_type", self.attack_type),
                 attacker_model=self.attacker_model,
                 use_trajectory=self.use_trajectory,
                 adversarial_mode=case_data.get("adversarial_mode", self.adversarial_mode),
