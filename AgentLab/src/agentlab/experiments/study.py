@@ -944,9 +944,13 @@ class Study(AbstractStudy):
             pass
 
         # Load adversarial content from injections.json
+        # Check both exp_dir and parent dir (for variant subdirectory structure)
         adversarial_content = None
         try:
             injection_path = exp_result.exp_dir / "injections.json"
+            if not injection_path.exists():
+                # Try parent directory (variant runs have injections.json in parent)
+                injection_path = exp_result.exp_dir.parent / "injections.json"
             if injection_path.exists():
                 with open(injection_path, "r", encoding="utf-8") as f:
                     adversarial_content = json.load(f)
