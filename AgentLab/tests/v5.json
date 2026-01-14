@@ -15,14 +15,14 @@
           "real_site": "gmail.com",
           "mode": "synthetic",
           "screenshots": "gmail",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tutorials/claude_test_results/20251111_161941/06_generated_1__gmail.html"
+          "existing_path": "AgentLab/tutorials/claude_test_results/20251111_161941/06_generated_1__gmail.html"
         },
         {
           "domain": "/colab",
           "real_site": "https://colab.research.google.com/",
           "mode": "synthetic",
           "screenshots": "colab",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/tutorials/20251111_171334/06_generated_2__colab.html"
+          "existing_path": "AgentLab/tutorials/20251111_171334/06_generated_2__colab.html"
         }
       ]
     }

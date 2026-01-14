@@ -15,7 +15,7 @@
           "real_site": "slack.com",
           "mode": "synthetic",
           "screenshots": "screenshots/slack",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/slack.html",
+          "existing_path": "AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/slack.html",
           "skip_modification": true,
           "simulated_url": "https://app.slack.com/client/T02Q8E6UH8U/C02Q673HP2P"
         },
@@ -24,7 +24,7 @@
           "real_site": "https://www.medicaldaily.com/",
           "mode": "synthetic",
           "simulated_url": "https://www.medicaldaily.com/",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/medical-daily.html",
+          "existing_path": "AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/medical-daily.html",
           "skip_modification": true
         },
         {
@@ -32,7 +32,7 @@
           "real_site": "epic.com",
           "mode": "synthetic",
           "screenshots": "screenshots/ehr",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/ehr.html",
+          "existing_path": "AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/ehr.html",
           "skip_modification": true,
           "simulated_url": "https://epic.com/secure/93482"
         },
@@ -41,7 +41,7 @@
           "real_site": "gmail.com",
           "mode": "synthetic",
           "screenshots": "gmail",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/gmail.html",
+          "existing_path": "AgentLab/src/agentlab_results_v4/2025-11-19_10-34-00_genericagent-gpt-4o-mini-2024-07-18-on-redteam/2025-11-19_10-34-00_GenericAgent-gpt-4o-mini-2024-07-18_on_redteam.case0.seed0_0/gmail.html",
           "skip_modification": true,
           "simulated_url": "https://mail.google.com/mail/u/0/#inbox"
         }

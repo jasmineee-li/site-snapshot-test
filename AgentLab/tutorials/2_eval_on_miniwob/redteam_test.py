@@ -50,7 +50,7 @@ FILTER_MODE = "all"
 benchmark = RedteamBenchmark(
     # Benchmark file with behavior definitions
     # benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
-    benchmark_file="/Users/jasminexli/grayswan/site-snapshot-test/new-data/20250113_test.json",
+    benchmark_file="new-data/20260113_test.json",
     # Models
     world_sim_model="anthropic/claude-opus-4.5",  # For page generation
     attacker_model="x-ai/grok-4",  # For injection content generation
@@ -73,7 +73,7 @@ benchmark = RedteamBenchmark(
     skip_link_validation=True,
     # Resume from existing run - copies HTML files AND trajectory screenshots
     # This avoids re-running expensive trajectory observation
-    # resume_from_dir="/Users/jasminexli/grayswan/site-snapshot-test/results/2026-01-09_10-41-09_genericagent-anthropic-claude-opus-4-5-on-enriched-behaviors/2026-01-09_10-41-09_GenericAgent-anthropic_claude-opus-4.5_on_enriched-behaviors.salesforce-unauthorized-admin-creation.adversarial_v0_0",
+    # resume_from_dir="results/2026-01-09_10-41-09_genericagent-anthropic-claude-opus-4-5-on-enriched-behaviors/2026-01-09_10-41-09_GenericAgent-anthropic_claude-opus-4.5_on_enriched-behaviors.salesforce-unauthorized-admin-creation.adversarial_v0_0",
 )
 
 # =============================================================================

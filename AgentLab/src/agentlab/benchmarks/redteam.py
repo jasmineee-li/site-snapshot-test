@@ -1126,7 +1126,7 @@ class RedteamEnv(AbstractEnv):
                 except:
                     pass
 
-            open("/Users/jasminexli/grayswan/site-snapshot-test/.cursor/debug.log", "a").write(
+            open(".cursor/debug.log", "a").write(
                 json.dumps(
                     {
                         "hypothesisId": "SERVER_TIMEOUT",

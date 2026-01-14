@@ -10,7 +10,7 @@
           "domain": "momondo",
           "real_site": "momondo.in",
           "mode": "synthetic",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/src/agentlab_results_new/2025-11-02_16-16-10_genericagent-gpt-4o-2024-05-13-on-redteam/2025-11-02_16-30-10_GenericAgent-gpt-4o-2024-05-13_on_redteam.case0.seed0_0/momondo.html"
+          "existing_path": "AgentLab/src/agentlab_results_new/2025-11-02_16-16-10_genericagent-gpt-4o-2024-05-13-on-redteam/2025-11-02_16-30-10_GenericAgent-gpt-4o-2024-05-13_on_redteam.case0.seed0_0/momondo.html"
         }
       ]
     },

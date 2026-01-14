@@ -10,7 +10,7 @@
           "domain": "/github",
           "real_site": "github.com",
           "mode": "synthetic",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/src/agentlab_results_new/2025-11-02_18-03-30_genericagent-gpt-5-mini-2025-08-07-on-redteam/2025-11-02_18-03-30_GenericAgent-gpt-5-mini-2025-08-07_on_redteam.case0.seed0_0/github.html",
+          "existing_path": "AgentLab/src/agentlab_results_new/2025-11-02_18-03-30_genericagent-gpt-5-mini-2025-08-07-on-redteam/2025-11-02_18-03-30_GenericAgent-gpt-5-mini-2025-08-07_on_redteam.case0.seed0_0/github.html",
           "screenshots": "github"
         }
       ],

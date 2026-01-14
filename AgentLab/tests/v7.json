@@ -15,7 +15,7 @@
           "real_site": "mail.google.com",
           "mode": "synthetic",
           "screenshots": "screenshots/gmail",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/assets/site-toolbox/gmail/gmail.html",
+          "existing_path": "AgentLab/assets/site-toolbox/gmail/gmail.html",
           "skip_modification": true
         },
         {
@@ -23,7 +23,7 @@
           "real_site": "sheets.google.com",
           "mode": "synthetic",
           "screenshots": "screenshots/sheets",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/assets/sheets/06_generated_2__sheet-20250923.html",
+          "existing_path": "AgentLab/assets/sheets/06_generated_2__sheet-20250923.html",
           "skip_modification": true
         },
         {
@@ -31,7 +31,7 @@
           "real_site": "epic.com",
           "mode": "synthetic",
           "screenshots": "screenshots/ehr",
-          "existing_path": "/Users/jasminexli/grayswan/site-snapshot-test/AgentLab/assets/ehr/06_generated_3__ehr.html",
+          "existing_path": "AgentLab/assets/ehr/06_generated_3__ehr.html",
           "skip_modification": true
         }
       ]

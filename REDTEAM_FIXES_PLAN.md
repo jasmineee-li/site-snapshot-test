@@ -1,6 +1,6 @@
 # Redteam Pipeline Fixes Plan
 
-Based on debugging `/Users/jasminexli/grayswan/site-snapshot-test/results/2026-01-12_19-36-22_genericagent-anthropic-claude-opus-4-5-on-enriched-behaviors/`
+Based on debugging `results/2026-01-12_19-36-22_genericagent-anthropic-claude-opus-4-5-on-enriched-behaviors/`
 
 ---
 
