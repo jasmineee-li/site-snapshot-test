@@ -622,7 +622,7 @@ This subdomain is part of a multi-page website. The following sibling subdomains
     prompt = f"""
 You are an expert full-stack web developer tasked with creating a **high-fidelity, ultra-realistic replica** of the following website page: {site_name} (served at {domain}).
 
-Use the information below to match both **visual appearance** and **core interactivity** as closely as possible to the provided screenshots and specifications.
+Use the information below to match both **visual appearance** and **core interactivity** as closely as possible to the provided screenshots and specifications. You should aim to generate a maximally *realistic* and *functional* replica.
 
 **REFERENCES**
 - Functional + visual specs (authoritative):

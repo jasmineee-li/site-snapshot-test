@@ -49,7 +49,8 @@ FILTER_MODE = "all"
 
 benchmark = RedteamBenchmark(
     # Benchmark file with behavior definitions
-    benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
+    # benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
+    benchmark_file="/Users/jasminexli/grayswan/site-snapshot-test/new-data/20250113_test.json",
     # Models
     world_sim_model="anthropic/claude-opus-4.5",  # For page generation
     attacker_model="x-ai/grok-4",  # For injection content generation
@@ -58,7 +59,7 @@ benchmark = RedteamBenchmark(
     # === Unified Injection Pipeline Settings ===
     # Number of adversarial variants per behavior (benign is always generated)
     # Total tasks = n_behaviors * (1 benign + n_adversarial_variants)
-    n_adversarial_variants=1,
+    n_adversarial_variants=2,
     # Attack channels - which observation modes to target
     # Options: ["axtree"], ["visual"], ["html"], or combinations like ["axtree", "visual"]
     # - "axtree": Agent observes via accessibility tree (default, most common)
