@@ -35,7 +35,7 @@ from agentlab.agents.generic_agent.agent_configs import (
 # =============================================================================
 
 # Target agent to test
-target_agent_config = AGENT_45_OPUS
+target_agent_config = AGENT_37_SONNET
 
 # Filter mode: "all", "benign_only", or "adversarial_only"
 # - "all": Run both benign control and adversarial variants (for A/B testing)
@@ -51,6 +51,7 @@ benchmark = RedteamBenchmark(
     # Benchmark file with behavior definitions
     # benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
     benchmark_file="new-data/20260113_test.json",
+    # benchmark_file="new-data/behaviors_enriched.json",
     # Models
     world_sim_model="anthropic/claude-opus-4.5",  # For page generation
     attacker_model="x-ai/grok-4",  # For injection content generation
@@ -70,7 +71,7 @@ benchmark = RedteamBenchmark(
     # Trajectory observation (captures real site screenshots for realistic generation)
     # Set to True to use existing screenshots from resume_from_dir
     use_trajectory=True,
-    # Skip link validation for faster iteration during development
+    # Skip link validation for faster iteration during development TODO
     skip_link_validation=True,
     # Resume from existing run - copies HTML files AND trajectory screenshots
     # This avoids re-running expensive trajectory observation
@@ -107,6 +108,10 @@ study = Study(
     agent_args=[target_agent_config],
     benchmark=benchmark,
     comment=f"Redteam test - {FILTER_MODE} - Unified injection pipeline",
+    # Increase timeout: default is 60s/step * 20 steps = 20 min
+    # With 120s/step * 20 steps = 40 min per task
+    # This gives more headroom for HTML generation which can be slow
+    avg_step_timeout=120,
 )
 
 # =============================================================================
@@ -138,8 +143,8 @@ if __name__ == "__main__":
     try:
         logger.info("Starting study.run()...")
         study.run(
-            n_jobs=1,
-            parallel_backend="sequential",
+            n_jobs=2,
+            parallel_backend="ray",
         )
         logger.info("study.run() completed successfully!")
     except Exception as e:

@@ -331,10 +331,19 @@ class RedteamEnv(AbstractEnv):
                 / self.env_args.behavior_id.replace(".", "_")
             )
 
-            # Check for existing screenshots in trajectory dir or html-library
-            existing_screenshots = (
-                list(trajectory_dir.glob("*.png")) if trajectory_dir.exists() else []
-            )
+            # For variant runs, check parent directory's trajectory first (shared across variants)
+            parent_trajectory_dir = None
+            if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+                parent_trajectory_dir = Path(self.env_args.parent_exp_dir) / "trajectory"
+
+            # Check for existing screenshots in: 1) parent trajectory, 2) own trajectory, 3) html-library
+            existing_screenshots = []
+            if parent_trajectory_dir and parent_trajectory_dir.exists():
+                existing_screenshots = list(parent_trajectory_dir.glob("*.png"))
+                if existing_screenshots:
+                    logger.info(f"Found screenshots in parent trajectory: {parent_trajectory_dir}")
+            if not existing_screenshots and trajectory_dir.exists():
+                existing_screenshots = list(trajectory_dir.glob("*.png"))
             if not existing_screenshots and html_library_dir.exists():
                 existing_screenshots = list(html_library_dir.glob("*.png"))
                 if existing_screenshots:
@@ -397,6 +406,17 @@ class RedteamEnv(AbstractEnv):
                 # Collect screenshot paths
                 trajectory_screenshots = trajectory_data.get("screenshots", [])
                 logger.info(f"✓ Captured {len(trajectory_screenshots)} screenshots")
+
+                # Also copy screenshots to parent directory for other variants to use
+                if parent_trajectory_dir:
+                    parent_trajectory_dir.mkdir(parents=True, exist_ok=True)
+                    for screenshot_path in trajectory_screenshots:
+                        src = Path(screenshot_path)
+                        if src.exists():
+                            dst = parent_trajectory_dir / src.name
+                            if not dst.exists():
+                                shutil.copy2(src, dst)
+                    logger.info(f"Copied trajectory screenshots to parent: {parent_trajectory_dir}")
         else:
             logger.info("Trajectory observation disabled - using benchmark screenshots only")
 
@@ -1618,6 +1638,10 @@ class RedteamBenchmark(AbstractBenchmark):
         safe_analog = self._generate_safe_analog(doc, target, pages_for_prompt)
         logger.info(f"Generated safe analog for {behavior_id}: {safe_analog[:100]}...")
 
+        # Run trajectory observation ONCE at behavior level (before creating variants)
+        # This saves screenshots to html-library so ALL variants can skip trajectory observation
+        self._run_behavior_trajectory(behavior_id, safe_analog, pages)
+
         variants = []
 
         # Helper to create env_args with common fields
@@ -1709,6 +1733,82 @@ class RedteamBenchmark(AbstractBenchmark):
         llm = OpenRouterLLMClient(self.world_sim_model)
         safe_analog = llm.chat_simple([{"role": "user", "content": prompt}])
         return safe_analog.strip()
+
+    def _run_behavior_trajectory(
+        self,
+        behavior_id: str,
+        safe_behavior: str,
+        pages: list[Page],
+    ) -> list[str]:
+        """
+        Run trajectory observation once per behavior (before creating variants).
+
+        This runs trajectory observation at benchmark load time, saving screenshots
+        to html-library. All variants will then find existing screenshots and skip
+        the expensive trajectory observation step.
+
+        Args:
+            behavior_id: Unique identifier for this behavior
+            safe_behavior: Safe analog description for trajectory
+            pages: List of page configurations
+
+        Returns:
+            List of screenshot paths (or empty if trajectory disabled)
+        """
+        if not self.use_trajectory:
+            logger.info(f"Trajectory observation disabled for {behavior_id}")
+            return []
+
+        # Check html-library for existing screenshots
+        html_library_dir = (
+            Path(__file__).parent.parent.parent.parent
+            / "html-library"
+            / "screenshots"
+            / behavior_id.replace(".", "_")
+        )
+
+        if html_library_dir.exists():
+            existing = list(html_library_dir.glob("*.png"))
+            if existing:
+                logger.info(
+                    f"Found {len(existing)} existing screenshots in html-library for {behavior_id}"
+                )
+                return [str(p) for p in existing]
+
+        # No existing screenshots - run trajectory observation
+        logger.info(f"Running trajectory observation for behavior: {behavior_id}")
+
+        from agentlab.benchmarks.trajectory_observer import TrajectoryObserver
+
+        observer = TrajectoryObserver()
+
+        # Prepare page details and sites
+        sites = [p.base_site_url for p in pages if p.base_site_url]
+        page_details = [
+            {
+                "id": p.id,
+                "base_site_url": p.base_site_url,
+                "subdomains": p.subdomains,
+                "details": p.details,
+            }
+            for p in pages
+        ]
+
+        # Create output directory in html-library
+        html_library_dir.mkdir(parents=True, exist_ok=True)
+
+        # Run observation
+        result = observer.observe_trajectory(
+            safe_behavior=safe_behavior,
+            sites=sites,
+            output_dir=html_library_dir,  # Save directly to html-library
+            page_details=page_details,
+        )
+
+        screenshots = result.get("screenshots", [])
+        logger.info(f"✓ Captured {len(screenshots)} trajectory screenshots for {behavior_id}")
+
+        return screenshots
 
     @staticmethod
     def _strip_html(text: str) -> str:
