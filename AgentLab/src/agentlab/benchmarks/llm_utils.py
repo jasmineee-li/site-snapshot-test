@@ -3,6 +3,7 @@ Shared LLM utils.
 """
 
 import base64
+import io
 import logging
 import mimetypes
 import os
@@ -11,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from PIL import Image
 
 load_dotenv()
 
@@ -41,12 +43,18 @@ def get_openrouter_client() -> OpenAI:
     )
 
 
-def encode_image_base64(file_path: Path) -> Optional[Dict[str, Any]]:
+def encode_image_base64(
+    file_path: Path, max_size_bytes: int = 4 * 1024 * 1024
+) -> Optional[Dict[str, Any]]:
     """
     Encode an image file as a base64 data URL for OpenRouter multimodal API.
 
+    Large images are automatically resized/compressed to stay under the API limit.
+    Anthropic's limit is 5 MB for base64-encoded images, so we target 4 MB to be safe.
+
     Args:
         file_path: Path to the image file
+        max_size_bytes: Maximum size in bytes for the base64-encoded image (default 4 MB)
 
     Returns:
         Dict with image_url format for OpenRouter, or None if failed
@@ -62,17 +70,53 @@ def encode_image_base64(file_path: Path) -> Optional[Dict[str, Any]]:
         logger.warning(f"Expected file but got directory: {file_path}")
         return None
 
-    # Determine MIME type
-    mime_type, _ = mimetypes.guess_type(str(file_path))
-    if mime_type is None:
-        # Default to PNG for unknown types
-        mime_type = "image/png"
-
     try:
-        with open(file_path, "rb") as f:
-            image_data = base64.b64encode(f.read()).decode("utf-8")
+        # Load image with PIL
+        img = Image.open(file_path)
 
-        data_url = f"data:{mime_type};base64,{image_data}"
+        # Convert to RGB if necessary (for JPEG compression)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        # Try encoding at original size first
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=85)
+        image_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        # If too large, progressively resize and compress
+        scale = 1.0
+        quality = 85
+        while len(image_data) > max_size_bytes and (scale > 0.2 or quality > 30):
+            # First try reducing quality
+            if quality > 30:
+                quality -= 10
+            else:
+                # Then reduce scale
+                scale *= 0.8
+                quality = 85  # Reset quality for new size
+
+            # Resize image
+            new_size = (int(img.width * scale), int(img.height * scale))
+            resized = img.resize(new_size, Image.Resampling.LANCZOS)
+
+            # Re-encode
+            buffer = io.BytesIO()
+            resized.save(buffer, format="JPEG", quality=quality)
+            image_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+            logger.debug(
+                f"Resized image {file_path.name}: scale={scale:.2f}, quality={quality}, "
+                f"size={len(image_data)/1024/1024:.2f}MB"
+            )
+
+        if len(image_data) > max_size_bytes:
+            logger.warning(
+                f"Could not reduce image {file_path} below {max_size_bytes/1024/1024:.1f}MB "
+                f"(final size: {len(image_data)/1024/1024:.2f}MB)"
+            )
+            return None
+
+        data_url = f"data:image/jpeg;base64,{image_data}"
         return {"type": "image_url", "image_url": {"url": data_url}}
     except Exception as e:
         logger.warning(f"Failed to encode image {file_path}: {e}")
