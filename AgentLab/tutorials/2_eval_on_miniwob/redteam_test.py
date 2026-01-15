@@ -50,7 +50,7 @@ FILTER_MODE = "all"
 benchmark = RedteamBenchmark(
     # Benchmark file with behavior definitions
     # benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
-    benchmark_file="new-data/20260113_test.json",
+    benchmark_file=str(Path(__file__).parents[3] / "new-data/20260113_test.json"),
     # benchmark_file="new-data/behaviors_enriched.json",
     # Models
     world_sim_model="anthropic/claude-opus-4.5",  # For page generation
