@@ -18,3 +18,5 @@ age
 
 results
 nohup*.out
+.venv
+.cursor

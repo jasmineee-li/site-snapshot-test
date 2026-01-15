@@ -295,16 +295,23 @@ class BasePlaywrightComputerTool:
         return ToolResult(base64_image=base64_image)
 
     def press_key(self, key: str):
-        """Press a key on the keyboard. Handle + shifts. Eg: Ctrl+Shift+T."""
-        shifts = []
-        if "+" in key:
-            shifts += key.split("+")[:-1]
-            key = key.split("+")[-1]
-        for shift in shifts:
-            self.page.keyboard.down(shift)
-        self.page.keyboard.press(to_playwright_key(key))
-        for shift in shifts:
-            self.page.keyboard.up(shift)
+        """Press a key on the keyboard. Handle + shifts (e.g. Ctrl+Shift+T) and space-separated keys (e.g. Tab Tab Tab)."""
+        # Handle space-separated keys (e.g., "Tab Tab Tab")
+        keys = key.split(" ")
+        for single_key in keys:
+            single_key = single_key.strip()
+            if not single_key:
+                continue
+            # Handle modifier combinations (e.g., Ctrl+Shift+T)
+            shifts = []
+            if "+" in single_key:
+                shifts += single_key.split("+")[:-1]
+                single_key = single_key.split("+")[-1]
+            for shift in shifts:
+                self.page.keyboard.down(shift)
+            self.page.keyboard.press(to_playwright_key(single_key))
+            for shift in shifts:
+                self.page.keyboard.up(shift)
 
 
 class PlaywrightComputerTool20241022(BasePlaywrightComputerTool):
@@ -405,7 +412,7 @@ class PlaywrightComputerTool20250124(BasePlaywrightComputerTool):
                 "right_click": {"button": "right", "click_count": 1},
                 "middle_click": {"button": "middle", "click_count": 1},
                 "double_click": {"button": "left", "click_count": 2, "delay": 10},
-                "double_click": {"button": "left", "click_count": 3, "delay": 10},
+                "triple_click": {"button": "left", "click_count": 3, "delay": 10},
             }[action]
             if key:
                 self.page.keyboard.down(to_playwright_key(key))

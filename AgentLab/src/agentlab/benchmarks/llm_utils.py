@@ -44,17 +44,19 @@ def get_openrouter_client() -> OpenAI:
 
 
 def encode_image_base64(
-    file_path: Path, max_size_bytes: int = 4 * 1024 * 1024
+    file_path: Path, max_size_bytes: int = 4 * 1024 * 1024, max_dimension: int = 8000
 ) -> Optional[Dict[str, Any]]:
     """
     Encode an image file as a base64 data URL for OpenRouter multimodal API.
 
     Large images are automatically resized/compressed to stay under the API limit.
     Anthropic's limit is 5 MB for base64-encoded images, so we target 4 MB to be safe.
+    Additionally, Anthropic requires images to be under 8000 pixels in each dimension.
 
     Args:
         file_path: Path to the image file
         max_size_bytes: Maximum size in bytes for the base64-encoded image (default 4 MB)
+        max_dimension: Maximum pixels allowed in either dimension (default 8000)
 
     Returns:
         Dict with image_url format for OpenRouter, or None if failed
@@ -78,7 +80,17 @@ def encode_image_base64(
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
 
-        # Try encoding at original size first
+        # First, ensure dimensions are within API limits (Anthropic max: 8000 pixels)
+        if img.width > max_dimension or img.height > max_dimension:
+            scale = min(max_dimension / img.width, max_dimension / img.height)
+            new_size = (int(img.width * scale), int(img.height * scale))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+            logger.debug(
+                f"Scaled down {file_path.name} from {img.width}x{img.height} to "
+                f"{new_size[0]}x{new_size[1]} (max dimension: {max_dimension})"
+            )
+
+        # Try encoding at current size
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=85)
         image_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
