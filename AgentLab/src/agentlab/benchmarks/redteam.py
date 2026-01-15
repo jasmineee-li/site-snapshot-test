@@ -135,6 +135,9 @@ class RedteamEnvArgs(AbstractEnvArgs):
     # Behavior ID for grouping variants
     behavior_id: str = ""
 
+    # Absolute path to html-library (set at benchmark init, used by Ray workers)
+    html_library_path: str = ""
+
     # === New fields for variant directory structure ===
     # Parent directory grouping all variants (benign + adversarial)
     parent_exp_dir: str = ""
@@ -324,12 +327,21 @@ class RedteamEnv(AbstractEnv):
         # Step 0: Conditional trajectory observation
         if self.env_args.use_trajectory:
             trajectory_dir = self.exp_dir / "trajectory"
-            html_library_dir = (
-                Path(__file__).parent.parent.parent.parent
-                / "html-library"
-                / "screenshots"
-                / self.env_args.behavior_id.replace(".", "_")
-            )
+            # Use absolute html_library_path from env_args (set at benchmark init, works in Ray)
+            if self.env_args.html_library_path:
+                html_library_dir = (
+                    Path(self.env_args.html_library_path)
+                    / "screenshots"
+                    / self.env_args.behavior_id.replace(".", "_")
+                )
+            else:
+                # Fallback to relative path (for backward compat)
+                html_library_dir = (
+                    Path(__file__).parent.parent.parent.parent
+                    / "html-library"
+                    / "screenshots"
+                    / self.env_args.behavior_id.replace(".", "_")
+                )
 
             # For variant runs, check parent directory's trajectory first (shared across variants)
             parent_trajectory_dir = None
@@ -1644,6 +1656,11 @@ class RedteamBenchmark(AbstractBenchmark):
 
         variants = []
 
+        # Compute absolute html-library path (for Ray workers that have different __file__)
+        html_library_path = str(
+            Path(__file__).parent.parent.parent.parent / "html-library"
+        )
+
         # Helper to create env_args with common fields
         def _make_env_args(task_name: str, test_mode: str, variation_seed: int) -> RedteamEnvArgs:
             env_args = RedteamEnvArgs(
@@ -1673,6 +1690,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 resume_from_dir=self.resume_from_dir,
                 skip_link_validation=self.skip_link_validation,
                 success_condition=success_condition,
+                html_library_path=html_library_path,  # Absolute path for Ray workers
             )
 
             # Initialize attacker agent with test_mode and safe_behavior
