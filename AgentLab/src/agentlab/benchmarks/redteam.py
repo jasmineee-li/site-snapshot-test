@@ -41,6 +41,7 @@ from agentlab.benchmarks.redteam_generation import (
 from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
 from agentlab.benchmarks.redteam_prompts import get_safe_transformation_prompt
 from agentlab.benchmarks.llm_utils import OpenRouterLLMClient
+from agentlab.benchmarks.redteam_actions import done as done_action
 
 logger = logging.getLogger(__name__)
 
@@ -1582,7 +1583,8 @@ class RedteamBenchmark(AbstractBenchmark):
 
         if self.high_level_action_set_args is None:
             self.high_level_action_set_args = HighLevelActionSetArgs(
-                subsets=["bid", "nav", "tab", "chat"],
+                subsets=["bid", "nav", "tab", "chat", "custom"],
+                custom_actions=[done_action],
                 multiaction=False,
             )
 

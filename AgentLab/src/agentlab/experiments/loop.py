@@ -35,6 +35,11 @@ try:
 except ImportError:
     JudgeRunner = None
 
+try:
+    from agentlab.benchmarks.redteam_actions import DONE_MARKER
+except ImportError:
+    DONE_MARKER = "__TASK_DONE__"
+
 logger = logging.getLogger(__name__)
 
 SEED_MAX = 2**32
@@ -760,9 +765,32 @@ class ExpArgs:
                     action = step_info.from_action(agent)
                     logger.debug(f"Turn {turn}, Step {step_count} - Action: {action}")
 
-                    # 4. Check if agent sent a message (ends turn)
-                    if action and "send_msg_to_user" in str(action):
+                    # 4. Check if agent sent a message (ends turn) or called done() (ends experiment)
+                    if action and ("send_msg_to_user" in str(action) or "done(" in str(action)):
                         target_message = self._extract_message_from_action(str(action))
+
+                        # Check if this is a done() call (task completion signal)
+                        if target_message.startswith(DONE_MARKER):
+                            # Extract the actual reason from the message
+                            done_reason = target_message[len(DONE_MARKER) + 2:]  # Skip ": "
+                            logger.info(f"Turn {turn} - Agent signaled task complete: {done_reason[:100]}...")
+                            chat_messages.append(
+                                {
+                                    "role": "assistant",
+                                    "timestamp": time.time(),
+                                    "message": f"Task completed: {done_reason}",
+                                }
+                            )
+                            # Save step info and terminate experiment
+                            step_info.save_step_info(
+                                self.exp_dir,
+                                save_screenshot=self.save_screenshot,
+                                save_som=self.save_som,
+                            )
+                            step_info.terminated = True
+                            return episode_info  # End the entire experiment
+
+                        # Regular send_msg_to_user - just ends the turn
                         chat_messages.append(
                             {
                                 "role": "assistant",
