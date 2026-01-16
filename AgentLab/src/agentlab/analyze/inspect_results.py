@@ -259,7 +259,7 @@ def summarize(sub_df):
     record = {
         "n_completed": f"{n_completed}/{len(sub_df)}",
         "n_err": err.sum(skipna=True),
-        "avg_steps": sub_df["n_steps"].mean(skipna=True).round(3) if "n_steps" in sub_df else np.nan,
+        "avg_steps": round(sub_df["n_steps"].mean(skipna=True), 3) if "n_steps" in sub_df else np.nan,
     }
 
     # Auto-detect evaluation mode
@@ -285,7 +285,7 @@ def summarize(sub_df):
 
         # Average judge score
         if "judge.overall_score" in sub_df.columns:
-            record["avg_judge_score"] = sub_df["judge.overall_score"].mean(skipna=True).round(3)
+            record["avg_judge_score"] = round(sub_df["judge.overall_score"].mean(skipna=True), 3)
 
     # Otherwise use standard reward-based metrics
     elif has_reward:
@@ -302,15 +302,15 @@ def summarize(sub_df):
                 warnings.warn("Found non-zero reward for errored experiments")
 
             record.update({
-                "avg_reward": sub_df["cum_reward"].mean(skipna=True).round(3),
-                "std_err": std_reward.round(3),
+                "avg_reward": round(sub_df["cum_reward"].mean(skipna=True), 3),
+                "std_err": round(std_reward, 3),
             })
 
     # Add cost stats (common to all benchmarks)
     if "stats.cum_cost" in sub_df:
-        record["cum_cost"] = sub_df["stats.cum_cost"].sum(skipna=True).round(4)
+        record["cum_cost"] = round(sub_df["stats.cum_cost"].sum(skipna=True), 4)
     if "stats.cum_effective_cost" in sub_df:
-        record["cum_effective_cost"] = sub_df["stats.cum_effective_cost"].sum(skipna=True).round(4)
+        record["cum_effective_cost"] = round(sub_df["stats.cum_effective_cost"].sum(skipna=True), 4)
         record.pop("cum_cost", None)
 
     return pd.Series(record)
@@ -331,7 +331,7 @@ def summarize_stats(sub_df):
         return None
 
     record = dict(
-        avg_reward=sub_df["cum_reward"].mean(skipna=True).round(3),
+        avg_reward=round(sub_df["cum_reward"].mean(skipna=True), 3),
     )
     for key in sub_df.keys():
         if key.startswith("stats."):

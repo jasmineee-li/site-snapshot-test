@@ -108,9 +108,11 @@ class Info:
     def update_exp_result(self, episode_id: EpisodeId):
         if self.result_df is None or episode_id.task_name is None or episode_id.seed is None:
             self.exp_result = None
+            return
 
-        # find unique row using idx
-        result_df = self.agent_df.reset_index(inplace=False)
+        # find unique row using idx (use agent_df if filtered, otherwise result_df)
+        df = self.agent_df if self.agent_df is not None else self.result_df
+        result_df = df.reset_index(inplace=False)
         sub_df = result_df[result_df["_row_index"] == episode_id.row_index]
         if len(sub_df) == 0:
             self.exp_result = None
@@ -132,9 +134,8 @@ class Info:
         return agent_id
 
     def filter_agent_id(self, agent_id: list[tuple]):
-        # Preserve a stable row index to disambiguate selections later
+        # Use existing _row_index from result_df (set in new_exp_dir)
         tmp_df = self.result_df.reset_index(inplace=False)
-        tmp_df["_row_index"] = tmp_df.index
         tmp_df.set_index(TASK_NAME_KEY, inplace=True)
 
         for col, val in agent_id:
@@ -627,6 +628,8 @@ def handle_key_event(key_event, step_id: StepId):
         if key_event.startswith("Cmd+Left"):
             step = max(0, step - 1)
         elif key_event.startswith("Cmd+Right"):
+            if info.exp_result is None:
+                return gr.update()
             step = min(len(info.exp_result.steps_info) - 2, step + 1)
         else:
             return gr.update()
@@ -671,6 +674,8 @@ def get_screenshot(
 ):
     if step is None:
         step = info.step
+    if info.exp_result is None:
+        return None, None
     try:
         step_info = info.exp_result.steps_info[step]
         is_som = som_or_not == "SOM Screenshots"
@@ -701,6 +706,8 @@ def update_screenshot_pair(som_or_not: str):
 
 def update_screenshot_gallery(som_or_not: str):
     global info
+    if info.exp_result is None:
+        return gr.Gallery(value=[])
     max_steps = len(info.exp_result.steps_info)
 
     screenshots = [get_screenshot(info, step=i, som_or_not=som_or_not)[0] for i in range(max_steps)]
@@ -730,6 +737,8 @@ def gallery_step_change(evt: gr.SelectData, episode_id: EpisodeId):
 #     # get exp_results for the given episode_id
 #     return exp_result_to_html(info.exp_result)
 def update_episode():
+    if info.exp_result is None:
+        return "<p>No experiment result loaded</p>"
     html_content = exp_result_to_html(info.exp_result)
 
     # Use srcdoc instead of data URL
@@ -883,6 +892,8 @@ def format_chat_message(message: BaseMessage | MessageBuilder | dict):
 
 def update_chat_messages():
     global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
     agent_info = info.exp_result.steps_info[info.step].agent_info
     chat_messages = agent_info.get("chat_messages", ["No Chat Messages"])
     if isinstance(chat_messages, Discussion):
@@ -895,6 +906,8 @@ def update_chat_messages():
 
 def update_task_error():
     global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
     try:
         stack_trace = info.exp_result.summary_info.get("stack_trace", None)
         return f"""{code(stack_trace)}"""
@@ -904,6 +917,8 @@ def update_task_error():
 
 def update_logs():
     global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
     try:
         return f"""{info.exp_result.logs}"""
     except FileNotFoundError:
@@ -912,6 +927,8 @@ def update_logs():
 
 def update_stats():
     global info
+    if info.exp_result is None:
+        return None
     try:
         stats = info.exp_result.steps_info[info.step].stats
         return pd.DataFrame(stats.items(), columns=["name", "value"])
@@ -921,6 +938,8 @@ def update_stats():
 
 def update_agent_info_md():
     global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
     try:
         agent_info = info.exp_result.steps_info[info.step].agent_info
         page = agent_info.get("markdown_page", None)
@@ -935,6 +954,8 @@ def update_agent_info_md():
 
 def update_agent_info_html():
     global info
+    if info.exp_result is None:
+        return None, None, "<p>No experiment result loaded.</p>"
     # screenshots from current and next step
     try:
         s1, action_str = get_screenshot(info, info.step, False)
@@ -979,6 +1000,8 @@ def _page_to_iframe(page: str):
 
 def submit_action(input_text):
     global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
     agent_info = info.exp_result.steps_info[info.step].agent_info
     chat_messages = deepcopy(agent_info.get("chat_messages", ["No Chat Messages"])[:2])
     if BaseMessage and isinstance(
@@ -1006,6 +1029,8 @@ def submit_action(input_text):
 
 def update_prompt_tests():
     global info
+    if info.exp_result is None:
+        return "No experiment result loaded.", ""
     agent_info = info.exp_result.steps_info[info.step].agent_info
     chat_messages = agent_info.get("chat_messages", ["No Chat Messages"])
     prompt = chat_messages[1]
@@ -1032,6 +1057,8 @@ def update_step_info():
 
 def get_obs(key: str, default=None):
     global info
+    if info.exp_result is None:
+        return default
     obs = info.exp_result.steps_info[info.step].obs
     return obs.get(key, default)
 
@@ -1043,6 +1070,8 @@ def code(txt):
 
 
 def get_episode_info(info: Info):
+    if info.exp_result is None:
+        return "No experiment result loaded."
     try:
         env_args = info.exp_result.exp_args.env_args
         steps_info = info.exp_result.steps_info
@@ -1094,6 +1123,8 @@ def get_episode_info(info: Info):
 
 
 def get_action_info(info: Info):
+    if info.exp_result is None:
+        return "No experiment result loaded."
     steps_info = info.exp_result.steps_info
     img, action_str = get_screenshot(info, step=info.step, annotate=True)  # to update click_mapper
 
@@ -1118,6 +1149,8 @@ def get_action_info(info: Info):
 
 
 def get_state_error(state: Info):
+    if state.exp_result is None:
+        return "No experiment result loaded."
     try:
         step_info = state.exp_result.steps_info[state.step + 1]
         err_msg = step_info.obs.get("last_action_error", None)
@@ -1338,6 +1371,8 @@ def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tupl
 
     # Create episode_id for benign (default selection)
     benign_idx = row.get("benign_idx")
+    if isinstance(benign_idx, pd.Series):
+        benign_idx = benign_idx.iloc[0] if len(benign_idx) > 0 else None
     if pd.notna(benign_idx):
         episode_id = EpisodeId(
             agent_id=agent_id,
@@ -1488,6 +1523,11 @@ def new_exp_dir(study_names: list, progress=gr.Progress(), just_refresh=False):
     info.result_df = inspect_results.load_result_df(info.study_dirs, progress_fn=progress.tqdm)
     info.result_df = remove_args_from_col(info.result_df)
 
+    # Add _row_index for episode selection (before any filtering)
+    tmp_df = info.result_df.reset_index(inplace=False)
+    tmp_df["_row_index"] = tmp_df.index
+    info.result_df = tmp_df.set_index(info.result_df.index.names)
+
     study_summary = inspect_results.summarize_study(info.result_df)
     # save study_summary
 
@@ -1525,7 +1565,9 @@ def new_agent_id(agent_id: list[tuple]):
     info.filter_agent_id(agent_id=agent_id)
 
     info.tasks_df = inspect_results.reduce_episodes(info.agent_df).reset_index()
-    info.tasks_df = info.tasks_df.drop(columns=["std_err"])
+    # Drop std_err if present (not in redteam benchmarks)
+    if "std_err" in info.tasks_df.columns:
+        info.tasks_df = info.tasks_df.drop(columns=["std_err"])
 
     # task name of first element
     task_name = info.tasks_df.iloc[0][TASK_NAME_KEY]
@@ -1547,16 +1589,33 @@ def get_directory_contents(results_dir: Path):
                 summary_df = pd.read_csv(most_recent_summary)
 
                 if len(summary_df) == 0:
-                    continue  # skip if all avg_reward are NaN
+                    continue  # skip if empty
 
-                # get row with max avg_reward
-                max_reward_row = summary_df.loc[summary_df["avg_reward"].idxmax(skipna=True)]
-                reward = max_reward_row["avg_reward"] * 100
-                completed = max_reward_row["n_completed"]
-                n_err = max_reward_row["n_err"]
-                exp_description += (
-                    f" - avg-reward: {reward:.1f}% - completed: {completed} - errors: {n_err}"
-                )
+                # Handle different benchmark types
+                if "avg_reward" in summary_df.columns and summary_df["avg_reward"].notna().any():
+                    # Traditional benchmarks with avg_reward
+                    max_reward_row = summary_df.loc[summary_df["avg_reward"].idxmax(skipna=True)]
+                    reward = max_reward_row["avg_reward"] * 100
+                    completed = max_reward_row["n_completed"]
+                    n_err = max_reward_row["n_err"]
+                    exp_description += (
+                        f" - avg-reward: {reward:.1f}% - completed: {completed} - errors: {n_err}"
+                    )
+                elif "benign_utility" in summary_df.columns:
+                    # Redteam benchmarks
+                    row = summary_df.iloc[0]
+                    benign = row.get("benign_utility", 0) or 0
+                    attack = row.get("utility_under_attack", 0) or 0
+                    completed = row.get("n_completed", "?")
+                    n_err = row.get("n_err", 0)
+                    exp_description += (
+                        f" - benign: {benign*100:.1f}% - attack: {attack*100:.1f}% - completed: {completed} - errors: {n_err}"
+                    )
+                else:
+                    # Fallback: just show completion info
+                    completed = summary_df.iloc[0].get("n_completed", "?")
+                    n_err = summary_df.iloc[0].get("n_err", 0)
+                    exp_description += f" - completed: {completed} - errors: {n_err}"
         except Exception as e:
             print(f"Error while reading summary file {most_recent_summary}: {e}")
 
