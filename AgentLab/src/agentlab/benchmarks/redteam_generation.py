@@ -18,6 +18,8 @@ from agentlab.benchmarks.redteam_prompts import (
     get_prefill_analysis_prompt,
     get_page_generation_prompt,
     get_html_modification_prompt,
+    get_html_validation_prompt,
+    get_html_fix_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -246,6 +248,205 @@ Analyze the reference HTML below and replicate its visual design language.
             logger.warning("Generated HTML missing <body> tag")
 
         return html
+
+
+class HTMLValidator:
+    """Validates generated HTML contains all required elements for task completion."""
+
+    def __init__(self, model: str = "anthropic/claude-sonnet-4"):
+        """
+        Initialize the validator.
+
+        Args:
+            model: Model to use for validation (should be fast/cheap)
+        """
+        self.llm = LLMClient(model)
+
+    def validate(
+        self,
+        html_content: str,
+        prefill_spec: dict,
+        task_description: str,
+        page_url: str,
+    ) -> dict:
+        """
+        Validate that HTML contains all required elements from the prefill spec.
+
+        Args:
+            html_content: The generated HTML to validate
+            prefill_spec: The prefill specification for this page
+            task_description: Description of the task the agent needs to complete
+            page_url: The URL this page represents
+
+        Returns:
+            Validation result dict with:
+            - validation_passed: bool
+            - missing_elements: list of missing elements
+            - incomplete_sections: list of incomplete sections
+            - non_functional_elements: list of non-functional elements
+            - summary: string summary
+        """
+        # Extract required elements and interactions from prefill spec
+        functionality = prefill_spec.get("functionality", {})
+        required_ui_elements = functionality.get("required_ui_elements", [])
+        required_interactions = functionality.get("required_interactions", [])
+
+        # If no requirements specified, validation passes by default
+        if not required_ui_elements and not required_interactions:
+            logger.info(f"No required elements specified for {page_url}, skipping validation")
+            return {
+                "validation_passed": True,
+                "missing_elements": [],
+                "incomplete_sections": [],
+                "non_functional_elements": [],
+                "summary": "No validation requirements specified",
+            }
+
+        prompt = get_html_validation_prompt(
+            html_content=html_content,
+            required_ui_elements=required_ui_elements,
+            required_interactions=required_interactions,
+            task_description=task_description,
+            page_url=page_url,
+        )
+
+        response_text = self.llm.chat_simple([{"role": "user", "content": prompt}])
+
+        if not response_text or not response_text.strip():
+            logger.error("Empty response from validation LLM")
+            return {
+                "validation_passed": False,
+                "missing_elements": [],
+                "incomplete_sections": [],
+                "non_functional_elements": [],
+                "summary": "Validation failed: empty LLM response",
+            }
+
+        response_text = strip_code_fences(response_text)
+
+        try:
+            result = json.loads(response_text)
+            logger.info(f"Validation result for {page_url}: passed={result.get('validation_passed')}")
+            return result
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse validation JSON: {response_text[:500]}")
+            return {
+                "validation_passed": False,
+                "missing_elements": [],
+                "incomplete_sections": [],
+                "non_functional_elements": [],
+                "summary": f"Validation failed: JSON parse error - {e}",
+            }
+
+    def fix_html(
+        self,
+        html_content: str,
+        validation_result: dict,
+        page_url: str,
+    ) -> str:
+        """
+        Fix HTML by adding missing elements identified in validation.
+
+        Args:
+            html_content: The original HTML to fix
+            validation_result: The validation result with issues
+            page_url: The URL this page represents
+
+        Returns:
+            Fixed HTML string
+        """
+        prompt = get_html_fix_prompt(
+            html_content=html_content,
+            validation_result=validation_result,
+            page_url=page_url,
+        )
+
+        response_text = self.llm.chat_simple([{"role": "user", "content": prompt}], max_tokens=20000)
+
+        if not response_text or not response_text.strip():
+            logger.error("Empty response from fix LLM, returning original HTML")
+            return html_content
+
+        # Clean response
+        html = response_text.strip()
+        html = strip_code_fences(html)
+
+        # Validate result has basic HTML structure
+        if "<!DOCTYPE html>" not in html and "<html" in html.lower():
+            html = "<!DOCTYPE html>\n" + html
+
+        if "<html" not in html.lower():
+            logger.warning("Fixed HTML missing <html> tag, returning original")
+            return html_content
+
+        return html
+
+    def validate_and_fix(
+        self,
+        html_content: str,
+        prefill_spec: dict,
+        task_description: str,
+        page_url: str,
+        max_fix_attempts: int = 2,
+    ) -> tuple[str, dict]:
+        """
+        Validate HTML and fix if needed, with retry logic.
+
+        Args:
+            html_content: The generated HTML to validate
+            prefill_spec: The prefill specification for this page
+            task_description: Description of the task
+            page_url: The URL this page represents
+            max_fix_attempts: Maximum number of fix attempts
+
+        Returns:
+            Tuple of (final_html, final_validation_result)
+        """
+        current_html = html_content
+
+        for attempt in range(max_fix_attempts + 1):
+            validation_result = self.validate(
+                html_content=current_html,
+                prefill_spec=prefill_spec,
+                task_description=task_description,
+                page_url=page_url,
+            )
+
+            if validation_result.get("validation_passed", False):
+                if attempt > 0:
+                    logger.info(f"HTML validation passed after {attempt} fix attempt(s)")
+                return current_html, validation_result
+
+            # Check if there are critical issues to fix
+            has_critical = any(
+                elem.get("severity") == "critical"
+                for elem in validation_result.get("missing_elements", [])
+            ) or any(
+                section.get("severity") == "critical"
+                for section in validation_result.get("incomplete_sections", [])
+            )
+
+            if not has_critical:
+                logger.info("No critical issues found, accepting HTML as-is")
+                return current_html, validation_result
+
+            if attempt < max_fix_attempts:
+                logger.warning(
+                    f"HTML validation failed (attempt {attempt + 1}/{max_fix_attempts + 1}), "
+                    f"attempting fix. Issues: {validation_result.get('summary', 'unknown')}"
+                )
+                current_html = self.fix_html(
+                    html_content=current_html,
+                    validation_result=validation_result,
+                    page_url=page_url,
+                )
+            else:
+                logger.error(
+                    f"HTML validation failed after {max_fix_attempts} fix attempts. "
+                    f"Issues remain: {validation_result.get('summary', 'unknown')}"
+                )
+
+        return current_html, validation_result
 
 
 def replace_injection_placeholders(html: str, injections: Dict[str, str]) -> str:
@@ -650,7 +851,7 @@ Reference HTML (match this style):
 """
 
             logger.info(f"Generating {'reference' if reference_html is None else 'subsequent'} page: {route_key}")
-            response = llm_client.chat_simple([{"role": "user", "content": prompt}])
+            response = llm_client.chat_simple([{"role": "user", "content": prompt}], max_tokens=20000)
             html = strip_code_fences(response)
 
             if reference_html is None:
