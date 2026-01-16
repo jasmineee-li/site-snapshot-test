@@ -11,7 +11,7 @@ import traceback
 import uuid
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -1130,10 +1130,34 @@ class ExpResult:
     def flat_exp_args(self) -> dict:
         """Return a dict with exp_args flattened."""
         if self._flat_exp_args is None:
-            exp_args = asdict(self.exp_args)
+            try:
+                exp_args = asdict(self.exp_args)
+            except AttributeError as e:
+                # Handle pickle files from older versions with missing attributes
+                logger.warning(f"Failed to convert exp_args to dict: {e}. Using __dict__ fallback.")
+                exp_args = self._safe_asdict(self.exp_args)
             # this will flatten nested dicts
             self._flat_exp_args = _flatten_dict(exp_args)
         return self._flat_exp_args
+
+    def _safe_asdict(self, obj):
+        """Safely convert a dataclass to dict, handling missing attributes."""
+        if is_dataclass(obj) and not isinstance(obj, type):
+            result = {}
+            for field in fields(obj):
+                try:
+                    value = getattr(obj, field.name)
+                    result[field.name] = self._safe_asdict(value)
+                except AttributeError:
+                    # Skip missing attributes from old pickles
+                    result[field.name] = None
+            return result
+        elif isinstance(obj, dict):
+            return {k: self._safe_asdict(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return type(obj)(self._safe_asdict(v) for v in obj)
+        else:
+            return obj
 
     def get_exp_record(self) -> dict:
         """Return a dict with exp_args flattened and summary_info."""

@@ -497,7 +497,7 @@ class Study(AbstractStudy):
         )
 
     def _save_run_log(self, result_df, summary_df, start_time: float):
-        """Save a structured log.json with comprehensive run information.
+        """Save structured study_log.json and behavior_log.json files with comprehensive run information.
 
         Args:
             result_df: DataFrame with experiment results
@@ -637,22 +637,22 @@ class Study(AbstractStudy):
         log_data["token_usage"]["totals"]["output"] = total_output_tokens
         log_data["token_usage"]["totals"]["total"] = grand_total
 
-        # Save study-level log.json
-        log_path = self.dir / "log.json"
+        # Save study-level study_log.json
+        log_path = self.dir / "study_log.json"
         try:
             with open(log_path, "w", encoding="utf-8") as f:
                 json.dump(log_data, f, indent=2, default=str)
             logger.info(f"Saved study log to {log_path}")
         except Exception as e:
-            logger.error(f"Error saving log.json: {e}")
+            logger.error(f"Error saving study_log.json: {e}")
 
-        # Save per-behavior log.json files
+        # Save per-behavior behavior_log.json files
         self._save_per_behavior_logs(log_data, start_time, duration_seconds)
 
     def _save_per_behavior_logs(self, log_data: dict, start_time: float, duration_seconds: float):
-        """Save individual log.json files for each behavior.
+        """Save individual behavior_log.json files for each behavior.
 
-        Groups experiments by behavior_id and writes a separate log.json
+        Groups experiments by behavior_id and writes a separate behavior_log.json
         in each behavior's parent directory.
 
         Args:
@@ -694,7 +694,7 @@ class Study(AbstractStudy):
                 if (exp.get("judge_result") or {}).get("overall_success") is True
             )
             judge_scores = [
-                exp["judge_result"]["overall_score"]
+                (exp.get("judge_result") or {}).get("overall_score")
                 for exp in experiments
                 if (exp.get("judge_result") or {}).get("overall_score") is not None
             ]
@@ -704,10 +704,10 @@ class Study(AbstractStudy):
             adversarial_exps = [e for e in experiments if e.get("test_mode") == "adversarial"]
 
             # Calculate token usage for this behavior
-            target_input = sum(exp.get("token_usage", {}).get("input", 0) for exp in experiments)
-            target_output = sum(exp.get("token_usage", {}).get("output", 0) for exp in experiments)
+            target_input = sum((exp.get("token_usage") or {}).get("input", 0) for exp in experiments)
+            target_output = sum((exp.get("token_usage") or {}).get("output", 0) for exp in experiments)
             attacker_total = sum(
-                exp.get("attacker", {}).get("token_usage", {}).get("total", 0)
+                ((exp.get("attacker") or {}).get("token_usage") or {}).get("total", 0)
                 for exp in experiments
             )
 
@@ -739,13 +739,13 @@ class Study(AbstractStudy):
             }
 
             # Write behavior log
-            log_path = parent_dir / "log.json"
+            log_path = parent_dir / "behavior_log.json"
             try:
                 with open(log_path, "w", encoding="utf-8") as f:
                     json.dump(behavior_log, f, indent=2, default=str)
                 logger.info(f"Saved behavior log to {log_path}")
             except Exception as e:
-                logger.error(f"Error saving behavior log for {behavior_id}: {e}")
+                logger.error(f"Error saving behavior_log.json for {behavior_id}: {e}")
 
     def _extract_experiment_data(self, exp_result) -> dict:
         """Extract structured data from an experiment result.

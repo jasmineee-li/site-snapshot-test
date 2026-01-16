@@ -86,7 +86,7 @@ requires-dist = [
     { name = "distributed" },
     { name = "flaky", marker = "extra == 'dev'" },
     { name = "gitpython" },
-    { name = "gradio", specifier = ">=5.5" },
+    { name = "gradio", specifier = ">=5.5,<6.0" },
     { name = "gymnasium", specifier = ">=0.27" },
     { name = "huggingface-hub" },
     { name = "ipython" },

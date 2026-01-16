@@ -52,7 +52,7 @@ class RedteamAttackerAgent:
     model: str
     attack_type: str  # "direct" or "indirect"
     mode: str  # "single_turn" or "multi_turn"
-    test_mode: str  # "benign" (cooperative) or "adversarial" (red-team)
+    test_mode: str = "adversarial"  # "benign" (cooperative) or "adversarial" (red-team)
     goal: str = ""
     target_description: str = ""
     # Optional: information about websites/pages available in the environment

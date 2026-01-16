@@ -8,6 +8,7 @@ This module provides:
 """
 
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -30,6 +31,7 @@ from agentlab.benchmarks.abstract_env import AbstractBenchmark, AbstractEnv, Abs
 from agentlab.benchmarks.redteam_generation import (
     SyntheticPageGenerator,
     PrefillDataAnalyzer,
+    HTMLValidator,
     save_site_to_toolbox,
     load_toolbox_site,
     replace_injection_placeholders,
@@ -208,6 +210,7 @@ class RedteamEnv(AbstractEnv):
         # Page generation (lazy init)
         self.analyzer = None
         self.generator = None
+        self.validator = None
 
         # Flow server
         self.server_proc = None
@@ -436,6 +439,8 @@ class RedteamEnv(AbstractEnv):
         if self.analyzer is None:
             self.analyzer = PrefillDataAnalyzer(model=self.env_args.world_sim_model)
             self.generator = SyntheticPageGenerator(model=self.env_args.world_sim_model)
+            # Use a fast model for validation (can use same model or cheaper one)
+            self.validator = HTMLValidator(model=self.env_args.world_sim_model)
 
         # Step 2: Analyze prefill data requirements
         skip_analysis = self.env_args.pages and all(
@@ -505,6 +510,14 @@ class RedteamEnv(AbstractEnv):
         # Create base HTML directory immediately for incremental saves
         base_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Base HTML directory: {base_dir}")
+
+        # Save prefill analysis to parent directory (shared across variants)
+        prefill_analysis_path = base_dir.parent / "prefill_analysis.json"
+        if prefill_spec and not prefill_analysis_path.exists():
+            prefill_analysis_path.write_text(
+                json.dumps(prefill_spec, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            logger.info(f"Saved prefill analysis to {prefill_analysis_path}")
 
         # Generate base HTML for all pages and their subdomains
         for page in self.env_args.pages:
@@ -617,6 +630,20 @@ class RedteamEnv(AbstractEnv):
                         sibling_subdomains=sibling_subdomains,
                         reference_html=reference_html,
                     )
+
+                    # Step 4b: Validate and fix HTML if needed
+                    html, validation_result = self.validator.validate_and_fix(
+                        html_content=html,
+                        prefill_spec=combined_spec,
+                        task_description=self.env_args.doc,
+                        page_url=full_url,
+                        max_fix_attempts=2,
+                    )
+                    if not validation_result.get("validation_passed", False):
+                        logger.warning(
+                            f"HTML validation issues for {route_key}: "
+                            f"{validation_result.get('summary', 'unknown')}"
+                        )
 
                     # Store reference HTML for this page
                     if is_reference:
