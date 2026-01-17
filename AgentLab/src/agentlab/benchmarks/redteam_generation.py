@@ -417,17 +417,16 @@ class HTMLValidator:
                     logger.info(f"HTML validation passed after {attempt} fix attempt(s)")
                 return current_html, validation_result
 
-            # Check if there are critical issues to fix
-            has_critical = any(
-                elem.get("severity") == "critical"
-                for elem in validation_result.get("missing_elements", [])
-            ) or any(
-                section.get("severity") == "critical"
-                for section in validation_result.get("incomplete_sections", [])
+            # Check if there are any issues to fix
+            has_issues = (
+                validation_result.get("missing_elements")
+                or validation_result.get("incomplete_sections")
+                or validation_result.get("non_functional_elements")
             )
 
-            if not has_critical:
-                logger.info("No critical issues found, accepting HTML as-is")
+            if not has_issues:
+                # Validation failed but no specific issues identified - accept as-is
+                logger.warning("Validation failed but no specific issues found, accepting HTML")
                 return current_html, validation_result
 
             if attempt < max_fix_attempts:

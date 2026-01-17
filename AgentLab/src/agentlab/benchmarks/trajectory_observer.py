@@ -89,11 +89,28 @@ class TrajectoryObserver:
             page = await context.new_page()
             await page.set_viewport_size({"width": 1024, "height": 768})
 
-            # Start on first site
+            # Start on first site (with fallback to Google search if URL doesn't exist)
             first_site = sites[0] if sites else "https://www.google.com"
             if not first_site.startswith(("http://", "https://")):
                 first_site = f"https://{first_site}"
-            await page.goto(first_site)
+
+            try:
+                await page.goto(first_site, timeout=15000)
+            except Exception as e:
+                # URL doesn't exist - fall back to Google search for similar sites
+                logger.warning(f"Could not navigate to {first_site}: {e}")
+                logger.info("Falling back to Google search for similar sites...")
+
+                # Extract domain/keywords for search
+                from urllib.parse import urlparse
+                parsed = urlparse(first_site)
+                # Use domain name as search query (e.g., "chocolateheavenblog recipes chocolate cake")
+                domain_parts = parsed.netloc.replace("www.", "").replace(".com", "").replace(".org", "").replace(".net", "")
+                path_parts = parsed.path.replace("/", " ").replace("-", " ").replace("_", " ")
+                search_query = f"{domain_parts} {path_parts}".strip()
+
+                await page.goto("https://www.google.com")
+                # The agent will handle the search from here
 
             # Setup tools with save_dir pointing to output
             playwright_tools = PlaywrightToolbox(

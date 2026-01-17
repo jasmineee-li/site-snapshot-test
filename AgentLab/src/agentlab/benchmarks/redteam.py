@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 
 import bgym
 from bgym import HighLevelActionSetArgs
+from browsergym.core.action.highlevel import HighLevelActionSet
 from pydantic import ConfigDict
 
 from agentlab.benchmarks.abstract_env import AbstractBenchmark, AbstractEnv, AbstractEnvArgs
@@ -39,11 +40,33 @@ from agentlab.benchmarks.redteam_generation import (
     replace_placeholders_with_content,
 )
 from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
+from agentlab.benchmarks.redteam_validation import (
+    validate_selectors,
+    verify_change_applied,
+    apply_change,
+    generate_adversarial_variant,
+)
 from agentlab.benchmarks.redteam_prompts import get_safe_transformation_prompt
 from agentlab.benchmarks.llm_utils import OpenRouterLLMClient
 from agentlab.benchmarks.redteam_actions import done as done_action
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RedteamActionSetArgs(HighLevelActionSetArgs):
+    """Extended action set args that includes the done() action for task completion."""
+
+    def make_action_set(self):
+        """Create action set with custom done() action included."""
+        return HighLevelActionSet(
+            subsets=list(self.subsets) + ["custom"],
+            custom_actions=[done_action],
+            multiaction=self.multiaction,
+            strict=self.strict,
+            retry_with_force=self.retry_with_force,
+            demo_mode=self.demo_mode,
+        )
 
 
 @dataclass
@@ -148,6 +171,10 @@ class RedteamEnvArgs(AbstractEnvArgs):
     variant_name: str = ""
     # Whether this run uses the variant subdirectory structure
     is_variant_run: bool = False
+
+    # === Injection Pipeline Settings ===
+    # Use new zone-based injection pipeline instead of placeholder-based
+    use_injection_pipeline: bool = False
 
     @property
     def variant_subdir(self) -> str:
@@ -680,146 +707,215 @@ class RedteamEnv(AbstractEnv):
                 file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
                 (base_dir / f"{file_name}.html").write_text(html, encoding="utf-8")
 
-        # Step 5: Generate placeholder content (benign + adversarial)
-        placeholder_content = {}  # {placeholder_id: {benign: "...", adversarial: [...]}}
-        placeholder_metadata = {}  # {placeholder_id: {element_type, placement, ...}}
+        # Step 5 & 6: Generate variant content and create variant pages
+        # Two pipelines available:
+        # - New: Zone-based injection pipeline (use_injection_pipeline=True)
+        # - Legacy: Placeholder-based content generation
+
+        # Determine variant directory structure
+        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
+            variant_dir = self.exp_dir
+        else:
+            variant_dir = self.exp_dir / "html"
+
+        mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
+        variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
+        variant_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize injection data for reporting
         injection_data = {
             "behavior_id": self.env_args.behavior_id,
             "generated_at": datetime.now().isoformat(),
             "test_mode": self.env_args.test_mode,
             "variation_seed": self.env_args.variation_seed,
+            "pipeline": "injection" if self.env_args.use_injection_pipeline else "placeholder",
             "injection_locations": [],
-            "placeholders": {},  # Consolidated: metadata + content
+            "placeholders": {},
+            "variant_report": {},
         }
 
-        if subdomains_needing_injections:
-            logger.info(
-                f"Found {len(subdomains_needing_injections)} subdomain(s) needing placeholder content"
-            )
-            injection_data["injection_locations"] = [
-                rk for rk, _, _, _ in subdomains_needing_injections
-            ]
+        # Initialize attacker agent (needed for both pipelines)
+        attacker_agent = self.env_args.attacker_agent
+        attacker_agent.make_agent()
 
-            # Initialize attacker agent
-            attacker_agent = self.env_args.attacker_agent
-            attacker_agent.make_agent()
+        if self.env_args.use_injection_pipeline:
+            # ===== NEW ZONE-BASED INJECTION PIPELINE =====
+            logger.info(f"Using zone-based injection pipeline for {mode} variant...")
 
-            # For each subdomain with placeholders, generate content
-            for route_key, page, subdomain, combined_spec in subdomains_needing_injections:
-                html = base_html_by_subdomain.get(route_key, "")
-
-                # Extract placeholders from HTML
-                placeholders = extract_placeholders(html)
-                logger.info(f"Found {len(placeholders)} placeholder(s) in {route_key}")
-
-                # Build a lookup of spec items by placement for enriching placeholders
-                # Support both new format (prefill_variant_content) and legacy (prefill_adversarial)
-                spec_items_by_placement = {}
-                variant_content = combined_spec.get("prefill_variant_content", {})
-                if variant_content.get("items"):
-                    for item in variant_content.get("items", []):
-                        placement = item.get("placement", "")
-                        if placement:
-                            spec_items_by_placement[placement] = item
-                # Also check legacy format
-                adv_content = combined_spec.get("prefill_adversarial", {})
-                if adv_content.get("items"):
-                    for item in adv_content.get("items", []):
-                        placement = item.get("placement", "")
-                        if placement and placement not in spec_items_by_placement:
-                            spec_items_by_placement[placement] = item
-
-                for placeholder in placeholders:
-                    placeholder_id = placeholder.get("id", "")
-                    if not placeholder_id:
+            if self.env_args.test_mode == "benign":
+                # Benign mode: Use base HTML as-is (no injections)
+                logger.info("Benign mode: copying base HTML without modifications")
+                for route_key, html in base_html_by_subdomain.items():
+                    if html is None:
                         continue
+                    file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                    page_path = variant_dir / f"{file_name}.html"
+                    page_path.write_text(html, encoding="utf-8")
+                    logger.info(f"✓ Saved {file_name}.html (benign)")
 
-                    # Skip if already generated (same placeholder ID in multiple pages)
-                    if placeholder_id in placeholder_content:
-                        logger.debug(f"Placeholder {placeholder_id} already generated, skipping")
-                        continue
-
-                    # Enrich placeholder with spec data (benign_description, adversarial_description)
-                    placement = placeholder.get("placement", "")
-                    if placement in spec_items_by_placement:
-                        spec_item = spec_items_by_placement[placement]
-                        # Merge spec data into placeholder (spec takes precedence for descriptions)
-                        enriched_placeholder = {**placeholder}
-                        if "benign_description" in spec_item:
-                            enriched_placeholder["benign_description"] = spec_item["benign_description"]
-                        if "adversarial_description" in spec_item:
-                            enriched_placeholder["adversarial_description"] = spec_item["adversarial_description"]
-                        if "element_type" in spec_item and "element_type" not in enriched_placeholder:
-                            enriched_placeholder["element_type"] = spec_item["element_type"]
-                        placeholder = enriched_placeholder
-
-                    # Generate content - fail fast if generation fails
-                    content = attacker_agent.generate_placeholder_content(
-                        placeholder=placeholder,
-                        page_domain=route_key,
-                        attack_channels=self.env_args.attack_channels,
-                        n_adversarial_variants=1,  # Generate for this variant
-                    )
-                    placeholder_content[placeholder_id] = content
-
-                    # Store consolidated metadata + content
-                    injection_data["placeholders"][placeholder_id] = {
-                        "element_type": placeholder.get("element_type", "unknown"),
-                        "placement": placeholder.get("placement", ""),
-                        "page": route_key,
-                        "benign": content.get("benign", ""),
-                        "adversarial": content.get("adversarial", []),
-                    }
-                    # Store metadata separately for internal use
-                    placeholder_metadata[placeholder_id] = {
-                        "element_type": placeholder.get("element_type", "unknown"),
-                        "placement": placeholder.get("placement", ""),
-                    }
-
-        # Step 6: Create variant pages based on test_mode
-        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
-            # New structure: exp_dir is already parent/variant/
-            variant_dir = self.exp_dir
-            mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
-            variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
-        else:
-            # Old structure: exp_dir is already named after the variant (e.g., seed0/benign/)
-            # Put HTML files in a 'html/' subdirectory to avoid redundant naming like benign/benign/
-            variant_dir = self.exp_dir / "html"
-            mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
-            variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
-
-        variant_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Creating {mode} variant (variant_index={variant_index})...")
-
-        for route_key, html in base_html_by_subdomain.items():
-            if html is None:
-                continue
-
-            file_name = (
-                route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
-            )
-
-            # Check if this subdomain needs placeholder replacement
-            needs_replacement = any(
-                rk == route_key for rk, _, _, _ in subdomains_needing_injections
-            )
-
-            if needs_replacement and placeholder_content:
-                # Replace placeholders with appropriate content
-                html_with_content = replace_placeholders_with_content(
-                    html=html,
-                    placeholder_content=placeholder_content,
-                    mode=mode,
-                    variant_index=variant_index,
-                )
-                page_path = variant_dir / f"{file_name}.html"
-                page_path.write_text(html_with_content, encoding="utf-8")
-                logger.info(f"✓ Saved {file_name}.html with {mode} content")
             else:
-                # No placeholders - copy base HTML
-                page_path = variant_dir / f"{file_name}.html"
-                page_path.write_text(html, encoding="utf-8")
+                # Adversarial mode: Plan and apply injections
+                behavior = {
+                    "doc": self.env_args.doc,
+                    "target": self.env_args.target,
+                }
+
+                # Phase 2: Plan adversarial variant
+                logger.info("Phase 2: Planning adversarial variant...")
+                variant_plans = attacker_agent.plan_adversarial_variants(
+                    base_html_pages=base_html_by_subdomain,
+                    behavior=behavior,
+                    n_variants=1,  # Just this variant
+                    attack_channels=self.env_args.attack_channels,
+                )
+
+                if variant_plans:
+                    plan = variant_plans[0]
+                    # Adjust index to match variation_seed
+                    plan["adv_variant_index"] = self.env_args.variation_seed
+
+                    # Phase 3: Generate and apply changes
+                    logger.info("Phase 3: Generating and applying changes...")
+                    variant_html, report = generate_adversarial_variant(
+                        base_html=base_html_by_subdomain,
+                        variant_plan=plan,
+                        behavior=behavior,
+                        attacker=attacker_agent,
+                    )
+
+                    # Save variant HTML
+                    for route_key, html in variant_html.items():
+                        if html is None:
+                            continue
+                        file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                        page_path = variant_dir / f"{file_name}.html"
+                        page_path.write_text(html, encoding="utf-8")
+                        logger.info(f"✓ Saved {file_name}.html (adversarial)")
+
+                    # Store report
+                    injection_data["variant_report"] = report
+                    injection_data["injection_locations"] = list(base_html_by_subdomain.keys())
+                    logger.info(
+                        f"Injection pipeline complete: {report.get('applied', 0)} applied, "
+                        f"{report.get('failed', 0)} failed"
+                    )
+                else:
+                    # Fallback: copy base HTML if planning failed
+                    logger.warning("Variant planning returned no plans, using base HTML")
+                    for route_key, html in base_html_by_subdomain.items():
+                        if html is None:
+                            continue
+                        file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                        page_path = variant_dir / f"{file_name}.html"
+                        page_path.write_text(html, encoding="utf-8")
+
+        else:
+            # ===== LEGACY PLACEHOLDER-BASED PIPELINE =====
+            logger.info(f"Using placeholder-based pipeline for {mode} variant...")
+
+            placeholder_content = {}
+            placeholder_metadata = {}
+
+            if subdomains_needing_injections:
+                logger.info(
+                    f"Found {len(subdomains_needing_injections)} subdomain(s) needing placeholder content"
+                )
+                injection_data["injection_locations"] = [
+                    rk for rk, _, _, _ in subdomains_needing_injections
+                ]
+
+                # For each subdomain with placeholders, generate content
+                for route_key, page, subdomain, combined_spec in subdomains_needing_injections:
+                    html = base_html_by_subdomain.get(route_key, "")
+
+                    # Extract placeholders from HTML
+                    placeholders = extract_placeholders(html)
+                    logger.info(f"Found {len(placeholders)} placeholder(s) in {route_key}")
+
+                    # Build a lookup of spec items by placement
+                    spec_items_by_placement = {}
+                    variant_content = combined_spec.get("prefill_variant_content", {})
+                    if variant_content.get("items"):
+                        for item in variant_content.get("items", []):
+                            placement = item.get("placement", "")
+                            if placement:
+                                spec_items_by_placement[placement] = item
+                    adv_content = combined_spec.get("prefill_adversarial", {})
+                    if adv_content.get("items"):
+                        for item in adv_content.get("items", []):
+                            placement = item.get("placement", "")
+                            if placement and placement not in spec_items_by_placement:
+                                spec_items_by_placement[placement] = item
+
+                    for placeholder in placeholders:
+                        placeholder_id = placeholder.get("id", "")
+                        if not placeholder_id:
+                            continue
+
+                        if placeholder_id in placeholder_content:
+                            logger.debug(f"Placeholder {placeholder_id} already generated, skipping")
+                            continue
+
+                        # Enrich placeholder with spec data
+                        placement = placeholder.get("placement", "")
+                        if placement in spec_items_by_placement:
+                            spec_item = spec_items_by_placement[placement]
+                            enriched_placeholder = {**placeholder}
+                            if "benign_description" in spec_item:
+                                enriched_placeholder["benign_description"] = spec_item["benign_description"]
+                            if "adversarial_description" in spec_item:
+                                enriched_placeholder["adversarial_description"] = spec_item["adversarial_description"]
+                            if "element_type" in spec_item and "element_type" not in enriched_placeholder:
+                                enriched_placeholder["element_type"] = spec_item["element_type"]
+                            placeholder = enriched_placeholder
+
+                        # Generate content
+                        content = attacker_agent.generate_placeholder_content(
+                            placeholder=placeholder,
+                            page_domain=route_key,
+                            attack_channels=self.env_args.attack_channels,
+                            n_adversarial_variants=1,
+                        )
+                        placeholder_content[placeholder_id] = content
+
+                        injection_data["placeholders"][placeholder_id] = {
+                            "element_type": placeholder.get("element_type", "unknown"),
+                            "placement": placeholder.get("placement", ""),
+                            "page": route_key,
+                            "benign": content.get("benign", ""),
+                            "adversarial": content.get("adversarial", []),
+                        }
+                        placeholder_metadata[placeholder_id] = {
+                            "element_type": placeholder.get("element_type", "unknown"),
+                            "placement": placeholder.get("placement", ""),
+                        }
+
+            # Create variant pages
+            logger.info(f"Creating {mode} variant (variant_index={variant_index})...")
+
+            for route_key, html in base_html_by_subdomain.items():
+                if html is None:
+                    continue
+
+                file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+
+                needs_replacement = any(
+                    rk == route_key for rk, _, _, _ in subdomains_needing_injections
+                )
+
+                if needs_replacement and placeholder_content:
+                    html_with_content = replace_placeholders_with_content(
+                        html=html,
+                        placeholder_content=placeholder_content,
+                        mode=mode,
+                        variant_index=variant_index,
+                    )
+                    page_path = variant_dir / f"{file_name}.html"
+                    page_path.write_text(html_with_content, encoding="utf-8")
+                    logger.info(f"✓ Saved {file_name}.html with {mode} content")
+                else:
+                    page_path = variant_dir / f"{file_name}.html"
+                    page_path.write_text(html, encoding="utf-8")
 
         # Step 7: Validate internal links (fail-fast if broken)
         if self.env_args.skip_link_validation:
@@ -1409,6 +1505,121 @@ def generate_all_variants(
     return variants
 
 
+def generate_variants_with_injection_pipeline(
+    base_html_pages: dict[str, str],
+    behavior: dict,
+    attacker: RedteamAttackerAgent,
+    n_adversarial_variants: int = 1,
+    attack_channels: list[str] = None,
+    output_dir: Path | str = None,
+) -> tuple[dict[str, str], list[tuple[dict[str, str], dict]]]:
+    """
+    Generate adversarial variants using the new injection pipeline.
+
+    This is the main entry point for the new pipeline that:
+    1. Takes base HTML pages (already generated)
+    2. Plans N diverse adversarial variants with different zones/techniques
+    3. Generates content and applies changes for each variant
+
+    Args:
+        base_html_pages: Dict mapping page_id to base HTML content (benign)
+        behavior: Behavior config dict with 'doc', 'target', etc.
+        attacker: RedteamAttackerAgent instance (already initialized)
+        n_adversarial_variants: Number of adversarial variants to generate
+        attack_channels: List of channels agent observes (default: ["axtree"])
+        output_dir: Optional directory to save generated HTML files
+
+    Returns:
+        Tuple of (benign_html, adversarial_variants)
+        - benign_html: The base HTML pages (unchanged)
+        - adversarial_variants: List of (html_dict, report) tuples
+
+    Example:
+        ```python
+        attacker = RedteamAttackerAgent(model="openai/gpt-4.1", ...)
+        attacker.make_agent()
+
+        benign, adversarial = generate_variants_with_injection_pipeline(
+            base_html_pages={"product": "<html>...</html>"},
+            behavior={"doc": "...", "target": "..."},
+            attacker=attacker,
+            n_adversarial_variants=3,
+        )
+
+        # benign is the original pages
+        # adversarial[0] is (modified_html_dict, report) for variant 0
+        ```
+    """
+    import copy
+
+    attack_channels = attack_channels or ["axtree"]
+    output_dir = Path(output_dir) if output_dir else None
+
+    logger.info(
+        f"Starting injection pipeline: {len(base_html_pages)} page(s), "
+        f"{n_adversarial_variants} variant(s)"
+    )
+
+    # Phase 2: Plan all variants at once
+    variant_plans = attacker.plan_adversarial_variants(
+        base_html_pages=base_html_pages,
+        behavior=behavior,
+        n_variants=n_adversarial_variants,
+        attack_channels=attack_channels,
+    )
+
+    logger.info(f"Planned {len(variant_plans)} variant(s)")
+
+    # Phase 3: Generate each adversarial variant
+    adversarial_variants = []
+
+    for plan in variant_plans:
+        variant_idx = plan.get("adv_variant_index", len(adversarial_variants))
+        logger.info(f"Generating adversarial variant {variant_idx}...")
+
+        variant_html, report = generate_adversarial_variant(
+            base_html=base_html_pages,
+            variant_plan=plan,
+            behavior=behavior,
+            attacker=attacker,
+        )
+
+        adversarial_variants.append((variant_html, report))
+
+        # Optionally save to disk
+        if output_dir:
+            variant_dir = output_dir / f"adversarial_v{variant_idx}"
+            variant_dir.mkdir(parents=True, exist_ok=True)
+
+            for page_id, html in variant_html.items():
+                file_name = page_id.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                (variant_dir / f"{file_name}.html").write_text(html, encoding="utf-8")
+
+            # Save report
+            (variant_dir / "injection_report.json").write_text(
+                json.dumps(report, indent=2), encoding="utf-8"
+            )
+
+            logger.info(f"Saved variant {variant_idx} to {variant_dir}")
+
+    # Benign is just the original base HTML (unchanged)
+    benign_html = copy.deepcopy(base_html_pages)
+
+    if output_dir:
+        benign_dir = output_dir / "benign"
+        benign_dir.mkdir(parents=True, exist_ok=True)
+        for page_id, html in benign_html.items():
+            file_name = page_id.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+            (benign_dir / f"{file_name}.html").write_text(html, encoding="utf-8")
+        logger.info(f"Saved benign variant to {benign_dir}")
+
+    logger.info(
+        f"Pipeline complete: 1 benign + {len(adversarial_variants)} adversarial variant(s)"
+    )
+
+    return benign_html, adversarial_variants
+
+
 def analyze_results(results: list, verbose: bool = True) -> dict:
     """
     Unified analysis for redteam results - works for benign-only, adversarial-only, or both.
@@ -1628,6 +1839,11 @@ class RedteamBenchmark(AbstractBenchmark):
     # Skip link validation (useful for debugging when LLM generates broken links)
     skip_link_validation: bool = False
 
+    # Use new zone-based injection pipeline instead of placeholder-based
+    # When True: Analyzes HTML zones, plans diverse attacks, applies changes
+    # When False: Uses placeholder-based content generation (legacy)
+    use_injection_pipeline: bool = False
+
     def model_post_init(self, __context: Any) -> None:
         """Load benchmark JSON and create env_args_list."""
         self.env_args_list = []
@@ -1637,9 +1853,8 @@ class RedteamBenchmark(AbstractBenchmark):
             self.attack_channels = ["axtree"]
 
         if self.high_level_action_set_args is None:
-            self.high_level_action_set_args = HighLevelActionSetArgs(
-                subsets=["bid", "nav", "tab", "chat", "custom"],
-                custom_actions=[done_action],
+            self.high_level_action_set_args = RedteamActionSetArgs(
+                subsets=["bid", "nav", "tab", "chat"],
                 multiaction=False,
             )
 
@@ -1775,6 +1990,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 skip_link_validation=self.skip_link_validation,
                 success_condition=success_condition,
                 html_library_path=html_library_path,  # Absolute path for Ray workers
+                use_injection_pipeline=self.use_injection_pipeline,
             )
 
             # Initialize attacker agent with test_mode and safe_behavior

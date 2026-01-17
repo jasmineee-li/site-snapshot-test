@@ -826,10 +826,12 @@ class BasePlaywrightComputerTool:
             if "+" in single_key:
                 shifts += single_key.split("+")[:-1]
                 single_key = single_key.split("+")[-1]
-            for shift in shifts:
+            # Normalize modifier keys (e.g., ctrl -> Control)
+            normalized_shifts = [to_playwright_key(s) for s in shifts]
+            for shift in normalized_shifts:
                 await self.page.keyboard.down(shift)
             await self.page.keyboard.press(to_playwright_key(single_key))
-            for shift in shifts:
+            for shift in normalized_shifts:
                 await self.page.keyboard.up(shift)
 
 
@@ -1005,6 +1007,14 @@ def to_playwright_key(key: str) -> str:
         return "Backspace"
     if key == "alt":
         return "Alt"
+    if key.lower() == "ctrl":
+        return "Control"
+    if key.lower() == "shift":
+        return "Shift"
+    if key.lower() in ("meta", "cmd", "command"):
+        return "Meta"
+    if key.lower() == "control":
+        return "Control"
     print(f"Key {key} is not properly mapped into playwright")
     return key
 

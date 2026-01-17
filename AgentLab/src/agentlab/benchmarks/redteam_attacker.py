@@ -32,6 +32,8 @@ from agentlab.benchmarks.llm_utils import OpenRouterLLMClient, strip_code_fences
 from agentlab.benchmarks.redteam_prompts import (
     get_attacker_system_prompt,
     get_placeholder_content_prompt,
+    get_variant_planning_prompt,
+    get_change_content_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -326,6 +328,185 @@ class RedteamAttackerAgent:
         # All retries exhausted
         logger.error(f"All {max_retries} attempts failed for {placeholder_id}")
         raise last_error or Exception(f"Placeholder content generation failed after {max_retries} attempts")
+
+    def plan_adversarial_variants(
+        self,
+        base_html_pages: dict[str, str],
+        behavior: dict,
+        n_variants: int,
+        attack_channels: list[str],
+    ) -> list[dict]:
+        """
+        Phase 2: Analyze HTML and plan N diverse attack variants.
+
+        This method analyzes the base HTML pages and generates a plan for each
+        adversarial variant, specifying which zones to attack and which techniques
+        to use. Each variant uses different zones/techniques for diversity.
+
+        Args:
+            base_html_pages: Dict mapping page_id to HTML content
+            behavior: Behavior config dict with 'doc', 'target', etc.
+            n_variants: Number of adversarial variants to generate
+            attack_channels: List of channels agent observes ["html", "axtree", "visual"]
+
+        Returns:
+            List of variant plans, each with structure:
+            {
+                "adv_variant_index": 0,
+                "strategy_description": "...",
+                "changes": [
+                    {"page_id": "...", "selector": "...", "method": "...", ...},
+                    ...
+                ]
+            }
+        """
+        self.initialize()
+
+        prompt = get_variant_planning_prompt(
+            base_html_pages=base_html_pages,
+            behavior=behavior,
+            n_variants=n_variants,
+            attack_channels=attack_channels,
+        )
+
+        logger.info(f"Planning {n_variants} adversarial variant(s)...")
+
+        max_retries = 3
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                response = self.llm.chat_simple([{"role": "user", "content": prompt}])
+
+                if not response or len(response.strip()) == 0:
+                    logger.warning(f"Attempt {attempt + 1}/{max_retries}: Empty response from LLM")
+                    last_error = Exception("Empty response from LLM")
+                    if attempt < max_retries - 1:
+                        time.sleep(2 ** attempt)
+                        continue
+                    raise last_error
+
+                response_clean = strip_code_fences(response)
+                variant_plans = json.loads(response_clean)
+
+                # Validate structure
+                if not isinstance(variant_plans, list):
+                    variant_plans = [variant_plans]
+
+                # Ensure each variant has required fields
+                for i, plan in enumerate(variant_plans):
+                    if "adv_variant_index" not in plan:
+                        plan["adv_variant_index"] = i
+                    if "changes" not in plan:
+                        plan["changes"] = []
+                    if "strategy_description" not in plan:
+                        plan["strategy_description"] = f"Variant {i}"
+
+                logger.info(
+                    f"✓ Generated {len(variant_plans)} variant plan(s) with "
+                    f"{sum(len(p.get('changes', [])) for p in variant_plans)} total changes"
+                )
+
+                return variant_plans
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Attempt {attempt + 1}/{max_retries}: Failed to parse JSON: {e}")
+                logger.error(f"Response: {response[:1000] if response else 'None'}")
+                last_error = Exception(f"Variant planning failed - invalid JSON: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1}/{max_retries}: Error: {e}")
+                last_error = e
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+
+        logger.error(f"All {max_retries} attempts failed for variant planning")
+        raise last_error or Exception(f"Variant planning failed after {max_retries} attempts")
+
+    def generate_change_content(
+        self,
+        change: dict,
+        behavior: dict,
+        page_html: str,
+    ) -> str:
+        """
+        Phase 3: Generate actual HTML content for one change.
+
+        Handles both content deception (visible changes) and prompt injection
+        (hidden attacks) based on whether the change has an 'injection_content_description'.
+
+        Args:
+            change: Change dict from variant plan containing:
+                - selector: CSS selector for target element
+                - method: How to apply (replace, append, prepend, etc.)
+                - description: For content deception - what to generate
+                - injection_content_description: For prompt injection - the payload
+                - attack_type: Type of injection (hidden_text, banner_ad, etc.)
+                - technique: Attack technique to apply
+            behavior: Behavior config dict with 'doc', 'target', etc.
+            page_html: Current HTML of the page being modified
+
+        Returns:
+            Raw HTML string ready for insertion
+        """
+        self.initialize()
+
+        prompt = get_change_content_prompt(
+            change=change,
+            behavior=behavior,
+            page_html=page_html,
+        )
+
+        change_type = "injection" if "injection_content_description" in change else "content"
+        selector = change.get("selector", "unknown")
+        logger.info(f"Generating {change_type} content for selector: {selector}")
+
+        max_retries = 3
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                response = self.llm.chat_simple([{"role": "user", "content": prompt}])
+
+                if not response or len(response.strip()) == 0:
+                    logger.warning(f"Attempt {attempt + 1}/{max_retries}: Empty response from LLM")
+                    last_error = Exception("Empty response from LLM")
+                    if attempt < max_retries - 1:
+                        time.sleep(2 ** attempt)
+                        continue
+                    raise last_error
+
+                # Strip code fences if present
+                content = strip_code_fences(response).strip()
+
+                # Basic validation - should look like HTML
+                if not content.startswith("<"):
+                    logger.warning(f"Response doesn't look like HTML: {content[:100]}")
+                    # Try to extract HTML from response
+                    import re
+                    html_match = re.search(r'<[^>]+>.*</[^>]+>', content, re.DOTALL)
+                    if html_match:
+                        content = html_match.group(0)
+                    else:
+                        # Wrap in span as fallback
+                        content = f"<span>{content}</span>"
+
+                logger.info(f"✓ Generated {len(content)} chars of {change_type} content")
+                return content
+
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1}/{max_retries}: Error: {e}")
+                last_error = e
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+
+        logger.error(f"All {max_retries} attempts failed for change content generation")
+        raise last_error or Exception(f"Change content generation failed after {max_retries} attempts")
 
 
 # ============================================================================
