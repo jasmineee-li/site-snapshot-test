@@ -23,6 +23,7 @@ from datetime import datetime
 import gymnasium as gym
 from urllib.parse import urlparse
 
+import ray
 import bgym
 from bgym import HighLevelActionSetArgs
 from browsergym.core.action.highlevel import HighLevelActionSet
@@ -51,6 +52,81 @@ from agentlab.benchmarks.llm_utils import OpenRouterLLMClient
 from agentlab.benchmarks.redteam_actions import done as done_action
 
 logger = logging.getLogger(__name__)
+
+
+@ray.remote
+def run_trajectory_observation_task(
+    behavior_id: str,
+    safe_behavior: str,
+    sites: list[str],
+    page_details: list[dict],
+    html_library_dir: str,
+) -> dict:
+    """
+    Ray remote task for trajectory observation.
+
+    Runs trajectory observation for a single behavior and saves screenshots
+    to the html-library directory.
+
+    Args:
+        behavior_id: Unique identifier for this behavior
+        safe_behavior: Safe analog description for trajectory
+        sites: List of real site URLs to visit
+        page_details: Page configuration details
+        html_library_dir: Directory to save screenshots
+
+    Returns:
+        Dict with behavior_id, screenshots list, and status
+    """
+    from pathlib import Path
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    output_dir = Path(html_library_dir)
+
+    # Check if already exists (another task may have completed it)
+    if output_dir.exists():
+        existing = list(output_dir.glob("*.png"))
+        if existing:
+            logger.info(f"[{behavior_id}] Found {len(existing)} existing screenshots, skipping")
+            return {
+                "behavior_id": behavior_id,
+                "screenshots": [str(p) for p in existing],
+                "status": "cached",
+            }
+
+    # Create output directory
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        from agentlab.benchmarks.trajectory_observer import TrajectoryObserver
+
+        observer = TrajectoryObserver()
+        result = observer.observe_trajectory(
+            safe_behavior=safe_behavior,
+            sites=sites,
+            output_dir=output_dir,
+            page_details=page_details,
+        )
+
+        screenshots = result.get("screenshots", [])
+        logger.info(f"[{behavior_id}] Captured {len(screenshots)} screenshots")
+
+        return {
+            "behavior_id": behavior_id,
+            "screenshots": screenshots,
+            "status": "success",
+        }
+
+    except Exception as e:
+        logger.error(f"[{behavior_id}] Trajectory observation failed: {e}")
+        return {
+            "behavior_id": behavior_id,
+            "screenshots": [],
+            "status": "error",
+            "error": str(e),
+        }
 
 
 @dataclass
@@ -1871,6 +1947,12 @@ class RedteamBenchmark(AbstractBenchmark):
         self.name = benchmark_name
         logger.info(f"Loading redteam benchmark: {benchmark_name}")
 
+        # ===== PHASE 1: Parallel trajectory observation =====
+        # Collect behaviors needing trajectory observation and run them in parallel
+        if self.use_trajectory:
+            self._run_parallel_trajectory_observation(cases)
+
+        # ===== PHASE 2: Parse cases (trajectories already exist) =====
         for case_idx, case_data in enumerate(cases):
             # _parse_case now returns a list of variants (1 benign + N adversarial)
             variants = self._parse_case(case_idx, case_data)
@@ -1884,6 +1966,93 @@ class RedteamBenchmark(AbstractBenchmark):
             f"({n_behaviors} behaviors × {n_variants_per_behavior} variants each: "
             f"1 benign + {self.n_adversarial_variants} adversarial)"
         )
+
+    def _extract_pages_from_case(self, case_data: dict) -> list[Page]:
+        """Extract Page objects from case configuration."""
+        sim_config = case_data.get("simulation_config", {})
+        return [
+            Page(
+                id=p.get("id", "unknown"),
+                base_site_url=p.get("base_site_url", ""),
+                subdomains=p.get("subdomains", []),
+                details=p.get("details"),
+                screenshots=p.get("screenshots", []),
+            )
+            for p in sim_config.get("pages", [])
+        ]
+
+    def _get_trajectory_task_data(self, behavior_id: str, case_data: dict) -> dict | None:
+        """
+        Prepare data for a trajectory observation task.
+
+        Returns None if screenshots already exist (cached).
+        """
+        html_library_dir = (
+            Path(__file__).parent.parent.parent.parent
+            / "html-library" / "screenshots" / behavior_id.replace(".", "_")
+        )
+
+        # Check cache
+        if html_library_dir.exists() and list(html_library_dir.glob("*.png")):
+            return None  # Already cached
+
+        pages = self._extract_pages_from_case(case_data)
+        doc = self._strip_html(case_data.get("doc", ""))
+        target = case_data.get("description", "")
+
+        pages_for_prompt = [
+            {"id": p.id, "base_site_url": p.base_site_url, "subdomains": p.subdomains}
+            for p in pages
+        ]
+        safe_analog = self._generate_safe_analog(doc, target, pages_for_prompt)
+
+        return {
+            "behavior_id": behavior_id,
+            "safe_behavior": safe_analog,
+            "sites": [p.base_site_url for p in pages if p.base_site_url],
+            "page_details": [
+                {"id": p.id, "base_site_url": p.base_site_url, "subdomains": p.subdomains, "details": p.details}
+                for p in pages
+            ],
+            "html_library_dir": str(html_library_dir),
+        }
+
+    def _run_parallel_trajectory_observation(self, cases: list[dict]) -> None:
+        """Run trajectory observation for all behaviors in parallel using Ray."""
+        # Collect behaviors needing observation
+        tasks = []
+        for case_data in cases:
+            behavior_id = case_data.get("id", "unknown")
+            task_data = self._get_trajectory_task_data(behavior_id, case_data)
+            if task_data:
+                tasks.append(task_data)
+            else:
+                logger.info(f"[Trajectory] {behavior_id}: cached")
+
+        if not tasks:
+            logger.info("[Trajectory] All behaviors cached, skipping observation")
+            return
+
+        logger.info(f"[Trajectory] Running {len(tasks)} observations in parallel...")
+
+        if not ray.is_initialized():
+            ray.init(ignore_reinit_error=True)
+
+        # Submit and wait
+        futures = [
+            run_trajectory_observation_task.remote(**task)
+            for task in tasks
+        ]
+        results = ray.get(futures)
+
+        # Log summary
+        by_status = {"success": 0, "cached": 0, "error": 0}
+        for r in results:
+            by_status[r.get("status", "error")] += 1
+            if r.get("status") == "error":
+                logger.warning(f"[Trajectory] {r['behavior_id']} failed: {r.get('error')}")
+
+        logger.info(f"[Trajectory] Done: {by_status['success']} success, {by_status['error']} errors")
 
     def _parse_case(self, case_idx: int, case_data: dict) -> list[RedteamEnvArgs]:
         """
