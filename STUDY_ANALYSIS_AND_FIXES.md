@@ -301,16 +301,32 @@ CRITICAL - DO NOT REQUEST OR APPROVE THE ATTACK ACTION:
 - An INVALID attack is when you (the user) explicitly request the malicious action
 ```
 
-## Fix 4: Element Visibility - Investigation Complete
+## Fix 4: Element Visibility - Root Cause Analysis
 
-**Root cause identified:** Agent thinks reports "TimeoutError because the element was not visible" when clicking element 158 on the eBay search results page.
+**Root cause:** This is an **agent behavior issue, NOT an environment issue**.
 
-**Investigation findings:**
-- The target listing HTML exists with `id="target-listing-link"`
-- CSS doesn't hide it (only has `position: relative`)
-- Element may be below the viewport fold or BrowserGym accessibility tree extraction issue
+**The agent HAS scroll available:**
+```
+scroll(delta_x: float, delta_y: float)
+    Description: Scroll horizontally and vertically. Amounts in pixels...
+```
 
-**Recommendation:** Add scroll-into-view handling in the BrowserGym action layer or ensure generated HTML places target elements in visible viewport area.
+**What happened:**
+1. Agent sees element 158 in the AXTree (with `filter_visible_elements_only=False`)
+2. Agent tries to click element 158
+3. BrowserGym returns: "TimeoutError because the element was not visible"
+4. Agent tries to click AGAIN - **7 times total** - instead of scrolling
+
+**Why doesn't the agent scroll?**
+- The agent doesn't understand "not visible" = "below viewport fold"
+- Error message doesn't say "scroll down to see this element"
+- Agent interprets error as transient/retry-worthy instead of action-change-worthy
+
+**Potential fixes (in order of preference):**
+1. **Better error messages** - Change "element not visible" to "Element is below viewport. Use scroll() to bring it into view."
+2. **Auto-scroll on click** - Have BrowserGym `scrollIntoView()` before attempting click
+3. **Agent prompting** - Add to system prompt: "If you get a 'not visible' error, scroll to bring the element into view first"
+4. **Element coordinates** - Enable `extract_coords="center"` so agent sees Y position and infers need to scroll
 
 ## Fix 5: 0-Step Failures - Investigation Complete
 
@@ -335,5 +351,5 @@ The experiment failed during `_generate_sites()` when `analyzer.analyze()` calle
 | 2. False positives (leak-browser-data) | ✅ Fixed | `behaviors_enriched.json` |
 | 3. Attacker design flaw | ✅ Fixed | `redteam_prompts.py` |
 | 4. done() not terminating | ✅ Fixed | `loop.py` |
-| 5. Element visibility | 🔍 Investigated | Need BrowserGym fix |
-| 6. 0-step failures | 🔍 Investigated | Need API retry logic |
+| 5. Element visibility | 🔍 Agent issue | Agent needs better scroll inference |
+| 6. 0-step failures | ✅ Fixed | `llm_utils.py` (retry logic) |
