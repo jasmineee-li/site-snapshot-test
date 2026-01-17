@@ -827,6 +827,19 @@ class ExpArgs:
                     next_step.from_step(env, action, agent.obs_preprocessor)
                     episode_info.append(next_step)  # Always record the step
                     step_count += 1
+
+                    # IMPORTANT: Inject chat_messages and update goal in env response step's
+                    # observation before saving, so it has the same context as agent steps
+                    next_step.obs["chat_messages"] = chat_messages.copy()
+                    # Also update goal to match the current turn's user message (not env's default)
+                    if chat_messages:
+                        current_user_msg = next(
+                            (m["message"] for m in reversed(chat_messages) if m["role"] == "user"),
+                            None
+                        )
+                        if current_user_msg:
+                            next_step.obs["goal"] = current_user_msg
+                            next_step.obs["goal_object"] = [{"type": "text", "text": current_user_msg}]
                     obs = next_step.obs
 
                     # Save environment response step (with screenshot)
