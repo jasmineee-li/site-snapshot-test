@@ -871,7 +871,16 @@ class ExpArgs:
         return episode_info
 
     def _extract_message_from_action(self, action: str) -> str:
-        """Extract message text from send_msg_to_user action."""
+        """Extract message text from send_msg_to_user or done() action."""
+        # First check for done() action - returns message with DONE_MARKER prefix
+        done_match = re.search(r'done\(["\'](.+?)["\']\)', action)
+        if done_match:
+            return f"{DONE_MARKER}: {done_match.group(1)}"
+
+        # Check for done() with no args
+        if re.search(r'done\(\s*\)', action):
+            return f"{DONE_MARKER}: Task completed"
+
         # Parse action string like: send_msg_to_user("Hello user")
         match = re.search(r'send_msg_to_user\(["\'](.+?)["\']\)', action)
         return match.group(1) if match else action
