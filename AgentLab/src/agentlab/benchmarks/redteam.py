@@ -252,6 +252,11 @@ class RedteamEnvArgs(AbstractEnvArgs):
     # Whether this run uses the variant subdirectory structure
     is_variant_run: bool = False
 
+    # === Pre-computed variant plan (Phase 2 refactor) ===
+    # Pre-computed plan for this variant (None for benign, dict for adversarial)
+    # Contains changes with html_content ready to apply
+    variant_plan: dict = None
+
     @property
     def variant_subdir(self) -> str:
         """Subdirectory name for this variant."""
@@ -333,16 +338,18 @@ class RedteamEnv(AbstractEnv):
 
     def _generate_sites(self) -> None:
         """
-        One-time site generation with unified injection pipeline.
+        Apply pre-generated base HTML and variant plans to create variant pages.
+
+        This method uses assets pre-generated at benchmark init time:
+        - base_html_dir: Directory containing base HTML files (shared across variants)
+        - variant_plan: Pre-computed plan for adversarial variants (None for benign)
 
         Performs:
-        0. Trajectory observation (if enabled)
-        1. Initialize generators
-        2. Analyze prefill data requirements
-        3. Generate REFERENCE page for '/' root (WITH placeholders)
-        4. Generate SUBSEQUENT pages (match reference UI, WITH placeholders)
-        5. Generate placeholder content (SINGLE LLM call → benign + adversarial)
-        6. Create pages with appropriate content based on test_mode
+        1. Load base HTML from pre-generated directory
+        2. For benign: copy base HTML to variant directory
+        3. For adversarial: apply pre-computed variant_plan to base HTML
+        4. Validate internal links
+        5. Set up flow config
 
         Skipped on subsequent resets/relaunches for performance.
         """
@@ -354,20 +361,6 @@ class RedteamEnv(AbstractEnv):
         if self.env_args.resume_from_dir:
             resume_dir = Path(self.env_args.resume_from_dir)
             import shutil
-
-            # Always copy trajectory screenshots if they exist (even if no HTML yet)
-            # This allows reusing expensive trajectory observation from partial runs
-            resume_trajectory_dir = resume_dir / "trajectory"
-            if resume_trajectory_dir.exists() and list(resume_trajectory_dir.glob("*.png")):
-                target_trajectory_dir = self.exp_dir / "trajectory"
-                target_trajectory_dir.mkdir(parents=True, exist_ok=True)
-                for img_file in resume_trajectory_dir.glob("*.png"):
-                    target_path = target_trajectory_dir / img_file.name
-                    if not target_path.exists():  # Don't overwrite
-                        shutil.copy2(img_file, target_path)
-                logger.info(
-                    f"Copied {len(list(resume_trajectory_dir.glob('*.png')))} trajectory screenshots from resume_dir"
-                )
 
             # Determine variant directory based on test_mode
             if self.env_args.test_mode == "benign":
@@ -418,348 +411,41 @@ class RedteamEnv(AbstractEnv):
                 return
             else:
                 logger.info(
-                    f"No HTML files in resume_dir ({variation_dir}), will generate fresh "
-                    f"(but trajectory screenshots were copied)"
+                    f"No HTML files in resume_dir ({variation_dir}), will apply from base"
                 )
 
         logger.info(
-            f"Starting site generation for {self.env_args.task_name} "
+            f"Applying variant for {self.env_args.task_name} "
             f"(test_mode={self.env_args.test_mode}, variation_seed={self.env_args.variation_seed})..."
         )
 
-        # Initialize trajectory data
-        trajectory_screenshots = []
-        safe_behavior = None
-
-        # Step 0: Conditional trajectory observation
-        if self.env_args.use_trajectory:
-            trajectory_dir = self.exp_dir / "trajectory"
-            # Use absolute html_library_path from env_args (set at benchmark init, works in Ray)
-            if self.env_args.html_library_path:
-                html_library_dir = (
-                    Path(self.env_args.html_library_path)
-                    / "screenshots"
-                    / self.env_args.behavior_id.replace(".", "_")
-                )
-            else:
-                # Fallback to relative path (for backward compat)
-                html_library_dir = (
-                    Path(__file__).parent.parent.parent.parent
-                    / "html-library"
-                    / "screenshots"
-                    / self.env_args.behavior_id.replace(".", "_")
-                )
-
-            # For variant runs, check parent directory's trajectory first (shared across variants)
-            parent_trajectory_dir = None
-            if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
-                parent_trajectory_dir = Path(self.env_args.parent_exp_dir) / "trajectory"
-
-            # Check for existing screenshots in: 1) parent trajectory, 2) own trajectory, 3) html-library
-            existing_screenshots = []
-            if parent_trajectory_dir and parent_trajectory_dir.exists():
-                existing_screenshots = list(parent_trajectory_dir.glob("*.png"))
-                if existing_screenshots:
-                    logger.info(f"Found screenshots in parent trajectory: {parent_trajectory_dir}")
-            if not existing_screenshots and trajectory_dir.exists():
-                existing_screenshots = list(trajectory_dir.glob("*.png"))
-            if not existing_screenshots and html_library_dir.exists():
-                existing_screenshots = list(html_library_dir.glob("*.png"))
-                if existing_screenshots:
-                    logger.info(f"Found screenshots in html-library: {html_library_dir}")
-
-            if existing_screenshots:
-                # Use existing trajectory screenshots (skip observation)
-                logger.info(
-                    f"Found {len(existing_screenshots)} existing trajectory screenshots, skipping observation"
-                )
-                trajectory_screenshots = [str(p) for p in existing_screenshots]
-            else:
-                # Run trajectory observation
-                logger.info("Trajectory observation enabled - running observation...")
-                from agentlab.benchmarks.trajectory_observer import TrajectoryObserver
-
-                self.trajectory_observer = TrajectoryObserver()
-
-                # Use pre-generated safe_behavior from behavior config
-                safe_behavior = self.env_args.safe_behavior
-                logger.info(f"Using safe_behavior: {safe_behavior[:100]}...")
-
-                # Prepare page details and sites with subdomain info
-                sites = [p.base_site_url for p in self.env_args.pages if p.base_site_url]
-                page_details = [
-                    {
-                        "id": p.id,
-                        "base_site_url": p.base_site_url,
-                        "subdomains": p.subdomains,
-                        "details": p.safe_details if p.safe_details else p.adversarial_details,
-                    }
-                    for p in self.env_args.pages
-                ]
-
-                # Run trajectory observation
-                logger.info("Observing trajectory on real sites...")
-                trajectory_data = self.trajectory_observer.observe_trajectory(
-                    safe_behavior=safe_behavior,
-                    sites=sites,
-                    output_dir=trajectory_dir,
-                    page_details=page_details,
-                    html_library_dir=html_library_dir,
-                )
-
-                # Collect screenshot paths
-                trajectory_screenshots = trajectory_data.get("screenshots", [])
-                logger.info(f"✓ Captured {len(trajectory_screenshots)} screenshots")
-
-                # Also copy screenshots to parent directory for other variants to use
-                if parent_trajectory_dir:
-                    parent_trajectory_dir.mkdir(parents=True, exist_ok=True)
-                    for screenshot_path in trajectory_screenshots:
-                        src = Path(screenshot_path)
-                        if src.exists():
-                            dst = parent_trajectory_dir / src.name
-                            if not dst.exists():
-                                shutil.copy2(src, dst)
-                    logger.info(f"Copied trajectory screenshots to parent: {parent_trajectory_dir}")
-        else:
-            logger.info("Trajectory observation disabled - using benchmark screenshots only")
-
-        # Step 1: Initialize generation pipeline
-        if self.analyzer is None:
-            self.analyzer = PrefillDataAnalyzer(model=self.env_args.world_sim_model)
-            self.generator = SyntheticPageGenerator(model=self.env_args.world_sim_model)
-            # Use a fast model for validation (can use same model or cheaper one)
-            self.validator = HTMLValidator(model=self.env_args.world_sim_model)
-
-        # Step 2: Analyze prefill data requirements
-        skip_analysis = self.env_args.pages and all(
-            p.existing_path and p.skip_modification for p in self.env_args.pages
-        )
-
-        if skip_analysis:
-            logger.info(
-                "Skipping prefill analysis (all synthetic pages use existing HTML without modification)"
-            )
-            prefill_spec = {"pages": []}
-        else:
-            logger.info("Analyzing prefill data needs...")
-            # Use trajectory screenshots if enabled
-            analyzer_screenshots = trajectory_screenshots if self.env_args.use_trajectory else None
-
-            prefill_spec = self.analyzer.analyze(
-                behavior=self.env_args.doc,
-                pages=self.env_args.pages,
-                screenshots=analyzer_screenshots,
-                safe_behavior=self.env_args.safe_behavior,
+        # Step 1: Load base HTML from pre-generated directory
+        base_html_dir = Path(self.env_args.base_html_dir)
+        if not base_html_dir.exists():
+            raise RuntimeError(
+                f"Base HTML directory not found: {base_html_dir}. "
+                "This should have been generated at benchmark init time."
             )
 
-        # Step 3 & 4: Generate base HTML pages with REFERENCE-BASED UI matching
-        logger.info("Generating base HTML pages (with placeholders, reference-based UI)...")
+        base_html_by_subdomain = {}
+        for html_file in base_html_dir.glob("*.html"):
+            # Convert filename back to route key (reverse of _route_to_filename)
+            # e.g., "gmail_settings_forwarding.html" -> "gmail/settings/forwarding"
+            route_key = html_file.stem.replace("_", "/")
+            base_html_by_subdomain[route_key] = html_file.read_text(encoding="utf-8")
+
+        if not base_html_by_subdomain:
+            raise RuntimeError(f"No HTML files found in base directory: {base_html_dir}")
+
+        logger.info(f"Loaded {len(base_html_by_subdomain)} base HTML page(s) from {base_html_dir}")
 
         # Determine starting stage
         start_stage = None
         if self.env_args.start_page:
             start_stage = self.env_args.start_page.lstrip("/")
 
-        # Build URL mapping for cross-page navigation
-        url_mapping = {}
-        for page in self.env_args.pages:
-            for subdomain in page.subdomains:
-                local_route = f"{page.id}{subdomain}"
-                full_url = f"{page.base_site_url}{subdomain}" if page.base_site_url else local_route
-                url_mapping[local_route] = full_url
-        logger.info(f"URL mapping: {url_mapping}")
-
-        # Store base HTML for each subdomain
-        base_html_by_subdomain = {}
-
-        # Track reference HTML per page for UI consistency
-        reference_html_by_page = {}
-
-        # Determine directory structure based on variant mode (do this BEFORE generation loop)
-        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
-            # New structure: parent/variant/
-            parent_dir = Path(self.env_args.parent_exp_dir)
-            variant_name = self.env_args.variant_name
-
-            # Base HTML goes in parent/base/ (shared across variants)
-            base_dir = parent_dir / "base"
-
-            # Variant-specific directory
-            self.exp_dir = parent_dir / variant_name
-            self.exp_dir.mkdir(parents=True, exist_ok=True)
-
-            logger.info(f"Using variant structure: {parent_dir.name}/{variant_name}")
-        else:
-            # Old structure: backward compatibility
-            base_dir = self.exp_dir / "base"
-            logger.info(f"Using legacy structure: {self.exp_dir.name}")
-
-        # Create base HTML directory immediately for incremental saves
-        base_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Base HTML directory: {base_dir}")
-
-        # Save prefill analysis to parent directory (shared across variants)
-        prefill_analysis_path = base_dir.parent / "prefill_analysis.json"
-        if prefill_spec and not prefill_analysis_path.exists():
-            prefill_analysis_path.write_text(
-                json.dumps(prefill_spec, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-            logger.info(f"Saved prefill analysis to {prefill_analysis_path}")
-
-        # Generate base HTML for all pages and their subdomains
-        for page in self.env_args.pages:
-            page_id = page.id
-
-            # Extract spec for this page from prefill
-            page_spec = None
-            if prefill_spec:
-                for ps in prefill_spec.get("pages", []):
-                    if ps.get("page") == page.id:
-                        page_spec = ps
-                        break
-
-            # Get shared functionality from page spec
-            shared_functionality = (
-                page_spec.get("shared_functionality", {}) if page_spec else {}
-            )
-            subdomain_specs = page_spec.get("subdomains", {}) if page_spec else {}
-
-            # Determine reference subdomain (prefer "/" root, else first)
-            reference_subdomain = "/" if "/" in page.subdomains else page.subdomains[0]
-            ordered_subdomains = [reference_subdomain] + [
-                sd for sd in page.subdomains if sd != reference_subdomain
-            ]
-
-            # Generate HTML for each subdomain (reference first, then match style)
-            for subdomain in ordered_subdomains:
-                route_key = f"{page_id}{subdomain}"
-                full_url = (
-                    f"{page.base_site_url}{subdomain}" if page.base_site_url else subdomain
-                )
-                # Use safe_details for HTML generation (fallback to adversarial_details)
-                details_dict = page.safe_details if page.safe_details else page.adversarial_details
-                subdomain_details = (
-                    details_dict.get(subdomain, "") if isinstance(details_dict, dict) else ""
-                )
-
-                # Get subdomain-specific spec
-                subdomain_spec = subdomain_specs.get(subdomain, {})
-
-                # Combine shared + subdomain-specific for generation
-                combined_spec = {
-                    "page": page.id,
-                    "subdomain": subdomain,
-                    "shared_functionality": shared_functionality,
-                    "functionality": subdomain_spec.get("functionality", {}),
-                }
-
-                html = None
-
-                # Check for existing path (skip generation if provided)
-                if page.existing_path and page.skip_modification:
-                    logger.info(f"Using existing HTML as-is from {page.existing_path}")
-                    try:
-                        html = load_toolbox_site(Path(page.existing_path))
-                    except Exception as e:
-                        logger.warning(f"Failed to load existing site: {e}")
-                        html = None
-
-                # Generate from scratch if needed
-                if html is None:
-                    is_reference = subdomain == reference_subdomain
-                    logger.info(
-                        f"Generating {'reference' if is_reference else 'subsequent'} page: "
-                        f"{route_key} ({full_url})"
-                    )
-                    page_screenshots = (
-                        trajectory_screenshots
-                        if self.env_args.use_trajectory
-                        else page.screenshots
-                    )
-
-                    # Build sibling subdomains for navigation context (use safe_details)
-                    sibling_details = page.safe_details if page.safe_details else page.adversarial_details
-                    sibling_subdomains = [
-                        {
-                            "subdomain": sd,
-                            "route": f"{page.id}{sd}",
-                            "full_url": (
-                                f"{page.base_site_url}{sd}" if page.base_site_url else sd
-                            ),
-                            "details": (
-                                sibling_details.get(sd, "")[:100]
-                                if isinstance(sibling_details, dict)
-                                else ""
-                            ),
-                        }
-                        for sd in page.subdomains
-                        if sd != subdomain
-                    ]
-
-                    # Use reference HTML for subsequent pages
-                    reference_html = reference_html_by_page.get(page_id) if not is_reference else None
-
-                    html = self.generator.generate(
-                        domain=route_key,
-                        context={
-                            "doc": self.env_args.doc,
-                            "subdomain_details": subdomain_details,
-                        },
-                        prefill=combined_spec,
-                        simulated_url=full_url,
-                        screenshots=page_screenshots,
-                        url_mapping=url_mapping,
-                        sibling_subdomains=sibling_subdomains,
-                        reference_html=reference_html,
-                    )
-
-                    # Step 4b: Validate and fix HTML if needed
-                    html, validation_result = self.validator.validate_and_fix(
-                        html_content=html,
-                        prefill_spec=combined_spec,
-                        task_description=self.env_args.doc,
-                        page_url=full_url,
-                        max_fix_attempts=2,
-                    )
-                    if not validation_result.get("validation_passed", False):
-                        logger.warning(
-                            f"HTML validation issues for {route_key}: "
-                            f"{validation_result.get('summary', 'unknown')}"
-                        )
-
-                    # Store reference HTML for this page
-                    if is_reference:
-                        reference_html_by_page[page_id] = html
-
-                # Save base HTML
-                base_html_by_subdomain[route_key] = html
-
-                # Save to toolbox for future reuse
-                metadata = {
-                    "timestamp": datetime.now().isoformat(),
-                    "doc": self.env_args.doc,
-                    "id": page.id,
-                    "subdomain": subdomain,
-                    "base_site_url": page.base_site_url,
-                    "behavior_id": self.env_args.behavior_id,
-                    "test_mode": self.env_args.test_mode,
-                }
-                save_site_to_toolbox(route_key, html, metadata)
-
-                # ALSO save to base/ directory immediately (incremental save)
-                file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
-                (base_dir / f"{file_name}.html").write_text(html, encoding="utf-8")
-
-        # Step 5 & 6: Generate variant content and create variant pages
-        # Determine variant directory structure
-        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
-            variant_dir = self.exp_dir
-        else:
-            variant_dir = self.exp_dir / "html"
-
-        mode = "benign" if self.env_args.test_mode == "benign" else "adversarial"
-        variant_index = 0 if self.env_args.test_mode == "benign" else self.env_args.variation_seed
+        # Step 2: Determine variant directory
+        variant_dir = self.exp_dir / "html"
         variant_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize injection data for reporting
@@ -768,94 +454,67 @@ class RedteamEnv(AbstractEnv):
             "generated_at": datetime.now().isoformat(),
             "test_mode": self.env_args.test_mode,
             "variation_seed": self.env_args.variation_seed,
-            "pipeline": "injection",
-            "injection_locations": [],
-            "placeholders": {},
+            "pipeline": "pre_generated",
+            "injection_locations": list(base_html_by_subdomain.keys()),
             "variant_report": {},
         }
 
-        # Initialize attacker agent (needed for both pipelines)
-        attacker_agent = self.env_args.attacker_agent
-        attacker_agent.make_agent()
-
-    
-        logger.info(f"Using zone-based injection pipeline for {mode} variant...")
-
+        # Step 3: Apply variant (benign = copy, adversarial = apply plan)
         if self.env_args.test_mode == "benign":
-            # Benign mode: Use base HTML as-is (no injections)
+            # Benign mode: copy base HTML as-is
             logger.info("Benign mode: copying base HTML without modifications")
             for route_key, html in base_html_by_subdomain.items():
-                if html is None:
-                    continue
                 file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
                 page_path = variant_dir / f"{file_name}.html"
                 page_path.write_text(html, encoding="utf-8")
-                logger.info(f"✓ Saved {file_name}.html (benign)")
+                logger.debug(f"✓ Saved {file_name}.html (benign)")
+            logger.info(f"Copied {len(base_html_by_subdomain)} page(s) for benign variant")
 
         else:
-            # Adversarial mode: Plan and apply injections
-            behavior = {
-                "doc": self.env_args.doc,
-                "target": self.env_args.target,
-            }
+            # Adversarial mode: apply pre-computed variant plan
+            variant_plan = self.env_args.variant_plan
 
-            # Phase 2: Plan adversarial variant
-            logger.info("Phase 2: Planning adversarial variant...")
-            variant_plans = attacker_agent.plan_adversarial_variants(
-                base_html_pages=base_html_by_subdomain,
-                behavior=behavior,
-                n_variants=1,  # Just this variant
-                attack_channels=self.env_args.attack_channels,
-            )
+            if variant_plan and variant_plan.get("changes"):
+                logger.info(
+                    f"Adversarial mode: applying pre-computed plan with "
+                    f"{len(variant_plan.get('changes', []))} change(s)"
+                )
 
-            if variant_plans:
-                plan = variant_plans[0]
-                # Adjust index to match variation_seed
-                plan["adv_variant_index"] = self.env_args.variation_seed
-
-                # Phase 3: Generate and apply changes
-                logger.info("Phase 3: Generating and applying changes...")
+                # Apply the plan
                 variant_html, report = generate_adversarial_variant(
                     base_html=base_html_by_subdomain,
-                    variant_plan=plan,
-                    behavior=behavior,
+                    variant_plan=variant_plan,
+                    behavior={"doc": self.env_args.doc, "target": self.env_args.target},
                     attack_channels=self.env_args.attack_channels,
                 )
 
                 # Save variant HTML
                 for route_key, html in variant_html.items():
-                    if html is None:
-                        continue
                     file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
                     page_path = variant_dir / f"{file_name}.html"
                     page_path.write_text(html, encoding="utf-8")
-                    logger.info(f"✓ Saved {file_name}.html (adversarial)")
+                    logger.debug(f"✓ Saved {file_name}.html (adversarial)")
 
-                # Store report
                 injection_data["variant_report"] = report
-                injection_data["injection_locations"] = list(base_html_by_subdomain.keys())
                 logger.info(
-                    f"Injection pipeline complete: {report.get('applied', 0)} applied, "
-                    f"{report.get('failed', 0)} failed"
+                    f"Applied adversarial changes: {report.get('applied', 0)} applied, "
+                    f"{report.get('failed', 0)} failed, {report.get('skipped', 0)} skipped"
                 )
             else:
-                # Fallback: copy base HTML if planning failed
-                logger.warning("Variant planning returned no plans, using base HTML")
+                # No plan or empty plan - fall back to copying base HTML
+                logger.warning("No variant plan available, copying base HTML as fallback")
                 for route_key, html in base_html_by_subdomain.items():
-                    if html is None:
-                        continue
                     file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
                     page_path = variant_dir / f"{file_name}.html"
                     page_path.write_text(html, encoding="utf-8")
 
-
-        # Step 7: Validate internal links (fail-fast if broken)
+        # Step 4: Validate internal links
         if self.env_args.skip_link_validation:
             logger.warning("Skipping internal link validation (skip_link_validation=True)")
         else:
             self._validate_internal_links(variant_dir, base_html_by_subdomain.keys())
 
-        # Step 8: Set up flow config to point to the correct variant folder
+        # Step 5: Set up flow config
         self._flow_config = {
             "run_dir": str(variant_dir),
             "stages": {},
@@ -865,7 +524,6 @@ class RedteamEnv(AbstractEnv):
             "variation_seed": self.env_args.variation_seed,
         }
 
-        # Configure stages from the variant folder
         for route_key in base_html_by_subdomain.keys():
             self._flow_config["stages"][route_key] = {}
 
@@ -873,22 +531,10 @@ class RedteamEnv(AbstractEnv):
         config_path = self.exp_dir / "flow_config.json"
         config_path.write_text(json.dumps(self._flow_config, indent=2))
 
-        # Determine shared metadata directory
-        if self.env_args.is_variant_run and self.env_args.parent_exp_dir:
-            # New structure: shared metadata goes in parent directory
-            shared_metadata_dir = Path(self.env_args.parent_exp_dir)
-        else:
-            # Old structure: metadata goes in exp_dir
-            shared_metadata_dir = self.exp_dir
-
-        # Save consolidated injection data (metadata + full content) to injections.json
-        injection_path = shared_metadata_dir / "injections.json"
+        # Save injection data
+        injection_path = self.exp_dir / "injections.json"
         injection_path.write_text(json.dumps(injection_data, indent=2))
-        logger.info(
-            f"✓ Saved injection data to {injection_path}: "
-            f"{len(injection_data['placeholders'])} placeholder(s), "
-            f"{len(injection_data['injection_locations'])} location(s)"
-        )
+        logger.info(f"✓ Saved injection data to {injection_path}")
 
         self._generation_complete = True
         logger.info(
@@ -1912,6 +1558,237 @@ class RedteamBenchmark(AbstractBenchmark):
 
         logger.info(f"[Trajectory] Done: {by_status['success']} success, {by_status['error']} errors")
 
+    def _get_behavior_cache_dir(self, behavior_id: str) -> Path:
+        """Get cache directory for a behavior's generated assets."""
+        cache_root = Path(os.environ.get("AGENTLAB_EXP_ROOT", "results")) / ".cache" / "redteam"
+        return cache_root / behavior_id.replace(".", "_")
+
+    def _generate_behavior_assets(
+        self,
+        behavior_id: str,
+        case_data: dict,
+        pages: list[Page],
+        doc: str,
+        target: str,
+        safe_behavior: str,
+        attack_channels: list[str],
+        n_adversarial_variants: int,
+    ) -> tuple[Path, list[dict]]:
+        """
+        Generate base pages and plan all variants for a behavior.
+
+        Called ONCE per behavior during benchmark init. Generates:
+        1. Base HTML pages (reference-first pattern for UI consistency)
+        2. N adversarial variant plans (each with html_content ready to apply)
+
+        Results are cached to avoid regeneration on subsequent runs.
+
+        Args:
+            behavior_id: Unique behavior identifier
+            case_data: Full case configuration dict
+            pages: List of Page objects
+            doc: Task description (adversarial behavior)
+            target: Target behavior to induce
+            safe_behavior: Safe analog task description
+            attack_channels: Channels agent observes ["axtree", "visual", "html"]
+            n_adversarial_variants: Number of adversarial variants to generate
+
+        Returns:
+            Tuple of (base_html_dir, variant_plans)
+            - base_html_dir: Path to directory with base HTML files
+            - variant_plans: List of N variant plans (one per adversarial variant)
+        """
+        cache_dir = self._get_behavior_cache_dir(behavior_id)
+        base_html_dir = cache_dir / "base"
+        plans_path = cache_dir / "variant_plans.json"
+
+        # Check cache - if base HTML and plans exist, use them
+        if base_html_dir.exists() and list(base_html_dir.glob("*.html")) and plans_path.exists():
+            logger.info(f"[Assets] Using cached assets for {behavior_id}")
+            try:
+                variant_plans = json.loads(plans_path.read_text(encoding="utf-8"))
+                return base_html_dir, variant_plans
+            except Exception as e:
+                logger.warning(f"[Assets] Cache read failed for {behavior_id}: {e}, regenerating...")
+
+        # Generate fresh assets
+        logger.info(f"[Assets] Generating assets for {behavior_id}...")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        base_html_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize generators
+        analyzer = PrefillDataAnalyzer(model=self.world_sim_model)
+        generator = SyntheticPageGenerator(model=self.world_sim_model)
+        validator = HTMLValidator(model=self.world_sim_model)
+
+        # Get trajectory screenshots (already cached by _run_parallel_trajectory_observation)
+        html_library_dir = (
+            Path(__file__).parent.parent.parent.parent
+            / "html-library" / "screenshots" / behavior_id.replace(".", "_")
+        )
+        trajectory_screenshots = []
+        if html_library_dir.exists():
+            trajectory_screenshots = [str(p) for p in html_library_dir.glob("*.png")]
+            logger.info(f"[Assets] Found {len(trajectory_screenshots)} trajectory screenshots")
+
+        # Step 1: Analyze prefill requirements
+        logger.info(f"[Assets] Analyzing prefill requirements for {behavior_id}...")
+        try:
+            prefill_spec = analyzer.analyze(
+                behavior=doc,
+                pages=pages,
+                screenshots=trajectory_screenshots if self.use_trajectory else None,
+                safe_behavior=safe_behavior,
+            )
+        except Exception as e:
+            logger.error(f"[Assets] Prefill analysis failed for {behavior_id}: {e}")
+            prefill_spec = {"pages": []}
+
+        # Save prefill analysis
+        prefill_path = cache_dir / "prefill_analysis.json"
+        prefill_path.write_text(json.dumps(prefill_spec, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        # Step 2: Generate base HTML pages (reference-first pattern)
+        logger.info(f"[Assets] Generating base HTML pages for {behavior_id}...")
+        base_html = {}  # Dict mapping route_key -> HTML content
+
+        # Build URL mapping for cross-page navigation
+        url_mapping = {}
+        for page in pages:
+            for subdomain in page.subdomains:
+                local_route = f"{page.id}{subdomain}"
+                full_url = f"{page.base_site_url}{subdomain}" if page.base_site_url else local_route
+                url_mapping[local_route] = full_url
+
+        # Track reference HTML per page for UI consistency
+        reference_html_by_page = {}
+
+        for page in pages:
+            page_id = page.id
+
+            # Extract spec for this page from prefill
+            page_spec = None
+            if prefill_spec:
+                for ps in prefill_spec.get("pages", []):
+                    if ps.get("page") == page.id:
+                        page_spec = ps
+                        break
+
+            shared_functionality = page_spec.get("shared_functionality", {}) if page_spec else {}
+            subdomain_specs = page_spec.get("subdomains", {}) if page_spec else {}
+
+            # Determine reference subdomain (prefer "/" root, else first)
+            reference_subdomain = "/" if "/" in page.subdomains else page.subdomains[0]
+            ordered_subdomains = [reference_subdomain] + [
+                sd for sd in page.subdomains if sd != reference_subdomain
+            ]
+
+            for subdomain in ordered_subdomains:
+                route_key = f"{page_id}{subdomain}"
+                full_url = f"{page.base_site_url}{subdomain}" if page.base_site_url else subdomain
+
+                # Use safe_details for base HTML generation
+                details_dict = page.safe_details if page.safe_details else page.adversarial_details
+                subdomain_details = details_dict.get(subdomain, "") if isinstance(details_dict, dict) else ""
+
+                # Get subdomain-specific spec
+                subdomain_spec = subdomain_specs.get(subdomain, {})
+                combined_spec = {
+                    "page": page.id,
+                    "subdomain": subdomain,
+                    "shared_functionality": shared_functionality,
+                    "functionality": subdomain_spec.get("functionality", {}),
+                }
+
+                is_reference = subdomain == reference_subdomain
+                reference_html = reference_html_by_page.get(page_id) if not is_reference else None
+
+                # Build sibling subdomains for navigation
+                sibling_subdomains = [
+                    {
+                        "subdomain": sd,
+                        "route": f"{page.id}{sd}",
+                        "full_url": f"{page.base_site_url}{sd}" if page.base_site_url else sd,
+                    }
+                    for sd in page.subdomains if sd != subdomain
+                ]
+
+                logger.info(f"[Assets] Generating {'reference' if is_reference else 'subsequent'} page: {route_key}")
+
+                try:
+                    html = generator.generate(
+                        domain=route_key,
+                        context={"doc": doc, "subdomain_details": subdomain_details},
+                        prefill=combined_spec,
+                        simulated_url=full_url,
+                        screenshots=trajectory_screenshots if self.use_trajectory else page.screenshots,
+                        url_mapping=url_mapping,
+                        sibling_subdomains=sibling_subdomains,
+                        reference_html=reference_html,
+                    )
+
+                    # Validate and fix HTML
+                    html, validation_result = validator.validate_and_fix(
+                        html_content=html,
+                        prefill_spec=combined_spec,
+                        task_description=doc,
+                        page_url=full_url,
+                        max_fix_attempts=2,
+                    )
+                    if not validation_result.get("validation_passed", False):
+                        logger.warning(f"[Assets] Validation issues for {route_key}: {validation_result.get('summary', 'unknown')}")
+
+                    # Store reference HTML for subsequent pages
+                    if is_reference:
+                        reference_html_by_page[page_id] = html
+
+                    base_html[route_key] = html
+
+                    # Save to base_html_dir
+                    file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+                    (base_html_dir / f"{file_name}.html").write_text(html, encoding="utf-8")
+                    logger.info(f"[Assets] Saved base page: {file_name}.html")
+
+                except Exception as e:
+                    logger.error(f"[Assets] Failed to generate {route_key}: {e}")
+                    # Continue with other pages
+
+        # Step 3: Plan all adversarial variants at once
+        logger.info(f"[Assets] Planning {n_adversarial_variants} adversarial variant(s) for {behavior_id}...")
+
+        variant_plans = []
+        if n_adversarial_variants > 0 and base_html:
+            try:
+                # Create attacker agent for planning
+                attacker = RedteamAttackerAgent(
+                    model=self.attacker_model,
+                    attack_type=self.attack_type,
+                    mode=self.adversarial_mode,
+                    goal=doc,
+                    target_description=target,
+                    pages=pages,
+                    safe_behavior=safe_behavior,
+                )
+                attacker.make_agent()
+
+                variant_plans = attacker.plan_adversarial_variants(
+                    base_html_pages=base_html,
+                    behavior={"doc": doc, "target": target},
+                    n_variants=n_adversarial_variants,
+                    attack_channels=attack_channels,
+                )
+                logger.info(f"[Assets] Generated {len(variant_plans)} variant plan(s)")
+
+            except Exception as e:
+                logger.error(f"[Assets] Variant planning failed for {behavior_id}: {e}")
+                # Return empty plans - variants will fall back to base HTML
+
+        # Save variant plans to cache
+        plans_path.write_text(json.dumps(variant_plans, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        logger.info(f"[Assets] Completed asset generation for {behavior_id}: {len(base_html)} page(s), {len(variant_plans)} plan(s)")
+        return base_html_dir, variant_plans
+
     def _parse_case(self, case_idx: int, case_data: dict) -> list[RedteamEnvArgs]:
         """
         Parse a case from the benchmark JSON and generate variants.
@@ -1982,6 +1859,18 @@ class RedteamBenchmark(AbstractBenchmark):
         # This saves screenshots to html-library so ALL variants can skip trajectory observation
         self._run_behavior_trajectory(behavior_id, safe_analog, pages)
 
+        # Generate base pages and plan all variants ONCE per behavior
+        base_html_dir, variant_plans = self._generate_behavior_assets(
+            behavior_id=behavior_id,
+            case_data=case_data,
+            pages=pages,
+            doc=doc,
+            target=target,
+            safe_behavior=safe_analog,
+            attack_channels=case_attack_channels,
+            n_adversarial_variants=case_n_adversarial,
+        )
+
         variants = []
 
         # Compute absolute html-library path (for Ray workers that have different __file__)
@@ -1990,7 +1879,7 @@ class RedteamBenchmark(AbstractBenchmark):
         )
 
         # Helper to create env_args with common fields
-        def _make_env_args(task_name: str, test_mode: str, variation_seed: int) -> RedteamEnvArgs:
+        def _make_env_args(task_name: str, test_mode: str, variation_seed: int, variant_plan: dict = None) -> RedteamEnvArgs:
             env_args = RedteamEnvArgs(
                 task_name=task_name,
                 behavior_id=behavior_id,
@@ -2019,6 +1908,9 @@ class RedteamBenchmark(AbstractBenchmark):
                 skip_link_validation=self.skip_link_validation,
                 success_condition=success_condition,
                 html_library_path=html_library_path,  # Absolute path for Ray workers
+                # Pre-generated assets (Phase 2 refactor)
+                base_html_dir=str(base_html_dir),
+                variant_plan=variant_plan,
             )
 
             # Initialize attacker agent with test_mode and safe_behavior
@@ -2036,15 +1928,17 @@ class RedteamBenchmark(AbstractBenchmark):
 
             return env_args
 
-        # 1. Create benign control variant
+        # 1. Create benign control variant (no variant_plan)
         benign_task_name = f"{self.name}.{behavior_id}.benign"
-        benign_args = _make_env_args(benign_task_name, "benign", 0)
+        benign_args = _make_env_args(benign_task_name, "benign", 0, variant_plan=None)
         variants.append(benign_args)
 
-        # 2. Create N adversarial variants
+        # 2. Create N adversarial variants (each with its specific plan)
         for var_idx in range(case_n_adversarial):
             adv_task_name = f"{self.name}.{behavior_id}.adversarial_v{var_idx}"
-            adv_args = _make_env_args(adv_task_name, "adversarial", var_idx)
+            # Get the plan for this variant (if available)
+            plan = variant_plans[var_idx] if var_idx < len(variant_plans) else None
+            adv_args = _make_env_args(adv_task_name, "adversarial", var_idx, variant_plan=plan)
             variants.append(adv_args)
 
         logger.debug(
