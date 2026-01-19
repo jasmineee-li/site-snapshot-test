@@ -332,8 +332,6 @@ PRESET_AGENTS = {
     ),
 }
 
-
-
 def get_safe_transformation_prompt(
     user_task: str,
     adversarial_behavior: str,

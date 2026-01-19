@@ -202,6 +202,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     tools_config: dict = None  # Tools configuration (messages, tools, custom_tool_schema)
     criteria: list = None  # Judging criteria
     judging: dict = None  # Judge configuration
+    judge_model: str = None  # LLM model for judges (overrides DEFAULT_JUDGE_MODEL)
 
     # Environment parameters (BrowserGym compatibility)
     headless: bool = True
@@ -1395,6 +1396,7 @@ class RedteamBenchmark(AbstractBenchmark):
     # Generation settings
     world_sim_model: str  # LLM for page generation and prefill analysis
     attacker_model: str  # LLM for attacker agent
+    judge_model: str = "google/gemini-2.5-flash"  # LLM for judges (passed to JudgeRunner)
     attack_type: str  # "direct" or "indirect"
     adversarial_mode: str  # "single_turn" or "multi_turn"
     use_trajectory: bool = False  # Whether to run trajectory observation on real sites
@@ -1718,7 +1720,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 try:
                     html = generator.generate(
                         domain=route_key,
-                        context={"doc": doc, "subdomain_details": subdomain_details},
+                        context={"doc": doc, "safe_behavior": safe_behavior, "subdomain_details": subdomain_details},
                         prefill=combined_spec,
                         simulated_url=full_url,
                         screenshots=trajectory_screenshots if self.use_trajectory else page.screenshots,
@@ -1897,6 +1899,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 world_sim_model=self.world_sim_model,
                 attack_type=case_data.get("attack_type", self.attack_type),
                 attacker_model=self.attacker_model,
+                judge_model=self.judge_model,  # Pass judge model from benchmark
                 use_trajectory=self.use_trajectory,
                 adversarial_mode=case_data.get("adversarial_mode", self.adversarial_mode),
                 max_conversation_turns=self.max_conversation_turns,
