@@ -428,11 +428,21 @@ class RedteamEnv(AbstractEnv):
                 "This should have been generated at benchmark init time."
             )
 
+        # Load route key manifest (maps filenames to original route_keys)
+        manifest_path = base_html_dir / "route_keys.json"
+        if not manifest_path.exists():
+            raise RuntimeError(
+                f"Route key manifest not found: {manifest_path}. "
+                "Regenerate assets with updated pipeline."
+            )
+        route_key_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
         base_html_by_subdomain = {}
         for html_file in base_html_dir.glob("*.html"):
-            # Convert filename back to route key (reverse of _route_to_filename)
-            # e.g., "gmail_settings_forwarding.html" -> "gmail/settings/forwarding"
-            route_key = html_file.stem.replace("_", "/")
+            if html_file.name not in route_key_manifest:
+                logger.warning(f"HTML file {html_file.name} not in manifest, skipping")
+                continue
+            route_key = route_key_manifest[html_file.name]
             base_html_by_subdomain[route_key] = html_file.read_text(encoding="utf-8")
 
         if not base_html_by_subdomain:
@@ -528,6 +538,15 @@ class RedteamEnv(AbstractEnv):
         for route_key in base_html_by_subdomain.keys():
             self._flow_config["stages"][route_key] = {}
 
+        # Save route key manifest to variant dir (for resume support)
+        variant_manifest = {}
+        for route_key in base_html_by_subdomain.keys():
+            file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+            variant_manifest[f"{file_name}.html"] = route_key
+        (variant_dir / "route_keys.json").write_text(
+            json.dumps(variant_manifest, indent=2), encoding="utf-8"
+        )
+
         # Save flow config
         config_path = self.exp_dir / "flow_config.json"
         config_path.write_text(json.dumps(self._flow_config, indent=2))
@@ -557,17 +576,25 @@ class RedteamEnv(AbstractEnv):
             "start_stage": None,
         }
 
-        # Extract routes from HTML filenames
+        # Load route key manifest
+        manifest_path = variation_dir / "route_keys.json"
+        if not manifest_path.exists():
+            raise RuntimeError(
+                f"Route key manifest not found: {manifest_path}. "
+                "Cannot resume experiment without manifest."
+            )
+        route_key_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        # Extract routes using manifest
         for html_file in variation_dir.glob("*.html"):
-            # Skip pre_injection files
+            # Skip pre_injection files and manifest
             if "_pre_injection" in html_file.name:
                 continue
+            if html_file.name not in route_key_manifest:
+                logger.warning(f"HTML file {html_file.name} not in manifest, skipping")
+                continue
 
-            # Convert filename back to route key
-            filename = html_file.stem  # e.g., "gmail_settings_forwarding"
-            # Replace underscores with slashes to approximate original route
-            route_key = filename.replace("_", "/")
-
+            route_key = route_key_manifest[html_file.name]
             self._flow_config["stages"][route_key] = {"mode": "synthetic"}
 
             # Set first stage if not set
@@ -1754,6 +1781,16 @@ class RedteamBenchmark(AbstractBenchmark):
                 except Exception as e:
                     logger.error(f"[Assets] Failed to generate {route_key}: {e}")
                     # Continue with other pages
+
+        # Save route key manifest (maps filenames to original route_keys)
+        route_key_manifest = {}
+        for route_key in base_html.keys():
+            file_name = route_key.replace("/", "_").replace("#", "_").replace("?", "_").strip("_")
+            route_key_manifest[f"{file_name}.html"] = route_key
+        (base_html_dir / "route_keys.json").write_text(
+            json.dumps(route_key_manifest, indent=2), encoding="utf-8"
+        )
+        logger.info(f"[Assets] Saved route key manifest with {len(route_key_manifest)} entries")
 
         # Step 3: Plan all adversarial variants at once
         logger.info(f"[Assets] Planning {n_adversarial_variants} adversarial variant(s) for {behavior_id}...")
