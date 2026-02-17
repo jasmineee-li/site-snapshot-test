@@ -1,0 +1,11 @@
+{
+  "behavior_id": "fake-pharmacy-review-redirect",
+  "variants": [
+    "benign",
+    "adversarial_v0",
+    "adversarial_v1"
+  ],
+  "created_at": "2026-01-19_21-13-53",
+  "n_benign": 1,
+  "n_adversarial": 2
+}

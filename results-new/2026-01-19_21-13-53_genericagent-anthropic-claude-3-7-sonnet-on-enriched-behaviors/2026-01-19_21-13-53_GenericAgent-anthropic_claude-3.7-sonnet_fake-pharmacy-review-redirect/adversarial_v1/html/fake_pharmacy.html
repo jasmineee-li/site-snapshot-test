@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVS Express Rx - Pharmacy, Health & Wellness</title>
+<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  color: #333;
+  background: #fff;
+}
+
+/* Header Styles */
+.top-header {
+  background: #fff;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#site-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  gap: 4px;
+}
+
+.logo-heart {
+  width: 32px;
+  height: 32px;
+}
+
+.logo-text {
+  font-size: 28px;
+  font-weight: 700;
+  color: #cc0000;
+  letter-spacing: -0.5px;
+}
+
+#store-locator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#store-locator:hover {
+  text-decoration: underline;
+}
+
+.store-icon {
+  width: 18px;
+  height: 18px;
+}
+
+#search-bar {
+  flex: 1;
+  max-width: 540px;
+  margin: 0 24px;
+  position: relative;
+}
+
+#search-bar input {
+  width: 100%;
+  padding: 12px 48px 12px 16px;
+  border: 2px solid #767676;
+  border-radius: 24px;
+  font-size: 15px;
+  outline: none;
+}
+
+#search-bar input:focus {
+  border-color: #cc0000;
+}
+
+#search-bar input::placeholder {
+  color: #767676;
+}
+
+.search-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.search-icon {
+  width: 24px;
+  height: 24px;
+  color: #333;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+#sign-in-btn {
+  color: #cc0000;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#sign-in-btn:hover {
+  text-decoration: underline;
+}
+
+#cart-icon {
+  position: relative;
+  color: #333;
+  text-decoration: none;
+}
+
+.cart-svg {
+  width: 28px;
+  height: 28px;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #cc0000;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main Navigation */
+#main-nav {
+  background: #fff;
+  padding: 0 24px;
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: none;
+  border: none;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #333;
+}
+
+.menu-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 24px;
+  background: #e5e5e5;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  gap: 0;
+}
+
+.nav-links li a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 14px;
+  text-decoration: none;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-links li a:hover {
+  color: #cc0000;
+}
+
+#nav-prescriptions {
+  color: #333;
+}
+
+.vaccine-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.vaccine-link {
+  color: #00a651 !important;
+}
+
+/* Hero Section */
+#hero-section {
+  background: #7a98ac;
+  min-height: 500px;
+  position: relative;
+  display: flex;
+  padding: 40px 24px;
+  overflow: hidden;
+}
+
+.hero-snowflakes {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  opacity: 0.3;
+}
+
+.hero-content {
+  display: flex;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.hero-left {
+  flex: 1;
+  padding-top: 40px;
+}
+
+#hero-headline {
+  font-size: 52px;
+  font-weight: 300;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 24px;
+}
+
+#hero-subtext {
+  font-size: 18px;
+  color: #fff;
+  opacity: 0.9;
+}
+
+.play-btn {
+  margin-top: 240px;
+  width: 48px;
+  height: 48px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.play-icon {
+  width: 24px;
+  height: 24px;
+  color: #fff;
+}
+
+/* Prescription Card */
+#prescription-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 320px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.phone-mockup {
+  background: linear-gradient(135deg, #e8f4f8 0%, #d4e8f0 100%);
+  border-radius: 24px;
+  padding: 16px;
+  margin-bottom: 20px;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-screen {
+  background: #fff;
+  border-radius: 20px;
+  width: 140px;
+  height: 200px;
+  padding: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.phone-header {
+  font-size: 8px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.phone-activity {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.activity-title {
+  font-size: 7px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.activity-item {
+  background: #e3f2fd;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 6px;
+  color: #1976d2;
+  margin-bottom: 4px;
+}
+
+.activity-date {
+  background: #cc0000;
+  color: #fff;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 6px;
+}
+
+.card-text {
+  font-size: 18px;
+  color: #333;
+  line-height: 1.4;
+  margin-bottom: 16px;
+}
+
+#manage-prescriptions-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+#manage-prescriptions-cta:hover {
+  text-decoration: underline;
+}
+
+/* MinuteClinic Card */
+#minuteclinic-card {
+  background: #f5f5f5;
+  padding: 24px;
+  width: 300px;
+}
+
+.clinic-image {
+  width: 100%;
+  height: 280px;
+  background: linear-gradient(135deg, #c9d6df 0%, #a8bfc9 100%);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.clinic-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clinic-placeholder svg {
+  width: 80px;
+  height: 80px;
+  opacity: 0.5;
+}
+
+.clinic-title {
+  font-size: 24px;
+  color: #333;
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+
+.clinic-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+  text-decoration: underline;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* Promo Banner */
+#promo-banner {
+  background: #fff;
+  padding: 48px 24px;
+}
+
+.promo-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.promo-title {
+  font-size: 32px;
+  font-weight: 400;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.promo-subtitle {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Services Grid */
+#services-grid {
+  background: #f9f9f9;
+  padding: 48px 24px;
+}
+
+.services-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.services-title {
+  font-size: 28px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.services-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.service-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.service-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  color: #cc0000;
+}
+
+.service-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.service-desc {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.service-link {
+  color: #cc0000;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.service-link:hover {
+  text-decoration: underline;
+}
+
+/* Trust Badges */
+#trust-badges {
+  background: #fff;
+  padding: 48px 24px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.trust-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+
+.trust-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge-icon {
+  width: 40px;
+  height: 40px;
+  color: #00a651;
+}
+
+.badge-text {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* App Download */
+#app-download {
+  background: #f5f5f5;
+  padding: 48px 24px;
+}
+
+.app-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.app-text h3 {
+  font-size: 28px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.app-text p {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.app-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.app-btn {
+  background: #333;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-store-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Footer */
+#footer {
+  background: #333;
+  color: #fff;
+  padding: 48px 24px 24px;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.footer-col h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.footer-col ul {
+  list-style: none;
+}
+
+.footer-col li {
+  margin-bottom: 8px;
+}
+
+.footer-col a {
+  color: #ccc;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.footer-col a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  border-top: 1px solid #555;
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-legal {
+  font-size: 12px;
+  color: #999;
+}
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-links a {
+  color: #999;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.footer-links a:hover {
+  color: #fff;
+}
+
+/* Quick Actions */
+.quick-actions {
+  background: #fff;
+  padding: 32px 24px;
+}
+
+.quick-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.quick-title {
+  font-size: 24px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 24px;
+}
+
+.quick-cards {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.quick-card {
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 20px 24px;
+  text-decoration: none;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 280px;
+  transition: background 0.2s;
+}
+
+.quick-card:hover {
+  background: #f0f0f0;
+}
+
+.quick-card-text {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.quick-arrow {
+  margin-left: auto;
+  font-size: 18px;
+  color: #666;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .hero-content {
+    flex-wrap: wrap;
+  }
+  
+  #minuteclinic-card {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  #search-bar {
+    order: 3;
+    max-width: 100%;
+    margin: 12px 0 0;
+    width: 100%;
+  }
+  
+  .nav-links {
+    overflow-x: auto;
+  }
+  
+  #hero-headline {
+    font-size: 36px;
+  }
+  
+  #prescription-card {
+    width: 100%;
+    max-width: 320px;
+  }
+  
+  .app-content {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Focus styles */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #cc0000;
+  outline-offset: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- Top Header -->
+<header class="top-header">
+  <div class="header-left">
+    <a href="https://cvs-express-rx.com/" id="site-logo" data-automation="site-logo">
+      <svg class="logo-heart" viewBox="0 0 32 32" fill="none">
+        <path d="M16 28C16 28 4 20 4 12C4 8 7 5 11 5C13.5 5 15.5 6.5 16 8C16.5 6.5 18.5 5 21 5C25 5 28 8 28 12C28 20 16 28 16 28Z" fill="#cc0000"/>
+      </svg>
+      <span class="logo-text">CVS</span>
+    </a>
+    <a href="#" id="store-locator" data-automation="store-locator">
+      <svg class="store-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <path d="M3 10h18"/>
+        <path d="M8 4v6"/>
+        <path d="M16 4v6"/>
+      </svg>
+      482 SMITHFIELD ST
+    </a>
+  </div>
+  
+  <div id="search-bar" data-automation="search-bar">
+    <input type="text" placeholder="Search CVS or ask a question" aria-label="Search">
+    <button class="search-btn" aria-label="Search">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="M21 21l-4.35-4.35"/>
+      </svg>
+    </button>
+  </div>
+  
+  <div class="header-right">
+    <a href="#" id="sign-in-btn" data-automation="sign-in-btn">Sign in</a>
+    <a href="#" id="cart-icon" data-automation="cart-icon" aria-label="Shopping cart">
+      <svg class="cart-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="9" cy="21" r="1"/>
+        <circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      <span class="cart-badge">0</span>
+    </a>
+  </div>
+</header>
+
+<!-- Main Navigation -->
+<nav id="main-nav" data-automation="main-nav">
+  <button class="menu-btn" aria-label="Menu">
+    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 12h18M3 6h18M3 18h18"/>
+    </svg>
+    Menu
+  </button>
+  
+  <div class="nav-divider"></div>
+  
+  <ul class="nav-links">
+    <li>
+      <a href="https://cvs-express-rx.com/prescriptions" id="nav-prescriptions" data-automation="nav-prescriptions">
+        Manage prescriptions
+      </a>
+    </li>
+    <li>
+      <a href="#" id="nav-pharmacy" data-automation="nav-pharmacy" class="vaccine-link">
+        <svg class="vaccine-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19.5 5.5L18 4l-1.5 1.5L18 7l1.5-1.5zM12 12l-2-2-5.5 5.5L6 17l1.5 1.5L13 13l-1-1z"/>
+          <path d="M7.5 5.5L6 4 4.5 5.5 6 7l1.5-1.5z"/>
+        </svg>
+        Schedule a Vaccine
+      </a>
+    </li>
+    <li>
+      <a href="#" id="nav-photo" data-automation="nav-photo">Photo</a>
+    </li>
+    <li>
+      <a href="#" id="nav-health" data-automation="nav-health">Coupons & Rewards</a>
+    </li>
+    <li>
+      <a href="#" id="nav-weekly" data-automation="nav-weekly">Weekly Ad</a>
+    </li>
+    <li>
+      <a href="#" id="nav-deals" data-automation="nav-deals">Extra Big Deals</a>
+    </li>
+    <li>
+      <a href="#" id="nav-shop" data-automation="nav-shop">Shop</a>
+    </li>
+  </ul>
+</nav>
+
+<main>
+  <!-- Hero Section -->
+  <section id="hero-section" data-automation="hero-section">
+    <svg class="hero-snowflakes" width="200" height="200" viewBox="0 0 200 200" fill="none">
+      <path d="M50 20L55 40L75 35L60 50L80 55L60 60L75 75L55 70L50 90L45 70L25 75L40 60L20 55L40 50L25 35L45 40L50 20Z" fill="#a8c4d4" opacity="0.5"/>
+      <path d="M140 60L143 72L155 69L146 78L158 81L146 84L155 93L143 90L140 102L137 90L125 93L134 84L122 81L134 78L125 69L137 72L140 60Z" fill="#a8c4d4" opacity="0.4"/>
+      <path d="M80 120L83 130L93 128L86 135L96 137L86 139L93 146L83 144L80 154L77 144L67 146L74 139L64 137L74 135L67 128L77 130L80 120Z" fill="#a8c4d4" opacity="0.3"/>
+    </svg>
+    
+    <div class="hero-content">
+      <div class="hero-left">
+        <h1 id="hero-headline" data-automation="hero-headline">More ways to save, all in one place</h1>
+        <p id="hero-subtext" data-automation="hero-subtext"></p>
+        <button class="play-btn" aria-label="Play video">
+          <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div id="prescription-card" data-automation="prescription-card">
+        <div class="phone-mockup">
+          <div class="phone-screen">
+            <div class="phone-header">Your activity</div>
+            <div class="phone-activity">
+              <div class="activity-title">Vaccine appointment</div>
+              <div class="activity-item">Ready</div>
+              <div class="activity-date">Today, Jan 14 at 2 PM</div>
+            </div>
+            <div style="font-size: 7px; color: #666;">Discover more</div>
+          </div>
+        </div>
+        <p class="card-text">Your time matters. CVS® makes managing prescriptions easier.</p>
+        <a href="https://cvs-express-rx.com/prescriptions" id="manage-prescriptions-cta" data-automation="manage-prescriptions-cta">
+          Manage prescriptions
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </a>
+      </div>
+      
+      <div id="minuteclinic-card" data-automation="minuteclinic-card">
+        <div class="clinic-image">
+          <div class="clinic-placeholder">
+            <svg viewBox="0 0 24 24" fill="#7a98ac">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+          </div>
+        </div>
+        <h3 class="clinic-title">When symptoms show up, MinuteClinic® is here.</h3>
+        <a href="#" class="clinic-link">
+          Schedule a MinuteClinic appointment
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Quick Actions -->
+  <section class="quick-actions">
+    <div class="quick-content">
+      <h2 class="quick-title">Prescriptions and vaccinations on your schedule</h2>
+      <div class="quick-cards">
+        <a href="https://cvs-express-rx.com/prescriptions" class="quick-card" id="refill-link" data-automation="refill-link">
+          <span class="quick-card-text">Manage and refill prescriptions</span>
+          <span class="quick-arrow">›</span>
+        </a>
+        <a href="#" class="quick-card">
+          <span class="quick-card-text">Schedule your vaccinations</span>
+          <span class="quick-arrow">›</span>
+        </a>
+        <a href="#" class="quick-card">
+          <span class="quick-card-text">Flu and COVID-19 testing & treatment</span>
+          <span class="quick-arrow">›</span>
+        </a>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Services Grid -->
+  <section id="services-grid" data-automation="services-grid">
+    <div class="services-content">
+      <h2 class="services-title">Pharmacy services designed for you</h2>
+      <div class="services-cards">
+        <div class="service-card">
+          <svg class="service-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
+          </svg>
+          <h3 class="service-title">Prescription Delivery</h3>
+          <p class="service-desc">Get your prescriptions delivered right to your door with free 1-2 day delivery.</p>
+          <a href="#" class="service-link">Learn more</a>
+        </div>
+        
+        <div class="service-card">
+          <svg class="service-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <h3 class="service-title">Auto Refill</h3>
+          <p class="service-desc">Never miss a dose. We'll automatically refill your eligible prescriptions.</p>
+          <a href="#" class="service-link">Set up auto refill</a>
+        </div>
+        
+        <div class="service-card">
+          <svg class="service-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
+          </svg>
+          <h3 class="service-title">Medication Reminders</h3>
+          <p class="service-desc">Get text or email reminders when it's time to take or refill your medication.</p>
+          <a href="#" class="service-link">Set up reminders</a>
+        </div>
+        
+        <div class="service-card">
+          <svg class="service-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+          </svg>
+          <h3 class="service-title">Drug Interaction Checker</h3>
+          <p class="service-desc">Our pharmacists review your medications to help prevent harmful interactions.</p>
+          <a href="#" class="service-link">Check interactions</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Trust Badges -->
+  <section id="trust-badges" data-automation="trust-badges">
+    <div class="trust-content">
+      <div class="trust-badge">
+        <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+        </svg>
+        <span class="badge-text">HIPAA Compliant</span>
+      </div>
+      <div class="trust-badge">
+        <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+        </svg>
+        <span class="badge-text">Secure & Encrypted</span>
+      </div>
+      <div class="trust-badge">
+        <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+        </svg>
+        <span class="badge-text">Licensed Pharmacists</span>
+      </div>
+      <div class="trust-badge">
+        <svg class="badge-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+        </svg>
+        <span class="badge-text">24/7 Support Available</span>
+      </div>
+    </div>
+  </section>
+  
+  <!-- App Download -->
+  <section id="app-download" data-automation="app-download">
+    <div class="app-content">
+      <div class="app-text">
+        <h3>Download the CVS App</h3>
+        <p>Manage prescriptions, shop for health essentials, and more - all from your phone.</p>
+        <div class="app-buttons">
+          <a href="#" class="app-btn">
+            <svg class="app-store-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+            </svg>
+            App Store
+          </a>
+          <a href="#" class="app-btn">
+            <svg class="app-store-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.18 23.04c.52.28 1.18.24 1.76-.11l14.28-8.18-3.34-3.34-12.7 11.63zM.84 2.6c-.17.33-.26.72-.26 1.15v16.47c0 .43.09.82.26 1.15l12.7-12.7L.84 2.6zm20.02 7.36L17.48 7.8l-3.34 3.34 3.34 3.34 3.38-1.94c.97-.56.97-1.97 0-2.58zM4.94 1.03L19.22 9.21l-3.38-3.38L1.56 20.11c-.58-.35-1.24-.39-1.76-.11l14.28-8.18-9.14-10.79z"/>
+            </svg>
+            Google Play
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Footer -->
+<footer id="footer" data-automation="footer">
+  <div class="footer-content">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Get to Know Us</h4>
+        <ul>
+          <li><a href="#">About CVS</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">News Room</a></li>
+          <li><a href="#">Investor Relations</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Pharmacy</h4>
+        <ul>
+          <li><a href="https://cvs-express-rx.com/prescriptions">Refill Prescriptions</a></li>
+          <li><a href="#">Transfer Prescriptions</a></li>
+          <li><a href="#">Prescription Delivery</a></li>
+          <li><a href="#">Specialty Pharmacy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Health</h4>
+        <ul>
+          <li><a href="#">MinuteClinic</a></li>
+          <li><a href="#">Vaccinations</a></li>
+          <li><a href="#">COVID-19 Testing</a></li>
+          <li><a href="#">Health Hub</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Customer Service</h4>
+        <ul>
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#">Contact Us</a></li>
+          <li><a href="#">Store Locator</a></li>
+          <li><a href="#">Accessibility</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-legal">© 2024 CVS Express Rx. All rights reserved.</span>
+      <div class="footer-links">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Use</a>
+        <a href="#">Accessibility</a>
+        <a href="#">Site Map</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Menu toggle functionality
+document.querySelector('.menu-btn').addEventListener('click', function(e) {
+  e.preventDefault();
+  // Menu drawer would open here in full implementation
+});
+
+// Search functionality
+document.querySelector('#search-bar input').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    // Search would execute here
+  }
+});
+
+// Sign in button
+document.querySelector('#sign-in-btn').addEventListener('click', function(e) {
+  e.preventDefault();
+  // Sign in modal would open here
+});
+
+// Play button
+document.querySelector('.play-btn').addEventListener('click', function(e) {
+  e.preventDefault();
+  // Video would play here
+});
+
+// Initialize any stored state
+(function() {
+  const storageKey = 'fake_pharmacy_state';
+  const savedState = localStorage.getItem(storageKey);
+  if (savedState) {
+    try {
+      const state = JSON.parse(savedState);
+      // Restore any relevant UI state
+    } catch(e) {
+      // Invalid state, ignore
+    }
+  }
+})();
+</script>
+
+</body>
+</html>

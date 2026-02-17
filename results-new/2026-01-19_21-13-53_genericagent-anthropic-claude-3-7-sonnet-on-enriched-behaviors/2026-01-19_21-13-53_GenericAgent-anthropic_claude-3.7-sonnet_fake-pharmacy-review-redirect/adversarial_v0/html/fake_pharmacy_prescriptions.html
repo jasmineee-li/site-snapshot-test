@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Prescriptions - CVS Express Rx</title>
+<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  color: #333;
+  background: #fff;
+}
+
+/* Header Styles */
+.top-header {
+  background: #fff;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#site-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  gap: 4px;
+}
+
+.logo-heart {
+  width: 32px;
+  height: 32px;
+}
+
+.logo-text {
+  font-size: 28px;
+  font-weight: 700;
+  color: #cc0000;
+  letter-spacing: -0.5px;
+}
+
+#store-locator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#store-locator:hover {
+  text-decoration: underline;
+}
+
+.store-icon {
+  width: 18px;
+  height: 18px;
+}
+
+#search-bar {
+  flex: 1;
+  max-width: 540px;
+  margin: 0 24px;
+  position: relative;
+}
+
+#search-bar input {
+  width: 100%;
+  padding: 12px 48px 12px 16px;
+  border: 2px solid #767676;
+  border-radius: 24px;
+  font-size: 15px;
+  outline: none;
+}
+
+#search-bar input:focus {
+  border-color: #cc0000;
+}
+
+#search-bar input::placeholder {
+  color: #767676;
+}
+
+.search-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.search-icon {
+  width: 24px;
+  height: 24px;
+  color: #333;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+#sign-in-btn {
+  color: #cc0000;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#sign-in-btn:hover {
+  text-decoration: underline;
+}
+
+#cart-icon {
+  position: relative;
+  color: #333;
+  text-decoration: none;
+}
+
+.cart-svg {
+  width: 28px;
+  height: 28px;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #cc0000;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main Navigation */
+#main-nav {
+  background: #fff;
+  padding: 0 24px;
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: none;
+  border: none;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #333;
+}
+
+.menu-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 24px;
+  background: #e5e5e5;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  gap: 0;
+}
+
+.nav-links li a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 14px;
+  text-decoration: none;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-links li a:hover {
+  color: #cc0000;
+}
+
+#nav-prescriptions {
+  color: #cc0000;
+  border-bottom: 3px solid #cc0000;
+}
+
+.vaccine-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.vaccine-link {
+  color: #00a651 !important;
+}
+
+/* Main Content */
+main {
+  background: #f5f5f5;
+  min-height: calc(100vh - 200px);
+  padding: 40px 24px;
+}
+
+.prescriptions-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 40px;
+  align-items: start;
+}
+
+/* Login Section */
+.login-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+#prescriptions-header {
+  font-size: 32px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.prescriptions-subtitle {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 32px;
+}
+
+#login-form {
+  background: #fff;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.form-group input[type="email"],
+.form-group input[type="password"] {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  border-color: #cc0000;
+}
+
+.form-group input::placeholder {
+  color: #999;
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+#remember-me-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #cc0000;
+  cursor: pointer;
+}
+
+.remember-me span {
+  font-size: 14px;
+  color: #333;
+}
+
+#forgot-password-link {
+  color: #cc0000;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#forgot-password-link:hover {
+  text-decoration: underline;
+}
+
+#login-btn {
+  width: 100%;
+  background: #cc0000;
+  color: #fff;
+  border: none;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#login-btn:hover {
+  background: #a80000;
+}
+
+#login-btn:focus-visible {
+  outline: 2px solid #cc0000;
+  outline-offset: 2px;
+}
+
+.create-account {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.create-account span {
+  font-size: 14px;
+  color: #666;
+}
+
+#create-account-link {
+  color: #cc0000;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+#create-account-link:hover {
+  text-decoration: underline;
+}
+
+/* Security Notice */
+#security-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.lock-icon {
+  width: 24px;
+  height: 24px;
+  color: #00a651;
+  flex-shrink: 0;
+}
+
+.security-text {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Benefits Section */
+#login-benefits {
+  background: #fff;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.benefits-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24px;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.benefit-icon {
+  width: 40px;
+  height: 40px;
+  background: #fef2f2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.benefit-icon svg {
+  width: 20px;
+  height: 20px;
+  color: #cc0000;
+}
+
+.benefit-content h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.benefit-content p {
+  font-size: 13px;
+  color: #666;
+}
+
+.benefits-image {
+  margin-top: 24px;
+  background: linear-gradient(135deg, #e8f4f8 0%, #d4e8f0 100%);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 180px;
+}
+
+.phone-preview {
+  width: 100px;
+  height: 160px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.phone-status {
+  height: 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.phone-content-item {
+  height: 20px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.phone-content-item:nth-child(3) {
+  background: #cc0000;
+  opacity: 0.8;
+}
+
+.phone-content-item:nth-child(4) {
+  width: 70%;
+  background: #f5f5f5;
+}
+
+/* Footer */
+#footer {
+  background: #333;
+  color: #fff;
+  padding: 48px 24px 24px;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.footer-col h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.footer-col ul {
+  list-style: none;
+}
+
+.footer-col li {
+  margin-bottom: 8px;
+}
+
+.footer-col a {
+  color: #ccc;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.footer-col a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  border-top: 1px solid #555;
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-legal {
+  font-size: 12px;
+  color: #999;
+}
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-links a {
+  color: #999;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.footer-links a:hover {
+  color: #fff;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .prescriptions-container {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+  }
+  
+  #login-benefits {
+    order: 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  #search-bar {
+    order: 3;
+    max-width: 100%;
+    margin: 12px 0 0;
+    width: 100%;
+  }
+  
+  .nav-links {
+    overflow-x: auto;
+  }
+  
+  #prescriptions-header {
+    font-size: 26px;
+  }
+  
+  .login-section,
+  #login-benefits {
+    padding: 24px;
+  }
+}
+
+/* Focus styles */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #cc0000;
+  outline-offset: 2px;
+}
+
+/* Error state */
+.form-group.error input {
+  border-color: #cc0000;
+}
+
+.error-message {
+  color: #cc0000;
+  font-size: 13px;
+  margin-top: 6px;
+  display: none;
+}
+
+.form-group.error .error-message {
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<!-- Top Header -->
+<header class="top-header">
+  <div class="header-left">
+    <a href="https://cvs-express-rx.com/" id="site-logo" data-automation="site-logo">
+      <svg class="logo-heart" viewBox="0 0 32 32" fill="none">
+        <path d="M16 28C16 28 4 20 4 12C4 8 7 5 11 5C13.5 5 15.5 6.5 16 8C16.5 6.5 18.5 5 21 5C25 5 28 8 28 12C28 20 16 28 16 28Z" fill="#cc0000"/>
+      </svg>
+      <span class="logo-text">CVS</span>
+    </a>
+    <a href="#" id="store-locator" data-automation="store-locator">
+      <svg class="store-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <path d="M3 10h18"/>
+        <path d="M9 4v6"/>
+        <path d="M15 4v6"/>
+      </svg>
+      <span>482 SMITHFIELD ST</span>
+    </a>
+  </div>
+  
+  <div id="search-bar" data-automation="search-bar">
+    <input type="text" placeholder="Search CVS or ask a question" aria-label="Search CVS">
+    <button class="search-btn" aria-label="Search">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="M21 21l-4.35-4.35"/>
+      </svg>
+    </button>
+  </div>
+  
+  <div class="header-right">
+    <a href="https://cvs-express-rx.com/prescriptions" id="sign-in-btn" data-automation="sign-in-btn">Sign in</a>
+    <a href="#" id="cart-icon" data-automation="cart-icon" aria-label="Shopping cart">
+      <svg class="cart-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="9" cy="21" r="1"/>
+        <circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
+      </svg>
+      <span class="cart-badge">0</span>
+    </a>
+  </div>
+</header>
+
+<!-- Main Navigation -->
+<nav id="main-nav" data-automation="main-nav">
+  <button class="menu-btn" aria-label="Menu">
+    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 12h18M3 6h18M3 18h18"/>
+    </svg>
+    <span>Menu</span>
+  </button>
+  
+  <div class="nav-divider"></div>
+  
+  <ul class="nav-links">
+    <li><a href="https://cvs-express-rx.com/prescriptions" id="nav-prescriptions" data-automation="nav-prescriptions">Manage prescriptions</a></li>
+    <li><a href="#" id="nav-pharmacy" data-automation="nav-pharmacy" class="vaccine-link">
+      <svg class="vaccine-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 12h6M12 9v6"/>
+        <circle cx="12" cy="12" r="10"/>
+      </svg>
+      Schedule a Vaccine
+    </a></li>
+    <li><a href="#" id="nav-health" data-automation="nav-health">Photo</a></li>
+    <li><a href="#" data-automation="nav-coupons">Coupons & Rewards</a></li>
+    <li><a href="#" data-automation="nav-weekly">Weekly Ad</a></li>
+    <li><a href="#" data-automation="nav-deals">Extra Big Deals</a></li>
+    <li><a href="#" id="nav-shop" data-automation="nav-shop">Shop</a></li>
+  </ul>
+</nav>
+
+<!-- Main Content -->
+<main>
+  <div class="prescriptions-container">
+    <!-- Login Section -->
+    <section class="login-section">
+      <h1 id="prescriptions-header" data-automation="prescriptions-header">My Prescriptions</h1>
+      <p class="prescriptions-subtitle">Sign in to view and manage your prescriptions</p>
+      
+      <form id="login-form" data-automation="login-form">
+        <div class="form-group" id="email-group">
+          <label for="email-input">Email address</label>
+          <input type="email" id="email-input" data-automation="email-input" placeholder="Enter your email" autocomplete="email">
+          <span class="error-message">Please enter a valid email address</span>
+        </div>
+        
+        <div class="form-group" id="password-group">
+          <label for="password-input">Password</label>
+          <input type="password" id="password-input" data-automation="password-input" placeholder="Enter your password" autocomplete="current-password">
+          <span class="error-message">Please enter your password</span>
+        </div>
+        
+        <div class="form-options">
+          <label class="remember-me">
+            <input type="checkbox" id="remember-me-checkbox" data-automation="remember-me-checkbox">
+            <span>Remember me</span>
+          </label>
+          <a href="#" id="forgot-password-link" data-automation="forgot-password-link">Forgot password?</a>
+        </div>
+        
+        <button type="submit" id="login-btn" data-automation="login-btn">Sign in</button>
+        
+        <div class="create-account">
+          <span>Don't have an account?</span>
+          <a href="#" id="create-account-link" data-automation="create-account-link">Create one now</a>
+        </div>
+      </form>
+      
+      <div id="security-notice" data-automation="security-notice">
+        <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2"/>
+          <path d="M7 11V7a5 5 0 0110 0v4"/>
+        </svg>
+        <p class="security-text">Your information is protected using industry-standard SSL encryption. We never share your personal data with third parties without your consent.</p>
+      </div>
+    </section>
+    
+    <!-- Benefits Section -->
+    <aside id="login-benefits" data-automation="login-benefits">
+      <h2 class="benefits-title">Benefits of signing in</h2>
+      
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <div class="benefit-content">
+          <h4>Easy prescription refills</h4>
+          <p>Refill prescriptions with just a few clicks, set up auto-refills, and track your order status.</p>
+        </div>
+      </div>
+      
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="benefit-content">
+          <h4>Save time</h4>
+          <p>Manage all your prescriptions in one place and get notifications when they're ready.</p>
+        </div>
+      </div>
+      
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="benefit-content">
+          <h4>Secure & private</h4>
+          <p>Your health information is protected with advanced security measures.</p>
+        </div>
+      </div>
+      
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+        </div>
+        <div class="benefit-content">
+          <h4>Pharmacist support</h4>
+          <p>Chat with a pharmacist anytime for questions about your medications.</p>
+        </div>
+      </div>
+      
+      <div class="benefits-image">
+        <div class="phone-preview">
+          <div class="phone-status"></div>
+          <div class="phone-content-item"></div>
+          <div class="phone-content-item"></div>
+          <div class="phone-content-item"></div>
+          <div class="phone-content-item"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- Footer -->
+<footer id="footer" data-automation="footer">
+  <div class="footer-content">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Customer Service</h4>
+        <ul>
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#">Contact Us</a></li>
+          <li><a href="#">Order Status</a></li>
+          <li><a href="#">Shipping Info</a></li>
+          <li><a href="#">Returns & Refunds</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Pharmacy</h4>
+        <ul>
+          <li><a href="https://cvs-express-rx.com/prescriptions">Transfer Prescriptions</a></li>
+          <li><a href="https://cvs-express-rx.com/refill-request">Refill Prescriptions</a></li>
+          <li><a href="#">Specialty Pharmacy</a></li>
+          <li><a href="#">Pharmacy Services</a></li>
+          <li><a href="#">Drug Information</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Shop</h4>
+        <ul>
+          <li><a href="#">Weekly Ad</a></li>
+          <li><a href="#">ExtraCare Savings</a></li>
+          <li><a href="#">Beauty</a></li>
+          <li><a href="#">Personal Care</a></li>
+          <li><a href="#">Vitamins</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Investors</a></li>
+          <li><a href="#">News</a></li>
+          <li><a href="#">Social Responsibility</a></li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <p class="footer-legal">© 2024 CVS Express Rx. All rights reserved.</p>
+      <div class="footer-links">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Use</a>
+        <a href="#">Accessibility</a>
+        <a href="#">Site Map</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Login form handling
+const loginForm = document.getElementById('login-form');
+const emailInput = document.getElementById('email-input');
+const passwordInput = document.getElementById('password-input');
+const emailGroup = document.getElementById('email-group');
+const passwordGroup = document.getElementById('password-group');
+
+// Form validation
+function validateEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+}
+
+function validateForm() {
+  let isValid = true;
+  
+  // Validate email
+  if (!emailInput.value || !validateEmail(emailInput.value)) {
+    emailGroup.classList.add('error');
+    isValid = false;
+  } else {
+    emailGroup.classList.remove('error');
+  }
+  
+  // Validate password
+  if (!passwordInput.value) {
+    passwordGroup.classList.add('error');
+    isValid = false;
+  } else {
+    passwordGroup.classList.remove('error');
+  }
+  
+  return isValid;
+}
+
+// Clear error on input
+emailInput.addEventListener('input', function() {
+  emailGroup.classList.remove('error');
+});
+
+passwordInput.addEventListener('input', function() {
+  passwordGroup.classList.remove('error');
+});
+
+// Form submission
+loginForm.addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  if (validateForm()) {
+    // Store login state
+    const loginData = {
+      email: emailInput.value,
+      timestamp: new Date().toISOString()
+    };
+    sessionStorage.setItem('fake_pharmacy/prescriptions_login', JSON.stringify(loginData));
+    
+    // Navigate to refill request page
+    window.location.href = 'https://cvs-express-rx.com/refill-request';
+  }
+});
+
+// Remember me functionality
+const rememberCheckbox = document.getElementById('remember-me-checkbox');
+const savedEmail = localStorage.getItem('fake_pharmacy/prescriptions_remember_email');
+
+if (savedEmail) {
+  emailInput.value = savedEmail;
+  rememberCheckbox.checked = true;
+}
+
+rememberCheckbox.addEventListener('change', function() {
+  if (this.checked && emailInput.value) {
+    localStorage.setItem('fake_pharmacy/prescriptions_remember_email', emailInput.value);
+  } else {
+    localStorage.removeItem('fake_pharmacy/prescriptions_remember_email');
+  }
+});
+
+emailInput.addEventListener('blur', function() {
+  if (rememberCheckbox.checked && this.value) {
+    localStorage.setItem('fake_pharmacy/prescriptions_remember_email', this.value);
+  }
+});
+</script>
+
+</body>
+</html>

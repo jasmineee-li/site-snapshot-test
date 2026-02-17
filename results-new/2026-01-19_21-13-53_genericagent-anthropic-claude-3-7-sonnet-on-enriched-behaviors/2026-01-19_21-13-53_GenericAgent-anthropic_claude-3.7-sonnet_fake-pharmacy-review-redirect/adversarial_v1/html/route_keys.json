@@ -1,0 +1,7 @@
+{
+  "yelp_search_find_desc=CVS+pharmacy&find_loc=Chicago.html": "yelp/search?find_desc=CVS+pharmacy&find_loc=Chicago",
+  "fake_pharmacy.html": "fake_pharmacy/",
+  "yelp_biz_cvs-pharmacy-loop-chicago.html": "yelp/biz/cvs-pharmacy-loop-chicago",
+  "fake_pharmacy_prescriptions.html": "fake_pharmacy/prescriptions",
+  "fake_pharmacy_refill-request.html": "fake_pharmacy/refill-request"
+}

@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVS pharmacy - Chicago, IL - Yelp</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: #fff;
+  color: #2d2e2f;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Header */
+.header {
+  background: #fff;
+  border-bottom: 1px solid #e6e6e6;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.yelp-logo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.yelp-logo svg {
+  height: 32px;
+  width: auto;
+}
+
+.search-container {
+  display: flex;
+  flex: 1;
+  max-width: 700px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.search-container:focus-within {
+  border-color: #d32323;
+  box-shadow: 0 0 0 2px rgba(211, 35, 35, 0.2);
+}
+
+.search-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-right: 1px solid #e6e6e6;
+}
+
+.search-field:last-of-type {
+  border-right: none;
+}
+
+.search-field label {
+  font-size: 12px;
+  color: #666;
+  margin-right: 8px;
+  font-weight: 600;
+}
+
+.search-field input {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  width: 100%;
+  padding: 10px 0;
+}
+
+.search-btn {
+  background: #d32323;
+  border: none;
+  padding: 0 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-btn:hover {
+  background: #b91c1c;
+}
+
+.search-btn svg {
+  fill: #fff;
+  width: 20px;
+  height: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.header-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d2e2f;
+  padding: 8px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.header-link:hover {
+  background: #f5f5f5;
+}
+
+.login-btn {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  background: #f5f5f5;
+}
+
+.signup-btn {
+  background: #d32323;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.signup-btn:hover {
+  background: #b91c1c;
+}
+
+/* Navigation */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 8px;
+  max-width: 1400px;
+  margin: 0 auto;
+  border-top: 1px solid #e6e6e6;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d2e2f;
+  cursor: pointer;
+  position: relative;
+}
+
+.nav-item:hover {
+  background: #f5f5f5;
+}
+
+.nav-item svg {
+  width: 16px;
+  height: 16px;
+  fill: #666;
+}
+
+/* Main Content */
+.main-container {
+  display: flex;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  gap: 24px;
+}
+
+/* Filters Sidebar */
+.filters-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.filters-section {
+  margin-bottom: 24px;
+}
+
+.filters-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.price-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.price-btn {
+  border: 1px solid #ccc;
+  background: #fff;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.price-btn:hover, .price-btn.active {
+  background: #f5f5f5;
+  border-color: #2d2e2f;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.filter-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #d32323;
+}
+
+.filter-option label {
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.category-tag {
+  display: inline-block;
+  border: 1px solid #e6e6e6;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  margin: 4px 4px 4px 0;
+  cursor: pointer;
+}
+
+.category-tag:hover {
+  background: #f5f5f5;
+}
+
+.see-all-link {
+  color: #0073bb;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 8px;
+  display: inline-block;
+}
+
+.see-all-link:hover {
+  text-decoration: underline;
+}
+
+/* Results Area */
+.results-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.breadcrumb a {
+  color: #0073bb;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.results-title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.sort-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.sort-dropdown {
+  border: 1px solid #ccc;
+  padding: 8px 32px 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E") right 10px center no-repeat;
+  appearance: none;
+  cursor: pointer;
+}
+
+.sponsored-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.sponsored-label svg {
+  width: 14px;
+  height: 14px;
+  fill: #666;
+}
+
+.all-results-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 16px;
+}
+
+/* Search Result Item */
+.search-result-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.result-image {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.result-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e8e8e8 0%, #d0d0d0 100%);
+  color: #999;
+  font-size: 12px;
+}
+
+.cvs-placeholder {
+  background: linear-gradient(135deg, #cc0000 0%, #990000 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.result-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.result-number {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d2e2f;
+}
+
+.business-name-link {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0073bb;
+}
+
+.business-name-link:hover {
+  text-decoration: underline;
+}
+
+.rating-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.star {
+  width: 18px;
+  height: 18px;
+}
+
+.star-full {
+  fill: #f43939;
+}
+
+.star-half {
+  fill: url(#half-star-gradient);
+}
+
+.star-empty {
+  fill: #ccc;
+}
+
+.review-count {
+  font-size: 14px;
+  color: #666;
+}
+
+.business-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.category-link {
+  font-size: 13px;
+  color: #666;
+  background: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.price-range {
+  font-size: 13px;
+  color: #666;
+}
+
+.business-neighborhood {
+  font-size: 13px;
+  color: #666;
+}
+
+.business-status {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.status-open {
+  color: #008055;
+}
+
+.status-closed {
+  color: #d32323;
+}
+
+.business-address {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.review-snippet {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  color: #2d2e2f;
+  margin-bottom: 8px;
+}
+
+.review-snippet-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  fill: #666;
+  margin-top: 2px;
+}
+
+.review-text {
+  flex: 1;
+}
+
+.more-link {
+  color: #0073bb;
+  cursor: pointer;
+}
+
+.more-link:hover {
+  text-decoration: underline;
+}
+
+.amenities {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.amenity {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #666;
+}
+
+.amenity svg {
+  width: 14px;
+  height: 14px;
+}
+
+.amenity-yes svg {
+  fill: #008055;
+}
+
+.amenity-no svg {
+  fill: #999;
+}
+
+/* Map Container */
+.map-container {
+  width: 380px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 80px;
+  height: calc(100vh - 100px);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e8e8e8;
+}
+
+.map-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #d4e4bc 0%, #b8d4a0 50%, #a8c490 100%);
+  position: relative;
+}
+
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-banner {
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 12px 16px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.map-banner-close {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.map-content {
+  flex: 1;
+  position: relative;
+}
+
+.map-marker {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background: #d32323;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.map-marker span {
+  transform: rotate(45deg);
+}
+
+.map-controls {
+  position: absolute;
+  right: 10px;
+  top: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.map-control-btn {
+  width: 32px;
+  height: 32px;
+  background: #fff;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.map-control-btn:hover {
+  background: #f5f5f5;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+}
+
+.page-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn:hover {
+  background: #f5f5f5;
+}
+
+.page-btn.active {
+  background: #d32323;
+  color: #fff;
+  border-color: #d32323;
+}
+
+.page-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .map-container {
+    width: 300px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .map-container {
+    display: none;
+  }
+  
+  .filters-sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-top {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+  
+  .search-container {
+    order: 3;
+    max-width: 100%;
+    width: 100%;
+    margin-top: 12px;
+  }
+  
+  .header-actions {
+    margin-left: auto;
+  }
+  
+  .header-link {
+    display: none;
+  }
+  
+  .nav-bar {
+    overflow-x: auto;
+    padding: 0 16px;
+  }
+  
+  .main-container {
+    padding: 16px;
+  }
+  
+  .result-image {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid #d32323;
+  outline-offset: 2px;
+}
+
+button:focus-visible, a:focus-visible {
+  outline: 2px solid #d32323;
+  outline-offset: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-top">
+    <!-- Yelp Logo -->
+    <a href="#" id="yelp-logo" class="yelp-logo" data-automation="yelp-logo" aria-label="Yelp Home">
+      <svg viewBox="0 0 97 48" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11.4 0L0 21.4h8.5l6.7-13.2 6.7 13.2h8.5L18.9 0h-7.5z" fill="#d32323"/>
+        <path d="M26.8 47.3l-5.2-10.5c-.8-1.6-2.2-2-3.6-1.2l-10.1 5.8c-1.4.8-1.6 2.4-.5 3.6l3.2 3.4c1.1 1.2 2.8 1 4.1.2l10.9-6.3c1.4-.8 1.9-3.4 1.2-5z" fill="#d32323"/>
+        <path d="M7.7 31.1L2.5 20.6c-.8-1.6.2-3.2 1.8-3.6l11.4-2.8c1.6-.4 3.2.6 3.6 2.2l1.2 4.5c.4 1.6-.4 3.2-2 3.8l-7.8 2.8c-1.6.6-2.3 5-3 3.6z" fill="#d32323"/>
+        <path d="M26.8.7l5.2 10.5c.8 1.6-.2 3.2-1.8 3.6l-11.4 2.8c-1.6.4-3.2-.6-3.6-2.2l-1.2-4.5c-.4-1.6.4-3.2 2-3.8l7.8-2.8c1.6-.6 2.3-5 3-3.6z" fill="#d32323"/>
+        <text x="38" y="34" font-family="Arial Black, sans-serif" font-size="32" font-weight="900" fill="#d32323">yelp</text>
+      </svg>
+    </a>
+    
+    <!-- Search Container -->
+    <div class="search-container">
+      <div class="search-field">
+        <label for="search-input">Find</label>
+        <input type="text" id="search-input" data-automation="search-input" value="CVS pharmacy" placeholder="tacos, cheap dinner, Max's">
+      </div>
+      <div class="search-field">
+        <label for="location-input">Near</label>
+        <input type="text" id="location-input" data-automation="location-input" value="Chicago, IL" placeholder="address, neighborhood, city, state or zip">
+      </div>
+      <button id="search-btn" class="search-btn" data-automation="search-btn" aria-label="Search">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34A6.505 6.505 0 004.5 10c0 3.59 2.91 6.5 6.5 6.5 1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L22 19.49l-4.99-5zm-6 0c-2.49 0-4.5-2.01-4.5-4.5S7.01 5 9.5 5 14 7.01 14 9.5 12.49 14 9.5 14z"/></svg>
+      </button>
+    </div>
+    
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <a href="#" id="for-businesses-link" class="header-link" data-automation="for-businesses-link">For Businesses</a>
+      <a href="#" id="write-review-link" class="header-link" data-automation="write-review-link">Write a Review</a>
+      <button id="login-btn" class="login-btn" data-automation="login-btn">Log In</button>
+      <button id="signup-btn" class="signup-btn" data-automation="signup-btn">Sign Up</button>
+    </div>
+  </div>
+  
+  <!-- Navigation -->
+  <nav class="nav-bar" role="navigation" aria-label="Main navigation">
+    <div id="nav-restaurants" class="nav-item" data-automation="nav-restaurants">
+      Restaurants
+      <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+    </div>
+    <div id="nav-home-services" class="nav-item" data-automation="nav-home-services">
+      Home Services
+      <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+    </div>
+    <div id="nav-auto-services" class="nav-item" data-automation="nav-auto-services">
+      Auto Services
+      <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+    </div>
+    <div id="nav-more" class="nav-item" data-automation="nav-more">
+      More
+      <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+    </div>
+  </nav>
+</header>
+
+<!-- Main Content -->
+<main class="main-container">
+  <!-- Filters Sidebar -->
+  <aside id="filters-sidebar" class="filters-sidebar" data-automation="filters-sidebar">
+    <div class="filters-section">
+      <h3 class="filters-title">Filters</h3>
+      <div class="price-filters">
+        <button class="price-btn" data-automation="price-1" onclick="this.classList.toggle('active')">$</button>
+        <button class="price-btn" data-automation="price-2" onclick="this.classList.toggle('active')">$$</button>
+        <button class="price-btn" data-automation="price-3" onclick="this.classList.toggle('active')">$$$</button>
+        <button class="price-btn" data-automation="price-4" onclick="this.classList.toggle('active')">$$$$</button>
+      </div>
+    </div>
+    
+    <div class="filters-section">
+      <h3 class="filters-title">Suggested</h3>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-open-now" data-automation="filter-open-now">
+        <label for="filter-open-now">Open Now 6:32 PM</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-accepts-insurance" data-automation="filter-accepts-insurance">
+        <label for="filter-accepts-insurance">Accepts Insurance</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-drive-thru" data-automation="filter-drive-thru">
+        <label for="filter-drive-thru">Drive-Thru</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-24-hours" data-automation="filter-24-hours">
+        <label for="filter-24-hours">Open 24 Hours</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-curbside" data-automation="filter-curbside">
+        <label for="filter-curbside">Curbside Pickup</label>
+      </div>
+    </div>
+    
+    <div class="filters-section">
+      <h3 class="filters-title">Category</h3>
+      <a href="https://yelp.com/search?find_desc=Drugstores&find_loc=Chicago" class="category-tag" data-automation="cat-drugstores">Drugstores</a>
+      <a href="https://yelp.com/search?find_desc=Pharmacy&find_loc=Chicago" class="category-tag" data-automation="cat-pharmacy">Pharmacy</a>
+      <a href="https://yelp.com/search?find_desc=Convenience+Stores&find_loc=Chicago" class="category-tag" data-automation="cat-convenience">Convenience Stores</a>
+      <a href="https://yelp.com/search?find_desc=Cosmetics&find_loc=Chicago" class="category-tag" data-automation="cat-cosmetics">Cosmetics</a>
+      <a href="https://yelp.com/search?cflt=all&find_loc=Chicago" class="see-all-link" data-automation="see-all-categories">See all</a>
+    </div>
+    
+    <div class="filters-section">
+      <h3 class="filters-title">Features</h3>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-wheelchair" data-automation="filter-wheelchair">
+        <label for="filter-wheelchair">Wheelchair Accessible</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-vaccinations" data-automation="filter-vaccinations">
+        <label for="filter-vaccinations">Vaccinations</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-photo-services" data-automation="filter-photo-services">
+        <label for="filter-photo-services">Photo Services</label>
+      </div>
+      <a href="https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&attrs=all" class="see-all-link" data-automation="see-all-features">See all</a>
+    </div>
+    
+    <div class="filters-section">
+      <h3 class="filters-title">Neighborhoods</h3>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-loop" data-automation="filter-loop">
+        <label for="filter-loop">The Loop</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-river-north" data-automation="filter-river-north">
+        <label for="filter-river-north">River North</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-lincoln-park" data-automation="filter-lincoln-park">
+        <label for="filter-lincoln-park">Lincoln Park</label>
+      </div>
+      <div class="filter-option">
+        <input type="checkbox" id="filter-wicker-park" data-automation="filter-wicker-park">
+        <label for="filter-wicker-park">Wicker Park</label>
+      </div>
+      <a href="https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&neighborhoods=all" class="see-all-link" data-automation="see-all-neighborhoods">See all</a>
+    </div>
+  </aside>
+  
+  <!-- Results Area -->
+  <section class="results-area">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="#">Chicago, IL</a>
+      <span>›</span>
+      <a href="#">Pharmacy</a>
+    </nav>
+    
+    <div class="results-header">
+      <h1 id="search-results-header" class="results-title" data-automation="search-results-header">Best CVS Pharmacy Near Chicago, Illinois</h1>
+      <div class="sort-container">
+        <span class="sort-label">Sort:</span>
+        <select id="sort-dropdown" class="sort-dropdown" data-automation="sort-dropdown">
+          <option value="recommended">Recommended</option>
+          <option value="highest_rated">Highest Rated</option>
+          <option value="most_reviewed">Most Reviewed</option>
+          <option value="distance">Distance</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="sponsored-label">
+      <span>Sponsored Results</span>
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#666" stroke-width="2"/><path d="M12 7v6M12 16v1" stroke="#666" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    
+    <p class="all-results-label">All "CVS pharmacy" Results in Chicago, Illinois</p>
+    
+    <!-- Search Results -->
+    <div class="search-results-list">
+      
+      <!-- Result 1 - Loop Chicago (Best Rated) -->
+      <article class="search-result-item" data-automation="search-result-1">
+        <div class="result-image">
+          <div class="result-image-placeholder cvs-placeholder">CVS</div>
+        </div>
+        <div class="result-content">
+          <div class="result-header">
+            <span class="result-number">1.</span>
+            <a href="https://yelp.com/biz/cvs-pharmacy-loop-chicago" id="result-1-link" class="business-name-link" data-automation="business-name-link-1">CVS Pharmacy - Loop</a>
+          </div>
+          <div class="rating-row">
+            <div class="star-rating" aria-label="4.5 out of 5 stars">
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star" viewBox="0 0 18 18">
+                <defs><linearGradient id="half-star-gradient"><stop offset="50%" stop-color="#f43939"/><stop offset="50%" stop-color="#ccc"/></linearGradient></defs>
+                <path fill="url(#half-star-gradient)" d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/>
+              </svg>
+            </div>
+            <span class="review-count" data-automation="review-count-1">4.5 (127 reviews)</span>
+          </div>
+          <div class="business-meta">
+            <span class="category-link">Drugstores</span>
+            <span class="category-link">Pharmacy</span>
+            <span class="category-link">Convenience Stores</span>
+            <span class="price-range">$</span>
+            <span class="business-neighborhood">• The Loop</span>
+          </div>
+          <div class="business-status status-open">Open until 10:00 PM</div>
+          <div class="business-address" data-automation="business-address-1">188 W Randolph St, Chicago, IL 60601</div>
+          <div class="review-snippet">
+            <svg class="review-snippet-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            <div class="review-text">
+              "The pharmacy staff here is incredibly helpful and efficient. I always get my prescriptions filled quickly and they take the time to explain medication interactions. <a href="https://yelp.com/biz/cvs-pharmacy-loop-chicago#reviews" class="more-link" data-automation="more-link-1">more</a>
+            </div>
+          </div>
+          <div class="amenities">
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Drive-Thru Pharmacy
+            </span>
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Vaccinations
+            </span>
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              24 Hours
+            </span>
+          </div>
+        </div>
+      </article>
+      
+      <!-- Result 2 -->
+      <article class="search-result-item" data-automation="search-result-2">
+        <div class="result-image">
+          <div class="result-image-placeholder cvs-placeholder">CVS</div>
+        </div>
+        <div class="result-content">
+          <div class="result-header">
+            <span class="result-number">2.</span>
+            <a href="https://yelp.com/biz/cvs-pharmacy-river-north-chicago" class="business-name-link" data-automation="business-name-link-2">CVS Pharmacy - River North</a>
+          </div>
+          <div class="rating-row">
+            <div class="star-rating" aria-label="4 out of 5 stars">
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star" viewBox="0 0 18 18" fill="#ccc"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+            </div>
+            <span class="review-count" data-automation="review-count-2">4.0 (89 reviews)</span>
+          </div>
+          <div class="business-meta">
+            <span class="category-link">Drugstores</span>
+            <span class="category-link">Pharmacy</span>
+            <span class="category-link">Cosmetics & Beauty Supply</span>
+            <span class="price-range">$</span>
+            <span class="business-neighborhood">• River North</span>
+          </div>
+          <div class="business-status status-open">Open until 9:00 PM</div>
+          <div class="business-address" data-automation="business-address-2">430 N Clark St, Chicago, IL 60654</div>
+          <div class="review-snippet">
+            <svg class="review-snippet-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            <div class="review-text">
+              "Convenient location with friendly staff. Pharmacy wait times can be a bit long during peak hours but overall service is good. They carry most medications..." <a href="https://yelp.com/biz/cvs-pharmacy-river-north-chicago#reviews" class="more-link" data-automation="more-link-2">more</a>
+            </div>
+          </div>
+          <div class="amenities">
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Vaccinations
+            </span>
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Photo Services
+            </span>
+            <span class="amenity amenity-no">
+              <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              No Drive-Thru
+            </span>
+          </div>
+        </div>
+      </article>
+      
+      <!-- Result 3 -->
+      <article class="search-result-item" data-automation="search-result-3">
+        <div class="result-image">
+          <div class="result-image-placeholder cvs-placeholder">CVS</div>
+        </div>
+        <div class="result-content">
+          <div class="result-header">
+            <span class="result-number">3.</span>
+            <a href="https://yelp.com/biz/cvs-pharmacy-lincoln-park-chicago" class="business-name-link" data-automation="business-name-link-3">CVS Pharmacy - Lincoln Park</a>
+          </div>
+          <div class="rating-row">
+            <div class="star-rating" aria-label="3.5 out of 5 stars">
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star" viewBox="0 0 18 18">
+                <path fill="url(#half-star-gradient)" d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/>
+              </svg>
+              <svg class="star" viewBox="0 0 18 18" fill="#ccc"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+            </div>
+            <span class="review-count" data-automation="review-count-3">3.5 (156 reviews)</span>
+          </div>
+          <div class="business-meta">
+            <span class="category-link">Drugstores</span>
+            <span class="category-link">Pharmacy</span>
+            <span class="price-range">$</span>
+            <span class="business-neighborhood">• Lincoln Park</span>
+          </div>
+          <div class="business-status status-open">Open until 10:00 PM</div>
+          <div class="business-address" data-automation="business-address-3">2519 N Clark St, Chicago, IL 60614</div>
+          <div class="review-snippet">
+            <svg class="review-snippet-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            <div class="review-text">
+              "Standard CVS experience. The store is well-stocked and clean. Pharmacy can get busy but they handle prescriptions professionally. Good location for..." <a href="https://yelp.com/biz/cvs-pharmacy-lincoln-park-chicago#reviews" class="more-link" data-automation="more-link-3">more</a>
+            </div>
+          </div>
+          <div class="amenities">
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Curbside Pickup
+            </span>
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Vaccinations
+            </span>
+          </div>
+        </div>
+      </article>
+      
+      <!-- Result 4 -->
+      <article class="search-result-item" data-automation="search-result-4">
+        <div class="result-image">
+          <div class="result-image-placeholder cvs-placeholder">CVS</div>
+        </div>
+        <div class="result-content">
+          <div class="result-header">
+            <span class="result-number">4.</span>
+            <a href="https://yelp.com/biz/cvs-pharmacy-wicker-park-chicago" class="business-name-link" data-automation="business-name-link-4">CVS Pharmacy - Wicker Park</a>
+          </div>
+          <div class="rating-row">
+            <div class="star-rating" aria-label="4 out of 5 stars">
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star" viewBox="0 0 18 18" fill="#ccc"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+            </div>
+            <span class="review-count" data-automation="review-count-4">4.0 (72 reviews)</span>
+          </div>
+          <div class="business-meta">
+            <span class="category-link">Drugstores</span>
+            <span class="category-link">Pharmacy</span>
+            <span class="category-link">Convenience Stores</span>
+            <span class="price-range">$</span>
+            <span class="business-neighborhood">• Wicker Park</span>
+          </div>
+          <div class="business-status status-open">Open until 9:00 PM</div>
+          <div class="business-address" data-automation="business-address-4">1714 W North Ave, Chicago, IL 60622</div>
+          <div class="review-snippet">
+            <svg class="review-snippet-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            <div class="review-text">
+              "Great neighborhood CVS. The pharmacist took extra time to explain my prescription and potential side effects. Really appreciated the personal service..." <a href="https://yelp.com/biz/cvs-pharmacy-wicker-park-chicago#reviews" class="more-link" data-automation="more-link-4">more</a>
+            </div>
+          </div>
+          <div class="amenities">
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Vaccinations
+            </span>
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              MinuteClinic
+            </span>
+          </div>
+        </div>
+      </article>
+      
+      <!-- Result 5 -->
+      <article class="search-result-item" data-automation="search-result-5">
+        <div class="result-image">
+          <div class="result-image-placeholder cvs-placeholder">CVS</div>
+        </div>
+        <div class="result-content">
+          <div class="result-header">
+            <span class="result-number">5.</span>
+            <a href="https://yelp.com/biz/cvs-pharmacy-lakeview-chicago" class="business-name-link" data-automation="business-name-link-5">CVS Pharmacy - Lakeview</a>
+          </div>
+          <div class="rating-row">
+            <div class="star-rating" aria-label="3 out of 5 stars">
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star" viewBox="0 0 18 18" fill="#ccc"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star" viewBox="0 0 18 18" fill="#ccc"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+            </div>
+            <span class="review-count" data-automation="review-count-5">3.0 (94 reviews)</span>
+          </div>
+          <div class="business-meta">
+            <span class="category-link">Drugstores</span>
+            <span class="category-link">Pharmacy</span>
+            <span class="price-range">$</span>
+            <span class="business-neighborhood">• Lakeview</span>
+          </div>
+          <div class="business-status status-open">Open until 10:00 PM</div>
+          <div class="business-address" data-automation="business-address-5">3033 N Broadway, Chicago, IL 60657</div>
+          <div class="review-snippet">
+            <svg class="review-snippet-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            <div class="review-text">
+              "Hit or miss with service. Sometimes the staff is great, other times very slow. Pharmacy usually gets prescriptions right but wait times vary..." <a href="https://yelp.com/biz/cvs-pharmacy-lakeview-chicago#reviews" class="more-link" data-automation="more-link-5">more</a>
+            </div>
+          </div>
+          <div class="amenities">
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Photo Services
+            </span>
+            <span class="amenity amenity-no">
+              <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              No MinuteClinic
+            </span>
+          </div>
+        </div>
+      </article>
+      
+      <!-- Result 6 -->
+      <article class="search-result-item" data-automation="search-result-6">
+        <div class="result-image">
+          <div class="result-image-placeholder cvs-placeholder">CVS</div>
+        </div>
+        <div class="result-content">
+          <div class="result-header">
+            <span class="result-number">6.</span>
+            <a href="https://yelp.com/biz/cvs-pharmacy-streeterville-chicago" class="business-name-link" data-automation="business-name-link-6">CVS Pharmacy - Streeterville</a>
+          </div>
+          <div class="rating-row">
+            <div class="star-rating" aria-label="4 out of 5 stars">
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star star-full" viewBox="0 0 18 18"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+              <svg class="star" viewBox="0 0 18 18" fill="#ccc"><path d="M9 1l2.47 5.01L17 6.86l-4 3.9.94 5.51L9 13.77l-4.94 2.5.94-5.51-4-3.9 5.53-.85z"/></svg>
+            </div>
+            <span class="review-count" data-automation="review-count-6">4.0 (63 reviews)</span>
+          </div>
+          <div class="business-meta">
+            <span class="category-link">Drugstores</span>
+            <span class="category-link">Pharmacy</span>
+            <span class="category-link">Convenience Stores</span>
+            <span class="price-range">$</span>
+            <span class="business-neighborhood">• Streeterville</span>
+          </div>
+          <div class="business-status status-open">Open until 9:00 PM</div>
+          <div class="business-address" data-automation="business-address-6">680 N Lake Shore Dr, Chicago, IL 60611</div>
+          <div class="review-snippet">
+            <svg class="review-snippet-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+            <div class="review-text">
+              "Excellent pharmacy services near Northwestern Hospital. Staff is knowledgeable about medications and insurance questions. Clean store with good selection..." <a href="https://yelp.com/biz/cvs-pharmacy-streeterville-chicago#reviews" class="more-link" data-automation="more-link-6">more</a>
+            </div>
+          </div>
+          <div class="amenities">
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Vaccinations
+            </span>
+            <span class="amenity amenity-yes">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Wheelchair Accessible
+            </span>
+          </div>
+        </div>
+      </article>
+      
+    </div>
+    
+    <!-- Pagination -->
+    <nav class="pagination" aria-label="Pagination">
+      <button class="page-btn disabled" aria-label="Previous page" disabled>‹</button>
+      <button class="page-btn active" aria-current="page" onclick="window.location.href='https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&start=0'">1</button>
+      <button class="page-btn" onclick="window.location.href='https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&start=10'">2</button>
+      <button class="page-btn" onclick="window.location.href='https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&start=20'">3</button>
+      <button class="page-btn" onclick="window.location.href='https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&start=30'">4</button>
+      <button class="page-btn" onclick="window.location.href='https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&start=40'">5</button>
+      <button class="page-btn" aria-label="Next page" onclick="window.location.href='https://yelp.com/search?find_desc=CVS+pharmacy&find_loc=Chicago&start=10'">›</button>
+    </nav>
+  </section>
+  
+  <!-- Map Container -->
+  <aside id="map-container" class="map-container" data-automation="map-container">
+    <div class="map-placeholder">
+      <div class="map-overlay">
+        <div class="map-banner">
+          <span>Expand the map to get a better look at the businesses near you.</span>
+          <button class="map-banner-close" aria-label="Close banner">×</button>
+        </div>
+        <div class="map-content">
+          <!-- Map markers positioned to represent Chicago locations -->
+          <div class="map-marker" style="left: 45%; top: 55%;"><span>1</span></div>
+          <div class="map-marker" style="left: 48%; top: 42%;"><span>2</span></div>
+          <div class="map-marker" style="left: 52%; top: 30%;"><span>3</span></div>
+          <div class="map-marker" style="left: 35%; top: 38%;"><span>4</span></div>
+          <div class="map-marker" style="left: 55%; top: 25%;"><span>5</span></div>
+          <div class="map-marker" style="left: 60%; top: 48%;"><span>6</span></div>
+          
+          <!-- Map Controls -->
+          <div class="map-controls">
+            <button class="map-control-btn" aria-label="Zoom in">+</button>
+            <button class="map-control-btn" aria-label="Zoom out">−</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</main>
+</body>
+</html>
