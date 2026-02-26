@@ -63,6 +63,8 @@ class RedteamAttackerAgent:
     pages: list[Any] | None = None
     # Safe analog - legitimate task for benign mode (generated from adversarial behavior)
     safe_behavior: str | None = None
+    # Concealment strategy hint from pipeline (passed to attacker prompt in adversarial mode)
+    injection_hint: str = ""
 
     # Lazy-initialized (not part of __init__)
     llm: OpenRouterLLMClient = field(default=None, init=False, repr=False)
@@ -111,6 +113,7 @@ class RedteamAttackerAgent:
                     pages=self.pages,
                     test_mode=self.test_mode,
                     safe_behavior=self.safe_behavior,
+                    injection_hint=self.injection_hint,
                 ),
             }
         ]
@@ -164,7 +167,7 @@ class RedteamAttackerAgent:
 
         Args:
             base_html_pages: Dict mapping page_id to HTML content
-            behavior: Behavior config dict with 'doc', 'target', etc.
+            behavior: Behavior config dict with 'objective', 'target', etc.
             n_variants: Number of adversarial variants to generate
             attack_channels: List of channels agent observes ["html", "axtree", "visual"]
 
@@ -405,7 +408,7 @@ def generate_adversarial_variant(
     Args:
         base_html: Dict mapping page_id to base HTML content
         variant_plan: Variant plan with 'changes' array containing html_content
-        behavior: Behavior config dict with 'doc', 'target', etc.
+        behavior: Behavior config dict with 'objective', 'target', etc.
         attack_channels: List of channels agent observes (default: ["axtree"])
 
     Returns:

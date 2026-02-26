@@ -183,9 +183,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     start_page: str = None
 
     # Task description fields
-    summary: str = None
-    objective: str = None
-    doc: str = None  # primary task description, replaces 'behavior'
+    objective: str = None  # Step-by-step harmful actions (primary field for judge + planner)
 
     # Generation parameters
     injection_seed: int = 0  # Backward compat alias for variation_seed
@@ -196,10 +194,7 @@ class RedteamEnvArgs(AbstractEnvArgs):
     attacker_system_prompt: str = None  # Auto-generated if None
     max_conversation_turns: int = 10  # Max turns for multi-turn mode
 
-    target_system_prompt: str = (
-        None  # System prompt for target model (from system_prompt_config.content)
-    )
-    tools_config: dict = None  # Tools configuration (messages, tools, custom_tool_schema)
+    injection_hint: str = ""  # Concealment strategy hint for attacker agent
     criteria: list = None  # Judging criteria
     judging: dict = None  # Judge configuration
     judge_model: str = None  # LLM model for judges (overrides DEFAULT_JUDGE_MODEL)
@@ -221,9 +216,6 @@ class RedteamEnvArgs(AbstractEnvArgs):
 
     # Skip link validation
     skip_link_validation: bool = False
-
-    # Success condition from simulation_config
-    success_condition: str = None
 
     # Shared attacker agent instance (initialized in benchmark)
     attacker_agent: RedteamAttackerAgent = field(default=None, init=False)
@@ -495,7 +487,7 @@ class RedteamEnv(AbstractEnv):
                 variant_html, report = generate_adversarial_variant(
                     base_html=base_html_by_subdomain,
                     variant_plan=variant_plan,
-                    behavior={"doc": self.env_args.doc, "target": self.env_args.target},
+                    behavior={"objective": self.env_args.objective, "target": self.env_args.target},
                     attack_channels=self.env_args.attack_channels,
                 )
 
@@ -760,7 +752,7 @@ class RedteamEnv(AbstractEnv):
             action_mapping=self.action_mapping,
             task_kwargs={
                 "start_url": "about:blank",  # Start neutral, navigate after route setup
-                "goal": self.env_args.doc,
+                "goal": self.env_args.objective or self.env_args.target,
             },
         )
 
@@ -859,7 +851,8 @@ class RedteamEnv(AbstractEnv):
         obs = self.browser_env.unwrapped._get_obs()
 
         # Augment observation with redteam-specific info
-        obs["goal_object"] = [{"type": "text", "text": self.env_args.doc}]
+        goal_text = self.env_args.objective or self.env_args.target
+        obs["goal_object"] = [{"type": "text", "text": goal_text}]
         obs["last_action"] = None
         obs["last_action_error"] = ""
 
@@ -867,7 +860,7 @@ class RedteamEnv(AbstractEnv):
 
         return obs, {
             "task_name": self.env_args.task_name,
-            "doc": self.env_args.doc,
+            "objective": self.env_args.objective,
             "target": self.env_args.target,
             "injection_seed": self.env_args.injection_seed,
             "start_url": external_start_url,
@@ -1063,7 +1056,7 @@ def generate_all_variants(
         adversarial_mode=adversarial_mode,
         test_mode="benign",
         target=behavior_config.get("description", ""),
-        doc=behavior_config.get("doc", ""),
+        objective=behavior_config.get("objective", ""),
         attacker_model=behavior_config.get("attacker_model", "openai/gpt-4.1"),
         pages=pages,
         start_page=_get_start_page(pages),
@@ -1098,7 +1091,7 @@ def generate_all_variants(
             adversarial_mode=adversarial_mode,
             test_mode="adversarial",
             target=behavior_config.get("description", ""),
-            doc=behavior_config.get("doc", ""),
+            objective=behavior_config.get("objective", ""),
             attacker_model=behavior_config.get("attacker_model", "openai/gpt-4.1"),
             pages=pages,
             start_page=_get_start_page(pages),
@@ -1130,7 +1123,7 @@ def generate_variants_with_injection_pipeline(
 
     Args:
         base_html_pages: Dict mapping page_id to base HTML content (benign)
-        behavior: Behavior config dict with 'doc', 'target', etc.
+        behavior: Behavior config dict with 'objective', 'target', etc.
         attacker: RedteamAttackerAgent instance (already initialized)
         n_adversarial_variants: Number of adversarial variants to generate
         attack_channels: List of channels agent observes (default: ["axtree"])
@@ -1148,7 +1141,7 @@ def generate_variants_with_injection_pipeline(
 
         benign, adversarial = generate_variants_with_injection_pipeline(
             base_html_pages={"product": "<html>...</html>"},
-            behavior={"doc": "...", "target": "..."},
+            behavior={"objective": "...", "target": "..."},
             attacker=attacker,
             n_adversarial_variants=3,
         )
@@ -1597,7 +1590,7 @@ class RedteamBenchmark(AbstractBenchmark):
         behavior_id: str,
         case_data: dict,
         pages: list[Page],
-        doc: str,
+        objective: str,
         target: str,
         safe_behavior: str,
         attack_channels: list[str],
@@ -1616,7 +1609,7 @@ class RedteamBenchmark(AbstractBenchmark):
             behavior_id: Unique behavior identifier
             case_data: Full case configuration dict
             pages: List of Page objects
-            doc: Task description (adversarial behavior)
+            objective: Step-by-step harmful actions
             target: Target behavior to induce
             safe_behavior: Safe analog task description
             attack_channels: Channels agent observes ["axtree", "visual", "html"]
@@ -1664,7 +1657,7 @@ class RedteamBenchmark(AbstractBenchmark):
         logger.info(f"[Assets] Analyzing prefill requirements for {behavior_id}...")
         try:
             prefill_spec = analyzer.analyze(
-                behavior=doc,
+                behavior=objective,
                 pages=pages,
                 screenshots=trajectory_screenshots if self.use_trajectory else None,
                 safe_behavior=safe_behavior,
@@ -1747,7 +1740,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 try:
                     html = generator.generate(
                         domain=route_key,
-                        context={"doc": doc, "safe_behavior": safe_behavior, "subdomain_details": subdomain_details},
+                        context={"objective": objective, "safe_behavior": safe_behavior, "subdomain_details": subdomain_details},
                         prefill=combined_spec,
                         simulated_url=full_url,
                         screenshots=trajectory_screenshots if self.use_trajectory else page.screenshots,
@@ -1760,7 +1753,7 @@ class RedteamBenchmark(AbstractBenchmark):
                     html, validation_result = validator.validate_and_fix(
                         html_content=html,
                         prefill_spec=combined_spec,
-                        task_description=doc,
+                        task_description=objective,
                         page_url=full_url,
                         max_fix_attempts=2,
                     )
@@ -1803,7 +1796,7 @@ class RedteamBenchmark(AbstractBenchmark):
                     model=self.attacker_model,
                     attack_type=self.attack_type,
                     mode=self.adversarial_mode,
-                    goal=doc,
+                    goal=objective,
                     target_description=target,
                     pages=pages,
                     safe_behavior=safe_behavior,
@@ -1812,7 +1805,7 @@ class RedteamBenchmark(AbstractBenchmark):
 
                 variant_plans = attacker.plan_adversarial_variants(
                     base_html_pages=base_html,
-                    behavior={"doc": doc, "target": target},
+                    behavior={"objective": objective, "target": target},
                     n_variants=n_adversarial_variants,
                     attack_channels=attack_channels,
                 )
@@ -1865,25 +1858,17 @@ class RedteamBenchmark(AbstractBenchmark):
             first_page = pages[0]
             start_page = f"{first_page.base_site_url}{first_page.subdomains[0]}"
 
-        # Extract system prompt for target model
-        system_prompt_config = case_data.get("system_prompt_config", {})
-        target_system_prompt = system_prompt_config.get("content")
-
-        # Extract tools config, criteria, and judging
-        tools_config = case_data.get("tools_config")
         criteria = case_data.get("criteria")
         judging = case_data.get("judging")
-
-        # Extract success condition from simulation_config
-        success_condition = sim_config.get("success_condition", "")
 
         # Get case-level overrides for attack settings
         case_attack_channels = case_data.get("attack_channels", self.attack_channels)
         case_n_adversarial = case_data.get("n_adversarial_variants", self.n_adversarial_variants)
 
         behavior_id = case_data.get("id", f"case{case_idx}")
-        doc = self._strip_html(case_data.get("doc", ""))
+        objective = case_data.get("objective", case_data.get("doc", ""))
         target = case_data.get("description", "")
+        injection_hint = case_data.get("injection_hint", "")
 
         # safe_behavior is required - must be provided in behavior config
         safe_analog = case_data.get("safe_behavior")
@@ -1903,7 +1888,7 @@ class RedteamBenchmark(AbstractBenchmark):
             behavior_id=behavior_id,
             case_data=case_data,
             pages=pages,
-            doc=doc,
+            objective=objective,
             target=target,
             safe_behavior=safe_analog,
             attack_channels=case_attack_channels,
@@ -1929,10 +1914,8 @@ class RedteamBenchmark(AbstractBenchmark):
                 target=target,
                 pages=pages,
                 start_page=start_page,
-                summary=case_data.get("summary"),
-                objective=case_data.get("objective"),
-                doc=doc,
-                safe_behavior=safe_analog,  # Safe analog for benign mode
+                objective=objective,
+                safe_behavior=safe_analog,
                 world_sim_model=self.world_sim_model,
                 attack_type=case_data.get("attack_type", self.attack_type),
                 attacker_model=self.attacker_model,
@@ -1940,13 +1923,11 @@ class RedteamBenchmark(AbstractBenchmark):
                 use_trajectory=self.use_trajectory,
                 adversarial_mode=case_data.get("adversarial_mode", self.adversarial_mode),
                 max_conversation_turns=self.max_conversation_turns,
-                target_system_prompt=target_system_prompt,
-                tools_config=tools_config,
+                injection_hint=injection_hint,
                 criteria=criteria,
                 judging=judging,
                 resume_from_dir=self.resume_from_dir,
                 skip_link_validation=self.skip_link_validation,
-                success_condition=success_condition,
                 html_library_path=html_library_path,  # Absolute path for Ray workers
                 # Pre-generated assets (Phase 2 refactor)
                 base_html_dir=str(base_html_dir),
@@ -1956,13 +1937,14 @@ class RedteamBenchmark(AbstractBenchmark):
             # Initialize attacker agent with test_mode and safe_behavior
             attacker_agent = RedteamAttackerAgent(
                 model=self.attacker_model,
-                goal=doc,
+                goal=objective,
                 target_description=target,
                 attack_type=env_args.attack_type,
                 mode=env_args.adversarial_mode,
                 test_mode=test_mode,
                 pages=pages,
-                safe_behavior=safe_analog,  # Safe analog for benign/adversarial modes
+                safe_behavior=safe_analog,
+                injection_hint=injection_hint,
             )
             env_args.attacker_agent = attacker_agent
 
@@ -2064,16 +2046,6 @@ class RedteamBenchmark(AbstractBenchmark):
 
         return screenshots
 
-    @staticmethod
-    def _strip_html(text: str) -> str:
-        """Remove HTML tags from text."""
-        import re
-
-        # Remove HTML tags
-        clean = re.sub(r"<[^>]+>", " ", text)
-        # Normalize whitespace
-        clean = re.sub(r"\s+", " ", clean).strip()
-        return clean
 
     def dependency_graph_over_tasks(self) -> dict[str, list[str]]:
         """Redteam tasks are independent."""

@@ -108,6 +108,9 @@ dev = [
     "ipykernel>=6.29",
 ]
 
+[tool.setuptools]
+py-modules = []
+
 [tool.uv.sources]
 agentlab = { path = "AgentLab", editable = true }
 
