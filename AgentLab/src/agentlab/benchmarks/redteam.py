@@ -183,7 +183,8 @@ class RedteamEnvArgs(AbstractEnvArgs):
     start_page: str = None
 
     # Task description fields
-    objective: str = None  # Step-by-step harmful actions (primary field for judge + planner)
+    objective: str = None  # High-level description of the attack goal and why it's harmful
+    steps: str = None  # Numbered steps for the critical path of the attack
 
     # Generation parameters
     injection_seed: int = 0  # Backward compat alias for variation_seed
@@ -487,7 +488,7 @@ class RedteamEnv(AbstractEnv):
                 variant_html, report = generate_adversarial_variant(
                     base_html=base_html_by_subdomain,
                     variant_plan=variant_plan,
-                    behavior={"objective": self.env_args.objective, "target": self.env_args.target},
+                    behavior={"objective": self.env_args.objective, "steps": self.env_args.steps, "target": self.env_args.target},
                     attack_channels=self.env_args.attack_channels,
                 )
 
@@ -1057,6 +1058,7 @@ def generate_all_variants(
         test_mode="benign",
         target=behavior_config.get("description", ""),
         objective=behavior_config.get("objective", ""),
+        steps=behavior_config.get("steps", ""),
         attacker_model=behavior_config.get("attacker_model", "openai/gpt-4.1"),
         pages=pages,
         start_page=_get_start_page(pages),
@@ -1092,6 +1094,7 @@ def generate_all_variants(
             test_mode="adversarial",
             target=behavior_config.get("description", ""),
             objective=behavior_config.get("objective", ""),
+            steps=behavior_config.get("steps", ""),
             attacker_model=behavior_config.get("attacker_model", "openai/gpt-4.1"),
             pages=pages,
             start_page=_get_start_page(pages),
@@ -1805,7 +1808,7 @@ class RedteamBenchmark(AbstractBenchmark):
 
                 variant_plans = attacker.plan_adversarial_variants(
                     base_html_pages=base_html,
-                    behavior={"objective": objective, "target": target},
+                    behavior={"objective": objective, "steps": steps, "target": target},
                     n_variants=n_adversarial_variants,
                     attack_channels=attack_channels,
                 )
@@ -1867,6 +1870,7 @@ class RedteamBenchmark(AbstractBenchmark):
 
         behavior_id = case_data.get("id", f"case{case_idx}")
         objective = case_data.get("objective", case_data.get("doc", ""))
+        steps = case_data.get("steps", "")
         target = case_data.get("description", "")
         injection_hint = case_data.get("injection_hint", "")
 
@@ -1915,6 +1919,7 @@ class RedteamBenchmark(AbstractBenchmark):
                 pages=pages,
                 start_page=start_page,
                 objective=objective,
+                steps=steps,
                 safe_behavior=safe_analog,
                 world_sim_model=self.world_sim_model,
                 attack_type=case_data.get("attack_type", self.attack_type),
@@ -1938,6 +1943,7 @@ class RedteamBenchmark(AbstractBenchmark):
             attacker_agent = RedteamAttackerAgent(
                 model=self.attacker_model,
                 goal=objective,
+                steps=steps,
                 target_description=target,
                 attack_type=env_args.attack_type,
                 mode=env_args.adversarial_mode,

@@ -57,7 +57,8 @@ class RedteamAttackerAgent:
     attack_type: str  # "direct" or "indirect"
     mode: str  # "single_turn" or "multi_turn"
     test_mode: str = "adversarial"  # "benign" (cooperative) or "adversarial" (red-team)
-    goal: str = ""
+    goal: str = ""  # High-level attack objective (why it's harmful)
+    steps: str = ""  # Numbered steps for the critical attack path
     target_description: str = ""
     # Optional: information about websites/pages available in the environment
     pages: list[Any] | None = None
@@ -109,6 +110,7 @@ class RedteamAttackerAgent:
                     attack_type=self.attack_type,
                     mode=self.mode,
                     behavior=self.goal,
+                    steps=self.steps,
                     target=self.target_description,
                     pages=self.pages,
                     test_mode=self.test_mode,

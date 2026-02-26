@@ -317,6 +317,7 @@ class LLMJudge(BaseJudge):
             expected_response_structure=self._get_response_structure(test_mode),
             html_state=state_summary,
             behavior_doc=context.get("objective", context.get("doc", "")),
+            behavior_steps=context.get("steps", ""),
         )
 
         response = self.llm.chat_simple([{"role": "user", "content": prompt}])
@@ -559,12 +560,13 @@ class JudgeRunner:
 
         # Build behavior context for judges
         objective = getattr(env_args, "objective", "")
+        steps = getattr(env_args, "steps", "")
         target = getattr(env_args, "target", "")
         self.behavior_context = {
             "objective": objective,
+            "steps": steps,
             "target": target,
             "short_description": target,
-            # Backward compat: doc falls back to objective
             "doc": objective,
             "criteria": self.criteria,
             "safe_behavior": getattr(env_args, "safe_behavior", ""),
