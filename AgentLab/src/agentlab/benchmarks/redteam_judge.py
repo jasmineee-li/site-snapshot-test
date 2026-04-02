@@ -310,13 +310,14 @@ class LLMJudge(BaseJudge):
         # Fill in template placeholders
         prompt = prompt_template.format(
             test_mode=test_mode,
-            short_description=context.get("short_description", context.get("doc", "")),
+            short_description=context.get("short_description", context.get("target", "")),
             criteria=criteria_text,
             conversation_text=conversation_text,
             conversation_text_without_reasoning=conversation_text_without_reasoning,
             expected_response_structure=self._get_response_structure(test_mode),
             html_state=state_summary,
-            behavior_doc=context.get("doc", ""),
+            behavior_doc=context.get("objective", context.get("doc", "")),
+            behavior_steps=context.get("steps", ""),
         )
 
         response = self.llm.chat_simple([{"role": "user", "content": prompt}])
@@ -558,13 +559,15 @@ class JudgeRunner:
         self.test_mode = getattr(env_args, "test_mode", "adversarial")
 
         # Build behavior context for judges
+        objective = getattr(env_args, "objective", "")
+        steps = getattr(env_args, "steps", "")
+        target = getattr(env_args, "target", "")
         self.behavior_context = {
-            "doc": getattr(env_args, "doc", ""),
-            "target": getattr(env_args, "target", ""),
-            "summary": getattr(env_args, "summary", ""),
-            "objective": getattr(env_args, "objective", ""),
-            "short_description": getattr(env_args, "target", "")
-            or getattr(env_args, "summary", ""),
+            "objective": objective,
+            "steps": steps,
+            "target": target,
+            "short_description": target,
+            "doc": objective,
             "criteria": self.criteria,
             "safe_behavior": getattr(env_args, "safe_behavior", ""),
             "test_mode": self.test_mode,

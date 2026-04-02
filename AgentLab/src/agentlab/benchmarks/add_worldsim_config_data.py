@@ -49,9 +49,9 @@ def get_simulation_analysis_prompt(behavior: dict) -> str:
     behavior_id = behavior.get("id", "unknown")
     name = behavior.get("name", "")
     description = behavior.get("description", "")
-    doc = behavior.get("doc", "")
+    objective = behavior.get("objective", behavior.get("doc", ""))
+    steps = behavior.get("steps", "")
     summary = behavior.get("summary", "")
-    objective = behavior.get("objective", "")
 
     # Extract system prompt if available
     system_prompt = ""
@@ -95,8 +95,8 @@ NAME: {name}
 DESCRIPTION:
 {description}
 
-DOCUMENTATION:
-{doc}
+OBJECTIVE:
+{objective}
 
 SUMMARY:
 {summary}

@@ -217,7 +217,7 @@ Analyze the reference HTML below and replicate its visual design language.
             base_html=base_html,
             new_prefill_spec=new_prefill_spec,
             domain=domain,
-            new_behavior=context.get("doc", ""),
+            new_behavior=context.get("objective", context.get("doc", "")),
         )
 
         try:
@@ -764,7 +764,7 @@ def generate_base_pages(
         # Step 1: Generate prefill spec for realistic content
         logger.info(f"Analyzing prefill requirements for {page_id}...")
         prefill_prompt = get_prefill_analysis_prompt(
-            behavior=behavior_config.get("doc", ""),
+            behavior=behavior_config.get("objective", behavior_config.get("doc", "")),
             pages=[page_config],
             screenshots=page_config.get("screenshots"),
         )
@@ -815,7 +815,7 @@ def generate_base_pages(
                 clean_spec["prefill_adversarial"] = {"needed": False}
 
             context = {
-                "doc": behavior_config.get("doc", ""),
+                "objective": behavior_config.get("objective", behavior_config.get("doc", "")),
                 "subdomain_details": page_config.get("details", {}).get(subdomain, ""),
             }
 
