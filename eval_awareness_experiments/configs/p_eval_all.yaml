@@ -1,0 +1,17 @@
+name: p_eval_all_sources
+experiment: p_eval
+models:
+  - anthropic/claude-sonnet-4
+  - openai/gpt-4o
+formats:
+  - html
+  - axtree
+  - screenshot
+sources:
+  - worldsim
+  - webarena
+  - agentcompany
+  - real
+website_types: null  # all types
+manifest: eval_awareness_experiments/data/manifest.json
+output_dir: eval_awareness_experiments/results
