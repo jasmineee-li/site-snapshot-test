@@ -12,6 +12,16 @@ from pathlib import Path
 
 from openai import AsyncOpenAI
 
+# Load .env from project root if present
+_env_file = Path(__file__).parent.parent / ".env"
+if _env_file.exists():
+    for line in _env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, val = line.partition("=")
+            val = val.strip('"').strip("'")
+            os.environ[key.strip()] = val
+
 
 @dataclass
 class _Message:
@@ -34,9 +44,14 @@ class LLM:
         print(result.message.text)
     """
 
-    def __init__(self, model: str, max_tokens: int = 4096):
+    def __init__(self, model: str, max_tokens: int = 4096, thinking: bool = False):
+        # Strip :thinking suffix and enable thinking mode
+        if model.endswith(":thinking"):
+            model = model.removesuffix(":thinking")
+            thinking = True
         self.model = model
         self.max_tokens = max_tokens
+        self.thinking = thinking
         self._client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
@@ -61,6 +76,7 @@ class LLM:
             model=self.model,
             messages=messages,
             max_tokens=self.max_tokens,
+            **self._extra_kwargs(),
         )
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
@@ -100,9 +116,20 @@ class LLM:
             model=self.model,
             messages=messages,
             max_tokens=self.max_tokens,
+            **self._extra_kwargs(),
         )
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
+
+    def _extra_kwargs(self) -> dict:
+        """Build extra kwargs for the API call (e.g. thinking/reasoning)."""
+        if not self.thinking:
+            return {}
+        return {
+            "extra_body": {
+                "reasoning": {"effort": "high"},
+            },
+        }
 
     def __repr__(self) -> str:
         return f"LLM(model={self.model!r})"

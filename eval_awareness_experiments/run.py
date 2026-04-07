@@ -32,19 +32,43 @@ EXPERIMENT_CLASSES = {
 
 
 def load_manifest(manifest_path: Path) -> list[WebsiteSample]:
-    """Load samples from a manifest.json file."""
+    """Load samples from a manifest.json file.
+
+    Handles both the new per-environment format (with "pages" list) and the
+    legacy per-file format (with "html_path" etc.). The new format expands
+    each page into a separate WebsiteSample.
+    """
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     samples = []
     for d in data:
-        samples.append(WebsiteSample(
-            id=d["id"],
-            source=d["source"],
-            website_type=d["website_type"],
-            html_path=d.get("html_path"),
-            axtree_path=d.get("axtree_path"),
-            screenshot_path=d.get("screenshot_path"),
-            metadata=d.get("metadata", {}),
-        ))
+        if "pages" in d and d["pages"]:
+            # New format: expand each page into a sample
+            base_path = Path(d["path"])
+            website_type = d.get("metadata", {}).get("website_type") or d["id"].split("_", 1)[-1]
+            for page_name in d["pages"]:
+                html_path = base_path / f"{page_name}.html"
+                axtree_path = base_path / f"{page_name}_axtree.txt"
+                screenshot_path = base_path / f"{page_name}.png"
+                samples.append(WebsiteSample(
+                    id=f"{d['id']}_{page_name}",
+                    source=d["source"],
+                    website_type=website_type,
+                    html_path=str(html_path) if html_path.exists() else None,
+                    axtree_path=str(axtree_path) if axtree_path.exists() else None,
+                    screenshot_path=str(screenshot_path) if screenshot_path.exists() else None,
+                    metadata={**d.get("metadata", {}), "page": page_name},
+                ))
+        elif "html_path" in d or "axtree_path" in d or "screenshot_path" in d:
+            # Legacy format
+            samples.append(WebsiteSample(
+                id=d["id"],
+                source=d["source"],
+                website_type=d.get("website_type", "unknown"),
+                html_path=d.get("html_path"),
+                axtree_path=d.get("axtree_path"),
+                screenshot_path=d.get("screenshot_path"),
+                metadata=d.get("metadata", {}),
+            ))
     return samples
 
 
@@ -52,13 +76,17 @@ def filter_samples(
     samples: list[WebsiteSample],
     sources: list[str] | None = None,
     website_types: list[str] | None = None,
+    id_contains: str | None = None,
 ) -> list[WebsiteSample]:
-    """Filter samples by source and/or website type."""
+    """Filter samples by source, website type, or ID substring."""
     filtered = samples
     if sources:
         filtered = [s for s in filtered if s.source in sources]
     if website_types:
-        filtered = [s for s in filtered if s.website_type in website_types]
+        # Substring match on website_type
+        filtered = [s for s in filtered if any(wt in s.website_type for wt in website_types)]
+    if id_contains:
+        filtered = [s for s in filtered if id_contains.lower() in s.id.lower()]
     return filtered
 
 
