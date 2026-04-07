@@ -1,4 +1,4 @@
-name: p_eval_all
+name: p_eval_tac_pages
 experiment: p_eval
 models:
   - openai/gpt-5.4:thinking
@@ -10,5 +10,7 @@ formats:
   - screenshot
   - html
   - axtree
+sources:
+  - tac
 manifest: eval_awareness_experiments/data/manifest.json
 output_dir: eval_awareness_experiments/results

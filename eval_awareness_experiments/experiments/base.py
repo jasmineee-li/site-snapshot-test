@@ -70,42 +70,49 @@ class BaseExperiment(ABC):
         samples: list[WebsiteSample],
         format_types: list[str],
     ) -> list[WebsiteExperimentResult]:
-        """Run experiment on all samples and formats.
+        """Run experiment on all samples and formats concurrently.
 
-        Saves results incrementally to JSONL.
+        Concurrency is bounded by the LLM client's semaphore.
+        Saves results to JSONL when all tasks complete.
         """
+        import asyncio
+
         output_file = self.output_dir / f"{self.name}_results.jsonl"
-        all_results = []
 
-        for sample in samples:
-            for fmt in format_types:
-                try:
-                    results = await self.run_sample(sample, fmt)
-                    all_results.extend(results)
+        async def _run_one(sample: WebsiteSample, fmt: str) -> list[WebsiteExperimentResult]:
+            try:
+                return await self.run_sample(sample, fmt)
+            except Exception as e:
+                logger.error(f"Error on {sample.id}/{fmt}: {e}")
+                return [WebsiteExperimentResult(
+                    sample_id=sample.id,
+                    experiment_type=self.name,
+                    model=self.model.model,
+                    format_used=fmt,
+                    metadata={"error": str(e)},
+                )]
 
-                    # Incremental save
-                    with open(output_file, "a", encoding="utf-8") as f:
-                        for r in results:
-                            f.write(json.dumps({
-                                "sample_id": r.sample_id,
-                                "experiment_type": r.experiment_type,
-                                "model": r.model,
-                                "format_used": r.format_used,
-                                "score": r.score,
-                                "classification": r.classification,
-                                "raw_response": r.raw_response,
-                                "metadata": r.metadata,
-                            }) + "\n")
+        tasks = [
+            _run_one(sample, fmt)
+            for sample in samples
+            for fmt in format_types
+        ]
+        nested_results = await asyncio.gather(*tasks)
+        all_results = [r for batch in nested_results for r in batch]
 
-                except Exception as e:
-                    logger.error(f"Error on {sample.id}/{fmt}: {e}")
-                    all_results.append(WebsiteExperimentResult(
-                        sample_id=sample.id,
-                        experiment_type=self.name,
-                        model=self.model.model,
-                        format_used=fmt,
-                        metadata={"error": str(e)},
-                    ))
+        # Save all results
+        with open(output_file, "w", encoding="utf-8") as f:
+            for r in all_results:
+                f.write(json.dumps({
+                    "sample_id": r.sample_id,
+                    "experiment_type": r.experiment_type,
+                    "model": r.model,
+                    "format_used": r.format_used,
+                    "score": r.score,
+                    "classification": r.classification,
+                    "raw_response": r.raw_response,
+                    "metadata": r.metadata,
+                }) + "\n")
 
         print(f"  {self.name}: {len(all_results)} results saved to {output_file}")
         return all_results
