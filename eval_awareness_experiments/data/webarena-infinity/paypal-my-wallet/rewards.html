@@ -1,0 +1,311 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item active" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>Rewards</h1>
+                <button class="btn btn-primary" data-action="open-redeem-rewards-modal">
+                    <span class="material-icons">redeem</span> Redeem Points
+                </button>
+            </div>
+
+            <div class="rewards-summary-card">
+                <div class="rewards-points-display">
+                    <div class="rewards-points-number">4,825</div>
+                    <div class="rewards-points-label">Points Available</div>
+                </div>
+                <div class="rewards-value">Worth $48.25</div>
+                <div class="rewards-tier">
+                    <span class="material-icons">workspace_premium</span> Gold Member
+                </div>
+            </div>
+
+            <div class="rewards-stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Earned This Month</div>
+                    <div class="stat-value">312 pts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Earned This Year</div>
+                    <div class="stat-value">2,150 pts</div>
+                </div>
+            </div>
+
+            
+            <div class="section-header">
+                <h3>History</h3>
+                
+            </div>
+        
+            <div class="rewards-history">
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Amazon</div>
+                                <div class="reward-date">Mar 5, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +125 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Target</div>
+                                <div class="reward-date">Mar 2, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +87 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">remove_circle</span>
+                            <div>
+                                <div class="reward-desc">Redeemed for PayPal Balance</div>
+                                <div class="reward-date">Feb 28, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right negative">
+                            -500 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Uber Eats</div>
+                                <div class="reward-date">Feb 25, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +45 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">star</span>
+                            <div>
+                                <div class="reward-desc">Bonus: Monthly Spend Goal</div>
+                                <div class="reward-date">Jan 31, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +200 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Walmart</div>
+                                <div class="reward-date">Jan 28, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +63 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Spotify</div>
+                                <div class="reward-date">Jan 14, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +15 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">remove_circle</span>
+                            <div>
+                                <div class="reward-desc">Redeemed for Gift Card</div>
+                                <div class="reward-date">Jan 10, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right negative">
+                            -1,000 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Etsy</div>
+                                <div class="reward-date">Jan 5, 2026</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +92 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">star</span>
+                            <div>
+                                <div class="reward-desc">Holiday Bonus</div>
+                                <div class="reward-date">Dec 24, 2025</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +500 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Apple</div>
+                                <div class="reward-date">Dec 20, 2025</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +340 pts
+                        </div>
+                    </div>
+                
+                    <div class="reward-history-row">
+                        <div class="reward-history-left">
+                            <span class="material-icons">add_circle</span>
+                            <div>
+                                <div class="reward-desc">Purchase at Home Depot</div>
+                                <div class="reward-date">Dec 15, 2025</div>
+                            </div>
+                        </div>
+                        <div class="reward-history-right positive">
+                            +156 pts
+                        </div>
+                    </div>
+                
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

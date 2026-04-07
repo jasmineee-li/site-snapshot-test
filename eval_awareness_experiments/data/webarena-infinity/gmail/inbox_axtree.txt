@@ -1,0 +1,290 @@
+- document:
+  - banner:
+    - button "Main menu":
+      - img
+    - img
+    - text: Gmail
+    - button "Search":
+      - img
+    - textbox "Search mail"
+    - button "Show search options":
+      - img
+    - button "Settings":
+      - img
+    - text: AJ
+  - navigation:
+    - button "Compose":
+      - img
+      - text: Compose
+    - img
+    - text: Inbox 19
+    - img
+    - text: Starred
+    - img
+    - text: Snoozed
+    - img
+    - text: Sent
+    - img
+    - text: Drafts 2
+    - img
+    - text: Important
+    - img
+    - text: All Mail
+    - img
+    - text: Spam 5
+    - img
+    - text: Trash Labels
+    - button "▾"
+    - text: Work 12 Projects 4 Meetings 1 Clients 1 HR Personal Family Friends Finance Invoices Banking Travel 1 Receipts Newsletters 2 Health Education Action Required 4 Waiting For Reply 1 Reference
+    - img
+    - text: Create new label
+  - main:
+    - checkbox
+    - button "▾"
+    - button "Refresh":
+      - img
+      - text: Refresh
+    - text: 1-48 of 48
+    - button "Newer" [disabled]:
+      - img
+      - text: Newer
+    - button "Older" [disabled]:
+      - img
+      - text: Older
+    - button "Primary 9":
+      - img
+      - text: Primary 9
+    - button "Social 4":
+      - img
+      - text: Social 4
+    - button "Promotions 2":
+      - img
+      - text: Promotions 2
+    - button "Updates 3":
+      - img
+      - text: Updates 3
+    - button "Forums 1":
+      - img
+      - text: Forums 1
+    - checkbox
+    - button "☆"
+    - button "▶"
+    - text: Sarah Chen Q1 Product Roadmap Review Work Projects - Hi Alex, I've attached the updated Q1 product roadmap for your review. Please take a look before our meeting on Thursday.
+    - img
+    - text: Feb 24
+    - checkbox
+    - button "☆"
+    - button "▶"
+    - text: "Priya Sharma Re: API Integration Issue Work Projects - I found the root cause. The timeout was set to 30s but the new endpoint needs at least 45s. I'll push a fix today. Feb 24"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Morning Brew Daily Brew: Fed signals rate cuts Newsletters - Fed Chair signals possible rate cuts in Q2. Tesla hits $300/share. Apple Vision Pro sales surge 200%. Feb 24"
+    - checkbox
+    - button "★"
+    - button "▷"
+    - text: Priya Sharma API Integration Issue Work Projects - Hey Alex, we're seeing intermittent failures on the payment gateway API. Getting 504 errors about 15% of the time. Feb 23
+    - checkbox
+    - button "☆"
+    - button "▶"
+    - text: David Kim Monthly Financial Report - January 2026 Finance Invoices - Please find attached the January financial summary. Revenue was up 12% MoM, with notable growth in enterprise segment.
+    - img
+    - text: Feb 23
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Marcus Williams Design System Update v4.2 Work - The new component library is ready for review. Key changes: updated color tokens, new navigation patterns, and improved responsive breakpoints."
+    - img
+    - text: Feb 23
+    - checkbox
+    - button "★"
+    - button "▶"
+    - text: Emily Rodriguez Partnership Opportunity - Series B Company Work Clients Action Required - Alex, I'd like to introduce you to a Series B company in the AI space. They're looking for integration partners and I think there's a great fit. Feb 23
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Kevin Zhao Research Paper: Quantum Error Correction Education Reference - Our team just published a new paper on quantum error correction codes. Thought you might find it interesting given our conversation last week."
+    - img
+    - text: Feb 22
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Nate Patel CI/CD Pipeline Migration Plan Work Projects Action Required - Here's the migration plan for moving our CI/CD from Jenkins to GitHub Actions. Estimated 3 weeks for full cutover.
+    - img
+    - text: Feb 22
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Maya Patel Team Standup Notes - Feb 22 Work Meetings - Quick summary from today's standup: Backend team finishing auth refactor, Frontend starting dashboard redesign, QA blocked on staging env. Feb 22"
+    - checkbox
+    - button "★"
+    - button "▷"
+    - text: The Pragmatic Engineer Big Tech hiring is back - what changed? Newsletters Reference - After 2 years of hiring freezes, FAANG companies are ramping up. Here's what's different this time. Feb 22
+    - checkbox
+    - button "★"
+    - button "▶"
+    - text: "James O'Brien Contract Review: Vendor Agreement Work Clients Action Required - Alex, I've reviewed the vendor agreement. A few clauses need attention - see my redlined version attached. Let's discuss by end of week."
+    - img
+    - text: Feb 21
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Ana Gutierrez Volunteer Event: Spring Health Fair Personal - We're organizing a spring health fair on March 15th. Would you be interested in volunteering? We need help with registration and logistics. Feb 21"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Ryan Cooper Re: Platform Performance Issues Work Projects - Good news - we identified the bottleneck. It was a missing database index on the analytics table. Response times are back to normal. Feb 21"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "TLDR Newsletter TLDR: GPT-5 benchmarks leaked Newsletters - GPT-5 benchmarks, Rust 2.0 announced, Docker alternatives, PostgreSQL 17 features. Feb 21"
+    - checkbox
+    - button "★"
+    - button "▶"
+    - text: Sophie Laurent Bonjour! Conference Speaker Invitation Travel Action Required - We'd love to have you speak at EuroDesign Summit 2026 in Paris. The theme is "AI-Driven Design Systems." Travel and accommodation covered. Feb 20
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Tom Bradley Property Listing: 45 Oak Avenue Personal - New listing matching your criteria - 3BR/2BA, 1,800 sqft, updated kitchen, large backyard. Open house this Saturday 1-4pm. Feb 20"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Michelle Park Interview Request: Tech Innovation Panel Waiting For Reply - Hi Alex, we're producing a segment on tech innovation in 2026. Would you be available for a 15-minute interview next week? Feb 20"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Daniel Thompson Office Renovation Plans Work - Attached are the revised floor plans for the office renovation. The open workspace area has been expanded per your feedback.
+    - img
+    - text: Feb 19
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Sarah Chen Re: Quarterly Team Dinner Work - March 7th is perfect! I'll make the reservation for 8 people. Any dietary restrictions? Feb 19"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Sarah Chen Quarterly Team Dinner Work Meetings - Hey everyone! Let's plan our Q1 team dinner. I'm thinking March 7th at Zafferano. Please reply with your availability. Feb 19
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Benedict Evans AI and the future of search Newsletters Reference - Long-form analysis of how AI is reshaping information retrieval and what it means for Google. Feb 19
+    - checkbox
+    - button "☆"
+    - button "▶"
+    - text: "Jennifer Wu Re: Collaboration Proposal Work Waiting For Reply - Alex, this sounds promising. Let's set up a call with our research team. How does Thursday at 2pm PST work for you? Feb 18"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Robert Singh Guest Lecture Invitation - CS 401 Education - The department would be honored if you could give a guest lecture on distributed systems. We have an opening on March 20th. Feb 18
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Priya Sharma Code Review Request: auth-service PR #42 Work Projects - Hey Alex, can you review my PR for the OAuth2 PKCE implementation? It's about 400 lines. Feb 18"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Ryan Cooper SaaS Platform Q1 Pricing Update Work - Heads up - we're adjusting enterprise tier pricing starting March 1st. Existing contracts unaffected. Feb 17
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Rachel Foster Donation Receipt - Tax Year 2025 Finance Receipts - Thank you for your generous contribution of $500 to NonprofitAid. Attached is your tax receipt for the 2025 fiscal year.
+    - img
+    - text: Feb 17
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Omar Al-Rashid Strategy Workshop Follow-up Work Meetings - Great workshop yesterday. Attached are the whiteboard photos and action items. Please review your assigned items by Friday.
+    - img
+    - text: Feb 17
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Stratechery The Great AI Unbundling Newsletters - How AI is disrupting SaaS businesses by enabling customers to build their own tools. Feb 17
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Hannah Brooks Your Workout Plan for March Health Personal - Hi Alex! I've customized your workout plan for March based on your progress. Let me know if you want any adjustments.
+    - img
+    - text: Feb 16
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Kevin Zhao Lab Tour Invitation Personal - We're hosting an open lab day on March 5th. Would love to show you our new quantum processor setup. Feb 16
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Jennifer Wu BioMed Conference Recap Education - Great seeing you at the conference! Here are the slides from the panel we discussed.
+    - img
+    - text: Feb 15
+    - checkbox
+    - button "★"
+    - button "▷"
+    - text: Lisa Nakamura Brand Refresh Concepts Work Clients - Here are three brand refresh concepts for review. Each explores a different direction. Let me know your thoughts.
+    - img
+    - text: Feb 15
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Chris Evans Sunday Game Tickets Available Personal Friends - Hey Alex, my friend can't make it to the game this Sunday. Want his ticket? Section 108, Row 12. Face value $85. Feb 14
+    - checkbox
+    - button "☆"
+    - button "▶"
+    - text: "David Kim Tax Season Reminder: Documents Needed Finance Action Required - Friendly reminder: we need your W-2 and 1099 forms by March 1st to prepare your 2025 tax return on time. Feb 14"
+    - checkbox
+    - button "☆"
+    - button "▶"
+    - text: "Maya Patel Performance Review Self-Assessment Due Work HR Action Required - Reminder: please submit your self-assessment by end of day Friday. Template link in the HR portal. Feb 14"
+    - checkbox
+    - button "!"
+    - button "▶"
+    - text: "Sarah Chen URGENT: Production database issue Work Action Required - Database connections maxing out. Need immediate attention. I'm pulling in the on-call team. Feb 13"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Priya Sharma Sprint Retro Action Items Work Projects - From our retro: 1) Improve code review turnaround, 2) Set up automated E2E tests, 3) Reduce meeting overhead. Owners assigned. Feb 13"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Daniel Thompson Permit Application Status - Good news - the city approved our renovation permit. Construction can begin March 10th. Feb 13
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Emily Rodriguez VC Meetup Next Thursday Personal - There's a VC networking event at The Grand Hotel on Feb 20th, 6-9pm. Great opportunity to meet Series A/B investors. Want to go? Feb 13
+    - checkbox
+    - button "?"
+    - button "▷"
+    - text: Kevin Zhao Interesting paper on LLM optimization Education Reference - Found this paper on efficient LLM inference. The pruning technique is fascinating. Feb 12
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: James O'Brien Annual Retainer Renewal Finance - Alex, our retainer agreement is up for renewal in March. Let's schedule a call to discuss terms. Jan 28
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Omar Al-Rashid Digital Transformation Assessment Work Reference - Attached is our initial assessment of your digital transformation readiness. Executive summary on page 3.
+    - img
+    - text: Jan 25
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Morning Brew Daily Brew: Tech IPOs heat up Newsletters - Three tech companies filed S-1s this week. The IPO market is back in full swing. Jan 24"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Rachel Foster Volunteer Appreciation Dinner Personal - You're invited to our annual volunteer appreciation dinner on Feb 8th. RSVP by Jan 31. Jan 20
+    - checkbox
+    - button "★"
+    - button "▷"
+    - text: "David Kim Year-End Financial Summary 2025 Finance Reference - Attached: your 2025 financial summary with investment returns, tax estimates, and 2026 planning recommendations."
+    - img
+    - text: Jan 18
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Lisa Nakamura Portfolio Website Mockups Personal - Three mockup options for your personal portfolio site. Modern, minimal, or creative direction?
+    - img
+    - text: Jan 17
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Hannah Brooks February Fitness Challenge Health - Join our 28-day fitness challenge! Daily workouts, nutrition tips, and weekly check-ins. Starts Feb 1. Jan 15

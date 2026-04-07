@@ -1,0 +1,70 @@
+- document:
+  - banner:
+    - button "Main menu":
+      - img
+    - img
+    - text: Gmail
+    - button "Search":
+      - img
+    - textbox "Search mail"
+    - button "Show search options":
+      - img
+    - button "Settings":
+      - img
+    - text: AJ
+  - navigation:
+    - button "Compose":
+      - img
+      - text: Compose
+    - img
+    - text: Inbox 19
+    - img
+    - text: Starred
+    - img
+    - text: Snoozed
+    - img
+    - text: Sent
+    - img
+    - text: Drafts 2
+    - img
+    - text: Important
+    - img
+    - text: All Mail
+    - img
+    - text: Spam 5
+    - img
+    - text: Trash Labels
+    - button "▾"
+    - text: Work 12 Projects 4 Meetings 1 Clients 1 HR Personal Family Friends Finance Invoices Banking Travel 1 Receipts Newsletters 2 Health Education Action Required 4 Waiting For Reply 1 Reference
+    - img
+    - text: Create new label
+  - main:
+    - checkbox
+    - button "▾"
+    - button "Refresh":
+      - img
+      - text: Refresh
+    - button "Empty Trash now"
+    - text: 1-4 of 4
+    - button "Newer" [disabled]:
+      - img
+      - text: Newer
+    - button "Older" [disabled]:
+      - img
+      - text: Older
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Unknown Sender You have inherited $5,000,000 - Dear beneficiary, you have been selected to receive a sum of five million dollars... Feb 19
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Casino Online Congratulations! You won $10,000! - Click here to claim your prize. Limited time offer. Act now! Feb 18
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Flash Sale AMAZING DEAL: iPhone for $1!!! - Limited stock! Get the latest iPhone for only $1. Click here before it's gone! Feb 18"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Newsletter Spam You won't believe what happened next - Click here for the most shocking news of 2026. This will change everything you know! Feb 16

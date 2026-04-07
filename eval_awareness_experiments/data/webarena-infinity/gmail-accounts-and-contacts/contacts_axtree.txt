@@ -1,0 +1,144 @@
+- document:
+  - button "menu"
+  - text: contacts Contacts search
+  - textbox "Search contacts"
+  - button "help_outline"
+  - button "settings"
+  - text: AJ contacts Contacts
+  - button "add Create contact"
+  - navigation: people Contacts 40 history Frequently contacted star Starred 10 person_outline Other contacts 20 merge_type Merge & fix 2
+  - text: Labels
+  - button "add"
+  - text: Family 4
+  - button "edit"
+  - text: Friends 7
+  - button "edit"
+  - text: Work 19
+  - button "edit"
+  - text: VIP Clients 4
+  - button "edit"
+  - text: Gym Buddies 5
+  - button "edit"
+  - text: College Alumni 4
+  - button "edit"
+  - text: Neighbors 3
+  - button "edit"
+  - text: Book Club 2
+  - button "edit"
+  - text: Vendors 5
+  - button "edit"
+  - text: Emergency 4
+  - button "edit"
+  - text: Travel Contacts 3
+  - button "edit"
+  - text: Healthcare 4
+  - button "edit"
+  - navigation: import_export Import & Export supervisor_account Delegates link Linked Services settings Settings
+  - text: search
+  - textbox "Search contacts"
+  - text: First name expand_more
+  - button "arrow_upward"
+  - heading "Contacts" [level=1]
+  - text: 40 contacts Name Email Phone number Company Labels AM Aisha Mohammed aisha.m@edtech.academy +1 (510) 555-2326 EdTech Academy Work
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: AG Ana Gutierrez ana.g@globalhealth.org +1 (415) 555-0912 GlobalHealth.org Friends Gym Buddies
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: BW Ben Walker ben.walker@gmail.com +1 (415) 555-3410 Neighbors Emergency
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: CM Carlos Mendez carlos.m@logisticspro.net +1 (305) 555-1215 LogisticsPro Vendors
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: CE Chris Evans chris.evans@sportsnews.com +1 (925) 555-2225 SportsNews Friends College Alumni Gym Buddies
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: DT Daniel Thompson daniel.t@architectsllp.com +1 (415) 555-2023 Thompson Architects LLP Vendors
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: DK David Kim david.kim@financeplus.com +1 (312) 555-0608 FinancePlus Work VIP Clients
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: DC Diana Castillo diana.castillo@gmail.com +1 (415) 555-3511 Self-employed Gym Buddies Healthcare
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: DP Dr. Patricia Nguyen dr.nguyen@baymedical.org +1 (415) 555-2804 Bay Medical Center Healthcare Emergency
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: EV Elena Volkov elena.volkov@eurodesign.fr +33 6 12 34 5678 EuroDesign Work Travel Contacts
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: ER Emily Rodriguez emily.r@startupventures.co +1 (408) 555-0304 StartupVentures Work VIP Clients
+  - button "star"
+  - button "edit"
+  - button "delete"
+  - text: GH Greg Hoffman greg.hoffman@wellsfargo.com +1 (415) 555-3208 Wells Fargo Vendors
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: HB Hannah Brooks hannah.b@fitnessfirst.com +1 (415) 555-1720 FitnessFirst Gym Buddies Healthcare
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: JM Jake Morrison jake.morrison@gmail.com +1 (415) 555-3006 Stripe Friends Gym Buddies College Alumni
+  - button "star"
+  - button "edit"
+  - button "delete"
+  - text: JO James O'Brien james.obrien@lawfirm.legal +1 (212) 555-0405 Morrison & Associates Work Vendors
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: JW Jennifer Wu jennifer.wu@biomedresearch.com +1 (617) 555-1922 BioMed Research Work
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: KZ Kevin Zhao kevin.zhao@quantumlab.tech +1 (650) 555-1417 QuantumLab Work College Alumni
+  - button "star"
+  - button "edit"
+  - button "delete"
+  - text: LJ Laura Johnson-Martinez laura.jm@gmail.com +1 (503) 555-2703 Nike Family
+  - button "star"
+  - button "edit"
+  - button "delete"
+  - text: LM Leo Martinez leo.martinez@gmail.com +1 (503) 555-4014 Adidas Family
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: LN Lisa Nakamura lisa.n@creativeagency.co +1 (310) 555-0710 Creative Agency Co. Work
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: MW Marcus Williams marcus.w@designhub.com +1 (415) 555-0203 DesignHub Work Friends
+  - button "star"
+  - button "edit"
+  - button "delete"
+  - text: MJ Margaret Johnson margaret.johnson@gmail.com +1 (916) 555-2500 Family Emergency
+  - button "star"
+  - button "edit"
+  - button "delete"
+  - text: MP Maya Patel maya.patel@techcorp.io +1 (650) 555-2124 TechCorp Work
+  - button "star"
+  - button "edit"
+  - button "delete"
+  - text: MP Michelle Park michelle.park@mediaco.tv +1 (213) 555-1114 MediaCo TV Work
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: MC Mike Chen mike.chen.dds@gmail.com +1 (415) 555-2905 Sunset Dental Healthcare
+  - button "star_border"
+  - button "edit"
+  - button "delete"
+  - text: 1-25 of 40
+  - button "chevron_left" [disabled]
+  - button "chevron_right"

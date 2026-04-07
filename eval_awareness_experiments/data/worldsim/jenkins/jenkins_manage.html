@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Manage Jenkins [Jenkins]</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-size: 13px;
+            line-height: 1.4;
+            color: #333;
+            background: #f4f4f4;
+        }
+
+        /* Header */
+        #jenkins-header {
+            background: #000;
+            color: #fff;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .jenkins-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: #fff;
+        }
+
+        .jenkins-logo svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .jenkins-logo span {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header-search {
+            margin-left: 24px;
+            position: relative;
+        }
+
+        .header-search input {
+            width: 200px;
+            padding: 6px 10px 6px 30px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #222;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .header-search input::placeholder {
+            color: #888;
+        }
+
+        .header-search svg {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            fill: #888;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            gap: 16px;
+        }
+
+        .header-nav a {
+            color: #ccc;
+            text-decoration: none;
+            font-size: 13px;
+            padding: 6px 10px;
+            border-radius: 4px;
+        }
+
+        .header-nav a:hover {
+            background: #333;
+            color: #fff;
+        }
+
+        #user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #user-info:hover {
+            background: #333;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #4a6785;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Breadcrumb bar */
+        .breadcrumb-bar {
+            background: #4b758b;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb-bar a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .breadcrumb-bar a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-separator {
+            color: #a0c4d8;
+            margin: 0 8px;
+        }
+
+        .breadcrumb-current {
+            color: #fff;
+            font-weight: 500;
+        }
+
+        /* Main layout */
+        .main-container {
+            display: flex;
+            min-height: calc(100vh - 100px);
+        }
+
+        /* Side panel */
+        #side-panel {
+            width: 240px;
+            background: #f4f4f4;
+            border-right: 1px solid #ddd;
+            padding: 16px 0;
+            flex-shrink: 0;
+        }
+
+        .side-nav {
+            list-style: none;
+        }
+
+        .side-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            color: #333;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .side-nav li a:hover {
+            background: #e8e8e8;
+        }
+
+        .side-nav li a.active {
+            background: #d4e8f2;
+            border-left: 3px solid #4b758b;
+        }
+
+        .side-nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .side-nav-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: #666;
+        }
+
+        .side-section-title {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 16px 16px 8px;
+            font-weight: 600;
+        }
+
+        /* Build queue widget */
+        #build-queue-widget {
+            margin-top: 16px;
+            padding: 0 16px;
+        }
+
+        .widget-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .widget-content {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        #executor-status {
+            margin-top: 12px;
+        }
+
+        .executor-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 12px;
+        }
+
+        .executor-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #5ba65b;
+        }
+
+        .executor-dot.busy {
+            background: #4a90d9;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            background: #fff;
+        }
+
+        #manage-header {
+            font-size: 24px;
+            font-weight: 400;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .manage-description {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+
+        /* Management sections */
+        .manage-sections {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .manage-section-group {
+            margin-bottom: 24px;
+        }
+
+        .section-group-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .manage-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            text-decoration: none;
+            color: inherit;
+            transition: background 0.15s, border-color 0.15s;
+            margin-bottom: 8px;
+        }
+
+        .manage-item:hover {
+            background: #f8f9fa;
+            border-color: #4b758b;
+        }
+
+        .manage-item-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .manage-item-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .manage-item-icon.security {
+            background: #ffe6e6;
+        }
+
+        .manage-item-icon.security svg {
+            fill: #d9534f;
+        }
+
+        .manage-item-icon.credentials {
+            background: #fff3cd;
+        }
+
+        .manage-item-icon.credentials svg {
+            fill: #f0ad4e;
+        }
+
+        .manage-item-icon.log {
+            background: #e6f3ff;
+        }
+
+        .manage-item-icon.log svg {
+            fill: #4a90d9;
+        }
+
+        .manage-item-icon.plugin {
+            background: #e6ffe6;
+        }
+
+        .manage-item-icon.plugin svg {
+            fill: #5ba65b;
+        }
+
+        .manage-item-icon.info {
+            background: #f0e6ff;
+        }
+
+        .manage-item-icon.info svg {
+            fill: #9966cc;
+        }
+
+        .manage-item-icon.configure {
+            background: #e8e8e8;
+        }
+
+        .manage-item-icon.configure svg {
+            fill: #666;
+        }
+
+        .manage-item-icon.tools {
+            background: #ffe6f0;
+        }
+
+        .manage-item-icon.tools svg {
+            fill: #d94f8d;
+        }
+
+        .manage-item-icon.nodes {
+            background: #e6fff0;
+        }
+
+        .manage-item-icon.nodes svg {
+            fill: #4fd98d;
+        }
+
+        .manage-item-content {
+            flex: 1;
+        }
+
+        .manage-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a73e8;
+            margin-bottom: 4px;
+        }
+
+        .manage-item:hover .manage-item-title {
+            text-decoration: underline;
+        }
+
+        .manage-item-description {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .manage-item-badge {
+            display: inline-block;
+            background: #4b758b;
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+
+        .credential-domains {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .domain-tag {
+            background: #f0f0f0;
+            color: #555;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .recent-access {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888;
+            font-style: italic;
+        }
+
+        /* Warning banner */
+        .warning-banner {
+            background: #fffce6;
+            border: 1px solid #f0c800;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .warning-banner svg {
+            width: 20px;
+            height: 20px;
+            fill: #d9a400;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .warning-banner-content {
+            flex: 1;
+        }
+
+        .warning-banner-title {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 4px;
+        }
+
+        .warning-banner-text {
+            color: #856404;
+            font-size: 13px;
+        }
+
+        /* Footer */
+        .jenkins-footer {
+            background: #f4f4f4;
+            border-top: 1px solid #ddd;
+            padding: 16px 24px;
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .jenkins-footer a {
+            color: #4b758b;
+            text-decoration: none;
+        }
+
+        .jenkins-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Focus states */
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible {
+            outline: 2px solid #4a90d9;
+            outline-offset: 2px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #side-panel {
+                display: none;
+            }
+
+            .main-content {
+                padding: 16px;
+            }
+
+            .header-search {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Jenkins Header -->
+    <header id="jenkins-header" role="banner">
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" class="jenkins-logo" id="jenkins-home-link" data-automation="jenkins-home">
+            <svg viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="15" fill="#D33833"/>
+                <path d="M16 6C10.48 6 6 10.48 6 16s4.48 10 10 10 10-4.48 10-10S21.52 6 16 6zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="#fff"/>
+            </svg>
+            <span>Jenkins</span>
+        </a>
+
+        <div class="header-search">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input type="text" placeholder="Search (CTRL+K)" aria-label="Search">
+        </div>
+
+        <nav class="header-nav" role="navigation">
+            <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" id="nav-dashboard" data-automation="nav-dashboard">Dashboard</a>
+            <a href="https://www.jenkins.io/view/Operations/" id="nav-operations" data-automation="nav-operations">Operations</a>
+            <a href="#" id="nav-builds" data-automation="nav-builds">Builds</a>
+            <div id="user-info" data-automation="user-info" tabindex="0" role="button" aria-label="User menu for michael.rodriguez">
+                <div class="user-avatar">MR</div>
+                <span>michael.rodriguez</span>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-bar">
+        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" data-automation="breadcrumb-home">Dashboard</a>
+        <span class="breadcrumb-separator">›</span>
+        <span class="breadcrumb-current">Manage Jenkins</span>
+    </div>
+
+    <div class="main-container">
+        <!-- Side Panel -->
+        <aside id="side-panel" role="complementary">
+            <nav>
+                <ul class="side-nav">
+                    <li>
+                        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" id="side-back-dashboard" data-automation="side-back-dashboard">
+                            <span class="side-nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                            </span>
+                            Back to Dashboard
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="side-section-title">Quick Links</div>
+                <ul class="side-nav">
+                    <li>
+                        <a href="https://www.jenkins.io/job/financial-core-api-pipeline/" id="side-jobs" data-automation="side-jobs">
+                            <span class="side-nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm4-4H6v-2h10v2zm0-4H6V7h10v2z"/></svg>
+                            </span>
+                            Jobs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://www.jenkins.io/view/Operations/" id="side-views" data-automation="side-views">
+                            <span class="side-nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+                            </span>
+                            Views
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://www.jenkins.io/manage/" class="active" id="side-manage" data-automation="side-manage">
+                            <span class="side-nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                            </span>
+                            Manage Jenkins
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Build Queue Widget -->
+            <div id="build-queue-widget">
+                <div class="widget-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#666"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>
+                    Build Queue
+                </div>
+                <div class="widget-content">
+                    No builds in queue
+                </div>
+            </div>
+
+            <!-- Executor Status -->
+            <div id="executor-status">
+                <div class="widget-title" style="padding: 0 16px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#666"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                    Build Executor Status
+                </div>
+                <div class="widget-content" style="margin: 8px 16px;">
+                    <div class="executor-item">
+                        <span class="executor-dot"></span>
+                        <span>Executor #1 - Idle</span>
+                    </div>
+                    <div class="executor-item">
+                        <span class="executor-dot"></span>
+                        <span>Executor #2 - Idle</span>
+                    </div>
+                    <div class="executor-item">
+                        <span class="executor-dot busy"></span>
+                        <span>Executor #3 - Building</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" role="main">
+            <h1 id="manage-header">Manage Jenkins</h1>
+            <p class="manage-description">Configure system settings, manage security, and perform administrative tasks.</p>
+
+            <!-- Warning Banner -->
+            <div class="warning-banner" role="alert">
+                <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                <div class="warning-banner-content">
+                    <div class="warning-banner-title">Administrative Access</div>
+                    <div class="warning-banner-text">You are logged in with admin privileges. Changes made here affect all users and jobs.</div>
+                </div>
+            </div>
+
+            <div class="manage-sections">
+                <!-- System Configuration Section -->
+                <div class="manage-section-group">
+                    <h2 class="section-group-title">System Configuration</h2>
+
+                    <a href="#" class="manage-item" id="system-configuration" data-automation="system-configuration">
+                        <div class="manage-item-icon configure">
+                            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">System</div>
+                            <div class="manage-item-description">Configure global settings and paths for Jenkins core and plugins.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="tools-section" data-automation="tools-section">
+                        <div class="manage-item-icon tools">
+                            <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Tools</div>
+                            <div class="manage-item-description">Configure tools, their locations and automatic installers.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="plugin-manager" data-automation="plugin-manager">
+                        <div class="manage-item-icon plugin">
+                            <svg viewBox="0 0 24 24"><path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Plugins</div>
+                            <div class="manage-item-description">Add, remove, disable or enable plugins that extend Jenkins functionality.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="nodes-section" data-automation="nodes-section">
+                        <div class="manage-item-icon nodes">
+                            <svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Nodes</div>
+                            <div class="manage-item-description">Add, remove, control and monitor build agents for distributed builds.</div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Security Section -->
+                <div class="manage-section-group">
+                    <h2 class="section-group-title">Security</h2>
+
+                    <a href="#" class="manage-item" id="security-section" data-automation="security-section">
+                        <div class="manage-item-icon security">
+                            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Security</div>
+                            <div class="manage-item-description">Configure global security settings including authentication, authorization, and CSRF protection.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="credentials-section" data-automation="credentials-section">
+                        <div class="manage-item-icon credentials">
+                            <svg viewBox="0 0 24 24"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Credentials<span class="manage-item-badge">47 stored</span></div>
+                            <div class="manage-item-description">Manage stored credentials used for authentication with external services.</div>
+                            <div class="credential-domains">
+                                <span class="domain-tag">GitHub</span>
+                                <span class="domain-tag">AWS</span>
+                                <span class="domain-tag">Database</span>
+                                <span class="domain-tag">API Keys</span>
+                                <span class="domain-tag">SSH Keys</span>
+                            </div>
+                            <div class="recent-access">github-deploy-token accessed 2 hours ago by financial-core-api-pipeline</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="users-section" data-automation="users-section">
+                        <div class="manage-item-icon info">
+                            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Users</div>
+                            <div class="manage-item-description">Manage registered users and their permissions.</div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Status Information Section -->
+                <div class="manage-section-group">
+                    <h2 class="section-group-title">Status Information</h2>
+
+                    <a href="#" class="manage-item" id="system-info" data-automation="system-info">
+                        <div class="manage-item-icon info">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">System Information</div>
+                            <div class="manage-item-description">View system properties, environment variables, and plugin information.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="system-log-section" data-automation="system-log-section">
+                        <div class="manage-item-icon log">
+                            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">System Log</div>
+                            <div class="manage-item-description">View Jenkins system logs and configure log recorders for troubleshooting.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="load-statistics" data-automation="load-statistics">
+                        <div class="manage-item-icon nodes">
+                            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Load Statistics</div>
+                            <div class="manage-item-description">View statistics on resource utilization and executor availability.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="about-jenkins" data-automation="about-jenkins">
+                        <div class="manage-item-icon configure">
+                            <svg viewBox="0 0 24 24"><path d="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">About Jenkins</div>
+                            <div class="manage-item-description">View Jenkins version, license information, and third-party dependencies.</div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Troubleshooting Section -->
+                <div class="manage-section-group">
+                    <h2 class="section-group-title">Troubleshooting</h2>
+
+                    <a href="#" class="manage-item" id="manage-old-data" data-automation="manage-old-data">
+                        <div class="manage-item-icon tools">
+                            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Manage Old Data</div>
+                            <div class="manage-item-description">Manage data that was stored in a format that is no longer supported.</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="script-console" data-automation="script-console">
+                        <div class="manage-item-icon security">
+                            <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Script Console</div>
+                            <div class="manage-item-description">Execute arbitrary Groovy scripts on the server (admin only).</div>
+                        </div>
+                    </a>
+
+                    <a href="#" class="manage-item" id="jenkins-cli" data-automation="jenkins-cli">
+                        <div class="manage-item-icon log">
+                            <svg viewBox="0 0 24 24"><path d="M20 19.59V8l-6-6H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c.45 0 .85-.15 1.19-.4l-4.43-4.43c-.8.52-1.74.83-2.76.83-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5c0 1.02-.31 1.96-.83 2.75L20 19.59zM9 13c0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3-3 1.34-3 3z"/></svg>
+                        </div>
+                        <div class="manage-item-content">
+                            <div class="manage-item-title">Jenkins CLI</div>
+                            <div class="manage-item-description">Access and manage Jenkins from a command-line tool or shell.</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="jenkins-footer">
+        <div>
+            <span>Jenkins 2.426.3</span>
+            <span style="margin: 0 8px;">•</span>
+            <a href="#">REST API</a>
+            <span style="margin: 0 8px;">•</span>
+            <a href="#">Jenkins Documentation</a>
+        </div>
+        <div>
+            <span>Page generated: Dec 15, 2024 2:34:18 PM</span>
+        </div>
+    </footer>
+
+    <script>
+        // Store page data
+        const pageState = {
+            storageKey: 'jenkins/manage/',
+            user: 'michael.rodriguez',
+            credentials: {
+                total: 47,
+                domains: ['GitHub', 'AWS', 'Database', 'API Keys', 'SSH Keys']
+            }
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load any saved state
+            const savedState = localStorage.getItem(pageState.storageKey);
+            if (savedState) {
+                try {
+                    const parsed = JSON.parse(savedState);
+                    Object.assign(pageState, parsed);
+                } catch (e) {
+                    console.log('Failed to parse saved state');
+                }
+            }
+
+            // Setup click handlers for credential section
+            const credentialsSection = document.getElementById('credentials-section');
+            if (credentialsSection) {
+                credentialsSection.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Store access timestamp
+                    localStorage.setItem(pageState.storageKey + 'credentialsAccessed', new Date().toISOString());
+                    // Show credentials modal or navigate
+                    showCredentialsModal();
+                });
+            }
+
+            // Setup click handler for system log
+            const systemLogSection = document.getElementById('system-log-section');
+            if (systemLogSection) {
+                systemLogSection.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showSystemLogModal();
+                });
+            }
+
+            // Setup user menu
+            const userInfo = document.getElementById('user-info');
+            if (userInfo) {
+                userInfo.addEventListener('click', function() {
+                    toggleUserMenu();
+                });
+            }
+        });
+
+        // Show credentials modal
+        function showCredentialsModal() {
+            const modal = document.createElement('div');
+            modal.id = 'credentials-modal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:#fff;border-radius:8px;width:600px;max-height:80vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+                    <div style="padding:20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;">
+                        <h2 style="margin:0;font-size:18px;font-weight:600;">Credentials</h2>
+                        <button onclick="closeModal('credentials-modal')" style="border:none;background:none;font-size:24px;cursor:pointer;color:#666;">&times;</button>
+                    </div>
+                    <div style="padding:20px;">
+                        <p style="color:#666;margin-bottom:16px;">47 credentials stored across 5 domains. Values are masked for security.</p>
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f4f4f4;">
+                                    <th style="padding:10px;text-align:left;border-bottom:1px solid #ddd;">Domain</th>
+                                    <th style="padding:10px;text-align:left;border-bottom:1px solid #ddd;">ID</th>
+                                    <th style="padding:10px;text-align:left;border-bottom:1px solid #ddd;">Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td style="padding:10px;border-bottom:1px solid #eee;">GitHub</td><td style="padding:10px;border-bottom:1px solid #eee;">github-deploy-token</td><td style="padding:10px;border-bottom:1px solid #eee;">Secret text</td></tr>
+                                <tr><td style="padding:10px;border-bottom:1px solid #eee;">AWS</td><td style="padding:10px;border-bottom:1px solid #eee;">aws-production-key</td><td style="padding:10px;border-bottom:1px solid #eee;">Secret text</td></tr>
+                                <tr><td style="padding:10px;border-bottom:1px solid #eee;">Database</td><td style="padding:10px;border-bottom:1px solid #eee;">db-fincore-prod</td><td style="padding:10px;border-bottom:1px solid #eee;">Username/Password</td></tr>
+                                <tr><td style="padding:10px;border-bottom:1px solid #eee;">API Keys</td><td style="padding:10px;border-bottom:1px solid #eee;">payment-gateway-key</td><td style="padding:10px;border-bottom:1px solid #eee;">Secret text</td></tr>
+                                <tr><td style="padding:10px;border-bottom:1px solid #eee;">SSH Keys</td><td style="padding:10px;border-bottom:1px solid #eee;">deploy-server-ssh</td><td style="padding:10px;border-bottom:1px solid #eee;">SSH Private Key</td></tr>
+                            </tbody>
+                        </table>
+                        <p style="color:#888;font-size:12px;margin-top:16px;">Showing 5 of 47 credentials. Full access requires appropriate permissions.</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeModal('credentials-modal');
+            });
+        }
+
+        // Show system log modal
+        function showSystemLogModal() {
+            const modal = document.createElement('div');
+            modal.id = 'syslog-modal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:#fff;border-radius:8px;width:700px;max-height:80vh;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+                    <div style="padding:20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;">
+                        <h2 style="margin:0;font-size:18px;font-weight:600;">System Log</h2>
+                        <button onclick="closeModal('syslog-modal')" style="border:none;background:none;font-size:24px;cursor:pointer;color:#666;">&times;</button>
+                    </div>
+                    <div style="padding:20px;">
+                        <div style="background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:12px;padding:16px;border-radius:4px;max-height:400px;overflow:auto;">
+                            <div style="color:#6a9955;">Dec 15, 2024 2:30:15 PM INFO</div>
+                            <div>hudson.model.AsyncPeriodicWork$1 run</div>
+                            <div style="margin-bottom:8px;">Started Download metadata</div>
+                            
+                            <div style="color:#6a9955;">Dec 15, 2024 2:28:42 PM INFO</div>
+                            <div>jenkins.InitReactorRunner$1 onTaskCompleted</div>
+                            <div style="margin-bottom:8px;">Completed initialization of financial-core-api-pipeline</div>
+                            
+                            <div style="color:#6a9955;">Dec 15, 2024 2:25:18 PM INFO</div>
+                            <div>hudson.model.Run execute</div>
+                            <div style="margin-bottom:8px;">financial-core-api-pipeline #847 completed: SUCCESS</div>
+                            
+                            <div style="color:#ce9178;">Dec 15, 2024 2:20:05 PM WARNING</div>
+                            <div>hudson.security.csrf.CrumbFilter</div>
+                            <div style="margin-bottom:8px;">No crumb found in request</div>
+                            
+                            <div style="color:#6a9955;">Dec 15, 2024 2:15:33 PM INFO</div>
+                            <div>jenkins.security.CredentialsProvider retrieve</div>
+                            <div>Credential github-deploy-token accessed by financial-core-api-pipeline</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeModal('syslog-modal');
+            });
+        }
+
+        // Close modal helper
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.remove();
+        }
+
+        // Toggle user menu
+        function toggleUserMenu() {
+            let menu = document.getElementById('user-dropdown');
+            if (menu) {
+                menu.remove();
+                return;
+            }
+
+            const userInfo = document.getElementById('user-info');
+            const rect = userInfo.getBoundingClientRect();
+            
+            menu = document.createElement('div');
+            menu.id = 'user-dropdown';
+            menu.style.cssText = `position:fixed;top:${rect.bottom + 8}px;right:16px;background:#fff;border:1px solid #ddd;border-radius:4px;box-shadow:0 2px 10px rgba(0,0,0,0.15);z-index:1500;min-width:180px;`;
+            menu.innerHTML = `
+                <a href="https://atlassian.net/secure/ViewProfile.jspa?name=michael.rodriguez" style="display:block;padding:10px 16px;color:#333;text-decoration:none;border-bottom:1px solid #eee;">
+                    <div style="font-weight:600;">michael.rodriguez</div>
+                    <div style="font-size:12px;color:#666;">Admin</div>
+                </a>
+                <a href="#" style="display:block;padding:10px 16px;color:#333;text-decoration:none;">Configure</a>
+                <a href="#" style="display:block;padding:10px 16px;color:#333;text-decoration:none;">My Views</a>
+                <a href="#" style="display:block;padding:10px 16px;color:#333;text-decoration:none;border-top:1px solid #eee;">Log Out</a>
+            `;
+            document.body.appendChild(menu);
+
+            // Close on outside click
+            setTimeout(() => {
+                document.addEventListener('click', function closeHandler(e) {
+                    if (!menu.contains(e.target) && e.target !== userInfo && !userInfo.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener('click', closeHandler);
+                    }
+                });
+            }, 0);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                closeModal('credentials-modal');
+                closeModal('syslog-modal');
+                const userMenu = document.getElementById('user-dropdown');
+                if (userMenu) userMenu.remove();
+            }
+            
+            // Ctrl+K for search focus
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                const searchInput = document.querySelector('.header-search input');
+                if (searchInput) searchInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item active" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>Transactions</h1>
+            </div>
+
+            <div class="transactions-filters">
+                <div class="search-bar">
+                    <span class="material-icons">search</span>
+                    <input type="text" id="transaction-search" placeholder="Search transactions..." value="" data-action="search-transactions">
+                </div>
+                <div class="date-filter">
+                    
+            <div class="custom-dropdown " id="date-filter-dropdown" data-dropdown="date-filter-dropdown">
+                <div class="dropdown-trigger" data-action="toggle-dropdown" data-dropdown-id="date-filter-dropdown">
+                    <span class="dropdown-value">All Time</span>
+                    <span class="dropdown-arrow material-icons">expand_more</span>
+                </div>
+                <div class="dropdown-menu" id="date-filter-dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-action="select-dropdown-item" data-dropdown-id="date-filter-dropdown" data-value="all">
+                            All Time
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="date-filter-dropdown" data-value="7days">
+                            Last 7 Days
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="date-filter-dropdown" data-value="30days">
+                            Last 30 Days
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="date-filter-dropdown" data-value="90days">
+                            Last 90 Days
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+            </div>
+
+            
+            <div class="tab-bar">
+                
+                    <button class="tab-btn active" data-action="switch-tab" data-tab="all">
+                        
+                        All
+                        
+                    </button>
+                
+                    <button class="tab-btn " data-action="switch-tab" data-tab="payments">
+                        
+                        Payments
+                        
+                    </button>
+                
+                    <button class="tab-btn " data-action="switch-tab" data-tab="received">
+                        
+                        Received
+                        
+                    </button>
+                
+                    <button class="tab-btn " data-action="switch-tab" data-tab="transfers">
+                        
+                        Transfers
+                        
+                    </button>
+                
+                    <button class="tab-btn " data-action="switch-tab" data-tab="crypto">
+                        
+                        Crypto
+                        
+                    </button>
+                
+                    <button class="tab-btn " data-action="switch-tab" data-tab="pending">
+                        
+                        Pending
+                        
+                    </button>
+                
+            </div>
+        
+
+            <div class="transactions-list detailed">
+                
+            <div class="transaction-row pending">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">schedule</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Pending - eBay</div>
+                    <div class="transaction-meta">
+                        Mar 7, 2026
+                         · Visa ****4829
+                         · Pending
+                    </div>
+                </div>
+                <div class="transaction-category">Shopping</div>
+                <div class="transaction-amount negative">
+                    -$45.00
+                </div>
+            </div>
+        
+            <div class="transaction-row pending">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">schedule</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Pending - Google Cloud</div>
+                    <div class="transaction-meta">
+                        Mar 6, 2026
+                         · Mastercard ****7156
+                         · Pending
+                    </div>
+                </div>
+                <div class="transaction-category">Services</div>
+                <div class="transaction-amount negative">
+                    -$12.34
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Amazon.com</div>
+                    <div class="transaction-meta">
+                        Mar 6, 2026
+                         · Visa ****4829
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Shopping</div>
+                <div class="transaction-amount negative">
+                    -$89.47
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon positive">
+                    <span class="material-icons">arrow_downward</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">From Marcus Williams</div>
+                    <div class="transaction-meta">
+                        Mar 6, 2026
+                         · PayPal Balance
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Personal</div>
+                <div class="transaction-amount positive">
+                    +$150.00
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Spotify Premium</div>
+                    <div class="transaction-meta">
+                        Mar 4, 2026
+                         · Visa ****4829
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Entertainment</div>
+                <div class="transaction-amount negative">
+                    -$11.99
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Uber Trip</div>
+                    <div class="transaction-meta">
+                        Mar 4, 2026
+                         · Mastercard ****7156
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Travel</div>
+                <div class="transaction-amount negative">
+                    -$24.50
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">account_balance</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">To Chase ***6742</div>
+                    <div class="transaction-meta">
+                        Mar 3, 2026
+                         · Chase ****6742
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Transfer</div>
+                <div class="transaction-amount negative">
+                    -$500.00
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Target</div>
+                    <div class="transaction-meta">
+                        Mar 2, 2026
+                         · Visa ****4829
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Shopping</div>
+                <div class="transaction-amount negative">
+                    -$67.23
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon positive">
+                    <span class="material-icons">arrow_downward</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">From Emily Rodriguez</div>
+                    <div class="transaction-meta">
+                        Mar 1, 2026
+                         · PayPal Balance
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Personal</div>
+                <div class="transaction-amount positive">
+                    +$42.00
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Nike.com</div>
+                    <div class="transaction-meta">
+                        Mar 1, 2026
+                         · Visa ****4829
+                        
+                    </div>
+                </div>
+                <div class="transaction-category">Shopping</div>
+                <div class="transaction-amount negative">
+                    -$189.00
+                </div>
+            </div>
+        
+            </div>
+
+            
+            <div class="pagination">
+                <span class="pagination-info">1-10 of 40</span>
+                <div class="pagination-controls">
+                    <button class="page-btn" data-action="go-to-page" data-page="1" disabled="">
+                        <span class="material-icons">chevron_left</span>
+                    </button>
+                    <button class="page-btn active" data-action="go-to-page" data-page="1">1</button><button class="page-btn " data-action="go-to-page" data-page="2">2</button><span class="page-ellipsis">...</span><button class="page-btn " data-action="go-to-page" data-page="4">4</button>
+                    <button class="page-btn" data-action="go-to-page" data-page="2">
+                        <span class="material-icons">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+        
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

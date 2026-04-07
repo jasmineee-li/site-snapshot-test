@@ -1,0 +1,426 @@
+- document:
+  - banner:
+    - link "Skip to main content":
+      - /url: "#content-body"
+    - link "Homepage":
+      - /url: /
+    - list:
+      - listitem:
+        - link "Why GitLab":
+          - /url: https://about.gitlab.com/why-gitlab
+      - listitem:
+        - link "Pricing":
+          - /url: https://about.gitlab.com/pricing
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+    - button "Search or go to… /"
+    - link "Get free trial":
+      - /url: /-/trial_registrations/new
+    - link "Sign in":
+      - /url: /users/sign_in?redirect_to_referer=yes
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - text: Explore
+    - list "Explore":
+      - listitem:
+        - link "Projects":
+          - /url: /explore/projects
+      - listitem:
+        - link "Groups":
+          - /url: /explore/groups
+      - listitem:
+        - link "CI/CD Catalog":
+          - /url: /explore/catalog
+      - listitem:
+        - link "Topics":
+          - /url: /explore/projects/topics
+      - listitem:
+        - link "Snippets":
+          - /url: /explore/snippets
+    - button "What's new"
+    - button "Help"
+    - button "Collapse sidebar"
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+        - text: /
+      - listitem:
+        - link "Projects":
+          - /url: /explore/projects
+  - main:
+    - heading "Explore projects" [level=1]
+    - tablist:
+      - tab "Active" [selected]
+      - tab "Inactive"
+      - tab "Trending"
+    - group:
+      - button "Toggle search history"
+      - textbox "Search":
+        - /placeholder: Filter or search (3 character minimum)
+      - button "Search"
+    - group:
+      - combobox "Sort by:": Updated date
+      - text: "Sort by:"
+      - 'button "Sort direction: Descending"'
+    - tabpanel "Active":
+      - list:
+        - listitem:
+          - link "Jonathon Anderson / HPCToolkit":
+            - /url: /blue42u/hpctoolkit
+          - article:
+            - paragraph: "HPCToolkit performance tools: measurement and analysis components"
+          - link "Jonathon Anderson / HPCToolkit has 0 stars":
+            - /url: /blue42u/hpctoolkit/-/starrers
+            - text: "0"
+          - link "Jonathon Anderson / HPCToolkit has 0 forks":
+            - /url: /blue42u/hpctoolkit/-/forks
+            - text: "0"
+          - link "Jonathon Anderson / HPCToolkit has 0 open merge requests":
+            - /url: /blue42u/hpctoolkit/-/merge_requests
+            - text: "0"
+          - link "Jonathon Anderson / HPCToolkit has 0 open issues":
+            - /url: /blue42u/hpctoolkit/-/issues
+            - text: "0"
+          - text: Updated
+          - time: just now
+          - button "Actions"
+        - listitem:
+          - link "kargo-ci / kubernetes-sigs-kubespray":
+            - /url: /kargo-ci/kubernetes-sigs-kubespray
+          - article:
+            - paragraph: Deploy a Production Ready Kubernetes Cluster
+          - 'link "Status: Passed"':
+            - /url: /kargo-ci/kubernetes-sigs-kubespray/-/pipelines/2433209572
+          - link "kargo-ci / kubernetes-sigs-kubespray has 13 stars":
+            - /url: /kargo-ci/kubernetes-sigs-kubespray/-/starrers
+            - text: "13"
+          - link "kargo-ci / kubernetes-sigs-kubespray has 15 forks":
+            - /url: /kargo-ci/kubernetes-sigs-kubespray/-/forks
+            - text: "15"
+          - text: Updated
+          - time: just now
+          - button "Actions"
+        - listitem:
+          - link "sre-platform / ci-cd / ci-components / secure-container-build":
+            - /url: /sre-platform/ci-cd/ci-components/secure-container-build
+          - link "CI/CD Catalog":
+            - /url: /explore/catalog/sre-platform/ci-cd/ci-components/secure-container-build
+          - article:
+            - paragraph: Enterprise-grade CI/CD component to securely build, sign (Cosign), and push OCI container images with native SBOMs and Zero-Trust OIDC support.
+          - link "sre-platform / ci-cd / ci-components / secure-container-build has 2 stars":
+            - /url: /sre-platform/ci-cd/ci-components/secure-container-build/-/starrers
+            - text: "2"
+          - link "sre-platform / ci-cd / ci-components / secure-container-build has 0 forks":
+            - /url: /sre-platform/ci-cd/ci-components/secure-container-build/-/forks
+            - text: "0"
+          - link "sre-platform / ci-cd / ci-components / secure-container-build has 0 open merge requests":
+            - /url: /sre-platform/ci-cd/ci-components/secure-container-build/-/merge_requests
+            - text: "0"
+          - link "sre-platform / ci-cd / ci-components / secure-container-build has 0 open issues":
+            - /url: /sre-platform/ci-cd/ci-components/secure-container-build/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 12 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "soruly / aniep":
+            - /url: /soruly/aniep
+          - 'link "Status: Running"':
+            - /url: /soruly/aniep/-/pipelines/2433268194
+          - link "soruly / aniep has 0 stars":
+            - /url: /soruly/aniep/-/starrers
+            - text: "0"
+          - link "soruly / aniep has 0 forks":
+            - /url: /soruly/aniep/-/forks
+            - text: "0"
+          - text: Updated
+          - time: 14 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "MediaTek / AIoT / RITY / meta-mediatek-bsp":
+            - /url: /mediatek/aiot/rity/meta-mediatek-bsp
+          - article:
+            - paragraph: Yocto/OE layer providing BSP support for the SoCs/boards that are part of the AIoT portfolio
+          - link "MediaTek / AIoT / RITY / meta-mediatek-bsp has 3 stars":
+            - /url: /mediatek/aiot/rity/meta-mediatek-bsp/-/starrers
+            - text: "3"
+          - text: Updated
+          - time: 14 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "Meirlan / kargo-api":
+            - /url: /me1rllan/kargo-api
+          - 'link "Status: Running"':
+            - /url: /me1rllan/kargo-api/-/pipelines/2433268191
+          - link "Meirlan / kargo-api has 0 stars":
+            - /url: /me1rllan/kargo-api/-/starrers
+            - text: "0"
+          - link "Meirlan / kargo-api has 0 forks":
+            - /url: /me1rllan/kargo-api/-/forks
+            - text: "0"
+          - link "Meirlan / kargo-api has 0 open merge requests":
+            - /url: /me1rllan/kargo-api/-/merge_requests
+            - text: "0"
+          - link "Meirlan / kargo-api has 0 open issues":
+            - /url: /me1rllan/kargo-api/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 16 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "kdmukAI bot / project-lens":
+            - /url: /kdmukAI-bot/project-lens
+          - link "kdmukAI bot / project-lens has 0 stars":
+            - /url: /kdmukAI-bot/project-lens/-/starrers
+            - text: "0"
+          - link "kdmukAI bot / project-lens has 0 forks":
+            - /url: /kdmukAI-bot/project-lens/-/forks
+            - text: "0"
+          - link "kdmukAI bot / project-lens has 0 open merge requests":
+            - /url: /kdmukAI-bot/project-lens/-/merge_requests
+            - text: "0"
+          - link "kdmukAI bot / project-lens has 0 open issues":
+            - /url: /kdmukAI-bot/project-lens/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 25 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "Wrayan Bontorin / Sistema-de-gestao":
+            - /url: /Wrayan-Bontorin/Sistema-de-gestao
+          - link "Wrayan Bontorin / Sistema-de-gestao has 0 stars":
+            - /url: /Wrayan-Bontorin/Sistema-de-gestao/-/starrers
+            - text: "0"
+          - text: Updated
+          - time: 30 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "Oscar David Ostorga Flores / Final Project CSPP JD":
+            - /url: /DavidOstorga/final-project-cspp-jd
+          - link "Oscar David Ostorga Flores / Final Project CSPP JD has 1 star":
+            - /url: /DavidOstorga/final-project-cspp-jd/-/starrers
+            - text: "1"
+          - link "Oscar David Ostorga Flores / Final Project CSPP JD has 0 forks":
+            - /url: /DavidOstorga/final-project-cspp-jd/-/forks
+            - text: "0"
+          - link "Oscar David Ostorga Flores / Final Project CSPP JD has 0 open merge requests":
+            - /url: /DavidOstorga/final-project-cspp-jd/-/merge_requests
+            - text: "0"
+          - link "Oscar David Ostorga Flores / Final Project CSPP JD has 0 open issues":
+            - /url: /DavidOstorga/final-project-cspp-jd/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 36 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "HypernextInfinityGroup / ServiceAndGateway / AssetService":
+            - /url: /HypernextInfinityGroup/ServiceAndGateway/AssetService
+          - link "HypernextInfinityGroup / ServiceAndGateway / AssetService has 0 stars":
+            - /url: /HypernextInfinityGroup/ServiceAndGateway/AssetService/-/starrers
+            - text: "0"
+          - link "HypernextInfinityGroup / ServiceAndGateway / AssetService has 0 forks":
+            - /url: /HypernextInfinityGroup/ServiceAndGateway/AssetService/-/forks
+            - text: "0"
+          - link "HypernextInfinityGroup / ServiceAndGateway / AssetService has 0 open merge requests":
+            - /url: /HypernextInfinityGroup/ServiceAndGateway/AssetService/-/merge_requests
+            - text: "0"
+          - link "HypernextInfinityGroup / ServiceAndGateway / AssetService has 0 open issues":
+            - /url: /HypernextInfinityGroup/ServiceAndGateway/AssetService/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 38 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "CTI-FYI / CTI-FYI-website":
+            - /url: /cti-fyi1/CTI-FYI-website
+          - link "CTI-FYI / CTI-FYI-website has 0 stars":
+            - /url: /cti-fyi1/CTI-FYI-website/-/starrers
+            - text: "0"
+          - link "CTI-FYI / CTI-FYI-website has 0 forks":
+            - /url: /cti-fyi1/CTI-FYI-website/-/forks
+            - text: "0"
+          - text: Updated
+          - time: 54 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "Hojik Hojik / oknl":
+            - /url: /Makki01/oknl
+          - button "CI/CD Catalog (unpublished)"
+          - link "Hojik Hojik / oknl has 0 stars":
+            - /url: /Makki01/oknl/-/starrers
+            - text: "0"
+          - link "Hojik Hojik / oknl has 0 forks":
+            - /url: /Makki01/oknl/-/forks
+            - text: "0"
+          - link "Hojik Hojik / oknl has 0 open merge requests":
+            - /url: /Makki01/oknl/-/merge_requests
+            - text: "0"
+          - link "Hojik Hojik / oknl has 0 open issues":
+            - /url: /Makki01/oknl/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 54 seconds ago
+          - button "Actions"
+        - listitem:
+          - link "Michaela Kunclová / Pihole Lists":
+            - /url: /nezu81/pihole-lists
+          - link "Michaela Kunclová / Pihole Lists has 0 stars":
+            - /url: /nezu81/pihole-lists/-/starrers
+            - text: "0"
+          - link "Michaela Kunclová / Pihole Lists has 0 forks":
+            - /url: /nezu81/pihole-lists/-/forks
+            - text: "0"
+          - link "Michaela Kunclová / Pihole Lists has 0 open merge requests":
+            - /url: /nezu81/pihole-lists/-/merge_requests
+            - text: "0"
+          - link "Michaela Kunclová / Pihole Lists has 0 open issues":
+            - /url: /nezu81/pihole-lists/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+        - listitem:
+          - link "Onesime Allaphie / variables-repo":
+            - /url: /onesime.allaphie/variables-repo
+          - link "Onesime Allaphie / variables-repo has 0 stars":
+            - /url: /onesime.allaphie/variables-repo/-/starrers
+            - text: "0"
+          - link "Onesime Allaphie / variables-repo has 0 forks":
+            - /url: /onesime.allaphie/variables-repo/-/forks
+            - text: "0"
+          - link "Onesime Allaphie / variables-repo has 0 open merge requests":
+            - /url: /onesime.allaphie/variables-repo/-/merge_requests
+            - text: "0"
+          - link "Onesime Allaphie / variables-repo has 0 open issues":
+            - /url: /onesime.allaphie/variables-repo/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+        - listitem:
+          - link "Andres Romano / api-tercero":
+            - /url: /andres.romano.isft177/api-tercero
+          - link "Andres Romano / api-tercero has 0 stars":
+            - /url: /andres.romano.isft177/api-tercero/-/starrers
+            - text: "0"
+          - link "Andres Romano / api-tercero has 0 forks":
+            - /url: /andres.romano.isft177/api-tercero/-/forks
+            - text: "0"
+          - link "Andres Romano / api-tercero has 0 open merge requests":
+            - /url: /andres.romano.isft177/api-tercero/-/merge_requests
+            - text: "0"
+          - link "Andres Romano / api-tercero has 0 open issues":
+            - /url: /andres.romano.isft177/api-tercero/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+        - listitem:
+          - link "Elvis Ansima / Tiki":
+            - /url: /ElvisAns/tiki
+          - article:
+            - paragraph:
+              - text: Tiki's public Git repository, for receiving merge requests. When unsure which branch to use see
+              - link "https://dev.tiki.org/Where-To-Commit":
+                - /url: https://dev.tiki.org/Where-To-Commit
+              - text: . Also see
+              - link "https://tki.sk/i18n":
+                - /url: https://tki.sk/i18n
+              - text: . For more information on Tiki's development workflow, see
+              - link "https://tki.sk/gitworkflow":
+                - /url: https://tki.sk/gitworkflow
+              - text: .
+          - 'link "Status: Passed"':
+            - /url: /ElvisAns/tiki/-/pipelines/2312455931
+          - link "Elvis Ansima / Tiki has 0 stars":
+            - /url: /ElvisAns/tiki/-/starrers
+            - text: "0"
+          - link "Elvis Ansima / Tiki has 0 forks":
+            - /url: /ElvisAns/tiki/-/forks
+            - text: "0"
+          - link "Elvis Ansima / Tiki has 0 open merge requests":
+            - /url: /ElvisAns/tiki/-/merge_requests
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+        - listitem:
+          - link "Lautaro Bifano / Luminarias Inteligentes":
+            - /url: /bifanolautaro/luminarias-ui
+          - link "Lautaro Bifano / Luminarias Inteligentes has 0 stars":
+            - /url: /bifanolautaro/luminarias-ui/-/starrers
+            - text: "0"
+          - link "Lautaro Bifano / Luminarias Inteligentes has 0 forks":
+            - /url: /bifanolautaro/luminarias-ui/-/forks
+            - text: "0"
+          - link "Lautaro Bifano / Luminarias Inteligentes has 0 open merge requests":
+            - /url: /bifanolautaro/luminarias-ui/-/merge_requests
+            - text: "0"
+          - link "Lautaro Bifano / Luminarias Inteligentes has 0 open issues":
+            - /url: /bifanolautaro/luminarias-ui/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+        - listitem:
+          - link "Marek Vasut / meta-mainline-common":
+            - /url: /marex/meta-mainline-common
+          - article:
+            - paragraph: meta-mainline-common (mirror)
+          - link "Marek Vasut / meta-mainline-common has 0 stars":
+            - /url: /marex/meta-mainline-common/-/starrers
+            - text: "0"
+          - link "Marek Vasut / meta-mainline-common has 0 forks":
+            - /url: /marex/meta-mainline-common/-/forks
+            - text: "0"
+          - link "Marek Vasut / meta-mainline-common has 0 open issues":
+            - /url: /marex/meta-mainline-common/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+        - listitem:
+          - link "SKAO / ska-tmc / ska-tmc-low-integration":
+            - /url: /ska-telescope/ska-tmc/ska-tmc-low-integration
+          - 'link "Status: Failed"':
+            - /url: /ska-telescope/ska-tmc/ska-tmc-low-integration/-/pipelines/2431357474
+          - link "SKAO / ska-tmc / ska-tmc-low-integration has 1 star":
+            - /url: /ska-telescope/ska-tmc/ska-tmc-low-integration/-/starrers
+            - text: "1"
+          - link "SKAO / ska-tmc / ska-tmc-low-integration has 0 forks":
+            - /url: /ska-telescope/ska-tmc/ska-tmc-low-integration/-/forks
+            - text: "0"
+          - link "SKAO / ska-tmc / ska-tmc-low-integration has 5 open merge requests":
+            - /url: /ska-telescope/ska-tmc/ska-tmc-low-integration/-/merge_requests
+            - text: "5"
+          - link "SKAO / ska-tmc / ska-tmc-low-integration has 0 open issues":
+            - /url: /ska-telescope/ska-tmc/ska-tmc-low-integration/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+        - listitem:
+          - link "Courses / Spring Security / couponservice":
+            - /url: /courses-practice/spring-security/couponservice
+          - link "Courses / Spring Security / couponservice has 0 stars":
+            - /url: /courses-practice/spring-security/couponservice/-/starrers
+            - text: "0"
+          - link "Courses / Spring Security / couponservice has 0 forks":
+            - /url: /courses-practice/spring-security/couponservice/-/forks
+            - text: "0"
+          - link "Courses / Spring Security / couponservice has 0 open merge requests":
+            - /url: /courses-practice/spring-security/couponservice/-/merge_requests
+            - text: "0"
+          - link "Courses / Spring Security / couponservice has 0 open issues":
+            - /url: /courses-practice/spring-security/couponservice/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 1 minute ago
+          - button "Actions"
+      - navigation "Pagination":
+        - group:
+          - button "Previous" [disabled]
+          - button "Next"

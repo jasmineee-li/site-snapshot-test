@@ -1,0 +1,32 @@
+- document:
+  - banner:
+    - img
+    - text: Plan & Track AcmeCorp / platform-v4
+    - button "To-Do List":
+      - img
+      - text: "9"
+    - text: SC
+  - navigation:
+    - text: Plan
+    - img
+    - text: Issues 57
+    - img
+    - text: Boards
+    - img
+    - text: Epics
+    - img
+    - text: Milestones
+    - img
+    - text: Iterations
+    - img
+    - text: Labels Personal
+    - img
+    - text: To-Do List 9
+  - main:
+    - heading "Boards" [level=1]
+    - button "Development Board"
+    - button "Bug Triage"
+    - button "Sprint Board"
+    - button "Delete board"
+    - button "New board"
+    - text: "Open 44 Add rate limiting to v3 endpoints #9 type task component api security LR Apr 14 5 Configure read replicas for reporting queries #12 component infrastructure component database LR Apr 14 8 Email notifications sent with wrong timezone offset #18 type bug priority high component backend CW Mar 1 3 Dashboard widget layout breaks at 1440px viewport #19 type bug priority medium component frontend AM Mar 14 2 File upload fails silently for files > 50MB #20 type bug priority high component api JO 3 Markdown preview renders incorrectly with nested code blocks #21 type bug priority low component frontend 1 Implement keyboard shortcuts for common actions #23 type feature component frontend UX AT Mar 31 5 Add bulk operations for issue management #24 type feature component frontend component backend CW Apr 14 8 Build real-time collaborative editing for issue descriptions #25 type feature component frontend component backend Sep 29 21 Add custom fields support for issues #26 type feature component backend component database Oct 30 13 Implement lazy loading for images and avatars #29 performance component frontend AM Mar 31 3 Update project README with new setup instructions #30 type documentation type task FA Feb 28 1 Add accessibility labels to all form inputs #31 accessibility component frontend type improvement AM Mar 15 5 Refactor notification service to use event-driven architecture #32 type improvement component backend technical-debt LR CW Apr 14 8 Set up end-to-end testing with Playwright #33 testing component infrastructure type task YT Mar 15 5 Implement audit logging for admin actions #34 type feature component backend security JO Sep 29 8 Design system color palette update for WCAG AAA compliance #35 accessibility UX type task AM Mar 31 5 Write getting started guide for new developers #41 type documentation good-first-issue FA Mar 30 5 Create API reference documentation with examples #42 type documentation component api FA MJ Apr 29 8 Add loading skeletons to replace spinners #43 type improvement component frontend UX AM Mar 31 3 +24 more workflow::ready 4 Build component library documentation site #5 type documentation component frontend workflow ready AM Mar 15 5 Migrate projects API to v3 #8 type improvement component api workflow ready JO Mar 31 8 Add composite indexes for frequently joined tables #11 performance component database workflow ready DK YT Mar 15 5 Implement CSRF token rotation #16 security priority medium workflow ready May 14 5 workflow::in-progress 9 Migrate user settings page to React #4 type improvement component frontend workflow in-progress NK AT Mar 1 8 Implement GraphQL gateway for v3 API #7 type feature component api workflow in-progress CW MJ Mar 14 13 Analyze and optimize slow queries from APM logs #10 performance component database workflow in-progress DK Mar 1 8 Implement Content Security Policy headers #13 security component infrastructure workflow in-progress JO OS Mar 14 5 Upgrade vulnerable dependencies identified in audit #14 security priority high workflow in-progress OS Feb 28 3 Login page shows blank screen on Safari 17.2 #17 type bug priority critical component frontend NK Feb 27 2 Add dark mode support for the entire application #22 type feature component frontend UX AM NK Mar 14 13 Optimize issue list query to use keyset pagination #27 performance component database component backend DK Feb 28 5 Reduce JavaScript bundle size by 40% #28 performance component frontend workflow in-progress NK AT Mar 1 8 workflow::review 0 workflow::done 0 Closed 10 Design new navigation header component #1 type feature component frontend workflow done PP NK Jan 18 5 Implement sidebar navigation with collapsible sections #2 type feature component frontend workflow done NK Feb 1 3 Create reusable modal dialog system #3 type feature component frontend UX AM Feb 1 3 Design API v3 pagination standard #6 type documentation component api workflow done MJ Feb 15 3 Fix SQL injection vulnerability in search endpoint #15 type bug security priority critical JO Feb 9 2 Set up CI/CD pipeline for staging environment #36 type task component infrastructure workflow done LR 5 Migrate from Webpack 4 to Webpack 5 #37 type task component frontend technical-debt NK 5 Fix memory leak in WebSocket connection handler #38 type bug priority critical component backend CW 3 Implement user invitation flow #39 type feature component backend component frontend JO AT 8 Add CSV export for issue lists #40 type feature component frontend component backend AT 3"

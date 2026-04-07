@@ -1,0 +1,43 @@
+- document:
+  - button "menu"
+  - text: contacts Contacts search
+  - textbox "Search contacts"
+  - button "help_outline"
+  - button "settings"
+  - text: AJ contacts Contacts
+  - button "add Create contact"
+  - navigation: people Contacts 40 history Frequently contacted star Starred 10 person_outline Other contacts 20 merge_type Merge & fix 2
+  - text: Labels
+  - button "add"
+  - text: Family 4
+  - button "edit"
+  - text: Friends 7
+  - button "edit"
+  - text: Work 19
+  - button "edit"
+  - text: VIP Clients 4
+  - button "edit"
+  - text: Gym Buddies 5
+  - button "edit"
+  - text: College Alumni 4
+  - button "edit"
+  - text: Neighbors 3
+  - button "edit"
+  - text: Book Club 2
+  - button "edit"
+  - text: Vendors 5
+  - button "edit"
+  - text: Emergency 4
+  - button "edit"
+  - text: Travel Contacts 3
+  - button "edit"
+  - text: Healthcare 4
+  - button "edit"
+  - navigation: import_export Import & Export supervisor_account Delegates link Linked Services settings Settings
+  - heading "Merge & fix" [level=1]
+  - text: 2 suggestions merge_type Same company (CloudNine) PS Priya Sharma priya.sharma@cloudnine.dev RK Raj Kapoor raj.kapoor@cloudnine.dev
+  - button "Merge"
+  - button "Dismiss"
+  - text: merge_type Same company (EuroDesign) SL Sophie Laurent sophie.l@eurodesign.fr EV Elena Volkov elena.volkov@eurodesign.fr
+  - button "Merge"
+  - button "Dismiss"

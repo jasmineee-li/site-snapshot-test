@@ -1,0 +1,388 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item active" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>Cryptocurrency</h1>
+            </div>
+
+            <div class="crypto-summary-card">
+                <div class="crypto-summary-left">
+                    <div class="crypto-total-label">Total Portfolio Value</div>
+                    <div class="crypto-total-value">$7,428.99</div>
+                    <div class="crypto-total-return">
+                        
+            <span class="crypto-change positive">
+                <span class="material-icons">trending_up</span>
+                +50.59%
+            </span>
+        
+                        <span class="crypto-return-amount">($2,495.69)</span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Your Assets</h3>
+                
+            </div>
+        
+            <div class="crypto-list">
+                
+                    <div class="crypto-item " data-crypto-id="crypto_001">
+                        <div class="crypto-item-left">
+                            <div class="crypto-symbol-badge">BTC</div>
+                            <div class="crypto-item-info">
+                                <div class="crypto-item-name">Bitcoin</div>
+                                <div class="crypto-item-qty">0.04521 BTC</div>
+                            </div>
+                        </div>
+                        <div class="crypto-item-center">
+                            <div class="crypto-item-price">$67,842.15</div>
+                            <div class="crypto-item-price-label">Current Price</div>
+                        </div>
+                        <div class="crypto-item-right">
+                            
+                                <div class="crypto-item-value">$3,066.89</div>
+                                
+            <span class="crypto-change positive">
+                <span class="material-icons">trending_up</span>
+                +60.22%
+            </span>
+        
+                            
+                        </div>
+                        <div class="crypto-item-actions">
+                            <button class="btn btn-sm btn-primary" data-action="open-buy-crypto-modal" data-symbol="BTC">Buy</button>
+                            <button class="btn btn-sm btn-outline" data-action="open-sell-crypto-modal" data-symbol="BTC">Sell</button>
+                        </div>
+                    </div>
+                
+                    <div class="crypto-item " data-crypto-id="crypto_002">
+                        <div class="crypto-item-left">
+                            <div class="crypto-symbol-badge">ETH</div>
+                            <div class="crypto-item-info">
+                                <div class="crypto-item-name">Ethereum</div>
+                                <div class="crypto-item-qty">0.85200 ETH</div>
+                            </div>
+                        </div>
+                        <div class="crypto-item-center">
+                            <div class="crypto-item-price">$3,542.80</div>
+                            <div class="crypto-item-price-label">Current Price</div>
+                        </div>
+                        <div class="crypto-item-right">
+                            
+                                <div class="crypto-item-value">$3,018.47</div>
+                                
+            <span class="crypto-change positive">
+                <span class="material-icons">trending_up</span>
+                +55.39%
+            </span>
+        
+                            
+                        </div>
+                        <div class="crypto-item-actions">
+                            <button class="btn btn-sm btn-primary" data-action="open-buy-crypto-modal" data-symbol="ETH">Buy</button>
+                            <button class="btn btn-sm btn-outline" data-action="open-sell-crypto-modal" data-symbol="ETH">Sell</button>
+                        </div>
+                    </div>
+                
+                    <div class="crypto-item " data-crypto-id="crypto_003">
+                        <div class="crypto-item-left">
+                            <div class="crypto-symbol-badge">LTC</div>
+                            <div class="crypto-item-info">
+                                <div class="crypto-item-name">Litecoin</div>
+                                <div class="crypto-item-qty">5.23400 LTC</div>
+                            </div>
+                        </div>
+                        <div class="crypto-item-center">
+                            <div class="crypto-item-price">$98.45</div>
+                            <div class="crypto-item-price-label">Current Price</div>
+                        </div>
+                        <div class="crypto-item-right">
+                            
+                                <div class="crypto-item-value">$515.28</div>
+                                
+            <span class="crypto-change positive">
+                <span class="material-icons">trending_up</span>
+                +35.79%
+            </span>
+        
+                            
+                        </div>
+                        <div class="crypto-item-actions">
+                            <button class="btn btn-sm btn-primary" data-action="open-buy-crypto-modal" data-symbol="LTC">Buy</button>
+                            <button class="btn btn-sm btn-outline" data-action="open-sell-crypto-modal" data-symbol="LTC">Sell</button>
+                        </div>
+                    </div>
+                
+                    <div class="crypto-item " data-crypto-id="crypto_004">
+                        <div class="crypto-item-left">
+                            <div class="crypto-symbol-badge">BCH</div>
+                            <div class="crypto-item-info">
+                                <div class="crypto-item-name">Bitcoin Cash</div>
+                                <div class="crypto-item-qty">1.10000 BCH</div>
+                            </div>
+                        </div>
+                        <div class="crypto-item-center">
+                            <div class="crypto-item-price">$312.70</div>
+                            <div class="crypto-item-price-label">Current Price</div>
+                        </div>
+                        <div class="crypto-item-right">
+                            
+                                <div class="crypto-item-value">$343.97</div>
+                                
+            <span class="crypto-change positive">
+                <span class="material-icons">trending_up</span>
+                +27.64%
+            </span>
+        
+                            
+                        </div>
+                        <div class="crypto-item-actions">
+                            <button class="btn btn-sm btn-primary" data-action="open-buy-crypto-modal" data-symbol="BCH">Buy</button>
+                            <button class="btn btn-sm btn-outline" data-action="open-sell-crypto-modal" data-symbol="BCH">Sell</button>
+                        </div>
+                    </div>
+                
+                    <div class="crypto-item zero-balance" data-crypto-id="crypto_005">
+                        <div class="crypto-item-left">
+                            <div class="crypto-symbol-badge">SOL</div>
+                            <div class="crypto-item-info">
+                                <div class="crypto-item-name">Solana</div>
+                                <div class="crypto-item-qty">No holdings</div>
+                            </div>
+                        </div>
+                        <div class="crypto-item-center">
+                            <div class="crypto-item-price">$142.30</div>
+                            <div class="crypto-item-price-label">Current Price</div>
+                        </div>
+                        <div class="crypto-item-right">
+                            
+                                <div class="crypto-item-value">$0.00</div>
+                            
+                        </div>
+                        <div class="crypto-item-actions">
+                            <button class="btn btn-sm btn-primary" data-action="open-buy-crypto-modal" data-symbol="SOL">Buy</button>
+                            
+                        </div>
+                    </div>
+                
+                    <div class="crypto-item " data-crypto-id="crypto_006">
+                        <div class="crypto-item-left">
+                            <div class="crypto-symbol-badge">LINK</div>
+                            <div class="crypto-item-info">
+                                <div class="crypto-item-name">Chainlink</div>
+                                <div class="crypto-item-qty">12.50000 LINK</div>
+                            </div>
+                        </div>
+                        <div class="crypto-item-center">
+                            <div class="crypto-item-price">$18.75</div>
+                            <div class="crypto-item-price-label">Current Price</div>
+                        </div>
+                        <div class="crypto-item-right">
+                            
+                                <div class="crypto-item-value">$234.38</div>
+                                
+            <span class="crypto-change positive">
+                <span class="material-icons">trending_up</span>
+                +32.04%
+            </span>
+        
+                            
+                        </div>
+                        <div class="crypto-item-actions">
+                            <button class="btn btn-sm btn-primary" data-action="open-buy-crypto-modal" data-symbol="LINK">Buy</button>
+                            <button class="btn btn-sm btn-outline" data-action="open-sell-crypto-modal" data-symbol="LINK">Sell</button>
+                        </div>
+                    </div>
+                
+                    <div class="crypto-item " data-crypto-id="crypto_007">
+                        <div class="crypto-item-left">
+                            <div class="crypto-symbol-badge">PYUSD</div>
+                            <div class="crypto-item-info">
+                                <div class="crypto-item-name">PayPal USD</div>
+                                <div class="crypto-item-qty">250.00000 PYUSD</div>
+                            </div>
+                        </div>
+                        <div class="crypto-item-center">
+                            <div class="crypto-item-price">$1.00</div>
+                            <div class="crypto-item-price-label">Current Price</div>
+                        </div>
+                        <div class="crypto-item-right">
+                            
+                                <div class="crypto-item-value">$250.00</div>
+                                
+            <span class="crypto-change positive">
+                <span class="material-icons">trending_up</span>
+                +0.00%
+            </span>
+        
+                            
+                        </div>
+                        <div class="crypto-item-actions">
+                            <button class="btn btn-sm btn-primary" data-action="open-buy-crypto-modal" data-symbol="PYUSD">Buy</button>
+                            <button class="btn btn-sm btn-outline" data-action="open-sell-crypto-modal" data-symbol="PYUSD">Sell</button>
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Fee Schedule</h3>
+                
+            </div>
+        
+            <div class="fee-schedule">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Purchase Amount</th>
+                            <th>Fee</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                            <tr>
+                                <td>$1.00 - $4.99</td>
+                                <td>$0.49</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>$5.00 - $24.99</td>
+                                <td>$0.99</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>$25.00 - $74.99</td>
+                                <td>$1.99</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>$75.00 - $200.00</td>
+                                <td>$2.49</td>
+                            </tr>
+                        
+                            <tr>
+                                <td>$200.01 - Above</td>
+                                <td>1.5%</td>
+                            </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

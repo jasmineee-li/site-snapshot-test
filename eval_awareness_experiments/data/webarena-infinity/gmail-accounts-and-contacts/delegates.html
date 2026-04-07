@@ -1,0 +1,262 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Contacts - Accounts &amp; Contacts</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@300;400;500;700&amp;display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app"><div class="topbar"><div class="topbar-left">
+            <button class="icon-btn" data-action="toggle-sidebar" title="Menu">
+                <span class="material-icons">menu</span>
+            </button>
+            <div class="topbar-brand">
+                <span class="material-icons topbar-logo-icon" style="color:#4285F4;">contacts</span>
+                <span class="topbar-app-name">Contacts</span>
+            </div>
+        </div><div class="topbar-center"><div class="search-bar" id="global-search">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" class="search-input" id="global-search-input" value="" placeholder="Search contacts">
+            
+        </div></div><div class="topbar-right">
+            <button class="icon-btn" data-action="open-help" title="Help">
+                <span class="material-icons">help_outline</span>
+            </button>
+            <button class="icon-btn" data-action="open-settings-menu" title="Settings">
+                <span class="material-icons">settings</span>
+            </button>
+            <div class="topbar-profile" data-action="toggle-profile-menu">
+                <div class="avatar" style="width:32px;height:32px;background:#1a73e8;font-size:13px;line-height:32px;">AJ</div>
+            </div>
+        </div></div><div class="app-layout "><div class="sidebar"><div class="sidebar-header">
+            <div class="sidebar-logo">
+                <span class="material-icons" style="color:#4285F4;font-size:28px;">contacts</span>
+                <span class="sidebar-title">Contacts</span>
+            </div>
+        </div><div class="sidebar-action">
+            <button class="btn btn-primary btn-create" data-action="open-create-contact">
+                <span class="material-icons btn-icon">add</span> Create contact
+            </button>
+        </div><nav class="sidebar-nav"><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="all">
+            <span class="material-icons nav-icon">people</span>
+            <span class="nav-label">Contacts</span>
+            <span class="nav-count">40</span>
+        </div><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="frequently">
+            <span class="material-icons nav-icon">history</span>
+            <span class="nav-label">Frequently contacted</span>
+            
+        </div><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="starred">
+            <span class="material-icons nav-icon">star</span>
+            <span class="nav-label">Starred</span>
+            <span class="nav-count">10</span>
+        </div><div class="nav-item" data-action="navigate" data-view="other-contacts" data-filter="other">
+            <span class="material-icons nav-icon">person_outline</span>
+            <span class="nav-label">Other contacts</span>
+            <span class="nav-count">20</span>
+        </div><div class="nav-item" data-action="navigate" data-view="merge-suggestions" data-filter="merge">
+            <span class="material-icons nav-icon">merge_type</span>
+            <span class="nav-label">Merge &amp; fix</span>
+            <span class="nav-count">2</span>
+        </div></nav><div class="sidebar-section"><div class="sidebar-section-header">
+            <span class="sidebar-section-title">Labels</span>
+            <button class="icon-btn icon-btn-sm" data-action="open-create-label" title="Create label">
+                <span class="material-icons">add</span>
+            </button>
+        </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_1">
+                <span class="label-dot" style="background:#EA4335"></span>
+                <span class="nav-label">Family</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_1" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_2">
+                <span class="label-dot" style="background:#34A853"></span>
+                <span class="nav-label">Friends</span>
+                <span class="nav-count">7</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_2" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_3">
+                <span class="label-dot" style="background:#4285F4"></span>
+                <span class="nav-label">Work</span>
+                <span class="nav-count">19</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_3" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_4">
+                <span class="label-dot" style="background:#FBBC04"></span>
+                <span class="nav-label">VIP Clients</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_4" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_5">
+                <span class="label-dot" style="background:#FF6D01"></span>
+                <span class="nav-label">Gym Buddies</span>
+                <span class="nav-count">5</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_5" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_6">
+                <span class="label-dot" style="background:#9C27B0"></span>
+                <span class="nav-label">College Alumni</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_6" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_7">
+                <span class="label-dot" style="background:#009688"></span>
+                <span class="nav-label">Neighbors</span>
+                <span class="nav-count">3</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_7" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_8">
+                <span class="label-dot" style="background:#795548"></span>
+                <span class="nav-label">Book Club</span>
+                <span class="nav-count">2</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_8" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_9">
+                <span class="label-dot" style="background:#607D8B"></span>
+                <span class="nav-label">Vendors</span>
+                <span class="nav-count">5</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_9" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_10">
+                <span class="label-dot" style="background:#F44336"></span>
+                <span class="nav-label">Emergency</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_10" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_11">
+                <span class="label-dot" style="background:#00BCD4"></span>
+                <span class="nav-label">Travel Contacts</span>
+                <span class="nav-count">3</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_11" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_12">
+                <span class="label-dot" style="background:#E91E63"></span>
+                <span class="nav-label">Healthcare</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_12" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div></div><nav class="sidebar-nav sidebar-nav-bottom"><div class="nav-item" data-action="navigate" data-view="import-export">
+            <span class="material-icons nav-icon">import_export</span>
+            <span class="nav-label">Import &amp; Export</span>
+        </div><div class="nav-item nav-active" data-action="navigate" data-view="delegates">
+            <span class="material-icons nav-icon">supervisor_account</span>
+            <span class="nav-label">Delegates</span>
+        </div><div class="nav-item" data-action="navigate" data-view="linked-services">
+            <span class="material-icons nav-icon">link</span>
+            <span class="nav-label">Linked Services</span>
+        </div><div class="nav-item" data-action="navigate" data-view="settings">
+            <span class="material-icons nav-icon">settings</span>
+            <span class="nav-label">Settings</span>
+        </div></nav></div><div class="main-area"><div class="main-content"><div class="content-header">
+            <h1 class="content-title">Delegate access</h1>
+        </div><p class="content-description">Grant others access to read, send, and delete emails on your behalf. Delegates cannot use chat or change your password. You can add up to 10 delegates.</p><div class="section-actions">
+            <button class="btn btn-primary" data-action="open-add-delegate">
+                <span class="material-icons btn-icon">person_add</span> Add a delegate
+            </button>
+        </div><div class="delegates-list"><div class="delegate-card" data-delegate-id="delegate_1">
+                    <div class="delegate-info">
+                        <div class="avatar" style="width:40px;height:40px;background:#757575;font-size:16px;line-height:40px;">MP</div>
+                        <div class="delegate-details">
+                            <div class="delegate-name">Maya Patel</div>
+                            <div class="delegate-email">maya.patel@techcorp.io</div>
+                            <div class="delegate-meta">Added Jun 15, 2025 · Activated Jun 16, 2025</div>
+                        </div>
+                    </div>
+                    <div class="delegate-actions">
+                        <span class="status-badge badge-success">active</span>
+                        <button class="icon-btn" data-action="remove-delegate" data-delegate-id="delegate_1" title="Remove delegate">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                </div><div class="delegate-card" data-delegate-id="delegate_2">
+                    <div class="delegate-info">
+                        <div class="avatar" style="width:40px;height:40px;background:#757575;font-size:16px;line-height:40px;">LJ</div>
+                        <div class="delegate-details">
+                            <div class="delegate-name">Laura Johnson-Martinez</div>
+                            <div class="delegate-email">laura.jm@gmail.com</div>
+                            <div class="delegate-meta">Added Dec 1, 2024 · Activated Dec 2, 2024</div>
+                        </div>
+                    </div>
+                    <div class="delegate-actions">
+                        <span class="status-badge badge-success">active</span>
+                        <button class="icon-btn" data-action="remove-delegate" data-delegate-id="delegate_2" title="Remove delegate">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                </div><div class="delegate-card" data-delegate-id="delegate_3">
+                    <div class="delegate-info">
+                        <div class="avatar" style="width:40px;height:40px;background:#757575;font-size:16px;line-height:40px;">PS</div>
+                        <div class="delegate-details">
+                            <div class="delegate-name">Priya Sharma</div>
+                            <div class="delegate-email">priya.sharma@cloudnine.dev</div>
+                            <div class="delegate-meta">Added Mar 5, 2026</div>
+                        </div>
+                    </div>
+                    <div class="delegate-actions">
+                        <span class="status-badge badge-warning">pending</span>
+                        <button class="icon-btn" data-action="remove-delegate" data-delegate-id="delegate_3" title="Remove delegate">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                </div><div class="delegate-card" data-delegate-id="delegate_4">
+                    <div class="delegate-info">
+                        <div class="avatar" style="width:40px;height:40px;background:#757575;font-size:16px;line-height:40px;">JM</div>
+                        <div class="delegate-details">
+                            <div class="delegate-name">Jake Morrison</div>
+                            <div class="delegate-email">jake.morrison@gmail.com</div>
+                            <div class="delegate-meta">Added Feb 20, 2026</div>
+                        </div>
+                    </div>
+                    <div class="delegate-actions">
+                        <span class="status-badge badge-error">expired</span>
+                        <button class="icon-btn" data-action="remove-delegate" data-delegate-id="delegate_4" title="Remove delegate">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                </div></div><div class="info-section">
+            <h3 class="info-title">About delegation</h3>
+            <div class="info-grid">
+                <div class="info-card">
+                    <span class="material-icons info-card-icon">check_circle</span>
+                    <div class="info-card-content">
+                        <strong>What delegates can do:</strong>
+                        <ul><li>Read your email</li><li>Send email on your behalf</li><li>Delete email messages</li></ul>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <span class="material-icons info-card-icon" style="color:var(--color-danger);">cancel</span>
+                    <div class="info-card-content">
+                        <strong>What delegates cannot do:</strong>
+                        <ul><li>Use Google Chat</li><li>Change your password</li><li>Change account settings</li></ul>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <span class="material-icons info-card-icon" style="color:var(--color-warning);">schedule</span>
+                    <div class="info-card-content">
+                        <strong>Activation:</strong>
+                        <p>After adding a delegate, they must confirm. Invitations expire in 1 week. It can take up to 24 hours for access to activate.</p>
+                    </div>
+                </div>
+            </div>
+        </div></div></div></div></div>
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

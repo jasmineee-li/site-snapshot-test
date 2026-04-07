@@ -1,0 +1,68 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "Cryptocurrency" [level=1]
+    - text: Total Portfolio Value $7,428.99 trending_up +50.59% ($2,495.69)
+    - heading "Your Assets" [level=3]
+    - text: BTC Bitcoin 0.04521 BTC $67,842.15 Current Price $3,066.89 trending_up +60.22%
+    - button "Buy"
+    - button "Sell"
+    - text: ETH Ethereum 0.85200 ETH $3,542.80 Current Price $3,018.47 trending_up +55.39%
+    - button "Buy"
+    - button "Sell"
+    - text: LTC Litecoin 5.23400 LTC $98.45 Current Price $515.28 trending_up +35.79%
+    - button "Buy"
+    - button "Sell"
+    - text: BCH Bitcoin Cash 1.10000 BCH $312.70 Current Price $343.97 trending_up +27.64%
+    - button "Buy"
+    - button "Sell"
+    - text: SOL Solana No holdings $142.30 Current Price $0.00
+    - button "Buy"
+    - text: LINK Chainlink 12.50000 LINK $18.75 Current Price $234.38 trending_up +32.04%
+    - button "Buy"
+    - button "Sell"
+    - text: PYUSD PayPal USD 250.00000 PYUSD $1.00 Current Price $250.00 trending_up +0.00%
+    - button "Buy"
+    - button "Sell"
+    - heading "Fee Schedule" [level=3]
+    - table:
+      - rowgroup:
+        - row "Purchase Amount Fee":
+          - columnheader "Purchase Amount"
+          - columnheader "Fee"
+      - rowgroup:
+        - row "$1.00 - $4.99 $0.49":
+          - cell "$1.00 - $4.99"
+          - cell "$0.49"
+        - row "$5.00 - $24.99 $0.99":
+          - cell "$5.00 - $24.99"
+          - cell "$0.99"
+        - row "$25.00 - $74.99 $1.99":
+          - cell "$25.00 - $74.99"
+          - cell "$1.99"
+        - row "$75.00 - $200.00 $2.49":
+          - cell "$75.00 - $200.00"
+          - cell "$2.49"
+        - row "$200.01 - Above 1.5%":
+          - cell "$200.01 - Above"
+          - cell "1.5%"

@@ -1,0 +1,12 @@
+{
+  "task_id": "task_h35",
+  "difficulty": "hard",
+  "instruction": "Redeem 2,000 reward points for PayPal balance and then put $20 into savings.",
+  "passed": true,
+  "verifier_message": "Redeemed 2,000 reward points for balance and deposited $20 into savings.",
+  "elapsed": 164.4,
+  "steps": 11,
+  "is_done": true,
+  "final_result": "Action: Terminate the task as the goal has been successfully completed.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+  "errors": []
+}

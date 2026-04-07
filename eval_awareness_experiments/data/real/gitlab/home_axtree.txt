@@ -1,0 +1,389 @@
+- document:
+  - alert: Finally, AI for the entire software lifecycle.
+  - navigation "Navigation":
+    - link "Home":
+      - /url: /
+    - list:
+      - listitem:
+        - button "Platform"
+      - listitem:
+        - button "Product"
+      - listitem:
+        - link "Pricing":
+          - /url: /pricing/
+      - listitem:
+        - button "Resources"
+      - listitem:
+        - button "Company"
+      - listitem:
+        - button "Contact us"
+    - button "Search"
+    - link "Talk to sales":
+      - /url: /sales/
+    - link "Get free trial":
+      - /url: https://gitlab.com/-/trial_registrations/new?glm_source=about.gitlab.com/&glm_content=default-saas-trial
+    - link "Sign in":
+      - /url: https://gitlab.com/users/sign_in/
+  - main:
+    - heading "Finally, AI for the entire software lifecycle." [level=1]:
+      - paragraph: Finally, AI for the entire software lifecycle.
+    - paragraph: Your intelligent orchestration platform for DevSecOps
+    - text: Email address
+    - textbox "Email address":
+      - /placeholder: Enter your email
+    - button "Get started"
+    - application "Vimeo Player - Placeholder"
+    - img "Watch Duo Premium with GitLab Duo"
+    - button "play video":
+      - img
+    - list:
+      - listitem:
+        - link "nvidia logo":
+          - /url: /customers/nvidia/
+          - img "nvidia logo"
+      - listitem:
+        - link "barclays logo":
+          - /url: ""
+          - img "barclays logo"
+      - listitem:
+        - link "lockheed martin logo":
+          - /url: /customers/lockheed-martin/
+          - img "lockheed martin logo"
+      - listitem:
+        - link "thales logo":
+          - /url: /customers/thales/
+          - img "thales logo"
+      - listitem:
+        - link "ericsson logo":
+          - /url: /customers/ericsson/
+          - img "ericsson logo"
+      - listitem:
+        - link "deutsche telekom logo":
+          - /url: /customers/deutsche-telekom/
+          - img "deutsche telekom logo"
+      - listitem:
+        - link "agoda logo":
+          - /url: /customers/agoda/
+          - img "agoda logo"
+    - heading "Built for how you work" [level=2]
+    - heading "Join the 50+ million people already using GitLab." [level=3]
+    - link "Try for free":
+      - /url: https://gitlab.com/-/trial_registrations/new/
+    - list:
+      - listitem:
+        - heading "Define how teams and AI agents work together" [level=3]
+        - paragraph: Customize your workflows for development, testing, security, and deployment. Teams orchestrate from above the software lifecycle while AI agents execute within it, automating repetitive tasks based on the rules and guardrails you set. Your agents turn issues into merge requests, remediate vulnerabilities, and review code — your team remains in control.
+        - link "Meet GitLab Duo Agent Platform":
+          - /url: /gitlab-duo-agent-platform/
+        - img "Agent Platform"
+      - listitem:
+        - heading "Your end-to-end DevOps process in one place" [level=3]
+        - paragraph: From planning to source code management to CI/CD, everything you need to build and ship software faster in one platform. All your data — projects, releases, code — in a single data plane, so your team and agents can work from one source of truth.
+        - link "Explore our Platform":
+          - /url: /platform/
+        - img "Product screenshot of GitLab Duo reviewing a merge request and giving suggestions for improvements"
+      - listitem:
+        - heading "Be proactive with security built in, not bolted on" [level=3]
+        - paragraph: Build secure products with fewer security products. Consolidate scanners like SAST, SCA, Secret Detection, and DAST into one platform. Security findings appear directly in merge requests and IDEs. Apply controls for compliance and collect audit-ready evidence automatically in every pipeline.
+        - link "Learn more about security":
+          - /url: /solutions/application-security-testing/
+        - img "Product screenshot of the Vulnerability report dashboard, showing ranges of issue severities"
+    - heading "Built to meet your industry’s demands" [level=2]
+    - paragraph: Every industry faces unique security, compliance, and delivery requirements. GitLab adapts to your regulatory environment while maintaining the velocity your teams need.
+    - link "Financial Services":
+      - /url: /solutions/finance/
+      - heading "Financial Services" [level=3]
+    - paragraph: Meet strict regulatory requirements without sacrificing delivery speed. Maintain audit trails, access controls, and comprehensive security testing.
+    - link "Public Sector":
+      - /url: /solutions/public-sector/
+      - heading "Public Sector" [level=3]
+    - paragraph: Build software that meets federal security standards. Deploy in air-gapped environments, maintain government compliance, and secure software by design.
+    - link "Telecommunications":
+      - /url: /solutions/telecommunications/
+      - heading "Telecommunications" [level=3]
+    - paragraph: Scale network infrastructure with confidence. Support complex deployment pipelines, strict uptime requirements, and distributed edge environments.
+    - link "Automotive":
+      - /url: /solutions/automotive/
+      - heading "Automotive" [level=3]
+    - paragraph: Accelerate the automotive software lifecycle. Automate compliance workflows for safety standards, speed embedded development, and coordinate global teams.
+    - link "Education":
+      - /url: /solutions/education/
+      - heading "Education" [level=3]
+    - paragraph: Empower students and researchers while protecting institutional data. Choose from flexible deployment options and enable research collaboration.
+    - link "Aerospace":
+      - /url: /solutions/aerospace/
+      - heading "Aerospace" [level=3]
+    - paragraph: Accelerate development from flight-critical firmware to customer applications. Maintain safety standards, track SBOMs, and deploy in airgap environments.
+    - region "Customer Quote Carousel":
+      - paragraph: Use left and right arrow keys to navigate quotes. Swipe on touch devices. Autoplay pauses on hover or focus.
+      - paragraph: Quote 1 of 5
+      - button "Previous":
+        - img
+      - group "Quote 1 of 5":
+        - group "Quote content 1":
+          - paragraph: “The faster deployment capabilities GitLab enables directly contribute to our business growth. Communications service providers choose us because we can deliver innovation at the speed their markets demand.”
+          - img "Daniel Costa Soares"
+          - paragraph: Daniel Costa Soares
+          - paragraph: Head of Software Automation and Support
+      - button "Next":
+        - img
+      - tablist "Select Quote":
+        - tab "Go to quote 1" [selected]
+        - tab "Go to quote 2"
+        - tab "Go to quote 3"
+        - tab "Go to quote 4"
+        - tab "Go to quote 5"
+    - heading "One platform for teams of every size" [level=2]
+    - region:
+      - button "Previous":
+        - img
+      - list:
+        - listitem "13x — faster security scanning":
+          - text: 13x faster security scanning
+          - img "CACI company logo"
+        - listitem "20x — decrease in pipeline execution time with GitLab":
+          - text: 20x decrease in pipeline execution time with GitLab
+          - img "Intuitive Machines company logo"
+        - listitem "100 — fewer hours of developer downtime per month":
+          - text: 100 fewer hours of developer downtime per month
+          - img "Ally Financial company logo"
+        - listitem "6x — faster time to market":
+          - text: 6x faster time to market
+          - img "Deutsche Telekom company logo"
+        - listitem "17% — boost in developer happiness scores":
+          - text: 17% boost in developer happiness scores
+          - img "Agoda company logo"
+        - listitem "97% — reduction in time to fix bugs":
+          - text: 97% reduction in time to fix bugs
+          - img "Sigma Defense company logo"
+        - listitem "80x — faster CI pipeline builds":
+          - text: 80x faster CI pipeline builds
+          - img "Lockheed Martin company logo"
+        - listitem "30% — of vulnerabilities found earlier in SDLC":
+          - text: 30% of vulnerabilities found earlier in SDLC
+          - img "CARFAX company logo"
+        - listitem "4 hours — saved per engineer per week":
+          - text: 4 hours saved per engineer per week
+          - img "HackerOne company logo"
+        - listitem "82% — decrease in cycle time":
+          - text: 82% decrease in cycle time
+          - img "Radio France company logo"
+        - listitem "50% — faster vulnerability detection":
+          - text: 50% faster vulnerability detection
+          - img "Cube company logo"
+      - button "Next":
+        - img
+    - heading "Start building faster today" [level=2]
+    - paragraph: See what your team can do with the intelligent orchestration platform for DevSecOps.
+    - link "Get your free trial":
+      - /url: https://gitlab.com/-/trial_registrations/new?glm_content=default-saas-trial&glm_source=about.gitlab.com/
+    - link "Contact sales":
+      - /url: /sales/
+  - contentinfo:
+    - img
+    - text: ®
+    - heading "Footer links" [level=2]
+    - heading "Pricing" [level=3]
+    - list:
+      - listitem:
+        - link "View plans":
+          - /url: /pricing/
+      - listitem:
+        - link "Why Premium?":
+          - /url: /pricing/premium/
+      - listitem:
+        - link "Why Ultimate?":
+          - /url: /pricing/ultimate/
+    - heading "Contact Us" [level=3]
+    - list:
+      - listitem:
+        - link "Contact sales":
+          - /url: /sales/
+      - listitem:
+        - link "Support portal":
+          - /url: https://support.gitlab.com
+      - listitem:
+        - link "Customer portal":
+          - /url: https://customers.gitlab.com/customers/sign_in/
+      - listitem:
+        - link "Status":
+          - /url: https://status.gitlab.com/
+      - listitem:
+        - link "Terms of use":
+          - /url: /terms/
+      - listitem:
+        - link "Privacy statement":
+          - /url: /privacy/
+      - listitem:
+        - button "Cookie Preferences"
+    - heading "Product" [level=3]
+    - list:
+      - listitem:
+        - link "DevSecOps platform":
+          - /url: /platform/
+      - listitem:
+        - link "AI-Assisted Development":
+          - /url: /gitlab-duo-agent-platform/
+    - heading "Topics" [level=3]
+    - list:
+      - listitem:
+        - link "CICD":
+          - /url: /topics/ci-cd/
+      - listitem:
+        - link "GitOps":
+          - /url: /topics/gitops/
+      - listitem:
+        - link "DevOps":
+          - /url: /topics/devops/
+      - listitem:
+        - link "Version Control":
+          - /url: /topics/version-control/
+      - listitem:
+        - link "DevSecOps":
+          - /url: /topics/devsecops/
+      - listitem:
+        - link "Cloud Native":
+          - /url: /topics/cloud-native/
+      - listitem:
+        - link "AI for Coding":
+          - /url: /topics/devops/ai-for-coding/
+      - listitem:
+        - link "Agentic AI":
+          - /url: /topics/agentic-ai/
+    - heading "Solutions" [level=3]
+    - list:
+      - listitem:
+        - link "Application Security Testing":
+          - /url: /solutions/application-security-testing/
+      - listitem:
+        - link "Automated software delivery":
+          - /url: /solutions/delivery-automation/
+      - listitem:
+        - link "Agile development":
+          - /url: /solutions/agile-delivery/
+      - listitem:
+        - link "SCM":
+          - /url: /solutions/source-code-management/
+      - listitem:
+        - link "CICD":
+          - /url: /solutions/continuous-integration/
+      - listitem:
+        - link "Value stream management":
+          - /url: /solutions/value-stream-management/
+      - listitem:
+        - link "GitOps":
+          - /url: /solutions/gitops/
+      - listitem:
+        - link "Enterprise":
+          - /url: /enterprise/
+      - listitem:
+        - link "Small business":
+          - /url: /small-business/
+      - listitem:
+        - link "Public sector":
+          - /url: /solutions/public-sector/
+      - listitem:
+        - link "Education":
+          - /url: /solutions/education/
+      - listitem:
+        - link "Financial services":
+          - /url: /solutions/finance/
+    - heading "Resources" [level=3]
+    - list:
+      - listitem:
+        - link "Install":
+          - /url: /install/
+      - listitem:
+        - link "Quick start guides":
+          - /url: /get-started/
+      - listitem:
+        - link "Learn":
+          - /url: https://university.gitlab.com/
+      - listitem:
+        - link "Product documentation":
+          - /url: https://docs.gitlab.com/
+      - listitem:
+        - link "Blog":
+          - /url: /blog/
+      - listitem:
+        - link "Customer success stories":
+          - /url: /customers/
+      - listitem:
+        - link "Remote":
+          - /url: https://handbook.gitlab.com/handbook/company/culture/all-remote/
+      - listitem:
+        - link "GitLab Services":
+          - /url: /services/
+      - listitem:
+        - link "Community":
+          - /url: /community/
+      - listitem:
+        - link "Forum":
+          - /url: https://forum.gitlab.com/
+      - listitem:
+        - link "Events":
+          - /url: /events/
+      - listitem:
+        - link "Partners":
+          - /url: /partners/
+    - heading "Company" [level=3]
+    - list:
+      - listitem:
+        - link "About":
+          - /url: /company/
+      - listitem:
+        - link "Jobs":
+          - /url: /jobs/
+      - listitem:
+        - link "Leadership":
+          - /url: /company/team/e-group/
+      - listitem:
+        - link "Team":
+          - /url: /company/team/
+      - listitem:
+        - link "Handbook":
+          - /url: https://handbook.gitlab.com/
+      - listitem:
+        - link "Investor relations":
+          - /url: https://ir.gitlab.com/
+      - listitem:
+        - link "Sustainability":
+          - /url: /sustainability/
+      - listitem:
+        - link "Diversity, inclusion and belonging (DIB)":
+          - /url: /diversity-inclusion-belonging/
+      - listitem:
+        - link "Trust Center":
+          - /url: /security/
+      - listitem:
+        - link "Newsletter":
+          - /url: /company/contact/#contact-forms
+      - listitem:
+        - link "Press":
+          - /url: /press/
+      - listitem:
+        - link "Modern Slavery Transparency Statement":
+          - /url: https://handbook.gitlab.com/handbook/legal/modern-slavery-act-transparency-statement/
+    - button "Website language selector": "Language: English"
+    - list:
+      - listitem:
+        - link "Twitter":
+          - /url: https://twitter.com/gitlab
+      - listitem:
+        - link "Facebook":
+          - /url: https://www.facebook.com/gitlab
+      - listitem:
+        - link "YouTube":
+          - /url: https://www.youtube.com/channel/UCnMGQ8QHMAnVIsI3xJrihhg
+      - listitem:
+        - link "LinkedIn":
+          - /url: https://www.linkedin.com/company/gitlab-com
+    - paragraph: Git is a trademark of Software Freedom Conservancy and our use of 'GitLab' is under license
+    - paragraph:
+      - link "View page source":
+        - /url: https://gitlab.com/gitlab-com/marketing/digital-experience/about-gitlab-com/
+      - link "Edit this page":
+        - /url: https://gitlab.com/gitlab-com/marketing/digital-experience/about-gitlab-com/-/blob/main/content/en-us/index.yml
+      - link "Please contribute":
+        - /url: https://gitlab.com/gitlab-com/marketing/digital-experience/about-gitlab-com/-/blob/main/CONTRIBUTING.md/
+    - paragraph: © 2026 GitLab Inc.

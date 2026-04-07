@@ -1,0 +1,94 @@
+- document:
+  - banner:
+    - button "Main menu":
+      - img
+    - img
+    - text: Gmail
+    - button "Search":
+      - img
+    - textbox "Search mail"
+    - button "Show search options":
+      - img
+    - button "Settings":
+      - img
+    - text: AJ
+  - navigation:
+    - button "Compose":
+      - img
+      - text: Compose
+    - img
+    - text: Inbox 19
+    - img
+    - text: Starred
+    - img
+    - text: Snoozed
+    - img
+    - text: Sent
+    - img
+    - text: Drafts 2
+    - img
+    - text: Important
+    - img
+    - text: All Mail
+    - img
+    - text: Spam 5
+    - img
+    - text: Trash Labels
+    - button "▾"
+    - text: Work 12 Projects 4 Meetings 1 Clients 1 HR Personal Family Friends Finance Invoices Banking Travel 1 Receipts Newsletters 2 Health Education Action Required 4 Waiting For Reply 1 Reference
+    - img
+    - text: Create new label
+  - main:
+    - heading "Settings" [level=1]
+    - button "General"
+    - button "Labels"
+    - button "Inbox"
+    - button "Filters and Blocked Addresses"
+    - text: Language Gmail display language English (US) ▾ Theme Theme Default ▾ Phone number Phone number Not set. Used for account recovery. Default reply behavior When replying to a message
+    - radio "Reply" [checked]
+    - text: Reply
+    - radio "Reply all"
+    - text: Reply all Undo Send Send cancellation period 5 seconds ▾ Conversation View Group emails into conversations
+    - radio "Conversation view on" [checked]
+    - text: Conversation view on
+    - radio "Conversation view off"
+    - text: Conversation view off Density Display density
+    - radio "Default" [checked]
+    - text: Default
+    - radio "Comfortable"
+    - text: Comfortable
+    - radio "Compact"
+    - text: Compact Send and Archive Show "Send & Archive" button in reply
+    - radio "Show \"Send & Archive\" button in reply" [checked]
+    - text: Show "Send & Archive" button in reply
+    - radio "Hide \"Send & Archive\" button in reply"
+    - text: Hide "Send & Archive" button in reply Hover Actions Enable hover actions
+    - radio "Enable hover actions" [checked]
+    - text: Enable hover actions
+    - radio "Disable hover actions"
+    - text: Disable hover actions Nudges Suggest emails to reply to Emails you might have forgotten to respond to will appear at the top of your inbox
+    - checkbox [checked]
+    - text: Suggest emails to follow up on Sent emails you might need to follow up on will appear at the top of your inbox
+    - checkbox [checked]
+    - text: Auto-advance After archiving or deleting a conversation
+    - radio "Go to the next (newer) conversation" [checked]
+    - text: Go to the next (newer) conversation
+    - radio "Go to the previous (older) conversation"
+    - text: Go to the previous (older) conversation
+    - radio "Go back to the threadlist"
+    - text: Go back to the threadlist Keyboard shortcuts Keyboard shortcuts Enable keyboard shortcuts for faster navigation
+    - checkbox [checked]
+    - text: Desktop Notifications Email notifications
+    - radio "Mail notifications off" [checked]
+    - text: Mail notifications off
+    - radio "Important mail notifications on"
+    - text: Important mail notifications on
+    - radio "New mail notifications on"
+    - text: New mail notifications on Stars Stars in use ★ ★ ★ ★ ★ ★ ! ! ? » ⓘ Maximum page size Show this many conversations per page 50 ▾ Button labels Display button labels or icons
+    - radio "Icons" [checked]
+    - text: Icons
+    - radio "Text"
+    - text: Text Dynamic email Enable dynamic email Allow email senders to include interactive content in their emails
+    - checkbox [checked]
+    - button "Cancel"
+    - button "Save Changes"

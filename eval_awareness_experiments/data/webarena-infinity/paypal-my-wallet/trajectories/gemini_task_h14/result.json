@@ -1,0 +1,21 @@
+{
+  "task_id": "task_h14",
+  "difficulty": "hard",
+  "instruction": "Invest $50 in Bitcoin and another $50 in Ethereum.",
+  "passed": true,
+  "verifier_message": "Successfully invested $50 in Bitcoin and $50 in Ethereum.",
+  "elapsed": 62.2,
+  "steps": 8,
+  "is_done": true,
+  "final_result": "I have successfully invested $50 in Bitcoin and $50 in Ethereum. I verified the transactions in the account history, where both purchases are listed as completed for $50.00 each.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

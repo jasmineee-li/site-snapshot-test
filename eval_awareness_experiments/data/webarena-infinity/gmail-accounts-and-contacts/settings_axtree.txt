@@ -1,0 +1,53 @@
+- document:
+  - button "menu"
+  - text: contacts Contacts search
+  - textbox "Search contacts"
+  - button "help_outline"
+  - button "settings"
+  - text: AJ contacts Contacts
+  - button "add Create contact"
+  - navigation: people Contacts 40 history Frequently contacted star Starred 10 person_outline Other contacts 20 merge_type Merge & fix 2
+  - text: Labels
+  - button "add"
+  - text: Family 4
+  - button "edit"
+  - text: Friends 7
+  - button "edit"
+  - text: Work 19
+  - button "edit"
+  - text: VIP Clients 4
+  - button "edit"
+  - text: Gym Buddies 5
+  - button "edit"
+  - text: College Alumni 4
+  - button "edit"
+  - text: Neighbors 3
+  - button "edit"
+  - text: Book Club 2
+  - button "edit"
+  - text: Vendors 5
+  - button "edit"
+  - text: Emergency 4
+  - button "edit"
+  - text: Travel Contacts 3
+  - button "edit"
+  - text: Healthcare 4
+  - button "edit"
+  - navigation: import_export Import & Export supervisor_account Delegates link Linked Services settings Settings
+  - heading "Settings" [level=1]
+  - button "General"
+  - button "Account"
+  - button "Privacy"
+  - button "Notifications"
+  - button "Sync & Google Sync"
+  - heading "Contacts display" [level=3]
+  - text: First name expand_more Name display order First name first (e.g., John Smith) expand_more
+  - heading "Auto-save contacts" [level=3]
+  - paragraph: When enabled, Gmail automatically saves contacts when you send emails to new people.
+  - text: Automatically add contacts Save contacts from people you email
+  - checkbox "Automatically add contacts" [checked]
+  - heading "Collaboration" [level=3]
+  - text: Share Google Docs in email Allow sharing and updating permissions for Google Docs directly in Gmail
+  - checkbox "Share Google Docs in email" [checked]
+  - text: Show contact info on emails Display sender contact information when viewing emails
+  - checkbox "Show contact info on emails" [checked]

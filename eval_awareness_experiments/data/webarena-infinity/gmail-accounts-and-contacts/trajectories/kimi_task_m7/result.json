@@ -1,0 +1,12 @@
+{
+  "task_id": "task_m7",
+  "difficulty": "medium",
+  "instruction": "Remove the pending and expired delegates.",
+  "passed": true,
+  "verifier_message": "Pending and expired delegates removed; active delegates preserved.",
+  "elapsed": 293.2,
+  "steps": 6,
+  "is_done": true,
+  "final_result": "## Action:\nTerminate the task with success status as all pending and expired delegates have been removed.\n\n## Code:\n```python\ncomputer.terminate(status=\"success\", answer='''Successfully removed all pending and expired delegates. Priya Sharma (Pending) and Jake Morrison (Expired) have been removed from the delegate access list. Only the active delegates (Maya Patel and Laura Johnson-Martinez) remain.''')\n```",
+  "errors": []
+}

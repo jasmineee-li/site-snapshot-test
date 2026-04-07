@@ -1,0 +1,331 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item active" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>Cards</h1>
+                <button class="btn btn-primary" data-action="open-add-card-modal">
+                    <span class="material-icons">add</span> Link a Card
+                </button>
+            </div>
+
+            <div class="cards-grid">
+                
+                    <div class="card-item" data-card-id="card_001">
+                        
+            <div class="card-visual visa">
+                <div class="card-visual-top">
+                    <span class="card-brand visa">VISA</span>
+                    <span class="preferred-badge">Preferred</span>
+                    
+                </div>
+                <div class="card-visual-number">•••• •••• •••• 4829</div>
+                <div class="card-visual-bottom">
+                    <div class="card-visual-name">Jordan Mitchell</div>
+                    <div class="card-visual-exp">09/2028</div>
+                </div>
+            </div>
+        
+                        <div class="card-item-details">
+                            <div class="card-item-status">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                
+                            </div>
+                            <div class="card-item-info">
+                                <span>Added Mar 14, 2019</span>
+                                <span>Last used Mar 5, 2026</span>
+                            </div>
+                            <div class="card-item-actions">
+                                
+                                <button class="btn btn-sm btn-outline" data-action="open-edit-card-modal" data-id="card_001">Update</button>
+                                
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-card" data-id="card_001">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="card-item" data-card-id="card_002">
+                        
+            <div class="card-visual mastercard">
+                <div class="card-visual-top">
+                    <span class="card-brand mastercard">MC</span>
+                    
+                    
+                </div>
+                <div class="card-visual-number">•••• •••• •••• 7156</div>
+                <div class="card-visual-bottom">
+                    <div class="card-visual-name">Jordan Mitchell</div>
+                    <div class="card-visual-exp">03/2027</div>
+                </div>
+            </div>
+        
+                        <div class="card-item-details">
+                            <div class="card-item-status">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                <span class="status-badge badge-info">Instant Transfer</span>
+                            </div>
+                            <div class="card-item-info">
+                                <span>Added Jun 22, 2020</span>
+                                <span>Last used Feb 28, 2026</span>
+                            </div>
+                            <div class="card-item-actions">
+                                
+                                <button class="btn btn-sm btn-outline" data-action="open-edit-card-modal" data-id="card_002">Update</button>
+                                <button class="btn btn-sm btn-outline" data-action="set-preferred-card" data-id="card_002">Set as Preferred</button>
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-card" data-id="card_002">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="card-item" data-card-id="card_003">
+                        
+            <div class="card-visual american-express">
+                <div class="card-visual-top">
+                    <span class="card-brand amex">AMEX</span>
+                    
+                    
+                </div>
+                <div class="card-visual-number">•••• •••• •••• 3001</div>
+                <div class="card-visual-bottom">
+                    <div class="card-visual-name">Jordan Mitchell</div>
+                    <div class="card-visual-exp">12/2026</div>
+                </div>
+            </div>
+        
+                        <div class="card-item-details">
+                            <div class="card-item-status">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                
+                            </div>
+                            <div class="card-item-info">
+                                <span>Added Jan 10, 2021</span>
+                                <span>Last used Jan 15, 2026</span>
+                            </div>
+                            <div class="card-item-actions">
+                                
+                                <button class="btn btn-sm btn-outline" data-action="open-edit-card-modal" data-id="card_003">Update</button>
+                                <button class="btn btn-sm btn-outline" data-action="set-preferred-card" data-id="card_003">Set as Preferred</button>
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-card" data-id="card_003">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="card-item" data-card-id="card_005">
+                        
+            <div class="card-visual visa">
+                <div class="card-visual-top">
+                    <span class="card-brand visa">VISA</span>
+                    
+                    
+                </div>
+                <div class="card-visual-number">•••• •••• •••• 8834</div>
+                <div class="card-visual-bottom">
+                    <div class="card-visual-name">Jordan Mitchell</div>
+                    <div class="card-visual-exp">11/2029</div>
+                </div>
+            </div>
+        
+                        <div class="card-item-details">
+                            <div class="card-item-status">
+                                <span class="status-badge badge-warning">Pending</span>
+                                <span class="status-badge badge-info">Instant Transfer</span>
+                            </div>
+                            <div class="card-item-info">
+                                <span>Added Mar 1, 2026</span>
+                                
+                            </div>
+                            <div class="card-item-actions">
+                                <button class="btn btn-sm btn-primary" data-action="confirm-card" data-id="card_005">Confirm Card</button>
+                                <button class="btn btn-sm btn-outline" data-action="open-edit-card-modal" data-id="card_005">Update</button>
+                                
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-card" data-id="card_005">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="card-item" data-card-id="card_006">
+                        
+            <div class="card-visual mastercard">
+                <div class="card-visual-top">
+                    <span class="card-brand mastercard">MC</span>
+                    
+                    <span class="backup-badge">Backup</span>
+                </div>
+                <div class="card-visual-number">•••• •••• •••• 2290</div>
+                <div class="card-visual-bottom">
+                    <div class="card-visual-name">Jordan Mitchell</div>
+                    <div class="card-visual-exp">08/2028</div>
+                </div>
+            </div>
+        
+                        <div class="card-item-details">
+                            <div class="card-item-status">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                
+                            </div>
+                            <div class="card-item-info">
+                                <span>Added Sep 15, 2022</span>
+                                <span>Last used Feb 10, 2026</span>
+                            </div>
+                            <div class="card-item-actions">
+                                
+                                <button class="btn btn-sm btn-outline" data-action="open-edit-card-modal" data-id="card_006">Update</button>
+                                <button class="btn btn-sm btn-outline" data-action="set-preferred-card" data-id="card_006">Set as Preferred</button>
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-card" data-id="card_006">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+            <div class="section-header">
+                <h3>Expired Cards</h3>
+                
+            </div>
+        
+                <div class="cards-grid">
+                    
+                        <div class="card-item expired">
+                            
+            <div class="card-visual discover">
+                <div class="card-visual-top">
+                    <span class="card-brand discover">DISC</span>
+                    
+                    
+                </div>
+                <div class="card-visual-number">•••• •••• •••• 6221</div>
+                <div class="card-visual-bottom">
+                    <div class="card-visual-name">Jordan Mitchell</div>
+                    <div class="card-visual-exp">06/2025</div>
+                </div>
+            </div>
+        
+                            <div class="card-item-details">
+                                <div class="card-item-status"><span class="status-badge badge-danger">Expired</span></div>
+                                <div class="card-item-info">
+                                    <span>Expired 06/2025</span>
+                                </div>
+                                <div class="card-item-actions">
+                                    <button class="btn btn-sm btn-outline" data-action="open-edit-card-modal" data-id="card_004">Update Expiration</button>
+                                    <button class="btn btn-sm btn-danger-outline" data-action="remove-card" data-id="card_004">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                </div>
+            
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

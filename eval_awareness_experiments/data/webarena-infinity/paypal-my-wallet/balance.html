@@ -1,0 +1,287 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item active" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>PayPal Balance</h1>
+                <div class="page-header-actions">
+                    <button class="btn btn-primary" data-action="open-add-money-modal">
+                        <span class="material-icons">add</span> Add Money
+                    </button>
+                    <button class="btn btn-outline" data-action="open-withdraw-modal">
+                        <span class="material-icons">arrow_upward</span> Withdraw
+                    </button>
+                </div>
+            </div>
+
+            <div class="balance-summary-card">
+                <div class="balance-total-label">Total Balance (USD equivalent)</div>
+                <div class="balance-total-amount">$4,161.50</div>
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Currencies</h3>
+                <div class="section-actions">
+                <button class="btn btn-sm btn-outline" data-action="open-add-currency-modal">
+                    <span class="material-icons">add</span> Add Currency
+                </button>
+                <button class="btn btn-sm btn-outline" data-action="open-convert-currency-modal">
+                    <span class="material-icons">currency_exchange</span> Convert
+                </button>
+            </div>
+            </div>
+        
+
+            <div class="currency-list">
+                
+                        <div class="currency-item">
+                            <div class="currency-item-left">
+                                <div class="currency-code">USD</div>
+                                <div class="currency-name">U.S. Dollar</div>
+                                <span class="status-badge badge-primary">Primary</span>
+                            </div>
+                            <div class="currency-item-right">
+                                <div class="currency-amount">$2,847.63</div>
+                                <div class="currency-actions">
+                                    
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="currency-item">
+                            <div class="currency-item-left">
+                                <div class="currency-code">EUR</div>
+                                <div class="currency-name">Euro</div>
+                                
+                            </div>
+                            <div class="currency-item-right">
+                                <div class="currency-amount">€523.18</div>
+                                <div class="currency-actions">
+                                    <button class="btn btn-xs btn-outline" data-action="set-primary-currency" data-currency="EUR">Set Primary</button>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="currency-item">
+                            <div class="currency-item-left">
+                                <div class="currency-code">GBP</div>
+                                <div class="currency-name">British Pound</div>
+                                
+                            </div>
+                            <div class="currency-item-right">
+                                <div class="currency-amount">£189.42</div>
+                                <div class="currency-actions">
+                                    <button class="btn btn-xs btn-outline" data-action="set-primary-currency" data-currency="GBP">Set Primary</button>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="currency-item">
+                            <div class="currency-item-left">
+                                <div class="currency-code">CAD</div>
+                                <div class="currency-name">Canadian Dollar</div>
+                                
+                            </div>
+                            <div class="currency-item-right">
+                                <div class="currency-amount">CA$0.00</div>
+                                <div class="currency-actions">
+                                    <button class="btn btn-xs btn-outline" data-action="set-primary-currency" data-currency="CAD">Set Primary</button>
+                                    <button class="btn btn-xs btn-danger-outline" data-action="remove-currency" data-currency="CAD">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="currency-item">
+                            <div class="currency-item-left">
+                                <div class="currency-code">JPY</div>
+                                <div class="currency-name">Japanese Yen</div>
+                                
+                            </div>
+                            <div class="currency-item-right">
+                                <div class="currency-amount">¥45,200</div>
+                                <div class="currency-actions">
+                                    <button class="btn btn-xs btn-outline" data-action="set-primary-currency" data-currency="JPY">Set Primary</button>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <div class="currency-item">
+                            <div class="currency-item-left">
+                                <div class="currency-code">AUD</div>
+                                <div class="currency-name">Australian Dollar</div>
+                                
+                            </div>
+                            <div class="currency-item-right">
+                                <div class="currency-amount">A$312.75</div>
+                                <div class="currency-actions">
+                                    <button class="btn btn-xs btn-outline" data-action="set-primary-currency" data-currency="AUD">Set Primary</button>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Exchange Rates</h3>
+                
+            </div>
+        
+            <div class="exchange-rates-grid">
+                
+                        <div class="exchange-rate-card">
+                            <div class="exchange-rate-pair">USD / EUR</div>
+                            <div class="exchange-rate-value">0.9200</div>
+                            <div class="exchange-rate-name">Euro</div>
+                        </div>
+                    
+                        <div class="exchange-rate-card">
+                            <div class="exchange-rate-pair">USD / GBP</div>
+                            <div class="exchange-rate-value">0.7900</div>
+                            <div class="exchange-rate-name">British Pound</div>
+                        </div>
+                    
+                        <div class="exchange-rate-card">
+                            <div class="exchange-rate-pair">USD / CAD</div>
+                            <div class="exchange-rate-value">1.3600</div>
+                            <div class="exchange-rate-name">Canadian Dollar</div>
+                        </div>
+                    
+                        <div class="exchange-rate-card">
+                            <div class="exchange-rate-pair">USD / AUD</div>
+                            <div class="exchange-rate-value">1.5400</div>
+                            <div class="exchange-rate-name">Australian Dollar</div>
+                        </div>
+                    
+                        <div class="exchange-rate-card">
+                            <div class="exchange-rate-pair">USD / JPY</div>
+                            <div class="exchange-rate-value">149.50</div>
+                            <div class="exchange-rate-name">Japanese Yen</div>
+                        </div>
+                    
+                        <div class="exchange-rate-card">
+                            <div class="exchange-rate-pair">USD / CHF</div>
+                            <div class="exchange-rate-value">0.8800</div>
+                            <div class="exchange-rate-name">Swiss Franc</div>
+                        </div>
+                    
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

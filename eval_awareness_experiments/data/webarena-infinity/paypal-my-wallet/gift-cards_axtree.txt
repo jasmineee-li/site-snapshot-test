@@ -1,0 +1,27 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "Gift Cards" [level=1]
+    - button "card_giftcard Buy Gift Card"
+    - heading "Your Gift Cards" [level=3]
+    - text: "A Amazon To: Sarah Chen (sarah.chen@email.com) Purchased Feb 14, 2026 \"Happy Valentine's Day!\" $50.00 Active S Starbucks To: Jordan Mitchell (jordan.mitchell@outlook.com) Purchased Dec 20, 2025 $25.00 Remaining: $12.50 Partially Used T Target To: Marcus Williams (marcus.williams@email.com) Purchased Nov 28, 2025 \"Thanks for everything!\" $100.00 Remaining: $0.00 Used N Netflix To: Emily Rodriguez (emily.r@email.com) Purchased Mar 5, 2026 \"Enjoy!\" $30.00 Active H Home Depot To: Jordan Mitchell (jordan.mitchell@outlook.com) Purchased Jan 20, 2026 $75.00 Active"

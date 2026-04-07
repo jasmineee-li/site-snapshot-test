@@ -1,0 +1,259 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item active" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>Bank Accounts</h1>
+                <button class="btn btn-primary" data-action="open-add-bank-modal">
+                    <span class="material-icons">add</span> Link a Bank
+                </button>
+            </div>
+
+            <div class="bank-list">
+                
+                    <div class="bank-item" data-bank-id="bank_001">
+                        <div class="bank-item-left">
+                            <div class="bank-icon">
+                                <span class="material-icons">account_balance</span>
+                            </div>
+                            <div class="bank-item-info">
+                                <div class="bank-item-name">Chase</div>
+                                <div class="bank-item-detail">Checking •••• 6742</div>
+                                <div class="bank-item-meta">
+                                    Added Mar 14, 2019
+                                     · Last used Mar 1, 2026
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bank-item-right">
+                            <div class="bank-item-badges">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                <span class="status-badge badge-info">Instant Transfer</span>
+                            </div>
+                            <div class="bank-item-actions">
+                                
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-bank" data-id="bank_001">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="bank-item" data-bank-id="bank_002">
+                        <div class="bank-item-left">
+                            <div class="bank-icon">
+                                <span class="material-icons">account_balance</span>
+                            </div>
+                            <div class="bank-item-info">
+                                <div class="bank-item-name">Bank of America</div>
+                                <div class="bank-item-detail">Savings •••• 3891</div>
+                                <div class="bank-item-meta">
+                                    Added Jan 20, 2020
+                                     · Last used Jan 5, 2026
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bank-item-right">
+                            <div class="bank-item-badges">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                
+                            </div>
+                            <div class="bank-item-actions">
+                                
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-bank" data-id="bank_002">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="bank-item" data-bank-id="bank_003">
+                        <div class="bank-item-left">
+                            <div class="bank-icon">
+                                <span class="material-icons">account_balance</span>
+                            </div>
+                            <div class="bank-item-info">
+                                <div class="bank-item-name">Wells Fargo</div>
+                                <div class="bank-item-detail">Checking •••• 5518</div>
+                                <div class="bank-item-meta">
+                                    Added Feb 25, 2026
+                                    
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bank-item-right">
+                            <div class="bank-item-badges">
+                                <span class="status-badge badge-warning">Pending</span>
+                                <span class="status-badge badge-info">Instant Transfer</span>
+                            </div>
+                            <div class="bank-item-actions">
+                                <button class="btn btn-sm btn-primary" data-action="open-confirm-bank-modal" data-id="bank_003">Confirm</button>
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-bank" data-id="bank_003">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="bank-item" data-bank-id="bank_004">
+                        <div class="bank-item-left">
+                            <div class="bank-icon">
+                                <span class="material-icons">account_balance</span>
+                            </div>
+                            <div class="bank-item-info">
+                                <div class="bank-item-name">Citibank</div>
+                                <div class="bank-item-detail">Checking •••• 1104</div>
+                                <div class="bank-item-meta">
+                                    Added Jul 8, 2021
+                                     · Last used Nov 20, 2025
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bank-item-right">
+                            <div class="bank-item-badges">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                <span class="status-badge badge-info">Instant Transfer</span>
+                            </div>
+                            <div class="bank-item-actions">
+                                
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-bank" data-id="bank_004">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="bank-item" data-bank-id="bank_005">
+                        <div class="bank-item-left">
+                            <div class="bank-icon">
+                                <span class="material-icons">account_balance</span>
+                            </div>
+                            <div class="bank-item-info">
+                                <div class="bank-item-name">US Bank</div>
+                                <div class="bank-item-detail">Savings •••• 7823</div>
+                                <div class="bank-item-meta">
+                                    Added Apr 12, 2022
+                                     · Last used Aug 15, 2025
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bank-item-right">
+                            <div class="bank-item-badges">
+                                <span class="status-badge badge-success">Confirmed</span>
+                                
+                            </div>
+                            <div class="bank-item-actions">
+                                
+                                <button class="btn btn-sm btn-danger-outline" data-action="remove-bank" data-id="bank_005">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

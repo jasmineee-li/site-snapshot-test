@@ -1,0 +1,22 @@
+{
+  "task_id": "task_h1",
+  "difficulty": "hard",
+  "instruction": "Convert 200 euros to Japanese yen.",
+  "passed": true,
+  "verifier_message": "Successfully converted 200 EUR to JPY. EUR balance decreased and JPY balance increased.",
+  "elapsed": 76.3,
+  "steps": 9,
+  "is_done": true,
+  "final_result": "I have successfully converted 200 Euros to Japanese Yen. The transaction is confirmed by the message 'Converted \u20ac200.00 to JPY' and the updated EUR balance of \u20ac323.18.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

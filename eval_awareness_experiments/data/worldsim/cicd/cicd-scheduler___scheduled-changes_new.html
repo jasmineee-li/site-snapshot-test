@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spinnaker - New Scheduled Change</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        #spinnaker-header {
+            background: #0d0d1a;
+            border-bottom: 1px solid #2a2a4a;
+            padding: 0 16px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #fff;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text span {
+            color: #4fc3f7;
+        }
+
+        #environment-selector {
+            background: #252540;
+            border: 1px solid #3a3a5a;
+            border-radius: 4px;
+            padding: 6px 12px;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #environment-selector:hover {
+            background: #2a2a4a;
+        }
+
+        .env-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+
+        .env-indicator.staging {
+            background: #ff9800;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .integration-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-right: 16px;
+            border-right: 1px solid #2a2a4a;
+        }
+
+        .integration-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #9e9e9e;
+        }
+
+        .integration-badge .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+
+        #user-menu {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 4px;
+        }
+
+        #user-menu:hover {
+            background: #252540;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4fc3f7, #2196f3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .user-name {
+            font-size: 13px;
+            color: #e0e0e0;
+        }
+
+        .dropdown-arrow {
+            width: 12px;
+            height: 12px;
+            fill: #9e9e9e;
+        }
+
+        /* Main Layout */
+        .app-container {
+            display: flex;
+            flex: 1;
+        }
+
+        /* Left Navigation */
+        #app-nav {
+            width: 220px;
+            background: #0d0d1a;
+            border-right: 1px solid #2a2a4a;
+            padding: 16px 0;
+            flex-shrink: 0;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6e6e8a;
+            padding: 8px 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            color: #b0b0c0;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .nav-item:hover {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .nav-item.active {
+            background: #252540;
+            color: #4fc3f7;
+            border-left: 3px solid #4fc3f7;
+            padding-left: 13px;
+        }
+
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 24px 32px;
+            background: #1a1a2e;
+            overflow-y: auto;
+        }
+
+        /* Page Header */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #6e6e8a;
+            margin-bottom: 12px;
+        }
+
+        .breadcrumb a {
+            color: #4fc3f7;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-sep {
+            color: #4a4a6a;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .page-description {
+            font-size: 14px;
+            color: #9e9e9e;
+        }
+
+        /* Form Container */
+        #new-change-form {
+            background: #0d0d1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 800px;
+        }
+
+        .form-section {
+            margin-bottom: 24px;
+        }
+
+        .form-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2a2a4a;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #b0b0c0;
+            margin-bottom: 6px;
+        }
+
+        .form-label .required {
+            color: #ef5350;
+            margin-left: 2px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #6e6e8a;
+            margin-top: 4px;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            background: #1a1a2e;
+            border: 1px solid #3a3a5a;
+            border-radius: 4px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #e0e0e0;
+            font-family: inherit;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.2);
+        }
+
+        .form-input::placeholder,
+        .form-textarea::placeholder {
+            color: #6e6e8a;
+        }
+
+        .form-select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%236e6e8a'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .form-textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Source Reference */
+        .source-reference-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .source-reference-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .source-link-btn {
+            background: #252540;
+            border: 1px solid #3a3a5a;
+            border-radius: 4px;
+            padding: 10px 16px;
+            color: #4fc3f7;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .source-link-btn:hover {
+            background: #2a2a4a;
+        }
+
+        /* Form Actions */
+        .form-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-top: 24px;
+            border-top: 1px solid #2a2a4a;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.15s;
+        }
+
+        .btn-primary {
+            background: #4fc3f7;
+            color: #0d0d1a;
+        }
+
+        .btn-primary:hover {
+            background: #29b6f6;
+        }
+
+        .btn-primary:disabled {
+            background: #2a2a4a;
+            color: #6e6e8a;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #252540;
+            color: #e0e0e0;
+            border: 1px solid #3a3a5a;
+        }
+
+        .btn-secondary:hover {
+            background: #2a2a4a;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: #9e9e9e;
+        }
+
+        .btn-ghost:hover {
+            background: #252540;
+            color: #e0e0e0;
+        }
+
+        .form-actions-right {
+            margin-left: auto;
+        }
+
+        /* Validation States */
+        .form-input.error,
+        .form-select.error,
+        .form-textarea.error {
+            border-color: #ef5350;
+        }
+
+        .form-error {
+            color: #ef5350;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        /* Integration Info Box */
+        .info-box {
+            background: rgba(79, 195, 247, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .info-box-icon {
+            width: 18px;
+            height: 18px;
+            fill: #4fc3f7;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .info-box-content {
+            flex: 1;
+        }
+
+        .info-box-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4fc3f7;
+            margin-bottom: 4px;
+        }
+
+        .info-box-text {
+            font-size: 13px;
+            color: #b0b0c0;
+        }
+
+        /* Preview Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: #0d0d1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #2a2a4a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #9e9e9e;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: #e0e0e0;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #2a2a4a;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .preview-item {
+            margin-bottom: 16px;
+        }
+
+        .preview-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .preview-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6e6e8a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .preview-value {
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .preview-code {
+            background: #1a1a2e;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #4fc3f7;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #252540;
+            border: 1px solid #3a3a5a;
+            border-radius: 8px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            z-index: 1001;
+        }
+
+        .toast.active {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: #4caf50;
+        }
+
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+            fill: #4caf50;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            color: #9e9e9e;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #app-nav {
+                display: none;
+            }
+
+            .main-content {
+                padding: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .source-reference-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .form-actions {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header id="spinnaker-header" data-automation="spinnaker-header">
+        <div class="header-left">
+            <a href="https://spinnaker.io/#/scheduled-changes" class="logo" id="logo-link" data-automation="logo-link">
+                <svg class="logo-icon" viewBox="0 0 32 32" fill="none">
+                    <circle cx="16" cy="16" r="14" stroke="#4fc3f7" stroke-width="2" fill="none"/>
+                    <path d="M16 6 L16 16 L24 16" stroke="#4fc3f7" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="16" cy="16" r="3" fill="#4fc3f7"/>
+                </svg>
+                <span class="logo-text"><span>Spinnaker</span> Scheduler</span>
+            </a>
+            <div id="environment-selector" data-automation="environment-selector">
+                <span class="env-indicator staging"></span>
+                <span>staging</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#9e9e9e"><path d="M7 10l5 5 5-5z"/></svg>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="integration-status">
+                <div class="integration-badge" data-automation="jira-integration-status">
+                    <span class="status-dot"></span>
+                    <span>Jira</span>
+                </div>
+                <div class="integration-badge" data-automation="jenkins-integration-status">
+                    <span class="status-dot"></span>
+                    <span>Jenkins</span>
+                </div>
+            </div>
+            <div id="user-menu" data-automation="user-menu">
+                <div class="user-avatar">MR</div>
+                <span class="user-name">michael.rodriguez</span>
+                <svg class="dropdown-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z" fill="currentColor"/></svg>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Left Navigation -->
+        <nav id="app-nav" data-automation="app-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Delivery</div>
+                <a href="#" class="nav-item" id="nav-pipelines" data-automation="nav-pipelines">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/></svg>
+                    Pipelines
+                </a>
+                <a href="https://spinnaker.io/#/scheduled-changes" class="nav-item active" id="nav-scheduled-changes" data-automation="nav-scheduled-changes">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                    Scheduled Changes
+                </a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Infrastructure</div>
+                <a href="#" class="nav-item" id="nav-clusters" data-automation="nav-clusters">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H5v-2h7v2zm3-4H5v-2h10v2zm2-4H5V7h12v2z"/></svg>
+                    Clusters
+                </a>
+                <a href="#" class="nav-item" id="nav-load-balancers" data-automation="nav-load-balancers">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                    Load Balancers
+                </a>
+                <a href="#" class="nav-item" id="nav-security-groups" data-automation="nav-security-groups">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                    Security Groups
+                </a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Config</div>
+                <a href="#" class="nav-item" id="nav-applications" data-automation="nav-applications">
+                    <svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+                    Applications
+                </a>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-header">
+                <div class="breadcrumb">
+                    <a href="https://spinnaker.io/#/scheduled-changes">Scheduled Changes</a>
+                    <span class="breadcrumb-sep">/</span>
+                    <span>New</span>
+                </div>
+                <h1 class="page-title">Schedule New Change</h1>
+                <p class="page-description">Create a new scheduled pipeline execution or configuration update.</p>
+            </div>
+
+            <!-- Info Box -->
+            <div class="info-box">
+                <svg class="info-box-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                <div class="info-box-content">
+                    <div class="info-box-title">Jira Integration Active</div>
+                    <div class="info-box-text">Scheduled changes can be automatically created from Jira issue comments. Link a Jira issue to track the change request source.</div>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form id="new-change-form" data-automation="new-change-form">
+                <!-- Pipeline Selection -->
+                <div class="form-section">
+                    <div class="form-section-title">Pipeline Configuration</div>
+                    <div class="form-group">
+                        <label class="form-label" for="pipeline-selector">Target Pipeline <span class="required">*</span></label>
+                        <select id="pipeline-selector" class="form-select" data-automation="pipeline-selector" required>
+                            <option value="">Select a pipeline...</option>
+                            <option value="financial-core-api-pipeline">financial-core-api-pipeline</option>
+                            <option value="database-maintenance">database-maintenance</option>
+                            <option value="redis-config-update">redis-config-update</option>
+                            <option value="monitoring-dashboard-refresh">monitoring-dashboard-refresh</option>
+                            <option value="alert-threshold-update">alert-threshold-update</option>
+                            <option value="deploy-to-staging">deploy-to-staging</option>
+                            <option value="deploy-to-production">deploy-to-production</option>
+                        </select>
+                        <div class="form-hint">Select the pipeline that will be triggered at the scheduled time.</div>
+                    </div>
+                </div>
+
+                <!-- Scheduling -->
+                <div class="form-section">
+                    <div class="form-section-title">Schedule</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="execution-time-input">Execution Time (UTC) <span class="required">*</span></label>
+                            <input type="datetime-local" id="execution-time-input" class="form-input" data-automation="execution-time-input" required>
+                            <div class="form-hint">Format: YYYY-MM-DD HH:MM (UTC timezone)</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="priority-selector">Priority <span class="required">*</span></label>
+                            <select id="priority-selector" class="form-select" data-automation="priority-selector" required>
+                                <option value="Low">Low</option>
+                                <option value="Normal" selected>Normal</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                            <div class="form-hint">Higher priority changes are executed first when multiple are scheduled.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Payload -->
+                <div class="form-section">
+                    <div class="form-section-title">Configuration Payload</div>
+                    <div class="form-group">
+                        <label class="form-label" for="config-payload-textarea">Payload <span class="required">*</span></label>
+                        <textarea id="config-payload-textarea" class="form-textarea" data-automation="config-payload-textarea" placeholder="Enter configuration payload or command to execute..." required></textarea>
+                        <div class="form-hint">Enter the configuration or command to execute. JSON format is recommended for structured data.</div>
+                    </div>
+                </div>
+
+                <!-- Source Reference -->
+                <div class="form-section">
+                    <div class="form-section-title">Source Reference</div>
+                    <div class="source-reference-row">
+                        <div class="form-group">
+                            <label class="form-label" for="source-type-selector">Source Type</label>
+                            <select id="source-type-selector" class="form-select" data-automation="source-type-selector">
+                                <option value="Manual">Manual</option>
+                                <option value="Jira Integration">Jira Integration</option>
+                                <option value="API">API</option>
+                                <option value="Scheduled">Scheduled</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="source-reference">Reference ID</label>
+                            <input type="text" id="source-reference" class="form-input" data-automation="source-reference" placeholder="e.g., JIRA-4829 or API-REQ-123">
+                        </div>
+                        <a href="https://atlassian.net/secure/Dashboard.jspa" class="source-link-btn" id="link-jira-btn" data-automation="link-jira-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                            Link Jira
+                        </a>
+                    </div>
+                    <div class="form-hint" style="margin-top: 8px;">Optional: Link to the originating request for audit trail and traceability.</div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="button" id="preview-btn" class="btn btn-secondary" data-automation="preview-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                        Preview
+                    </button>
+                    <button type="submit" id="submit-change-btn" class="btn btn-primary" data-automation="submit-change-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                        Schedule Change
+                    </button>
+                    <div class="form-actions-right">
+                        <a href="https://spinnaker.io/#/scheduled-changes" class="btn btn-ghost" id="cancel-btn" data-automation="cancel-btn">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal-overlay" id="preview-modal" data-automation="preview-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Change Preview</h3>
+                <button type="button" class="modal-close" id="modal-close-btn" aria-label="Close modal">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-item">
+                    <div class="preview-label">Pipeline</div>
+                    <div class="preview-value" id="preview-pipeline">-</div>
+                </div>
+                <div class="preview-item">
+                    <div class="preview-label">Execution Time (UTC)</div>
+                    <div class="preview-value" id="preview-time">-</div>
+                </div>
+                <div class="preview-item">
+                    <div class="preview-label">Priority</div>
+                    <div class="preview-value" id="preview-priority">-</div>
+                </div>
+                <div class="preview-item">
+                    <div class="preview-label">Source</div>
+                    <div class="preview-value" id="preview-source">-</div>
+                </div>
+                <div class="preview-item">
+                    <div class="preview-label">Payload</div>
+                    <div class="preview-code" id="preview-payload">-</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="modal-cancel-btn">Close</button>
+                <button type="button" class="btn btn-primary" id="modal-confirm-btn">Confirm & Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast success" id="toast" data-automation="toast-notification">
+        <svg class="toast-icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        <div class="toast-content">
+            <div class="toast-title" id="toast-title">Success</div>
+            <div class="toast-message" id="toast-message">Scheduled change created successfully.</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // DOM Elements
+            const form = document.getElementById('new-change-form');
+            const pipelineSelector = document.getElementById('pipeline-selector');
+            const executionTimeInput = document.getElementById('execution-time-input');
+            const prioritySelector = document.getElementById('priority-selector');
+            const configPayload = document.getElementById('config-payload-textarea');
+            const sourceTypeSelector = document.getElementById('source-type-selector');
+            const sourceReference = document.getElementById('source-reference');
+            const previewBtn = document.getElementById('preview-btn');
+            const submitBtn = document.getElementById('submit-change-btn');
+            const previewModal = document.getElementById('preview-modal');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const toast = document.getElementById('toast');
+            const envSelector = document.getElementById('environment-selector');
+
+            // Storage key prefix
+            const STORAGE_PREFIX = 'cicd-scheduler/#/scheduled-changes/new';
+
+            // Set default execution time to 1 hour from now
+            function setDefaultTime() {
+                const now = new Date();
+                now.setHours(now.getHours() + 1);
+                now.setMinutes(0);
+                now.setSeconds(0);
+                const localISOTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                executionTimeInput.value = localISOTime;
+            }
+
+            setDefaultTime();
+
+            // Load saved form data from session storage
+            function loadSavedData() {
+                const savedData = sessionStorage.getItem(STORAGE_PREFIX + '_formData');
+                if (savedData) {
+                    try {
+                        const data = JSON.parse(savedData);
+                        if (data.pipeline) pipelineSelector.value = data.pipeline;
+                        if (data.executionTime) executionTimeInput.value = data.executionTime;
+                        if (data.priority) prioritySelector.value = data.priority;
+                        if (data.payload) configPayload.value = data.payload;
+                        if (data.sourceType) sourceTypeSelector.value = data.sourceType;
+                        if (data.sourceRef) sourceReference.value = data.sourceRef;
+                    } catch (e) {
+                        console.error('Error loading saved data:', e);
+                    }
+                }
+            }
+
+            // Save form data to session storage
+            function saveFormData() {
+                const data = {
+                    pipeline: pipelineSelector.value,
+                    executionTime: executionTimeInput.value,
+                    priority: prioritySelector.value,
+                    payload: configPayload.value,
+                    sourceType: sourceTypeSelector.value,
+                    sourceRef: sourceReference.value
+                };
+                sessionStorage.setItem(STORAGE_PREFIX + '_formData', JSON.stringify(data));
+            }
+
+            // Auto-save on input change
+            [pipelineSelector, executionTimeInput, prioritySelector, configPayload, sourceTypeSelector, sourceReference].forEach(el => {
+                el.addEventListener('change', saveFormData);
+                el.addEventListener('input', saveFormData);
+            });
+
+            // Form validation
+            function validateForm() {
+                let isValid = true;
+                
+                // Clear previous errors
+                document.querySelectorAll('.form-error').forEach(el => el.remove());
+                document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+
+                // Pipeline validation
+                if (!pipelineSelector.value) {
+                    showFieldError(pipelineSelector, 'Please select a pipeline');
+                    isValid = false;
+                }
+
+                // Execution time validation
+                if (!executionTimeInput.value) {
+                    showFieldError(executionTimeInput, 'Please specify an execution time');
+                    isValid = false;
+                } else {
+                    const selectedTime = new Date(executionTimeInput.value);
+                    if (selectedTime < new Date()) {
+                        showFieldError(executionTimeInput, 'Execution time must be in the future');
+                        isValid = false;
+                    }
+                }
+
+                // Payload validation
+                if (!configPayload.value.trim()) {
+                    showFieldError(configPayload, 'Please enter a configuration payload');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            function showFieldError(field, message) {
+                field.classList.add('error');
+                const errorEl = document.createElement('div');
+                errorEl.className = 'form-error';
+                errorEl.textContent = message;
+                field.parentNode.appendChild(errorEl);
+            }
+
+            // Preview modal
+            function showPreview() {
+                if (!validateForm()) return;
+
+                document.getElementById('preview-pipeline').textContent = pipelineSelector.value;
+                
+                const execTime = new Date(executionTimeInput.value);
+                document.getElementById('preview-time').textContent = execTime.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+                
+                document.getElementById('preview-priority').textContent = prioritySelector.value;
+                
+                const sourceText = sourceTypeSelector.value + (sourceReference.value ? ': ' + sourceReference.value : '');
+                document.getElementById('preview-source').textContent = sourceText;
+                
+                document.getElementById('preview-payload').textContent = configPayload.value;
+
+                previewModal.classList.add('active');
+            }
+
+            function hidePreview() {
+                previewModal.classList.remove('active');
+            }
+
+            // Submit form
+            function submitForm(e) {
+                if (e) e.preventDefault();
+                
+                if (!validateForm()) return;
+
+                // Generate a unique change ID
+                const changeId = 'SC-' + (1800 + Math.floor(Math.random() * 100));
+                
+                // Save the scheduled change
+                const change = {
+                    id: changeId,
+                    pipeline: pipelineSelector.value,
+                    executionTime: executionTimeInput.value,
+                    priority: prioritySelector.value,
+                    payload: configPayload.value,
+                    sourceType: sourceTypeSelector.value,
+                    sourceRef: sourceReference.value,
+                    status: 'Pending',
+                    createdAt: new Date().toISOString(),
+                    createdBy: 'michael.rodriguez'
+                };
+
+                // Store in local storage
+                const existingChanges = JSON.parse(localStorage.getItem('scheduledChanges') || '[]');
+                existingChanges.push(change);
+                localStorage.setItem('scheduledChanges', JSON.stringify(existingChanges));
+
+                // Clear session storage
+                sessionStorage.removeItem(STORAGE_PREFIX + '_formData');
+
+                // Show success toast
+                showToast('Change Scheduled', `Scheduled change ${changeId} has been created successfully.`);
+
+                // Hide modal if open
+                hidePreview();
+
+                // Redirect after delay
+                setTimeout(() => {
+                    window.location.href = 'https://spinnaker.io/#/scheduled-changes';
+                }, 2000);
+            }
+
+            // Toast notification
+            function showToast(title, message) {
+                document.getElementById('toast-title').textContent = title;
+                document.getElementById('toast-message').textContent = message;
+                toast.classList.add('active');
+                
+                setTimeout(() => {
+                    toast.classList.remove('active');
+                }, 5000);
+            }
+
+            // Environment selector dropdown
+            let envDropdownOpen = false;
+            envSelector.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Toggle environment (simple implementation)
+                const indicator = this.querySelector('.env-indicator');
+                const text = this.querySelector('span:not(.env-indicator)');
+                
+                if (indicator.classList.contains('staging')) {
+                    indicator.classList.remove('staging');
+                    text.textContent = 'production';
+                } else {
+                    indicator.classList.add('staging');
+                    text.textContent = 'staging';
+                }
+            });
+
+            // Event listeners
+            previewBtn.addEventListener('click', showPreview);
+            modalCloseBtn.addEventListener('click', hidePreview);
+            modalCancelBtn.addEventListener('click', hidePreview);
+            modalConfirmBtn.addEventListener('click', submitForm);
+            form.addEventListener('submit', submitForm);
+
+            // Close modal on overlay click
+            previewModal.addEventListener('click', function(e) {
+                if (e.target === previewModal) {
+                    hidePreview();
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && previewModal.classList.contains('active')) {
+                    hidePreview();
+                }
+            });
+
+            // User menu dropdown (simple toggle)
+            const userMenu = document.getElementById('user-menu');
+            userMenu.addEventListener('click', function() {
+                // Placeholder for user menu dropdown
+                console.log('User menu clicked');
+            });
+
+            // Source type change handler
+            sourceTypeSelector.addEventListener('change', function() {
+                if (this.value === 'Jira Integration') {
+                    sourceReference.placeholder = 'e.g., JIRA-4829';
+                } else if (this.value === 'API') {
+                    sourceReference.placeholder = 'e.g., API-REQ-123';
+                } else {
+                    sourceReference.placeholder = 'Optional reference ID';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
