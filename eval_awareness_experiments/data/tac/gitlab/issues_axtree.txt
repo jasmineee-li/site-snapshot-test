@@ -1,0 +1,105 @@
+- document:
+  - link "Skip to main content":
+    - /url: "#content-body"
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - link "Homepage":
+      - /url: /
+    - button "Primary navigation sidebar" [expanded]
+    - button "Create new..."
+    - button "Administrator user’s menu"
+    - link "Assigned issues 84":
+      - /url: /dashboard/issues?assignee_username=root
+    - button "Merge requests 164"
+    - link "To-Do list 0":
+      - /url: /dashboard/todos
+    - button "Search or go to…"
+    - text: Your work
+    - list "Your work":
+      - listitem:
+        - link "Projects":
+          - /url: /dashboard/projects
+      - listitem:
+        - link "Groups":
+          - /url: /dashboard/groups
+      - listitem:
+        - link "Issues 84":
+          - /url: /dashboard/issues?assignee_username=root
+      - listitem:
+        - button "Merge requests"
+      - listitem:
+        - link "To-Do List":
+          - /url: /dashboard/todos
+      - listitem:
+        - link "Milestones":
+          - /url: /dashboard/milestones
+      - listitem:
+        - link "Snippets":
+          - /url: /dashboard/snippets
+      - listitem:
+        - link "Activity":
+          - /url: /dashboard/activity
+    - button "Help"
+    - link "Admin":
+      - /url: http://the-agent-company.com:8929/admin
+  - alert:
+    - img
+    - button "Dismiss":
+      - img
+    - alert:
+      - heading "Check your sign-up restrictions" [level=2]
+      - text: Your GitLab instance allows anyone to register for an account, which is a security risk on public-facing GitLab instances. You should deactivate new sign ups if public users aren't expected to register for an account.
+      - link "Deactivate":
+        - /url: /admin/application_settings/general#js-signup-settings
+      - button "Acknowledge"
+  - alert:
+    - img
+    - button "Dismiss":
+      - img
+    - alert:
+      - text: To help improve GitLab, we would like to periodically
+      - link "collect usage information":
+        - /url: /help/administration/settings/usage_statistics.md
+      - text: . This can be changed at any time in
+      - link "your settings":
+        - /url: /admin/application_settings/metrics_and_profiling#js-usage-settings
+      - text: .
+      - link "Send service data":
+        - /url: /admin/application_settings?application_setting%5Busage_ping_enabled%5D=1&application_setting%5Bversion_check_enabled%5D=1
+      - link "Don't send service data":
+        - /url: /admin/application_settings?application_setting%5Busage_ping_enabled%5D=0&application_setting%5Bversion_check_enabled%5D=0
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Your work":
+          - /url: /
+        - text: /
+      - listitem:
+        - link "Issues":
+          - /url: /dashboard/issues?assignee_username=root
+  - main:
+    - heading "Issues" [level=1]
+    - button "Select project to create issue"
+    - button "Toggle project select"
+    - tablist:
+      - tab "Open 84" [selected]
+      - tab "Closed 827"
+      - tab "All 911"
+    - tabpanel "Open 84"
+    - button "Actions"
+    - group:
+      - button "Toggle history"
+      - text: Assignee =
+      - img "avatar"
+      - text: Administrator
+      - button "Remove"
+      - textbox "Search"
+      - button "Clear"
+      - button "Search"
+    - group:
+      - button "Created date"
+      - 'button "Sort direction: Descending"'
+    - alert: An error occurred while loading issues
+    - complementary
+    - heading "No results found" [level=1]
+    - paragraph: Edit your search and try again.

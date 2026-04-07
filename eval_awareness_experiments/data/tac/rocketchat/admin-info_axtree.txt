@@ -1,0 +1,87 @@
+- document:
+  - navigation:
+    - group:
+      - button "Home"
+      - button "Search"
+      - button "Directory"
+      - button "Display"
+      - button "Create new"
+      - button "Administration"
+    - separator
+    - region "Channels":
+      - text: Omnichannel
+      - group:
+        - button
+        - button
+      - separator
+    - text: Administration
+    - button
+    - link "Go fully featured ⚡":
+      - /url: /admin/upgrade/go-fully-featured
+    - link "Info":
+      - /url: /admin/info
+    - link "Import":
+      - /url: /admin/import
+    - link "Users":
+      - /url: /admin/users
+    - link "Rooms":
+      - /url: /admin/rooms
+    - link "Invites":
+      - /url: /admin/invites
+    - link "Connectivity Services":
+      - /url: /admin/cloud
+    - link "View Logs":
+      - /url: /admin/view-logs
+    - link "Custom Sounds":
+      - /url: /admin/custom-sounds
+    - link "Federation Dashboard":
+      - /url: /admin/federation-dashboard
+    - link "Apps":
+      - /url: /admin/marketplace
+    - link "Email Inboxes":
+      - /url: /admin/email-inboxes
+    - link "Custom Emoji":
+      - /url: /admin/emoji-custom
+    - link "Integrations":
+      - /url: /admin/integrations
+    - link "OAuth Apps":
+      - /url: /admin/oauth-apps
+    - link "Mailer":
+      - /url: /admin/mailer
+    - link "Custom User Status":
+      - /url: /admin/custom-user-status
+    - link "Permissions":
+      - /url: /admin/permissions
+    - link "Settings":
+      - /url: /admin/settings
+    - separator
+    - link "Home":
+      - /url: /home
+      - img "Home"
+    - link "Powered by Rocket.Chat Free edition":
+      - /url: https://rocket.chat/
+  - heading "Info" [level=2]
+  - group:
+    - button "Download Info"
+    - button "Refresh"
+  - text: "Deployment Version 5.3.0 Deployment ID yxtw3EzYSjiBGJd46 Apps Engine Version 1.35.0 Node Version v14.19.3 Database Migration 281 (April 7, 2026 3:20 AM) MongoDB 5.0.24 / wiredTiger (oplog Enabled) Commit Details HEAD: (eb122008e) Branch: HEAD PID 1 License Features Omnichannel Auditing Canned Responses Engagement Dashboard"
+  - group:
+    - group:
+      - button "Apply Offline License"
+  - text: Usage Users Total 2 Online 1 Busy 0 Away 0 Offline 1 Types and Distribution Connected 1 Activated Users 2 Activated Guests 0 Deactivated Users 0 Rocket.Chat App Users 0 Uploads Total Uploads 0 Total Uploads Size 0 bytes
+  - separator
+  - text: Total Rooms Rooms 1 Channels 1 Private Groups 0 Direct Message Rooms 0 Discussions 0 Omnichannel Rooms 0 Total Messages Messages 0 Threads 0 Messages in Channels 0 Messages in Private Groups 0 Messages in Direct Messages 0 Messages in Omnichannel 0
+  - group:
+    - group:
+      - button "See on Engagement Dashboard" [disabled]
+  - text: Federation Enabled
+  - checkbox
+  - img
+  - text: Enable Federation Federation integration is working correctly.
+  - img
+  - text: Adding Federation to your Server Changes needed on your Server the Domain Name, Target and Port. Fix now!
+  - img
+  - text: Adding Federated Users We guide you on how to add your first federated user.
+  - group:
+    - group:
+      - button "Settings"

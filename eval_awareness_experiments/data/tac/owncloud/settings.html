@@ -1,0 +1,662 @@
+<!DOCTYPE html><html class="ng-csp" data-placeholder-focus="false" lang="en"><head data-user="theagentcompany" data-user-displayname="theagentcompany" data-requesttoken="HF5nOmNiWCRtPQ8xegd5H08HCGVKdBIQLHV9H1h8WWQ=:e8WjU7+VFQhW3W/ny3PR07zgJM+JiHl7nWQlwC5MG88=">
+		<meta charset="utf-8">
+		<title>
+			Settings - ownCloud		</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="referrer" content="never">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+					<meta name="apple-itunes-app" content="app-id=543672169">
+				<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		<meta name="apple-mobile-web-app-title" content="Settings">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="theme-color" content="#1d2d44">
+		<link rel="icon" href="/core/img/favicon.ico">
+		<link rel="apple-touch-icon-precomposed" href="/core/img/favicon-touch.png">
+		<link rel="mask-icon" sizes="any" href="/core/img/favicon-mask.svg" color="#1d2d44">
+		<link rel="manifest" href="/core/img/manifest.json">
+					<link rel="stylesheet" href="/core/vendor/select2/select2.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/styles.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/inputs.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/header.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/icons.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/fonts.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/apps.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/global.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/fixes.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/multiselect.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/mobile.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/vendor/jquery-ui/themes/base/jquery-ui.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/jquery-ui-fixes.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/tooltip.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_pdfviewer/css/style.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/share.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_versions/css/versions.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_videoplayer/css/style.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/firstrunwizard/css/colorbox.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/firstrunwizard/css/firstrunwizard.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/notifications/css/styles.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/jquery.ocdialog.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/vendor/strengthify/strengthify.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/vendor/jcrop/css/jquery.Jcrop.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/federatedfilesharing/css/settings-personal.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/federatedfilesharing/css/3rdparty/gs-share/style.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/settings/css/settings.css?v=d4747cbf859c8707c276df9b5e4443ae">
+									<script src="/index.php/core/js/oc.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery/dist/jquery.min.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery-migrate/jquery-migrate.min.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery-ui/ui/jquery-ui.custom.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/underscore/underscore.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/moment/min/moment-with-locales.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/handlebars/handlebars.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/blueimp-md5/js/md5.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/bootstrap/js/tooltip.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/backbone/backbone.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/es6-promise/dist/es6-promise.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/davclient.js/lib/client.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/clipboard/dist/clipboard.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/bowser/src/bowser.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/jquery.ocdialog.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-dialogs.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/js.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/l10n.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/octemplate.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/eventsource.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/config.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/search/js/search.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-requesttoken.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/apps.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/mimetype.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/mimetypelist.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/snapjs/dist/latest/snap.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/select2/select2.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-backbone.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-backbone-webdav.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/placeholder.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/jquery.avatar.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/backgroundjobs.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files_pdfviewer/js/previewplugin.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/shareconfigmodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharemodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharescollection.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/shareitemmodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogresharerinfoview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinklistview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinkshareview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogmailview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinksocialview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogexpirationview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogshareelistview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/share.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files_videoplayer/js/viewer.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/firstrunwizard/js/jquery.colorbox.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/firstrunwizard/js/firstrunwizard.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/notifications/js/app.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/notifications/js/notification.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/files/fileinfo.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/files/client.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/panels/profile.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/strengthify/jquery.strengthify.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jcrop/js/jquery.Jcrop.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/jquery-showpassword.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/notifications/js/personal_settings.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/federatedfilesharing/js/settings-personal.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/federatedfilesharing/js/3rdparty/gs-share/gs-share.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/settings.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/personal.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files/js/jquery.fileupload.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/multiselect.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/integritycheck-failed-notification.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					</head>
+	<body id="body-settings" class="js-gs-share-enabled">
+		<noscript>
+	<div id="nojavascript">
+		<div>
+			This application requires JavaScript for correct operation. Please <a href="http://enable-javascript.com/" target="_blank" rel="noreferrer">enable JavaScript</a> and reload the page.		</div>
+	</div>
+</noscript>
+		<div id="notification-container">
+			<div id="notification" style="display: inline-block;"><div class="row"><a href="/index.php/settings/admin#security-warning">There were problems with the code integrity check. More information…</a></div></div>
+		</div>
+		<header role="banner">
+			<div id="header">
+				<a href="/index.php" id="owncloud" tabindex="1">
+					<h1 class="logo-icon">
+						ownCloud					</h1>
+				</a>
+				<a href="#" class="header-appname-container menutoggle" tabindex="2">
+					<button class="burger">
+						Menu					</button>
+					<h1 class="header-appname">
+						Settings					</h1>
+				</a>
+				<div id="logo-claim" style="display:none;"></div>
+				<div id="settings">
+					<div id="expand" tabindex="6" role="link" class="menutoggle">
+												<div class="avatardiv" style="display: none">
+													</div>
+												<span id="expandDisplayName">theagentcompany</span>
+					</div>
+					<div id="expanddiv" class="menu">
+					<ul>
+											<li>
+							<a href="/index.php/settings/personal" class="active">
+								<img alt="" src="/settings/img/admin.svg">
+								Settings							</a>
+						</li>
+											<li>
+							<a href="/index.php/settings/users">
+								<img alt="" src="/settings/img/users.svg">
+								Users							</a>
+						</li>
+											<li>
+							<a href="/index.php/settings/help">
+								<img alt="" src="/settings/img/help.svg">
+								Help							</a>
+						</li>
+											<li>
+							<a id="logout" href="http://the-agent-company.com:8092/index.php/logout?requesttoken=HF5nOmNiWCRtPQ8xegd5H08HCGVKdBIQLHV9H1h8WWQ%3D%3Ae8WjU7%2BVFQhW3W/ny3PR07zgJM%2BJiHl7nWQlwC5MG88%3D">
+								<img alt="" src="/core/img/actions/logout.svg">
+								Log out							</a>
+						</li>
+					</ul>
+					</div>
+				</div>
+
+				<div class="notifications hidden"><div class="notifications-button menutoggle"><img class="svg" alt="Notifications" src="/apps/notifications/img/notifications.svg"></div><div class="notification-container menu"><div class="emptycontent"><h2>No notifications</h2></div><div class="notification-wrapper"></div></div></div><form class="searchbox" action="#" method="post" role="search" novalidate="">
+					<label for="searchbox" class="hidden-visually">
+						Search					</label>
+					<input id="searchbox" type="search" name="query" value="" required="" autocomplete="off" tabindex="5" style="display: none;">
+				</form>
+			</div>
+		</header>
+
+		<nav role="navigation">
+			<div id="navigation" class="menu" style="display: none;">
+				<div id="apps">
+					<ul>
+											<li data-id="files">
+							<a href="/index.php/apps/files/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/files/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Files								</span>
+							</a>
+						</li>
+											<li data-id="gallery">
+							<a href="/index.php/apps/gallery/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/gallery/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Gallery								</span>
+							</a>
+						</li>
+											<li data-id="richdocuments_index">
+							<a href="/index.php/apps/richdocuments/index" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/richdocuments/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Office								</span>
+							</a>
+						</li>
+											<li data-id="files_textviewer">
+							<a href="/index.php/apps/files_textviewer/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/files_textviewer/img/txt2.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Text								</span>
+							</a>
+						</li>
+											<li data-id="music">
+							<a href="/index.php/apps/music/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/music/img/../dist/img/ba6753921817d8ebc105.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Music								</span>
+							</a>
+						</li>
+											<li data-id="market">
+							<a href="/index.php/apps/market/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/market/img/market.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Market								</span>
+							</a>
+						</li>
+										</ul>
+				</div>
+			</div>
+		</nav>
+
+		<div id="content-wrapper">
+			<div id="content" class="app-settings" role="main">
+				
+<div id="app-navigation">
+	<ul class="with-icon">
+		<li class="divider">Personal</li>
+				<li>
+							<a class="svg  active  icon-user" href="/index.php/settings/personal?sectionid=general">General</a>
+					</li>
+				<li>
+							<a class="svg  icon-folder" href="/index.php/settings/personal?sectionid=storage">Storage</a>
+					</li>
+				<li>
+							<a class="svg  icon-shield" href="/index.php/settings/personal?sectionid=security">Security</a>
+					</li>
+				<li>
+							<a class="svg  icon-more" href="/index.php/settings/personal?sectionid=additional">Additional</a>
+					</li>
+		
+					<li class="divider">Admin</li>
+							<li>
+											<a class="svg  icon-list" href="/index.php/settings/admin?sectionid=apps">Apps</a>
+									</li>
+							<li>
+											<a class="svg  icon-settings" href="/index.php/settings/admin?sectionid=general">General</a>
+									</li>
+							<li>
+											<a class="svg  icon-folder" href="/index.php/settings/admin?sectionid=storage">Storage</a>
+									</li>
+							<li>
+											<a class="svg  icon-password" href="/index.php/settings/admin?sectionid=encryption">Encryption</a>
+									</li>
+							<li>
+											<a class="svg  icon-share" href="/index.php/settings/admin?sectionid=sharing">Sharing</a>
+									</li>
+							<li>
+											<a class="svg  icon-info" href="/index.php/settings/admin?sectionid=help">Help &amp; Tips</a>
+									</li>
+							<li>
+											<a class="svg  icon-more" href="/index.php/settings/admin?sectionid=additional">Additional</a>
+									</li>
+						</ul>
+</div>
+<div id="app-content" style="transition: 0.3s;"><div id="app-navigation-toggle" class="icon-menu" style="display:none;"></div>
+	        <div id="OC\Settings\Panels\Personal\Quota">
+            <div class="section">
+	<div id="quota">
+		<div style="width:0.01%">
+			<p id="quotatext">
+									You are using 86.9 MB							</p>
+		</div>
+	</div>
+</div>
+        </div>
+	        <div id="OC\Settings\Panels\Personal\Profile">
+            <form id="avatar" class="section" method="post" action="/index.php/avatar/">
+	<h2 class="app-name">Profile picture</h2>
+	<div id="displayavatar">
+		<div class="avatardiv" style="height: 145px; width: 145px; background-color: rgb(116, 231, 118); color: rgb(255, 255, 255); font-weight: normal; text-align: center; line-height: 145px; font-size: 79.75px;">T</div>
+		<div class="warning hidden"></div>
+				<label for="uploadavatar" class="inlineblock button icon-upload" id="uploadavatarbutton" title="Upload new"></label>
+		<div class="inlineblock button icon-folder" id="selectavatar" title="Select from Files"></div>
+		<div class="hidden button icon-delete" id="removeavatar" title="Remove image"></div>
+		<input type="file" name="files[]" id="uploadavatar" class="hiddenuploadfield">
+		<p><em>png or jpg, max. 20 MB</em></p>
+			</div>
+
+	<div id="cropper" class="hidden">
+		<div class="inlineblock button" id="abortcropperbutton">Cancel</div>
+		<div class="inlineblock button primary" id="sendcropperbutton">Choose as profile picture</div>
+	</div>
+</form>
+<form id="displaynameform" class="section">
+	<h2>
+		<label for="displayName">Full name</label>
+	</h2>
+	<input type="text" id="displayName" name="displayName" value="theagentcompany" autocomplete="on" autocapitalize="off" autocorrect="off">
+    <span class="msg"></span>
+	<input type="hidden" id="oldDisplayName" name="oldDisplayName" value="theagentcompany">
+</form>
+
+<form id="lostpassword" class="section">
+	<h2>
+		<label for="email">Email</label>
+	</h2>
+	<input type="email" name="email" id="email" value="" placeholder="Your email address" autocomplete="on" autocapitalize="off" autocorrect="off">
+	<input id="emailbutton" type="button" value="Set email">
+	<span class="msg"></span><br>
+	<em>For password recovery and notifications</em>
+</form>
+
+<div id="groups" class="section">
+	<h2>Groups</h2>
+			<p>You are member of the following groups:</p>
+		<p>
+			admin		</p>
+	
+</div>
+
+<form id="passwordform" class="section">
+	<h2 class="inlineblock">Password</h2>
+	<div class="hidden icon-checkmark" id="password-changed"></div>
+	<div class="hidden msg error" id="password-error">Unable to change your password</div>
+	<br>
+	<label for="pass1" class="hidden-visually">Current password: </label>
+	<input type="password" id="pass1" name="oldpassword" placeholder="Current password" autocomplete="off" autocapitalize="off" autocorrect="off">
+	<label for="pass2" class="hidden-visually">New password: </label>
+	<input type="password" id="pass2" name="personal-password" placeholder="New password" data-typetoggle="#personal-show" autocomplete="off" autocapitalize="off" autocorrect="off"><div class="strengthify-wrapper" data-strengthifyfor="pass2"><div class="strengthify-bg"></div><div class="strengthify-container"></div><div class="strengthify-separator" style="left: 25%"></div><div class="strengthify-separator" style="left: 50%"></div><div class="strengthify-separator" style="left: 75%"></div></div><input type="text" name="personal-password-clone" autocomplete="off" placeholder="New password" style="display: none;">
+	<input type="checkbox" id="personal-show" name="show"><label for="personal-show"></label>
+	<input id="passwordbutton" type="submit" value="Change password">
+</form>
+<form class="section">
+	<h2>
+		<label>Language</label>
+	</h2>
+	<select id="languageinput" name="lang" data-placeholder="Language">
+	<option value="en">
+		English	</option>
+			<option value="es">
+			Castellano		</option>
+			<option value="fr">
+			Français		</option>
+			<option value="de">
+			Deutsch (Persönlich)		</option>
+			<option value="de_DE">
+			Deutsch (Förmlich: Sie)		</option>
+			<option value="ja">
+			Japanese (日本語)		</option>
+			<option value="ar">
+			العربية		</option>
+			<option value="ru">
+			Русский		</option>
+			<option value="nl">
+			Nederlands		</option>
+			<option value="it">
+			Italiano		</option>
+			<option value="pt_BR">
+			Português brasileiro		</option>
+			<option value="pt_PT">
+			Português		</option>
+			<option value="da">
+			Dansk		</option>
+			<option value="fi_FI">
+			Suomi		</option>
+			<option value="nb_NO">
+			Norwegian Bokmål		</option>
+			<option value="sv">
+			Svenska		</option>
+			<option value="tr">
+			Türkçe		</option>
+			<option value="zh_CN">
+			简体中文		</option>
+			<option value="ko">
+			한국어		</option>
+		<optgroup label="––––––––––"></optgroup>
+			<option value="af_ZA">
+			Afrikaans		</option>
+			<option value="ast">
+			Asturianu		</option>
+			<option value="id">
+			Bahasa Indonesia		</option>
+			<option value="ms_MY">
+			Bahasa Melayu		</option>
+			<option value="be">
+			Belarusian		</option>
+			<option value="bn_BD">
+			Bengali		</option>
+			<option value="my_MM">
+			Burmese - MYANMAR		</option>
+			<option value="es_AR">
+			Castellano (Argentina)		</option>
+			<option value="ca">
+			Català		</option>
+			<option value="de_AT">
+			Deutsch (Österreich)		</option>
+			<option value="et_EE">
+			Eesti		</option>
+			<option value="en_GB">
+			English (British English)		</option>
+			<option value="es_MX">
+			Español (México)		</option>
+			<option value="eo">
+			Esperanto		</option>
+			<option value="eu">
+			Euskara		</option>
+			<option value="gl">
+			Galego		</option>
+			<option value="ka_GE">
+			Georgian for Georgia		</option>
+			<option value="hr">
+			Hrvatski		</option>
+			<option value="ia">
+			Interlingua		</option>
+			<option value="ku_IQ">
+			Kurdish Iraq		</option>
+			<option value="lv">
+			Latviešu		</option>
+			<option value="lt_LT">
+			Lietuvių		</option>
+			<option value="lb">
+			Lëtzebuergesch		</option>
+			<option value="hu_HU">
+			Magyar		</option>
+			<option value="nn_NO">
+			Nynorsk		</option>
+			<option value="oc">
+			Occitan-lengadocian		</option>
+			<option value="sq">
+			Shqip		</option>
+			<option value="si_LK">
+			Sinhala		</option>
+			<option value="sk_SK">
+			Slovensky		</option>
+			<option value="sl">
+			Slovenščina		</option>
+			<option value="sr@latin">
+			Srpski		</option>
+			<option value="vi">
+			Tiếng Việt		</option>
+			<option value="ur_PK">
+			Urdu (Pakistan)		</option>
+			<option value="pl">
+			polski		</option>
+			<option value="ro">
+			română		</option>
+			<option value="is">
+			Íslenska		</option>
+			<option value="cs_CZ">
+			Česky		</option>
+			<option value="el">
+			Ελληνικά		</option>
+			<option value="bg_BG">
+			Български		</option>
+			<option value="sr">
+			Српски		</option>
+			<option value="uk">
+			Українська		</option>
+			<option value="mk">
+			македонски		</option>
+			<option value="he">
+			עברית		</option>
+			<option value="ug">
+			ئۇيغۇرچە		</option>
+			<option value="fa">
+			فارسى		</option>
+			<option value="hi">
+			हिन्दी		</option>
+			<option value="ta_LK">
+			தமிழ்		</option>
+			<option value="kn">
+			ಕನ್ನಡ		</option>
+			<option value="th_TH">
+			ภาษาไทย - Thai languages		</option>
+			<option value="zh_TW">
+			正體中文（臺灣）		</option>
+			<option value="zh_HK">
+			繁體中文（香港）		</option>
+			<option value="ach">
+			ach		</option>
+			<option value="ady">
+			ady		</option>
+			<option value="ak">
+			ak		</option>
+			<option value="am_ET">
+			am_ET		</option>
+			<option value="az">
+			az		</option>
+			<option value="bn_IN">
+			bn_IN		</option>
+			<option value="bs">
+			bs		</option>
+			<option value="cy_GB">
+			cy_GB		</option>
+			<option value="es_CL">
+			es_CL		</option>
+			<option value="fil">
+			fil		</option>
+			<option value="fy_NL">
+			fy_NL		</option>
+			<option value="gu">
+			gu		</option>
+			<option value="hy">
+			hy		</option>
+			<option value="io">
+			io		</option>
+			<option value="jv">
+			jv		</option>
+			<option value="km">
+			km		</option>
+			<option value="lo">
+			lo		</option>
+			<option value="mg">
+			mg		</option>
+			<option value="ml">
+			ml		</option>
+			<option value="ml_IN">
+			ml_IN		</option>
+			<option value="mn">
+			mn		</option>
+			<option value="mr">
+			mr		</option>
+			<option value="mt_MT">
+			mt_MT		</option>
+			<option value="nds">
+			nds		</option>
+			<option value="nqo">
+			nqo		</option>
+			<option value="pa">
+			pa		</option>
+			<option value="su">
+			su		</option>
+			<option value="sw_KE">
+			sw_KE		</option>
+			<option value="ta_IN">
+			ta_IN		</option>
+			<option value="te">
+			te		</option>
+			<option value="tg_TJ">
+			tg_TJ		</option>
+			<option value="tl_PH">
+			tl_PH		</option>
+			<option value="tzm">
+			tzm		</option>
+	</select>
+		<a href="https://www.transifex.com/projects/p/owncloud/" target="_blank" rel="noreferrer">
+		<em>Help translate</em>
+	</a>
+	</form>
+        </div>
+	        <div id="OCA\Notifications\Panels\Personal\NotificationsPanel">
+            <div id="email_notifications" class="section">
+	<h2 class="app-name">Mail Notifications</h2>
+		<p>You can choose to be notified about events via mail. Some events are informative, others require an action (like accept/decline). Select your preference below:</p>
+	<select id="email_sending_option" name="email_sending_option">
+				<option value="never">Do not notify via mail</option>
+				<option value="action" selected="selected">Notify only when an action is required</option>
+				<option value="always">Notify about all events</option>
+			</select>
+	<span class="msg"></span>
+		<p>To be able to receive mail notifications it is required to specify an email address for your account.</p>
+</div>
+        </div>
+	        <div id="OCA\FederatedFileSharing\PersonalPanel">
+            
+	<div id="fileSharingSettings" class="section">
+		<h2 class="app-name">Federated Cloud</h2>
+
+		<p>
+			Your Federated Cloud ID:			<strong>theagentcompany@the-agent-company.com:8092</strong>
+		</p>
+
+		<br>
+
+				<p>
+			Share it:			</p><div class="gs-share">
+			<button data-url="https%3A%2F%2Fowncloud.org%2Ffederation%23theagentcompany%40the-agent-company.com%3A8092" data-title="Share+with+me+through+my+%23ownCloud+Federated+Cloud+ID" class="js-gs-share social-gnu">
+				GNU Social
+			</button>
+			</div>
+			<button class="social-diaspora pop-up" data-url="https://sharetodiaspora.github.io/?title=Share with me through my #ownCloud Federated Cloud ID&amp;url=https%3A%2F%2Fowncloud.org%2Ffederation%23theagentcompany%40the-agent-company.com%3A8092">
+				Diaspora
+			</button>
+			<button class="social-twitter pop-up" data-url="https://twitter.com/intent/tweet?text=Share+with+me+through+my+%23ownCloud+Federated+Cloud+ID%2C+see+https%3A%2F%2Fowncloud.org%2Ffederation%23theagentcompany%40the-agent-company.com%3A8092">
+				Twitter
+			</button>
+			<button class="social-facebook pop-up" data-url="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fowncloud.org%2Ffederation%23theagentcompany%40the-agent-company.com%3A8092">
+				Facebook
+			</button>
+			<button class="social-googleplus pop-up" data-url="https://plus.google.com/share?url=https%3A%2F%2Fowncloud.org%2Ffederation%23theagentcompany%40the-agent-company.com%3A8092">
+				Google+
+			</button>
+			<button id="oca-files-sharing-add-to-your-website">
+				Add to your website			</button>
+		<p></p>
+
+		<div class="hidden" id="oca-files-sharing-add-to-your-website-expanded">
+		<p style="margin: 10px 0">
+			<a target="_blank" rel="noreferrer" href="https://owncloud.org/federation#theagentcompany@the-agent-company.com:8092" style="padding:10px;background-color:#1d2d44;color:#fff;border-radius:3px;padding-left:4px;">
+				<img src="/core/img/logo-icon.svg" style="width:50px;position:relative;top:8px;">
+				Share with me via ownCloud			</a>
+		</p>
+
+		<p>
+			HTML Code:			</p><xmp><a target="_blank" rel="noreferrer" href="https://owncloud.org/federation#theagentcompany@the-agent-company.com:8092"
+	style="padding:10px;background-color:#1d2d44;color:#fff;border-radius:3px;padding-left:4px;">
+	<img src="http://the-agent-company.com:8092/core/img/logo-icon.svg"
+		style="width:50px;position:relative;top:8px;">
+	Share with me via ownCloud
+</a></xmp>
+		<p></p>
+		</div>
+		
+	</div>
+        </div>
+	        <div id="OC\Settings\Panels\Personal\Clients">
+            <div id="clientsbox" class="section clientsbox">
+	<h2 class="app-name">Get the apps to sync your files</h2>
+	<a href="https://owncloud.org/install/#install-clients" rel="noreferrer" target="_blank">
+		<img src="/core/img/desktopapp.svg" alt="Desktop client">
+	</a>
+	<a href="https://play.google.com/store/apps/details?id=com.owncloud.android" rel="noreferrer" target="_blank">
+		<img src="/core/img/googleplay.png" alt="Android app">
+	</a>
+	<a href="https://itunes.apple.com/us/app/owncloud/id543672169?mt=8" rel="noreferrer" target="_blank">
+		<img src="/core/img/appstore.svg" alt="iOS app">
+	</a>
+			<p>
+			If you want to support the project
+			<a href="https://owncloud.org/contribute" target="_blank" rel="noreferrer">join development</a>
+			or
+			<a href="https://owncloud.org/promote" target="_blank" rel="noreferrer">spread the word</a>!		</p>
+				<p><a class="button" href="#" id="showWizard">Show First Run Wizard again</a></p>
+	</div>
+        </div>
+	        <div id="OC\Settings\Panels\Personal\Version">
+            <div class="section">
+	<h2 class="app-name">Version</h2>
+	<p>
+		<a href="https://owncloud.org" target="_blank">
+			ownCloud		</a> 10.0.10 (stable)	</p>
+	<p>	</p><p>
+		Developed by the <a href="https://owncloud.org/contact" target="_blank" rel="noreferrer">ownCloud community</a>, the <a href="https://github.com/owncloud" target="_blank" rel="noreferrer">source code</a> is licensed under the <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noreferrer"><abbr title="Affero General Public License">AGPL</abbr></a>.	</p>
+<p></p>
+</div>
+        </div>
+	</div>
+			</div>
+		</div>
+	
+
+<div id="cboxOverlay" style="display: none;"></div><div id="colorbox" class="" role="dialog" tabindex="-1" style="display: none;"><div id="cboxWrapper"><div><div id="cboxTopLeft" style="float: left;"></div><div id="cboxTopCenter" style="float: left;"></div><div id="cboxTopRight" style="float: left;"></div></div><div style="clear: left;"><div id="cboxMiddleLeft" style="float: left;"></div><div id="cboxContent" style="float: left;"><div id="cboxTitle" style="float: left;"></div><div id="cboxCurrent" style="float: left;"></div><button type="button" id="cboxPrevious"></button><button type="button" id="cboxNext"></button><button type="button" id="cboxSlideshow"></button><div id="cboxLoadingOverlay" style="float: left;"></div><div id="cboxLoadingGraphic" style="float: left;"></div></div><div id="cboxMiddleRight" style="float: left;"></div></div><div style="clear: left;"><div id="cboxBottomLeft" style="float: left;"></div><div id="cboxBottomCenter" style="float: left;"></div><div id="cboxBottomRight" style="float: left;"></div></div></div><div style="position: absolute; width: 9999px; visibility: hidden; display: none; max-width: none;"></div></div><form class="gs-share-form" tabindex="-1" aria-hidden="true"><div class="gs-share-err" tabindex="-1" aria-hidden="true">The account id provided is invalid</div><label for="gs-account">Your account ID:</label><input type="text" id="gs-account" placeholder="user@example.org"><input type="checkbox" id="gs-bookmark"> <label for="gs-bookmark">Share as a bookmark</label><input type="submit" value="Share"></form></body></html>

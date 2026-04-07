@@ -1,0 +1,115 @@
+- document:
+  - navigation:
+    - group:
+      - button "Home"
+      - button "Search"
+      - button "Directory"
+      - button "Display"
+      - button "Create new"
+      - button "Administration"
+    - separator
+    - region "Channels":
+      - text: Omnichannel
+      - group:
+        - button
+        - button
+      - separator
+    - text: Administration
+    - button
+    - link "Go fully featured ⚡":
+      - /url: /admin/upgrade/go-fully-featured
+    - link "Info":
+      - /url: /admin/info
+    - link "Import":
+      - /url: /admin/import
+    - link "Users":
+      - /url: /admin/users
+    - link "Rooms":
+      - /url: /admin/rooms
+    - link "Invites":
+      - /url: /admin/invites
+    - link "Connectivity Services":
+      - /url: /admin/cloud
+    - link "View Logs":
+      - /url: /admin/view-logs
+    - link "Custom Sounds":
+      - /url: /admin/custom-sounds
+    - link "Federation Dashboard":
+      - /url: /admin/federation-dashboard
+    - link "Apps":
+      - /url: /admin/marketplace
+    - link "Email Inboxes":
+      - /url: /admin/email-inboxes
+    - link "Custom Emoji":
+      - /url: /admin/emoji-custom
+    - link "Integrations":
+      - /url: /admin/integrations
+    - link "OAuth Apps":
+      - /url: /admin/oauth-apps
+    - link "Mailer":
+      - /url: /admin/mailer
+    - link "Custom User Status":
+      - /url: /admin/custom-user-status
+    - link "Permissions":
+      - /url: /admin/permissions
+    - link "Settings":
+      - /url: /admin/settings
+    - separator
+    - link "Home":
+      - /url: /home
+      - img "Home"
+    - link "Powered by Rocket.Chat Free edition":
+      - /url: https://rocket.chat/
+  - heading "Rooms" [level=2]
+  - textbox:
+    - /placeholder: Search Rooms
+  - checkbox "Direct"
+  - text: Direct
+  - checkbox "Public"
+  - text: Public
+  - checkbox "Private"
+  - text: Private
+  - checkbox "Omnichannel"
+  - text: Omnichannel
+  - checkbox "Discussions"
+  - text: Discussions
+  - checkbox "Teams"
+  - text: Teams
+  - table:
+    - rowgroup:
+      - row "Name Type Users Msgs Default Featured":
+        - columnheader "Name":
+          - text: Name
+          - img
+        - columnheader "Type":
+          - text: Type
+          - img
+        - columnheader "Users":
+          - text: Users
+          - img
+        - columnheader "Msgs":
+          - text: Msgs
+          - img
+        - columnheader "Default":
+          - text: Default
+          - img
+        - columnheader "Featured":
+          - text: Featured
+          - img
+    - rowgroup:
+      - link "general Channel 0 0 True False":
+        - cell "general"
+        - cell "Channel"
+        - cell "0"
+        - cell "0"
+        - cell "True"
+        - cell "False"
+  - navigation:
+    - text: Showing results 1 - 1 of 1
+    - list:
+      - listitem:
+        - button [disabled]
+      - listitem:
+        - button "1" [disabled]
+      - listitem:
+        - button [disabled]

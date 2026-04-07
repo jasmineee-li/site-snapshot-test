@@ -1,0 +1,1354 @@
+<!DOCTYPE html><html class="gl-light ui-neutral with-top-bar" lang="en" style="--broadcast-message-height: 0px;"><head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta content="IE=edge" http-equiv="X-UA-Compatible">
+<meta content="width=device-width, initial-scale=1" name="viewport">
+<title>Merge requests · GitLab</title>
+<script>
+//<![CDATA[
+window.gon={};gon.api_version="v4";gon.default_avatar_url="http://the-agent-company.com:8929/assets/no_avatar-849f9c04a3a0d0cea2424ae97b27447dc64a7dbfae83c036c45b403392f0e8ba.png";gon.max_file_size=100;gon.asset_host=null;gon.webpack_public_path="/assets/webpack/";gon.relative_url_root="";gon.user_color_mode="gl-light";gon.user_color_scheme="white";gon.markdown_surround_selection=true;gon.markdown_automatic_lists=true;gon.math_rendering_limits_enabled=true;gon.recaptcha_api_server_url="https://www.recaptcha.net/recaptcha/api.js";gon.recaptcha_sitekey=null;gon.gitlab_url="http://the-agent-company.com:8929";gon.promo_url="https://about.gitlab.com";gon.forum_url="https://forum.gitlab.com";gon.docs_url="https://docs.gitlab.com";gon.revision="e8dca573167";gon.feature_category="code_review_workflow";gon.gitlab_logo="/assets/gitlab_logo-2957169c8ef64c58616a1ac3f4fc626e8a35ce4eb3ed31bb0d873712f2a041a0.png";gon.secure=false;gon.sprite_icons="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg";gon.sprite_file_icons="/assets/file_icons/file_icons-7cd3d6c3b29a6d972895f36472978a4b5adb4b37f9b5d0716a380e82389f7e0e.svg";gon.emoji_sprites_css_path="/assets/emoji_sprites-d746ae2450a3e9c626d338d77a101b84ff33a47c0c281b676d75c4a6ed2948a4.css";gon.gridstack_css_path="/assets/lazy_bundles/gridstack-5fcfd4ffbea1db04eaf7f16521bcab19ae3af042c8b4afe8d16781eda5a70799.css";gon.test_env=false;gon.disable_animations=false;gon.suggested_label_colors={"#cc338b":"Magenta-pink","#dc143c":"Crimson","#c21e56":"Rose red","#cd5b45":"Dark coral","#ed9121":"Carrot orange","#eee600":"Titanium yellow","#009966":"Green-cyan","#8fbc8f":"Dark sea green","#6699cc":"Blue-gray","#e6e6fa":"Lavender","#9400d3":"Dark violet","#330066":"Deep violet","#36454f":"Charcoal grey","#808080":"Gray"};gon.first_day_of_week=0;gon.time_display_relative=true;gon.time_display_format=0;gon.ee=false;gon.jh=false;gon.dot_com=false;gon.uf_error_prefix="UF";gon.pat_prefix="glpat-";gon.keyboard_shortcuts_enabled=true;gon.diagramsnet_url="https://embed.diagrams.net";gon.version="17.5.1";gon.current_user_id=1;gon.current_username="root";gon.current_user_fullname="Administrator";gon.current_user_avatar_url="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=80\u0026d=identicon";gon.current_user_use_work_items_view=false;gon.features={"sourceEditorToolbar":false,"vscodeWebIde":true,"uiForOrganizations":false,"organizationSwitching":false,"removeMonitorMetrics":true,"workItemsViewPreference":false,"searchButtonTopRight":false,"mrApprovedFilter":false};
+//]]>
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/assets/application-1fdb53bdcbf63d97ab4fadb617fa5184d10646d1f0314d4526607d54dbe2cc5b.css">
+<link rel="stylesheet" href="/assets/page_bundles/issuable_list-366e69e421635cb4342aff700490a21beb117bd336ff045b6521fa605bbe66f6.css"><link rel="stylesheet" href="/assets/page_bundles/commit_description-1e2cba4dda3c7b30dd84924809020c569f1308dea51520fe1dd5d4ce31403195.css"><link rel="stylesheet" href="/assets/page_bundles/work_items-d9603c98e9259c19bbb47784abf3b63b5cb7ce8d7463608443b907773ab7197d.css"><link rel="stylesheet" href="/assets/page_bundles/notes_shared-985467dc606e2acde1735b642c5ce237ef7e965ad1c35cf33a4c9beb2ecb05b8.css">
+<link rel="stylesheet" href="/assets/application_utilities-6e9d4ced3f78abb4b0b5d21e2c5069b8c88f8e045babafc20e3c7f57893d3ee1.css">
+<link rel="stylesheet" href="/assets/tailwind-963352f5d79b0e81c8ff62ae97285b924988e6177494aaefaf1f5f466542142c.css">
+
+
+<link rel="stylesheet" href="/assets/fonts-fae5d3f79948bd85f18b6513a025f863b19636e85b09a1492907eb4b1bb0557b.css">
+<link rel="stylesheet" href="/assets/highlight/themes/white-9fc2e7ab1cefbb5a525a1e1b06c04b3141c2179a6d572b1d390cf9db8def8104.css">
+
+
+<link rel="preload" href="/assets/application_utilities-6e9d4ced3f78abb4b0b5d21e2c5069b8c88f8e045babafc20e3c7f57893d3ee1.css" as="style" type="text/css">
+<link rel="preload" href="/assets/application-1fdb53bdcbf63d97ab4fadb617fa5184d10646d1f0314d4526607d54dbe2cc5b.css" as="style" type="text/css">
+<link rel="preload" href="/assets/highlight/themes/white-9fc2e7ab1cefbb5a525a1e1b06c04b3141c2179a6d572b1d390cf9db8def8104.css" as="style" type="text/css">
+
+
+
+
+<script src="/assets/webpack/graphql.e1f11a07.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.admin.abuse_reports.show-pages.admin.topics.edit-pages.admin.topics.new-pages.dashboar-bfe2356d.ee9898b8.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.admin.abuse_reports.show-pages.dashboard.issues-pages.dashboard.milestones.show-pages.-13e11bbf.31cf9968.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.admin.abuse_reports.show-pages.dashboard.issues-pages.groups.boards-pages.groups.issue-8dfa5f96.e0a3e16a.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.admin.abuse_reports.show-pages.dashboard.issues-pages.groups.boards-pages.groups.issue-f804d6c2.3cc37ebf.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.projects.blob.show-pages.projects.branches.new-pages.projects.commits.show-pages.proje-25ebd1ad.04ee6931.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.groups.new-pages.import.gitlab_projects.new-pages.import.manifest.new-pages.projects.n-44c6c18e.03dad955.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.search.show-super_sidebar.05f8455b.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/super_sidebar.5540ac2a.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.dashboard.issues-pages.dashboard.merge_requests-pages.dashboard.search_merge_requests--1eab2a50.2452fb92.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/commons-pages.dashboard.issues-pages.dashboard.merge_requests-pages.dashboard.milestones.index-pages-bd5a324f.4432545e.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/pages.dashboard.merge_requests.00273e25.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/runtime.37917bca.bundle.js" defer="defer"></script>
+<script src="/assets/webpack/main.8ef36d88.chunk.js" defer="defer"></script>
+<script src="/assets/webpack/redirect_listbox.2fcc7a18.chunk.js" defer="defer"></script>
+<meta content="object" property="og:type">
+<meta content="GitLab" property="og:site_name">
+<meta content="Merge requests · GitLab" property="og:title">
+<meta content="GitLab Community Edition" property="og:description">
+<meta content="http://the-agent-company.com:8929/assets/twitter_card-570ddb06edf56a2312253c5872489847a0f385112ddbcd71ccfa1570febab5d2.jpg" property="og:image">
+<meta content="64" property="og:image:width">
+<meta content="64" property="og:image:height">
+<meta content="http://the-agent-company.com:8929/dashboard/merge_requests?assignee_username=root" property="og:url">
+<meta content="summary" property="twitter:card">
+<meta content="Merge requests · GitLab" property="twitter:title">
+<meta content="GitLab Community Edition" property="twitter:description">
+<meta content="http://the-agent-company.com:8929/assets/twitter_card-570ddb06edf56a2312253c5872489847a0f385112ddbcd71ccfa1570febab5d2.jpg" property="twitter:image">
+
+<meta name="csrf-param" content="authenticity_token">
+<meta name="csrf-token" content="xiR2ZzVHEPmCvY_0LjhVHT190FIVxN6Epo5S9NnY2W_lDBbvqQ7yk4xUYiLJGas9ViPPaAVrw3usgge_DR5gsw">
+<meta name="csp-nonce">
+<meta name="action-cable-url" content="/-/cable">
+<link href="/-/manifest.json" rel="manifest">
+<link rel="icon" type="image/png" href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png" id="favicon" data-original-href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png">
+<link rel="apple-touch-icon" type="image/x-icon" href="/assets/apple-touch-icon-b049d4bc0dd9626f31db825d61880737befc7835982586d015bded10b4435460.png">
+<link href="/search/opensearch.xml" rel="search" title="Search GitLab" type="application/opensearchdescription+xml">
+
+
+
+
+<meta content="GitLab Community Edition" name="description">
+<meta content="#ececef" name="theme-color">
+<style>
+svg[data-v-71edb719] {
+  pointer-events: none;
+
+  position: fixed;
+  right: 0;
+}
+svg polygon[data-v-71edb719],
+svg rect[data-v-71edb719] {
+  pointer-events: auto;
+}
+</style><style>
+.fake-input[data-v-f5f79d4c] {
+  position: absolute;
+  top: 14px;
+  left: 39px;
+}
+</style><style>
+.input-box-wrapper[data-v-04c76396] {
+  position: relative;
+}
+.fake-input-wrapper[data-v-04c76396] {
+  position: absolute;
+}
+</style><script charset="utf-8" src="/assets/webpack/67.5760327f.chunk.js"></script><script charset="utf-8" src="/assets/webpack/vendors-statusModalBundle.19fa1903.chunk.js"></script><script charset="utf-8" src="/assets/webpack/commons-pages.admin.abuse_reports.show-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.m-f768798b.231f5894.chunk.js"></script><script charset="utf-8" src="/assets/webpack/statusModalBundle.c8e3f37c.chunk.js"></script><script charset="utf-8" src="/assets/webpack/shortcutsBundle.2afcaa79.chunk.js"></script><script charset="utf-8" src="/assets/webpack/hello.cbcc7706.chunk.js"></script><script charset="utf-8" src="/assets/webpack/initInviteMembersTrigger.d08275a3.chunk.js"></script></head>
+
+<body class="tab-width-8 gl-browser-chrome gl-platform-linux page-initialised" data-page="dashboard:merge_requests">
+
+<script>
+//<![CDATA[
+gl = window.gl || {};
+gl.client = {"isChrome":true,"isLinux":true};
+
+
+//]]>
+</script>
+
+
+<div class="layout-page page-with-super-sidebar">
+<div><div class="super-sidebar-overlay"></div> <a data-testid="super-sidebar-skip-to" href="#content-body" class="btn super-sidebar-skip-to gl-sr-only gl-fixed gl-left-0 gl-m-3 focus:gl-not-sr-only btn-confirm btn-md gl-button"><!----> <!---->  <span class="gl-button-text">
+    Skip to main content
+  </span></a> <nav id="super-sidebar" aria-labelledby="super-sidebar-heading" data-testid="super-sidebar" class="super-sidebar"><h2 id="super-sidebar-heading" class="gl-sr-only">
+      Primary navigation
+    </h2> <div class="user-bar gl-flex gl-gap-1 gl-p-3 gl-flex-col gl-gap-3"><div class="gl-flex gl-items-center gl-gap-1"><a href="/" data-track-action="click_link" data-track-label="gitlab_logo_link" data-track-property="nav_core_menu" class="brand-logo"><span class="gl-sr-only">Homepage</span> <span aria-hidden="true" data-testid="brand-header-default-logo"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 25 24" height="24" width="25" class="tanuki-logo" role="img" aria-hidden="true">
+  <path fill="#E24329" d="m24.507 9.5-.034-.09L21.082.562a.896.896 0 0 0-1.694.091l-2.29 7.01H7.825L5.535.653a.898.898 0 0 0-1.694-.09L.451 9.411.416 9.5a6.297 6.297 0 0 0 2.09 7.278l.012.01.03.022 5.16 3.867 2.56 1.935 1.554 1.176a1.051 1.051 0 0 0 1.268 0l1.555-1.176 2.56-1.935 5.197-3.89.014-.01A6.297 6.297 0 0 0 24.507 9.5Z" class="tanuki-shape tanuki"></path>
+  <path fill="#FC6D26" d="m24.507 9.5-.034-.09a11.44 11.44 0 0 0-4.56 2.051l-7.447 5.632 4.742 3.584 5.197-3.89.014-.01A6.297 6.297 0 0 0 24.507 9.5Z" class="tanuki-shape right-cheek"></path>
+  <path fill="#FCA326" d="m7.707 20.677 2.56 1.935 1.555 1.176a1.051 1.051 0 0 0 1.268 0l1.555-1.176 2.56-1.935-4.743-3.584-4.755 3.584Z" class="tanuki-shape chin"></path>
+  <path fill="#FC6D26" d="M5.01 11.461a11.43 11.43 0 0 0-4.56-2.05L.416 9.5a6.297 6.297 0 0 0 2.09 7.278l.012.01.03.022 5.16 3.867 4.745-3.584-7.444-5.632Z" class="tanuki-shape left-cheek"></path>
+</svg>
+</span></a> <!----> <div class="gl-grow"></div> <button aria-controls="super-sidebar" aria-expanded="true" aria-label="Primary navigation sidebar" type="button" class="btn btn-default btn-md gl-button btn-default-tertiary btn-icon js-super-sidebar-toggle-collapse" data-testid="super-sidebar-collapse-button"><!----> <svg data-testid="sidebar-icon" role="img" aria-hidden="true" class="gl-button-icon gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#sidebar"></use></svg>  <!----></button> <div class="gl-disclosure-dropdown gl-new-dropdown" data-testid="new-menu-toggle"><button id="create-menu-toggle" data-testid="base-dropdown-toggle" aria-expanded="false" aria-controls="base-dropdown-2" aria-labelledby="create-menu-toggle" type="button" class="btn btn-default btn-md gl-button btn-default-tertiary gl-new-dropdown-toggle gl-new-dropdown-icon-only btn-icon gl-new-dropdown-toggle-no-caret"><!----> <svg data-testid="plus-icon" role="img" aria-hidden="true" class="gl-button-icon gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#plus"></use></svg>  <span class="gl-button-text"><span class="gl-new-dropdown-button-text gl-sr-only">
+        Create new...
+      </span> <!----></span></button> <div id="base-dropdown-2" data-testid="base-dropdown-menu" class="gl-new-dropdown-panel !gl-w-31"><div class="gl-new-dropdown-inner">  <ul id="disclosure-1" aria-labelledby="create-menu-toggle" data-testid="disclosure-content" tabindex="-1" class="gl-new-dropdown-contents"><li><!----> <ul class="gl-mb-0 gl-list-none gl-pl-0"><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-label="general_new_project" data-track-action="click_link" data-track-property="nav_create_menu" data-testid="create_menu_item" data-qa-create-menu-item="general_new_project" href="/projects/new" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          New project/repository
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-label="general_new_group" data-track-action="click_link" data-track-property="nav_create_menu" data-testid="create_menu_item" data-qa-create-menu-item="general_new_group" href="/groups/new" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          New group
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-label="general_new_snippet" data-track-action="click_link" data-track-property="nav_create_menu" data-testid="create_menu_item" data-qa-create-menu-item="general_new_snippet" href="/-/snippets/new" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          New snippet
+        </span></a></li></ul></li></ul> </div></div></div> <div><div class="gl-disclosure-dropdown gl-new-dropdown" data-testid="user-dropdown"><div id="dropdown-toggle-btn-4" data-testid="base-dropdown-toggle" class="gl-new-dropdown-custom-toggle"><button data-testid="user-menu-toggle" type="button" class="btn user-bar-dropdown-toggle btn-with-notification btn-default btn-md gl-button btn-default-tertiary"><!----> <!---->  <span class="gl-button-text"><span class="gl-sr-only">Administrator user’s menu</span> <img src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=80&amp;d=identicon" alt="avatar" class="gl-avatar gl-avatar-circle gl-avatar-s24" aria-hidden="true" data-testid="user-avatar-content"> <!----></span></button></div> <div id="base-dropdown-6" data-testid="base-dropdown-menu" class="gl-new-dropdown-panel !gl-w-31"><div class="gl-new-dropdown-inner">  <ul id="disclosure-5" aria-labelledby="dropdown-toggle-btn-4" data-testid="disclosure-content" tabindex="-1" class="gl-new-dropdown-contents"> <li><!----> <ul class="gl-mb-0 gl-list-none gl-pl-0"><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_user_menu" data-track-action="click_link" data-track-label="user_profile" data-testid="user-profile-link" href="/root" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper"><span class="gl-flex gl-flex-col"><span><span class="gl-font-bold">
+          Administrator
+        </span> <!----></span> <span class="gl-break-all gl-text-subtle">@root</span> <!----></span></span></a></li></ul></li> <li class="gl-border-t gl-border-t-dropdown gl-pt-2 gl-mt-2"><!----> <ul class="gl-mb-0 gl-list-none gl-pl-0"><li tabindex="0" data-testid="status-item" class="gl-new-dropdown-item" role="button"><button tabindex="-1" data-track-property="nav_user_menu" data-track-action="click_link" data-track-label="user_edit_status" type="button" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Set status
+        </span></button></li> <!----> <li tabindex="0" data-testid="edit-profile-item" class="gl-new-dropdown-item"><a tabindex="-1" data-testid="edit-profile-link" data-track-property="nav_user_menu" data-track-action="click_link" data-track-label="user_edit_profile" href="/-/user_settings/profile" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Edit profile
+        </span></a></li> <li tabindex="0" data-testid="preferences-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_user_menu" data-track-action="click_link" data-track-label="user_preferences" href="/-/profile/preferences" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Preferences
+        </span></a></li> <!----> <!----> <!----> <!----></ul></li> <li class="gl-border-t gl-border-t-dropdown gl-pt-2 gl-mt-2" data-testid="sign-out-group"><!----> <ul class="gl-mb-0 gl-list-none gl-pl-0"><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-method="post" data-testid="sign-out-link" href="/users/sign_out" target="_self" class="gl-new-dropdown-item-content sign-out-link"><span class="gl-new-dropdown-item-text-wrapper">
+          Sign out
+        </span></a></li></ul></li></ul> </div></div></div> <!----></div> <!----></div> <!----> <div class="gl-flex gl-justify-between gl-gap-2"><a aria-label="Assigned issues 84" href="/dashboard/issues?assignee_username=root" class="user-bar-button gl-block gl-grow gl-rounded-base gl-border-none gl-py-3 gl-text-center gl-text-sm gl-leading-1 hover:gl-no-underline dashboard-shortcuts-issues gl-basis-1/3" data-testid="issues-shortcut-button" data-track-action="click_link" data-track-label="issues_link" data-track-property="nav_core_menu"><svg data-testid="issues-icon" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#issues"></use></svg> <span aria-hidden="true" class="gl-ml-1">84</span></a> <div class="gl-disclosure-dropdown !gl-block gl-basis-1/3 gl-new-dropdown"><div id="dropdown-toggle-btn-11" data-testid="base-dropdown-toggle" class="gl-new-dropdown-custom-toggle"><button aria-label="Merge requests 164" class="user-bar-button gl-block gl-grow gl-rounded-base gl-border-none gl-py-3 gl-text-center gl-text-sm gl-leading-1 hover:gl-no-underline gl-w-full" data-testid="merge-requests-shortcut-button" data-track-action="click_dropdown" data-track-label="merge_requests_menu" data-track-property="nav_core_menu"><svg data-testid="merge-request-icon" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#merge-request"></use></svg> <span aria-hidden="true" class="gl-ml-1">99+</span></button></div> <div id="base-dropdown-15" data-testid="base-dropdown-menu" class="gl-new-dropdown-panel !gl-w-31"><div class="gl-new-dropdown-inner">  <ul id="disclosure-12" aria-labelledby="dropdown-toggle-btn-11" data-testid="disclosure-content" tabindex="-1" class="gl-new-dropdown-contents"><li><div id="gl-disclosure-dropdown-group-16" aria-hidden="true" class="gl-py-2 gl-pl-4 gl-text-sm gl-font-bold gl-text-strong">Merge requests</div> <ul aria-labelledby="gl-disclosure-dropdown-group-16" class="gl-mb-0 gl-list-none gl-pl-0"> <li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-action="click_link" data-track-label="merge_requests_assigned" data-track-property="nav_core_menu" href="/dashboard/merge_requests?assignee_username=root" target="_self" class="gl-new-dropdown-item-content dashboard-shortcuts-merge_requests"><span class="gl-new-dropdown-item-text-wrapper"><span class="gl-flex gl-items-center gl-justify-between">
+      Assigned
+      <span class="badge gl-badge badge-neutral badge-pill"><!----> <span class="gl-badge-content">7</span></span></span></span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-action="click_link" data-track-label="merge_requests_to_review" data-track-property="nav_core_menu" href="/dashboard/merge_requests?reviewer_username=root" target="_self" class="gl-new-dropdown-item-content dashboard-shortcuts-review_requests"><span class="gl-new-dropdown-item-text-wrapper"><span class="gl-flex gl-items-center gl-justify-between">
+      Review requests
+      <span class="badge gl-badge badge-neutral badge-pill"><!----> <span class="gl-badge-content">157</span></span></span></span></a></li></ul></li></ul> </div></div></div> <a aria-label="To-Do list 0" href="/dashboard/todos" class="user-bar-button gl-block gl-grow gl-rounded-base gl-border-none gl-py-3 gl-text-center gl-text-sm gl-leading-1 hover:gl-no-underline shortcuts-todos js-todos-count gl-basis-1/3" data-testid="todos-shortcut-button" data-track-action="click_link" data-track-label="todos_link" data-track-property="nav_core_menu"><svg data-testid="todo-done-icon" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#todo-done"></use></svg> <!----></a></div> <div class="gl-grow"><button id="super-sidebar-search" data-testid="super-sidebar-search-button" type="button" class="btn user-bar-button gl-block gl-w-full gl-rounded-base gl-border-none gl-bg-gray-10 gl-py-3 gl-leading-1 gl-text-gray-900 btn-default btn-md gl-button"><!----> <!---->  <span class="gl-button-text"><svg data-testid="search-icon" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#search"></use></svg>
+      Search or go to…
+    </span></button> <!----></div></div> <!----> <div class="contextual-nav gl-flex gl-grow gl-flex-col gl-overflow-hidden"><div id="super-sidebar-context-header" class="super-sidebar-context-header gl-m-0 gl-px-4 gl-py-3 gl-font-bold gl-leading-reset">
+        Your work
+      </div> <div class="gl-scroll-scrim gl-overflow-auto gl-grow" data-testid="nav-container"><div class="top-scrim-wrapper"><div class="top-scrim"></div></div> <div></div> <div class="gl-relative gl-p-2"><!----> <!----> <!----> <ul aria-labelledby="super-sidebar-context-header" data-testid="non-static-items-section" class="gl-mb-0 gl-list-none gl-p-0"><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/projects" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="projects_menu" data-track-property="nav_panel_your_work" data-qa-submenu-item="Projects"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="project-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#project"></use></svg></div> <div class="gl-grow gl-text-gray-900">
+      Projects
+      <!----></div>  <!----></a> <!----></li><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/groups" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="groups_menu" data-track-property="nav_panel_your_work" data-qa-submenu-item="Groups"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="group-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#group"></use></svg></div> <div class="gl-grow gl-text-gray-900">
+      Groups
+      <!----></div>  <!----></a> <!----></li><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/issues?assignee_username=root" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="issues_menu" data-track-property="nav_panel_your_work" data-qa-submenu-item="Issues"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="issues-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#issues"></use></svg></div> <div class="gl-grow gl-text-gray-900">
+      Issues
+      <!----></div>  <span class="gl-flex gl-min-w-6 gl-items-start gl-justify-end"><span class="badge gl-badge badge-neutral badge-pill"><!----> <span class="gl-badge-content">
+        84
+      </span></span></span></a> <!----></li><li><!----> <button id="menu-section-button-merge-requests" data-testid="menu-section-button" data-qa-section-name="Merge requests" aria-controls="merge-requests" aria-expanded="true" data-qa-menu-item="Merge requests" class="super-sidebar-nav-item gl-relative gl-mb-2 gl-flex gl-min-h-7 gl-w-full gl-appearance-none gl-items-center gl-gap-3 gl-rounded-base gl-border-0 gl-bg-transparent gl-px-3 gl-py-2 gl-text-left !gl-text-default !gl-no-underline focus:gl-focus"><span aria-hidden="true" class="gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-bg-transparent" style="width: 3px; border-radius: 3px; margin-right: 1px;"></span> <span class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="merge-request-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#merge-request"></use></svg></span> <span class="gl-truncate-end gl-grow gl-text-gray-900">
+      Merge requests
+    </span> <span class="gl-text-right gl-text-gray-400"><svg data-testid="chevron-down-icon" role="img" aria-hidden="true" class="super-sidebar-mix-blend-mode gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#chevron-down"></use></svg></span></button> <!----> <div id="merge-requests" class="gl-m-0 gl-list-none gl-p-0 gl-duration-medium gl-ease-ease collapse show" data-testid="menu-section" data-qa-section-name="Merge requests"><ul aria-label="Merge requests" class="gl-m-0 gl-list-none gl-p-0"><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/merge_requests?assignee_username=root" aria-current="page" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus super-sidebar-nav-item-current gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="merge_requests_assigned" data-track-property="nav_panel_your_work" data-qa-submenu-item="Assigned"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-10" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><!----></div> <div class="gl-grow gl-text-gray-900">
+      Assigned
+      <!----></div>  <span class="gl-flex gl-min-w-6 gl-items-start gl-justify-end"><span class="badge gl-badge badge-neutral badge-pill"><!----> <span class="gl-badge-content">
+        7
+      </span></span></span></a> <!----></li><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/merge_requests?reviewer_username=root" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="merge_requests_to_review" data-track-property="nav_panel_your_work" data-qa-submenu-item="Review requests"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><!----></div> <div class="gl-grow gl-text-gray-900">
+      Review requests
+      <!----></div>  <span class="gl-flex gl-min-w-6 gl-items-start gl-justify-end"><span class="badge gl-badge badge-neutral badge-pill"><!----> <span class="gl-badge-content">
+        157
+      </span></span></span></a> <!----></li></ul></div></li><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/todos" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="todos_menu" data-track-property="nav_panel_your_work" data-qa-submenu-item="To-Do List"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="todo-done-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#todo-done"></use></svg></div> <div class="gl-grow gl-text-gray-900">
+      To-Do List
+      <!----></div>  <!----></a> <!----></li><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/milestones" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="milestones_menu" data-track-property="nav_panel_your_work" data-qa-submenu-item="Milestones"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="milestone-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#milestone"></use></svg></div> <div class="gl-grow gl-text-gray-900">
+      Milestones
+      <!----></div>  <!----></a> <!----></li><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/snippets" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="snippets_menu" data-track-property="nav_panel_your_work" data-qa-submenu-item="Snippets"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="snippet-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#snippet"></use></svg></div> <div class="gl-grow gl-text-gray-900">
+      Snippets
+      <!----></div>  <!----></a> <!----></li><li data-testid="nav-item" class="show-on-focus-or-hover--context hide-on-focus-or-hover--context transition-opacity-on-hover--context gl-relative"><a href="/dashboard/activity" class="super-sidebar-nav-item show-on-focus-or-hover--control hide-on-focus-or-hover--control gl-relative gl-mb-1 gl-flex gl-min-h-7 gl-items-center gl-gap-3 gl-py-2 !gl-text-default !gl-no-underline focus:gl-focus gl-px-3 gl-rounded-base" data-testid="nav-item-link" data-track-action="click_menu_item" data-track-label="activity_menu" data-track-property="nav_panel_your_work" data-qa-submenu-item="Activity"><div aria-hidden="true" data-testid="active-indicator" class="active-indicator gl-absolute gl-bottom-2 gl-left-2 gl-top-2 gl-transition-all gl-duration-slow gl-opacity-0" style="width: 3px; border-radius: 3px; margin-right: 1px;"></div> <div class="gl-flex gl-w-6 gl-shrink-0"><svg data-testid="history-icon" role="img" aria-hidden="true" class="super-sidebar-nav-item-icon gl-m-auto gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#history"></use></svg></div> <div class="gl-grow gl-text-gray-900">
+      Activity
+      <!----></div>  <!----></a> <!----></li></ul></div> <div id="sidebar-portal-mount"></div> <div></div> <div class="bottom-scrim-wrapper"><div class="bottom-scrim"></div></div></div> <!----> <div class="gl-p-2"><div class="gl-disclosure-dropdown gl-new-dropdown"><div id="dropdown-toggle-btn-17" data-testid="base-dropdown-toggle" class="gl-new-dropdown-custom-toggle"><button data-testid="sidebar-help-button" type="button" class="btn super-sidebar-help-center-toggle btn-with-notification btn-default btn-md gl-button btn-default-tertiary"><!----> <svg data-testid="question-o-icon" role="img" aria-hidden="true" class="gl-button-icon gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#question-o"></use></svg>  <span class="gl-button-text"><span data-testid="notification-dot" class="notification-dot-info"></span>
+      Help
+    </span></button></div> <div id="base-dropdown-19" data-testid="base-dropdown-menu" class="gl-new-dropdown-panel !gl-w-31"><div class="gl-new-dropdown-inner">  <ul id="disclosure-18" aria-labelledby="dropdown-toggle-btn-17" data-testid="disclosure-content" tabindex="-1" class="gl-new-dropdown-contents"> <!----> <li><!----> <ul class="gl-mb-0 gl-list-none gl-pl-0"><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_help_menu" data-track-action="click_link" data-track-label="help" href="/help" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Help
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_help_menu" data-track-action="click_link" data-track-label="support" href="https://about.gitlab.com/get-help/" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Support
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_help_menu" data-track-action="click_link" data-track-label="gitlab_documentation" href="/help/docs" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          GitLab documentation
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_help_menu" data-track-action="click_link" data-track-label="compare_gitlab_plans" href="https://about.gitlab.com/pricing" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Compare GitLab plans
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_help_menu" data-track-action="click_link" data-track-label="community_forum" href="https://forum.gitlab.com" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Community forum
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_help_menu" data-track-action="click_link" data-track-label="contribute_to_gitlab" href="/help#contribute-to-gitlab" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Contribute to GitLab
+        </span></a></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><a tabindex="-1" data-track-property="nav_help_menu" data-track-action="click_link" data-track-label="submit_feedback" href="https://about.gitlab.com/submit-feedback" target="_self" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper">
+          Provide feedback
+        </span></a></li></ul></li> <li class="gl-border-t gl-border-t-dropdown gl-pt-2 gl-mt-2"><!----> <ul class="gl-mb-0 gl-list-none gl-pl-0"><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><button tabindex="-1" data-track-action="click_button" data-track-label="keyboard_shortcuts_help" data-track-property="nav_help_menu" type="button" class="gl-new-dropdown-item-content js-shortcuts-modal-trigger"><span class="gl-new-dropdown-item-text-wrapper"><span class="-gl-my-1 gl-flex gl-items-center gl-justify-between">
+        Keyboard shortcuts
+        <kbd class="flat">?</kbd></span></span></button></li><li tabindex="0" data-testid="disclosure-dropdown-item" class="gl-new-dropdown-item"><button tabindex="-1" data-track-action="click_button" data-track-label="whats_new" data-track-property="nav_help_menu" type="button" class="gl-new-dropdown-item-content"><span class="gl-new-dropdown-item-text-wrapper"><span class="-gl-my-1 gl-flex gl-items-center gl-justify-between">
+        What's new
+        <span class="badge gl-badge badge-info badge-pill"><!----> <span class="gl-badge-content">4</span></span></span></span></button></li></ul></li></ul> </div></div></div> <a data-testid="sidebar-admin-link" href="http://the-agent-company.com:8929/admin" class="btn gl-fixed gl-right-0 gl-mr-3 gl-mt-2 btn-default btn-sm gl-button"><!----> <svg data-testid="admin-icon" role="img" aria-hidden="true" class="gl-button-icon gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#admin"></use></svg>  <span class="gl-button-text">
+          Admin
+        </span></a> <div></div></div></div></nav> <a href="/dashboard/milestones" class="gl-hidden dashboard-shortcuts-milestones">
+    Milestones
+  </a><a href="/dashboard/snippets" class="gl-hidden dashboard-shortcuts-snippets">
+    Snippets
+  </a><a href="/dashboard/activity" class="gl-hidden dashboard-shortcuts-activity">
+    Activity
+  </a><a href="/dashboard/groups" class="gl-hidden dashboard-shortcuts-groups">
+    Groups
+  </a><a href="/dashboard/projects" class="gl-hidden dashboard-shortcuts-projects">
+    Projects
+  </a> <!----> <!----></div>
+
+<div class="content-wrapper">
+
+<div class="broadcast-wrapper">
+
+
+
+
+</div>
+<div class="alert-wrapper alert-wrapper-top-space gl-flex gl-flex-col gl-gap-3 container-fluid container-limited">
+
+
+
+
+
+
+
+
+<div class="gl-alert js-registration-enabled-callout gl-alert-warning gl-alert-has-title" data-dismiss-endpoint="/-/users/callouts" data-feature-id="registration_enabled_callout" role="alert">
+<div class="gl-alert-icon-container">
+<svg class="s16 gl-alert-icon" data-testid="warning-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#warning"></use></svg>
+</div>
+<button data-testid="close-registration-enabled-callout" class="gl-button btn btn-icon btn-sm btn-default btn-default-tertiary js-close gl-dismiss-btn " aria-label="Dismiss" type="button"><svg class="s16 gl-icon gl-button-icon " data-testid="close-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#close"></use></svg>
+
+</button>
+<div class="gl-alert-content" role="alert">
+<h2 class="gl-alert-title">
+Check your sign-up restrictions
+</h2>
+<div class="gl-alert-body">
+Your GitLab instance allows anyone to register for an account, which is a security risk on public-facing GitLab instances. You should deactivate new sign ups if public users aren't expected to register for an account.
+
+</div>
+<div class="gl-alert-actions">
+<a class="gl-button btn btn-md btn-confirm " href="/admin/application_settings/general#js-signup-settings"><span class="gl-button-text">
+Deactivate
+
+</span>
+
+</a><button class="gl-button btn btn-md btn-default js-close gl-ml-3" type="button"><span class="gl-button-text">
+Acknowledge
+
+</span>
+
+</button>
+</div>
+</div>
+</div>
+
+
+
+
+
+<div class="gl-alert service-ping-consent-message gl-alert-info" role="alert">
+<div class="gl-alert-icon-container">
+<svg class="s16 gl-alert-icon gl-alert-icon-no-title" data-testid="information-o-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#information-o"></use></svg>
+</div>
+<button class="gl-button btn btn-icon btn-sm btn-default btn-default-tertiary js-close gl-dismiss-btn " aria-label="Dismiss" type="button"><svg class="s16 gl-icon gl-button-icon " data-testid="close-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#close"></use></svg>
+
+</button>
+<div class="gl-alert-content" role="alert">
+<div class="gl-alert-body">
+To help improve GitLab, we would like to periodically <a class="gl-link" href="/help/administration/settings/usage_statistics.md">collect usage information</a>.
+This can be changed at any time in <a class="gl-link" href="/admin/application_settings/metrics_and_profiling#js-usage-settings">your settings</a>.
+
+</div>
+<div class="gl-alert-actions">
+<a class="gl-button btn btn-md btn-confirm alert-link" rel="nofollow" data-method="put" href="/admin/application_settings?application_setting%5Busage_ping_enabled%5D=1&amp;application_setting%5Bversion_check_enabled%5D=1"><span class="gl-button-text">
+Send service data
+
+</span>
+
+</a><a class="gl-button btn btn-md btn-default alert-link gl-ml-3" rel="nofollow" data-method="put" href="/admin/application_settings?application_setting%5Busage_ping_enabled%5D=0&amp;application_setting%5Bversion_check_enabled%5D=0"><span class="gl-button-text">
+Don't send service data
+
+</span>
+
+</a>
+</div>
+</div>
+</div>
+
+
+
+
+
+
+
+
+</div>
+<div class="top-bar-fixed container-fluid" data-testid="top-bar">
+<div class="top-bar-container gl-flex gl-items-center gl-gap-2">
+<div class="gl-grow gl-basis-0 gl-flex gl-items-center gl-justify-start">
+<button aria-controls="super-sidebar" aria-expanded="false" aria-label="Primary navigation sidebar" type="button" class="btn btn-default btn-md gl-button btn-default-tertiary btn-icon gl-button btn btn-icon btn-md btn-default btn-default-tertiary js-super-sidebar-toggle-expand super-sidebar-toggle -gl-ml-3"><!----> <svg data-testid="sidebar-icon" role="img" aria-hidden="true" class="gl-button-icon gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#sidebar"></use></svg>  <!----></button>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Your work","item":"http://the-agent-company.com:8929/"},{"@type":"ListItem","position":2,"name":"Merge requests","item":"http://the-agent-company.com:8929/dashboard/merge_requests?assignee_username=root"}]}
+
+
+</script>
+<div data-testid="breadcrumb-links" id="js-vue-page-breadcrumbs-wrapper">
+<nav aria-label="Breadcrumb" class="gl-breadcrumbs" style=""><ol class="breadcrumb gl-breadcrumb-list"><!----> <li class="gl-breadcrumb-item"><a href="/" target="_self" class=""><!----><span>Your work</span></a></li><li class="gl-breadcrumb-item"><a aria-current="page" href="/dashboard/merge_requests?assignee_username=root" target="_self" class=""><!----><span>Merge requests</span></a></li></ol></nav>
+<div id="js-injected-page-breadcrumbs"></div>
+</div>
+
+
+</div>
+<div class="gl-flex-none gl-flex gl-items-center gl-justify-center">
+<!---->
+
+</div>
+<div class="gl-grow gl-basis-0 gl-flex gl-items-center gl-justify-end">
+<div id="js-work-item-feedback"></div>
+
+
+</div>
+</div>
+</div>
+
+<div class="container-fluid container-limited ">
+<main class="content" id="content-body">
+<div class="flash-container flash-container-page sticky" data-testid="flash-container">
+<!---->
+</div>
+
+
+
+
+
+<div class="gl-flex gl-flex-wrap gl-items-center gl-justify-between gl-gap-y-2 gl-gap-x-5 gl-my-5">
+<h1 class="gl-heading-1 !gl-m-0" data-testid="page-heading">
+Merge requests
+</h1>
+<div class="gl-flex gl-items-center gl-gap-3" data-testid="page-heading-actions">
+<div class="dropdown b-dropdown gl-dropdown !gl-flex !gl-w-auto btn-group" data-testid="new-resource-dropdown" id="__BVID__153"><button type="button" class="btn btn-confirm btn-md !gl-m-0 !gl-w-auto !gl-grow-0 gl-button split-content-button" id="__BVID__153__BV_button_"><!----> <!----> <span class="gl-dropdown-button-text">Select project to create merge request</span> <!----></button><button aria-haspopup="menu" aria-expanded="false" type="button" class="btn dropdown-toggle btn-confirm btn-md !gl-m-0 !gl-w-auto !gl-grow-0 gl-button gl-dropdown-toggle dropdown-toggle-split" id="__BVID__153__BV_toggle_"><span class="sr-only">Toggle project select</span></button><ul role="menu" tabindex="-1" class="dropdown-menu dropdown-menu-right" aria-labelledby="__BVID__153__BV_button_"><div class="gl-dropdown-inner"><!----> <!----> <div class="gl-dropdown-contents"><!----> <div class="gl-search-box-by-type"><svg data-testid="search-icon" role="img" aria-hidden="true" class="gl-search-box-by-type-search-icon gl-icon s16 gl-fill-icon-subtle"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#search"></use></svg> <input type="search" placeholder="Search" class="gl-form-input form-control gl-search-box-by-type-input" aria-label="Search" id="__BVID__157"> <!----></div>  <!----></div> <!----></div></ul></div>
+
+
+</div>
+</div>
+<div class="">
+<div class="top-area">
+<ul class="issues-state-filters gl-border-b-0 gl-grow nav gl-tabs-nav" role="tablist"><li role="presentation" class="nav-item"><a id="state-opened" title="Filter by merge requests that are currently open." data-state="opened" role="tab" class="nav-link gl-tab-nav-item active gl-tab-nav-item-active" href="/dashboard/merge_requests?assignee_username=root&amp;state=opened"><span>Open</span> <span class="gl-badge badge badge-pill badge-muted gl-tab-counter-badge gl-hidden sm:gl-inline-flex"><span class="gl-badge-content">7</span></span>
+</a></li><li role="presentation" class="nav-item"><a id="state-merged" title="Filter by merge requests that are currently merged." data-state="merged" role="tab" class="nav-link gl-tab-nav-item" href="/dashboard/merge_requests?assignee_username=root&amp;state=merged"><span>Merged</span> <span class="gl-badge badge badge-pill badge-muted gl-tab-counter-badge gl-hidden sm:gl-inline-flex"><span class="gl-badge-content">63</span></span>
+</a></li><li role="presentation" class="nav-item"><a id="state-closed" title="Filter by merge requests that are currently closed and unmerged." data-state="closed" role="tab" class="nav-link gl-tab-nav-item" href="/dashboard/merge_requests?assignee_username=root&amp;state=closed"><span>Closed</span> <span class="gl-badge badge badge-pill badge-muted gl-tab-counter-badge gl-hidden sm:gl-inline-flex"><span class="gl-badge-content">11</span></span>
+</a></li><li role="presentation" class="nav-item"><a id="state-all" title="Show all merge requests." data-state="all" role="tab" class="nav-link gl-tab-nav-item" href="/dashboard/merge_requests?assignee_username=root&amp;state=all"><span>All</span> <span class="gl-badge badge badge-pill badge-muted gl-tab-counter-badge gl-hidden sm:gl-inline-flex"><span class="gl-badge-content">81</span></span>
+</a></li>
+</ul>
+</div>
+<div class="issues-filters">
+<div class="issues-details-filters filtered-search-block gl-flex gl-flex-col lg:gl-flex-row gl-gap-3 row-content-block second-block ">
+<div class="gl-flex gl-flex-col md:gl-flex-row gl-grow gl-w-full">
+<form class="filter-form js-filter-form gl-w-full" action="/dashboard/merge_requests?assignee_username=root" accept-charset="UTF-8" method="get"><div class="issues-other-filters filtered-search-wrapper gl-flex gl-flex-col md:gl-flex-row">
+<div class="filtered-search-box">
+<div class="dropdown filtered-search-history-dropdown-wrapper"><button class="dropdown-menu-toggle gl-button btn btn-default filtered-search-history-dropdown-toggle-button" type="button" data-toggle="dropdown"><span class="dropdown-toggle-text "><span><svg class="s16" data-testid="history-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#history"></use></svg></span><span class="gl-sr-only">Recent searches</span></span><svg class="s16 dropdown-menu-toggle-icon" data-testid="chevron-down-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#chevron-down"></use></svg></button><div class="dropdown-menu dropdown-select filtered-search-history-dropdown"><div data-testid="dropdown-list-content" class="dropdown-content filtered-search-history-dropdown-content"><div><ul><li data-testid="dropdown-item"><button type="button" class="filtered-search-history-dropdown-item js-dropdown-button"><span><span class="filtered-search-history-dropdown-token js-dropdown-token"><span class="name">assignee:</span> <span class="name">=</span> <span class="value">@root</span></span></span> <span class="filtered-search-history-dropdown-search-token"></span></button></li> <li class="divider"></li> <li><button data-testid="clear-button" type="button" class="filtered-search-history-clear-button">
+        Clear recent searches
+      </button></li></ul></div>
+</div><div class="dropdown-loading"><div class="gl-spinner-container gl-mt-7" role="status"><span aria-hidden="" class="gl-spinner gl-spinner-md gl-spinner-dark !gl-align-text-bottom"></span><span class="gl-sr-only !gl-absolute">Loading</span>
+</div></div></div></div><div class="filtered-search-box-input-container droplab-dropdown">
+<div class="scroll-container">
+<ul class="tokens-container list-unstyled">
+<li class="js-visual-token filtered-search-token search-token-assignee">
+      <div class="selectable" role="button">
+        <div class=" name">assignee</div>
+        <div class="operator">=</div>
+        <div class="value-container" data-original-value="@root">
+          <div class=" value">
+          <img class="avatar s16 !gl-mr-2" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=80&amp;d=identicon" alt="">
+          Administrator
+        </div>
+          <div class="remove-token" role="button" aria-label="Remove search filter">
+            <svg class="s16 close-icon"><use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#close"></use></svg>
+          </div>
+        </div>
+      </div>
+    </li><li class="input-token">
+<input aria-label="Add search filter" autocomplete="off" class="form-control filtered-search" data-labels-endpoint="/dashboard/labels" data-milestones-endpoint="/dashboard/milestones" id="filtered-search-merge_requests" placeholder="" data-dropdown-trigger="#js-dropdown-hint">
+</li>
+</ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-hint" data-dropdown-active="true" style="left: 180px;">
+<ul class="filter-dropdown" data-dropdown="" data-dynamic=""><li class="filter-dropdown-item" data-action="" data-hint="author" data-tag=":@author" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#pencil"></use>
+</svg>
+Author
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="assignee" data-tag=":@assignee" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#user"></use>
+</svg>
+Assignee
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="reviewer" data-tag=":@reviewer" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#user"></use>
+</svg>
+Reviewer
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="merge-user" data-tag=":@merge_user" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#merge"></use>
+</svg>
+Merged-By
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="approved-by" data-tag=":@approved-by" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#approval"></use>
+</svg>
+Approved-By
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="milestone" data-tag=":%milestone" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#milestone"></use>
+</svg>
+Milestone
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="label" data-tag=":~label" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#labels"></use>
+</svg>
+Label
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="my-reaction" data-tag=":emoji" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#thumb-up"></use>
+</svg>
+My-Reaction
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="" data-hint="draft" data-tag=":Yes or No" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#pencil-square"></use>
+</svg>
+Draft
+
+</span>
+
+</button></li><li class="filter-dropdown-item" data-action="submit" data-hint="search" data-tag="search" style="display: block;">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex">
+<svg>
+<use xlink:href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#search"></use>
+</svg>
+Search for this text
+
+</span>
+
+</button></li></ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-operator">
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item" data-value="{{ title }}">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex gl-justify-between gl-w-full">
+{{ title }}
+<span class="gl-text-subtle">
+{{ help }}
+</span>
+
+</span>
+
+</button></li>
+</ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-author">
+<ul data-dropdown="">
+<li class="filter-dropdown-item js-current-user">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="Administrator's avatar" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=128&amp;d=identicon" class="avatar s32" title="Administrator">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+Administrator
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@root
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="{{name}}'s avatar" src="{{avatar_url}}" class="avatar s32 js-lazy-loaded" title="{{name}}" loading="lazy" data-testid="js-lazy-loaded-content">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+{{name}}
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@{{username}}
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-assignee">
+<ul data-dropdown="">
+<li class="filter-dropdown-item" data-value="None">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+None
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Any">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Any
+
+</span>
+
+</button></li>
+<li class="divider droplab-item-ignore"></li>
+<li class="filter-dropdown-item js-current-user">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="Administrator's avatar" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=128&amp;d=identicon" class="avatar s32" title="Administrator">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+Administrator
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@root
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="{{name}}'s avatar" src="{{avatar_url}}" class="avatar s32 js-lazy-loaded" title="{{name}}" loading="lazy" data-testid="js-lazy-loaded-content">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+{{name}}
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@{{username}}
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-reviewer">
+<ul data-dropdown="">
+<li class="filter-dropdown-item" data-value="None">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+None
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Any">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Any
+
+</span>
+
+</button></li>
+<li class="divider droplab-item-ignore"></li>
+<li class="filter-dropdown-item js-current-user">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="Administrator's avatar" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=128&amp;d=identicon" class="avatar s32" title="Administrator">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+Administrator
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@root
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="{{name}}'s avatar" src="{{avatar_url}}" class="avatar s32 js-lazy-loaded" title="{{name}}" loading="lazy" data-testid="js-lazy-loaded-content">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+{{name}}
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@{{username}}
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+</div>
+
+<div class="filtered-search-input-dropdown-menu dropdown-menu" id="js-dropdown-approved-by">
+<ul data-dropdown="">
+<li class="filter-dropdown-item" data-value="None">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+None
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Any">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Any
+
+</span>
+
+</button></li>
+<li class="divider droplab-item-ignore"></li>
+<li class="filter-dropdown-item js-current-user">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="Administrator's avatar" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=128&amp;d=identicon" class="avatar s32" title="Administrator">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+Administrator
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@root
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="{{name}}'s avatar" src="{{avatar_url}}" class="avatar s32 js-lazy-loaded" title="{{name}}" loading="lazy" data-testid="js-lazy-loaded-content">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+{{name}}
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@{{username}}
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+</div>
+
+<div class="filtered-search-input-dropdown-menu dropdown-menu" id="js-dropdown-merge-user">
+<ul data-dropdown="">
+<li class="filter-dropdown-item js-current-user">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="Administrator's avatar" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=128&amp;d=identicon" class="avatar s32" title="Administrator">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+Administrator
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@root
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-flex gl-items-center">
+<div class="gl-shrink-0">
+<img alt="{{name}}'s avatar" src="{{avatar_url}}" class="avatar s32 js-lazy-loaded" title="{{name}}" loading="lazy" data-testid="js-lazy-loaded-content">
+</div>
+<div class="gl-flex gl-flex-col">
+<span class="gl-font-bold gl-whitespace-normal gl-break-words">
+{{name}}
+</span>
+<span class="js-dropdown-light-content gl-text-subtle gl-whitespace-normal gl-break-all">
+@{{username}}
+</span>
+</div>
+
+</span>
+
+</button></li>
+
+</ul>
+</div>
+
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-milestone">
+<ul data-dropdown="">
+<li class="filter-dropdown-item" data-value="None">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+None
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Any">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Any
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Upcoming">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Upcoming
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Started">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Started
+
+</span>
+
+</button></li>
+<li class="divider droplab-item-ignore"></li>
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button class="gl-button btn btn-md btn-link js-data-value" type="button"><span class="gl-button-text">
+{{title}}
+
+</span>
+
+</button></li>
+</ul>
+</div>
+
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-label">
+<ul data-dropdown="">
+<li class="filter-dropdown-item" data-value="None">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+None
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Any">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Any
+
+</span>
+
+</button></li>
+<li class="divider droplab-item-ignore"></li>
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex gl-gap-3">
+<span class="dropdown-label-box gl-m-0" style="background: {{color}}"></span>
+<span class="label-title js-data-value">
+{{title}}
+</span>
+
+</span>
+
+</button></li>
+</ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-my-reaction">
+<ul data-dropdown="">
+<li class="filter-dropdown-item" data-value="None">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+None
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-value="Any">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Any
+
+</span>
+
+</button></li>
+<li class="divider droplab-item-ignore"></li>
+</ul>
+<ul class="filter-dropdown" data-dropdown="" data-dynamic="">
+<li class="filter-dropdown-item">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text gl-inline-flex gl-gap-1">
+<gl-emoji data-name="grey_question" data-unicode-version="6.0" title="white question mark ornament">❔</gl-emoji>
+<span class="js-data-value">
+{{name}}
+</span>
+
+</span>
+
+</button></li>
+</ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-wip">
+<ul class="filter-dropdown" data-dropdown="">
+<li class="filter-dropdown-item" data-capitalize="" data-value="yes">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Yes
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-capitalize="" data-value="no">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+No
+
+</span>
+
+</button></li>
+</ul>
+</div>
+<div class="gl-filtered-search-suggestion-list dropdown-menu" id="js-dropdown-confidential">
+<ul class="filter-dropdown" data-dropdown="">
+<li class="filter-dropdown-item" data-capitalize="" data-value="yes">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+Yes
+
+</span>
+
+</button></li>
+<li class="filter-dropdown-item" data-capitalize="" data-value="no">
+<button type="button" class="gl-button btn btn-md btn-link "><span class="gl-button-text">
+No
+
+</span>
+
+</button></li>
+</ul>
+</div>
+
+
+</div>
+<button class="gl-button btn btn-icon btn-sm btn-default btn-default-tertiary clear-search gl-self-center gl-mr-1 has-tooltip" title="Clear" type="button"><svg class="s16 gl-icon gl-button-icon clear-search-icon" data-testid="clear-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#clear"></use></svg>
+
+</button>
+</div>
+</div>
+</form></div>
+<div class="filter-dropdown-container gl-flex gl-flex-col md:gl-flex-row gl-items-start">
+<div>
+<div class="btn-group" role="group">
+<div class="gl-new-dropdown gl-new-dropdown js-redirect-listbox btn-group"><button id="dropdown-toggle-btn-35" data-testid="base-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" aria-controls="base-dropdown-37" aria-labelledby="dropdown-toggle-btn-35" type="button" class="btn btn-default btn-md gl-button gl-new-dropdown-toggle"><!----> <!---->  <span class="gl-button-text"><span class="gl-new-dropdown-button-text">
+        Created date
+      </span> <svg data-testid="chevron-down-icon" role="img" aria-hidden="true" class="gl-button-icon gl-new-dropdown-chevron gl-icon s16 gl-fill-current"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#chevron-down"></use></svg></span></button> <div id="base-dropdown-37" data-testid="base-dropdown-menu" class="gl-new-dropdown-panel !gl-w-31"><div class="gl-new-dropdown-inner"> <!----> <!----> <ul id="listbox-36" aria-labelledby="dropdown-toggle-btn-35" role="listbox" tabindex="0" class="gl-new-dropdown-contents gl-new-dropdown-contents-with-scrim-overlay top-scrim-visible bottom-scrim-visible gl-new-dropdown-contents"><li aria-hidden="true" data-testid="top-scrim" class="top-scrim-wrapper"><div class="top-scrim top-scrim-light"></div></li> <li aria-hidden="true"></li> <li role="option" tabindex="-1" class="gl-new-dropdown-item" data-testid="listbox-item-priority"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-invisible gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Priority
+          </span></span></li><li role="option" tabindex="-1" aria-selected="true" class="gl-new-dropdown-item" data-testid="listbox-item-created_date"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Created date
+          </span></span></li><li role="option" tabindex="-1" class="gl-new-dropdown-item" data-testid="listbox-item-closed_at"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-invisible gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Closed date
+          </span></span></li><li role="option" tabindex="-1" class="gl-new-dropdown-item" data-testid="listbox-item-updated_desc"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-invisible gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Updated date
+          </span></span></li><li role="option" tabindex="-1" class="gl-new-dropdown-item" data-testid="listbox-item-milestone"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-invisible gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Milestone due date
+          </span></span></li><li role="option" tabindex="-1" class="gl-new-dropdown-item" data-testid="listbox-item-popularity"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-invisible gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Popularity
+          </span></span></li><li role="option" tabindex="-1" class="gl-new-dropdown-item" data-testid="listbox-item-label_priority"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-invisible gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Label priority
+          </span></span></li><li role="option" tabindex="-1" class="gl-new-dropdown-item" data-testid="listbox-item-title_asc"><span class="gl-new-dropdown-item-content"><svg data-testid="dropdown-item-checkbox" role="img" aria-hidden="true" class="gl-icon s16 gl-fill-current gl-new-dropdown-item-check-icon gl-invisible gl-mt-3 gl-self-start"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#mobile-issue-close"></use></svg> <span class="gl-new-dropdown-item-text-wrapper">
+            Title
+          </span></span></li> <!----> <!----> <li aria-hidden="true"></li> <li aria-hidden="true" data-testid="bottom-scrim" class="bottom-scrim-wrapper"><div class="bottom-scrim"></div></li></ul> <!----> </div></div></div>
+<a class="gl-button btn btn-icon btn-md btn-default has-tooltip reverse-sort-btn rspec-reverse-sort" title="Sort direction" href="/dashboard/merge_requests?assignee_username=root&amp;sort=created_asc"><svg class="s16 gl-icon gl-button-icon " data-testid="sort-highest-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#sort-highest"></use></svg>
+
+</a>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+</div>
+<ul class="content-list mr-list issuable-list">
+<li class="merge-request" data-id="10090" data-labels="[]" id="merge_request_10090">
+<div class="issuable-info-container gl-flex-col md:gl-flex-row gl-gap-3">
+<div class="issuable-main-info !gl-mr-0">
+<div class="merge-request-title title">
+<span class="merge-request-title-text js-onboarding-mr-item">
+
+<a class="js-prefetch-document" href="/root/node-red/-/merge_requests/4900">Allow msg.userProperties to have number values</a>
+</span>
+<span class="task-status gl-inline-block gl-text-sm">
+&nbsp;
+2 of 6 checklist items completed
+</span>
+</div>
+<div class="issuable-info">
+<span class="issuable-reference gl-inline-block">
+root/node-red!4900
+</span>
+<span class="gl-hidden sm:gl-inline">
+<span class="issuable-authored gl-inline-block !gl-text-gray-500">
+·
+created <time class="js-timeago" title="October 1, 2024 at 3:33:31 PM UTC" datetime="2024-10-01T15:33:31Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time> by <a class="author-link !gl-text-gray-500 js-user-link" data-user-id="1" data-username="root" data-name="Administrator" href="/root"><span class="author">Administrator</span></a>
+</span>
+</span>
+</div>
+</div>
+<div class="gl-text-sm gl-flex gl-shrink-0 gl-self-start gl-gap-1 gl-flex-row gl-justify-between gl-w-full md:gl-w-auto md:!gl-flex-col">
+<ul class="controls gl-gap-3 gl-pl-0 gl-self-end">
+<li class="gl-flex !gl-mr-0">
+<a class="author-link has-tooltip" title="Assigned to Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-block has-tooltip !gl-mr-0" data-testid="issuable-comments" title="Comments">
+<svg class="s16 gl-align-middle" data-testid="comments-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#comments"></use></svg>
+5
+</li>
+
+
+
+
+</ul>
+<div class="issuable-updated-at gl-self-end gl-hidden sm:gl-inline-block gl-text-gray-500">
+<span>
+updated <time class="js-timeago merge_request_updated_ago" title="October 5, 2024 at 6:51:59 PM UTC" datetime="2024-10-05T18:51:59Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time>
+</span>
+</div>
+</div>
+</div>
+</li>
+<li class="merge-request" data-id="22110" data-labels="[418]" id="merge_request_22110">
+<div class="issuable-info-container gl-flex-col md:gl-flex-row gl-gap-3">
+<div class="issuable-main-info !gl-mr-0">
+<div class="merge-request-title title">
+<span class="merge-request-title-text js-onboarding-mr-item">
+
+<a class="js-prefetch-document" href="/root/opensearch/-/merge_requests/15289">[Star Tree] [Search] Support for metric aggregations with/without term query</a>
+</span>
+<span class="task-status gl-inline-block gl-text-sm">
+&nbsp;
+0 of 8 checklist items completed
+</span>
+</div>
+<div class="issuable-info">
+<span class="issuable-reference gl-inline-block">
+root/opensearch!15289
+</span>
+<span class="gl-hidden sm:gl-inline">
+<span class="issuable-authored gl-inline-block !gl-text-gray-500">
+·
+created <time class="js-timeago" title="August 19, 2024 at 3:09:02 AM UTC" datetime="2024-08-19T03:09:02Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time> by <a class="author-link !gl-text-gray-500 js-user-link" data-user-id="1" data-username="root" data-name="Administrator" href="/root"><span class="author">Administrator</span></a>
+</span>
+<div aria-label="Labels" class="gl-mt-2 gl-flex gl-flex-wrap gl-gap-2" role="group">
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=v2.18.0"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #F7890F">v2.18.0</span></a></span>
+</div>
+</span>
+</div>
+</div>
+<div class="gl-text-sm gl-flex gl-shrink-0 gl-self-start gl-gap-1 gl-flex-row gl-justify-between gl-w-full md:gl-w-auto md:!gl-flex-col">
+<ul class="controls gl-gap-3 gl-pl-0 gl-self-end">
+<li class="gl-flex !gl-mr-0">
+<a class="author-link has-tooltip" title="Assigned to Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-flex issuable-reviewers !gl-mr-0">
+<a class="author-link has-tooltip" title="Review requested from Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-block has-tooltip !gl-mr-0" data-testid="issuable-comments" title="Comments">
+<svg class="s16 gl-align-middle" data-testid="comments-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#comments"></use></svg>
+140
+</li>
+
+
+
+
+</ul>
+<div class="issuable-updated-at gl-self-end gl-hidden sm:gl-inline-block gl-text-gray-500">
+<span>
+updated <time class="js-timeago merge_request_updated_ago" title="October 4, 2024 at 4:40:23 AM UTC" datetime="2024-10-04T04:40:23Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time>
+</span>
+</div>
+</div>
+</div>
+</li>
+<li class="merge-request" data-id="21931" data-labels="[311, 246, 418]" id="merge_request_21931">
+<div class="issuable-info-container gl-flex-col md:gl-flex-row gl-gap-3">
+<div class="issuable-main-info !gl-mr-0">
+<div class="merge-request-title title">
+<span class="merge-request-title-text js-onboarding-mr-item">
+
+<a class="js-prefetch-document" href="/root/opensearch/-/merge_requests/14993">Latency improvements to Multi Term Aggregations</a>
+</span>
+</div>
+<div class="issuable-info">
+<span class="issuable-reference gl-inline-block">
+root/opensearch!14993
+</span>
+<span class="gl-hidden sm:gl-inline">
+<span class="issuable-authored gl-inline-block !gl-text-gray-500">
+·
+created <time class="js-timeago" title="July 29, 2024 at 11:42:09 AM UTC" datetime="2024-07-29T11:42:09Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time> by <a class="author-link !gl-text-gray-500 js-user-link" data-user-id="1" data-username="root" data-name="Administrator" href="/root"><span class="author">Administrator</span></a>
+</span>
+<div aria-label="Labels" class="gl-mt-2 gl-flex gl-flex-wrap gl-gap-2" role="group">
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=Performance"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #006b75">Performance</span></a></span>
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=backport+2.x"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #1C1472">backport 2.x</span></a></span>
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=v2.18.0"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #F7890F">v2.18.0</span></a></span>
+</div>
+</span>
+</div>
+</div>
+<div class="gl-text-sm gl-flex gl-shrink-0 gl-self-start gl-gap-1 gl-flex-row gl-justify-between gl-w-full md:gl-w-auto md:!gl-flex-col">
+<ul class="controls gl-gap-3 gl-pl-0 gl-self-end">
+<li class="gl-flex !gl-mr-0">
+<a class="author-link has-tooltip" title="Assigned to Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-flex issuable-reviewers !gl-mr-0">
+<a class="author-link has-tooltip" title="Review requested from Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-block has-tooltip !gl-mr-0" data-testid="issuable-comments" title="Comments">
+<svg class="s16 gl-align-middle" data-testid="comments-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#comments"></use></svg>
+63
+</li>
+
+
+<li class="gl-flex !gl-mr-0"><span class="gl-badge badge badge-pill badge-success has-tooltip" data-testid="mr-appovals" title="1 approver (you've approved)"><svg class="s16 gl-icon gl-badge-icon" data-testid="approval-solid-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#approval-solid"></use></svg><span class="gl-badge-content">Approved</span></span></li>
+
+
+</ul>
+<div class="issuable-updated-at gl-self-end gl-hidden sm:gl-inline-block gl-text-gray-500">
+<span>
+updated <time class="js-timeago merge_request_updated_ago" title="October 4, 2024 at 4:39:27 AM UTC" datetime="2024-10-04T04:39:27Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time>
+</span>
+</div>
+</div>
+</div>
+</li>
+<li class="merge-request" data-id="21597" data-labels="[362]" id="merge_request_21597">
+<div class="issuable-info-container gl-flex-col md:gl-flex-row gl-gap-3">
+<div class="issuable-main-info !gl-mr-0">
+<div class="merge-request-title title">
+<span class="merge-request-title-text js-onboarding-mr-item">
+
+<a class="js-prefetch-document" href="/root/opensearch/-/merge_requests/14511">Optimize the canMatch phase on the data node</a>
+</span>
+<span class="task-status gl-inline-block gl-text-sm">
+&nbsp;
+3 of 3 checklist items completed
+</span>
+</div>
+<div class="issuable-info">
+<span class="issuable-reference gl-inline-block">
+root/opensearch!14511
+</span>
+<span class="gl-hidden sm:gl-inline">
+<span class="issuable-authored gl-inline-block !gl-text-gray-500">
+·
+created <time class="js-timeago" title="June 23, 2024 at 8:11:29 AM UTC" datetime="2024-06-23T08:11:29Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time> by <a class="author-link !gl-text-gray-500 js-user-link" data-user-id="1" data-username="root" data-name="Administrator" href="/root"><span class="author">Administrator</span></a>
+</span>
+<div aria-label="Labels" class="gl-mt-2 gl-flex gl-flex-wrap gl-gap-2" role="group">
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=stalled"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #CC7D39">stalled</span></a></span>
+</div>
+</span>
+</div>
+</div>
+<div class="gl-text-sm gl-flex gl-shrink-0 gl-self-start gl-gap-1 gl-flex-row gl-justify-between gl-w-full md:gl-w-auto md:!gl-flex-col">
+<ul class="controls gl-gap-3 gl-pl-0 gl-self-end">
+<li class="gl-flex !gl-mr-0">
+<a class="author-link has-tooltip" title="Assigned to Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-flex issuable-reviewers !gl-mr-0">
+<a class="author-link has-tooltip" title="Review requested from Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-block has-tooltip !gl-mr-0" data-testid="issuable-comments" title="Comments">
+<svg class="s16 gl-align-middle" data-testid="comments-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#comments"></use></svg>
+32
+</li>
+
+
+<li class="gl-flex !gl-mr-0"><span class="gl-badge badge badge-pill badge-success has-tooltip" data-testid="mr-appovals" title="1 approver (you've approved)"><svg class="s16 gl-icon gl-badge-icon" data-testid="approval-solid-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#approval-solid"></use></svg><span class="gl-badge-content">Approved</span></span></li>
+
+
+</ul>
+<div class="issuable-updated-at gl-self-end gl-hidden sm:gl-inline-block gl-text-gray-500">
+<span>
+updated <time class="js-timeago merge_request_updated_ago" title="October 4, 2024 at 4:37:45 AM UTC" datetime="2024-10-04T04:37:45Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time>
+</span>
+</div>
+</div>
+</div>
+</li>
+<li class="merge-request" data-id="21423" data-labels="[282, 308, 253]" id="merge_request_21423">
+<div class="issuable-info-container gl-flex-col md:gl-flex-row gl-gap-3">
+<div class="issuable-main-info !gl-mr-0">
+<div class="merge-request-title title">
+<span class="merge-request-title-text js-onboarding-mr-item">
+
+<a class="js-prefetch-document" href="/root/opensearch/-/merge_requests/14196">Demonstrate that arrays of `geo_shape` can no longer be ingested</a>
+</span>
+<span class="task-status gl-inline-block gl-text-sm">
+&nbsp;
+1 of 3 checklist items completed
+</span>
+</div>
+<div class="issuable-info">
+<span class="issuable-reference gl-inline-block">
+root/opensearch!14196
+</span>
+<span class="gl-hidden sm:gl-inline">
+<span class="issuable-authored gl-inline-block !gl-text-gray-500">
+·
+created <time class="js-timeago" title="June 11, 2024 at 8:44:41 PM UTC" datetime="2024-06-11T20:44:41Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time> by <a class="author-link !gl-text-gray-500 js-user-link" data-user-id="1" data-username="root" data-name="Administrator" href="/root"><span class="author">Administrator</span></a>
+</span>
+<div aria-label="Labels" class="gl-mt-2 gl-flex gl-flex-wrap gl-gap-2" role="group">
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=Geospatial"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #39A51F">Geospatial</span></a></span>
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=Other"><span class="gl-label-text gl-label-text-dark" data-container="body" data-html="true" style="background-color: #ededed">Other</span></a></span>
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=bug"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #d73a4a">bug</span></a></span>
+</div>
+</span>
+</div>
+</div>
+<div class="gl-text-sm gl-flex gl-shrink-0 gl-self-start gl-gap-1 gl-flex-row gl-justify-between gl-w-full md:gl-w-auto md:!gl-flex-col">
+<ul class="controls gl-gap-3 gl-pl-0 gl-self-end">
+<li class="gl-flex !gl-mr-0">
+<a class="author-link has-tooltip" title="Assigned to Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-flex issuable-reviewers !gl-mr-0">
+<a class="author-link has-tooltip" title="Review requested from Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-block has-tooltip !gl-mr-0" data-testid="issuable-comments" title="Comments">
+<svg class="s16 gl-align-middle" data-testid="comments-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#comments"></use></svg>
+16
+</li>
+
+
+
+
+</ul>
+<div class="issuable-updated-at gl-self-end gl-hidden sm:gl-inline-block gl-text-gray-500">
+<span>
+updated <time class="js-timeago merge_request_updated_ago" title="October 4, 2024 at 4:36:53 AM UTC" datetime="2024-10-04T04:36:53Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time>
+</span>
+</div>
+</div>
+</div>
+</li>
+<li class="merge-request" data-id="20780" data-labels="[367, 276, 362, 411]" id="merge_request_20780">
+<div class="issuable-info-container gl-flex-col md:gl-flex-row gl-gap-3">
+<div class="issuable-main-info !gl-mr-0">
+<div class="merge-request-title title">
+<span class="merge-request-title-text js-onboarding-mr-item">
+
+<a class="js-prefetch-document" href="/root/opensearch/-/merge_requests/13114">[Remote Store] Add support to separate segment infos snapshot from metadata</a>
+</span>
+<span class="task-status gl-inline-block gl-text-sm">
+&nbsp;
+4 of 8 checklist items completed
+</span>
+</div>
+<div class="issuable-info">
+<span class="issuable-reference gl-inline-block">
+root/opensearch!13114
+</span>
+<span class="gl-hidden sm:gl-inline">
+<span class="issuable-authored gl-inline-block !gl-text-gray-500">
+·
+created <time class="js-timeago" title="April 8, 2024 at 9:30:39 AM UTC" datetime="2024-04-08T09:30:39Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time> by <a class="author-link !gl-text-gray-500 js-user-link" data-user-id="1" data-username="root" data-name="Administrator" href="/root"><span class="author">Administrator</span></a>
+</span>
+<div aria-label="Labels" class="gl-mt-2 gl-flex gl-flex-wrap gl-gap-2" role="group">
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=Storage%3ARemote"><span class="gl-label-text gl-label-text-dark" data-container="body" data-html="true" style="background-color: #88E06D">Storage:Remote</span></a></span>
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=enhancement"><span class="gl-label-text gl-label-text-dark" data-container="body" data-html="true" style="background-color: #a2eeef">enhancement</span></a></span>
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=stalled"><span class="gl-label-text gl-label-text-light" data-container="body" data-html="true" style="background-color: #CC7D39">stalled</span></a></span>
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/opensearch/-/merge_requests?label_name%5B%5D=v2.15.0"><span class="gl-label-text gl-label-text-dark" data-container="body" data-html="true" style="background-color: #D4C5F9">v2.15.0</span></a></span>
+</div>
+</span>
+</div>
+</div>
+<div class="gl-text-sm gl-flex gl-shrink-0 gl-self-start gl-gap-1 gl-flex-row gl-justify-between gl-w-full md:gl-w-auto md:!gl-flex-col">
+<ul class="controls gl-gap-3 gl-pl-0 gl-self-end">
+<li class="gl-flex !gl-mr-0">
+<a class="author-link has-tooltip" title="Assigned to Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-flex issuable-reviewers !gl-mr-0">
+<a class="author-link has-tooltip" title="Review requested from Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+<li class="gl-block has-tooltip !gl-mr-0" data-testid="issuable-comments" title="Comments">
+<svg class="s16 gl-align-middle" data-testid="comments-icon"><use href="/assets/icons-236e3b687d786d9dfe4709143a94d4c53b8d5a1f235775401e5825148297fa84.svg#comments"></use></svg>
+18
+</li>
+
+
+
+
+</ul>
+<div class="issuable-updated-at gl-self-end gl-hidden sm:gl-inline-block gl-text-gray-500">
+<span>
+updated <time class="js-timeago merge_request_updated_ago" title="October 4, 2024 at 4:33:41 AM UTC" datetime="2024-10-04T04:33:41Z" data-toggle="tooltip" data-placement="bottom" data-container="body">1 year ago</time>
+</span>
+</div>
+</div>
+</div>
+</li>
+<li class="merge-request" data-id="3836" data-labels="[97]" id="merge_request_3836">
+<div class="issuable-info-container gl-flex-col md:gl-flex-row gl-gap-3">
+<div class="issuable-main-info !gl-mr-0">
+<div class="merge-request-title title">
+<span class="merge-request-title-text js-onboarding-mr-item">
+
+<a class="js-prefetch-document" href="/root/llama.cpp/-/merge_requests/1103">llama : quantize attention results</a>
+</span>
+</div>
+<div class="issuable-info">
+<span class="issuable-reference gl-inline-block">
+root/llama.cpp!1103
+</span>
+<span class="gl-hidden sm:gl-inline">
+<span class="issuable-authored gl-inline-block !gl-text-gray-500">
+·
+created <time class="js-timeago" title="April 21, 2023 at 2:45:59 PM UTC" datetime="2023-04-21T14:45:59Z" data-toggle="tooltip" data-placement="bottom" data-container="body">2 years ago</time> by <a class="author-link !gl-text-gray-500 js-user-link" data-user-id="1" data-username="root" data-name="Administrator" href="/root"><span class="author">Administrator</span></a>
+</span>
+<div aria-label="Labels" class="gl-mt-2 gl-flex gl-flex-wrap gl-gap-2" role="group">
+<span class="gl-label"><a class="gl-link gl-label-link" href="/root/llama.cpp/-/merge_requests?label_name%5B%5D=demo"><span class="gl-label-text gl-label-text-dark" data-container="body" data-html="true" style="background-color: #FBCA04">demo</span></a></span>
+</div>
+</span>
+</div>
+</div>
+<div class="gl-text-sm gl-flex gl-shrink-0 gl-self-start gl-gap-1 gl-flex-row gl-justify-between gl-w-full md:gl-w-auto md:!gl-flex-col">
+<ul class="controls gl-gap-3 gl-pl-0 gl-self-end">
+<li class="gl-flex !gl-mr-0">
+<a class="author-link has-tooltip" title="Assigned to Administrator" data-container="body" href="/root"><img width="16" class="avatar avatar-inline s16 js-lazy-loaded" alt="" src="https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=64&amp;d=identicon" loading="lazy" data-testid="js-lazy-loaded-content"></a>
+
+</li>
+
+
+
+
+</ul>
+<div class="issuable-updated-at gl-self-end gl-hidden sm:gl-inline-block gl-text-gray-500">
+<span>
+updated <time class="js-timeago merge_request_updated_ago" title="September 15, 2023 at 2:21:29 PM UTC" datetime="2023-09-15T14:21:29Z" data-toggle="tooltip" data-placement="bottom" data-container="body">2 years ago</time>
+</span>
+</div>
+</div>
+</div>
+</li>
+
+</ul>
+
+
+
+</main>
+</div>
+
+
+</div>
+</div>
+
+
+<script>
+//<![CDATA[
+if ('loading' in HTMLImageElement.prototype) {
+  document.querySelectorAll('img.lazy').forEach(img => {
+    img.loading = 'lazy';
+    let imgUrl = img.dataset.src;
+    // Only adding width + height for avatars for now
+    if (imgUrl.indexOf('/avatar/') > -1 && imgUrl.indexOf('?') === -1) {
+      const targetWidth = img.getAttribute('width') || img.width;
+      imgUrl += `?width=${targetWidth}`;
+    }
+    img.src = imgUrl;
+    img.removeAttribute('data-src');
+    img.classList.remove('lazy');
+    img.classList.add('js-lazy-loaded');
+    img.dataset.testid = 'js-lazy-loaded-content';
+  });
+}
+
+//]]>
+</script>
+<script>
+//<![CDATA[
+gl = window.gl || {};
+gl.experiments = {};
+
+
+//]]>
+</script>
+
+
+
+
+<div></div><div></div></body></html>

@@ -1,0 +1,60 @@
+- document:
+  - banner:
+    - link "ownCloud":
+      - /url: /index.php
+      - heading "ownCloud" [level=1]
+    - link "Menu Users":
+      - /url: "#"
+      - button "Menu"
+      - heading "Users" [level=1]
+    - link "theagentcompany"
+    - search:
+      - text: Search
+      - searchbox "Search"
+  - navigation
+  - main:
+    - list:
+      - listitem:
+        - link "+ Add Group":
+          - /url: "#"
+      - listitem:
+        - link "Everyone":
+          - /url: "#"
+        - text: "1"
+      - listitem:
+        - link "Admins":
+          - /url: "#"
+        - text: "1"
+    - button
+    - textbox "Username"
+    - textbox "E-Mail"
+    - text: Groups
+    - button "Create"
+    - table:
+      - rowgroup:
+        - row "Username Full Name Password Groups Group Admin for Quota":
+          - columnheader
+          - columnheader "Username"
+          - columnheader "Full Name"
+          - columnheader "Password"
+          - columnheader "Groups"
+          - columnheader "Group Admin for"
+          - columnheader "Quota"
+          - columnheader
+      - rowgroup:
+        - row "T theagentcompany theagentcompany ●●●●●●● admin no group Default":
+          - cell "T"
+          - rowheader "theagentcompany"
+          - cell "theagentcompany"
+          - cell "●●●●●●●"
+          - cell "admin"
+          - cell "no group"
+          - cell "Default":
+            - combobox:
+              - option "Default" [selected]
+              - option "Unlimited"
+              - option "1 GB"
+              - option "5 GB"
+              - option "10 GB"
+              - option "Other ..."
+          - cell

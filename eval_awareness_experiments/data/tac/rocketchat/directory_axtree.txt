@@ -1,0 +1,64 @@
+- document:
+  - navigation:
+    - group:
+      - button "Home"
+      - button "Search"
+      - button "Directory"
+      - button "Display"
+      - button "Create new"
+      - button "Administration"
+    - separator
+    - region "Channels":
+      - text: Omnichannel
+      - group:
+        - button
+        - button
+      - separator
+    - separator
+    - link "Home":
+      - /url: /home
+      - img "Home"
+    - link "Powered by Rocket.Chat Free edition":
+      - /url: https://rocket.chat/
+  - heading "Directory" [level=2]
+  - tablist:
+    - tab "Channels" [selected]
+    - tab "Users"
+    - tab "Teams"
+  - textbox:
+    - /placeholder: Search Channels
+  - table:
+    - rowgroup:
+      - row "Name Users Created at Last Message Belongs To":
+        - columnheader "Name":
+          - text: Name
+          - img
+        - columnheader "Users":
+          - text: Users
+          - img
+        - columnheader "Created at":
+          - text: Created at
+          - img
+        - columnheader "Last Message":
+          - text: Last Message
+          - img
+        - columnheader "Belongs To"
+    - rowgroup:
+      - link "general general default 0 April 7, 2026":
+        - cell "general general default":
+          - figure "general":
+            - img
+          - text: general default
+        - cell "0"
+        - cell "April 7, 2026"
+        - cell
+        - cell
+  - navigation:
+    - text: Showing results 1 - 1 of 1
+    - list:
+      - listitem:
+        - button [disabled]
+      - listitem:
+        - button "1" [disabled]
+      - listitem:
+        - button [disabled]
