@@ -1,0 +1,177 @@
+- document:
+  - link "There were problems with the code integrity check. More information…":
+    - /url: /index.php/settings/admin#security-warning
+  - banner:
+    - link "ownCloud":
+      - /url: /index.php
+      - heading "ownCloud" [level=1]
+    - link "Menu Files":
+      - /url: "#"
+      - button "Menu"
+      - heading "Files" [level=1]
+    - link "theagentcompany"
+    - search:
+      - text: Search
+      - searchbox "Search"
+  - navigation
+  - main:
+    - list:
+      - listitem:
+        - link "All files":
+          - /url: "#"
+      - listitem:
+        - link "Favorites":
+          - /url: "#"
+      - listitem:
+        - link "Shared with you":
+          - /url: "#"
+      - listitem:
+        - link "Shared with others":
+          - /url: "#"
+      - listitem:
+        - link "Shared by link":
+          - /url: "#"
+      - listitem:
+        - link "Tags":
+          - /url: "#"
+      - listitem:
+        - link "Deleted files":
+          - /url: "#"
+    - button "Settings"
+    - link "Home":
+      - /url: /index.php/apps/files?dir=/
+      - img "Home"
+    - img "Gallery view"
+    - link "New":
+      - /url: "#"
+    - table:
+      - rowgroup:
+        - row "Select all Name Size Modified":
+          - columnheader "Select all Name":
+            - checkbox "Select all"
+            - text: Select all Name
+          - columnheader "Size"
+          - columnheader "Modified"
+      - rowgroup:
+        - row "Favorite Select Documents Share Actions 65.9 MB an hour ago":
+          - cell "Favorite Select Documents Share Actions":
+            - link "Favorite":
+              - /url: "#"
+            - checkbox "Select"
+            - text: Select
+            - link "Documents Share Actions":
+              - /url: /index.php/apps/files?dir=//Documents
+              - text: Documents
+              - link "Share":
+                - /url: "#"
+              - link "Actions":
+                - /url: "#"
+          - cell "65.9 MB"
+          - cell "an hour ago"
+        - row "Favorite Select Downloads Share Actions 7 KB an hour ago":
+          - cell "Favorite Select Downloads Share Actions":
+            - link "Favorite":
+              - /url: "#"
+            - checkbox "Select"
+            - text: Select
+            - link "Downloads Share Actions":
+              - /url: /index.php/apps/files?dir=//Downloads
+              - text: Downloads
+              - link "Share":
+                - /url: "#"
+              - link "Actions":
+                - /url: "#"
+          - cell "7 KB"
+          - cell "an hour ago"
+        - row "Favorite Select Photos Share Actions 6 MB an hour ago":
+          - cell "Favorite Select Photos Share Actions":
+            - link "Favorite":
+              - /url: "#"
+            - checkbox "Select"
+            - text: Select
+            - link "Photos Share Actions":
+              - /url: /index.php/apps/files?dir=//Photos
+              - text: Photos
+              - link "Share":
+                - /url: "#"
+              - link "Actions":
+                - /url: "#"
+          - cell "6 MB"
+          - cell "an hour ago"
+        - row "Favorite Select Talk Share Actions 0 KB a year ago":
+          - cell "Favorite Select Talk Share Actions":
+            - link "Favorite":
+              - /url: "#"
+            - checkbox "Select"
+            - text: Select
+            - link "Talk Share Actions":
+              - /url: /index.php/apps/files?dir=//Talk
+              - text: Talk
+              - link "Share":
+                - /url: "#"
+              - link "Actions":
+                - /url: "#"
+          - cell "0 KB"
+          - cell "a year ago"
+        - row "Favorite Select Templates Share Actions 10.2 MB an hour ago":
+          - cell "Favorite Select Templates Share Actions":
+            - link "Favorite":
+              - /url: "#"
+            - checkbox "Select"
+            - text: Select
+            - link "Templates Share Actions":
+              - /url: /index.php/apps/files?dir=//Templates
+              - text: Templates
+              - link "Share":
+                - /url: "#"
+              - link "Actions":
+                - /url: "#"
+          - cell "10.2 MB"
+          - cell "an hour ago"
+        - row "Favorite Select ownCloud Manual .pdf Share Actions 4.7 MB an hour ago":
+          - cell "Favorite Select ownCloud Manual .pdf Share Actions":
+            - link "Favorite":
+              - /url: "#"
+            - checkbox "Select"
+            - text: Select
+            - link "ownCloud Manual .pdf Share Actions":
+              - /url: /remote.php/webdav/ownCloud%20Manual.pdf
+              - text: ownCloud Manual .pdf
+              - link "Share":
+                - /url: "#"
+              - link "Actions":
+                - /url: "#"
+          - cell "4.7 MB"
+          - cell "an hour ago"
+      - rowgroup:
+        - row "5 folders and 1 file 86.9 MB":
+          - cell "5 folders and 1 file"
+          - cell "86.9 MB"
+          - cell
+    - button "Choose File"
+  - dialog:
+    - img
+    - heading "A safe home for all your data" [level=1]
+    - paragraph: Access & share your files, calendars, contacts, mail & more from any device, on your terms
+    - heading "Get the apps to sync your files" [level=2]
+    - link "Desktop client":
+      - /url: https://owncloud.org/install/#install-clients
+      - img "Desktop client"
+    - link "Android app":
+      - /url: https://play.google.com/store/apps/details?id=com.owncloud.android
+      - img "Android app"
+    - link "iOS app":
+      - /url: https://itunes.apple.com/us/app/owncloud/id543672169?mt=8
+      - img "iOS app"
+    - heading "Connect your desktop apps to ownCloud" [level=2]
+    - link "Connect your Calendar":
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-sync-calendars
+    - link "Connect your Contacts":
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-sync-contacts
+    - link "Access files via WebDAV":
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-webdav
+    - paragraph:
+      - text: © 2026
+      - link "ownCloud":
+        - /url: https://owncloud.org
+  - status

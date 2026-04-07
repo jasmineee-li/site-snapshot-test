@@ -1,0 +1,432 @@
+<!DOCTYPE html><html class="ng-csp" data-placeholder-focus="false" lang="en"><head data-user="theagentcompany" data-user-displayname="theagentcompany" data-requesttoken="AQ5jKnUBOR1fKTQuDSFjBkxlbWIvKzwPE1w1AFsfbQo=:xhSzCTJotESHDq5wzQ5UUhTxudcUj+XY8rp+DE7Hm6s=">
+		<meta charset="utf-8">
+		<title>
+			Users - ownCloud		</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="referrer" content="never">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+					<meta name="apple-itunes-app" content="app-id=543672169">
+				<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		<meta name="apple-mobile-web-app-title" content="Users">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="theme-color" content="#1d2d44">
+		<link rel="icon" href="/core/img/favicon.ico">
+		<link rel="apple-touch-icon-precomposed" href="/core/img/favicon-touch.png">
+		<link rel="mask-icon" sizes="any" href="/core/img/favicon-mask.svg" color="#1d2d44">
+		<link rel="manifest" href="/core/img/manifest.json">
+					<link rel="stylesheet" href="/core/vendor/select2/select2.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/styles.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/inputs.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/header.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/icons.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/fonts.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/apps.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/global.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/fixes.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/multiselect.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/mobile.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/vendor/jquery-ui/themes/base/jquery-ui.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/jquery-ui-fixes.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/tooltip.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_pdfviewer/css/style.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/share.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_versions/css/versions.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_videoplayer/css/style.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/firstrunwizard/css/colorbox.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/firstrunwizard/css/firstrunwizard.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/notifications/css/styles.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/jquery.ocdialog.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/settings/css/settings.css?v=d4747cbf859c8707c276df9b5e4443ae">
+									<script src="/index.php/core/js/oc.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery/dist/jquery.min.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery-migrate/jquery-migrate.min.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery-ui/ui/jquery-ui.custom.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/underscore/underscore.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/moment/min/moment-with-locales.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/handlebars/handlebars.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/blueimp-md5/js/md5.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/bootstrap/js/tooltip.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/backbone/backbone.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/es6-promise/dist/es6-promise.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/davclient.js/lib/client.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/clipboard/dist/clipboard.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/bowser/src/bowser.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/jquery.ocdialog.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-dialogs.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/js.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/l10n.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/octemplate.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/eventsource.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/config.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/search/js/search.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-requesttoken.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/apps.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/mimetype.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/mimetypelist.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/snapjs/dist/latest/snap.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/select2/select2.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-backbone.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-backbone-webdav.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/placeholder.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/jquery.avatar.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/backgroundjobs.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files_pdfviewer/js/previewplugin.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/shareconfigmodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharemodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharescollection.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/shareitemmodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogresharerinfoview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinklistview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinkshareview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogmailview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinksocialview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogexpirationview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogshareelistview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/share.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files_videoplayer/js/viewer.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/firstrunwizard/js/jquery.colorbox.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/firstrunwizard/js/firstrunwizard.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/notifications/js/app.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/notifications/js/notification.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/files/fileinfo.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/files/client.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/users/deleteHandler.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/users/filter.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/users/users.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/users/groups.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/multiselect.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/singleselect.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/integritycheck-failed-notification.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					</head>
+	<body id="body-settings">
+		<noscript>
+	<div id="nojavascript">
+		<div>
+			This application requires JavaScript for correct operation. Please <a href="http://enable-javascript.com/" target="_blank" rel="noreferrer">enable JavaScript</a> and reload the page.		</div>
+	</div>
+</noscript>
+		<div id="notification-container">
+			<div id="notification" style="display: none;"></div>
+		</div>
+		<header role="banner">
+			<div id="header">
+				<a href="/index.php" id="owncloud" tabindex="1">
+					<h1 class="logo-icon">
+						ownCloud					</h1>
+				</a>
+				<a href="#" class="header-appname-container menutoggle" tabindex="2">
+					<button class="burger">
+						Menu					</button>
+					<h1 class="header-appname">
+						Users					</h1>
+				</a>
+				<div id="logo-claim" style="display:none;"></div>
+				<div id="settings">
+					<div id="expand" tabindex="6" role="link" class="menutoggle">
+												<div class="avatardiv" style="display: none">
+													</div>
+												<span id="expandDisplayName">theagentcompany</span>
+					</div>
+					<div id="expanddiv" class="menu">
+					<ul>
+											<li>
+							<a href="/index.php/settings/personal">
+								<img alt="" src="/settings/img/admin.svg">
+								Settings							</a>
+						</li>
+											<li>
+							<a href="/index.php/settings/users" class="active">
+								<img alt="" src="/settings/img/users.svg">
+								Users							</a>
+						</li>
+											<li>
+							<a href="/index.php/settings/help">
+								<img alt="" src="/settings/img/help.svg">
+								Help							</a>
+						</li>
+											<li>
+							<a id="logout" href="http://the-agent-company.com:8092/index.php/logout?requesttoken=AQ5jKnUBOR1fKTQuDSFjBkxlbWIvKzwPE1w1AFsfbQo%3D%3AxhSzCTJotESHDq5wzQ5UUhTxudcUj%2BXY8rp%2BDE7Hm6s%3D">
+								<img alt="" src="/core/img/actions/logout.svg">
+								Log out							</a>
+						</li>
+					</ul>
+					</div>
+				</div>
+
+				<div class="notifications hidden"><div class="notifications-button menutoggle"><img class="svg" alt="Notifications" src="/apps/notifications/img/notifications.svg"></div><div class="notification-container menu"><div class="emptycontent"><h2>No notifications</h2></div><div class="notification-wrapper"></div></div></div><form class="searchbox" action="#" method="post" role="search" novalidate="">
+					<label for="searchbox" class="hidden-visually">
+						Search					</label>
+					<input id="searchbox" type="search" name="query" value="" required="" autocomplete="off" tabindex="5">
+				</form>
+			</div>
+		</header>
+
+		<nav role="navigation">
+			<div id="navigation" class="menu" style="display: none;">
+				<div id="apps">
+					<ul>
+											<li data-id="files">
+							<a href="/index.php/apps/files/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/files/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Files								</span>
+							</a>
+						</li>
+											<li data-id="gallery">
+							<a href="/index.php/apps/gallery/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/gallery/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Gallery								</span>
+							</a>
+						</li>
+											<li data-id="richdocuments_index">
+							<a href="/index.php/apps/richdocuments/index" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/richdocuments/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Office								</span>
+							</a>
+						</li>
+											<li data-id="files_textviewer">
+							<a href="/index.php/apps/files_textviewer/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/files_textviewer/img/txt2.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Text								</span>
+							</a>
+						</li>
+											<li data-id="music">
+							<a href="/index.php/apps/music/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/music/img/../dist/img/ba6753921817d8ebc105.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Music								</span>
+							</a>
+						</li>
+											<li data-id="market">
+							<a href="/index.php/apps/market/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/market/img/market.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Market								</span>
+							</a>
+						</li>
+										</ul>
+				</div>
+			</div>
+		</nav>
+
+		<div id="content-wrapper">
+			<div id="content" class="app-settings" role="main">
+				
+<div id="app-navigation">
+	<ul id="usergrouplist" data-sort-groups="1">
+	<!-- Add new group -->
+		<li id="newgroup-init">
+		<a href="#">
+			<span>Add Group</span>
+		</a>
+	</li>
+		<li id="newgroup-form" style="display: none">
+		<form>
+			<input type="text" id="newgroupname" placeholder="Group...">
+			<input type="submit" class="button icon-add" value="">
+		</form>
+	</li>
+	<!-- Everyone -->
+	<li id="everyonegroup" data-gid="_everyone" data-usercount="" class="isgroup">
+		<a href="#">
+			<span class="groupname">
+				Everyone			</span>
+		</a>
+		<span class="utils">
+			<span class="usercount" id="everyonecount">1</span>
+		</span>
+	</li>
+
+	<!-- The Admin Group -->
+			<li data-gid="admin" data-usercount="1" class="isgroup">
+			<a href="#"><span class="groupname">Admins</span></a>
+			<span class="utils">
+				<span class="usercount">1</span>
+			</span>
+		</li>
+	
+	<!--List of Groups-->
+	</ul>
+	<div id="app-settings">
+		<div id="app-settings-header">
+			<button class="settings-button" tabindex="0" data-apps-slide-toggle="#app-settings-content"></button>
+		</div>
+		<div id="app-settings-content">
+			<div class="quota">
+	<!-- Default storage -->
+	<span>Default Quota</span>
+			<select id="default_quota" data-inputtitle="Please enter storage quota (ex: &quot;512 MB&quot; or &quot;12 GB&quot;)" data-tipsy-gravity="s">
+			<option selected="selected" value="none">
+				Unlimited			</option>
+												<option value="1 GB">
+						1 GB					</option>
+																<option value="5 GB">
+						5 GB					</option>
+																<option value="10 GB">
+						10 GB					</option>
+													<option data-new="" value="other">
+				Other				...
+			</option>
+		</select>
+		</div>
+
+			<div id="userlistoptions">
+				<p>
+					<input type="checkbox" name="IsEnabled" value="IsEnabled" id="CheckboxIsEnabled" class="checkbox">
+					<label for="CheckboxIsEnabled">
+						Show enabled/disabled option					</label>
+				</p>
+				<p>
+					<input type="checkbox" name="StorageLocation" value="StorageLocation" id="CheckboxStorageLocation" class="checkbox">
+					<label for="CheckboxStorageLocation">
+						Show storage location					</label>
+				</p>
+				<p>
+					<input type="checkbox" name="LastLogin" value="LastLogin" id="CheckboxLastLogin" class="checkbox">
+					<label for="CheckboxLastLogin">
+						Show last log in					</label>
+				</p>
+				<p>
+					<input type="checkbox" name="UserBackend" value="UserBackend" id="CheckboxUserBackend" class="checkbox">
+					<label for="CheckboxUserBackend">
+						Show user backend					</label>
+				</p>
+				<p>
+					<input type="checkbox" name="AddPasswordOnUserCreate" value="AddPasswordOnUserCreate" id="CheckBoxPasswordOnUserCreate" class="checkbox">
+					<label for="CheckBoxPasswordOnUserCreate">
+						Set password for new users					</label>
+				</p>
+				<p>
+					<input type="checkbox" name="EmailAddress" value="EmailAddress" id="CheckboxEmailAddress" class="checkbox">
+					<label for="CheckboxEmailAddress">
+						Show email address					</label>
+				</p>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div id="app-content" style="transition: 0.3s;"><div id="app-navigation-toggle" class="icon-menu" style="display:none;"></div>
+	<div id="controls" style="width: 1031px; min-width: 1031px;">
+	<form id="newuser" autocomplete="off">
+		<input id="newusername" type="text" placeholder="Username" autocomplete="off" autocapitalize="off" autocorrect="off">
+		<input type="password" id="newuserpassword" style="display:none" placeholder="Password" autocomplete="off" autocapitalize="off" autocorrect="off">
+		<input id="newemail" type="text" placeholder="E-Mail" autocomplete="off" autocapitalize="off" autocorrect="off">
+		<div class="groups"><div class="groupsListContainer multiselect button" data-placeholder="Groups"><span class="title groupsList">Groups</span><span class="icon-triangle-s"></span></div></div>
+		<input type="submit" class="button" value="Create">
+	</form>
+	</div>
+	<table id="userlist" class="hascontrols grid" data-groups="[&quot;admin&quot;]">
+	<thead>
+		<tr>
+					<th id="headerAvatar" scope="col"></th>
+					<th id="headerName" scope="col">Username</th>
+			<th id="headerDisplayName" scope="col">Full Name</th>
+			<th id="headerPassword" scope="col">Password</th>
+			<th class="mailAddress" scope="col">Email</th>
+			<th id="headerGroups" scope="col">Groups</th>
+					<th id="headerSubAdmins" scope="col">Group Admin for</th>
+					<th class="enabled" scope="col">Enabled</th>
+			<th id="headerQuota" scope="col">Quota</th>
+			<th class="storageLocation" scope="col">Storage Location</th>
+			<th class="userBackend" scope="col">User Backend</th>
+			<th class="lastLogin" scope="col">Last Login</th>
+			<th id="headerRemove">&nbsp;</th>
+		</tr>
+	</thead>
+	<tbody>
+		<!-- the following <tr> is used as a template for the JS part -->
+		
+	<tr style="display:none">
+					<td class="avatar"><div class="avatardiv"></div></td>
+					<th class="name" scope="row"></th>
+			<td class="displayName"><span></span> <img class="action" src="/core/img/actions/rename.svg" alt="change full name" title="change full name">
+			</td>
+			<td class="password"><span>●●●●●●●</span> <img class="action" src="/core/img/actions/rename.svg" alt="set new password" title="set new password">
+			</td>
+			<td class="mailAddress"><span></span><div class="loading-small hidden"></div> <img class="action" src="/core/img/actions/rename.svg" alt="change email address" title="change email address">
+			</td>
+			<td class="groups"><div class="groupsListContainer multiselect button"><span class="title groupsList"></span><span class="icon-triangle-s"></span></div>
+			</td>
+					<td class="subadmins"><div class="groupsListContainer multiselect button"><span class="title groupsList"></span><span class="icon-triangle-s"></span></div>
+			</td>
+					<td class="enabled">
+				<input type="checkbox" class="isEnabled" checked="checked">
+			</td>
+			<td class="quota">
+				<select class="quota-user" data-inputtitle="Please enter storage quota (ex: &quot;512 MB&quot; or &quot;12 GB&quot;)">
+					<option value="default">
+						Default					</option>
+					<option value="none">
+						Unlimited					</option>
+											<option value="1 GB">
+							1 GB						</option>
+											<option value="5 GB">
+							5 GB						</option>
+											<option value="10 GB">
+							10 GB						</option>
+										<option value="other" data-new="">
+						Other ...
+					</option>
+				</select>
+			</td>
+			<td class="storageLocation"></td>
+			<td class="userBackend"></td>
+			<td class="lastLogin"></td>
+			<td class="remove"></td>
+		</tr><tr>
+					<td class="avatar"><div class="avatardiv" style="background-color: rgb(116, 231, 118); height: 32px; width: 32px; color: rgb(255, 255, 255); font-weight: normal; text-align: center; line-height: 32px; font-size: 17.6px;">T</div></td>
+					<th class="name" scope="row">theagentcompany</th>
+			<td class="displayName"><span>theagentcompany</span> <img class="action" src="/core/img/actions/rename.svg" alt="change full name" title="" data-original-title="change full name">
+			</td>
+			<td class="password"><span>●●●●●●●</span> <img class="action" src="/core/img/actions/rename.svg" alt="set new password" title="" data-original-title="set new password">
+			</td>
+			<td class="mailAddress"><span></span><div class="loading-small hidden"></div> <img class="action" src="/core/img/actions/rename.svg" alt="change email address" title="" data-original-title="change email address">
+			</td>
+			<td class="groups"><div class="groupsListContainer multiselect button"><span class="title groupsList">admin</span><span class="icon-triangle-s"></span></div>
+			</td>
+					<td class="subadmins"><div class="groupsListContainer multiselect button"><span class="title groupsList">no group</span><span class="icon-triangle-s"></span></div>
+			</td>
+					<td class="enabled">
+				
+			</td>
+			<td class="quota">
+				<select class="quota-user" data-inputtitle="Please enter storage quota (ex: &quot;512 MB&quot; or &quot;12 GB&quot;)">
+					<option value="default" selected="selected">
+						Default					</option>
+					<option value="none">
+						Unlimited					</option>
+											<option value="1 GB">
+							1 GB						</option>
+											<option value="5 GB">
+							5 GB						</option>
+											<option value="10 GB">
+							10 GB						</option>
+										<option value="other" data-new="">
+						Other ...
+					</option>
+				</select>
+			</td>
+			<td class="storageLocation">/var/www/html/data/theagentcompany</td>
+			<td class="userBackend">Database</td>
+			<td class="lastLogin" title="" data-original-title="April 7, 2026 3:20 AM">seconds ago</td>
+			<td class="remove"></td>
+		</tr></tbody>
+</table><div class="loading" style="height: 200px; visibility: hidden;"></div>
+</div>
+			</div>
+		</div>
+	
+
+<div id="cboxOverlay" style="display: none;"></div><div id="colorbox" class="" role="dialog" tabindex="-1" style="display: none;"><div id="cboxWrapper"><div><div id="cboxTopLeft" style="float: left;"></div><div id="cboxTopCenter" style="float: left;"></div><div id="cboxTopRight" style="float: left;"></div></div><div style="clear: left;"><div id="cboxMiddleLeft" style="float: left;"></div><div id="cboxContent" style="float: left;"><div id="cboxTitle" style="float: left;"></div><div id="cboxCurrent" style="float: left;"></div><button type="button" id="cboxPrevious"></button><button type="button" id="cboxNext"></button><button type="button" id="cboxSlideshow"></button><div id="cboxLoadingOverlay" style="float: left;"></div><div id="cboxLoadingGraphic" style="float: left;"></div></div><div id="cboxMiddleRight" style="float: left;"></div></div><div style="clear: left;"><div id="cboxBottomLeft" style="float: left;"></div><div id="cboxBottomCenter" style="float: left;"></div><div id="cboxBottomRight" style="float: left;"></div></div></div><div style="position: absolute; width: 9999px; visibility: hidden; display: none; max-width: none;"></div></div><input title="Please enter storage quota (ex: &quot;512 MB&quot; or &quot;12 GB&quot;)" style="position: absolute; box-sizing: border-box; margin: 1px 0px 0px 1px; width: 94px; height: 30px; border: none; box-shadow: none; z-index: 1000; display: none;"><input title="Please enter storage quota (ex: &quot;512 MB&quot; or &quot;12 GB&quot;)" style="position: absolute; box-sizing: border-box; margin: 1px 0px 0px 1px; width: 94px; height: 30px; border: none; box-shadow: none; z-index: 1000; display: none;"></body></html>

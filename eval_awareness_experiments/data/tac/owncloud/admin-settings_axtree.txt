@@ -1,0 +1,199 @@
+- document:
+  - link "There were problems with the code integrity check. More information…":
+    - /url: /index.php/settings/admin#security-warning
+  - banner:
+    - link "ownCloud":
+      - /url: /index.php
+      - heading "ownCloud" [level=1]
+    - link "Menu Settings":
+      - /url: "#"
+      - button "Menu"
+      - heading "Settings" [level=1]
+    - link "theagentcompany"
+    - search: Search
+  - navigation
+  - main:
+    - list:
+      - listitem: Personal
+      - listitem:
+        - link "General":
+          - /url: /index.php/settings/personal?sectionid=general
+      - listitem:
+        - link "Storage":
+          - /url: /index.php/settings/personal?sectionid=storage
+      - listitem:
+        - link "Security":
+          - /url: /index.php/settings/personal?sectionid=security
+      - listitem:
+        - link "Additional":
+          - /url: /index.php/settings/personal?sectionid=additional
+      - listitem: Admin
+      - listitem:
+        - link "Apps":
+          - /url: /index.php/settings/admin?sectionid=apps
+      - listitem:
+        - link "General":
+          - /url: /index.php/settings/admin?sectionid=general
+      - listitem:
+        - link "Storage":
+          - /url: /index.php/settings/admin?sectionid=storage
+      - listitem:
+        - link "Encryption":
+          - /url: /index.php/settings/admin?sectionid=encryption
+      - listitem:
+        - link "Sharing":
+          - /url: /index.php/settings/admin?sectionid=sharing
+      - listitem:
+        - link "Help & Tips":
+          - /url: /index.php/settings/admin?sectionid=help
+      - listitem:
+        - link "Additional":
+          - /url: /index.php/settings/admin?sectionid=additional
+    - heading "Security & setup warnings" [level=2]
+    - list:
+      - listitem:
+        - text: Transactional file locking should be configured to use memory-based locking, not the default slow database-based locking. See the
+        - link "documentation ↗":
+          - /url: https://doc.owncloud.org/server/10.0/go.php?to=admin-transactional-locking
+        - text: for more information.
+      - listitem:
+        - text: "SQLite is used as database. For larger installations we recommend to switch to a different database backend. Especially when using the desktop client for file syncing the use of SQLite is discouraged. To migrate to another database use the command line tool: 'occ db:convert-type', or see the"
+        - link "documentation ↗":
+          - /url: https://doc.owncloud.org/server/10.0/go.php?to=admin-db-conversion
+        - text: .
+      - listitem: We recommend to enable system cron as any other cron method has possible performance and reliability implications.
+    - list:
+      - listitem:
+        - text: Some files have not passed the integrity check. Further information on how to resolve this issue can be found in our
+        - link "documentation":
+          - /url: https://doc.owncloud.org/server/10.0/go.php?to=admin-code-integrity
+        - text: . (
+        - link "List of invalid files…":
+          - /url: /index.php/settings/integrity/failed
+        - text: /
+        - link "Rescan…":
+          - /url: /index.php/settings/integrity/rescan?requesttoken=Aw5TAX82QzBaIA8vAApjOHdwERwTKQVHB1kvAndtZCs%3D%3AzhcQIc0BqLhIIZ5IADI%2Bijm0aayWFYQxOGwPHhSCR38%3D
+        - text: )
+    - list:
+      - listitem:
+        - text: You are accessing this site via HTTP. We strongly suggest you configure your server to require using HTTPS instead as described in our
+        - link "security tips":
+          - /url: "#admin-tips"
+        - text: .
+    - list:
+      - listitem:
+        - text: No memory cache has been configured. To enhance your performance please configure a memcache if available. Further information can be found in our
+        - link "documentation":
+          - /url: https://doc.owncloud.org/server/10.0/go.php?to=admin-performance
+        - text: .
+    - paragraph:
+      - text: Please double check the
+      - link "installation guides ↗":
+        - /url: https://doc.owncloud.org/server/10.0/go.php?to=admin-install
+      - text: ", and check for any errors or warnings in the"
+      - link "log":
+        - /url: "#log-section"
+      - text: .
+    - heading "Email server" [level=2]
+    - link:
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=admin-email
+    - paragraph: This is used for sending out notifications.
+    - paragraph:
+      - text: Send mode
+      - combobox "Send mode":
+        - option "php" [selected]
+        - option "smtp"
+    - paragraph:
+      - text: From address
+      - textbox "From address":
+        - /placeholder: mail
+      - text: "@"
+      - textbox "example.com"
+    - emphasis: Test email settings
+    - button "Send email"
+    - heading "Generate Config Report" [level=2]
+    - button "Download ownCloud config report"
+    - heading "Legal" [level=2]
+    - paragraph:
+      - text: "Imprint URL:"
+      - textbox "Imprint URL:":
+        - /placeholder: Imprint URL
+    - paragraph:
+      - text: "Privacy Policy URL:"
+      - textbox "Privacy Policy URL:":
+        - /placeholder: Privacy Policy URL
+    - heading "Updater" [level=2]
+    - strong: Your version is up to date.
+    - paragraph:
+      - text: "Update channel:"
+      - combobox "Update channel:":
+        - option "stable" [selected]
+        - option "daily"
+        - option "beta"
+        - option "production"
+    - paragraph:
+      - emphasis: You can always update to a newer version / experimental channel. But you can never downgrade to a more stable channel.
+    - paragraph:
+      - text: "Notify members of the following groups about available updates:"
+      - list:
+        - listitem:
+          - text: admin
+          - link:
+            - /url: "#"
+        - listitem:
+          - textbox
+    - heading "Cron" [level=2]
+    - paragraph: "Last cron job execution: seconds ago."
+    - link:
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=admin-background-jobs
+    - paragraph:
+      - radio "AJAX" [checked]
+      - text: AJAX
+      - emphasis: Execute one task with each page loaded
+    - paragraph:
+      - radio "Webcron"
+      - text: Webcron
+      - emphasis: cron.php is registered at a webcron service to call cron.php every 15 minutes over http.
+    - paragraph:
+      - radio "Cron"
+      - text: Cron
+      - emphasis: Use system's cron service to call the cron.php file every 15 minutes.
+    - heading "Log" [level=2]
+    - paragraph:
+      - text: What to log
+      - combobox:
+        - option "Everything (fatal issues, errors, warnings, info, debug)"
+        - option "Info, warnings, errors and fatal issues"
+        - option "Warnings, errors and fatal issues" [selected]
+        - option "Errors and fatal issues"
+        - option "Fatal issues only"
+    - link "Download logfile (6 KB)":
+      - /url: /index.php/settings/admin/log/download
+    - heading "System Status" [level=2]
+    - table:
+      - rowgroup:
+        - row "installed 1":
+          - cell "installed"
+          - cell "1"
+        - row "maintenance":
+          - cell "maintenance"
+          - cell
+        - row "needsDbUpgrade":
+          - cell "needsDbUpgrade"
+          - cell
+        - row "version 10.0.10.4":
+          - cell "version"
+          - cell "10.0.10.4"
+        - row "versionstring 10.0.10":
+          - cell "versionstring"
+          - cell "10.0.10"
+        - row "edition Community":
+          - cell "edition"
+          - cell "Community"
+        - row "productname ownCloud":
+          - cell "productname"
+          - cell "ownCloud"
+        - row "hostname afde46fc972f":
+          - cell "hostname"
+          - cell "afde46fc972f"
+  - status

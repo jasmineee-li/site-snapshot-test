@@ -1,0 +1,480 @@
+- document:
+  - link "Skip to main content":
+    - /url: "#content-body"
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - link "Homepage":
+      - /url: /
+    - button "Primary navigation sidebar" [expanded]
+    - button "Create new..."
+    - button "Administrator user’s menu"
+    - link "Assigned issues 84":
+      - /url: /dashboard/issues?assignee_username=root
+    - button "Merge requests 164"
+    - link "To-Do list 0":
+      - /url: /dashboard/todos
+    - button "Search or go to…"
+    - text: Your work
+    - list "Your work":
+      - listitem:
+        - link "Projects":
+          - /url: /dashboard/projects
+      - listitem:
+        - link "Groups":
+          - /url: /dashboard/groups
+      - listitem:
+        - link "Issues 84":
+          - /url: /dashboard/issues?assignee_username=root
+      - listitem:
+        - button "Merge requests"
+      - listitem:
+        - link "To-Do List":
+          - /url: /dashboard/todos
+      - listitem:
+        - link "Milestones":
+          - /url: /dashboard/milestones
+      - listitem:
+        - link "Snippets":
+          - /url: /dashboard/snippets
+      - listitem:
+        - link "Activity":
+          - /url: /dashboard/activity
+    - button "Help"
+    - link "Admin":
+      - /url: http://the-agent-company.com:8929/admin
+  - alert:
+    - img
+    - button "Dismiss":
+      - img
+    - alert:
+      - heading "Check your sign-up restrictions" [level=2]
+      - text: Your GitLab instance allows anyone to register for an account, which is a security risk on public-facing GitLab instances. You should deactivate new sign ups if public users aren't expected to register for an account.
+      - link "Deactivate":
+        - /url: /admin/application_settings/general#js-signup-settings
+      - button "Acknowledge"
+  - alert:
+    - img
+    - button "Dismiss":
+      - img
+    - alert:
+      - text: To help improve GitLab, we would like to periodically
+      - link "collect usage information":
+        - /url: /help/administration/settings/usage_statistics.md
+      - text: . This can be changed at any time in
+      - link "your settings":
+        - /url: /admin/application_settings/metrics_and_profiling#js-usage-settings
+      - text: .
+      - link "Send service data":
+        - /url: /admin/application_settings?application_setting%5Busage_ping_enabled%5D=1&application_setting%5Bversion_check_enabled%5D=1
+      - link "Don't send service data":
+        - /url: /admin/application_settings?application_setting%5Busage_ping_enabled%5D=0&application_setting%5Bversion_check_enabled%5D=0
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Your work":
+          - /url: /
+        - text: /
+      - listitem:
+        - link "Projects":
+          - /url: /
+  - main:
+    - heading "Projects" [level=1]
+    - link "Explore projects":
+      - /url: /explore/projects/starred
+    - link "New project":
+      - /url: /projects/new
+    - tablist:
+      - tab "Yours 14"
+      - tab "Starred 0"
+      - tab "Personal"
+      - tab "Inactive"
+    - group:
+      - button "Toggle history"
+      - textbox "Search":
+        - /placeholder: Search or filter results…
+      - button "Search"
+    - group:
+      - button "Name"
+      - 'button "Sort direction: Ascending"'
+    - list:
+      - listitem:
+        - link "A":
+          - /url: /root/api-server
+        - heading "Administrator / api-server" [level=2]:
+          - link "Administrator / api-server":
+            - /url: /root/api-server
+        - img
+        - text: Owner
+        - 'link "Pipeline: failed"':
+          - /url: /root/api-server/-/commit/1358d3fc4d02f62b7b1b4f617902130305d12d5f/pipelines?ref=main
+          - img
+        - link "0":
+          - /url: /root/api-server/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/api-server/-/forks
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/api-server/-/merge_requests
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/api-server/-/issues
+          - img
+          - text: "0"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "B":
+          - /url: /root/bustub
+        - heading "Administrator / bustub" [level=2]:
+          - link "Administrator / bustub":
+            - /url: /root/bustub
+        - img
+        - text: Owner
+        - paragraph: The BusTub Relational Database Management System (Educational)
+        - link "0":
+          - /url: /root/bustub/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/bustub/-/forks
+          - img
+          - text: "0"
+        - link "14":
+          - /url: /root/bustub/-/merge_requests
+          - img
+          - text: "14"
+        - link "28":
+          - /url: /root/bustub/-/issues
+          - img
+          - text: "28"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "C":
+          - /url: /root/colly
+        - heading "Administrator / colly" [level=2]:
+          - link "Administrator / colly":
+            - /url: /root/colly
+        - img
+        - text: Owner
+        - paragraph: Elegant Scraper and Crawler Framework for Golang
+        - link "0":
+          - /url: /root/colly/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/colly/-/forks
+          - img
+          - text: "0"
+        - link "41":
+          - /url: /root/colly/-/merge_requests
+          - img
+          - text: "41"
+        - link "152":
+          - /url: /root/colly/-/issues
+          - img
+          - text: "152"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "C":
+          - /url: /root/copilot-arena-server
+        - heading "Administrator / copilot-arena-server" [level=2]:
+          - link "Administrator / copilot-arena-server":
+            - /url: /root/copilot-arena-server
+        - img
+        - text: Owner
+        - 'link "Pipeline: failed"':
+          - /url: /root/copilot-arena-server/-/commit/fecd5081847f778fe3121f19ad28c3b61795a510/pipelines?ref=main
+          - img
+        - link "0":
+          - /url: /root/copilot-arena-server/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/copilot-arena-server/-/forks
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/copilot-arena-server/-/merge_requests
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/copilot-arena-server/-/issues
+          - img
+          - text: "0"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "D":
+          - /url: /root/doc
+        - heading "Administrator / Documentation" [level=2]:
+          - link "Administrator / Documentation":
+            - /url: /root/doc
+        - img
+        - text: Owner
+        - paragraph: Wiki for company-wide doc
+        - link "0":
+          - /url: /root/doc/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/doc/-/forks
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/doc/-/merge_requests
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/doc/-/issues
+          - img
+          - text: "0"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "J":
+          - /url: /root/janusgraph
+        - heading "Administrator / janusgraph" [level=2]:
+          - link "Administrator / janusgraph":
+            - /url: /root/janusgraph
+        - img
+        - text: Owner
+        - paragraph: "JanusGraph: an open-source, distributed graph database"
+        - link "0":
+          - /url: /root/janusgraph/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/janusgraph/-/forks
+          - img
+          - text: "0"
+        - link "40":
+          - /url: /root/janusgraph/-/merge_requests
+          - img
+          - text: "40"
+        - link "491":
+          - /url: /root/janusgraph/-/issues
+          - img
+          - text: "491"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "L":
+          - /url: /root/llama.cpp
+        - heading "Administrator / llama.cpp" [level=2]:
+          - link "Administrator / llama.cpp":
+            - /url: /root/llama.cpp
+        - img
+        - text: Owner
+        - paragraph: LLM inference in C/C++
+        - link "0":
+          - /url: /root/llama.cpp/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/llama.cpp/-/forks
+          - img
+          - text: "0"
+        - link "277":
+          - /url: /root/llama.cpp/-/merge_requests
+          - img
+          - text: "277"
+        - link "268":
+          - /url: /root/llama.cpp/-/issues
+          - img
+          - text: "268"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "N":
+          - /url: /root/node-red
+        - heading "Administrator / node-red" [level=2]:
+          - link "Administrator / node-red":
+            - /url: /root/node-red
+        - img
+        - text: Owner
+        - paragraph: Low-code programming for event-driven applications
+        - link "0":
+          - /url: /root/node-red/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/node-red/-/forks
+          - img
+          - text: "0"
+        - link "95":
+          - /url: /root/node-red/-/merge_requests
+          - img
+          - text: "95"
+        - link "304":
+          - /url: /root/node-red/-/issues
+          - img
+          - text: "304"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "O":
+          - /url: /root/openhands
+        - heading "Administrator / openhands" [level=2]:
+          - link "Administrator / openhands":
+            - /url: /root/openhands
+        - img
+        - text: Owner
+        - paragraph: "🙌 OpenHands: Code Less, Make More"
+        - link "0":
+          - /url: /root/openhands/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/openhands/-/forks
+          - img
+          - text: "0"
+        - link "34":
+          - /url: /root/openhands/-/merge_requests
+          - img
+          - text: "34"
+        - link "120":
+          - /url: /root/openhands/-/issues
+          - img
+          - text: "120"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "O":
+          - /url: /root/opensearch
+        - heading "Administrator / opensearch" [level=2]:
+          - link "Administrator / opensearch":
+            - /url: /root/opensearch
+        - img
+        - text: Owner
+        - paragraph: 🔎 Open source distributed and RESTful search engine.
+        - link "0":
+          - /url: /root/opensearch/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/opensearch/-/forks
+          - img
+          - text: "0"
+        - link "161":
+          - /url: /root/opensearch/-/merge_requests
+          - img
+          - text: "161"
+        - link "1.7k":
+          - /url: /root/opensearch/-/issues
+          - img
+          - text: 1.7k
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "R":
+          - /url: /root/raft
+        - heading "Administrator / raft" [level=2]:
+          - link "Administrator / raft":
+            - /url: /root/raft
+        - img
+        - text: Owner
+        - link "0":
+          - /url: /root/raft/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/raft/-/forks
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/raft/-/merge_requests
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/raft/-/issues
+          - img
+          - text: "0"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "R":
+          - /url: /root/risingwave
+        - heading "Administrator / risingwave" [level=2]:
+          - link "Administrator / risingwave":
+            - /url: /root/risingwave
+        - img
+        - text: Owner
+        - paragraph: Best-in-class stream processing, analytics, and management. Perform continuous analytics, or build event-driven applications, real-time ETL pipelines, and feature stores in minutes. Unified streaming and batch. PostgreSQL compatible.
+        - link "0":
+          - /url: /root/risingwave/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/risingwave/-/forks
+          - img
+          - text: "0"
+        - link "88":
+          - /url: /root/risingwave/-/merge_requests
+          - img
+          - text: "88"
+        - link "996":
+          - /url: /root/risingwave/-/issues
+          - img
+          - text: "996"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "S":
+          - /url: /root/sotopia
+        - heading "Administrator / sotopia" [level=2]:
+          - link "Administrator / sotopia":
+            - /url: /root/sotopia
+        - img
+        - text: Owner
+        - paragraph: "Sotopia: an Open-ended Social Learning Environment (ICLR 2024 spotlight)"
+        - link "0":
+          - /url: /root/sotopia/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/sotopia/-/forks
+          - img
+          - text: "0"
+        - link "6":
+          - /url: /root/sotopia/-/merge_requests
+          - img
+          - text: "6"
+        - link "12":
+          - /url: /root/sotopia/-/issues
+          - img
+          - text: "12"
+        - text: Updated
+        - time: 1 year ago
+      - listitem:
+        - link "S":
+          - /url: /root/streamlit
+        - heading "Administrator / streamlit" [level=2]:
+          - link "Administrator / streamlit":
+            - /url: /root/streamlit
+        - img
+        - text: Owner
+        - paragraph: Streamlit — A faster way to build and share data apps.
+        - link "0":
+          - /url: /root/streamlit/-/starrers
+          - img
+          - text: "0"
+        - link "0":
+          - /url: /root/streamlit/-/forks
+          - img
+          - text: "0"
+        - link "38":
+          - /url: /root/streamlit/-/merge_requests
+          - img
+          - text: "38"
+        - link "919":
+          - /url: /root/streamlit/-/issues
+          - img
+          - text: "919"
+        - text: Updated
+        - time: 1 year ago

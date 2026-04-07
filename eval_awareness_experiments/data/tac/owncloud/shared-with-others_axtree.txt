@@ -1,0 +1,72 @@
+- document:
+  - link "There were problems with the code integrity check. More information…":
+    - /url: /index.php/settings/admin#security-warning
+  - banner:
+    - link "ownCloud":
+      - /url: /index.php
+      - heading "ownCloud" [level=1]
+    - link "Menu Files":
+      - /url: "#"
+      - button "Menu"
+      - heading "Files" [level=1]
+    - link "theagentcompany"
+    - search:
+      - text: Search
+      - searchbox "Search"
+  - navigation
+  - main:
+    - list:
+      - listitem:
+        - link "All files":
+          - /url: "#"
+      - listitem:
+        - link "Favorites":
+          - /url: "#"
+      - listitem:
+        - link "Shared with you":
+          - /url: "#"
+      - listitem:
+        - link "Shared with others":
+          - /url: "#"
+      - listitem:
+        - link "Shared by link":
+          - /url: "#"
+      - listitem:
+        - link "Tags":
+          - /url: "#"
+      - listitem:
+        - link "Deleted files":
+          - /url: "#"
+    - button "Settings"
+    - heading "Nothing shared yet" [level=2]
+    - paragraph: Files and folders you share will show up here
+    - table:
+      - rowgroup:
+        - row
+      - rowgroup
+      - rowgroup
+  - dialog:
+    - img
+    - heading "A safe home for all your data" [level=1]
+    - paragraph: Access & share your files, calendars, contacts, mail & more from any device, on your terms
+    - heading "Get the apps to sync your files" [level=2]
+    - link "Desktop client":
+      - /url: https://owncloud.org/install/#install-clients
+      - img "Desktop client"
+    - link "Android app":
+      - /url: https://play.google.com/store/apps/details?id=com.owncloud.android
+      - img "Android app"
+    - link "iOS app":
+      - /url: https://itunes.apple.com/us/app/owncloud/id543672169?mt=8
+      - img "iOS app"
+    - heading "Connect your desktop apps to ownCloud" [level=2]
+    - link "Connect your Calendar":
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-sync-calendars
+    - link "Connect your Contacts":
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-sync-contacts
+    - link "Access files via WebDAV":
+      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-webdav
+    - paragraph:
+      - text: © 2026
+      - link "ownCloud":
+        - /url: https://owncloud.org
