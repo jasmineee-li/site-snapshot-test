@@ -4,10 +4,12 @@ import logging
 import os
 import pickle
 import random
+import re
 import time
 import uuid
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from multiprocessing import Manager, Pool, Queue
@@ -29,9 +31,43 @@ from agentlab.experiments.launch_exp import (
 )
 from agentlab.experiments.loop import EnvArgs, ExpArgs
 from agentlab.experiments.multi_server import BaseServer
-from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
+from agentlab.benchmarks.redteam.app_artifacts import load_attack_metadata
 
 logger = logging.getLogger(__name__)
+_REDTEAM_VARIANT_LAYOUT_KIND = "redteam_variant_group"
+_REDTEAM_VARIANT_LAYOUT_VERSION = 2
+
+
+def _redteam_variant_sort_key(variant_name: str) -> tuple[int, str, int, str]:
+    if variant_name == "benign":
+        return (0, "", -1, variant_name)
+
+    namespaced_match = re.match(r"^(adversarial_.+)_v(\d+)$", variant_name)
+    if namespaced_match:
+        return (1, namespaced_match.group(1), int(namespaced_match.group(2)), variant_name)
+
+    legacy_match = re.match(r"^(adversarial)_v(\d+)$", variant_name)
+    if legacy_match:
+        return (1, legacy_match.group(1), int(legacy_match.group(2)), variant_name)
+
+    return (1, variant_name, 0, variant_name)
+
+
+def _redteam_run_group_id(*, task_seed: int | None, variation_seed: int | None) -> str:
+    normalized_task_seed = 0 if task_seed is None else int(task_seed)
+    normalized_variation_seed = 0 if variation_seed is None else int(variation_seed)
+    return f"seed{normalized_task_seed}_var{normalized_variation_seed}"
+
+
+def _judge_success_rate(experiments: list[dict]) -> float | None:
+    if not experiments:
+        return None
+    successes = sum(
+        1
+        for exp in experiments
+        if (exp.get("judge_result") or {}).get("overall_success") is True
+    )
+    return successes / len(experiments)
 
 
 def make_study(
@@ -282,84 +318,80 @@ class Study(AbstractStudy):
 
     def _prepare_redteam_parent_dirs(
         self,
-        benchmark,
         study_dir: Path,
-        date_str: str,
-    ) -> dict:
+    ) -> None:
         """
-        Pre-create parent directories for redteam behavior runs inside the study directory.
+        Pre-create per-run-group directories for redteam behavior runs inside the study directory.
 
-        Groups ALL variants (benign + all adversarial) by behavior_id into a single
-        parent directory. This makes it easy to compare benign vs adversarial side-by-side.
+        Groups variants for one logical run by agent + behavior + seed, while keeping
+        benign and adversarial conditions side-by-side and avoiding collisions across agents.
 
         Structure:
             study_dir/
-                behavior_X/
-                    metadata.json
-                    base/           # Shared base HTML (optional)
-                    benign/         # Control group
-                    adversarial_v0/ # First adversarial variant
-                    adversarial_v1/ # Second adversarial variant
+                redteam/
+                    behavior_X/
+                        agent_Y/
+                            seed0_var0/
+                                metadata.json
+                                benign/
+                                adversarial_behavior_x_v0/
 
         Args:
-            benchmark: RedteamBenchmark instance
             study_dir: Study directory (parent dirs will be created inside this)
-            date_str: Date string for directory naming
-
-        Returns:
-            Dict mapping (behavior_id, variation_seed) -> parent_exp_dir
-            Note: All variants of a behavior map to the SAME parent dir.
         """
         from collections import defaultdict
 
-        # Check if this is redteam benchmark
-        if not hasattr(benchmark, 'env_args_list'):
-            return {}
+        run_groups = defaultdict(list)
+        for exp_args in self.exp_args_list or []:
+            env_args = getattr(exp_args, "env_args", None)
+            behavior_id = str(getattr(env_args, "behavior_id", "") or "").strip()
+            if not behavior_id:
+                continue
+            agent_name = str(getattr(exp_args.agent_args, "agent_name", "agent") or "agent")
+            agent_run_id = str(getattr(exp_args, "agent_run_id", "") or agent_name)
+            variation_seed = getattr(env_args, "variation_seed", getattr(env_args, "injection_seed", 0))
+            task_seed = getattr(env_args, "task_seed", 0)
+            run_groups[(behavior_id, agent_run_id, agent_name, task_seed, variation_seed)].append(exp_args)
 
-        # Group ALL tasks by behavior_id (not variation_seed)
-        behavior_groups = defaultdict(list)
-        for env_args in benchmark.env_args_list:
-            if hasattr(env_args, 'behavior_id') and env_args.behavior_id:
-                # Key by behavior_id only - all variants go together
-                behavior_groups[env_args.behavior_id].append(env_args)
-
-        # Create parent directory for each behavior INSIDE study_dir
-        # Map (behavior_id, variation_seed) -> parent_dir for lookup later
-        parent_dirs = {}
-        for behavior_id, env_args_list in behavior_groups.items():
-            # Create parent directory name (no seed suffix since all variants grouped)
-            agent_name = self.agent_args[0].agent_name if self.agent_args else 'agent'
-            parent_name = f"{date_str}_{agent_name}_{behavior_id}"
-            parent_dir = study_dir / parent_name
+        redteam_root = study_dir / "redteam"
+        for (behavior_id, agent_run_id, agent_name, task_seed, variation_seed), grouped_exp_args in sorted(run_groups.items()):
+            run_group_id = _redteam_run_group_id(
+                task_seed=task_seed,
+                variation_seed=variation_seed,
+            )
+            parent_dir = redteam_root / behavior_id / agent_run_id / run_group_id
             parent_dir.mkdir(parents=True, exist_ok=True)
 
-            # Collect all variants
-            all_variants = [env_args.variant_subdir for env_args in env_args_list]
-            # Sort so benign comes first, then adversarial_v0, v1, etc.
-            all_variants = sorted(set(all_variants), key=lambda v: (0 if v == "benign" else 1, v))
+            all_variants = [exp_args.env_args.variant_subdir for exp_args in grouped_exp_args]
+            all_variants = sorted(set(all_variants), key=_redteam_variant_sort_key)
 
-            # Save metadata about this behavior run
             metadata = {
+                "layout_kind": _REDTEAM_VARIANT_LAYOUT_KIND,
+                "layout_version": _REDTEAM_VARIANT_LAYOUT_VERSION,
                 "behavior_id": behavior_id,
+                "agent_name": agent_name,
+                "agent_run_id": agent_run_id,
+                "task_seed": task_seed,
+                "variation_seed": variation_seed,
+                "run_group_id": run_group_id,
                 "variants": all_variants,
-                "created_at": date_str,
+                "created_at": datetime.now().isoformat(),
                 "n_benign": sum(1 for v in all_variants if v == "benign"),
                 "n_adversarial": sum(1 for v in all_variants if v.startswith("adversarial")),
             }
             (parent_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
-            # Map ALL (behavior_id, variation_seed) combinations to this parent
-            # This is the key change: every variant of a behavior uses the same parent dir
-            for env_args in env_args_list:
-                key = (behavior_id, env_args.variation_seed)
-                parent_dirs[key] = parent_dir
+            for exp_args in grouped_exp_args:
+                env_args = exp_args.env_args
+                env_args.parent_exp_dir = str(parent_dir)
+                env_args.variant_name = env_args.variant_subdir
+                env_args.run_group_id = run_group_id
+                env_args.is_variant_run = True
 
             logger.info(
-                f"Created parent dir for {behavior_id}: {parent_dir} "
+                f"Configured redteam run group for {agent_run_id}/{behavior_id}: {parent_dir} "
                 f"({len(all_variants)} variants: {', '.join(all_variants)})"
             )
-
-        return parent_dirs
 
     def set_reproducibility_info(self, strict_reproducibility=False, comment=None):
         """Gather relevant information that may affect the reproducibility of the experiment
@@ -408,25 +440,14 @@ class Study(AbstractStudy):
         from agentlab.benchmarks.redteam import RedteamBenchmark
 
         if isinstance(self.benchmark, RedteamBenchmark):
-            # Extract date string from directory name
-            date_str = self.dir.name.split('_')[0] + '_' + self.dir.name.split('_')[1]
-
-            # Pre-create parent directories for behavior groups INSIDE the study directory
-            parent_dirs = self._prepare_redteam_parent_dirs(
-                self.benchmark, self.dir, date_str  # Use study dir, not exp_root
-            )
-
-            # Update env_args with parent directory info
-            for env_args in self.benchmark.env_args_list:
-                if hasattr(env_args, 'behavior_id') and env_args.behavior_id:
-                    key = (env_args.behavior_id, env_args.variation_seed)
-                    if key in parent_dirs:
-                        env_args.parent_exp_dir = str(parent_dirs[key])
-                        env_args.variant_name = env_args.variant_subdir
-                        env_args.is_variant_run = True
-                        logger.info(f"Configured variant {env_args.variant_name} for {env_args.behavior_id}")
+            self._prepare_redteam_parent_dirs(self.dir)
 
         n_exp = len(self.exp_args_list)
+        if n_exp == 0:
+            raise RuntimeError(
+                f"No runnable experiments were produced for study {self.name}. "
+                "The selected benchmark may have rejected all pregenerated redteam app artifacts."
+            )
         last_error_count = None
         result_df = None
         summary_df = None
@@ -582,7 +603,6 @@ class Study(AbstractStudy):
         total_input_tokens = 0
         total_output_tokens = 0
         attacker_total_tokens = 0
-        judge_successes = 0
         judge_scores = []
 
         try:
@@ -604,8 +624,6 @@ class Study(AbstractStudy):
                     # Aggregate judge results
                     if exp_data.get("judge_result"):
                         judge_result = exp_data["judge_result"]
-                        if judge_result.get("overall_success") is True:
-                            judge_successes += 1
                         if judge_result.get("overall_score") is not None:
                             judge_scores.append(judge_result["overall_score"])
                 except Exception as e:
@@ -614,12 +632,10 @@ class Study(AbstractStudy):
         except Exception as e:
             logger.warning(f"Error iterating experiments: {e}")
 
-        # Calculate attack success rate and average judge score
-        n_experiments = len(log_data["experiments"])
-        if n_experiments > 0:
-            log_data["summary"]["attack_success_rate"] = judge_successes / n_experiments
-        else:
-            log_data["summary"]["attack_success_rate"] = 0.0
+        adversarial_experiments = [
+            exp for exp in log_data["experiments"] if exp.get("test_mode") == "adversarial"
+        ]
+        log_data["summary"]["attack_success_rate"] = _judge_success_rate(adversarial_experiments)
 
         if judge_scores:
             log_data["summary"]["avg_judge_score"] = sum(judge_scores) / len(judge_scores)
@@ -662,37 +678,26 @@ class Study(AbstractStudy):
         """
         from collections import defaultdict
 
-        # Group experiments by behavior_id
+        # Group experiments by the actual run-group parent directory when present.
         behavior_experiments = defaultdict(list)
         for exp_data in log_data.get("experiments", []):
-            behavior_id = exp_data.get("behavior_id")
-            if behavior_id:
-                behavior_experiments[behavior_id].append(exp_data)
+            parent_exp_dir = exp_data.get("parent_exp_dir") or exp_data.get("exp_dir")
+            if parent_exp_dir:
+                behavior_experiments[parent_exp_dir].append(exp_data)
 
         if not behavior_experiments:
             logger.info("No behavior-grouped experiments found, skipping per-behavior logs")
             return
 
-        # Write per-behavior log.json files
-        for behavior_id, experiments in behavior_experiments.items():
-            # Find the parent directory for this behavior
-            # Look for directory matching pattern *_{behavior_id}
-            parent_dir = None
-            for subdir in self.dir.iterdir():
-                if subdir.is_dir() and subdir.name.endswith(f"_{behavior_id}"):
-                    parent_dir = subdir
-                    break
-
-            if not parent_dir:
-                logger.warning(f"No parent directory found for behavior {behavior_id}")
+        for parent_exp_dir, experiments in behavior_experiments.items():
+            parent_dir = Path(parent_exp_dir)
+            if not parent_dir.exists():
+                logger.warning(f"No parent directory found for behavior log at {parent_exp_dir}")
                 continue
+            behavior_id = experiments[0].get("behavior_id")
 
             # Calculate behavior-level statistics
             n_experiments = len(experiments)
-            judge_successes = sum(
-                1 for exp in experiments
-                if (exp.get("judge_result") or {}).get("overall_success") is True
-            )
             judge_scores = [
                 (exp.get("judge_result") or {}).get("overall_score")
                 for exp in experiments
@@ -716,20 +721,15 @@ class Study(AbstractStudy):
                 "behavior_name": experiments[0].get("behavior_name", behavior_id) if experiments else behavior_id,
                 "time": datetime.now().isoformat(),
                 "study_dir": str(self.dir),
+                "parent_exp_dir": str(parent_dir),
                 "summary": {
                     "n_total": n_experiments,
                     "n_benign": len(benign_exps),
                     "n_adversarial": len(adversarial_exps),
-                    "attack_success_rate": judge_successes / n_experiments if n_experiments > 0 else 0.0,
+                    "attack_success_rate": _judge_success_rate(adversarial_exps),
                     "avg_judge_score": sum(judge_scores) / len(judge_scores) if judge_scores else None,
-                    "benign_success_rate": (
-                        sum(1 for e in benign_exps if (e.get("judge_result") or {}).get("overall_success"))
-                        / len(benign_exps) if benign_exps else None
-                    ),
-                    "adversarial_success_rate": (
-                        sum(1 for e in adversarial_exps if (e.get("judge_result") or {}).get("overall_success"))
-                        / len(adversarial_exps) if adversarial_exps else None
-                    ),
+                    "benign_success_rate": _judge_success_rate(benign_exps),
+                    "adversarial_success_rate": _judge_success_rate(adversarial_exps),
                 },
                 "token_usage": {
                     "target": {"input": target_input, "output": target_output, "total": target_input + target_output},
@@ -787,14 +787,23 @@ class Study(AbstractStudy):
                 if isinstance(page, dict):
                     pages.append(
                         {
-                            "domain": page.get("domain", ""),
-                            "real_site": page.get("real_site", ""),
+                            "domain": page.get("id", page.get("domain", "")),
+                            "real_site": page.get("base_site_url", page.get("real_site", "")),
                             "html_path": page.get("existing_path", ""),
+                        }
+                    )
+                elif hasattr(page, "id"):  # Page dataclass
+                    pages.append(
+                        {
+                            "domain": page.id,
+                            "real_site": getattr(page, "base_site_url", "") or "",
+                            "html_path": getattr(page, "existing_path", "") or "",
                         }
                     )
 
         # Extract target info
         target_model = None
+        agent_name = getattr(exp_args.agent_args, "agent_name", None) if hasattr(exp_args, "agent_args") else None
         if hasattr(exp_args, "agent_args") and hasattr(exp_args.agent_args, "chat_model_args"):
             target_model = getattr(exp_args.agent_args.chat_model_args, "model_name", None)
 
@@ -943,28 +952,38 @@ class Study(AbstractStudy):
         except Exception:
             pass
 
-        # Load adversarial content from injections.json
-        # Check both exp_dir and parent dir (for variant subdirectory structure)
+        # Load adversarial content from shared attack metadata.
         adversarial_content = None
         try:
-            injection_path = exp_result.exp_dir / "injections.json"
-            if not injection_path.exists():
-                # Try parent directory (variant runs have injections.json in parent)
-                injection_path = exp_result.exp_dir.parent / "injections.json"
-            if injection_path.exists():
-                with open(injection_path, "r", encoding="utf-8") as f:
-                    adversarial_content = json.load(f)
-                logger.debug(f"Loaded adversarial content from {injection_path}")
+            attack_metadata = load_attack_metadata(
+                exp_result.exp_dir,
+                app_dir=getattr(env_args, "app_dir", ""),
+                behavior_id=getattr(env_args, "behavior_id", ""),
+                variant=getattr(env_args, "variant", ""),
+                test_mode=getattr(env_args, "test_mode", "unknown"),
+            )
+            adversarial_content = attack_metadata.get("adversarial_content") or None
         except Exception as e:
-            logger.debug(f"Could not load injections.json: {e}")
+            logger.debug(f"Could not load attack metadata: {e}")
 
         # Get success condition from env_args
         success_condition = getattr(env_args, "success_condition", None)
+        parent_exp_dir = str(exp_result.parent_dir) if exp_result.is_variant_run else None
+        run_group_id = getattr(env_args, "run_group_id", None) or (
+            exp_result.parent_dir.name if exp_result.is_variant_run else None
+        )
+        variation_seed = getattr(env_args, "variation_seed", getattr(env_args, "injection_seed", 0))
+        task_seed = getattr(env_args, "task_seed", None)
 
         return {
+            "agent_name": agent_name,
             "behavior_id": behavior_id,
             "behavior_name": getattr(env_args, "target", None) or behavior_id,
             "test_mode": test_mode,
+            "variation_seed": variation_seed,
+            "task_seed": task_seed,
+            "parent_exp_dir": parent_exp_dir,
+            "run_group_id": run_group_id,
             "goal": goal,
             "pages": pages,
             "target": {
@@ -1095,14 +1114,18 @@ class Study(AbstractStudy):
 
         exp_args_list = []
 
-        for agent in agents:
+        for agent_index, agent in enumerate(agents):
+            agent_name = str(getattr(agent, "agent_name", "agent") or "agent")
+            agent_run_id = f"{agent_name}__a{agent_index}"
             for env_args in env_args_list:
+                env_args_copy = deepcopy(env_args)
 
                 exp_args = ExpArgs(
                     agent_args=agent,
-                    env_args=env_args,
-                    attacker_agent_args=env_args.attacker_agent,
-                    max_conversation_turns=env_args.max_conversation_turns,
+                    env_args=env_args_copy,
+                    agent_run_id=agent_run_id,
+                    attacker_agent_args=getattr(env_args_copy, "attacker_agent", None),
+                    max_conversation_turns=getattr(env_args, "max_conversation_turns", 10),
                     logging_level=logging_level,
                     logging_level_stdout=logging_level_stdout,
                 )

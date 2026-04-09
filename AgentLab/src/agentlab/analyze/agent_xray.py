@@ -24,7 +24,7 @@ from agentlab.analyze.episode_to_html import exp_result_to_html
 from agentlab.analyze.overlay_utils import annotate_action
 from agentlab.experiments.exp_utils import RESULTS_DIR
 from agentlab.experiments.loop import ExpResult, StepInfo
-from agentlab.experiments.study import get_most_recent_study
+from agentlab.experiments.study import _redteam_variant_sort_key, get_most_recent_study
 from agentlab.llm.chat_api import make_system_message, make_user_message
 from agentlab.llm.llm_utils import BaseMessage as AgentLabBaseMessage
 from agentlab.llm.llm_utils import Discussion
@@ -42,6 +42,62 @@ TASK_SEED_KEY = "env.task_seed"
 BEHAVIOR_ID_KEY = "env.behavior_id"
 TEST_MODE_KEY = "env.test_mode"
 VARIATION_SEED_KEY = "env.variation_seed"
+
+
+def _redteam_variant_row_key(row: pd.Series) -> str:
+    return (
+        row.get("env.variant_name")
+        or row.get("env.variant")
+        or row.get("env.active_variant")
+        or f"adversarial_seed{row.get(VARIATION_SEED_KEY, row.get('env.injection_seed', 0))}"
+    )
+
+
+def _status_marker(value) -> str:
+    if isinstance(value, (bool, np.bool_)):
+        return "✓" if bool(value) else "✗"
+    if pd.isna(value):
+        return "-"
+    return "-"
+
+
+def _html_files_within_root(source_dir: Path, *, allowed_root: Path) -> list[Path]:
+    if not source_dir.exists():
+        return []
+    allowed_root = allowed_root.resolve()
+    html_files: list[Path] = []
+    for html_file in sorted(source_dir.glob("*.html")):
+        if "_pre_injection" in html_file.name:
+            continue
+        try:
+            html_file.resolve().relative_to(allowed_root)
+        except ValueError:
+            continue
+        html_files.append(html_file)
+    return html_files
+
+
+def _resolve_website_viewer_html_files(exp_result: ExpResult) -> tuple[list[Path], str]:
+    exp_dir = Path(exp_result.exp_dir).resolve()
+    archived_runtime_dir = exp_dir / "app_runtime"
+    archived_runtime_files = _html_files_within_root(archived_runtime_dir, allowed_root=exp_dir)
+    if archived_runtime_files:
+        return archived_runtime_files, ""
+
+    # Keep older archived runs browsable in Xray: earlier layouts stored HTML directly
+    # under exp_dir/variation_0 or exp_dir/, but those files are still immutable run
+    # artifacts. We intentionally do not fall back to env_args.app_dir because that live
+    # source tree can drift after the run and no longer reflect what the agent saw.
+    variation_dir = exp_dir / "variation_0"
+    variation_files = _html_files_within_root(variation_dir, allowed_root=exp_dir)
+    if variation_files:
+        return variation_files, ""
+
+    root_files = _html_files_within_root(exp_dir, allowed_root=exp_dir)
+    if root_files:
+        return root_files, ""
+
+    return [], "<p>No archived HTML files found for this experiment.</p>"
 
 
 def display_table(df: pd.DataFrame):
@@ -283,7 +339,7 @@ clicking the refresh button.
 This view groups experiments by behavior_id and shows:
 - **benign_success**: Whether the agent succeeded on the benign (control) version
 - **n_adv**: Number of adversarial variants tested
-- **adv_v0, adv_v1, ...**: Success/failure for each adversarial variant
+- **adv_0, adv_1, ...**: Success/failure for the first few adversarial variants
 
 Legend: ✓ = success, ✗ = failure, - = not available
 
@@ -752,24 +808,9 @@ def update_website_viewer(selected_file=None):
     if info.exp_result is None:
         return gr.update(choices=[], value=None), "<p>No experiment selected</p>"
 
-    exp_dir = Path(info.exp_result.exp_dir)
-
-    variation_dir = exp_dir / "variation_0"
-    html_files = []
-
-    if variation_dir.exists():
-        html_files = list(variation_dir.glob("*.html"))
-
+    html_files, missing_html_message = _resolve_website_viewer_html_files(info.exp_result)
     if not html_files:
-        html_files = list(exp_dir.glob("*.html"))
-
-    html_files = [f for f in html_files if "_pre_injection" not in f.name]
-
-    if not html_files:
-        return (
-            gr.update(choices=[], value=None),
-            "<p>No generated HTML files found in this experiment (checked variation_0/ and experiment root)</p>",
-        )
+        return gr.update(choices=[], value=None), missing_html_message
 
     # Create dropdown choices from HTML file names
     file_choices = [f.name for f in html_files]
@@ -1263,26 +1304,27 @@ def get_behavior_comparison_df(result_df: pd.DataFrame):
         adv_df = behavior_df[behavior_df["_test_mode"] == "adversarial"]
         adv_results = []
         for _, row in adv_df.iterrows():
-            var_seed = row.get(VARIATION_SEED_KEY, row.get("env.injection_seed", 0))
             adv_success = row.get("judge.overall_success", None)
             adv_idx = row.get("_row_index", None)
             adv_results.append({
-                "var_seed": var_seed,
+                "variant_name": _redteam_variant_row_key(row),
                 "success": adv_success,
                 "idx": adv_idx,
             })
+        adv_results.sort(key=lambda result: _redteam_variant_sort_key(result["variant_name"]))
 
         record = {
             "behavior": behavior_id,
-            "benign_success": "✓" if benign_success else ("✗" if benign_success is False else "-"),
+            "benign_success": _status_marker(benign_success),
             "benign_idx": benign_idx,
             "n_adv": len(adv_results),
         }
 
         # Add adversarial columns
         for i, adv in enumerate(adv_results[:3]):  # Limit to 3 variants shown
-            record[f"adv_v{i}"] = "✓" if adv["success"] else ("✗" if adv["success"] is False else "-")
-            record[f"adv_v{i}_idx"] = adv["idx"]
+            record[f"adv_{i}"] = _status_marker(adv["success"])
+            record[f"adv_{i}_name"] = adv["variant_name"]
+            record[f"adv_{i}_idx"] = adv["idx"]
 
         records.append(record)
 
@@ -1290,10 +1332,11 @@ def get_behavior_comparison_df(result_df: pd.DataFrame):
         return pd.DataFrame()
 
     df = pd.DataFrame(records)
-    # Hide idx columns in display but keep for selection
+    # Hide idx/name columns in display but keep for selection and variant switching
     display_cols = ["behavior", "benign_success", "n_adv"]
-    display_cols += [c for c in df.columns if c.startswith("adv_v") and not c.endswith("_idx")]
-    return df[display_cols + ["benign_idx"] + [c for c in df.columns if c.endswith("_idx")]]
+    display_cols += [c for c in df.columns if c.startswith("adv_") and not c.endswith(("_idx", "_name"))]
+    hidden_cols = sorted(set(c for c in df.columns if c.endswith("_idx") or c.endswith("_name")))
+    return df[display_cols + hidden_cols]
 
 
 def on_select_agent(evt: gr.SelectData, df: pd.DataFrame):
@@ -1344,19 +1387,22 @@ def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tupl
 
     # Build variant choices
     variants = ["benign"]
-    # Check for adversarial variants (adv_v0, adv_v1, etc.)
     for col in df.columns:
-        if col.startswith("adv_v") and not col.endswith("_idx"):
-            variants.append(col.replace("adv_", "adversarial_"))
+        if col.startswith("adv_") and col.endswith("_name"):
+            variant_name = row.get(col)
+            if isinstance(variant_name, str) and variant_name:
+                variants.append(variant_name)
 
     # Build behavior data for variant switching
     behavior_data_dict = {
         "behavior": behavior,
         "benign_idx": row.get("benign_idx"),
     }
-    # Add adversarial indices
+    # Add adversarial indices and names
     for col in df.columns:
         if col.endswith("_idx") and col != "benign_idx":
+            behavior_data_dict[col] = row.get(col)
+        elif col.endswith("_name"):
             behavior_data_dict[col] = row.get(col)
 
     # Build comparison info
@@ -1364,9 +1410,11 @@ def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tupl
     benign_status = row.get("benign_success", "-")
     info_parts.append(f"**Benign:** {benign_status}")
     for i in range(3):
-        adv_col = f"adv_v{i}"
+        adv_col = f"adv_{i}"
+        variant_name = row.get(f"adv_{i}_name")
         if adv_col in row:
-            info_parts.append(f"**Adversarial v{i}:** {row[adv_col]}")
+            label = variant_name or f"adversarial #{i}"
+            info_parts.append(f"**{label}:** {row[adv_col]}")
     comparison_info = "\n\n".join(info_parts)
 
     # Create episode_id for benign (default selection)
@@ -1406,9 +1454,14 @@ def on_select_variant(variant: str, behavior_data: dict, agent_id: list[tuple]):
         idx = behavior_data.get("benign_idx")
         task_name = f"{behavior}.benign"
     else:
-        # Convert adversarial_v0 -> adv_v0_idx
-        idx_key = variant.replace("adversarial_", "adv_") + "_idx"
-        idx = behavior_data.get(idx_key)
+        idx = None
+        for key, value in behavior_data.items():
+            if not key.startswith("adv_") or not key.endswith("_idx"):
+                continue
+            slot = key.removesuffix("_idx")
+            if behavior_data.get(f"{slot}_name") == variant:
+                idx = value
+                break
         task_name = f"{behavior}.{variant}"
 
     if idx is None or pd.isna(idx):

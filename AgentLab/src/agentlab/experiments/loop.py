@@ -30,10 +30,7 @@ try:
 except ImportError:
     TapeAgent = None
 
-try:
-    from agentlab.benchmarks.redteam_judge import JudgeRunner
-except ImportError:
-    JudgeRunner = None
+JudgeRunner = None
 
 try:
     from agentlab.benchmarks.redteam_actions import DONE_MARKER
@@ -43,6 +40,22 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 SEED_MAX = 2**32
+_REDTEAM_FINAL_STATE_RETRIES = 3
+_REDTEAM_FINAL_STATE_RETRY_DELAY_S = 0.25
+_REDTEAM_VARIANT_LAYOUT_KIND = "redteam_variant_group"
+
+
+def _resolve_judge_runner():
+    """Resolve JudgeRunner lazily to avoid import cycles during module init."""
+    global JudgeRunner
+    if JudgeRunner is not None:
+        return JudgeRunner
+    try:
+        from agentlab.benchmarks.redteam_judge import JudgeRunner as resolved_runner
+    except ImportError:
+        return None
+    JudgeRunner = resolved_runner
+    return JudgeRunner
 
 
 @dataclass
@@ -345,6 +358,7 @@ class ExpArgs:
 
     agent_args: AbstractAgentArgs
     env_args: EnvArgs
+    agent_run_id: str = ""
     attacker_agent_args: Optional[AbstractAgentArgs] = None  # Optional redteam attacker agent
     max_conversation_turns: int = 10  # Max turns for adversarial mode
     exp_dir: str = None
@@ -529,13 +543,20 @@ class ExpArgs:
             and not (episode_info[-1].terminated or episode_info[-1].truncated)
         ):
             err_msg = f"Early termination in task {self.env_args.task_name}"
-        self.save_summary_info(episode_info, Path(self.exp_dir), err_msg, stack_trace)
+        extra_info = self._collect_redteam_artifacts(env)
+        self.save_summary_info(
+            episode_info,
+            Path(self.exp_dir),
+            err_msg,
+            stack_trace,
+            extra_info=extra_info,
+        )
         if TapeAgent is not None and isinstance(agent, TapeAgent):
             task = getattr(env, "task", {})
             save_tape(self.exp_dir, episode_info, task, agent.final_tape)
 
         # Run judge evaluation for redteam experiments
-        self._run_judge_evaluation(episode_info)
+        self._run_judge_evaluation(episode_info, env=env)
 
         # Close environment
         if env is not None:
@@ -548,23 +569,25 @@ class ExpArgs:
         # Unset logger
         self._unset_logger()
 
-    def _run_judge_evaluation(self, episode_info):
+    def _run_judge_evaluation(self, episode_info, env=None):
         """Run judge evaluation for redteam experiments."""
         # Only run for redteam experiments with judging config
         if not hasattr(self.env_args, "judging") or not self.env_args.judging:
             return
 
-        if JudgeRunner is None:
+        judge_runner_cls = _resolve_judge_runner()
+        if judge_runner_cls is None:
             logger.warning("JudgeRunner not available, skipping judge evaluation")
             return
 
         logger.info("Running judge evaluation...")
 
         # Create JudgeRunner from env_args
-        runner = JudgeRunner(self.env_args)
+        runner = judge_runner_cls(self.env_args)
 
         # Run evaluation
-        result = runner.evaluate(Path(self.exp_dir), episode_info)
+        server_port = getattr(env, "server_port", None) if env is not None else None
+        result = runner.evaluate(Path(self.exp_dir), episode_info, server_port=server_port)
 
         # Save result to exp_dir/judge_result.json
         runner.save_result(Path(self.exp_dir), result)
@@ -575,7 +598,7 @@ class ExpArgs:
         )
 
     def _save_experiment_results(
-        self, step_info, episode_info, err_msg, stack_trace, extra_info=None
+        self, env, step_info, episode_info, err_msg, stack_trace, extra_info=None
     ):
         """Save step info and summary (used by adversarial modes where cleanup is handled separately)."""
         if step_info is not None:
@@ -583,11 +606,111 @@ class ExpArgs:
                 self.exp_dir, save_screenshot=self.save_screenshot, save_som=self.save_som
             )
 
+        artifact_info = self._collect_redteam_artifacts(env)
+        merged_info = {}
+        if extra_info:
+            merged_info.update(extra_info)
+        if artifact_info:
+            merged_info.update(artifact_info)
+
         self.save_summary_info(
-            episode_info, Path(self.exp_dir), err_msg, stack_trace, extra_info=extra_info
+            episode_info,
+            Path(self.exp_dir),
+            err_msg,
+            stack_trace,
+            extra_info=merged_info or None,
         )
 
-        self._run_judge_evaluation(episode_info)
+        self._run_judge_evaluation(episode_info, env=env)
+
+    def _collect_redteam_artifacts(self, env) -> dict | None:
+        """Persist app-mode artifacts needed by downstream verifiers and audits."""
+        if env is None:
+            return None
+
+        artifact_info: dict[str, str] = {}
+        env_args = getattr(self, "env_args", None)
+        exp_dir = Path(self.exp_dir)
+
+        final_state = self._fetch_redteam_final_state(env)
+
+        if final_state is not None:
+            from agentlab.benchmarks.redteam.app_artifacts import redact_state_payload
+
+            final_state_path = exp_dir / "final_state.json"
+            try:
+                final_state_path.write_text(
+                    json.dumps(redact_state_payload(final_state), indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                artifact_info["final_state_path"] = str(final_state_path)
+            except OSError as exc:
+                logger.warning("Failed to persist final state snapshot: %s", exc)
+
+        server_events_path = exp_dir / "server_events.log"
+        if server_events_path.exists():
+            artifact_info["server_events_path"] = str(server_events_path)
+        elif getattr(env_args, "app_dir", ""):
+            artifact_info["server_events_path"] = str(server_events_path)
+
+        if hasattr(env_args, "app_dir") and getattr(env_args, "app_dir", ""):
+            artifact_info["app_dir"] = str(getattr(env_args, "app_dir"))
+            try:
+                from agentlab.benchmarks.redteam.app_artifacts import (
+                    attack_metadata_archive_path,
+                    build_attack_metadata_archive_payload,
+                    load_attack_metadata,
+                )
+
+                attack_metadata = load_attack_metadata(
+                    exp_dir,
+                    app_dir=getattr(env_args, "app_dir", ""),
+                    behavior_id=getattr(env_args, "behavior_id", ""),
+                    variant=getattr(env_args, "variant", ""),
+                    test_mode=getattr(env_args, "test_mode", "unknown"),
+                )
+                attack_metadata = build_attack_metadata_archive_payload(
+                    attack_metadata,
+                    app_dir=getattr(env_args, "app_dir", ""),
+                    behavior_id=getattr(env_args, "behavior_id", ""),
+                    variant=getattr(env_args, "variant", ""),
+                    test_mode=getattr(env_args, "test_mode", "unknown"),
+                )
+                archive_path = attack_metadata_archive_path(exp_dir)
+                archive_path.write_text(
+                    json.dumps(attack_metadata, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                artifact_info["attack_metadata_path"] = str(archive_path)
+            except Exception as exc:
+                logger.warning("Failed to persist attack metadata snapshot: %s", exc)
+
+        return artifact_info or None
+
+    def _fetch_redteam_final_state(self, env):
+        """Best-effort final-state fetch with bounded retries."""
+        if not hasattr(env, "get_browser_state"):
+            return None
+
+        for attempt in range(1, _REDTEAM_FINAL_STATE_RETRIES + 1):
+            try:
+                final_state = env.get_browser_state()
+            except Exception as exc:
+                logger.warning(
+                    "Failed to fetch final browser state (attempt %d/%d): %s",
+                    attempt,
+                    _REDTEAM_FINAL_STATE_RETRIES,
+                    exc,
+                )
+                final_state = None
+
+            if final_state is not None:
+                return final_state
+
+            if attempt < _REDTEAM_FINAL_STATE_RETRIES:
+                time.sleep(_REDTEAM_FINAL_STATE_RETRY_DELAY_S)
+
+        return None
 
     def _run_adversarial(self):
         """Run adversarial redteam evaluation with attacker and target agent."""
@@ -634,12 +757,20 @@ class ExpArgs:
             logger.exception(err_msg)
             self.err_msg = err_msg
             self.stack_trace = traceback.format_exc()
+            # Save whatever artifacts we can before closing
+            try:
+                self._save_experiment_results(env, None, [], err_msg, self.stack_trace)
+            except Exception:
+                logger.warning("Failed to save experiment results after error", exc_info=True)
             return None
         finally:
             if env:
                 env.close()
             if agent and hasattr(agent, "close"):
                 agent.close()
+            if attacker_agent and hasattr(attacker_agent, "close"):
+                attacker_agent.close()
+            self._unset_logger()
 
     def _run_single_turn_adversarial(self, agent, attacker_agent, env, initial_obs):
         """
@@ -689,7 +820,7 @@ class ExpArgs:
         finally:
             extra_info = {"attacker_token_usage": attacker_token_usage}
             self._save_experiment_results(
-                step_info, episode_info, err_msg, stack_trace, extra_info=extra_info
+                env, step_info, episode_info, err_msg, stack_trace, extra_info=extra_info
             )
 
         logger.info(f"Single-turn adversarial completed: {len(episode_info)} steps")
@@ -703,7 +834,7 @@ class ExpArgs:
         A "turn" ends when agent explicitly calls send_msg_to_user().
         """
         logger.info(
-            f"Running MULTI-TURN adversarial mode (max {self.env_args.max_conversation_turns} turns)"
+            f"Running MULTI-TURN adversarial mode (max {self.max_conversation_turns} turns)"
         )
 
         # Ensure target agent is in chat mode
@@ -717,7 +848,7 @@ class ExpArgs:
         attacker_token_usage = {"input": 0, "output": 0, "total": 0}
 
         try:
-            for turn in range(self.env_args.max_conversation_turns):
+            for turn in range(self.max_conversation_turns):
                 logger.info(f"=== Conversation Turn {turn} ===")
 
                 # 1. Attacker generates message
@@ -865,7 +996,7 @@ class ExpArgs:
         finally:
             extra_info = {"attacker_token_usage": attacker_token_usage}
             self._save_experiment_results(
-                None, episode_info, err_msg, stack_trace, extra_info=extra_info
+                env, None, episode_info, err_msg, stack_trace, extra_info=extra_info
             )
 
         return episode_info
@@ -1005,6 +1136,27 @@ def _is_debugging():
     return sys.gettrace() is not None
 
 
+def _load_variant_group_metadata(parent_dir: Path) -> dict | None:
+    """Return redteam variant-group metadata for a parent dir, else ``None``."""
+    metadata_path = parent_dir / "metadata.json"
+    if not metadata_path.exists():
+        return None
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+    except Exception as e:
+        logger.warning(f"Failed to load parent metadata: {e}")
+        return None
+
+    variants = metadata.get("variants")
+    if not isinstance(variants, list):
+        return None
+    layout_kind = metadata.get("layout_kind")
+    if layout_kind not in (None, _REDTEAM_VARIANT_LAYOUT_KIND):
+        return None
+    return metadata
+
+
 class ExpResult:
     """Helper class to load and visualize the results of an experiment.
 
@@ -1037,17 +1189,11 @@ class ExpResult:
         self.parent_dir = None
         self.variant_name = None
 
-        # Check if parent has metadata.json
-        if (self.exp_dir.parent / "metadata.json").exists():
-            try:
-                with open(self.exp_dir.parent / "metadata.json") as f:
-                    metadata = json.load(f)
-                    if "variants" in metadata:
-                        self.parent_dir = self.exp_dir.parent
-                        self.variant_name = self.exp_dir.name
-                        logger.debug(f"Detected variant: {self.variant_name} in {self.parent_dir}")
-            except Exception as e:
-                logger.warning(f"Failed to load parent metadata: {e}")
+        metadata = _load_variant_group_metadata(self.exp_dir.parent)
+        if metadata is not None:
+            self.parent_dir = self.exp_dir.parent
+            self.variant_name = self.exp_dir.name
+            logger.debug(f"Detected variant: {self.variant_name} in {self.parent_dir}")
 
     @property
     def is_variant_run(self) -> bool:
@@ -1277,6 +1423,11 @@ class ExpResult:
 EXP_RESULT_CACHE = {}
 
 
+def invalidate_exp_result_cache(exp_dir) -> None:
+    """Drop any cached ``ExpResult`` for ``exp_dir`` so reruns reload fresh data."""
+    EXP_RESULT_CACHE.pop(str(exp_dir), None)
+
+
 def get_exp_result(exp_dir) -> ExpResult:
     """Keep a cache of pre-loaded exp_results for faster loading"""
     exp_dir = str(exp_dir)  # make sure it's not a Path
@@ -1325,15 +1476,11 @@ def yield_all_exp_results(
         exp_args_paths.extend(list(Path(exp_dir).glob("**/exp_args.pkl")))
 
     # Track parent directories to avoid duplicate processing
-    variant_parent_dirs = set()
+    variant_parent_dirs: dict[Path, dict] = {}
     for metadata_path in metadata_paths:
-        try:
-            with open(metadata_path) as f:
-                metadata = json.load(f)
-                if "variants" in metadata:
-                    variant_parent_dirs.add(metadata_path.parent)
-        except Exception:
-            pass
+        metadata = _load_variant_group_metadata(metadata_path.parent)
+        if metadata is not None:
+            variant_parent_dirs[metadata_path.parent] = metadata
 
     # Process all exp_args.pkl files
     if progress_fn is not None:
@@ -1360,23 +1507,21 @@ def yield_all_exp_results(
             yield ExpResult(exp_dir)
 
     # Process variant parent directories
-    for parent_dir in variant_parent_dirs:
+    for parent_dir, metadata in variant_parent_dirs.items():
         if not load_hidden and (parent_dir.name.startswith("_") or parent_dir.name.startswith(".")):
             continue
 
         try:
-            with open(parent_dir / "metadata.json") as f:
-                metadata = json.load(f)
-                variant_names = metadata.get("variants", [])
+            variant_names = metadata.get("variants", [])
 
-                for variant_name in variant_names:
-                    variant_dir = parent_dir / variant_name
-                    if variant_dir.exists() and (variant_dir / "exp_args.pkl").exists():
-                        logger.debug(f"Found variant: {parent_dir.name}/{variant_name}")
-                        if use_cache:
-                            yield get_exp_result(variant_dir)
-                        else:
-                            yield ExpResult(variant_dir)
+            for variant_name in variant_names:
+                variant_dir = parent_dir / variant_name
+                if variant_dir.exists() and (variant_dir / "exp_args.pkl").exists():
+                    logger.debug(f"Found variant: {parent_dir.name}/{variant_name}")
+                    if use_cache:
+                        yield get_exp_result(variant_dir)
+                    else:
+                        yield ExpResult(variant_dir)
         except Exception as e:
             logger.warning(f"Failed to process variant parent {parent_dir}: {e}")
 
@@ -1398,7 +1543,13 @@ def _move_old_exp(exp_dir):
     """Move the old experiment directory to a new name."""
     exp_dir = Path(exp_dir)
     if exp_dir.exists():
-        exp_dir.rename(exp_dir.with_name("_" + exp_dir.name))
+        invalidate_exp_result_cache(exp_dir)
+        target = exp_dir.with_name("_" + exp_dir.name)
+        suffix = 0
+        while target.exists():
+            suffix += 1
+            target = exp_dir.with_name(f"_{exp_dir.name}_{suffix}")
+        exp_dir.rename(target)
 
 
 def _get_env_name(task_name: str):
