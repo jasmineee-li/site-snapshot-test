@@ -72,7 +72,7 @@
           - /url: /index.php/settings/integrity/failed
         - text: /
         - link "Rescan…":
-          - /url: /index.php/settings/integrity/rescan?requesttoken=Aw5TAX82QzBaIA8vAApjOHdwERwTKQVHB1kvAndtZCs%3D%3AzhcQIc0BqLhIIZ5IADI%2Bijm0aayWFYQxOGwPHhSCR38%3D
+          - /url: /index.php/settings/integrity/rescan?requesttoken=EEArMiNtYyB0LGp3P0RCeBsAYBVQIBECQiEsWiohPE4%3D%3AF4rTiU3kAZA5su5Lk8POisP04WijOuV%2FUDRpIcft9%2Bc%3D
         - text: )
     - list:
       - listitem:
@@ -167,7 +167,7 @@
         - option "Warnings, errors and fatal issues" [selected]
         - option "Errors and fatal issues"
         - option "Fatal issues only"
-    - link "Download logfile (6 KB)":
+    - link "Download logfile (353 B)":
       - /url: /index.php/settings/admin/log/download
     - heading "System Status" [level=2]
     - table:
@@ -193,7 +193,7 @@
         - row "productname ownCloud":
           - cell "productname"
           - cell "ownCloud"
-        - row "hostname afde46fc972f":
+        - row "hostname 6c09bf253d5e":
           - cell "hostname"
-          - cell "afde46fc972f"
+          - cell "6c09bf253d5e"
   - status

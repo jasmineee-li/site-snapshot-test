@@ -53,7 +53,7 @@
           - columnheader "Size"
           - columnheader "Modified"
       - rowgroup:
-        - row "Favorite Select Documents Share Actions 65.9 MB an hour ago":
+        - row "Favorite Select Documents Share Actions 65.9 MB a minute ago":
           - cell "Favorite Select Documents Share Actions":
             - link "Favorite":
               - /url: "#"
@@ -67,8 +67,8 @@
               - link "Actions":
                 - /url: "#"
           - cell "65.9 MB"
-          - cell "an hour ago"
-        - row "Favorite Select Downloads Share Actions 7 KB an hour ago":
+          - cell "a minute ago"
+        - row "Favorite Select Downloads Share Actions 7 KB 16 minutes ago":
           - cell "Favorite Select Downloads Share Actions":
             - link "Favorite":
               - /url: "#"
@@ -82,8 +82,8 @@
               - link "Actions":
                 - /url: "#"
           - cell "7 KB"
-          - cell "an hour ago"
-        - row "Favorite Select Photos Share Actions 6 MB an hour ago":
+          - cell "16 minutes ago"
+        - row "Favorite Select Photos Share Actions 6 MB a minute ago":
           - cell "Favorite Select Photos Share Actions":
             - link "Favorite":
               - /url: "#"
@@ -97,7 +97,7 @@
               - link "Actions":
                 - /url: "#"
           - cell "6 MB"
-          - cell "an hour ago"
+          - cell "a minute ago"
         - row "Favorite Select Talk Share Actions 0 KB a year ago":
           - cell "Favorite Select Talk Share Actions":
             - link "Favorite":
@@ -113,7 +113,7 @@
                 - /url: "#"
           - cell "0 KB"
           - cell "a year ago"
-        - row "Favorite Select Templates Share Actions 10.2 MB an hour ago":
+        - row "Favorite Select Templates Share Actions 10.2 MB 16 minutes ago":
           - cell "Favorite Select Templates Share Actions":
             - link "Favorite":
               - /url: "#"
@@ -127,8 +127,8 @@
               - link "Actions":
                 - /url: "#"
           - cell "10.2 MB"
-          - cell "an hour ago"
-        - row "Favorite Select ownCloud Manual .pdf Share Actions 4.7 MB an hour ago":
+          - cell "16 minutes ago"
+        - row "Favorite Select ownCloud Manual .pdf Share Actions 4.7 MB a minute ago":
           - cell "Favorite Select ownCloud Manual .pdf Share Actions":
             - link "Favorite":
               - /url: "#"
@@ -142,36 +142,11 @@
               - link "Actions":
                 - /url: "#"
           - cell "4.7 MB"
-          - cell "an hour ago"
+          - cell "a minute ago"
       - rowgroup:
         - row "5 folders and 1 file 86.9 MB":
           - cell "5 folders and 1 file"
           - cell "86.9 MB"
           - cell
     - button "Choose File"
-  - dialog:
-    - img
-    - heading "A safe home for all your data" [level=1]
-    - paragraph: Access & share your files, calendars, contacts, mail & more from any device, on your terms
-    - heading "Get the apps to sync your files" [level=2]
-    - link "Desktop client":
-      - /url: https://owncloud.org/install/#install-clients
-      - img "Desktop client"
-    - link "Android app":
-      - /url: https://play.google.com/store/apps/details?id=com.owncloud.android
-      - img "Android app"
-    - link "iOS app":
-      - /url: https://itunes.apple.com/us/app/owncloud/id543672169?mt=8
-      - img "iOS app"
-    - heading "Connect your desktop apps to ownCloud" [level=2]
-    - link "Connect your Calendar":
-      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-sync-calendars
-    - link "Connect your Contacts":
-      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-sync-contacts
-    - link "Access files via WebDAV":
-      - /url: https://doc.owncloud.org/server/10.0/go.php?to=user-webdav
-    - paragraph:
-      - text: © 2026
-      - link "ownCloud":
-        - /url: https://owncloud.org
   - status

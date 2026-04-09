@@ -85,6 +85,7 @@ SERVICES: dict[str, dict] = {
             "username_selector": "#user",
             "password_selector": "#password",
             "submit_selector": "#submit-form, button[type='submit'], input[type='submit']",
+            "dismiss_selectors": ["#closeWizard"],
         },
         "pages": [
             ("files", "/index.php/apps/files/"),
@@ -179,6 +180,16 @@ async def login(page, login_config: dict) -> bool:
         # Wait for navigation after login
         await page.wait_for_load_state("load", timeout=30000)
         await asyncio.sleep(3)  # extra settle time for JS-heavy apps
+
+        # Dismiss any post-login popups/wizards
+        for selector in login_config.get("dismiss_selectors", []):
+            try:
+                await page.click(selector, timeout=3000)
+                await asyncio.sleep(0.5)
+                print(f"  Dismissed popup: {selector}")
+            except Exception:
+                pass  # popup not present, that's fine
+
         print("  Login successful")
         return True
     except Exception as e:

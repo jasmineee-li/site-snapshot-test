@@ -241,7 +241,7 @@
         - link "[Remote Store] Add support to separate segment infos snapshot from metadata":
           - /url: /root/opensearch/-/merge_requests/13114
         - text: 4 of 8 checklist items completed root/opensearch!13114 · created
-        - time: 1 year ago
+        - time: 2 years ago
         - text: by
         - link "Administrator":
           - /url: /root
