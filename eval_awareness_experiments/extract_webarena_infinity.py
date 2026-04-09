@@ -285,8 +285,9 @@ def update_manifest(entries: list[dict], manifest_path: Path) -> None:
     if manifest_path.exists():
         existing = json.loads(manifest_path.read_text())
 
-    # Remove old webarena-infinity entries
-    existing = [e for e in existing if e.get("source") != "webarena-infinity"]
+    # Remove only the entries being replaced (by ID)
+    new_ids = {e["id"] for e in entries}
+    existing = [e for e in existing if e["id"] not in new_ids]
     existing.extend(entries)
 
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
