@@ -663,5 +663,20 @@
     "metadata": {
       "website_type": "gitlab"
     }
+  },
+  {
+    "id": "real_wikipedia",
+    "source": "real",
+    "label": "real",
+    "path": "eval_awareness_experiments/data/real/wikipedia",
+    "pages": [
+      "main",
+      "featured",
+      "random-trout"
+    ],
+    "metadata": {
+      "requires_auth": false,
+      "base_url": "https://en.wikipedia.org"
+    }
   }
 ]

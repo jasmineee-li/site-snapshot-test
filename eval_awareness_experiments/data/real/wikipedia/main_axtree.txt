@@ -1,0 +1,1005 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Main+Page
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Main+Page
+  - main:
+    - navigation "Namespaces":
+      - list:
+        - listitem:
+          - link "Main Page":
+            - /url: /wiki/Main_Page
+        - listitem:
+          - link "Talk":
+            - /url: /wiki/Talk:Main_Page
+    - navigation "Views":
+      - list:
+        - listitem:
+          - link "Read":
+            - /url: /wiki/Main_Page
+        - listitem:
+          - link "View source":
+            - /url: /w/index.php?title=Main_Page&action=edit
+        - listitem:
+          - link "View history":
+            - /url: /w/index.php?title=Main_Page&action=history
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small"
+          - text: Small
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Large"
+          - text: Large
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - heading "Welcome to Wikipedia" [level=1]:
+      - text: Welcome to
+      - link "Wikipedia":
+        - /url: /wiki/Wikipedia
+    - text: ", the"
+    - link "free":
+      - /url: /wiki/Free_content
+    - link "encyclopedia":
+      - /url: /wiki/Encyclopedia
+    - text: that
+    - link "anyone can edit":
+      - /url: /wiki/Help:Introduction_to_Wikipedia
+    - text: .
+    - list:
+      - listitem:
+        - link "278,390":
+          - /url: /wiki/Special:Statistics
+        - text: active editors ·
+      - listitem:
+        - link "7,166,442":
+          - /url: /wiki/Special:Statistics
+        - text: articles in
+        - link "English":
+          - /url: /wiki/English_language
+    - heading "From today's featured article" [level=2]
+    - link "Constantine (right) and his grandfather Michael II on the reverse of a solidus":
+      - /url: /wiki/File:Solidus_of_Theophilos_sb1653_(reverse).jpg
+      - img "Constantine (right) and his grandfather Michael II on the reverse of a solidus"
+    - text: Constantine (right) and his grandfather
+    - link "Michael II":
+      - /url: /wiki/Michael_II
+    - text: on the reverse of a
+    - link "solidus":
+      - /url: /wiki/Solidus_(coin)
+    - paragraph:
+      - link "Constantine":
+        - /url: /wiki/Constantine_(son_of_Theophilos)
+      - text: (820s or 830s – before 836) was an infant prince of the
+      - link "Amorian dynasty":
+        - /url: /wiki/Byzantine_Empire_under_the_Amorian_dynasty
+      - text: who briefly ruled as
+      - link "co-emperor":
+        - /url: /wiki/List_of_Byzantine_emperors
+      - text: of the
+      - link "Byzantine Empire":
+        - /url: /wiki/Byzantine_Empire
+      - text: sometime in the 830s, alongside his father
+      - link "Theophilos":
+        - /url: /wiki/Theophilos_(emperor)
+      - text: . He was born to Theophilos and his wife, Empress
+      - link "Theodora":
+        - /url: /wiki/Theodora_(wife_of_Theophilos)
+      - text: . When naming Constantine, his father defied standard naming conventions, as his son was not named after his father
+      - link "Michael II":
+        - /url: /wiki/Michael_II
+      - text: . Most information about Constantine's short life and titular reign is unclear, although it is known that he was born sometime in the 820s or 830s and was installed as co-emperor soon after his birth. He appears on the coinage issued under his father, albeit addressed as
+      - link "despot":
+        - /url: /wiki/Despot_(court_title)
+      - text: (not a formal title, but an honorific interchangeable with
+      - link "basileus":
+        - /url: /wiki/Basileus
+      - text: ", i.e. emperor) on gold coins, but with no title at all on bronze ones. He died sometime before 836, possibly after falling into a palace"
+      - link "cistern":
+        - /url: /wiki/Cistern
+      - text: . His parents buried him in a
+      - link "sarcophagus":
+        - /url: /wiki/Sarcophagus
+      - text: made of
+      - link "Thessalian marble":
+        - /url: /wiki/Verd_antique
+      - text: in the
+      - link "Church of the Holy Apostles":
+        - /url: /wiki/Church_of_the_Holy_Apostles
+      - text: . (
+      - link "Full article...":
+        - /url: /wiki/Constantine_(son_of_Theophilos)
+      - text: )
+    - text: "Recently featured:"
+    - list:
+      - listitem:
+        - link "Yugoslav submarine Mališan":
+          - /url: /wiki/Yugoslav_submarine_Mali%C5%A1an
+        - text: ·
+      - listitem:
+        - link "Interstate 205 (Oregon–Washington)":
+          - /url: /wiki/Interstate_205_(Oregon%E2%80%93Washington)
+        - text: ·
+      - listitem:
+        - link "Duffield Memorial":
+          - /url: /wiki/Duffield_Memorial
+    - list:
+      - listitem:
+        - link "Archive":
+          - /url: /wiki/Wikipedia:Today%27s_featured_article/April_2026
+        - text: ·
+      - listitem:
+        - link "By email":
+          - /url: https://lists.wikimedia.org/postorius/lists/daily-article-l.lists.wikimedia.org/
+        - text: ·
+      - listitem:
+        - link "More featured articles":
+          - /url: /wiki/Wikipedia:Featured_articles_(linked_from_TFAfooter)
+        - text: ·
+      - listitem:
+        - link "About":
+          - /url: /wiki/Wikipedia:About_Today%27s_featured_article
+    - heading "Did you know ..." [level=2]
+    - link "Krause performing in The Magic Flute in 2024":
+      - /url: /wiki/File:Rainelle_Krause_performing_the_Magic_Flute_in_2024.png
+      - img "Krause performing in The Magic Flute in 2024"
+    - text: Krause performing in The Magic Flute in 2024
+    - list:
+      - listitem:
+        - text: ... that in 2020,
+        - link "Rainelle Krause":
+          - /url: /wiki/Rainelle_Krause
+        - text: (pictured) sang the "
+        - link "Queen of the Night aria":
+          - /url: /wiki/Queen_of_the_Night_aria
+        - text: "\" while doing"
+        - link "aerial silks":
+          - /url: /wiki/Aerial_silk
+        - text: upside down?
+      - listitem:
+        - text: ... that
+        - link "a dead raccoon":
+          - /url: /wiki/Conrad_(raccoon)
+        - text: was honoured with a Toronto heritage plaque?
+      - listitem:
+        - text: ... that Tony Award–nominated costume designer
+        - link "Helene Pons":
+          - /url: /wiki/Helene_Pons
+        - text: patented the first commercial
+        - link "underwire bra":
+          - /url: /wiki/Underwire_bra
+        - text: "?"
+      - listitem:
+        - text: ... that some women with
+        - link "endometriosis":
+          - /url: /wiki/Endometriosis
+        - text: bleed from their lungs during their period?
+      - listitem:
+        - text: ... that gangs of convict workers built
+        - link "Mitchell's Causeway":
+          - /url: /wiki/Mitchell%27s_Causeway
+        - text: by hand almost 200 years ago?
+      - listitem:
+        - text: ... that astronomer
+        - link "David Rankin":
+          - /url: /wiki/David_Rankin_(astronomer)
+        - text: has an asteroid, a comet, and a plesiosaur named after him?
+      - listitem:
+        - text: ... that the
+        - link "American Society of Marine Engineers":
+          - /url: /wiki/American_Society_of_Marine_Engineers
+        - text: was a
+        - link "company union":
+          - /url: /wiki/Company_union
+        - text: established to supplant its
+        - link "labor union":
+          - /url: /wiki/Trade_union
+        - text: counterpart?
+      - listitem:
+        - text: ... that
+        - link "a Byzantine detachment captured Verona":
+          - /url: /wiki/Siege_of_Verona
+        - text: during the night but became trapped as the defenders returned the following morning, and the soldiers had to jump from the city walls to escape?
+      - listitem:
+        - text: ... that the rock duo
+        - link "Sky Valley Mistress":
+          - /url: /wiki/Sky_Valley_Mistress
+        - text: tour in a hearse?
+    - list:
+      - listitem:
+        - link "Archive":
+          - /url: /wiki/Wikipedia:Did_you_know_archive
+        - text: ·
+      - listitem:
+        - link "Start a new article":
+          - /url: /wiki/Help:Your_first_article
+        - text: ·
+      - listitem:
+        - link "Nominate an article":
+          - /url: /wiki/Template_talk:Did_you_know
+    - heading "In the news" [level=2]
+    - figure:
+      - link "A woman in sports clothing":
+        - /url: /wiki/File:Lauren_Betts_(cropped).jpg
+        - img "A woman in sports clothing"
+      - text: Lauren Betts
+    - list:
+      - listitem:
+        - text: In
+        - link "NCAA Division I":
+          - /url: /wiki/NCAA_Division_I
+        - text: basketball, the
+        - link "UCLA Bruins":
+          - /url: /wiki/UCLA_Bruins_women%27s_basketball
+        - text: win
+        - link "the women's championship":
+          - /url: /wiki/2026_NCAA_Division_I_women%27s_basketball_championship_game
+        - text: (
+        - link "Most Outstanding Player":
+          - /url: /wiki/NCAA_Division_I_basketball_tournament_Most_Outstanding_Player
+        - link "Lauren Betts":
+          - /url: /wiki/Lauren_Betts
+        - text: pictured).
+      - listitem:
+        - link "NASA":
+          - /url: /wiki/NASA
+        - text: "'s"
+        - link "Artemis II":
+          - /url: /wiki/Artemis_II
+        - text: performs its lunar
+        - link "flyby":
+          - /url: /wiki/Flyby_(spaceflight)
+        - text: maneuver, becoming the farthest crewed mission from Earth.
+      - listitem:
+        - text: In Mongolia,
+        - link "Nyam-Osoryn Uchral":
+          - /url: /wiki/Nyam-Osoryn_Uchral
+        - text: is sworn in as
+        - link "prime minister":
+          - /url: /wiki/Prime_Minister_of_Mongolia
+        - text: following the resignation of
+        - link "Gombojavyn Zandanshatar":
+          - /url: /wiki/Gombojavyn_Zandanshatar
+        - text: .
+      - listitem:
+        - text: The
+        - link "Social Democrats":
+          - /url: /wiki/Social_Democrats_(Denmark)
+        - text: ", led by Prime Minister"
+        - link "Mette Frederiksen":
+          - /url: /wiki/Mette_Frederiksen
+        - text: ", remain the largest party after"
+        - link "the Danish general election":
+          - /url: /wiki/2026_Danish_general_election
+        - text: ", with no political bloc winning a majority of seats."
+    - text: "Ongoing:"
+    - list:
+      - listitem:
+        - link "Afghanistan–Pakistan conflict":
+          - /url: /wiki/2026_Afghanistan%E2%80%93Pakistan_conflict
+        - text: ·
+      - listitem:
+        - link "Iran war":
+          - /url: /wiki/2026_Iran_war
+        - text: ·
+      - listitem:
+        - link "Russo-Ukrainian war":
+          - /url: /wiki/Russo-Ukrainian_war_(2022%E2%80%93present)
+        - list:
+          - listitem:
+            - text: (
+            - link "timeline":
+              - /url: /wiki/Timeline_of_the_Russo-Ukrainian_war_(1_January_2026_%E2%80%93_present)
+            - text: )
+        - text: ·
+      - listitem:
+        - link "Sudanese civil war":
+          - /url: /wiki/Sudanese_civil_war_(2023%E2%80%93present)
+        - list:
+          - listitem:
+            - text: (
+            - link "timeline":
+              - /url: /wiki/Timeline_of_the_Sudanese_civil_war_(2026)
+            - text: )
+    - link "Recent deaths":
+      - /url: /wiki/Deaths_in_2026
+    - text: ":"
+    - list:
+      - listitem:
+        - link "Seán Ó Laoire":
+          - /url: /wiki/Se%C3%A1n_%C3%93_Laoire
+        - text: ·
+      - listitem:
+        - link "Koo Sze-yiu":
+          - /url: /wiki/Koo_Sze-yiu
+        - text: ·
+      - listitem:
+        - link "Rod Diridon Sr.":
+          - /url: /wiki/Rod_Diridon_Sr.
+        - text: ·
+      - listitem:
+        - link "Reagan Wilson":
+          - /url: /wiki/Reagan_Wilson
+        - text: ·
+      - listitem:
+        - link "Rezvi Sheriff":
+          - /url: /wiki/Rezvi_Sheriff
+        - text: ·
+      - listitem:
+        - link "Ádám Nádasdy":
+          - /url: /wiki/%C3%81d%C3%A1m_N%C3%A1dasdy
+    - list:
+      - listitem:
+        - link "More current events":
+          - /url: /wiki/Portal:Current_events
+        - text: ·
+      - listitem:
+        - link "Nominate an article":
+          - /url: /wiki/Wikipedia:In_the_news/Candidates
+    - heading "On this day" [level=2]
+    - button "Play audio"
+    - text: "Duration: 21 seconds. \"Au clair de la lune\" by Édouard-Léon Scott de Martinville"
+    - paragraph:
+      - link "April 9":
+        - /url: /wiki/April_9
+      - text: ":"
+      - link "Day of Valor":
+        - /url: /wiki/Day_of_Valor
+      - text: in the Philippines (
+      - link "1942":
+        - /url: /wiki/1942
+      - text: );
+      - link "Vimy Ridge Day":
+        - /url: /wiki/Vimy_Ridge_Day
+      - text: in Canada (
+      - link "1917":
+        - /url: /wiki/1917
+      - text: )
+    - list:
+      - listitem:
+        - link "193":
+          - /url: /wiki/193
+        - text: –
+        - link "Year of the Five Emperors":
+          - /url: /wiki/Year_of_the_Five_Emperors
+        - text: ":"
+        - link "Septimius Severus":
+          - /url: /wiki/Septimius_Severus
+        - text: was proclaimed
+        - link "Roman emperor":
+          - /url: /wiki/Roman_emperor
+        - text: by his troops at
+        - link "Carnuntum":
+          - /url: /wiki/Carnuntum
+        - text: in modern-day Austria.
+      - listitem:
+        - link "1388":
+          - /url: /wiki/1388
+        - text: – Despite being vastly outnumbered, forces of the
+        - link "Old Swiss Confederacy":
+          - /url: /wiki/Old_Swiss_Confederacy
+        - text: defeated an Austrian army at the
+        - link "Battle of Näfels":
+          - /url: /wiki/Battle_of_N%C3%A4fels
+        - text: .
+      - listitem:
+        - link "1860":
+          - /url: /wiki/1860
+        - text: –
+        - link "Édouard-Léon Scott de Martinville":
+          - /url: /wiki/%C3%89douard-L%C3%A9on_Scott_de_Martinville
+        - text: recorded himself singing "
+        - link "Au clair de la lune":
+          - /url: /wiki/Au_clair_de_la_lune
+        - text: "\" on his"
+        - link "phonautograph":
+          - /url: /wiki/Phonautograph
+        - text: ", producing the"
+        - link "oldest known recording":
+          - /url: /wiki/History_of_sound_recording
+        - text: of an audible human voice (audio featured).
+      - listitem:
+        - link "1976":
+          - /url: /wiki/1976
+        - text: – The first
+        - link "EMD F40PH":
+          - /url: /wiki/EMD_F40PH
+        - text: ","
+        - link "Amtrak":
+          - /url: /wiki/Amtrak
+        - text: "'s most widespread diesel"
+        - link "locomotive":
+          - /url: /wiki/Locomotive
+        - text: for many years, entered into service.
+      - listitem:
+        - link "2021":
+          - /url: /wiki/2021
+        - text: –
+        - link "Prince Philip":
+          - /url: /wiki/Prince_Philip,_Duke_of_Edinburgh
+        - text: ", the consort of"
+        - link "Queen Elizabeth II":
+          - /url: /wiki/Elizabeth_II
+        - text: ","
+        - link "died":
+          - /url: /wiki/Death_and_funeral_of_Prince_Philip,_Duke_of_Edinburgh
+        - text: at
+        - link "Windsor Castle":
+          - /url: /wiki/Windsor_Castle
+        - text: aged 99.
+    - list:
+      - listitem:
+        - link "Francis Bacon":
+          - /url: /wiki/Francis_Bacon
+        - text: (d. 1626) ·
+      - listitem:
+        - link "Mary Jackson":
+          - /url: /wiki/Mary_Jackson_(engineer)
+        - text: (b. 1921) ·
+      - listitem:
+        - link "Hugh Hefner":
+          - /url: /wiki/Hugh_Hefner
+        - text: (b. 1926) ·
+      - listitem:
+        - link "Nika Mühl":
+          - /url: /wiki/Nika_M%C3%BChl
+        - text: (b. 2001)
+    - text: "More anniversaries:"
+    - list:
+      - listitem:
+        - link "April 8":
+          - /url: /wiki/April_8
+        - text: ·
+      - listitem:
+        - link "April 9":
+          - /url: /wiki/April_9
+        - text: ·
+      - listitem:
+        - link "April 10":
+          - /url: /wiki/April_10
+    - list:
+      - listitem:
+        - link "Archive":
+          - /url: /wiki/Wikipedia:Selected_anniversaries/April
+        - text: ·
+      - listitem:
+        - link "By email":
+          - /url: https://lists.wikimedia.org/postorius/lists/daily-article-l.lists.wikimedia.org/
+        - text: ·
+      - listitem:
+        - link "List of days of the year":
+          - /url: /wiki/List_of_days_of_the_year
+        - text: ·
+      - listitem:
+        - link "About":
+          - /url: /wiki/Wikipedia:Selected_anniversaries
+    - heading "Today's featured picture" [level=2]
+    - link "The Cathedral":
+      - /url: /wiki/File:Franti%C5%A1ek_Kupka_-_Katedr%C3%A1la_-_Google_Art_Project.jpg
+      - img "The Cathedral"
+    - paragraph:
+      - link "The Cathedral":
+        - /url: /wiki/The_Cathedral_(painting)
+      - text: is an abstract painting by
+      - link "František Kupka":
+        - /url: /wiki/Franti%C5%A1ek_Kupka
+      - text: ", created in 1912–13 in oil on canvas. Measuring 180 × 150 cm (71 × 59 in), the work features vertical lines running the entire length of the canvas, intersected by diagonal lines to form rectilinear shapes of various sizes and colors. These evoke the effect of"
+      - link "stained glass":
+        - /url: /wiki/Stained_glass
+      - text: illuminated within a dark cathedral, inspired particularly by
+      - link "that of Chartres":
+        - /url: /wiki/Chartres_Cathedral
+      - text: . The painting is now in the collection of the
+      - link "Museum Kampa":
+        - /url: /wiki/Museum_Kampa
+      - text: in Prague, Czech Republic.
+    - paragraph:
+      - text: "Painting credit:"
+      - link "František Kupka":
+        - /url: /wiki/Franti%C5%A1ek_Kupka
+    - text: "Recently featured:"
+    - list:
+      - listitem:
+        - link "Seattle":
+          - /url: /wiki/Template:POTD/2026-04-08
+        - text: ·
+      - listitem:
+        - link "Goniobranchus reticulatus":
+          - /url: /wiki/Template:POTD/2026-04-07
+        - text: ·
+      - listitem:
+        - link "Shiva":
+          - /url: /wiki/Template:POTD/2026-04-06
+    - list:
+      - listitem:
+        - link "Archive":
+          - /url: /wiki/Wikipedia:Picture_of_the_day/Archive
+        - text: ·
+      - listitem:
+        - link "More featured pictures":
+          - /url: /wiki/Wikipedia:Featured_pictures
+    - heading "Other areas of Wikipedia" [level=2]
+    - list:
+      - listitem:
+        - link "Community portal":
+          - /url: /wiki/Wikipedia:Community_portal
+        - text: – The central hub for editors, with resources, links, tasks, and announcements.
+      - listitem:
+        - link "Village pump":
+          - /url: /wiki/Wikipedia:Village_pump
+        - text: – Forum for discussions about Wikipedia itself, including policies and technical issues.
+      - listitem:
+        - link "Site news":
+          - /url: /wiki/Wikipedia:News
+        - text: – Sources of news about Wikipedia and the broader Wikimedia movement.
+      - listitem:
+        - link "Teahouse":
+          - /url: /wiki/Wikipedia:Teahouse
+        - text: – Ask basic questions about using or editing Wikipedia.
+      - listitem:
+        - link "Help desk":
+          - /url: /wiki/Wikipedia:Help_desk
+        - text: – Ask questions about using or editing Wikipedia.
+      - listitem:
+        - link "Reference desk":
+          - /url: /wiki/Wikipedia:Reference_desk
+        - text: – Ask research questions about encyclopedic topics.
+      - listitem:
+        - link "Content portals":
+          - /url: /wiki/Wikipedia:Contents/Portals
+        - text: – A unique way to navigate the encyclopedia.
+    - heading "Wikipedia's sister projects" [level=2]
+    - paragraph:
+      - text: Wikipedia is written by volunteer editors and hosted by the
+      - link "Wikimedia Foundation":
+        - /url: /wiki/Wikimedia_Foundation
+      - text: ", a non-profit organization that also hosts a range of other volunteer"
+      - link "projects":
+        - /url: https://wikimediafoundation.org/our-work/wikimedia-projects/
+      - text: ":"
+    - list:
+      - listitem:
+        - link "Commons logo":
+          - /url: https://commons.wikimedia.org/wiki/
+          - img "Commons logo"
+        - link "Commons":
+          - /url: https://commons.wikimedia.org/wiki/
+        - text: Free media repository
+      - listitem:
+        - link "MediaWiki logo":
+          - /url: https://www.mediawiki.org/wiki/
+          - img "MediaWiki logo"
+        - link "MediaWiki":
+          - /url: https://www.mediawiki.org/wiki/
+        - text: Wiki software development
+      - listitem:
+        - link "Meta-Wiki logo":
+          - /url: https://meta.wikimedia.org/wiki/
+          - img "Meta-Wiki logo"
+        - link "Meta-Wiki":
+          - /url: https://meta.wikimedia.org/wiki/
+        - text: Wikimedia project coordination
+      - listitem:
+        - link "Wikibooks logo":
+          - /url: https://en.wikibooks.org/wiki/
+          - img "Wikibooks logo"
+        - link "Wikibooks":
+          - /url: https://en.wikibooks.org/wiki/
+        - text: Free textbooks and manuals
+      - listitem:
+        - link "Wikidata logo":
+          - /url: https://www.wikidata.org/wiki/
+          - img "Wikidata logo"
+        - link "Wikidata":
+          - /url: https://www.wikidata.org/wiki/
+        - text: Free knowledge base
+      - listitem:
+        - link "Wikifunctions logo":
+          - /url: https://www.wikifunctions.org/wiki/
+          - img "Wikifunctions logo"
+        - link "Wikifunctions":
+          - /url: https://www.wikifunctions.org/wiki/
+        - text: Catalog of computer functions
+      - listitem:
+        - link "Wikiquote logo":
+          - /url: https://en.wikiquote.org/wiki/
+          - img "Wikiquote logo"
+        - link "Wikiquote":
+          - /url: https://en.wikiquote.org/wiki/
+        - text: Collection of quotations
+      - listitem:
+        - link "Wikisource logo":
+          - /url: https://en.wikisource.org/wiki/
+          - img "Wikisource logo"
+        - link "Wikisource":
+          - /url: https://en.wikisource.org/wiki/
+        - text: Free-content library
+      - listitem:
+        - link "Wikispecies logo":
+          - /url: https://species.wikimedia.org/wiki/
+          - img "Wikispecies logo"
+        - link "Wikispecies":
+          - /url: https://species.wikimedia.org/wiki/
+        - text: Directory of species
+      - listitem:
+        - link "Wikiversity logo":
+          - /url: https://en.wikiversity.org/wiki/
+          - img "Wikiversity logo"
+        - link "Wikiversity":
+          - /url: https://en.wikiversity.org/wiki/
+        - text: Free learning tools
+      - listitem:
+        - link "Wikivoyage logo":
+          - /url: https://en.wikivoyage.org/wiki/
+          - img "Wikivoyage logo"
+        - link "Wikivoyage":
+          - /url: https://en.wikivoyage.org/wiki/
+        - text: Free travel guide
+      - listitem:
+        - link "Wiktionary logo":
+          - /url: https://en.wiktionary.org/wiki/
+          - img "Wiktionary logo"
+        - link "Wiktionary":
+          - /url: https://en.wiktionary.org/wiki/
+        - text: Dictionary and thesaurus
+    - heading "Wikipedia languages" [level=2]
+    - paragraph:
+      - text: This Wikipedia is written in
+      - link "English":
+        - /url: /wiki/English_language
+      - text: . Many
+      - link "other Wikipedias are available":
+        - /url: https://meta.wikimedia.org/wiki/List_of_Wikipedias
+      - text: ; some of the largest are listed below.
+    - list:
+      - listitem:
+        - heading "1,000,000+ articles" [level=3]
+        - list:
+          - listitem:
+            - link "العربية":
+              - /url: https://ar.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Deutsch":
+              - /url: https://de.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Español":
+              - /url: https://es.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "فارسی":
+              - /url: https://fa.wikipedia.org/wiki/
+            - text: ‎ ·
+          - listitem:
+            - link "Français":
+              - /url: https://fr.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Italiano":
+              - /url: https://it.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Nederlands":
+              - /url: https://nl.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "日本語":
+              - /url: https://ja.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Polski":
+              - /url: https://pl.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Português":
+              - /url: https://pt.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Русский":
+              - /url: https://ru.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Svenska":
+              - /url: https://sv.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Українська":
+              - /url: https://uk.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Tiếng Việt":
+              - /url: https://vi.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "中文":
+              - /url: https://zh.wikipedia.org/wiki/
+      - listitem:
+        - heading "250,000+ articles" [level=3]
+        - list:
+          - listitem:
+            - link "Bahasa Indonesia":
+              - /url: https://id.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Bahasa Melayu":
+              - /url: https://ms.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Bân-lâm-gú":
+              - /url: https://zh-min-nan.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Български":
+              - /url: https://bg.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Català":
+              - /url: https://ca.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Čeština":
+              - /url: https://cs.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Dansk":
+              - /url: https://da.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Eesti":
+              - /url: https://et.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Ελληνικά":
+              - /url: https://el.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Esperanto":
+              - /url: https://eo.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Euskara":
+              - /url: https://eu.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "עברית":
+              - /url: https://he.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Հայերեն":
+              - /url: https://hy.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "한국어":
+              - /url: https://ko.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Magyar":
+              - /url: https://hu.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Norsk bokmål":
+              - /url: https://no.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Română":
+              - /url: https://ro.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Simple English":
+              - /url: https://simple.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Slovenčina":
+              - /url: https://sk.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Srpski":
+              - /url: https://sr.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Srpskohrvatski":
+              - /url: https://sh.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Suomi":
+              - /url: https://fi.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Türkçe":
+              - /url: https://tr.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Oʻzbekcha":
+              - /url: https://uz.wikipedia.org/wiki/
+      - listitem:
+        - heading "50,000+ articles" [level=3]
+        - list:
+          - listitem:
+            - link "Asturianu":
+              - /url: https://ast.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Azərbaycanca":
+              - /url: https://az.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "বাংলা":
+              - /url: https://bn.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Bosanski":
+              - /url: https://bs.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "کوردی":
+              - /url: https://ckb.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Frysk":
+              - /url: https://fy.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Gaeilge":
+              - /url: https://ga.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Galego":
+              - /url: https://gl.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Hrvatski":
+              - /url: https://hr.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "ქართული":
+              - /url: https://ka.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Kurdî":
+              - /url: https://ku.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Latviešu":
+              - /url: https://lv.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Lietuvių":
+              - /url: https://lt.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "മലയാളം":
+              - /url: https://ml.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Македонски":
+              - /url: https://mk.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "မြန်မာဘာသာ":
+              - /url: https://my.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Norsk nynorsk":
+              - /url: https://nn.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "ਪੰਜਾਬੀ":
+              - /url: https://pa.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Shqip":
+              - /url: https://sq.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "Slovenščina":
+              - /url: https://sl.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "ไทย":
+              - /url: https://th.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "తెలుగు":
+              - /url: https://te.wikipedia.org/wiki/
+            - text: ·
+          - listitem:
+            - link "اردو":
+              - /url: https://ur.wikipedia.org/wiki/
+    - button "Go to an article in another language. Available in 347 languages"
+  - contentinfo:
+    - list:
+      - listitem:
+        - text: Text is available under the
+        - link "Creative Commons Attribution-ShareAlike 4.0 License":
+          - /url: /wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License
+        - text: ; additional terms may apply. By using this site, you agree to the
+        - link "Terms of Use":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use
+        - text: and
+        - link "Privacy Policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+        - text: . Wikipedia® is a registered trademark of the
+        - link "Wikimedia Foundation, Inc.":
+          - /url: https://wikimediafoundation.org/
+        - text: ", a non-profit organization."
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Main_Page&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list
