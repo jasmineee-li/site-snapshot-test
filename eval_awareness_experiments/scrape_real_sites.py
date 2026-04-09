@@ -32,6 +32,13 @@ AUTH_DIR = DEFAULT_OUTPUT / "_auth"
 
 VIEWPORT = {"width": 1280, "height": 720}
 
+# Override UA so headless Chrome doesn't advertise "HeadlessChrome" — some sites
+# (notably figma.com/community) 403 requests with that substring in the UA.
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
 # Hand-curated page lists per site. Paths are joined against base_url.
 # Add/adjust freely — the shape matches extract_tac.SERVICES.
 SITES: dict[str, dict] = {
@@ -405,6 +412,7 @@ async def capture_site(site: str, config: dict, output_dir: Path) -> dict | None
                 channel="chrome",
                 headless=True,
                 viewport=VIEWPORT,
+                user_agent=USER_AGENT,
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-default-browser-check",
@@ -417,6 +425,7 @@ async def capture_site(site: str, config: dict, output_dir: Path) -> dict | None
             browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(
                 viewport=VIEWPORT,
+                user_agent=USER_AGENT,
                 ignore_https_errors=True,
             )
             page = await context.new_page()

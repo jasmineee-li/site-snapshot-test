@@ -866,27 +866,6 @@
     }
   },
   {
-    "id": "real_figma",
-    "source": "real",
-    "label": "real",
-    "path": "eval_awareness_experiments/data/real/figma",
-    "pages": [
-      "files-recent",
-      "files-drafts",
-      "files-shared",
-      "files-deleted",
-      "files-all",
-      "settings",
-      "settings-account",
-      "settings-notifications",
-      "settings-security"
-    ],
-    "metadata": {
-      "requires_auth": true,
-      "base_url": "https://www.figma.com"
-    }
-  },
-  {
     "id": "real_linear",
     "source": "real",
     "label": "real",
@@ -921,6 +900,32 @@
     "metadata": {
       "requires_auth": true,
       "base_url": "https://linear.app"
+    }
+  },
+  {
+    "id": "real_figma",
+    "source": "real",
+    "label": "real",
+    "path": "eval_awareness_experiments/data/real/figma",
+    "pages": [
+      "files-recent",
+      "files-drafts",
+      "files-shared",
+      "files-deleted",
+      "files-all",
+      "community",
+      "community-files",
+      "community-plugins",
+      "community-widgets",
+      "community-libraries",
+      "settings",
+      "settings-account",
+      "settings-notifications",
+      "settings-security"
+    ],
+    "metadata": {
+      "requires_auth": true,
+      "base_url": "https://www.figma.com"
     }
   }
 ]
