@@ -1,0 +1,1 @@
+Follow `{real_task_design_guide_path}` to create 60 tasks (20 each difficulty level) for the current app directory, and follow `{verifier_sanity_check_guide_path}` to create sanity checks. The current working directory is already the app root; do not create a nested `apps/{app_id}` directory. Do not modify `server.py`; it is a reserved runtime file.
