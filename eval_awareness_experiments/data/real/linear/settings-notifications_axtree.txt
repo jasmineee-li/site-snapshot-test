@@ -1,6 +1,126 @@
 - document:
-  - img
-  - heading "Welcome to Linear" [level=1]
-  - text: Linear is a purpose-built system for developing products. Streamline issues, projects, and product roadmaps.
-  - button "Get started"
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - link "Back to app":
+      - /url: /kristys-team
+    - link "Preferences":
+      - /url: /kristys-team/settings/account/preferences
+    - link "Profile":
+      - /url: /kristys-team/settings/account/profile
+    - link "Notifications":
+      - /url: /kristys-team/settings/account/notifications
+    - link "Security & access":
+      - /url: /kristys-team/settings/account/security
+    - link "Connected accounts":
+      - /url: /kristys-team/settings/account/connections
+    - link "Agent personalization":
+      - /url: /kristys-team/settings/account/agents
+    - heading "Issues" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/issue-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/issue-templates
+    - link "SLAs":
+      - /url: /kristys-team/settings/sla
+    - heading "Projects" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/project-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/project-templates
+    - link "Statuses":
+      - /url: /kristys-team/settings/project-statuses
+    - link "Updates":
+      - /url: /kristys-team/settings/project-updates
+    - heading "Features" [level=2]
+    - link "AI & Agents":
+      - /url: /kristys-team/settings/ai
+    - link "Initiatives":
+      - /url: /kristys-team/settings/initiatives
+    - link "Documents":
+      - /url: /kristys-team/settings/documents
+    - link "Customer requests":
+      - /url: /kristys-team/settings/customer-requests
+    - link "Pulse":
+      - /url: /kristys-team/settings/pulse
+    - link "Asks":
+      - /url: /kristys-team/settings/asks
+    - link "Emojis":
+      - /url: /kristys-team/settings/emojis
+    - link "Integrations":
+      - /url: /kristys-team/settings/integrations
+    - heading "Administration" [level=2]
+    - link "Workspace":
+      - /url: /kristys-team/settings/workspace
+    - link "Teams":
+      - /url: /kristys-team/settings/teams
+    - link "Members":
+      - /url: /kristys-team/settings/members
+    - link "Security":
+      - /url: /kristys-team/settings/security
+    - link "API":
+      - /url: /kristys-team/settings/api
+    - link "Applications":
+      - /url: /kristys-team/settings/applications
+    - link "Billing":
+      - /url: /kristys-team/settings/billing
+    - link "Import & export":
+      - /url: /kristys-team/settings/import-export
+    - heading "Your teams" [level=2]
+    - link "Kristina Zhou":
+      - /url: /kristys-team/settings/teams/KRI
+    - text: Create a team
+  - button "Open Help menu"
+  - main:
+    - text: Notifications
+    - heading "Notification channels" [level=3]
+    - text: Choose how to be notified for workspace activity. Notifications will always go to your Linear inbox.
+    - list:
+      - listitem:
+        - link "Desktop settings":
+          - /url: /kristys-team/settings/account/notifications/desktop
+        - figure
+        - text: Desktop Disabled
+      - listitem:
+        - link "Mobile settings":
+          - /url: /kristys-team/settings/account/notifications/mobile
+        - figure
+        - text: Mobile Enabled for all notifications
+      - listitem:
+        - link "Email settings":
+          - /url: /kristys-team/settings/account/notifications/email
+        - figure
+        - text: Email Enabled for all notifications
+      - listitem:
+        - link "Slack settings":
+          - /url: /kristys-team/settings/account/notifications/slack
+        - figure
+        - text: Slack Disabled
+    - heading "Updates from Linear" [level=3]
+    - text: Subscribe to product announcements and important changes from the Linear team Changelog
+    - list:
+      - listitem:
+        - text: Show updates in sidebar Highlight new features and improvements in the app sidebar
+        - checkbox "Show updates in sidebar" [checked]
+      - listitem:
+        - text: Changelog newsletter Receive an email twice a month highlighting new features and improvements
+        - checkbox "Changelog newsletter"
+    - text: Marketing
+    - list:
+      - listitem:
+        - text: Marketing and onboarding Occasional emails to help you get the most out of Linear
+        - checkbox "Marketing and onboarding"
+    - text: Other updates
+    - list:
+      - listitem:
+        - text: Invite accepted Email when invitees accept an invite
+        - checkbox "Invite accepted" [checked]
+      - listitem:
+        - text: Privacy and legal updates Email when privacy policies or terms of service change
+        - checkbox "Privacy and legal updates" [checked]
+      - listitem:
+        - text: Data processing agreement (DPA) Email when our DPA changes
+        - checkbox "Data processing agreement (DPA)"
+  - button "Ask Linear"
+  - button "Chat history"
   - region "Notifications alt+T"

@@ -25,33 +25,24 @@
         - img
       - button "Settings":
         - img
-      - button "Upgrade"
       - button "Try Gemini"
       - button "Google apps":
         - img
-      - 'button "Google Account: John Doe (worldsimagenttest@gmail.com)"'
-  - alert:
-    - text: Enable desktop notifications for Gmail.
-    - link "OK"
-    - link "No thanks"
-    - button "Close"
+      - 'button "Google Account: Kristina Zhou (zhoukristina9@gmail.com)"'
+  - alert
   - navigation:
     - button "Compose"
     - heading "Labels" [level=2]
-    - link "Inbox 8 unread":
+    - link "Inbox":
       - /url: https://mail.google.com/mail/u/0/#inbox
-      - text: Inbox
-    - text: "8"
     - link "Starred":
       - /url: https://mail.google.com/mail/u/0/#starred
     - link "Snoozed":
       - /url: https://mail.google.com/mail/u/0/#snoozed
     - link "Sent":
       - /url: https://mail.google.com/mail/u/0/#sent
-    - link "Drafts 1 unread":
+    - link "Drafts":
       - /url: https://mail.google.com/mail/u/0/#drafts
-      - text: Drafts
-    - text: "1"
     - link "Purchases has menu":
       - /url: https://mail.google.com/mail/u/0/#category/purchases
       - text: Purchases
@@ -59,6 +50,8 @@
     - heading "Labels"
     - button "Create new label"
     - heading "Labels" [level=2]
+    - link "Upgrade"
+    - img
   - heading "Settings" [level=2]
   - tablist:
     - tab "General"
@@ -101,17 +94,17 @@
               - table
               - text: Import from Yahoo!, Hotmail, AOL, or other webmail or POP3 accounts.
               - link "Import mail and contacts"
-          - 'row "Send mail as: (Use Gmail to send from your other email addresses) Learn more about sending email from a custom from address John Doe <worldsimagenttest@gmail.com> edit info Add another email address"':
+          - 'row "Send mail as: (Use Gmail to send from your other email addresses) Learn more about sending email from a custom from address Kristina Zhou <zhoukristina9@gmail.com> edit info Add another email address"':
             - 'cell "Send mail as: (Use Gmail to send from your other email addresses) Learn more about sending email from a custom from address"':
               - text: "Send mail as: (Use Gmail to send from your other email addresses)"
               - link "Learn more about sending email from a custom from address":
                 - /url: https://support.google.com/mail/answer/22370?hl=en
                 - text: Learn more
-            - cell "John Doe <worldsimagenttest@gmail.com> edit info Add another email address":
+            - cell "Kristina Zhou <zhoukristina9@gmail.com> edit info Add another email address":
               - table:
                 - rowgroup:
-                  - row "John Doe <worldsimagenttest@gmail.com> edit info":
-                    - cell "John Doe <worldsimagenttest@gmail.com>"
+                  - row "Kristina Zhou <zhoukristina9@gmail.com> edit info":
+                    - cell "Kristina Zhou <zhoukristina9@gmail.com>"
                     - cell
                     - cell "edit info":
                       - link "edit info"
@@ -129,13 +122,13 @@
               - table:
                 - rowgroup
               - link "Add a mail account"
-          - 'row "Grant access to your account: (Allow others to read and send mail on your behalf) Learn more about granting others access to your account Add another account Mark as read Mark conversation as read when opened by others Leave conversation unread when opened by others Sender information Show this address and the person who sent it (\"sent by …\") Show this address only (worldsimagenttest@gmail.com)"':
+          - 'row "Grant access to your account: (Allow others to read and send mail on your behalf) Learn more about granting others access to your account Add another account Mark as read Mark conversation as read when opened by others Leave conversation unread when opened by others Sender information Show this address and the person who sent it (\"sent by …\") Show this address only (zhoukristina9@gmail.com)"':
             - 'cell "Grant access to your account: (Allow others to read and send mail on your behalf) Learn more about granting others access to your account"':
               - text: "Grant access to your account: (Allow others to read and send mail on your behalf)"
               - link "Learn more about granting others access to your account":
                 - /url: https://support.google.com/mail/answer/138350?hl=en
                 - text: Learn more
-            - cell "Add another account Mark as read Mark conversation as read when opened by others Leave conversation unread when opened by others Sender information Show this address and the person who sent it (\"sent by …\") Show this address only (worldsimagenttest@gmail.com)":
+            - cell "Add another account Mark as read Mark conversation as read when opened by others Leave conversation unread when opened by others Sender information Show this address and the person who sent it (\"sent by …\") Show this address only (zhoukristina9@gmail.com)":
               - table:
                 - rowgroup
               - table:
@@ -165,10 +158,10 @@
                     - cell "Show this address and the person who sent it (\"sent by …\")"
               - table:
                 - rowgroup:
-                  - row "Show this address only (worldsimagenttest@gmail.com)":
-                    - cell "Show this address only (worldsimagenttest@gmail.com)":
-                      - radio "Show this address only (worldsimagenttest@gmail.com)"
-                    - cell "Show this address only (worldsimagenttest@gmail.com)"
+                  - row "Show this address only (zhoukristina9@gmail.com)":
+                    - cell "Show this address only (zhoukristina9@gmail.com)":
+                      - radio "Show this address only (zhoukristina9@gmail.com)"
+                    - cell "Show this address only (zhoukristina9@gmail.com)"
           - 'row "Add additional storage: You are currently using 0% of your 15 GB. Need more space? Purchase additional storage"':
             - cell "Add additional storage:"
             - cell "You are currently using 0% of your 15 GB. Need more space? Purchase additional storage":

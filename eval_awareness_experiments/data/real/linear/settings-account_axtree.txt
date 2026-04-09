@@ -1,6 +1,112 @@
 - document:
-  - img
-  - heading "Welcome to Linear" [level=1]
-  - text: Linear is a purpose-built system for developing products. Streamline issues, projects, and product roadmaps.
-  - button "Get started"
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - link "Back to app":
+      - /url: /kristys-team
+    - link "Preferences":
+      - /url: /kristys-team/settings/account/preferences
+    - link "Profile":
+      - /url: /kristys-team/settings/account/profile
+    - link "Notifications":
+      - /url: /kristys-team/settings/account/notifications
+    - link "Security & access":
+      - /url: /kristys-team/settings/account/security
+    - link "Connected accounts":
+      - /url: /kristys-team/settings/account/connections
+    - link "Agent personalization":
+      - /url: /kristys-team/settings/account/agents
+    - heading "Issues" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/issue-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/issue-templates
+    - link "SLAs":
+      - /url: /kristys-team/settings/sla
+    - heading "Projects" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/project-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/project-templates
+    - link "Statuses":
+      - /url: /kristys-team/settings/project-statuses
+    - link "Updates":
+      - /url: /kristys-team/settings/project-updates
+    - heading "Features" [level=2]
+    - link "AI & Agents":
+      - /url: /kristys-team/settings/ai
+    - link "Initiatives":
+      - /url: /kristys-team/settings/initiatives
+    - link "Documents":
+      - /url: /kristys-team/settings/documents
+    - link "Customer requests":
+      - /url: /kristys-team/settings/customer-requests
+    - link "Pulse":
+      - /url: /kristys-team/settings/pulse
+    - link "Asks":
+      - /url: /kristys-team/settings/asks
+    - link "Emojis":
+      - /url: /kristys-team/settings/emojis
+    - link "Integrations":
+      - /url: /kristys-team/settings/integrations
+    - heading "Administration" [level=2]
+    - link "Workspace":
+      - /url: /kristys-team/settings/workspace
+    - link "Teams":
+      - /url: /kristys-team/settings/teams
+    - link "Members":
+      - /url: /kristys-team/settings/members
+    - link "Security":
+      - /url: /kristys-team/settings/security
+    - link "API":
+      - /url: /kristys-team/settings/api
+    - link "Applications":
+      - /url: /kristys-team/settings/applications
+    - link "Billing":
+      - /url: /kristys-team/settings/billing
+    - link "Import & export":
+      - /url: /kristys-team/settings/import-export
+    - heading "Your teams" [level=2]
+    - link "Kristina Zhou":
+      - /url: /kristys-team/settings/teams/KRI
+    - text: Create a team
+  - button "Open Help menu"
+  - main:
+    - text: Workspace
+    - list:
+      - listitem:
+        - text: Logo Recommended size is 256x256px
+        - button "Logo"
+        - img "Upload logo"
+      - listitem:
+        - text: Name
+        - textbox "Name":
+          - /placeholder: Kristina Zhou
+          - text: Kristina Zhou
+      - listitem:
+        - text: URL linear.app/
+        - textbox: kristys-team
+    - text: Time & region
+    - list:
+      - listitem:
+        - text: First month of the fiscal year Used when grouping projects and issues quarterly, half-yearly, and yearly
+        - combobox "First month of the fiscal year": January
+      - listitem:
+        - text: Region Set when a workspace is created and cannot be changed.
+        - link "Read more↗":
+          - /url: https://linear.app/docs/security#data-regions
+        - text: United States
+    - text: Welcome message
+    - list:
+      - listitem:
+        - text: Configure welcome message
+        - link "Available on Enterprise":
+          - /url: /kristys-team/settings/billing/plans
+    - text: Danger zone
+    - list:
+      - listitem:
+        - text: Delete workspace Schedule workspace to be permanently deleted
+        - button "Delete workspace"
+  - button "Ask Linear"
+  - button "Chat history"
   - region "Notifications alt+T"

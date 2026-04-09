@@ -27,33 +27,24 @@
         - img
       - button "Settings":
         - img
-      - button "Upgrade"
       - button "Try Gemini"
       - button "Google apps":
         - img
-      - 'button "Google Account: John Doe (worldsimagenttest@gmail.com)"'
-  - alert:
-    - text: Enable desktop notifications for Gmail.
-    - link "OK"
-    - link "No thanks"
-    - button "Close"
+      - 'button "Google Account: Kristina Zhou (zhoukristina9@gmail.com)"'
+  - alert
   - navigation:
     - button "Compose"
     - heading "Labels" [level=2]
-    - link "Inbox 8 unread":
+    - link "Inbox":
       - /url: https://mail.google.com/mail/u/0/#inbox
-      - text: Inbox
-    - text: "8"
     - link "Starred":
       - /url: https://mail.google.com/mail/u/0/#starred
     - link "Snoozed":
       - /url: https://mail.google.com/mail/u/0/#snoozed
     - link "Sent":
       - /url: https://mail.google.com/mail/u/0/#sent
-    - link "Drafts 1 unread":
+    - link "Drafts":
       - /url: https://mail.google.com/mail/u/0/#drafts
-      - text: Drafts
-    - text: "1"
     - link "Purchases has menu":
       - /url: https://mail.google.com/mail/u/0/#category/purchases
       - text: Purchases
@@ -61,38 +52,24 @@
     - heading "Labels"
     - button "Create new label"
     - heading "Labels" [level=2]
-  - toolbar "search refinement":
-    - button "Any time":
-      - text: Any time
-      - img
-    - button "Has attachment"
-    - button "To":
-      - text: To
-      - img
-    - button "Advanced search"
+    - link "Upgrade"
+    - img
+  - toolbar "search refinement"
   - button "Select":
     - checkbox
   - button "Refresh"
   - button "More email options"
-  - button "Show more messages": 1–1 of 1
-  - button "Newer" [disabled]
-  - button "Older" [disabled]
   - main:
     - heading "Conversations" [level=2]
     - grid:
+      - rowgroup
+    - table:
       - rowgroup:
-        - 'row "To: me, Hi!, 9/23/25, First email.."':
-          - gridcell
-          - 'gridcell "To: me, Hi!, 9/23/25, First email.."':
-            - 'checkbox "To: me, Hi!, 9/23/25, First email.."'
-          - gridcell "Not starred":
-            - button "Not starred"
-          - 'gridcell "To: me"'
-          - gridcell "Inbox Hi! - First email.":
-            - link "Inbox Hi! - First email."
-          - gridcell
-          - gridcell "Tue, Sep 23, 2025, 11:51 AM": 9/23/25
-          - gridcell
+        - row "No sent messages! Send one now!":
+          - cell "No sent messages! Send one now!":
+            - text: No sent messages!
+            - link "Send"
+            - text: one now!
   - contentinfo:
     - link "0% of 15 GB used Follow link to manage storage":
       - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=storage_meter&utm_content=storage_normal
@@ -106,7 +83,7 @@
     - text: ·
     - link "Program Policies":
       - /url: https://www.google.com/gmail/about/policy/
-    - text: "Last account activity: 0 minutes ago Open in 1 other location ·"
+    - text: "Last account activity: 0 minutes ago Currently being used in 1 other location ·"
     - link "Details"
   - complementary "Side panel":
     - tablist:

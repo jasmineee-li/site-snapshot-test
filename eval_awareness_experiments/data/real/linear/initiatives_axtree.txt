@@ -1,0 +1,72 @@
+- document:
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - button "Kristina Zhou Workspace Menu": Kristina Zhou
+    - button "Search workspace"
+    - button "Create new issue"
+    - button "Inbox":
+      - link "Inbox":
+        - /url: /kristys-team/inbox
+    - button "My issues":
+      - link "My issues":
+        - /url: /kristys-team/my-issues/subscribed
+    - button
+    - status
+    - button "Workspace" [expanded]
+    - button "Projects":
+      - link "Projects":
+        - /url: /kristys-team/projects/all
+    - button "Views":
+      - link "Views":
+        - /url: /kristys-team/views
+    - button
+    - button
+    - status
+    - button "Show more links": More
+    - button "Your teams" [expanded]
+    - button "Join a team"
+    - list:
+      - button "Kristina Zhou Issues Projects Views":
+        - button "Kristina Zhou Team menu" [expanded]: Kristina Zhou
+        - link "Issues":
+          - /url: /kristys-team/team/KRI/all
+        - link "Projects":
+          - /url: /kristys-team/team/KRI/projects/all
+        - link "Views":
+          - /url: /kristys-team/team/KRI/views/issues
+        - list:
+          - status
+      - status
+    - button "Try" [expanded]
+    - link "Import issues":
+      - /url: /kristys-team/settings/import-export
+    - button "Dismiss":
+      - img "Dismiss"
+    - text: Invite people
+    - button "Dismiss":
+      - img "Dismiss"
+    - link "Connect GitHub":
+      - /url: /kristys-team/settings/integrations/github?source=try
+    - button "Dismiss":
+      - img "Dismiss"
+  - button "Open Help menu"
+  - main:
+    - heading "Initiatives" [level=2]
+    - button "New initiative" [disabled]
+    - link "Active":
+      - /url: /kristys-team/initiatives/active
+    - link "Planned":
+      - /url: /kristys-team/initiatives/planned
+    - link "Completed":
+      - /url: /kristys-team/initiatives/completed
+    - button "Add filter"
+    - button "Display options"
+    - text: Initiatives Initiatives are larger, strategic product efforts that set the direction of your company. They are comprised of all projects that align with the goals of the initiative and allow you to monitor their progress at scale.
+    - button "Create new initiative": Create new initiative then
+    - link "Documentation":
+      - /url: https://linear.app/docs/initiatives
+    - status
+  - button "Ask Linear"
+  - button "Chat history"
+  - region "Notifications alt+T"

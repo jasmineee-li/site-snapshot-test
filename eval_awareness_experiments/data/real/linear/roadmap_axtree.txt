@@ -1,5 +1,72 @@
 - document:
-  - heading "Authentication error" [level=1]
-  - paragraph: You don’t have access to this workspace. Please contact a workspace admin for access.
-  - button "Logged in as worldsimagenttest@gmail.com"
-  - button "Back to Linear"
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - button "Kristina Zhou Workspace Menu": Kristina Zhou
+    - button "Search workspace"
+    - button "Create new issue"
+    - button "Inbox":
+      - link "Inbox":
+        - /url: /kristys-team/inbox
+    - button "My issues":
+      - link "My issues":
+        - /url: /kristys-team/my-issues/subscribed
+    - button
+    - status
+    - button "Workspace" [expanded]
+    - button "Projects":
+      - link "Projects":
+        - /url: /kristys-team/projects/all
+    - button "Views":
+      - link "Views":
+        - /url: /kristys-team/views/issues
+    - button
+    - button
+    - status
+    - button "Show more links": More
+    - button "Your teams" [expanded]
+    - button "Join a team"
+    - list:
+      - button "Kristina Zhou Issues Projects Views":
+        - button "Kristina Zhou Team menu" [expanded]: Kristina Zhou
+        - link "Issues":
+          - /url: /kristys-team/team/KRI/all
+        - link "Projects":
+          - /url: /kristys-team/team/KRI/projects/all
+        - link "Views":
+          - /url: /kristys-team/team/KRI/views/issues
+        - list:
+          - status
+      - status
+    - button "Try" [expanded]
+    - link "Import issues":
+      - /url: /kristys-team/settings/import-export
+    - button "Dismiss":
+      - img "Dismiss"
+    - text: Invite people
+    - button "Dismiss":
+      - img "Dismiss"
+    - link "Connect GitHub":
+      - /url: /kristys-team/settings/integrations/github?source=try
+    - button "Dismiss":
+      - img "Dismiss"
+  - button "Open Help menu"
+  - main:
+    - heading "Projects" [level=2]
+    - button "New project"
+    - link "All projects":
+      - /url: /kristys-team/projects/all
+    - button "Add new view"
+    - status
+    - button "Add filter"
+    - button "Display options"
+    - button "Close sidebar"
+    - img "No projects illustration"
+    - text: Projects Projects are larger units of work with a clear outcome, such as a new feature you want to ship. They can be shared across multiple teams and are comprised of issues and optional documents.
+    - button "Create new project": Create new project then
+    - link "Documentation":
+      - /url: https://linear.app/docs/projects
+    - status
+  - button "Ask Linear"
+  - button "Chat history"
+  - region "Notifications alt+T"

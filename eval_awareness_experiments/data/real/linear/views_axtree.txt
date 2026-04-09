@@ -1,6 +1,69 @@
 - document:
-  - img
-  - heading "Welcome to Linear" [level=1]
-  - text: Linear is a purpose-built system for developing products. Streamline issues, projects, and product roadmaps.
-  - button "Get started"
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - button "Kristina Zhou Workspace Menu": Kristina Zhou
+    - button "Search workspace"
+    - button "Create new issue"
+    - button "Inbox":
+      - link "Inbox":
+        - /url: /kristys-team/inbox
+    - button "My issues":
+      - link "My issues":
+        - /url: /kristys-team/my-issues/subscribed
+    - button
+    - status
+    - button "Workspace" [expanded]
+    - button "Projects":
+      - link "Projects":
+        - /url: /kristys-team/projects/all
+    - button "Views":
+      - link "Views":
+        - /url: /kristys-team/views/issues
+    - button
+    - button
+    - status
+    - button "Show more links": More
+    - button "Your teams" [expanded]
+    - button "Join a team"
+    - list:
+      - button "Kristina Zhou Issues Projects Views":
+        - button "Kristina Zhou Team menu" [expanded]: Kristina Zhou
+        - link "Issues":
+          - /url: /kristys-team/team/KRI/all
+        - link "Projects":
+          - /url: /kristys-team/team/KRI/projects/all
+        - link "Views":
+          - /url: /kristys-team/team/KRI/views/issues
+        - list:
+          - status
+      - status
+    - button "Try" [expanded]
+    - link "Import issues":
+      - /url: /kristys-team/settings/import-export
+    - button "Dismiss":
+      - img "Dismiss"
+    - text: Invite people
+    - button "Dismiss":
+      - img "Dismiss"
+    - link "Connect GitHub":
+      - /url: /kristys-team/settings/integrations/github?source=try
+    - button "Dismiss":
+      - img "Dismiss"
+  - button "Open Help menu"
+  - main:
+    - heading "Views" [level=2]
+    - button "Create new view"
+    - link "Issues":
+      - /url: /kristys-team/views/issues
+    - link "Projects":
+      - /url: /kristys-team/views/projects
+    - button "Display options"
+    - img "Empty custom views list illustration"
+    - text: Views Create custom views using filters to show only the issues you want to see. You can save, share, and favorite these views for easy access and faster team collaboration. You can also save any existing view by clicking the icon or by pressing .
+    - button "Create new view"
+    - link "Documentation":
+      - /url: https://linear.app/docs/custom-views
+  - button "Ask Linear"
+  - button "Chat history"
   - region "Notifications alt+T"
