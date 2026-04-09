@@ -61,7 +61,7 @@ class OpenEndedExperiment(BaseExperiment):
         )
 
         if format_type == "screenshot":
-            output = await self.model.generate_with_image(prompt, content)
+            output = await self.model.generate_with_images(prompt, [content])
         else:
             output = await self.model.generate(prompt)
 
@@ -92,7 +92,7 @@ class OpenEndedExperiment(BaseExperiment):
         )
 
         if format_type == "screenshot":
-            output = await self.model.generate_with_image(prompt, content)
+            output = await self.model.generate_with_images(prompt, [content])
         else:
             output = await self.model.generate(prompt)
 

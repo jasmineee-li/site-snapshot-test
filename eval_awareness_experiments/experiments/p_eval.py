@@ -73,7 +73,7 @@ class PEvalExperiment(BaseExperiment):
             prompt_text = prompt_data["prompt"].replace("{format_type}", format_label)
 
             if format_type == "screenshot":
-                output = await self.model.generate_with_image(prompt_text, content)
+                output = await self.model.generate_with_images(prompt_text, [content])
             else:
                 full_prompt = content + "\n\n" + prompt_text
                 output = await self.model.generate(full_prompt)
@@ -121,7 +121,7 @@ class PEvalExperiment(BaseExperiment):
             prompt_text = prompt_data["prompt"].replace("{format_type}", format_label)
 
             if format_type == "screenshot":
-                output = await self.model.generate_with_image(prompt_text, content)
+                output = await self.model.generate_with_images(prompt_text, [content])
             else:
                 full_prompt = content + "\n\n" + prompt_text
                 output = await self.model.generate(full_prompt)
