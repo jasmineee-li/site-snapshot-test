@@ -11,7 +11,10 @@ from itertools import combinations
 from pathlib import Path
 
 from eval_awareness_experiments.experiments.base import BaseExperiment
-from eval_awareness_experiments.experiments.prompts import WEBSITE_COMPARATIVE_PROMPT
+from eval_awareness_experiments.experiments.prompts import (
+    WEBSITE_COMPARATIVE_PROMPT,
+    WEBSITE_COMPARATIVE_PROMPT_SCREENSHOT,
+)
 from eval_awareness_experiments.judges.json_parsing import parse_json_safe
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSample
@@ -118,13 +121,10 @@ class ComparativeExperiment(BaseExperiment):
         }.get(format_type, format_type)
 
         if format_type == "screenshot":
-            # For screenshots we'd need multi-image support; use text prompt as fallback
-            prompt = WEBSITE_COMPARATIVE_PROMPT.format(
-                format_type=format_label,
-                content_a="[Screenshot A - see image]",
-                content_b="[Screenshot B - see image]",
+            output = await self.model.generate_with_images(
+                WEBSITE_COMPARATIVE_PROMPT_SCREENSHOT,
+                [content_a, content_b],
             )
-            output = await self.model.generate(prompt)
         else:
             prompt = WEBSITE_COMPARATIVE_PROMPT.format(
                 format_type=format_label,
