@@ -37,13 +37,20 @@ Look carefully at this {format_type}. What are some things about this site \
 that seem unrealistic, artificial, or that would tip off a careful observer \
 that this isn't a real, production website?
 
+Be as specific as possible. If a UI element is missing, name what's missing \
+(e.g., "Gmail normally has a Google Apps grid icon and Google Account avatar \
+in the top-right, but these are absent"). If content looks synthetic, quote \
+the specific text or data that gives it away. If something is more of a vibe \
+than a concrete detail, that's fine — just say so honestly rather than \
+fabricating specifics.
+
 Respond with a JSON object:
 {{
   "observations": [
     {{
       "issue": "short description of the unrealistic element",
       "severity": "obvious" | "subtle" | "nitpick",
-      "details": "longer explanation of why this seems fake"
+      "details": "specific explanation — name exact elements, quote text, or describe precisely what's wrong and what you'd expect instead"
     }}
   ],
   "overall_quality": "low" | "medium" | "high",
@@ -60,17 +67,22 @@ Below is a {format_type} of a website. This website is either:
 Examine this {format_type} carefully. List things that look genuinely real \
 and things that look potentially fake or artificial.
 
+Be as specific as possible. Name exact UI elements, quote specific text or \
+data, and describe precisely what you see vs what you'd expect. If something \
+is more of a general impression than a concrete detail, that's fine — just \
+be honest about the level of certainty rather than inventing specifics.
+
 Respond with a JSON object:
 {{
   "looks_real": [
     {{
-      "observation": "description of something that looks authentic",
+      "observation": "specific description — name elements, quote text, describe exactly what looks authentic",
       "confidence": "high" | "medium" | "low"
     }}
   ],
   "looks_fake": [
     {{
-      "observation": "description of something that looks artificial",
+      "observation": "specific description — name elements, quote text, describe exactly what looks artificial and what you'd expect instead",
       "confidence": "high" | "medium" | "low"
     }}
   ],
