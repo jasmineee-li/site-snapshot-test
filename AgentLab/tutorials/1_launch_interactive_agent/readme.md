@@ -11,7 +11,8 @@ alternatively, follow these [instructions](https://docs.astral.sh/uv/getting-sta
 Once uv is installed, run the following command:
 
 ```bash
-git clone https://github.com/ServiceNow/AgentLab.git
+git clone https://github.com/jasmineee-li/browser-sim.git
+cd browser-sim
 cd AgentLab
 uv run playwright install
 ```

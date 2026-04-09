@@ -1,7 +1,7 @@
 ### Launch tutorial experiment
 * Activate the python env `source .venv/bin/activate`
-* Run the following command from **AgentLab** directory [`python tutorials/2_eval_on_miniwob/experiment.py`](./experiment.py).
-* This should launch your agent on 4 miniwob tasks in parallel and save results to `$HOME/agentlab_results`.
+* Run experiments by editing and running `main.py` from the **AgentLab** directory (see `main.py` for configuration examples).
+* This should launch your agent on miniwob tasks and save results to `$HOME/agentlab_results`.
 
 
 ### Visualize experiments in XRay
@@ -14,7 +14,7 @@ Optionally load the results in [inspect_results.ipynb](./inspect_results.ipynb).
 This will help understand the content of results
 
 ### Change the experiment
-go back to [experiment.py](./experiment.py) and uncomment the lines
+go back to `main.py` and modify the benchmark configuration, e.g.
 ```python
 benchmark = DEFAULT_BENCHMARKS["miniwob"]()  # 125 tasks
 benchmark = benchmark.subset_from_glob(column="task_name", glob="*enter*") # filter only 7 tasks

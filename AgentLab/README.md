@@ -39,6 +39,8 @@ AgentLab is a framework for developing and evaluating agents on a variety of
 [benchmarks](#-supported-benchmarks) supported by
 [BrowserGym](https://github.com/ServiceNow/BrowserGym). It is presented in more details in our [BrowserGym ecosystem paper](https://arxiv.org/abs/2412.05467)
 
+This monorepo's redteam benchmark is app-mode only. Redteam experiment runs expect benchmark-ready generated app directories with authoritative `app_manifest.json` artifacts.
+
 AgentLab Features:
 * Easy large scale parallel [agent experiments](#-launch-experiments) using [ray](https://www.ray.io/)
 * Building blocks for making agents over BrowserGym
@@ -69,12 +71,12 @@ AgentLab Features:
 AgentLab requires python 3.11 or 3.12.
 
 ```bash
-pip install agentlab
+uv sync
 ```
 
 If not done already, install Playwright:
 ```bash
-playwright install
+uv run playwright install
 ```
 
 Make sure to prepare the required benchmark according to the instructions provided in the [setup
@@ -235,8 +237,8 @@ Experiments are on their way for more reference points using GenericAgent. We ar
 
 ## 🤖 Implement a new Agent
 
-Get inspiration from the `MostBasicAgent` in
-[agentlab/agents/most_basic_agent/most_basic_agent.py](src/agentlab/agents/most_basic_agent/most_basic_agent.py).
+Get inspiration from the `GenericAgent` in
+[agentlab/agents/generic_agent/](src/agentlab/agents/generic_agent/).
 For a better integration with the tools, make sure to implement most functions in the
 [AgentArgs](src/agentlab/agents/agent_args.py#L5) API and the extended `bgym.AbstractAgentArgs`.
 
@@ -266,7 +268,7 @@ dynamic benchmarks.
   version and commit hash
 * The `Study` class allows automatic upload of your results to
   [`reproducibility_journal.csv`](reproducibility_journal.csv). This makes it easier to populate a
-  large amount of reference points. For this feature, you need to `git clone` the repository and install via `pip install -e .`.
+  large amount of reference points. For this feature, you need to `git clone` the repository and install via `uv sync`.
 * **Reproduced results in the leaderboard**. For agents that are reprocudibile, we encourage users
   to try to reproduce the results and upload them to the leaderboard. There is a special column
   containing information about all reproduced results of an agent on a benchmark.
@@ -290,8 +292,7 @@ Here's a list of relevant env. variables that are used by AgentLab:
 
 if you want to download HF models more quickly
 ```
-pip install hf-transfer
-pip install torch
+uv pip install hf-transfer
 export HF_HUB_ENABLE_HF_TRANSFER=1
 ```
 
