@@ -54,18 +54,9 @@ dependencies = [
     "anthropic>=0.62.0",
     "litellm>=1.75.3",
     "python-dotenv>=1.1.1",
+    "modal>=1.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "black[jupyter]>=24.2.0",
-    "blacken-docs",
-    "pre-commit",
-    "pytest==7.3.2",
-    "flaky",
-    "pytest-xdist",
-    "pytest-playwright",
-]
 # tapeagents = [
 #     "tapeagents[converters]",
 # ]
@@ -75,6 +66,13 @@ dev = [
 
 [tool.setuptools.dynamic]
 version = {attr = "agentlab.__version__"}
+
+[tool.setuptools.package-data]
+agentlab = [
+    "benchmarks/redteam/guides/*.md",
+    "benchmarks/redteam/prompts/*.md",
+    "benchmarks/static/*.js",
+]
 
 [tool.black]
 line-length = 100
@@ -97,9 +95,15 @@ exclude = '''
 
 [dependency-groups]
 dev = [
+    "black[jupyter]>=24.2.0",
+    "blacken-docs",
+    "pre-commit",
+    "pytest>=7.3.2",
+    "flaky",
+    "pytest-xdist",
+    "pytest-playwright",
     "darglint>=1.8.1",
     "ipykernel>=6.30.1",
-    "pip>=25.2",
 ]
 hint = [
     "sentence-transformers>=5.0.0",
@@ -110,3 +114,4 @@ hint = [
 agentlab-assistant = "agentlab.ui_assistant:main"
 agentlab-xray = "agentlab.analyze.agent_xray:main"
 agentlab-mentor = "agentlab.agents.hitl_agent.launch_hint_ui:main"
+agentlab-redteam-validate-platform-manifest = "agentlab.benchmarks.redteam.validate_platform_manifest:main"
