@@ -91,7 +91,7 @@
           - /url: /wiki/Special:Statistics
         - text: active editors ·
       - listitem:
-        - link "7,166,442":
+        - link "7,166,484":
           - /url: /wiki/Special:Statistics
         - text: articles in
         - link "English":
@@ -314,8 +314,8 @@
     - text: "Ongoing:"
     - list:
       - listitem:
-        - link "Afghanistan–Pakistan conflict":
-          - /url: /wiki/2026_Afghanistan%E2%80%93Pakistan_conflict
+        - link "Afghanistan–Pakistan War":
+          - /url: /wiki/2026_Afghanistan%E2%80%93Pakistan_War
         - text: ·
       - listitem:
         - link "Iran war":

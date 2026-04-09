@@ -44,9 +44,25 @@ SITES: dict[str, dict] = {
         "pages": [
             ("inbox", "/mail/u/0/#inbox"),
             ("starred", "/mail/u/0/#starred"),
+            ("snoozed", "/mail/u/0/#snoozed"),
             ("sent", "/mail/u/0/#sent"),
             ("drafts", "/mail/u/0/#drafts"),
-            ("settings", "/mail/u/0/#settings/general"),
+            ("important", "/mail/u/0/#imp"),
+            ("chats", "/mail/u/0/#chats"),
+            ("all", "/mail/u/0/#all"),
+            ("spam", "/mail/u/0/#spam"),
+            ("trash", "/mail/u/0/#trash"),
+            ("scheduled", "/mail/u/0/#scheduled"),
+            ("category-social", "/mail/u/0/#category/social"),
+            ("category-updates", "/mail/u/0/#category/updates"),
+            ("category-promotions", "/mail/u/0/#category/promotions"),
+            ("category-forums", "/mail/u/0/#category/forums"),
+            ("settings-general", "/mail/u/0/#settings/general"),
+            ("settings-labels", "/mail/u/0/#settings/labels"),
+            ("settings-inbox", "/mail/u/0/#settings/inbox"),
+            ("settings-accounts", "/mail/u/0/#settings/accounts"),
+            ("settings-filters", "/mail/u/0/#settings/filters"),
+            ("compose", "/mail/u/0/#inbox?compose=new"),
         ],
     },
     "superhuman": {
@@ -70,14 +86,28 @@ SITES: dict[str, dict] = {
         ],
     },
     "xero": {
-        "requires_auth": True,
-        "login_url": "https://login.xero.com/",
-        "base_url": "https://go.xero.com",
-        "login_markers": ["login.xero.com", "/identity/"],
+        # Public marketing site only — the logged-in accounting app is too sensitive to scrape.
+        "requires_auth": False,
+        "base_url": "https://www.xero.com",
         "pages": [
-            ("dashboard", "/Dashboard/"),
-            ("bank-accounts", "/Bank/BankAccounts.aspx"),
-            ("contacts", "/Contacts/"),
+            ("home", "/us/"),
+            ("pricing", "/us/pricing-plans/"),
+            ("features-accounting", "/us/features/accounting/"),
+            ("features-invoicing", "/us/features/online-invoicing/"),
+            ("features-payroll", "/us/features/payroll/"),
+            ("features-reporting", "/us/features/reporting/"),
+            ("features-bank-connections", "/us/features/bank-connections/"),
+            ("features-expenses", "/us/features/expenses/"),
+            ("features-inventory", "/us/features/inventory/"),
+            ("features-projects", "/us/features/projects/"),
+            ("app-marketplace", "/us/marketplace/"),
+            ("advisors", "/us/advisors/"),
+            ("resources", "/us/resources/"),
+            ("about", "/us/about/"),
+            ("contact", "/us/contact/"),
+            ("blog", "/blog/us/"),
+            ("security", "/us/security/"),
+            ("support", "/us/support/"),
         ],
     },
     "figma": {
@@ -88,7 +118,18 @@ SITES: dict[str, dict] = {
         "pages": [
             ("files-recent", "/files/recent"),
             ("files-drafts", "/files/drafts"),
+            ("files-shared", "/files/shared"),
+            ("files-deleted", "/files/trash"),
+            ("files-all", "/files"),
             ("community", "/community"),
+            ("community-files", "/community/explore"),
+            ("community-plugins", "/community/plugins"),
+            ("community-widgets", "/community/widgets"),
+            ("community-libraries", "/community/libraries"),
+            ("settings", "/settings"),
+            ("settings-account", "/settings/account"),
+            ("settings-notifications", "/settings/notifications"),
+            ("settings-security", "/settings/security"),
         ],
     },
     "linear": {
@@ -96,31 +137,69 @@ SITES: dict[str, dict] = {
         "login_url": "https://linear.app/login",
         "base_url": "https://linear.app",
         "login_markers": ["/login", "/magic-link"],
-        # User must navigate to their workspace once during --login; we save the URL they land on
-        # as the "home" via storage_state. These paths assume a workspace slug — user may need to edit.
+        # Linear is workspace-scoped. These paths land on the default workspace after auth.
         "pages": [
+            ("home", "/"),
             ("inbox", "/inbox"),
             ("my-issues", "/my-issues"),
+            ("my-issues-active", "/my-issues/active"),
+            ("my-issues-backlog", "/my-issues/backlog"),
+            ("my-issues-created", "/my-issues/created"),
+            ("my-issues-subscribed", "/my-issues/subscribed"),
+            ("views", "/views"),
+            ("projects", "/projects"),
+            ("cycles", "/cycles"),
+            ("roadmap", "/roadmaps"),
+            ("teams", "/team"),
+            ("labels", "/labels"),
+            ("members", "/members"),
+            ("settings-account", "/settings/account"),
+            ("settings-profile", "/settings/profile"),
+            ("settings-notifications", "/settings/account/notifications"),
+            ("settings-preferences", "/settings/account/preferences"),
         ],
     },
     "handshake": {
-        "requires_auth": True,
-        "login_url": "https://app.joinhandshake.com/login",
-        "base_url": "https://app.joinhandshake.com",
-        "login_markers": ["/login", "/auth/"],
+        # Public marketing site only — logged-in student portal skipped.
+        "requires_auth": False,
+        "base_url": "https://joinhandshake.com",
         "pages": [
-            ("home", "/stu"),
-            ("jobs", "/stu/postings"),
-            ("events", "/stu/events"),
+            ("home", "/"),
+            ("students", "/students/"),
+            ("employers", "/employers/"),
+            ("career-centers", "/career-centers/"),
+            ("pricing-employers", "/employers/pricing/"),
+            ("products-students", "/students/features/"),
+            ("products-employers", "/employers/features/"),
+            ("events", "/events/"),
+            ("blog", "/blog/"),
+            ("about", "/about/"),
+            ("careers", "/careers/"),
+            ("press", "/press/"),
+            ("contact", "/contact/"),
+            ("privacy", "/privacy-policy/"),
+            ("terms", "/terms-of-service/"),
         ],
     },
     "elation": {
-        "requires_auth": True,
-        "login_url": "https://www.elationhealth.com/login/",
-        "base_url": "https://app.elationemr.com",
-        "login_markers": ["/login", "/accounts/login"],
+        # Public marketing site only — real EHR is PHI, too sensitive to scrape.
+        "requires_auth": False,
+        "base_url": "https://www.elationhealth.com",
         "pages": [
-            ("dashboard", "/"),
+            ("home", "/"),
+            ("product", "/product/"),
+            ("ehr", "/product/ehr/"),
+            ("billing", "/product/billing/"),
+            ("patient-portal", "/product/patient-experience/"),
+            ("telehealth", "/product/telehealth/"),
+            ("integrations", "/integrations/"),
+            ("pricing", "/pricing/"),
+            ("resources", "/resources/"),
+            ("blog", "/blog/"),
+            ("customers", "/customers/"),
+            ("about", "/about/"),
+            ("contact", "/contact-us/"),
+            ("security", "/security/"),
         ],
     },
     # --- public / no auth required ---
@@ -130,7 +209,15 @@ SITES: dict[str, dict] = {
         "pages": [
             ("home", "/"),
             ("explore", "/explore/projects"),
+            ("explore-trending", "/explore/projects/trending"),
+            ("explore-starred", "/explore/projects/starred"),
             ("explore-topics", "/explore/projects/topics"),
+            ("explore-snippets", "/explore/snippets"),
+            ("sign-in", "/users/sign_in"),
+            ("pricing", "/pricing/"),
+            ("features", "/features/"),
+            ("help", "/help"),
+            ("groups", "/explore/groups"),
         ],
     },
     "reddit": {
@@ -140,6 +227,17 @@ SITES: dict[str, dict] = {
             ("home", "/"),
             ("popular", "/r/popular/"),
             ("all", "/r/all/"),
+            ("news", "/r/news/"),
+            ("worldnews", "/r/worldnews/"),
+            ("askreddit", "/r/AskReddit/"),
+            ("funny", "/r/funny/"),
+            ("pics", "/r/pics/"),
+            ("science", "/r/science/"),
+            ("technology", "/r/technology/"),
+            ("programming", "/r/programming/"),
+            ("machinelearning", "/r/MachineLearning/"),
+            ("flyfishing", "/r/Flyfishing/"),
+            ("topics", "/topics/a-1/"),
         ],
     },
     "craigslist": {
@@ -147,8 +245,17 @@ SITES: dict[str, dict] = {
         "base_url": "https://www.craigslist.org",
         "pages": [
             ("home", "/"),
+            ("sites", "/about/sites"),
             ("sfbay", "https://sfbay.craigslist.org/"),
             ("sfbay-apa", "https://sfbay.craigslist.org/search/apa"),
+            ("sfbay-jobs", "https://sfbay.craigslist.org/search/jjj"),
+            ("sfbay-for-sale", "https://sfbay.craigslist.org/search/sss"),
+            ("sfbay-cars", "https://sfbay.craigslist.org/search/cta"),
+            ("sfbay-free", "https://sfbay.craigslist.org/search/zip"),
+            ("sfbay-services", "https://sfbay.craigslist.org/search/bbb"),
+            ("sfbay-community", "https://sfbay.craigslist.org/search/ccc"),
+            ("sfbay-events", "https://sfbay.craigslist.org/search/eee"),
+            ("nyc-apa", "https://newyork.craigslist.org/search/apa"),
         ],
     },
     "wikipedia": {
@@ -157,7 +264,18 @@ SITES: dict[str, dict] = {
         "pages": [
             ("main", "/wiki/Main_Page"),
             ("featured", "/wiki/Wikipedia:Featured_articles"),
+            ("current-events", "/wiki/Portal:Current_events"),
+            ("random", "/wiki/Special:Random"),
             ("random-trout", "/wiki/Trout"),
+            ("article-python", "/wiki/Python_(programming_language)"),
+            ("article-oss", "/wiki/Open-source_software"),
+            ("article-ai", "/wiki/Artificial_intelligence"),
+            ("contents", "/wiki/Wikipedia:Contents"),
+            ("about", "/wiki/Wikipedia:About"),
+            ("community-portal", "/wiki/Wikipedia:Community_portal"),
+            ("help", "/wiki/Help:Contents"),
+            ("recent-changes", "/wiki/Special:RecentChanges"),
+            ("special-pages", "/wiki/Special:SpecialPages"),
         ],
     },
     "osm": {
@@ -167,6 +285,15 @@ SITES: dict[str, dict] = {
             ("home", "/"),
             ("about", "/about"),
             ("export", "/export"),
+            ("help", "/help"),
+            ("community", "/community"),
+            ("copyright", "/copyright"),
+            ("traces", "/traces"),
+            ("user-diaries", "/user/diary"),
+            ("login", "/login"),
+            ("signup", "/user/new"),
+            ("search-sf", "/search?query=San%20Francisco"),
+            ("view-sf", "/?mlat=37.7749&mlon=-122.4194#map=12/37.7749/-122.4194"),
         ],
     },
 }
@@ -188,30 +315,59 @@ def _is_login_page(current_url: str, markers: list[str]) -> bool:
 
 
 async def login_flow(site: str, config: dict) -> None:
-    """Headed browser: user logs in manually, we save storage_state."""
+    """Headed browser: user logs in manually, we save storage_state.
+
+    Signal completion by creating the sentinel file printed below (or just closing
+    the browser window). This avoids blocking on stdin so the script can be
+    launched in the background.
+    """
     AUTH_DIR.mkdir(parents=True, exist_ok=True)
     auth_file = _auth_path(site)
+    sentinel = AUTH_DIR / f"{site}.done"
+    if sentinel.exists():
+        sentinel.unlink()
 
     login_url = config.get("login_url") or config["base_url"]
     print(f"\nLaunching headed browser for {site}...")
     print(f"  Target: {login_url}")
 
+    # Google (and some others) block bundled Chromium with "browser not secure".
+    # Use real Chrome + a persistent profile + stealth flags so the login flow works.
+    profile_dir = AUTH_DIR / f"{site}_profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        context = await browser.new_context(viewport=VIEWPORT)
-        page = await context.new_page()
+        context = await p.chromium.launch_persistent_context(
+            user_data_dir=str(profile_dir),
+            channel="chrome",
+            headless=False,
+            viewport=VIEWPORT,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-default-browser-check",
+            ],
+            ignore_default_args=["--enable-automation"],
+        )
+        browser = context.browser  # may be None for persistent contexts
+        page = context.pages[0] if context.pages else await context.new_page()
         await page.goto(login_url, wait_until="load", timeout=60000)
 
         print("\n" + "=" * 60)
         print(f"  Log in to {site} in the browser window.")
-        print("  When you're fully logged in (on the app, not the login page),")
-        print("  come back here and press Enter to save the session.")
-        print("=" * 60)
-        await asyncio.get_event_loop().run_in_executor(None, input, "")
+        print(f"  When done, signal completion by running:")
+        print(f"    touch {sentinel}")
+        print(f"  (or close the browser window)")
+        print("=" * 60, flush=True)
+
+        # Poll for sentinel file (browser close handling is flakier on persistent contexts)
+        while not sentinel.exists():
+            await asyncio.sleep(0.5)
 
         await context.storage_state(path=str(auth_file))
-        await browser.close()
+        await context.close()
 
+    if sentinel.exists():
+        sentinel.unlink()
     print(f"  Saved auth -> {auth_file}")
 
 
@@ -221,27 +377,40 @@ async def capture_site(site: str, config: dict, output_dir: Path) -> dict | None
     site_dir.mkdir(parents=True, exist_ok=True)
 
     requires_auth = config.get("requires_auth", False)
-    storage_state = None
     if requires_auth:
-        auth_file = _auth_path(site)
-        if not auth_file.exists():
-            print(f"  {site}: SKIP — auth required but no storage_state at {auth_file}")
+        profile_dir = AUTH_DIR / f"{site}_profile"
+        if not profile_dir.exists() or not any(profile_dir.iterdir()):
+            print(f"  {site}: SKIP — auth required but no profile at {profile_dir}")
             print(f"         Run: python -m eval_awareness_experiments.scrape_real_sites --login {site}")
             return None
-        storage_state = str(auth_file)
 
     captured: list[str] = []
     base_url = config["base_url"]
     login_markers = config.get("login_markers", [])
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            viewport=VIEWPORT,
-            storage_state=storage_state,
-            ignore_https_errors=True,
-        )
-        page = await context.new_page()
+        if requires_auth:
+            # Reuse the persistent Chrome profile from --login
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=str(AUTH_DIR / f"{site}_profile"),
+                channel="chrome",
+                headless=True,
+                viewport=VIEWPORT,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-default-browser-check",
+                ],
+                ignore_default_args=["--enable-automation"],
+                ignore_https_errors=True,
+            )
+            page = context.pages[0] if context.pages else await context.new_page()
+        else:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                viewport=VIEWPORT,
+                ignore_https_errors=True,
+            )
+            page = await context.new_page()
 
         for page_name, path in config["pages"]:
             url = _resolve_url(base_url, path)
@@ -269,7 +438,7 @@ async def capture_site(site: str, config: dict, output_dir: Path) -> dict | None
             except Exception as e:
                 print(f"  {site}/{page_name} FAILED: {e}")
 
-        await browser.close()
+        await context.close()
 
     if not captured:
         return None

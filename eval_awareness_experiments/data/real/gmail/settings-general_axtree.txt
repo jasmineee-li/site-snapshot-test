@@ -1,0 +1,695 @@
+- document:
+  - text: None selected
+  - link "Skip to content":
+    - /url: ""
+  - link "Using Gmail with screen readers":
+    - /url: ""
+  - heading [level=1]:
+    - banner:
+      - button "Main menu" [expanded]:
+        - img
+      - link "Gmail":
+        - /url: "#inbox"
+      - search:
+        - heading "Search" [level=2]
+        - table:
+          - rowgroup:
+            - row:
+              - cell:
+                - textbox "Search mail"
+        - button "Advanced search options":
+          - img
+        - button "Search mail" [disabled]:
+          - img
+      - button "Support":
+        - img
+      - button "Settings":
+        - img
+      - button "Upgrade"
+      - button "Try Gemini"
+      - button "Google apps":
+        - img
+      - 'button "Google Account: John Doe (worldsimagenttest@gmail.com)"'
+  - alert:
+    - text: Enable desktop notifications for Gmail.
+    - link "OK"
+    - link "No thanks"
+    - button "Close"
+  - navigation:
+    - button "Compose"
+    - heading "Labels" [level=2]
+    - link "Inbox 8 unread":
+      - /url: https://mail.google.com/mail/u/0/#inbox
+      - text: Inbox
+    - text: "8"
+    - link "Starred":
+      - /url: https://mail.google.com/mail/u/0/#starred
+    - link "Snoozed":
+      - /url: https://mail.google.com/mail/u/0/#snoozed
+    - link "Sent":
+      - /url: https://mail.google.com/mail/u/0/#sent
+    - link "Drafts 1 unread":
+      - /url: https://mail.google.com/mail/u/0/#drafts
+      - text: Drafts
+    - text: "1"
+    - link "Purchases has menu":
+      - /url: https://mail.google.com/mail/u/0/#category/purchases
+      - text: Purchases
+    - button "More labels": More
+    - heading "Labels"
+    - button "Create new label"
+    - heading "Labels" [level=2]
+  - heading "Settings" [level=2]
+  - tablist:
+    - tab "General" [selected]
+    - tab "Labels"
+    - tab "Inbox"
+    - tab "Accounts and Import"
+    - tab "Filters and Blocked Addresses"
+    - tab "Forwarding and POP/IMAP"
+    - tab "Add-ons"
+    - tab "Chat and Meet"
+    - tab "Advanced"
+    - tab "Offline"
+    - tab "Themes"
+  - main:
+    - tablist:
+      - table:
+        - rowgroup:
+          - 'row "Language: Gmail display language: English (US) Change language settings for other Google products Show all language options"':
+            - cell "Language:"
+            - 'cell "Gmail display language: English (US) Change language settings for other Google products Show all language options"':
+              - text: "Gmail display language:"
+              - combobox:
+                - option "Afrikaans"
+                - option "Azərbaycanca"
+                - option "Bahasa Indonesia"
+                - option "Bahasa Melayu"
+                - option "Català"
+                - option "Čeština"
+                - option "Cymraeg"
+                - option "Dansk"
+                - option "Deutsch"
+                - option "Eesti keel"
+                - option "English (UK)"
+                - option "English (US)" [selected]
+                - option "Español"
+                - option "Español (Latinoamérica)"
+                - option "Euskara"
+                - option "Filipino"
+                - option "Français"
+                - option "Français (Canada)"
+                - option "Gaeilge"
+                - option "Galego"
+                - option "Hrvatski"
+                - option "Italiano"
+                - option "IsiZulu"
+                - option "Íslenska"
+                - option "Kiswahili"
+                - option "Latviešu"
+                - option "Lietuvių"
+                - option "Magyar"
+                - option "Norsk (Bokmål)"
+                - option "Nederlands"
+                - option "Oʻzbek"
+                - option "Polski"
+                - option "Português (Brasil)"
+                - option "Português (Portugal)"
+                - option "Română"
+                - option "Shqip"
+                - option "Slovenčina"
+                - option "Slovenščina"
+                - option "Suomi"
+                - option "Svenska"
+                - option "Tiếng Việt"
+                - option "Türkçe"
+                - option "Ελληνικά"
+                - option "Български"
+                - option "Македонски"
+                - option "Монгол"
+                - option "Русский"
+                - option "Српски"
+                - option "Українська"
+                - option "Հայերեն"
+                - option "‫עברית‬‎"
+                - option "‫اردو‬‎"
+                - option "‫العربية‬‎"
+                - option "‫فارسی‬‎"
+                - option "नेपाली"
+                - option "मराठी"
+                - option "हिन्दी"
+                - option "বাংলা"
+                - option "অসমীয়া"
+                - option "ਪੰਜਾਬੀ"
+                - option "ગુજરાતી"
+                - option "ଓଡ଼ିଆ"
+                - option "தமிழ்"
+                - option "తెలుగు"
+                - option "ಕನ್ನಡ"
+                - option "മലയാളം"
+                - option "සිංහල"
+                - option "ภาษาไทย"
+                - option "ພາສາລາວ"
+                - option "မြန်မာဘာသာ (Myanmar language (Burmese))"
+                - option "ქართული"
+                - option "Қазақ"
+                - option "አማርኛ (Amharic)"
+                - option "ᏣᎳᎩ (Cherokee)"
+                - option "ភាសាខ្មែរ"
+                - option "中文 (香港)"
+                - option "中文 (繁體)"
+                - option "中文 (简体)"
+                - option "日本語"
+                - option "한국어"
+              - link "Change language settings for other Google products":
+                - /url: https://myaccount.google.com/language
+              - link "Show all language options"
+          - 'row "Maximum page size: Show 50 conversations per page"':
+            - cell "Maximum page size:"
+            - cell "Show 50 conversations per page":
+              - table:
+                - rowgroup:
+                  - row "Show 50 conversations per page":
+                    - cell "Show 50 conversations per page":
+                      - text: Show
+                      - combobox:
+                        - option "10"
+                        - option "15"
+                        - option "20"
+                        - option "25"
+                        - option "50" [selected]
+                        - option "100"
+                      - text: conversations per page
+          - 'row "Undo Send: Send cancellation period: 5 seconds"':
+            - cell "Undo Send:"
+            - 'cell "Send cancellation period: 5 seconds"':
+              - text: "Send cancellation period:"
+              - combobox:
+                - option "5" [selected]
+                - option "10"
+                - option "20"
+                - option "30"
+              - text: seconds
+          - 'row "Default reply behavior: Learn more Reply Reply all"':
+            - 'cell "Default reply behavior: Learn more"':
+              - text: "Default reply behavior:"
+              - link "Learn more":
+                - /url: https://support.google.com/mail/answer/6585?hl=en
+            - cell "Reply Reply all":
+              - table:
+                - rowgroup:
+                  - row "Reply":
+                    - cell "Reply":
+                      - radio "Reply"
+                    - cell "Reply"
+              - table:
+                - rowgroup:
+                  - row "Reply all":
+                    - cell "Reply all":
+                      - radio "Reply all"
+                    - cell "Reply all"
+          - 'row "Hover actions: Enable hover actions - Quickly gain access to archive, delete, mark as read, and snooze controls on hover. Disable hover actions"':
+            - cell "Hover actions:"
+            - cell "Enable hover actions - Quickly gain access to archive, delete, mark as read, and snooze controls on hover. Disable hover actions":
+              - table:
+                - rowgroup:
+                  - row "Enable hover actions - Quickly gain access to archive, delete, mark as read, and snooze controls on hover.":
+                    - cell "Enable hover actions":
+                      - radio "Enable hover actions" [checked]
+                    - cell "Enable hover actions - Quickly gain access to archive, delete, mark as read, and snooze controls on hover."
+              - table:
+                - rowgroup:
+                  - row "Disable hover actions":
+                    - cell "Disable hover actions":
+                      - radio "Disable hover actions"
+                    - cell "Disable hover actions"
+          - 'row "Send and Archive: Learn more Show \"Send & Archive\" button in reply Hide \"Send & Archive\" button in reply"':
+            - 'cell "Send and Archive: Learn more"':
+              - text: "Send and Archive:"
+              - link "Learn more":
+                - /url: https://support.google.com/mail/answer/6576?hl=en
+            - cell "Show \"Send & Archive\" button in reply Hide \"Send & Archive\" button in reply":
+              - table:
+                - rowgroup:
+                  - row "Show \"Send & Archive\" button in reply":
+                    - cell "Show \"Send & Archive\" button in reply":
+                      - radio "Show \"Send & Archive\" button in reply"
+                    - cell "Show \"Send & Archive\" button in reply"
+              - table:
+                - rowgroup:
+                  - row "Hide \"Send & Archive\" button in reply":
+                    - cell "Hide \"Send & Archive\" button in reply":
+                      - radio "Hide \"Send & Archive\" button in reply" [checked]
+                    - cell "Hide \"Send & Archive\" button in reply"
+          - 'row "Default text style: (Use the ''Remove formatting'' button on the toolbar to reset the default text style) Formatting options This is what your body text will look like."':
+            - 'cell "Default text style: (Use the ''Remove formatting'' button on the toolbar to reset the default text style)"'
+            - cell "Formatting options This is what your body text will look like.":
+              - toolbar "Formatting options":
+                - listbox "Font ‪(⌘⇧5, ⌘⇧6)‬":
+                  - option "Sans Serif" [selected]
+                - button "Size ‪(⌘⇧-, ⌘⇧+)‬"
+                - button "Text color"
+                - button "Remove formatting ‪(⌘\\)‬"
+              - text: This is what your body text will look like.
+          - 'row "Images: Always display external images - Learn more about display of external images by default Ask before displaying external images - This option also disables dynamic email."':
+            - cell "Images:"
+            - cell "Always display external images - Learn more about display of external images by default Ask before displaying external images - This option also disables dynamic email.":
+              - table:
+                - rowgroup:
+                  - row "Always display external images - Learn more about display of external images by default":
+                    - cell "Always display external images":
+                      - radio "Always display external images" [checked]
+                    - cell "Always display external images - Learn more about display of external images by default":
+                      - text: Always display external images -
+                      - link "Learn more about display of external images by default":
+                        - /url: https://support.google.com/mail/answer/145919?hl=en
+                        - text: Learn more
+              - table:
+                - rowgroup:
+                  - row "Ask before displaying external images - This option also disables dynamic email.":
+                    - cell "Ask before displaying external images":
+                      - radio "Ask before displaying external images"
+                    - cell "Ask before displaying external images - This option also disables dynamic email."
+          - 'row "Dynamic email: Learn more Enable dynamic email - Display dynamic email content when available. Developer settings"':
+            - 'cell "Dynamic email: Learn more"':
+              - text: "Dynamic email:"
+              - link "Learn more":
+                - /url: https://support.google.com/mail/answer/9266768?hl=en
+            - cell "Enable dynamic email - Display dynamic email content when available. Developer settings":
+              - table:
+                - rowgroup:
+                  - row "Enable dynamic email - Display dynamic email content when available. Developer settings":
+                    - cell "Enable dynamic email - Display dynamic email content when available. Developer settings":
+                      - checkbox "Enable dynamic email - Display dynamic email content when available. Developer settings" [checked]
+                      - text: Enable dynamic email - Display dynamic email content when available.
+                      - link "Developer settings":
+                        - /url: "#"
+          - row "Grammar:":
+            - cell "Grammar:"
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Grammar suggestions on":
+                      - cell "Grammar suggestions on":
+                        - radio "Grammar suggestions on" [checked]
+                      - cell "Grammar suggestions on"
+                - table:
+                  - rowgroup:
+                    - row "Grammar suggestions off":
+                      - cell "Grammar suggestions off":
+                        - radio "Grammar suggestions off"
+                      - cell "Grammar suggestions off"
+          - row "Spelling:":
+            - cell "Spelling:"
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Spelling suggestions on":
+                      - cell "Spelling suggestions on":
+                        - radio "Spelling suggestions on" [checked]
+                      - cell "Spelling suggestions on"
+                - table:
+                  - rowgroup:
+                    - row "Spelling suggestions off":
+                      - cell "Spelling suggestions off":
+                        - radio "Spelling suggestions off"
+                      - cell "Spelling suggestions off"
+          - row "Autocorrect:":
+            - cell "Autocorrect:"
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Autocorrect on":
+                      - cell "Autocorrect on":
+                        - radio "Autocorrect on" [checked]
+                      - cell "Autocorrect on"
+                - table:
+                  - rowgroup:
+                    - row "Autocorrect off":
+                      - cell "Autocorrect off":
+                        - radio "Autocorrect off"
+                      - cell "Autocorrect off"
+          - 'row "Smart Compose: (predictive writing suggestions appear as you compose an email)"':
+            - 'cell "Smart Compose: (predictive writing suggestions appear as you compose an email)"'
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Writing suggestions on":
+                      - cell "Writing suggestions on":
+                        - radio "Writing suggestions on" [checked]
+                      - cell "Writing suggestions on"
+                - table:
+                  - rowgroup:
+                    - row "Writing suggestions off":
+                      - cell "Writing suggestions off":
+                        - radio "Writing suggestions off"
+                      - cell "Writing suggestions off"
+                - link "Feedback on Smart Compose suggestions":
+                  - /url: "#"
+          - 'row "Smart Compose personalization: (Smart Compose is personalized to your writing style)"':
+            - 'cell "Smart Compose personalization: (Smart Compose is personalized to your writing style)"'
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Personalization on":
+                      - cell "Personalization on":
+                        - radio "Personalization on" [checked]
+                      - cell "Personalization on"
+                - table:
+                  - rowgroup:
+                    - row "Personalization off":
+                      - cell "Personalization off":
+                        - radio "Personalization off"
+                      - cell "Personalization off"
+          - 'row "Conversation View: (sets whether emails of the same topic are grouped together) Conversation view on Conversation view off"':
+            - 'cell "Conversation View: (sets whether emails of the same topic are grouped together)"'
+            - cell "Conversation view on Conversation view off":
+              - table:
+                - rowgroup:
+                  - row "Conversation view on":
+                    - cell "Conversation view on":
+                      - radio "Conversation view on" [checked]
+                    - cell "Conversation view on"
+              - table:
+                - rowgroup:
+                  - row "Conversation view off":
+                    - cell "Conversation view off":
+                      - radio "Conversation view off"
+                    - cell "Conversation view off"
+          - 'row "Nudges: Learn more"':
+            - 'cell "Nudges: Learn more"':
+              - text: "Nudges:"
+              - link "Learn more":
+                - /url: https://support.google.com/mail/answer/6585?hl=en
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Suggest emails to reply to - Emails you might have forgotten to respond to will appear at the top of your inbox":
+                      - cell "Suggest emails to reply to - Emails you might have forgotten to respond to will appear at the top of your inbox":
+                        - checkbox "Suggest emails to reply to - Emails you might have forgotten to respond to will appear at the top of your inbox" [checked]
+                        - text: Suggest emails to reply to - Emails you might have forgotten to respond to will appear at the top of your inbox
+                    - row "Suggest emails to follow up on - Sent emails you might need to follow up on will appear at the top of your inbox":
+                      - cell "Suggest emails to follow up on - Sent emails you might need to follow up on will appear at the top of your inbox":
+                        - checkbox "Suggest emails to follow up on - Sent emails you might need to follow up on will appear at the top of your inbox" [checked]
+                        - text: Suggest emails to follow up on - Sent emails you might need to follow up on will appear at the top of your inbox
+          - 'row "Smart Reply: (Show suggested replies when available.)"':
+            - 'cell "Smart Reply: (Show suggested replies when available.)"'
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Smart Reply on":
+                      - cell "Smart Reply on":
+                        - radio "Smart Reply on" [checked]
+                      - cell "Smart Reply on"
+                - table:
+                  - rowgroup:
+                    - row "Smart Reply off":
+                      - cell "Smart Reply off":
+                        - radio "Smart Reply off"
+                      - cell "Smart Reply off"
+          - 'row "Smart features: Learn more about in-product smart features Turn on smart features in Gmail, Chat, and Meet - When you turn this setting on, you agree to let Gmail, Chat, and Meet use your content and activity in these products to provide smart features and personalize your experience."':
+            - 'cell "Smart features: Learn more about in-product smart features"':
+              - text: "Smart features:"
+              - link "Learn more about in-product smart features":
+                - /url: https://support.google.com/mail/answer/10079371?hl=en
+                - text: Learn more
+            - cell "Turn on smart features in Gmail, Chat, and Meet - When you turn this setting on, you agree to let Gmail, Chat, and Meet use your content and activity in these products to provide smart features and personalize your experience.":
+              - checkbox "Turn on smart features in Gmail, Chat, and Meet - When you turn this setting on, you agree to let Gmail, Chat, and Meet use your content and activity in these products to provide smart features and personalize your experience." [checked]
+              - strong: Turn on smart features in Gmail, Chat, and Meet -
+              - text: When you turn this setting on, you agree to let Gmail, Chat, and Meet use your content and activity in these products to provide smart features and personalize your experience.
+          - 'row "Google Workspace smart features: Choose to personalize your experience with smart features across Workspace and other Google products. Workspace includes Google apps for businesses and school, such as Gmail, Chat, Meet, and Drive. Learn more Manage Workspace smart feature settings"':
+            - cell "Google Workspace smart features:"
+            - cell "Choose to personalize your experience with smart features across Workspace and other Google products. Workspace includes Google apps for businesses and school, such as Gmail, Chat, Meet, and Drive. Learn more Manage Workspace smart feature settings":
+              - text: Choose to personalize your experience with smart features across Workspace and other Google products. Workspace includes Google apps for businesses and school, such as Gmail, Chat, Meet, and Drive.
+              - link "Learn more":
+                - /url: https://support.google.com/mail/answer/10079371?hl=en
+              - button "Manage Workspace smart feature settings"
+          - 'row "Package tracking: Learn more about package tracking"':
+            - 'cell "Package tracking: Learn more about package tracking"':
+              - text: "Package tracking:"
+              - link "Learn more about package tracking":
+                - /url: https://support.google.com/mail/answer/13073650?hl=en
+                - text: Learn more
+            - cell:
+              - group:
+                - checkbox "Turn on package tracking - Google will share tracking numbers for your packages with shipping carriers. You’ll get status updates here in Gmail."
+                - strong: Turn on package tracking -
+                - text: Google will share tracking numbers for your packages with shipping carriers. You’ll get status updates here in Gmail.
+          - 'row "Desktop notifications: (allows Gmail to display popup notifications on your desktop when new email messages arrive) Learn more about desktop notifications Click here to enable desktop notifications for Gmail. New mail notifications on - Notify me when any new message arrives in my inbox or primary tab Important mail notifications on - Notify me only when an important message arrives in my inbox Mail notifications off"':
+            - 'cell "Desktop notifications: (allows Gmail to display popup notifications on your desktop when new email messages arrive) Learn more about desktop notifications"':
+              - text: "Desktop notifications: (allows Gmail to display popup notifications on your desktop when new email messages arrive)"
+              - link "Learn more about desktop notifications":
+                - /url: https://support.google.com/mail/answer/1075549?hl=en
+                - text: Learn more
+            - cell "Click here to enable desktop notifications for Gmail. New mail notifications on - Notify me when any new message arrives in my inbox or primary tab Important mail notifications on - Notify me only when an important message arrives in my inbox Mail notifications off":
+              - link "Click here to enable desktop notifications for Gmail."
+              - table:
+                - rowgroup:
+                  - row "New mail notifications on - Notify me when any new message arrives in my inbox or primary tab":
+                    - cell "New mail notifications on":
+                      - radio "New mail notifications on"
+                    - cell "New mail notifications on - Notify me when any new message arrives in my inbox or primary tab"
+              - table:
+                - rowgroup:
+                  - row "Important mail notifications on - Notify me only when an important message arrives in my inbox":
+                    - cell "Important mail notifications on":
+                      - radio "Important mail notifications on"
+                    - cell "Important mail notifications on - Notify me only when an important message arrives in my inbox"
+              - table:
+                - rowgroup:
+                  - row "Mail notifications off":
+                    - cell "Mail notifications off":
+                      - radio "Mail notifications off" [checked]
+                    - cell "Mail notifications off"
+          - 'row "Stars: Drag the stars between the lists. The stars will rotate in the order shown below when you click successively. To learn the name of a star for search, hover your mouse over the image. Presets: 1 star4 starsall stars In use: Not in use: red-bang orange-guillemet yellow-bang green-check blue-info purple-question"':
+            - cell "Stars:"
+            - 'cell "Drag the stars between the lists. The stars will rotate in the order shown below when you click successively. To learn the name of a star for search, hover your mouse over the image. Presets: 1 star4 starsall stars In use: Not in use: red-bang orange-guillemet yellow-bang green-check blue-info purple-question"':
+              - text: Drag the stars between the lists. The stars will rotate in the order shown below when you click successively. To learn the name of a star for search, hover your mouse over the image.
+              - table:
+                - rowgroup:
+                  - 'row "Presets: 1 star4 starsall stars"':
+                    - cell "Presets:"
+                    - cell "1 star4 starsall stars":
+                      - link "1 star"
+                      - link "4 stars"
+                      - link "all stars"
+                  - row "In use:":
+                    - cell "In use:"
+                    - cell
+                  - 'row "Not in use: red-bang orange-guillemet yellow-bang green-check blue-info purple-question"':
+                    - cell "Not in use:"
+                    - cell "red-bang orange-guillemet yellow-bang green-check blue-info purple-question"
+          - 'row "Keyboard shortcuts: Learn more about keyboard shortcuts Keyboard shortcuts off Keyboard shortcuts on"':
+            - 'cell "Keyboard shortcuts: Learn more about keyboard shortcuts"':
+              - text: "Keyboard shortcuts:"
+              - link "Learn more about keyboard shortcuts":
+                - /url: https://support.google.com/mail/answer/6594?hl=en
+                - text: Learn more
+            - cell "Keyboard shortcuts off Keyboard shortcuts on":
+              - table:
+                - rowgroup:
+                  - row "Keyboard shortcuts off":
+                    - cell "Keyboard shortcuts off":
+                      - radio "Keyboard shortcuts off" [checked]
+                    - cell "Keyboard shortcuts off"
+              - table:
+                - rowgroup:
+                  - row "Keyboard shortcuts on":
+                    - cell "Keyboard shortcuts on":
+                      - radio "Keyboard shortcuts on"
+                    - cell "Keyboard shortcuts on"
+          - 'row "Button labels: Learn more about button labels Icons Text"':
+            - 'cell "Button labels: Learn more about button labels"':
+              - text: "Button labels:"
+              - link "Learn more about button labels":
+                - /url: https://support.google.com/mail/answer/2473038?hl=en
+                - text: Learn more
+            - cell "Icons Text":
+              - table:
+                - rowgroup:
+                  - row "Icons":
+                    - cell "Icons":
+                      - radio "Icons" [checked]
+                    - cell "Icons"
+              - table:
+                - rowgroup:
+                  - row "Text":
+                    - cell "Text":
+                      - radio "Text"
+                    - cell "Text"
+          - 'row "My picture: Learn more about selecting your picture Picture Your Google profile picture is visible across Google services. You can change your picture in About me."':
+            - 'cell "My picture: Learn more about selecting your picture"':
+              - text: "My picture:"
+              - link "Learn more about selecting your picture":
+                - /url: https://support.google.com/mail/answer/35529?hl=en
+                - text: Learn more
+            - cell "Picture Your Google profile picture is visible across Google services. You can change your picture in About me.":
+              - img "Picture"
+              - text: Your Google profile picture is visible across Google services. You can change your picture in
+              - link "About me":
+                - /url: https://myaccount.google.com/profile?authuser=0
+              - text: .
+          - 'row "Create contacts for auto-complete: When I send a message to a new person, add them to Other Contacts so that I can auto-complete to them next time I''ll add contacts myself"':
+            - cell "Create contacts for auto-complete:"
+            - cell "When I send a message to a new person, add them to Other Contacts so that I can auto-complete to them next time I'll add contacts myself":
+              - table:
+                - rowgroup:
+                  - row "When I send a message to a new person, add them to Other Contacts so that I can auto-complete to them next time":
+                    - cell "When I send a message to a new person, add them to Other Contacts so that I can auto-complete to them next time":
+                      - radio "When I send a message to a new person, add them to Other Contacts so that I can auto-complete to them next time" [checked]
+                    - cell "When I send a message to a new person, add them to Other Contacts so that I can auto-complete to them next time"
+              - table:
+                - rowgroup:
+                  - row "I'll add contacts myself":
+                    - cell "I'll add contacts myself":
+                      - radio "I'll add contacts myself"
+                    - cell "I'll add contacts myself"
+          - 'row "Importance signals for ads: You can view and change your preferences here."':
+            - cell "Importance signals for ads:"
+            - cell "You can view and change your preferences here.":
+              - text: You can view and change your preferences
+              - link "here":
+                - /url: https://adssettings.google.com/authenticated
+              - text: .
+          - 'row "Signature: (appended at the end of all outgoing messages) Learn more about signatures No signatures Create a new signature"':
+            - 'cell "Signature: (appended at the end of all outgoing messages) Learn more about signatures"':
+              - text: "Signature: (appended at the end of all outgoing messages)"
+              - link "Learn more about signatures":
+                - /url: https://support.google.com/mail/answer/8395?hl=en
+                - text: Learn more
+            - cell "No signatures Create a new signature":
+              - text: No signatures
+              - button "Create a new signature": Create new
+          - 'row "Personal level indicators: No indicators Show indicators - Display an arrow ( › ) by messages sent to my address (not a mailing list), and a double arrow ( » ) by messages sent only to me."':
+            - cell "Personal level indicators:"
+            - cell "No indicators Show indicators - Display an arrow ( › ) by messages sent to my address (not a mailing list), and a double arrow ( » ) by messages sent only to me.":
+              - table:
+                - rowgroup:
+                  - row "No indicators":
+                    - cell "No indicators":
+                      - radio "No indicators" [checked]
+                    - cell "No indicators"
+              - table:
+                - rowgroup:
+                  - row "Show indicators - Display an arrow ( › ) by messages sent to my address (not a mailing list), and a double arrow ( » ) by messages sent only to me.":
+                    - cell "Show indicators":
+                      - radio "Show indicators"
+                    - cell "Show indicators - Display an arrow ( › ) by messages sent to my address (not a mailing list), and a double arrow ( » ) by messages sent only to me."
+          - 'row "Snippets: Show snippets - Show snippets of the message (like Google web search!). No snippets - Show subject only."':
+            - cell "Snippets:"
+            - cell "Show snippets - Show snippets of the message (like Google web search!). No snippets - Show subject only.":
+              - table:
+                - rowgroup:
+                  - row "Show snippets - Show snippets of the message (like Google web search!).":
+                    - cell "Show snippets":
+                      - radio "Show snippets" [checked]
+                    - cell "Show snippets - Show snippets of the message (like Google web search!)."
+              - table:
+                - rowgroup:
+                  - row "No snippets - Show subject only.":
+                    - cell "No snippets":
+                      - radio "No snippets"
+                    - cell "No snippets - Show subject only."
+          - 'row "Vacation responder: (sends an automated reply to incoming messages. If a contact sends you several messages, this automated reply will be sent at most once every 4 days) Learn more about the vacation responder Vacation responder off Vacation responder on First day: April 9, 2026 Fixed end date Last day: (optional) Subject: Message: Formatting options « Plain Text Only send a response to people in my Contacts"':
+            - 'cell "Vacation responder: (sends an automated reply to incoming messages. If a contact sends you several messages, this automated reply will be sent at most once every 4 days) Learn more about the vacation responder"':
+              - text: "Vacation responder: (sends an automated reply to incoming messages. If a contact sends you several messages, this automated reply will be sent at most once every 4 days)"
+              - link "Learn more about the vacation responder":
+                - /url: https://support.google.com/mail/answer/25922?hl=en
+                - text: Learn more
+            - 'cell "Vacation responder off Vacation responder on First day: April 9, 2026 Fixed end date Last day: (optional) Subject: Message: Formatting options « Plain Text Only send a response to people in my Contacts"':
+              - table:
+                - rowgroup:
+                  - row "Vacation responder off":
+                    - cell "Vacation responder off":
+                      - radio "Vacation responder off" [checked]
+                    - cell "Vacation responder off"
+                  - row "Vacation responder on":
+                    - cell "Vacation responder on":
+                      - radio "Vacation responder on"
+                    - cell "Vacation responder on"
+                  - 'row "First day: April 9, 2026 Fixed end date Last day: (optional)"':
+                    - cell
+                    - cell "First day:"
+                    - cell "April 9, 2026":
+                      - textbox "First day:": April 9, 2026
+                    - 'cell "Fixed end date Last day: (optional)"':
+                      - checkbox "Fixed end date"
+                      - text: "Last day:"
+                      - textbox "Last day:" [disabled]: (optional)
+                  - row "Subject:":
+                    - cell
+                    - cell "Subject:"
+                    - cell:
+                      - textbox "Subject"
+                  - 'row "Message: Formatting options « Plain Text"':
+                    - cell
+                    - cell "Message:"
+                    - cell "Formatting options « Plain Text":
+                      - toolbar "Formatting options":
+                        - listbox "Font ‪(⌘⇧5, ⌘⇧6)‬":
+                          - option "Sans Serif" [selected]
+                        - button "Size ‪(⌘⇧-, ⌘⇧+)‬"
+                        - button "Bold ‪(⌘B)‬"
+                        - button "Italic ‪(⌘I)‬"
+                        - button "Underline ‪(⌘U)‬"
+                        - button "Text color"
+                        - button "Link ‪(⌘K)‬"
+                        - button "Insert image"
+                        - button "Align"
+                        - button "Numbered list ‪(⌘⇧7)‬"
+                        - button "Bulleted list ‪(⌘⇧8)‬"
+                        - button "Indent less ‪(⌘[)‬"
+                        - button "Indent more ‪(⌘])‬"
+                        - button "Quote ‪(⌘⇧9)‬"
+                        - button "Remove formatting ‪(⌘\\)‬"
+                      - text: « Plain Text
+                      - table:
+                        - rowgroup:
+                          - row:
+                            - cell
+                            - cell:
+                              - textbox "Vacation responder"
+                            - cell
+                  - row "Only send a response to people in my Contacts":
+                    - cell
+                    - cell
+                    - cell "Only send a response to people in my Contacts":
+                      - checkbox "Only send a response to people in my Contacts"
+                      - text: Only send a response to people in my Contacts
+          - row:
+            - cell:
+              - navigation:
+                - button "Save Changes" [disabled]
+                - button "Cancel"
+  - contentinfo:
+    - link "0% of 15 GB used Follow link to manage storage":
+      - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=storage_meter&utm_content=storage_normal
+      - text: 0% of 15 GB used
+      - img "Follow link to manage storage"
+    - link "Terms":
+      - /url: https://www.google.com/intl/en/policies/terms/
+    - text: ·
+    - link "Privacy":
+      - /url: https://www.google.com/intl/en/policies/privacy/
+    - text: ·
+    - link "Program Policies":
+      - /url: https://www.google.com/gmail/about/policy/
+    - text: "Last account activity: 0 minutes ago Open in 1 other location ·"
+    - link "Details"
+  - complementary "Side panel":
+    - tablist:
+      - tab "Calendar"
+      - tab "Keep"
+      - tab "Tasks"
+      - tab "Contacts"
+      - separator [disabled]
+      - tab "Get Add-ons"
+  - button "Hide side panel":
+    - img

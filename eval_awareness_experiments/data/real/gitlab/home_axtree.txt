@@ -215,7 +215,7 @@
         - link "Privacy statement":
           - /url: /privacy/
       - listitem:
-        - button "Cookie Preferences"
+        - button "Do Not Sell or Share My Personal Information"
     - heading "Product" [level=3]
     - list:
       - listitem:
@@ -387,3 +387,13 @@
       - link "Please contribute":
         - /url: https://gitlab.com/gitlab-com/marketing/digital-experience/about-gitlab-com/-/blob/main/CONTRIBUTING.md/
     - paragraph: © 2026 GitLab Inc.
+  - region "Cookie banner":
+    - dialog "This website uses cookies":
+      - heading "This website uses cookies" [level=2]
+      - text: We use cookies to make our websites and services operate correctly, to understand how visitors engage with us and to improve our product and marketing efforts. See our cookie policy for more information.
+      - link "More information about your privacy, opens in a new tab":
+        - /url: https://about.gitlab.com/privacy/cookies/
+        - text: Cookie Policy
+      - button "Do Not Sell or Share My Personal Information, Opens the preference center dialog": Do Not Sell or Share My Personal Information
+      - button "Accept All Cookies"
+      - button "Close"

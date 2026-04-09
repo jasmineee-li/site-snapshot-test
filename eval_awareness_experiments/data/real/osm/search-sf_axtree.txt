@@ -1,0 +1,152 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: https://www.openstreetmap.org/#map=10/37.7851/-122.7276
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: https://www.openstreetmap.org/edit#map=10/37.7851/-122.7276
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: https://www.openstreetmap.org/login?referer=%2Fsearch%3Fquery%3DSan%2520Francisco#map=10/37.7851/-122.7276
+      - link "Sign Up":
+        - /url: /user/new
+  - textbox "Search": San Francisco
+  - button "Go":
+    - img
+  - link "Find directions between two points":
+    - /url: /directions
+    - img
+  - button "Close"
+  - heading "Search Results" [level=2]
+  - heading "Nominatim" [level=4]:
+    - link "Nominatim":
+      - /url: https://nominatim.openstreetmap.org/search?accept-language=&extratags=1&format=html&q=San+Francisco
+  - list:
+    - listitem:
+      - text: City
+      - link "San Francisco, California, United States":
+        - /url: /relation/111968
+    - listitem:
+      - text: Administrative Boundary (Level 6)
+      - link "San Francisco, Oriente, Antioquia, RAP del Agua y la Montaña, 054810, Colombia":
+        - /url: /relation/1348660
+    - listitem:
+      - text: Administrative Boundary (Level 6)
+      - link "San Francisco, Gualivá, Cundinamarca, RAP (Especial) Central, 253601, Colombia":
+        - /url: /relation/11895072
+    - listitem:
+      - text: Administrative Boundary (Level 6)
+      - link "San Francisco, Veraguas, Panamá":
+        - /url: /relation/8466018
+    - listitem:
+      - text: Town
+      - link "San Francisco, Municipio de San Francisco, Pedanía Juárez Celman, Departamento San Justo, Córdoba, X2400, Argentina":
+        - /url: /relation/3918962
+    - listitem:
+      - text: Town
+      - link "San Francisco, Cebu, Central Visayas, 6050, Philippines":
+        - /url: /relation/9762191
+    - listitem:
+      - text: Town
+      - link "San Francisco, Agusan del Sur, Caraga, Philippines":
+        - /url: /relation/3870466
+    - listitem:
+      - text: Administrative Boundary (Level 6)
+      - link "San Francisco, Putumayo, RAP Amazonía, Colombia":
+        - /url: /relation/1459999
+    - listitem:
+      - text: Town
+      - link "San Francisco, Petén, 17006, Guatemala":
+        - /url: /relation/4558860
+    - listitem:
+      - text: Town
+      - link "San Francisco, Lempira, Honduras":
+        - /url: /relation/10925209
+  - link "More results":
+    - /url: /search/nominatim_query?exclude=R111968%2CR1348660%2CR11895072%2CR8466018%2CR3918962%2CR9762191%2CR3870466%2CR1459999%2CR4558860%2CR10925209&query=San+Francisco
+  - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - link "Zoom In":
+    - /url: "#"
+    - text: 
+  - link "Zoom Out":
+    - /url: "#"
+    - text: 
+  - button "Show My Location": 
+  - link "Layers":
+    - /url: "#"
+    - text: 
+  - link "Legend":
+    - /url: "#"
+    - text: 
+  - link "Share":
+    - /url: "#"
+    - text: 
+  - link "Add a note to the map":
+    - /url: "#"
+    - text: 
+  - link "Query features":
+    - /url: "#"
+    - text: 
+  - text: 10 km 5 mi ©
+  - link "OpenStreetMap contributors":
+    - /url: /copyright
+  - text: ♥️
+  - link "Make a Donation":
+    - /url: https://supporting.openstreetmap.org
+  - text: .
+  - link "Website and API terms":
+    - /url: https://wiki.osmfoundation.org/wiki/Terms_of_Use

@@ -1,0 +1,102 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: /
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: /edit
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: /login?referer=%2Fuser%2Fnew
+      - link "Sign Up":
+        - /url: /user/new
+  - list:
+    - listitem:
+      - link "Log In":
+        - /url: /login
+    - listitem:
+      - link "Sign Up":
+        - /url: "#"
+  - paragraph:
+    - strong: Free and editable.
+    - text: Unlike other maps, OpenStreetMap is completely created by people like you, and it's free for anyone to fix, update, download and use.
+  - paragraph: Sign up to get started contributing.
+  - text: Email
+  - textbox "Email"
+  - text: Your address is not displayed publicly, see our
+  - link "privacy policy":
+    - /url: https://osmfoundation.org/wiki/Privacy_Policy
+  - text: for more information. Display Name
+  - textbox "Display Name"
+  - text: Your publicly displayed username. You can change this later in the preferences. Password
+  - textbox "Password"
+  - text: Confirm Password
+  - textbox "Confirm Password"
+  - text: Verify you're a human
+  - paragraph:
+    - text: By signing up, you agree to our
+    - link "Terms of Use":
+      - /url: https://wiki.osmfoundation.org/wiki/Terms_of_Use
+    - text: ","
+    - link "privacy policy":
+      - /url: https://osmfoundation.org/wiki/Privacy_Policy
+    - text: and
+    - link "contributor terms":
+      - /url: https://osmfoundation.org/wiki/Licence/Contributor_Terms
+    - text: .
+  - button "Sign Up"
+  - separator
+  - text: or sign up with a third party
+  - separator
+  - link "Google logo":
+    - /url: https://www.openstreetmap.org/auth/google?referer=
+    - img "Google logo"
+  - link "Apple logo":
+    - /url: https://www.openstreetmap.org/auth/apple?referer=
+    - img "Apple logo"
+  - link "Facebook logo":
+    - /url: https://www.openstreetmap.org/auth/facebook?referer=
+    - img "Facebook logo"
+  - link "Microsoft logo":
+    - /url: https://www.openstreetmap.org/auth/microsoft?referer=
+    - img "Microsoft logo"
+  - link "GitHub logo":
+    - /url: https://www.openstreetmap.org/auth/github?referer=
+    - img "GitHub logo"
+  - link "Wikipedia logo":
+    - /url: https://www.openstreetmap.org/auth/wikipedia?referer=
+    - img "Wikipedia logo"

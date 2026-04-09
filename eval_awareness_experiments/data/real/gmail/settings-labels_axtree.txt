@@ -1,0 +1,283 @@
+- document:
+  - text: None selected
+  - link "Skip to content":
+    - /url: ""
+  - link "Using Gmail with screen readers":
+    - /url: ""
+  - heading [level=1]:
+    - banner:
+      - button "Main menu" [expanded]:
+        - img
+      - link "Gmail":
+        - /url: "#inbox"
+      - search:
+        - heading "Search" [level=2]
+        - table:
+          - rowgroup:
+            - row:
+              - cell:
+                - textbox "Search mail"
+        - button "Advanced search options":
+          - img
+        - button "Search mail" [disabled]:
+          - img
+      - button "Support":
+        - img
+      - button "Settings":
+        - img
+      - button "Upgrade"
+      - button "Try Gemini"
+      - button "Google apps":
+        - img
+      - 'button "Google Account: John Doe (worldsimagenttest@gmail.com)"'
+  - alert:
+    - text: Enable desktop notifications for Gmail.
+    - link "OK"
+    - link "No thanks"
+    - button "Close"
+  - navigation:
+    - button "Compose"
+    - heading "Labels" [level=2]
+    - link "Inbox 8 unread":
+      - /url: https://mail.google.com/mail/u/0/#inbox
+      - text: Inbox
+    - text: "8"
+    - link "Starred":
+      - /url: https://mail.google.com/mail/u/0/#starred
+    - link "Snoozed":
+      - /url: https://mail.google.com/mail/u/0/#snoozed
+    - link "Sent":
+      - /url: https://mail.google.com/mail/u/0/#sent
+    - link "Drafts 1 unread":
+      - /url: https://mail.google.com/mail/u/0/#drafts
+      - text: Drafts
+    - text: "1"
+    - link "Purchases has menu":
+      - /url: https://mail.google.com/mail/u/0/#category/purchases
+      - text: Purchases
+    - button "More labels": More
+    - heading "Labels"
+    - button "Create new label"
+    - heading "Labels" [level=2]
+  - heading "Settings" [level=2]
+  - tablist:
+    - tab "General"
+    - tab "Labels" [selected]
+    - tab "Inbox"
+    - tab "Accounts and Import"
+    - tab "Filters and Blocked Addresses"
+    - tab "Forwarding and POP/IMAP"
+    - tab "Add-ons"
+    - tab "Chat and Meet"
+    - tab "Advanced"
+    - tab "Offline"
+    - tab "Themes"
+  - main:
+    - tablist:
+      - table:
+        - rowgroup:
+          - row "System labels Show in label list":
+            - cell "System labels"
+            - cell "Show in label list"
+          - row "Inbox Show in IMAP":
+            - cell "Inbox"
+            - cell
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked] [disabled]
+              - text: Show in IMAP
+            - cell
+          - row "Starred show hide Show in IMAP":
+            - cell "Starred"
+            - cell "show hide":
+              - text: show
+              - link "hide"
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "Snoozed show hide Show in IMAP":
+            - cell "Snoozed"
+            - cell "show hide":
+              - text: show
+              - link "hide"
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "Important show hide Show in IMAP":
+            - cell "Important"
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "Sent show hide Show in IMAP":
+            - cell "Sent"
+            - cell "show hide":
+              - text: show
+              - link "hide"
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "Scheduled show hide show if unread Show in IMAP":
+            - cell "Scheduled"
+            - cell "show hide show if unread":
+              - link "show"
+              - link "hide"
+              - text: show if unread
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "Drafts show hide show if unread Show in IMAP":
+            - cell "Drafts"
+            - cell "show hide show if unread":
+              - text: show
+              - link "hide"
+              - link "show if unread"
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "All Mail show hide Show in IMAP":
+            - cell "All Mail"
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "Spam show hide show if unread Show in IMAP":
+            - cell "Spam"
+            - cell "show hide show if unread":
+              - link "show"
+              - text: hide
+              - link "show if unread"
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row "Trash show hide Show in IMAP":
+            - cell "Trash"
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell
+            - cell
+            - cell "Show in IMAP":
+              - checkbox "Show in IMAP" [checked]
+              - text: Show in IMAP
+            - cell
+          - row:
+            - cell
+          - row "Categories Show in label list Show in message list":
+            - cell "Categories"
+            - cell "Show in label list"
+            - cell "Show in message list"
+          - row "Purchases show hide":
+            - cell "Purchases"
+            - cell "show hide":
+              - text: show
+              - link "hide"
+            - cell
+            - cell
+            - cell
+          - row "Social show hide show hide":
+            - cell "Social"
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell
+            - cell
+          - row "Updates show hide show hide":
+            - cell "Updates"
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell
+            - cell
+          - row "Forums show hide show hide":
+            - cell "Forums"
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell
+            - cell
+          - row "Promotions show hide show hide":
+            - cell "Promotions"
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell "show hide":
+              - link "show"
+              - text: hide
+            - cell
+            - cell
+          - row:
+            - cell
+          - row "Labels Show in label list Show in message list Actions":
+            - cell "Labels"
+            - cell "Show in label list"
+            - cell "Show in message list"
+            - cell "Actions"
+          - row "Create new label":
+            - cell "Create new label":
+              - button "Create new label"
+          - 'row "Note: Removing a label will not remove the messages with that label."':
+            - 'cell "Note: Removing a label will not remove the messages with that label."'
+  - contentinfo:
+    - link "0% of 15 GB used Follow link to manage storage":
+      - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=storage_meter&utm_content=storage_normal
+      - text: 0% of 15 GB used
+      - img "Follow link to manage storage"
+    - link "Terms":
+      - /url: https://www.google.com/intl/en/policies/terms/
+    - text: ·
+    - link "Privacy":
+      - /url: https://www.google.com/intl/en/policies/privacy/
+    - text: ·
+    - link "Program Policies":
+      - /url: https://www.google.com/gmail/about/policy/
+    - text: "Last account activity: 0 minutes ago Open in 1 other location ·"
+    - link "Details"
+  - complementary "Side panel":
+    - tablist:
+      - tab "Calendar"
+      - tab "Keep"
+      - tab "Tasks"
+      - tab "Contacts"
+      - separator [disabled]
+      - tab "Get Add-ons"
+  - button "Hide side panel":
+    - img

@@ -1,0 +1,109 @@
+- document:
+  - navigation "Sidebar":
+    - button "Open account dropdown":
+      - text: kristinazhou
+      - img
+    - status
+    - button "Notifications":
+      - img
+    - combobox "Search"
+    - list:
+      - listitem:
+        - button "Recents"
+      - button "Community"
+    - 'button "Plan: John Doe''s team"':
+      - text: John Doe's team
+      - img
+    - button "Change plan. John Doe's team currently on Free plan": Free
+    - list:
+      - listitem:
+        - button "Drafts"
+        - button "New file"
+      - listitem:
+        - button "All projects"
+      - button "Resources"
+      - listitem:
+        - button "Trash"
+    - text: See what’s included Your plan and usage
+    - button "View all"
+    - region:
+      - button "Starred" [expanded]
+      - list:
+        - listitem:
+          - button "Team project"
+          - button "Move row down" [disabled]
+          - button "Move row up" [disabled]
+    - img
+    - paragraph: Ready to go beyond this free plan? Upgrade for premium features.
+    - button "View plans"
+  - heading "Recents" [level=1]
+  - button "New Design file":
+    - img
+    - text: Design
+  - button "New FigJam file":
+    - img
+    - text: FigJam
+  - button "New Slides file":
+    - img
+    - text: Slides
+  - button "New Buzz file":
+    - img
+    - text: Buzz
+  - button "New Site file":
+    - img
+    - text: Site
+  - button "New Make file":
+    - img
+    - text: Make
+  - button "Import":
+    - img
+  - heading "Describe your idea and make it come to life" [level=2]
+  - link "Learn about AI tools in Figma Design":
+    - /url: https://help.figma.com/hc/articles/23870272542231
+    - text: AI
+  - button "Dismiss prompt box"
+  - textbox "Prompt input field":
+    - /placeholder: Create a personal productivity dashboard with weather, calendar, and task widgets.
+  - button "Submit your prompt" [disabled]:
+    - text: Make it
+    - img
+  - tablist:
+    - tab "Recently viewed" [selected]
+    - tab "Shared files"
+    - tab "Shared projects"
+  - combobox "All organizations"
+  - img
+  - combobox "All files"
+  - img
+  - button "Last viewed"
+  - img
+  - radiogroup "View mode":
+    - text: View mode
+    - radio "Show as grid" [checked]
+    - text: Show as grid
+    - radio "Show as list"
+    - text: Show as list
+  - main:
+    - list:
+      - group "FigJam basics":
+        - button "FigJam basics"
+        - button "Add to sidebar"
+        - img "FigJam file"
+        - text: Edited 9 minutes ago
+      - group "Figma basics":
+        - button "Figma basics"
+        - button "Add to sidebar"
+        - img "Design file"
+        - text: Edited 9 minutes ago
+      - group "John Doe's team library":
+        - button "John Doe's team library"
+        - button "Add to sidebar"
+        - img "Design file"
+        - text: Edited 9 minutes ago
+  - toolbar "Help/zoom toolbar":
+    - button "Help":
+      - img
+  - status
+  - group:
+    - alert
+    - alert

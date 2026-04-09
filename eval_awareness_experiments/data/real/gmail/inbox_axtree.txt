@@ -1,0 +1,225 @@
+- document:
+  - link "Skip to content":
+    - /url: ""
+  - link "Using Gmail with screen readers":
+    - /url: ""
+  - heading [level=1]:
+    - banner:
+      - button "Main menu" [expanded]:
+        - img
+      - link "Gmail":
+        - /url: "#inbox"
+      - search:
+        - heading "Search" [level=2]
+        - table:
+          - rowgroup:
+            - row:
+              - cell:
+                - textbox "Search mail"
+        - button "Advanced search options":
+          - img
+        - button "Search mail" [disabled]:
+          - img
+      - button "Support":
+        - img
+      - button "Settings":
+        - img
+      - button "Upgrade"
+      - button "Try Gemini"
+      - button "Google apps":
+        - img
+      - 'button "Google Account: John Doe (worldsimagenttest@gmail.com)"'
+  - alert:
+    - text: Enable desktop notifications for Gmail.
+    - link "OK"
+    - link "No thanks"
+    - button "Close"
+  - navigation:
+    - button "Compose"
+    - heading "Labels" [level=2]
+    - link "Inbox 8 unread":
+      - /url: https://mail.google.com/mail/u/0/#inbox
+      - text: Inbox
+    - text: "8"
+    - link "Starred":
+      - /url: https://mail.google.com/mail/u/0/#starred
+    - link "Snoozed":
+      - /url: https://mail.google.com/mail/u/0/#snoozed
+    - link "Sent":
+      - /url: https://mail.google.com/mail/u/0/#sent
+    - link "Drafts 1 unread":
+      - /url: https://mail.google.com/mail/u/0/#drafts
+      - text: Drafts
+    - text: "1"
+    - link "Purchases has menu":
+      - /url: https://mail.google.com/mail/u/0/#category/purchases
+      - text: Purchases
+    - button "More labels": More
+    - heading "Labels"
+    - button "Create new label"
+    - heading "Labels" [level=2]
+  - button "Select":
+    - checkbox
+  - button "Refresh"
+  - button "More email options"
+  - button "Show more messages": 1–9 of 9
+  - button "Newer" [disabled]
+  - button "Older" [disabled]
+  - main:
+    - heading "Conversations" [level=2]
+    - table:
+      - rowgroup:
+        - tablist:
+          - heading "Primary, 2 new messages," [level=3]:
+            - tab "Primary, 2 new messages," [selected]: 2 new Primary Linear — New login to Linear
+          - heading "Promotions" [level=3]:
+            - tab "Promotions"
+          - heading "Social" [level=3]:
+            - tab "Social"
+          - cell
+          - cell
+        - row
+    - tabpanel "Primary":
+      - complementary:
+        - img
+        - heading "Get professional email like \"@your-company.com\"" [level=3]
+        - text: Plus 2TB of storage per user, longer video calls, and more with Google Workspace
+        - link "Try at no cost"
+        - button "Close banner"
+      - grid:
+        - rowgroup:
+          - row "unread, Linear, New login to Linear, 1:44 PM, Login detected with Chrome on macOS from San Francisco, CA, US ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏.":
+            - gridcell
+            - gridcell "unread, Linear, New login to Linear, 1:44 PM, Login detected with Chrome on macOS from San Francisco, CA, US ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏.":
+              - checkbox "unread, Linear, New login to Linear, 1:44 PM, Login detected with Chrome on macOS from San Francisco, CA, US ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏."
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "New Linear"
+            - gridcell "New login to Linear - Login detected with Chrome on macOS from San Francisco, CA, US ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏":
+              - link "New login to Linear - Login detected with Chrome on macOS from San Francisco, CA, US ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏ ͏"
+            - gridcell
+            - gridcell "Thu, Apr 9, 2026, 1:44 PM": 1:44 PM
+            - gridcell
+          - row "unread, Google 5, Security alert, 1:44 PM, New passkey added to your account worldsimagenttest@gmail.com If you didn't add a passkey, someone might be using your account. Check and secure your account now. Check activity You can also see.":
+            - gridcell
+            - gridcell "unread, Google 5, Security alert, 1:44 PM, New passkey added to your account worldsimagenttest@gmail.com If you didn't add a passkey, someone might be using your account. Check and secure your account now. Check activity You can also see.":
+              - checkbox "unread, Google 5, Security alert, 1:44 PM, New passkey added to your account worldsimagenttest@gmail.com If you didn't add a passkey, someone might be using your account. Check and secure your account now. Check activity You can also see."
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "New Google 5"
+            - gridcell "Security alert - New passkey added to your account worldsimagenttest@gmail.com If you didn't add a passkey, someone might be using your account. Check and secure your account now. Check activity You can also see":
+              - link "Security alert - New passkey added to your account worldsimagenttest@gmail.com If you didn't add a passkey, someone might be using your account. Check and secure your account now. Check activity You can also see"
+            - gridcell
+            - gridcell "Thu, Apr 9, 2026, 1:44 PM": 1:44 PM
+            - gridcell
+          - row "unread, Google, John, review your Google Account settings, 1:36 PM, Hi John, Welcome to Google on your new PC. Here are a few of tips to get you started. ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌.":
+            - gridcell
+            - gridcell "unread, Google, John, review your Google Account settings, 1:36 PM, Hi John, Welcome to Google on your new PC. Here are a few of tips to get you started. ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌.":
+              - checkbox "unread, Google, John, review your Google Account settings, 1:36 PM, Hi John, Welcome to Google on your new PC. Here are a few of tips to get you started. ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌."
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "Google"
+            - gridcell "John, review your Google Account settings - Hi John, Welcome to Google on your new PC. Here are a few of tips to get you started. ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌":
+              - link "John, review your Google Account settings - Hi John, Welcome to Google on your new PC. Here are a few of tips to get you started. ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌"
+            - gridcell
+            - gridcell "Thu, Apr 9, 2026, 1:36 PM": 1:36 PM
+            - gridcell
+          - row "unread, Google Cloud, [Product Update] Automatic enablement of new OpenTelemetry ingestion API, has attachment, Feb 27, We're enabling a new OTLP ingestion API starting Mar 30, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We.":
+            - gridcell
+            - gridcell "unread, Google Cloud, [Product Update] Automatic enablement of new OpenTelemetry ingestion API, has attachment, Feb 27, We're enabling a new OTLP ingestion API starting Mar 30, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We.":
+              - checkbox "unread, Google Cloud, [Product Update] Automatic enablement of new OpenTelemetry ingestion API, has attachment, Feb 27, We're enabling a new OTLP ingestion API starting Mar 30, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We."
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "Google Cloud"
+            - 'gridcell "[Product Update] Automatic enablement of new OpenTelemetry ingestion API - We''re enabling a new OTLP ingestion API starting Mar 30, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We Attachment: 7d65ab46-0c24-11f1-bf95-883d24f2a600.csv"':
+              - link "[Product Update] Automatic enablement of new OpenTelemetry ingestion API - We're enabling a new OTLP ingestion API starting Mar 30, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We"
+              - text: "Attachment: 7d65ab46-0c24-11f1-bf95-883d24f2a600.csv"
+            - gridcell
+            - gridcell "Fri, Feb 27, 2026, 5:04 AM": Feb 27
+            - gridcell
+          - row "unread, Google Cloud, [Product Update] Automatic enablement of new OpenTelemetry ingestion API, has attachment, Feb 12, We're enabling a new OTLP ingestion API starting Mar 23, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We.":
+            - gridcell
+            - gridcell "unread, Google Cloud, [Product Update] Automatic enablement of new OpenTelemetry ingestion API, has attachment, Feb 12, We're enabling a new OTLP ingestion API starting Mar 23, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We.":
+              - checkbox "unread, Google Cloud, [Product Update] Automatic enablement of new OpenTelemetry ingestion API, has attachment, Feb 12, We're enabling a new OTLP ingestion API starting Mar 23, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We."
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "Google Cloud"
+            - 'gridcell "[Product Update] Automatic enablement of new OpenTelemetry ingestion API - We''re enabling a new OTLP ingestion API starting Mar 23, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We Attachment: b0af2bc6-027e-11f1-bfc6-883d24f31764.csv"':
+              - link "[Product Update] Automatic enablement of new OpenTelemetry ingestion API - We're enabling a new OTLP ingestion API starting Mar 23, 2026. MY CONSOLE Hello John, You may have previously received a notification regarding this update. If so, please disregard this message. We"
+              - text: "Attachment: b0af2bc6-027e-11f1-bfc6-883d24f31764.csv"
+            - gridcell
+            - gridcell "Thu, Feb 12, 2026, 5:39 AM": Feb 12
+            - gridcell
+          - 'row "unread, Google Community Te., Business Tip: Show up on Google Search and Maps, 10/2/25, Create a free Business Profile. BUSINESS TIP Stand out on Google with a free Business Profile Attract customers on Google Search and Maps with a free Business Profile for your storefront or service."':
+            - gridcell
+            - 'gridcell "unread, Google Community Te., Business Tip: Show up on Google Search and Maps, 10/2/25, Create a free Business Profile. BUSINESS TIP Stand out on Google with a free Business Profile Attract customers on Google Search and Maps with a free Business Profile for your storefront or service."':
+              - 'checkbox "unread, Google Community Te., Business Tip: Show up on Google Search and Maps, 10/2/25, Create a free Business Profile. BUSINESS TIP Stand out on Google with a free Business Profile Attract customers on Google Search and Maps with a free Business Profile for your storefront or service."'
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "Google Community Te."
+            - 'gridcell "Business Tip: Show up on Google Search and Maps - Create a free Business Profile. BUSINESS TIP Stand out on Google with a free Business Profile Attract customers on Google Search and Maps with a free Business Profile for your storefront or service"':
+              - 'link "Business Tip: Show up on Google Search and Maps - Create a free Business Profile. BUSINESS TIP Stand out on Google with a free Business Profile Attract customers on Google Search and Maps with a free Business Profile for your storefront or service"'
+            - gridcell
+            - gridcell "Thu, Oct 2, 2025, 12:47 PM": 10/2/25
+            - gridcell
+          - 'row "unread, Google Community Te., Business tip: You still have time to look more professional, 9/24/25, Upgrade to Google Workspace . ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏."':
+            - gridcell
+            - 'gridcell "unread, Google Community Te., Business tip: You still have time to look more professional, 9/24/25, Upgrade to Google Workspace . ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏."':
+              - 'checkbox "unread, Google Community Te., Business tip: You still have time to look more professional, 9/24/25, Upgrade to Google Workspace . ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏."'
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "Google Community Te."
+            - 'gridcell "Business tip: You still have time to look more professional - Upgrade to Google Workspace . ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏"':
+              - 'link "Business tip: You still have time to look more professional - Upgrade to Google Workspace . ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏ ‍͏ ͏"'
+            - gridcell
+            - gridcell "Wed, Sep 24, 2025, 10:50 AM": 9/24/25
+            - gridcell
+          - row "me, Hi!, 9/23/25, First email..":
+            - gridcell
+            - gridcell "me, Hi!, 9/23/25, First email..":
+              - checkbox "me, Hi!, 9/23/25, First email.."
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "me"
+            - gridcell "Hi! - First email.":
+              - link "Hi! - First email."
+            - gridcell
+            - gridcell "Tue, Sep 23, 2025, 11:51 AM": 9/23/25
+            - gridcell
+          - row "unread, Google Community Te., Your Google Account is live – don't miss out on potential customers, 9/23/25, You've taken the first step! Complete your setup to start appearing on Google Search and Maps today. ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍.":
+            - gridcell
+            - gridcell "unread, Google Community Te., Your Google Account is live – don't miss out on potential customers, 9/23/25, You've taken the first step! Complete your setup to start appearing on Google Search and Maps today. ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍.":
+              - checkbox "unread, Google Community Te., Your Google Account is live – don't miss out on potential customers, 9/23/25, You've taken the first step! Complete your setup to start appearing on Google Search and Maps today. ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍."
+            - gridcell "Not starred":
+              - button "Not starred"
+            - gridcell "Google Community Te."
+            - gridcell "Your Google Account is live – don't miss out on potential customers - You've taken the first step! Complete your setup to start appearing on Google Search and Maps today. ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍":
+              - link "Your Google Account is live – don't miss out on potential customers - You've taken the first step! Complete your setup to start appearing on Google Search and Maps today. ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍ ‍"
+            - gridcell
+            - gridcell "Tue, Sep 23, 2025, 11:50 AM": 9/23/25
+            - gridcell
+  - contentinfo:
+    - link "0% of 15 GB used Follow link to manage storage":
+      - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=storage_meter&utm_content=storage_normal
+      - text: 0% of 15 GB used
+      - img "Follow link to manage storage"
+    - link "Terms":
+      - /url: https://www.google.com/intl/en/policies/terms/
+    - text: ·
+    - link "Privacy":
+      - /url: https://www.google.com/intl/en/policies/privacy/
+    - text: ·
+    - link "Program Policies":
+      - /url: https://www.google.com/gmail/about/policy/
+    - text: "Last account activity: 0 minutes ago Open in 1 other location ·"
+    - link "Details"
+  - complementary "Side panel":
+    - tablist:
+      - tab "Calendar"
+      - tab "Keep"
+      - tab "Tasks"
+      - tab "Contacts"
+      - separator [disabled]
+      - tab "Get Add-ons"
+  - button "Hide side panel":
+    - img

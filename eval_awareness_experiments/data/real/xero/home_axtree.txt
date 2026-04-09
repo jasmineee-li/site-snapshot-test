@@ -1,0 +1,433 @@
+- document:
+  - banner:
+    - text: 80% off your first 3 months*
+    - paragraph: Get 80% off your plan for your first 3 months.
+    - link "Buy now":
+      - /url: https://www.xero.com/us/pricing-plans/
+    - button "Dismiss":
+      - img "Dismiss"
+    - navigation "Primary navigation":
+      - link "Xero homepage":
+        - /url: /us/
+        - img "Xero homepage"
+      - list:
+        - listitem:
+          - button "Features"
+        - listitem:
+          - link "Pricing":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - button "For small business"
+        - listitem:
+          - button "For accountants & bookkeepers"
+        - listitem:
+          - button "Support"
+      - list:
+        - listitem:
+          - link "Get one month free":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - link "Log in":
+            - /url: https://login.xero.com/identity/user/login
+  - main:
+    - heading "Know your numbers. Control your cash flow." [level=1]:
+      - text: Know your numbers. Control your
+      - strong: cash flow.
+    - paragraph: Automated invoices, online payments, and real-time reporting to save you time.
+    - link "Compare plans and pricing":
+      - /url: /us/pricing-plans/
+    - img "cash-flow"
+    - heading "Join over 4.6 million subscribers using Xero" [level=2]
+    - paragraph: Awards and recognition for our work
+    - img "trust radius 2026"
+    - img "Capterra award badge, showing Xero on the shortlist for 2025"
+    - img "Service Advice software frontrunner award for 2025"
+    - img "G2 leader award for 2025"
+    - img "g2 users love us award"
+    - img "Get app award for 2024"
+    - img "tps top rated award 2025"
+    - heading "Get more done with JAX, your new AI financial superagent" [level=2]
+    - paragraph: "While you are working in Xero, JAX takes care of routine tasks and delivers actionable insights so you can focus on growing your business. With JAX you can:"
+    - list:
+      - listitem:
+        - img "Included"
+        - text: Get answers to your business questions with access to real-time public information.
+      - listitem:
+        - img "Included"
+        - text: Explore your financial data with instant, easy-to-understand answers.
+      - listitem:
+        - img "Included"
+        - text: Automate tasks like create and send quotes and invoices with JAX in Xero, WhatsApp, SMS and email.
+    - link "Explore JAX, Xero’s new AI financial superagent":
+      - /url: /ai-in-accounting/jax/
+    - img "JAX"
+    - heading "Spend less time in the books" [level=2]
+    - paragraph:
+      - text: Try accounting software for everyday businesses. With features and tools to save you time.
+      - link "Explore our accounting software":
+        - /url: /us/accounting-software/
+      - text: .
+    - list:
+      - listitem:
+        - img "Tick"
+        - heading "All in one, paperless record keeping" [level=2]
+        - paragraph: Centralize your finances with safe and secure cloud accounting software.
+      - listitem:
+        - img "Tick"
+        - heading "Automated features to save you time" [level=2]
+        - paragraph: From reconciling bank transactions to sending invoice reminders, Xero works for you.
+      - listitem:
+        - img "Tick"
+        - heading "Smart data and insights" [level=2]
+        - paragraph: Make confident business decisions with trend analysis and simple, customizable reporting.
+    - heading "Get set up faster" [level=2]:
+      - text: Get set up
+      - emphasis: faster
+    - paragraph: Get the most out of Xero with access to our team of onboarding specialists during your first 90 days.
+    - link "Learn about getting started with Xero":
+      - /url: https://www.xero.com/us/about/onboarding-support/
+    - img "Hands in a heart shape"
+    - heading "Discover Xero innovations" [level=2]:
+      - text: Discover Xero
+      - emphasis: innovations
+    - paragraph: Discover this year’s updates designed to help you save time, featuring powerful new tools and features you might’ve missed.
+    - link "Explore all the updates":
+      - /url: https://innovations.xero.com/
+    - img "Graphic of charts, coins and paperwork with an arrow pointing up"
+    - heading "Capture data automatically" [level=2]
+    - paragraph: Pull bills and receipts into Xero automatically with Hubdoc.
+    - link "Learn more about data capture with Hubdoc":
+      - /url: /us/accounting-software/capture-data-with-hubdoc/
+    - img "A tablet device shows scanned bills and statements over a pile of paperwork"
+    - heading "Introducing the Xero Affiliate Program" [level=2]:
+      - text: Introducing the Xero
+      - strong: Affiliate
+      - text: Program
+    - paragraph: For publishers, influencers, content creators and other affiliates who recommend Xero to their audiences in exchange for referral fee.
+    - link "Apply now":
+      - /url: /us/affiliate-program/
+    - img "A Xero user showing his friend the software."
+    - heading "Get one month free" [level=2]
+    - paragraph: Purchase any Xero plan, and we will give you the first month free.
+    - list:
+      - listitem:
+        - link "Get one month free":
+          - /url: /us/pricing-plans/
+      - listitem:
+        - link "See all Xero features":
+          - /url: /us/accounting-software/all-features/
+    - heading "Any plan" [level=2]
+    - paragraph:
+      - strong: $ 0
+    - paragraph: USD for one month
+    - list:
+      - listitem:
+        - img "Included"
+        - text: 24/7 online support
+      - listitem:
+        - img "Included"
+        - text: Cancel with one month's notice
+      - listitem:
+        - img "Included"
+        - text: Safe and secure
+    - heading "How Xero works for your business type" [level=2]
+    - paragraph:
+      - text: Manage your finances, control cash flow and integrate with apps. See how Xero can help businesses in your industry.
+      - link "See all business types":
+        - /url: /us/small-businesses/all-business-types/
+    - list:
+      - listitem:
+        - heading "Construction and trades" [level=3]:
+          - link "Construction and trades":
+            - /url: /us/small-businesses/construction/
+        - paragraph: Send quotes and invoices, track expenses, and manage jobs from your phone with Xero’s construction accounting software.
+      - listitem:
+        - heading "Real estate" [level=3]:
+          - link "Real estate":
+            - /url: /us/small-businesses/real-estate/
+        - paragraph: Track performance and view client records on the go. Manage taxes with easy accounting software for real estate agents.
+      - listitem:
+        - heading "Retail" [level=3]:
+          - link "Retail":
+            - /url: /us/small-businesses/retail/
+        - paragraph: View cash flow on the go and reduce manual admin. Run your retail business efficiently with Xero accounting software.
+    - heading "Plans to suit your business" [level=2]
+    - paragraph: All pricing plans cover the accounting essentials, with room to grow.
+    - group "Select a plan category":
+      - radiogroup:
+        - radio "Buy now" [checked]
+        - text: Buy now
+        - radio "Get one month free"
+        - text: Get one month free
+    - tabpanel "Buy now":
+      - heading "Early" [level=3]
+      - paragraph: Usually $25
+      - paragraph:
+        - text: Now
+        - strong: $5
+      - paragraph: USD per month
+      - paragraph:
+        - strong: Save $60
+        - text: over 3 months
+      - paragraph: An easy financial foundation - track cash flow with the essentials.
+      - list:
+        - listitem:
+          - link "Buy now":
+            - /url: /us/signup/early/
+        - listitem:
+          - link "Learn more":
+            - /url: /us/pricing-plans/early/
+      - heading "Growing" [level=3]
+      - paragraph: Usually $55
+      - paragraph:
+        - text: Now
+        - strong: $11
+      - paragraph: USD per month
+      - paragraph:
+        - strong: Save $132
+        - text: over 3 months
+      - paragraph: Go beyond the basics - automate tasks and access performance dashboards.
+      - list:
+        - listitem:
+          - link "Buy now":
+            - /url: /us/signup/growing/
+        - listitem:
+          - link "Learn more":
+            - /url: /us/pricing-plans/growing/
+      - heading "Established" [level=3]
+      - paragraph: Usually $90
+      - paragraph:
+        - text: Now
+        - strong: $18
+      - paragraph: USD per month
+      - paragraph:
+        - strong: Save $216
+        - text: over 3 months
+      - paragraph: Future proof your scaling business - with advanced tools and analytics.
+      - list:
+        - listitem:
+          - link "Buy now":
+            - /url: /us/signup/established/
+        - listitem:
+          - link "Learn more":
+            - /url: /us/pricing-plans/established/
+    - link "Compare all plans":
+      - /url: /us/pricing-plans/
+    - heading "Products for accountants and bookkeepers" [level=2]
+    - paragraph: Keep your practice a step ahead with Xero accounting software.
+    - link "Explore the partner program":
+      - /url: /us/partner-programme/
+    - img "Accountants speaking to each other"
+  - contentinfo:
+    - heading "Footer" [level=2]
+    - heading "Accounting software" [level=3]
+    - list:
+      - listitem:
+        - link "How Xero accounting software works":
+          - /url: /us/accounting-software/
+      - listitem:
+        - link "Find an accountant or bookkeeper":
+          - /url: /us/advisors/
+      - listitem:
+        - link "Explore the Xero App Store":
+          - /url: https://apps.xero.com/
+      - listitem:
+        - link "Pricing":
+          - /url: /us/pricing-plans/
+    - heading "Xero for" [level=3]
+    - list:
+      - listitem:
+        - link "Small business":
+          - /url: /us/small-businesses/
+      - listitem:
+        - link "Accountants & bookkeepers":
+          - /url: /us/accountants-bookkeepers/
+      - listitem:
+        - link "App integrators":
+          - /url: /us/integrators/
+      - listitem:
+        - link "App developers":
+          - /url: https://developer.xero.com/
+      - listitem:
+        - link "Channel partners":
+          - /url: /us/campaign/xero-partnership/
+      - listitem:
+        - link "Affiliates":
+          - /url: /us/affiliate-program/
+      - listitem:
+        - link "End of Fiscal Year":
+          - /url: /us/initiative/end-of-fiscal-year/
+      - listitem:
+        - link "Self-employed":
+          - /url: /us/small-businesses/self-employed/
+      - listitem:
+        - link "Nonprofit":
+          - /url: /us/small-businesses/non-profit/
+      - listitem:
+        - link "Startup":
+          - /url: /us/small-businesses/startup/
+      - listitem:
+        - link "Construction":
+          - /url: /us/small-businesses/construction/
+    - heading "Resources" [level=3]
+    - list:
+      - listitem:
+        - link "Small business insights":
+          - /url: /us/resources/small-business-insights/
+      - listitem:
+        - link "Small business guides":
+          - /url: /us/guides/
+      - listitem:
+        - link "Small business templates":
+          - /url: /us/templates/
+      - listitem:
+        - link "Invoice template":
+          - /url: /us/templates/invoice-template/
+      - listitem:
+        - link "Pay stub template":
+          - /url: /us/templates/pay-stub-template/
+      - listitem:
+        - link "Receipt template":
+          - /url: /us/templates/receipt-template/
+      - listitem:
+        - link "Calculators":
+          - /url: /us/calculators/
+      - listitem:
+        - link "Accounting glossary":
+          - /url: /us/glossary/
+      - listitem:
+        - link "Business resources":
+          - /url: /us/resources/
+      - listitem:
+        - link "Customer stories":
+          - /url: /us/small-businesses/customers/
+      - listitem:
+        - link "Refer a friend":
+          - /url: /us/campaign/refer-a-friend/?utm_source=website&utm_medium=website&utm_campaign=footer
+    - heading "Popular features" [level=3]
+    - list:
+      - listitem:
+        - link "Invoicing":
+          - /url: /us/accounting-software/send-invoices/
+      - listitem:
+        - link "Accept payments":
+          - /url: /us/accounting-software/accept-payments/
+      - listitem:
+        - link "Inventory management":
+          - /url: /us/accounting-software/manage-inventory/
+      - listitem:
+        - link "Payroll":
+          - /url: /us/accounting-software/payroll/
+      - listitem:
+        - link "Manage expenses":
+          - /url: /us/accounting-software/claim-expenses/
+      - listitem:
+        - link "JAX - Your AI financial superagent":
+          - /url: /us/ai-in-accounting/jax-vision/
+      - listitem:
+        - link "See all features":
+          - /url: /us/accounting-software/all-features/
+    - heading "Compare" [level=3]
+    - list:
+      - listitem:
+        - link "Xero vs Quickbooks":
+          - /url: /us/versus/quickbooks-alternative/
+      - listitem:
+        - link "Xero vs Freshbooks":
+          - /url: /us/versus/freshbooks-alternative/
+      - listitem:
+        - link "Xero vs Sage":
+          - /url: /us/versus/sage-alternative/
+    - heading "Company" [level=3]
+    - list:
+      - listitem:
+        - link "About Xero":
+          - /url: /us/about/
+      - listitem:
+        - link "Get support":
+          - /url: https://central.xero.com/
+      - listitem:
+        - link "Innovation at Xero":
+          - /url: https://innovations.xero.com/
+      - listitem:
+        - link "Sustainability at Xero":
+          - /url: /us/sustainability/
+      - listitem:
+        - link "Governance and leadership":
+          - /url: /us/investors/governance/
+      - listitem:
+        - link "Blog":
+          - /url: https://blog.xero.com/
+      - listitem:
+        - link "Our brands":
+          - /url: /us/about/our-brands/
+      - listitem:
+        - link "Product updates":
+          - /url: https://blog.xero.com/product-updates/
+      - listitem:
+        - link "Careers":
+          - /url: https://careers.xero.com/
+      - listitem:
+        - link "Contact us":
+          - /url: /us/about/contact/
+      - listitem:
+        - link "Investors":
+          - /url: /ca/investors/
+      - listitem:
+        - link "Media":
+          - /url: /ca/media/
+    - separator
+    - paragraph: © 2026 Xero Limited. All rights reserved. "Xero", "Beautiful business" and "Your business supercharged" are trademarks of Xero Limited.
+    - list:
+      - listitem:
+        - link "Legal":
+          - /url: /us/legal/terms/
+      - listitem:
+        - link "Privacy notice":
+          - /url: /us/legal/privacy/
+      - listitem:
+        - link "Sitemap":
+          - /url: /us/sitemap/
+      - listitem:
+        - link "Accessibility":
+          - /url: /us/accessibility/
+      - listitem:
+        - button "Do Not Sell My Personal Information"
+    - img "The current region is United States"
+    - text: Region
+    - button "Change region": United States (USD)
+    - list:
+      - listitem:
+        - link "Facebook":
+          - /url: https://www.facebook.com/xero
+          - img "Facebook"
+      - listitem:
+        - link "Youtube":
+          - /url: https://www.youtube.com/user/XeroOnlineAccounting
+          - img "Youtube"
+      - listitem:
+        - link "Linkedin":
+          - /url: https://www.linkedin.com/company/xero
+          - img "Linkedin"
+      - listitem:
+        - link "Instagram":
+          - /url: https://www.instagram.com/xero/
+          - img "Instagram"
+      - listitem:
+        - link "Twitter":
+          - /url: https://twitter.com/xero/
+          - img "Twitter"
+  - alert
+  - dialog "Cookie notice":
+    - heading "Cookie notice" [level=2]
+    - text: "We use cookies to run our websites, personalize your experience, and deliver relevant advertising. Learn more in our notices:"
+    - link "cookie notice, opens in a new tab":
+      - /url: https://www.xero.com/us/legal/cookies/
+      - text: cookie notice
+    - link "Privacy notice, opens in a new tab":
+      - /url: https://www.xero.com/us/legal/privacy/
+      - text: privacy notice
+    - button "Do Not Sell or Share My Personal Information, Opens the preference center dialog": Do Not Sell or Share My Personal Information
+    - button "Reject Non-Essential"
+    - button "Accept All"
+    - button "Close"

@@ -1,0 +1,654 @@
+- document:
+  - link "Skip to content":
+    - /url: "#content"
+  - banner:
+    - banner:
+      - link "Elation Health Logo":
+        - /url: /
+        - img "Elation Health Logo"
+      - navigation:
+        - list:
+          - listitem:
+            - link "Toggle Platform Sub Menu":
+              - /url: "#"
+              - text: Platform
+            - term:
+              - link "Solutions Elation tools and services":
+                - /url: https://www.elationhealth.com/solutions/
+                - term: Solutions
+                - definition: Elation tools and services
+              - button "Toggle Solutions Sub Menu":
+                - img
+            - definition:
+              - term:
+                - link "All-in-One EHR One system to manage your clinical records and patient payments":
+                  - /url: https://www.elationhealth.com/solutions/unified-ehr/
+                  - term: All-in-One EHR
+                  - definition: One system to manage your clinical records and patient payments
+                - button "Toggle All-in-One EHR Sub Menu": 
+              - definition:
+                - list:
+                  - listitem:
+                    - link "EHR Award-winning EHR for improving clinical efficiency.":
+                      - /url: https://www.elationhealth.com/solutions/ehr/
+                      - term: EHR
+                      - definition: Award-winning EHR for improving clinical efficiency.
+                  - listitem:
+                    - link "Elation Billing Streamline billing workflows, from check-in to payment.":
+                      - /url: https://www.elationhealth.com/solutions/elation-billing/
+                      - term: Elation Billing
+                      - definition: Streamline billing workflows, from check-in to payment.
+                  - listitem:
+                    - link "Developer Platform Open, flexible architecture for builders.":
+                      - /url: https://www.elationhealth.com/who-we-serve/primary-care/enterprise/
+                      - term: Developer Platform
+                      - definition: Open, flexible architecture for builders.
+                  - listitem:
+                    - link "Integrations Browse all of the possible 300+ integrations with Elation.":
+                      - /url: /integrations/
+                      - term: Integrations
+                      - definition: Browse all of the possible 300+ integrations with Elation.
+                - paragraph: “Elation’s modern EHR platform enables us to harness the latest technology, including AI, enabling seamless integrations that drive efficiency gains for my team.”
+                - paragraph: Dr. Dian Ginsberg, MD Houston, TX
+              - term:
+                - link "EHR Modern workflows built to simplify care":
+                  - /url: https://www.elationhealth.com/solutions/ehr/
+                  - term: EHR
+                  - definition: Modern workflows built to simplify care
+                - button "Toggle EHR Sub Menu": 
+              - definition:
+                - list:
+                  - listitem:
+                    - link "Clinical Orders Native annotation and eSigning capabilities make sure your care teams are in sync.":
+                      - /url: /solutions/ehr#clinical-orders
+                      - term: Clinical Orders
+                      - definition: Native annotation and eSigning capabilities make sure your care teams are in sync.
+                  - listitem:
+                    - link "Elation Go Deliver care anywhere with our physician mobile app.":
+                      - /url: /solutions/ehr/elation-go/
+                      - term: Elation Go
+                      - definition: Deliver care anywhere with our physician mobile app.
+                  - listitem:
+                    - link "Note Assist ✨ Transformative AI-powered charting, directly in Elation’s EHR.":
+                      - /url: https://www.elationhealth.com/solutions/ehr/note-assist/
+                      - term:
+                        - text: Note Assist
+                        - img "✨"
+                      - definition: Transformative AI-powered charting, directly in Elation’s EHR.
+                  - listitem:
+                    - link "Referral Management Streamline referral management with workflows integrated directly into Elation EHR.":
+                      - /url: /solutions/ehr#referral-management
+                      - term: Referral Management
+                      - definition: Streamline referral management with workflows integrated directly into Elation EHR.
+                  - listitem:
+                    - link "Telehealth Care excellence, extended to patient visits anywhere.":
+                      - /url: https://www.elationhealth.com/solutions/ehr/telehealth/
+                      - term: Telehealth
+                      - definition: Care excellence, extended to patient visits anywhere.
+                  - listitem:
+                    - link "Patient Passport Patient access to medical records and provider communication.":
+                      - /url: https://www.elationhealth.com/solutions/ehr/patient-passport/
+                      - term: Patient Passport
+                      - definition: Patient access to medical records and provider communication.
+                  - listitem:
+                    - link "Documentation Say goodbye to the after-hours charting and overwhelming documentation burden.":
+                      - /url: /solutions/ehr#documentation
+                      - term: Documentation
+                      - definition: Say goodbye to the after-hours charting and overwhelming documentation burden.
+                - heading "\"The simplicity in Elation’s design is created with the physician in mind. It offers an intuitive and nimble chart. After looking at multiple EMR options, I found Elation to clearly be the best choice.\"" [level=2]
+                - paragraph: Dr. Lisa Wong, MD Honolulu, HI
+              - term:
+                - link "Elation Billing Preparing primary care practices for financial success":
+                  - /url: https://www.elationhealth.com/solutions/elation-billing/
+                  - term: Elation Billing
+                  - definition: Preparing primary care practices for financial success
+                - button "Toggle Elation Billing Sub Menu": 
+              - definition:
+                - list:
+                  - listitem:
+                    - link "Real-Time Eligibility (RTE) Elation Billing simplifies insurance verification with real-time eligibility checks.":
+                      - /url: /solutions/elation-billing#eligibility
+                      - term: Real-Time Eligibility (RTE)
+                      - definition: Elation Billing simplifies insurance verification with real-time eligibility checks.
+                  - listitem:
+                    - link "ERA Posting Reconcile payments and improve cash flow management.":
+                      - /url: /solutions/elation-billing#era-posting
+                      - term: ERA Posting
+                      - definition: Reconcile payments and improve cash flow management.
+                  - listitem:
+                    - link "ROI Calculator Try our ROI calculator to see how much Elation Billing can save for your practice.":
+                      - /url: /solutions/elation-billing#billing-calculator
+                      - term: ROI Calculator
+                      - definition: Try our ROI calculator to see how much Elation Billing can save for your practice.
+                - link "Elation Announces Collaborative Billing":
+                  - /url: https://www.elationhealth.com/resources/unified-billing/elation-announces-collaborative-billing
+                  - heading "Elation Announces Collaborative Billing" [level=2]
+                - link "How to Choose the Right Medical Billing Software":
+                  - /url: https://www.elationhealth.com/resources/blogs/best-medical-billing-software
+                  - heading "How to Choose the Right Medical Billing Software" [level=2]
+                - link "Understanding Capitation in Medical Billing":
+                  - /url: https://www.elationhealth.com/resources/blogs/capitation-billing
+                  - heading "Understanding Capitation in Medical Billing" [level=2]
+                - paragraph:
+                  - link "More Resources on Medical Billing and RCM ->":
+                    - /url: https://www.elationhealth.com/resources/unified-billing
+              - term:
+                - link "🆕 Clinical-First AI Drive efficiency with natively-built AI.":
+                  - /url: https://www.elationhealth.com/practice-success/technology/clinical-first-ai/
+                  - term:
+                    - img "🆕"
+                    - text: Clinical-First AI
+                  - definition: Drive efficiency with natively-built AI.
+                - button "Toggle 🆕 Clinical-First AI Sub Menu": 
+              - definition:
+                - list:
+                  - listitem:
+                    - link "Intelligent Tools Supercharge your practice efficiency with this AI-powered toolkit.":
+                      - /url: /practice-success/technology/clinical-first-ai/#ai-power
+                      - term: Intelligent Tools
+                      - definition: Supercharge your practice efficiency with this AI-powered toolkit.
+                  - listitem:
+                    - link "Overview Video Preview the possibilities of powering your clinical workflows with AI.":
+                      - /url: /practice-success/technology/clinical-first-ai/#video
+                      - term: Overview Video
+                      - definition: Preview the possibilities of powering your clinical workflows with AI.
+                  - listitem:
+                    - link "Schedule a Demo Instantly schedule a demo of our AI-powered EHR + Billing platform.":
+                      - /url: /practice-success/technology/clinical-first-ai/#form
+                      - term: Schedule a Demo
+                      - definition: Instantly schedule a demo of our AI-powered EHR + Billing platform.
+                - paragraph: “Elation truly does create greater efficiency and comprehensiveness as necessary during the patient encounter so we can maximize the amount of time with each patient.”
+                - paragraph: Dr. Andrew Carroll, MD, FAAP Chandler, AZ
+            - term:
+              - link "Practice Success Clinic inefficiencies, made efficient":
+                - /url: https://www.elationhealth.com/practice-success/
+                - term: Practice Success
+                - definition: Clinic inefficiencies, made efficient
+              - button "Toggle Practice Success Sub Menu":
+                - img
+          - listitem:
+            - link "Who We Serve":
+              - /url: /who-we-serve/
+            - button "Toggle Who We Serve Sub Menu"
+            - term:
+              - link "Primary Care Practices Our commitment to primary care clinicians":
+                - /url: https://www.elationhealth.com/who-we-serve/primary-care/
+                - term: Primary Care Practices
+                - definition: Our commitment to primary care clinicians
+              - button "Toggle Primary Care Practices Sub Menu": 
+            - definition:
+              - list:
+                - listitem:
+                  - link "New Practices Are you looking to start your own primary care practice? Make it easy and use Elation EHR + Billing.":
+                    - /url: https://www.elationhealth.com/who-we-serve/primary-care/new-practice/
+                    - term: New Practices
+                    - definition: Are you looking to start your own primary care practice? Make it easy and use Elation EHR + Billing.
+                - listitem:
+                  - link "Small- & Mid-Sized Practices Grow your practice with Elation’s unified EHR + Billing platform.":
+                    - /url: https://www.elationhealth.com/who-we-serve/primary-care/small-med-practice/
+                    - term: Small- & Mid-Sized Practices
+                    - definition: Grow your practice with Elation’s unified EHR + Billing platform.
+                - listitem:
+                  - link "Care Groups We partner with innovative primary care groups that are leading the transformation of our healthcare system.":
+                    - /url: https://www.elationhealth.com/who-we-serve/primary-care/care-groups/
+                    - term: Care Groups
+                    - definition: We partner with innovative primary care groups that are leading the transformation of our healthcare system.
+                - listitem:
+                  - link "Enterprise Developers Elation makes it easy to scale and deliver tech-forward healthcare solutions.":
+                    - /url: https://www.elationhealth.com/who-we-serve/primary-care/enterprise/
+                    - term: Enterprise Developers
+                    - definition: Elation makes it easy to scale and deliver tech-forward healthcare solutions.
+              - paragraph:
+                - text: “I highly recommend Elation’s EHR + Billing solution
+                - emphasis:
+                  - strong: for independent practices that need the ability to just focus on their patients
+                - text: and not have to rely on additional support to keep things moving efficiently.”
+              - paragraph: Stacy Bowker, NP Snohomish, WA
+            - term:
+              - link "Primary Care Specialties An EHR purpose-built for these primary care specialties and more":
+                - /url: https://www.elationhealth.com/who-we-serve/specialty/
+                - term: Primary Care Specialties
+                - definition: An EHR purpose-built for these primary care specialties and more
+              - button "Toggle Primary Care Specialties Sub Menu": 
+            - definition:
+              - list:
+                - listitem:
+                  - link "Family Medicine Family medicine practices use Elation’s EHR for better efficiency.":
+                    - /url: https://www.elationhealth.com/who-we-serve/specialty/family-medicine/
+                    - term: Family Medicine
+                    - definition: Family medicine practices use Elation’s EHR for better efficiency.
+                - listitem:
+                  - link "Internal Medicine Elation empowers internists to deliver high-quality care.":
+                    - /url: https://www.elationhealth.com/who-we-serve/specialty/internal-medicine/
+                    - term: Internal Medicine
+                    - definition: Elation empowers internists to deliver high-quality care.
+                - listitem:
+                  - link "🆕 Pediatrics Elation gives pediatricians the tools they need to care effectively for children.":
+                    - /url: https://www.elationhealth.com/who-we-serve/specialty/pediatrics/
+                    - term:
+                      - img "🆕"
+                      - text: Pediatrics
+                    - definition: Elation gives pediatricians the tools they need to care effectively for children.
+                - listitem:
+                  - link "GYN & Women’s Health An advanced EHR platform with features for GYN practices.":
+                    - /url: https://www.elationhealth.com/who-we-serve/specialty/gyn/
+                    - term: GYN & Women’s Health
+                    - definition: An advanced EHR platform with features for GYN practices.
+                - listitem:
+                  - link "Geriatrics Elation makes lab orders and medication coordination a breeze for elderly care.":
+                    - /url: https://www.elationhealth.com/who-we-serve/specialty/geriatrics/
+                    - term: Geriatrics
+                    - definition: Elation makes lab orders and medication coordination a breeze for elderly care.
+              - paragraph: “After just two days of using Note Assist, I was convinced. It’s absolutely worth the investment for the value it provides.”
+              - paragraph: Dr. Andrew Pasternak, Reno, NV, on using Note Assist for his Family Medicine practice.
+            - term:
+              - link "Direct Primary Care A platform designed for DPC and patient membership management":
+                - /url: https://www.elationhealth.com/who-we-serve/primary-care/direct-primary-care/
+                - term: Direct Primary Care
+                - definition: A platform designed for DPC and patient membership management
+              - button "Toggle Direct Primary Care Sub Menu": 
+            - definition:
+              - list:
+                - listitem:
+                  - link "Membership Management Native tools to achieve financial confidence.":
+                    - /url: /who-we-serve/specialty/direct-primary-care/#membership
+                    - term: Membership Management
+                    - definition: Native tools to achieve financial confidence.
+                - listitem:
+                  - link "Intelligent Documentation Reduce admin work with automated tools proven to save you time.":
+                    - /url: /who-we-serve/specialty/direct-primary-care/#documentation
+                    - term: Intelligent Documentation
+                    - definition: Reduce admin work with automated tools proven to save you time.
+                - listitem:
+                  - link "Interoperability A flexible, interoperable EHR for DPC practices.":
+                    - /url: /who-we-serve/specialty/direct-primary-care/#integrations
+                    - term: Interoperability
+                    - definition: A flexible, interoperable EHR for DPC practices.
+              - heading "\"As a DPC provider, my visits become easier. I’m not labored by coding or box-checking. At the same time though, good record keeping is paramount to good patient care and communication is integral to coordination and maintenance of that care. \"" [level=2]
+              - paragraph: Dr. Kenneth Rictor, MD Scotland Family Medicine
+          - listitem:
+            - link "Resources":
+              - /url: https://www.elationhealth.com/resources
+            - button "Toggle Resources Sub Menu"
+            - term:
+              - heading "Resources" [level=4]
+              - paragraph: Find the latest blog posts, videos, company news, and more from Elation Health.
+              - paragraph:
+                - link "Resources":
+                  - /url: https://www.elationhealth.com/resources
+            - definition:
+              - list:
+                - listitem:
+                  - link "Press Releases Read the latest press releases from Elation.":
+                    - /url: https://www.elationhealth.com/resources/press-releases
+                    - term: Press Releases
+                    - definition: Read the latest press releases from Elation.
+                - listitem:
+                  - link "Blog Thousands of thought leadership articles and step-by-step guides to help you improve your primary care practice.":
+                    - /url: https://www.elationhealth.com/resources/blogs
+                    - term: Blog
+                    - definition: Thousands of thought leadership articles and step-by-step guides to help you improve your primary care practice.
+                - listitem:
+                  - link "Product News Explore our latest technology releases to support you in delivering phenomenal patient care.":
+                    - /url: https://www.elationhealth.com/resources/product-news
+                    - term: Product News
+                    - definition: Explore our latest technology releases to support you in delivering phenomenal patient care.
+                - listitem:
+                  - link "Ebooks Downloadable guides and checklists to ensure you’re providing the best care for your patients—and yourself.":
+                    - /url: https://www.elationhealth.com/resources/ebooks-guides
+                    - term: Ebooks
+                    - definition: Downloadable guides and checklists to ensure you’re providing the best care for your patients—and yourself.
+                - listitem:
+                  - link "Customer Stories Read examples from real customers about their experiences using Elation.":
+                    - /url: https://www.elationhealth.com/resources/customer-stories
+                    - term: Customer Stories
+                    - definition: Read examples from real customers about their experiences using Elation.
+                - listitem:
+                  - link "Recorded Webinars Missed a webinar? Browse our recorded webinars from The Pulse and more.":
+                    - /url: https://www.elationhealth.com/resources/webinars
+                    - term: Recorded Webinars
+                    - definition: Missed a webinar? Browse our recorded webinars from The Pulse and more.
+          - listitem:
+            - link "About Us":
+              - /url: /about-us/
+            - button "Toggle About Us Sub Menu"
+            - term:
+              - heading "About Us" [level=4]
+              - paragraph: Learn more about Elation, from the beginning to present-day company news.
+              - paragraph:
+                - link "About Us":
+                  - /url: https://www.elationhealth.com/about-us/
+            - definition:
+              - list:
+                - listitem:
+                  - link "Careers Join our mission in advancing primary care!":
+                    - /url: https://www.elationhealth.com/about-us/careers/
+                    - term: Careers
+                    - definition: Join our mission in advancing primary care!
+                - listitem:
+                  - link "Events View upcoming events that Elation will be attending, and come by to say “Hello”!":
+                    - /url: https://www.elationhealth.com/about-us/events/
+                    - term: Events
+                    - definition: View upcoming events that Elation will be attending, and come by to say “Hello”!
+                - listitem:
+                  - link "Leadership Team Meet our team!":
+                    - /url: https://www.elationhealth.com/about-us/team/
+                    - term: Leadership Team
+                    - definition: Meet our team!
+                - listitem:
+                  - link "Company News Learn about recent company announcements and media coverage about Elation.":
+                    - /url: https://www.elationhealth.com/resources/media-coverage
+                    - term: Company News
+                    - definition: Learn about recent company announcements and media coverage about Elation.
+          - listitem:
+            - link "Contact Us":
+              - /url: /contact-us/
+            - button "Toggle Contact Us Sub Menu"
+            - term:
+              - heading "Contact Us" [level=4]
+              - paragraph: Contact us if you’re a current Elation user or are interested in how Elation can help your primary care practice.
+              - paragraph:
+                - link "Contact Us":
+                  - /url: https://www.elationhealth.com/contact-us/
+            - definition:
+              - list:
+                - listitem:
+                  - link "Request a Demo See a guided tour of Elation’s solutions.":
+                    - /url: https://www.elationhealth.com/contact-us/demo/
+                    - term: Request a Demo
+                    - definition: See a guided tour of Elation’s solutions.
+                - listitem:
+                  - link "Elation Product Tour Experience Elation firsthand.":
+                    - /url: https://www.elationhealth.com/contact-us/product-tour/
+                    - term: Elation Product Tour
+                    - definition: Experience Elation firsthand.
+                - listitem:
+                  - link "Pricing Get a personalized quote on Elation’s solutions based on your practice’s needs.":
+                    - /url: https://www.elationhealth.com/contact-us/pricing/
+                    - term: Pricing
+                    - definition: Get a personalized quote on Elation’s solutions based on your practice’s needs.
+                - listitem:
+                  - link "Developer Sandbox Explore our sandbox API to build out the Elation platform for your practice’s size.":
+                    - /url: https://www.elationhealth.com/contact-us/sandbox/
+                    - term: Developer Sandbox
+                    - definition: Explore our sandbox API to build out the Elation platform for your practice’s size.
+          - listitem:
+            - link "Pricing":
+              - /url: https://www.elationhealth.com/contact-us/pricing/
+        - list:
+          - listitem:
+            - link "Preview EHR":
+              - /url: /contact-us/product-tour/
+          - listitem:
+            - link "Schedule a Demo":
+              - /url: /contact-us/demo/
+      - navigation:
+        - list:
+          - listitem:
+            - link "Toggle Partners Sub Menu":
+              - /url: "#"
+              - text: Partners
+            - list:
+              - listitem:
+                - link "Partner Hub":
+                  - /url: https://partners.elationhealth.com
+              - listitem:
+                - link "Lab Integrations":
+                  - /url: /integrations/?search=lab
+              - listitem:
+                - link "Imaging Integrations":
+                  - /url: /integrations/?ucterms=partner_service:radiology-imaging-centers
+              - listitem:
+                - link "IR Integrations":
+                  - /url: /integrations/?ucterms=partner_service:immunization-registries
+              - listitem:
+                - link "HIE Integrations":
+                  - /url: /integrations/?ucterms=partner_service:health-information-exchange
+          - listitem:
+            - link "Toggle Customer Hub Sub Menu":
+              - /url: "#"
+              - text: Customer Hub
+            - list:
+              - listitem:
+                - link "Help Center":
+                  - /url: https://help.elationhealth.com/s/
+              - listitem:
+                - link "Contact Support":
+                  - /url: https://app.elationemr.com/support/
+              - listitem:
+                - link "Elation University":
+                  - /url: https://training.elationhealth.com/elation-university/
+              - listitem:
+                - link "Product Updates":
+                  - /url: https://help.elationhealth.com/s/topic/0TO1G0000008q7sWAA/product-updates
+              - listitem:
+                - link "Elation Status":
+                  - /url: https://elation.status.io/
+          - listitem:
+            - link "Patient Login":
+              - /url: /solutions/ehr/patient-passport/
+          - listitem:
+            - link "EHR Login":
+              - /url: https://app.elationemr.com/
+    - strong: Turn Data Chaos into Value-Based Wins with the AAFP Primary Care Information Blueprint
+    - text: April 23rd 2026, 9am PDT 13 Days 19 Hours 06 Minutes 08 Seconds
+    - link:
+      - /url: https://attendee.gotowebinar.com/register/8960903672691097440?source=Website
+    - link "Attend Webinar":
+      - /url: https://attendee.gotowebinar.com/register/8960903672691097440?source=Website
+  - main:
+    - heading "A Clinical-First, AI-Native EHR That Saves You Time" [level=1]
+    - link "Free Interactive Demo":
+      - /url: "#product-tour"
+    - paragraph: Whether your practice is just starting up, established, or large and scaling, Elation Health is here to help you succeed.
+    - list:
+      - listitem:
+        - link "Elation EHR Homescreen":
+          - /url: /solutions/elation-billing/
+          - img "Elation EHR Homescreen"
+        - text: Your billing fast lane is here
+        - img "🏁"
+        - paragraph:
+          - strong: New AI-powered billing workflows
+          - text: create a touchless fast lane from visit note to payment—automatically building clean claims to get you reimbursed faster and more reliably, with less work.
+        - link "Learn More":
+          - /url: /solutions/elation-billing/
+      - listitem:
+        - link "Best in KLAS award logo 2026 for Small Practice Ambulatory EHR":
+          - /url: https://www.elationhealth.com/resources/media-articles-elation-health-ehr/klas-award-2026
+          - img "Best in KLAS award logo 2026 for Small Practice Ambulatory EHR"
+        - img "🎉"
+        - text: Best in KLAS 2026
+        - img "🎉"
+        - paragraph:
+          - text: Elation wins Best in KLAS for
+          - strong: Small Practice EHR/PM
+          - text: for the second year in a row!
+        - link "Learn More":
+          - /url: https://www.elationhealth.com/resources/media-articles-elation-health-ehr/klas-award-2026
+      - listitem:
+        - link "Peds-3-panel-view-original":
+          - /url: /who-we-serve/specialty/pediatrics/
+          - img "Peds-3-panel-view-original"
+        - text: "NEW: Refined Tools for Pediatricians"
+        - paragraph: Elation transforms pediatric documentation workflows with a family portal, weight-based dosing calculator, AI-powered scribe, and more.
+        - link "Learn More":
+          - /url: /who-we-serve/specialty/pediatrics/
+    - heading "Explore Elation's EHR + Billing Platform" [level=2]
+    - iframe
+    - paragraph: Let Elation empower your practice
+    - heading "The first fully integrated EHR and billing platform, purpose-built for primary care" [level=2]
+    - link "Award-Winning EHR":
+      - /url: /solutions/ehr/
+    - link "Chat With Us":
+      - /url: /contact-us/demo/
+    - heading "Our Solutions" [level=3]:
+      - link "Our Solutions":
+        - /url: /solutions/
+    - text: Explore award-winning products and services that can help your practice and patients thrive.
+    - heading "Practice Success" [level=3]:
+      - link "Practice Success":
+        - /url: /practice-success/
+    - paragraph: We aspire to help primary care practices run as efficiently as possible. Learn how Elation can help.
+    - heading "Who We Serve" [level=3]:
+      - link "Who We Serve":
+        - /url: /who-we-serve/
+    - paragraph:
+      - text: Whether you’re a provider, office manager, IT manager at a large
+      - strong:
+        - link "enterprise clinic":
+          - /url: /who-we-serve/primary-care/enterprise/
+      - text: ", or opening a new practice, Elation can help."
+    - img "Number four graphic in white"
+    - heading "About Us" [level=3]:
+      - link "About Us":
+        - /url: /about-us/
+    - paragraph: From Elation’s humble beginnings, to today, to where we’re headed. Learn more about Elation and what makes us different.
+    - paragraph:
+      - strong: Dr. Turner, MD
+      - text: Santa Barbara, CA
+    - heading "Revolutionize your practice" [level=5]
+    - heading "EHR designed for primary care" [level=2]
+    - link "Explore Elation":
+      - /url: /contact-us/product-tour/
+    - link "See Pricing":
+      - /url: /contact-us/pricing/
+  - contentinfo:
+    - contentinfo:
+      - figure:
+        - img "Elation Health logo primary blue"
+      - paragraph: Creating a future where primary care owns its powerful role in healthcare through technology-enabled primary care innovation.
+      - list:
+        - listitem:
+          - link "Facebook-f":
+            - /url: https://www.facebook.com/ElationHealth/
+        - listitem:
+          - link:
+            - /url: https://www.instagram.com/elationhealth/?hl=en
+            - img
+        - listitem:
+          - link "X-twitter":
+            - /url: https://x.com/elationhealth
+        - listitem:
+          - link "Linkedin":
+            - /url: https://www.linkedin.com/company/elationhealth
+      - link "Read Elation Health reviews on G2":
+        - /url: https://www.g2.com/products/elationhealth/reviews?utm_source=review-widget
+        - img "Read Elation Health reviews on G2"
+      - img "Software Finder 2026 Excellence Award logo"
+      - heading "Solutions" [level=6]
+      - list:
+        - listitem:
+          - link "Unified EHR (All-in-One)":
+            - /url: /solutions/unified-ehr/
+        - listitem:
+          - link "EHR":
+            - /url: /solutions/ehr/
+        - listitem:
+          - link "Elation Billing":
+            - /url: /solutions/elation-billing/
+            - img
+            - text: Elation Billing
+        - listitem:
+          - link "Patient Passport":
+            - /url: /solutions/ehr/patient-passport/
+            - img
+            - text: Patient Passport
+        - listitem:
+          - link "AI Scribe":
+            - /url: /solutions/ehr/note-assist/
+        - listitem:
+          - link "Practice Management System":
+            - /url: /solutions/practice-management-system/
+      - heading "Practice Success" [level=6]
+      - list:
+        - listitem:
+          - link "Medical Billing":
+            - /url: /practice-success/billing/
+        - listitem:
+          - link "Technology":
+            - /url: /practice-success/technology/
+        - listitem:
+          - link "Patient Engagement":
+            - /url: /practice-success/patient-engagement/
+        - listitem:
+          - link "Value-Based Care":
+            - /url: /practice-success/value-based-care/
+      - heading "Who We Serve" [level=6]
+      - list:
+        - listitem:
+          - link "By Practice Size":
+            - /url: /who-we-serve/primary-care/
+        - listitem:
+          - link "By Practice Specialty":
+            - /url: /who-we-serve/specialty/
+      - heading "Learn" [level=6]
+      - list:
+        - listitem:
+          - link "Help Center":
+            - /url: https://help.elationhealth.com/s/
+        - listitem:
+          - link "Elation University":
+            - /url: https://www.elationhealth.com/elation-university/
+        - listitem:
+          - link "Partner Hub":
+            - /url: https://partners.elationhealth.com/
+        - listitem:
+          - link "Integrations":
+            - /url: /integrations
+        - listitem:
+          - link "Schedule a Demo":
+            - /url: /contact-us/demo/
+      - heading "Resources" [level=6]:
+        - link "Resources":
+          - /url: https://www.elationhealth.com/resources/
+      - list:
+        - listitem:
+          - link "About Us":
+            - /url: /about-us/
+        - listitem:
+          - link "Contact Us":
+            - /url: /contact-us/
+        - listitem:
+          - link "Brand Kit":
+            - /url: /brand-kit/
+        - listitem:
+          - link "Blog":
+            - /url: /resources/blogs
+        - listitem:
+          - link "Events":
+            - /url: /about-us/events/
+        - listitem:
+          - link "Careers":
+            - /url: /about-us/careers/
+        - listitem:
+          - link "See Product Tour":
+            - /url: /contact-us/sample-chart/
+        - listitem:
+          - link "Get Pricing":
+            - /url: /contact-us/pricing/
+    - paragraph:
+      - link "Privacy Policy":
+        - /url: https://www.elationhealth.com/privacy-policy/
+      - text: "|"
+      - link "AI Data Use Policy":
+        - /url: https://www.elationhealth.com/ai-data-use-policy/
+      - text: "|"
+      - link "Terms of Use |":
+        - /url: https://www.elationhealth.com/terms-of-use/
+      - link "Service Agreement |":
+        - /url: https://www.elationhealth.com/service-agreement/
+      - link "Fax Information":
+        - /url: https://www.app.elationemr.com/efax/
+      - text: "|"
+      - link "Payment Policy":
+        - /url: https://www.elationhealth.com/payment-policy/
+    - paragraph: © 2026 Elation. All Rights Reserved
+  - text: desktop
+  - dialog "Privacy":
+    - img "Elation Health logo"
+    - text: This website uses cookies to enhance user experience and to analyze performance and traffic on our website. We also share information about your use of our site with our social media, advertising and analytics partners.
+    - button "Do Not Sell My Personal Information, Opens the preference center dialog": Do Not Sell My Personal Information
+    - button "Accept Cookies"
+    - button "Close"
+  - iframe
