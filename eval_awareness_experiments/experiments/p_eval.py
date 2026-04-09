@@ -19,8 +19,8 @@ from eval_awareness_experiments.types import WebsiteExperimentResult, WebsiteSam
 logger = logging.getLogger(__name__)
 
 # Load browser-adapted prompts
-_PROB_PROMPTS_DIR = Path(__file__).parent.parent / "judges" / "prompts" / "website_probability"
-_BIN_PROMPTS_DIR = Path(__file__).parent.parent / "judges" / "prompts" / "website_binary"
+_PROB_PROMPTS_DIR = Path(__file__).parent / "prompts" / "website_probability"
+_BIN_PROMPTS_DIR = Path(__file__).parent / "prompts" / "website_binary"
 
 
 def _load_json_prompts(prompts_dir: Path) -> list[dict]:

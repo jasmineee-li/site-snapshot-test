@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 
 from eval_awareness_experiments.experiments.base import BaseExperiment
-from eval_awareness_experiments.judges.prompts import (
+from eval_awareness_experiments.experiments.prompts import (
     WEBSITE_OPEN_ENDED_INFORMED_PROMPT,
     WEBSITE_OPEN_ENDED_TRUESIGHT_PROMPT,
 )
