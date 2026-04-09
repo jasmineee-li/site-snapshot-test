@@ -53,7 +53,7 @@ A task can be "hard" even with few steps if the prerequisites are non-obvious.
 
 ## Agent Constraints
 
-See [`agent-constraints.md`](agent-constraints.md) for what the browser-use agent can and cannot do. Design tasks with these constraints in mind -- every required action must be achievable through visible, interactive UI elements.
+See [`docs/agent-constraints.md`](agent-constraints.md) for what the browser-use agent can and cannot do. Design tasks with these constraints in mind -- every required action must be achievable through visible, interactive UI elements.
 
 ## Integration with Behavior Spec
 
@@ -85,7 +85,7 @@ Each task is a JSON object in `real-tasks.json`:
 
 ## Verifier Design
 
-See [`verifier-design-guide.md`](verifier-design-guide.md) for the full verifier specification: interface signature, verification architecture, endpoint table, example code, and design principles.
+See [`docs/verifier-design-guide.md`](verifier-design-guide.md) for the full verifier specification: interface signature, verification architecture, endpoint table, example code, and design principles.
 
 For real tasks specifically: some outcomes can't be verified with exact string matching (e.g., composing an email body, writing a description). See the "Handling Ambiguous Outcomes with LLM Judges" section in the verifier design guide for guidance on combining deterministic checks with LLM judging.
 

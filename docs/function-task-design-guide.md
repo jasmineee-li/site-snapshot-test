@@ -1,6 +1,6 @@
 # Function Task Design Guide
 
-This document describes how to design **function-test tasks** for browser-use agents. Unlike real tasks (which prioritize natural language and realism), function tests target **broad feature coverage** — systematically exercising the application's functionality, edge cases, and side effects.
+This document describes how to design **function-test tasks** for browser-use agents. Unlike real tasks (which prioritize natural language and realism), function tests target **broad feature coverage** -- systematically exercising the application's functionality, edge cases, and side effects.
 
 ## Expected Output
 
@@ -33,7 +33,7 @@ Use these dimensions to audit coverage gaps. If a task set has many direct tasks
 
 ## Agent Constraints
 
-See [`agent-constraints.md`](agent-constraints.md) for what the browser-use agent can and cannot do. Every feature you want to test must be reachable through the UI. If a feature has no UI surface, it cannot be tested by these tasks.
+See [`docs/agent-constraints.md`](agent-constraints.md) for what the browser-use agent can and cannot do. Every feature you want to test must be reachable through the UI. If a feature has no UI surface, it cannot be tested by these tasks.
 
 ## Task Schema
 
@@ -55,7 +55,7 @@ Each task is a JSON object in `function-tasks.json`:
 
 ## Verifier Design
 
-See [`verifier-design-guide.md`](verifier-design-guide.md) for the full verifier specification: interface signature, verification architecture, endpoint table, example code, and design principles.
+See [`docs/verifier-design-guide.md`](verifier-design-guide.md) for the full verifier specification: interface signature, verification architecture, endpoint table, example code, and design principles.
 
 ## Integration with Behavior Spec
 
@@ -63,7 +63,7 @@ When generating function tasks for a specific behavior, use these sources to max
 
 ### 1. Read `functional_requirements` from the behavior spec
 
-Each behavior spec includes a `functional_requirements` field listing the features the app must support. Use these as your primary checklist — every functional requirement should be exercised by at least one task. Requirements that describe multi-step workflows or entity relationships are strong candidates for cross-referencing and side-effect tasks.
+Each behavior spec includes a `functional_requirements` field listing the features the app must support. Use these as your primary checklist -- every functional requirement should be exercised by at least one task. Requirements that describe multi-step workflows or entity relationships are strong candidates for cross-referencing and side-effect tasks.
 
 ### 2. Read the app's source code
 
@@ -72,9 +72,9 @@ The implementation is the ground truth for what the app actually supports. Inspe
 | File | What to look for |
 |------|-----------------|
 | `benign/data.js` | Canonical at-rest seed entities, field names, and startup values you can reference in task instructions |
-| `js/state.js` | All mutation methods on `AppState` — each is a testable operation. Pay attention to cascading deletes, computed fields, and validation guards. |
-| `js/views.js` | Rendered pages and sections — tells you what navigation paths exist and what UI affordances the agent can interact with. |
-| `js/app.js` | Route definitions and event handlers — reveals which actions are wired up and what parameters they expect. |
+| `js/state.js` | All mutation methods on `AppState` -- each is a testable operation. Pay attention to cascading deletes, computed fields, and validation guards. |
+| `js/views.js` | Rendered pages and sections -- tells you what navigation paths exist and what UI affordances the agent can interact with. |
+| `js/app.js` | Route definitions and event handlers -- reveals which actions are wired up and what parameters they expect. |
 
 See `docs/app-design-guide.md` for a full description of the 5-module architecture and each module's responsibilities.
 
