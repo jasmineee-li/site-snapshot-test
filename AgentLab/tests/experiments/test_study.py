@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from agentlab.agents.generic_agent.agent_configs import FLAGS_GPT_4o
 from agentlab.agents.generic_agent.generic_agent import GenericAgentArgs
 from agentlab.llm.chat_api import CheatMiniWoBLLMArgs
@@ -66,3 +67,19 @@ def test_launch_parallel_study():
 if __name__ == "__main__":
     # test_launch_parallel_study()
     manual_test_launch_parallel_study_webarena()
+
+
+def test_study_run_raises_clear_error_when_no_runnable_experiments(tmp_path: Path, monkeypatch):
+    study = object.__new__(Study)
+    study.dir = tmp_path / "study"
+    study.dir.mkdir()
+    study.comment = None
+    study.benchmark = object()
+    study.exp_args_list = []
+    study.set_reproducibility_info = lambda **kwargs: None
+    study.save = lambda exp_root=None: None
+    study._save_run_log = lambda *args, **kwargs: None
+    monkeypatch.setattr(Study, "name", property(lambda self: "empty-redteam"))
+
+    with pytest.raises(RuntimeError, match="No runnable experiments were produced for study empty-redteam"):
+        study.run()
