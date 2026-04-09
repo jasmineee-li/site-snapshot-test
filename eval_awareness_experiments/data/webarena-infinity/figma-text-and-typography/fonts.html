@@ -1,0 +1,948 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figma - Text &amp; Typography</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="20" height="20" viewBox="0 0 20 20"><rect width="20" height="20" rx="4" fill="#7B61FF"></rect><text x="4" y="15" font-size="13" font-weight="bold" fill="white">T</text></svg>
+                </div>
+                <div class="sidebar-title">
+                    <div class="file-name">Design System v4.2</div>
+                    <div class="page-name">Typography</div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <a class="nav-item " data-action="navigate" data-section="layers">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1L1 5l7 4 7-4-7-4z" fill="none" stroke="currentColor" stroke-width="1.5"></path><path d="M1 8l7 4 7-4" fill="none" stroke="currentColor" stroke-width="1.5"></path><path d="M1 11l7 4 7-4" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="nav-label">Layers</span>
+                    </a>
+                
+                    <a class="nav-item " data-action="navigate" data-section="properties">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><text x="2" y="13" font-size="14" font-weight="bold" fill="currentColor">T</text></svg></span>
+                        <span class="nav-label">Typography</span>
+                    </a>
+                
+                    <a class="nav-item " data-action="navigate" data-section="styles">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect><line x1="4" y1="5" x2="12" y2="5" stroke="currentColor" stroke-width="1.5"></line><line x1="4" y1="8" x2="10" y2="8" stroke="currentColor" stroke-width="1.5"></line><line x1="4" y1="11" x2="8" y2="11" stroke="currentColor" stroke-width="1.5"></line></svg></span>
+                        <span class="nav-label">Text Styles</span>
+                    </a>
+                
+                    <a class="nav-item active" data-action="navigate" data-section="fonts">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><text x="0" y="13" font-size="12" fill="currentColor">Ag</text></svg></span>
+                        <span class="nav-label">Fonts</span>
+                    </a>
+                
+                    <a class="nav-item " data-action="navigate" data-section="settings">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M13 3l-1.5 1.5M4.5 11.5L3 13" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="nav-label">Settings</span>
+                    </a>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="user-avatar" style="background-color: #7B61FF">
+                        SC
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">Sarah Chen</div>
+                        <div class="user-role">Editor</div>
+                    </div>
+                </div>
+            </div></aside>
+        <main class="main-content" id="mainContent">
+            <div class="content-panel">
+                
+            <div class="section-header">
+                <h2 class="section-title">Font Browser</h2>
+                <p class="section-subtitle">Browse and preview available fonts</p>
+            </div>
+                <div class="toolbar">
+                    <div class="search-box">
+                        <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.5"></circle><line x1="10" y1="10" x2="13" y2="13" stroke="currentColor" stroke-width="1.5"></line></svg>
+                        <input type="text" class="search-input" id="font-search" placeholder="Search fonts..." value="">
+                    </div>
+                </div>
+                <div class="font-filters">
+                    
+                        <button class="filter-btn active" data-action="setFontFilter" data-filter="all">All fonts</button>
+                    
+                        <button class="filter-btn " data-action="setFontFilter" data-filter="in-file">In this file</button>
+                    
+                        <button class="filter-btn " data-action="setFontFilter" data-filter="popular">Popular</button>
+                    
+                        <button class="filter-btn " data-action="setFontFilter" data-filter="organization">Used at Acme Corp</button>
+                    
+                        <button class="filter-btn " data-action="setFontFilter" data-filter="installed">Installed by you</button>
+                    
+                        <button class="filter-btn " data-action="setFontFilter" data-filter="google">Google fonts</button>
+                    
+                        <button class="filter-btn " data-action="setFontFilter" data-filter="variable">Variable fonts</button>
+                    
+                </div>
+                <div class="font-count">30 fonts</div>
+                <div class="fonts-list">
+                    
+            <div class="font-card" data-font-name="Inter">
+                <div class="font-card-header">
+                    <div class="font-card-name">Inter</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        <span class="badge badge-success">Popular</span>
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">9 styles</span>
+                    <span class="font-usage">10 layers</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span><span class="axis-chip" title="Slant: -10-0">slnt</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Roboto">
+                <div class="font-card-header">
+                    <div class="font-card-name">Roboto</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        <span class="badge badge-success">Popular</span>
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">6 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Bold</span>
+                    <span class="font-style-chip more">+1</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span><span class="axis-chip" title="Width: 75-100">wdth</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Open Sans">
+                <div class="font-card-header">
+                    <div class="font-card-name">Open Sans</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        <span class="badge badge-success">Popular</span>
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">6 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Semi Bold</span><span class="font-style-chip">Bold</span>
+                    <span class="font-style-chip more">+1</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 300-800">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Lato">
+                <div class="font-card-header">
+                    <div class="font-card-name">Lato</div>
+                    <div class="font-card-badges">
+                        
+                        <span class="badge badge-success">Popular</span>
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">5 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Bold</span><span class="font-style-chip">Black</span>
+                    
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Montserrat">
+                <div class="font-card-header">
+                    <div class="font-card-name">Montserrat</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        <span class="badge badge-success">Popular</span>
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">9 styles</span>
+                    <span class="font-usage">2 layers</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span><span class="axis-chip" title="Italic: 0-1">ital</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Poppins">
+                <div class="font-card-header">
+                    <div class="font-card-name">Poppins</div>
+                    <div class="font-card-badges">
+                        
+                        <span class="badge badge-success">Popular</span>
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">9 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Playfair Display">
+                <div class="font-card-header">
+                    <div class="font-card-name">Playfair Display</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        <span class="badge badge-success">Popular</span>
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">6 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Semi Bold</span><span class="font-style-chip">Bold</span><span class="font-style-chip">Extra Bold</span>
+                    <span class="font-style-chip more">+1</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 400-900">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Merriweather">
+                <div class="font-card-header">
+                    <div class="font-card-name">Merriweather</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">4 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Bold</span><span class="font-style-chip">Black</span>
+                    
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Source Code Pro">
+                <div class="font-card-header">
+                    <div class="font-card-name">Source Code Pro</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">monospace</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">7 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Semi Bold</span>
+                    <span class="font-style-chip more">+2</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 200-900">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="JetBrains Mono">
+                <div class="font-card-header">
+                    <div class="font-card-name">JetBrains Mono</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">monospace</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">8 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+3</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-800">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Sans">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Sans</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">9 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span><span class="axis-chip" title="Width: 62.5-100">wdth</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Serif">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Serif</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">9 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span><span class="axis-chip" title="Width: 62.5-100">wdth</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Sans SC">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Sans SC</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        <span class="badge badge-default">Simplified Chinese</span>
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">6 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Bold</span>
+                    <span class="font-style-chip more">+1</span>
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Sans TC">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Sans TC</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        <span class="badge badge-default">Traditional Chinese</span>
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">6 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Bold</span>
+                    <span class="font-style-chip more">+1</span>
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Sans JP">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Sans JP</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        <span class="badge badge-default">Japanese</span>
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">6 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Bold</span>
+                    <span class="font-style-chip more">+1</span>
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Sans KR">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Sans KR</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        <span class="badge badge-default">Korean</span>
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">6 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Bold</span>
+                    <span class="font-style-chip more">+1</span>
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Sans Arabic">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Sans Arabic</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        <span class="badge badge-default">Arabic</span>
+                        <span class="badge badge-warning">RTL</span>
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">7 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Semi Bold</span>
+                    <span class="font-style-chip more">+2</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Noto Sans Hebrew">
+                <div class="font-card-header">
+                    <div class="font-card-name">Noto Sans Hebrew</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        <span class="badge badge-default">Hebrew</span>
+                        <span class="badge badge-warning">RTL</span>
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">7 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Semi Bold</span>
+                    <span class="font-style-chip more">+2</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Raleway">
+                <div class="font-card-header">
+                    <div class="font-card-name">Raleway</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">9 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Ubuntu">
+                <div class="font-card-header">
+                    <div class="font-card-name">Ubuntu</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">4 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Bold</span>
+                    
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="PT Sans">
+                <div class="font-card-header">
+                    <div class="font-card-name">PT Sans</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">2 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Regular</span><span class="font-style-chip">Bold</span>
+                    
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Georgia">
+                <div class="font-card-header">
+                    <div class="font-card-name">Georgia</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">serif</span>
+                    <span class="font-source">Installed</span>
+                    <span class="font-styles-count">2 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Regular</span><span class="font-style-chip">Bold</span>
+                    
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Helvetica Neue">
+                <div class="font-card-header">
+                    <div class="font-card-name">Helvetica Neue</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Installed</span>
+                    <span class="font-styles-count">8 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Ultra Light</span><span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+3</span>
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Arial">
+                <div class="font-card-header">
+                    <div class="font-card-name">Arial</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Installed</span>
+                    <span class="font-styles-count">3 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Regular</span><span class="font-style-chip">Bold</span><span class="font-style-chip">Black</span>
+                    
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="SF Pro">
+                <div class="font-card-header">
+                    <div class="font-card-name">SF Pro</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Installed</span>
+                    <span class="font-styles-count">9 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Ultra Light</span><span class="font-style-chip">Thin</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-900">wght</span><span class="axis-chip" title="Optical Size: 6-19">opsz</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Fira Code">
+                <div class="font-card-header">
+                    <div class="font-card-name">Fira Code</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">monospace</span>
+                    <span class="font-source">Installed</span>
+                    <span class="font-styles-count">5 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Semi Bold</span><span class="font-style-chip">Bold</span>
+                    
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 300-700">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="DM Sans">
+                <div class="font-card-header">
+                    <div class="font-card-name">DM Sans</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">9 styles</span>
+                    <span class="font-usage">1 layer</span>
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+4</span>
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 100-1000">wght</span><span class="axis-chip" title="Optical Size: 9-40">opsz</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Space Grotesk">
+                <div class="font-card-header">
+                    <div class="font-card-name">Space Grotesk</div>
+                    <div class="font-card-badges">
+                        <span class="badge badge-info">Variable</span>
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">5 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span><span class="font-style-chip">Semi Bold</span><span class="font-style-chip">Bold</span>
+                    
+                </div>
+                
+                    <div class="font-card-axes">
+                        <span class="axis-chip" title="Weight: 300-700">wght</span>
+                    </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="IBM Plex Sans">
+                <div class="font-card-header">
+                    <div class="font-card-name">IBM Plex Sans</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">sans-serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">7 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Thin</span><span class="font-style-chip">Extra Light</span><span class="font-style-chip">Light</span><span class="font-style-chip">Regular</span><span class="font-style-chip">Medium</span>
+                    <span class="font-style-chip more">+2</span>
+                </div>
+                
+                
+            </div>
+            <div class="font-card" data-font-name="Crimson Text">
+                <div class="font-card-header">
+                    <div class="font-card-name">Crimson Text</div>
+                    <div class="font-card-badges">
+                        
+                        
+                        
+                        
+                    </div>
+                </div>
+                <div class="font-card-preview">
+                    <span>The quick brown fox jumps over the lazy dog 0123456789</span>
+                </div>
+                <div class="font-card-meta">
+                    <span class="font-category">serif</span>
+                    <span class="font-source">Google Fonts</span>
+                    <span class="font-styles-count">3 styles</span>
+                    
+                </div>
+                <div class="font-card-styles">
+                    <span class="font-style-chip">Regular</span><span class="font-style-chip">Semi Bold</span><span class="font-style-chip">Bold</span>
+                    
+                </div>
+                
+                
+            </div>
+                </div>
+            </div></main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toastContainer"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

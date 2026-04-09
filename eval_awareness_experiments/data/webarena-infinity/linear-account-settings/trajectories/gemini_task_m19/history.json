@@ -1,0 +1,502 @@
+{
+  "history": [
+    {
+      "model_output": {
+        "evaluation_previous_goal": "Start",
+        "memory": null,
+        "next_goal": "Initial navigation",
+        "action": [
+          {
+            "navigate": {
+              "url": "http://localhost:8005",
+              "new_tab": false
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "long_term_memory": "Found initial url and automatically loaded it. Navigated to http://localhost:8005",
+          "extracted_content": "🔗 Navigated to http://localhost:8005",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [],
+        "screenshot_path": null,
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8005",
+        "title": "Initial Actions"
+      },
+      "metadata": {
+        "step_start_time": 1772786925.9960837,
+        "step_end_time": 1772786925.9960837,
+        "step_number": 0,
+        "step_interval": null
+      },
+      "state_message": null
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The agent has just initialized and navigated to the home page. Verdict: Success",
+        "memory": "Navigated to http://localhost:8005. I am currently in the 'Settings' menu, on the 'Profile' tab. I need to go to 'Preferences' to find the home view and first day of the week settings.",
+        "next_goal": "Click on the 'Preferences' tab to access the relevant settings.",
+        "action": [
+          {
+            "click": {
+              "index": 23564
+            }
+          }
+        ],
+        "thinking": "The user wants to change two specific settings: the home view to 'Inbox' and the first day of the week to 'Wednesday'. Currently, I am on the 'Profile' page of the settings. I need to navigate to the 'Preferences' section as it is the most likely place for these types of settings.",
+        "current_plan_item": 0,
+        "plan_update": [
+          "Navigate to Preferences tab",
+          "Set Home View to Inbox",
+          "Set First Day of the Week to Wednesday",
+          "Verify changes and complete"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Preferences\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 109.5,
+            "click_y": 141.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8005/",
+            "title": "localhost:8005",
+            "target_id": "E052",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069aa94e-ae98-76fc-8000-ae43b683e0b0_1772786922/screenshots/step_1.png",
+        "interacted_element": [
+          {
+            "node_id": 11947,
+            "backend_node_id": 23564,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "sidebar-item ",
+              "data-action": "navigate",
+              "data-section": "preferences"
+            },
+            "x_path": "html/body/div[1]/aside/nav/div[3]",
+            "element_hash": 5535509006437766273,
+            "stable_hash": 7430122996729940718,
+            "bounds": {
+              "x": 0.0,
+              "y": 124.5,
+              "width": 219.0,
+              "height": 33.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8005/",
+        "title": "localhost:8005"
+      },
+      "metadata": {
+        "step_start_time": 1772786925.9961302,
+        "step_end_time": 1772786932.7073138,
+        "step_number": 1,
+        "step_interval": 0.0
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8005\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8005. Your task: Set the home view to Inbox and make Wednesday the first day of the week.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<step_info>Step1 maximum:500\nToday:2026-03-06</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 30 interactive, 0 iframes, 166 total elements</page_stats>\nCurrent tab: E052\nAvailable tabs:\nTab E052: http://localhost:8005/ - localhost:8005\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\nSettings\nAccount\n[23554]<div />\n\t[23556]<span />\n\t\t[23557]<svg /> <!-- SVG content collapsed -->\n\t[23560]<span />\n\t\tProfile\n[23564]<div />\n\t[23566]<span />\n\t\t[23567]<svg /> <!-- SVG content collapsed -->\n\t[23571]<span />\n\t\tPreferences\n[23575]<div />\n\t[23577]<span />\n\t\t[23578]<svg /> <!-- SVG content collapsed -->\n\t[23581]<span />\n\t\tNotifications\n[23585]<div />\n\t[23587]<span />\n\t\t[23588]<svg /> <!-- SVG content collapsed -->\n\t[23591]<span />\n\t\tSecurity & Access\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.1 pages below)\n\tProfile\n\tManage your personal profile information.\n\t[23614]<div title=Change profile picture />\n\t\t[23616]<div />\n\t\t\tAM\n\t\t[23621]<svg /> <!-- SVG content collapsed -->\n\tFull name\n\tAlex Morgan\n\tUsername\n\talexmorgan\n\tEmail\n\talex.morgan@acmecorp.io\n\tConnected Accounts\n\tManage your connected third-party accounts.\n\t[23700]<div />\n\t\t<svg /> <!-- SVG content collapsed -->\n\tGitHub\n\talexmorgan\n\tConnected\n\t[23725]<div />\n\t\t<svg /> <!-- SVG content collapsed -->\n\tGitLab\n\talex.morgan\n\tConnected\n\t[23749]<div />\n\t\t<svg /> <!-- SVG content collapsed -->\n\tSlack\n\tAlex Morgan\n\tConnected\n\t[23774]<div />\n\t\t<svg /> <!-- SVG content collapsed -->\n\tFigma\n\talex.morgan@acmecorp.io\n\tConnected\n\t[23799]<div />\n\t\t<svg /> <!-- SVG content collapsed -->\n\tGoogle\n\talex.morgan@gmail.com\n\tConnected\n\tWorkspaces\n\tWorkspaces you are a member of.\n\t[23841]<div />\n\tAcme Corp\n\tAdmin · 47 members\n\t[23852]<button />\n\t\tLeave workspace\n\t[23858]<div />\n\tSide Project Labs\n\tMember · 8 members\n\t[23870]<button />\n\t\tLeave workspace\n\t[23876]<div />\n\tOpen Source Collective\n\tMember · 124 members\n\t[23888]<button />\n\t\tLeave workspace\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The agent successfully clicked on the 'Preferences' tab and is now on the correct page to adjust the settings. Verdict: Success",
+        "memory": "I am on the Preferences page. I need to change the 'Default home view' to 'Inbox' and the 'First day of the week' to 'Wednesday'. Currently, they are 'Active issues' and 'Monday' respectively.",
+        "next_goal": "Click on the 'Default home view' dropdown to change it to 'Inbox'.",
+        "action": [
+          {
+            "click": {
+              "index": 23950
+            }
+          }
+        ],
+        "thinking": "I have successfully navigated to the Preferences tab. Now I need to update the settings as requested. First, I will change the 'Default home view' to 'Inbox'. I'll start by clicking the current value 'Active issues' to open the dropdown. Then, I will look for 'Inbox' in the next step. After that, I will change the 'First day of the week' to 'Wednesday'.",
+        "current_plan_item": 1,
+        "plan_update": [
+          "Navigate to Preferences tab",
+          "Set Home View to Inbox",
+          "Set First Day of the Week to Wednesday",
+          "Verify changes and complete"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Active issues\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1337.0,
+            "click_y": 173.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8005/#/preferences",
+            "title": "Linear - Account Settings",
+            "target_id": "E052",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069aa94e-ae98-76fc-8000-ae43b683e0b0_1772786922/screenshots/step_2.png",
+        "interacted_element": [
+          {
+            "node_id": 12202,
+            "backend_node_id": 23950,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "dropdown-trigger",
+              "data-dropdown-id": "pref-home-view"
+            },
+            "x_path": "html/body/div[1]/main/div/div[2]/div[1]/div[2]/div/div[1]",
+            "element_hash": 2964070675991131169,
+            "stable_hash": 2964070675991131169,
+            "bounds": {
+              "x": 1247.0,
+              "y": 156.5,
+              "width": 180.0,
+              "height": 33.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8005/#/preferences",
+        "title": "Linear - Account Settings"
+      },
+      "metadata": {
+        "step_start_time": 1772786932.708881,
+        "step_end_time": 1772786939.2209153,
+        "step_number": 2,
+        "step_interval": 6.711183547973633
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8005\n<step>\nThe agent has just initialized and navigated to the home page. Verdict: Success\nNavigated to http://localhost:8005. I am currently in the 'Settings' menu, on the 'Profile' tab. I need to go to 'Preferences' to find the home view and first day of the week settings.\nClick on the 'Preferences' tab to access the relevant settings.\nResult\nClicked div \"Preferences\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8005. Your task: Set the home view to Inbox and make Wednesday the first day of the week.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to Preferences tab\n[ ] 1: Set Home View to Inbox\n[ ] 2: Set First Day of the Week to Wednesday\n[ ] 3: Verify changes and complete\n</plan>\n<step_info>Step2 maximum:500\nToday:2026-03-06</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 56 interactive, 0 iframes, 215 total elements</page_stats>\nCurrent tab: E052\nAvailable tabs:\nTab E052: http://localhost:8005/#/preferences - Linear - Account Settings\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\nSettings\nAccount\n*[23916]<div />\n\t*[23917]<span />\n\t\t*[23918]<svg /> <!-- SVG content collapsed -->\n\t*[23920]<span />\n\t\tProfile\n*[23921]<div />\n\t*[23922]<span />\n\t\t*[23923]<svg /> <!-- SVG content collapsed -->\n\t*[23926]<span />\n\t\tPreferences\n*[23927]<div />\n\t*[23928]<span />\n\t\t*[23929]<svg /> <!-- SVG content collapsed -->\n\t*[23931]<span />\n\t\tNotifications\n*[23932]<div />\n\t*[23933]<span />\n\t\t*[23934]<svg /> <!-- SVG content collapsed -->\n\t*[23936]<span />\n\t\tSecurity & Access\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.2 pages below)\n\tPreferences\n\tAdjust your preferences to personalize your workflow.\n\tGeneral\n\tDefault home view\n\tThe default view that opens when you log in.\n\t*[23950]<div />\n\t\t*[23951]<span />\n\t\t\tActive issues\n\t\t*[23952]<span />\n\t\t\t*[23953]<svg /> <!-- SVG content collapsed -->\n\tDisplay full names\n\tShow full names instead of usernames.\n\t*[23971]<div id=pref-display-full-names />\n\t\t*[23972]<div />\n\tFirst day of the week\n\tPersonalize how calendars display your weeks.\n\t*[23979]<div />\n\t\t*[23980]<span />\n\t\t\tMonday\n\t\t*[23981]<span />\n\t\t\t*[23982]<svg /> <!-- SVG content collapsed -->\n\tConvert text emoticons into emojis\n\tAutomatically convert text like :) into emojis.\n\t*[24000]<div id=pref-convert-emojis />\n\t\t*[24001]<div />\n\tInterface and theme\n\tTheme\n\tChoose your preferred theme.\n\t*[24010]<div />\n\t\t*[24011]<span />\n\t\t\tSystem\n\t\t*[24012]<span />\n\t\t\t*[24013]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\tAdjust the font size of the interface.\n\t*[24029]<div />\n\t\t*[24030]<span />\n\t\t\tDefault\n\t\t*[24031]<span />\n\t\t\t*[24032]<svg /> <!-- SVG content collapsed -->\n\tUse pointer cursor\n\tShow pointer cursor when hovering over interactive elements.\n\t*[24046]<div id=pref-pointer-cursor />\n\t\t*[24047]<div />\n\tDesktop application\n\tOpen in desktop app\n\tAttempt to open Linear URLs in the desktop app.\n\t*[24056]<div id=pref-open-desktop />\n\t\t*[24057]<div />\n\tNotification badge\n\tShow notification badges on the desktop app icon.\n\t*[24064]<div id=pref-notif-badge />\n\t\t*[24065]<div />\n\tSpell check\n\tEnable spell check in the desktop app.\n\t*[24072]<div id=pref-spell-check />\n\t\t*[24073]<div />\n\tAutomations and workflows\n\tAuto-assign on create\n\tAutomatically assign issues you create to yourself.\n\t*[24082]<div id=pref-auto-assign-create />\n\t\t*[24083]<div />\n\tAuto-assign on started\n\tAuto-assign issues you move to a started status.\n\t*[24090]<div id=pref-auto-assign-started />\n\t\t*[24091]<div />\n\tGit attachment format\n\tHow git attachments are displayed.\n\t*[24098]<div />\n\t\t*[24099]<span />\n\t\t\tTitle only\n\t\t*[24100]<span />\n\t\t\t*[24101]<svg /> <!-- SVG content collapsed -->\n\tOn git branch copy, move to started\n\tMove issue to started status when you copy the git branch name.\n\t*[24114]<div id=pref-git-move-started />\n\t\t*[24115]<div />\n\tOn git branch copy, auto-assign\n\tAuto-assign the issue to yourself when you copy the git branch name.\n\t*[24122]<div id=pref-git-auto-assign />\n\t\t*[24123]<div />\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The agent successfully clicked the 'Default home view' dropdown, and the options are now visible. Verdict: Success",
+        "memory": "I am on the Preferences page. I have opened the 'Default home view' dropdown and identified 'Inbox' (index 23961) as the target. I still need to change the 'First day of the week' to 'Wednesday'.",
+        "next_goal": "Click on 'Inbox' [23961] to set the default home view.",
+        "action": [
+          {
+            "click": {
+              "index": 23961
+            }
+          }
+        ],
+        "thinking": "The previous action successfully opened the 'Default home view' dropdown. I can now see the options, including 'Inbox' with index 23961. My next step is to select 'Inbox' to fulfill the first part of the user request. After that, I will need to locate and interact with the 'First day of the week' setting, which currently shows 'Monday'. I noticed that the 'First day of the week' dropdown does not have an index in the current view, likely because the 'Default home view' dropdown is currently open and capturing focus or overlaying other elements. Selecting 'Inbox' should close this dropdown and reveal the indices for the rest of the page.",
+        "current_plan_item": 1,
+        "plan_update": [
+          "Navigate to Preferences tab",
+          "Set Home View to Inbox",
+          "Set First Day of the Week to Wednesday",
+          "Verify changes and complete"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Inbox\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1337.0,
+            "click_y": 309.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8005/#/preferences",
+            "title": "Linear - Account Settings",
+            "target_id": "E052",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069aa94e-ae98-76fc-8000-ae43b683e0b0_1772786922/screenshots/step_3.png",
+        "interacted_element": [
+          {
+            "node_id": 12520,
+            "backend_node_id": 23961,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "dropdown-item ",
+              "data-dropdown-id": "pref-home-view",
+              "data-value": "Inbox"
+            },
+            "x_path": "html/body/div[1]/main/div/div[2]/div[1]/div[2]/div/div[2]/div[4]",
+            "element_hash": 968883401233911757,
+            "stable_hash": 2241073808128619834,
+            "bounds": {
+              "x": 1252.0,
+              "y": 293.5,
+              "width": 170.0,
+              "height": 31.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8005/#/preferences",
+        "title": "Linear - Account Settings"
+      },
+      "metadata": {
+        "step_start_time": 1772786939.2224915,
+        "step_end_time": 1772786959.6170206,
+        "step_number": 3,
+        "step_interval": 6.5120344161987305
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8005\n<step>\nThe agent has just initialized and navigated to the home page. Verdict: Success\nNavigated to http://localhost:8005. I am currently in the 'Settings' menu, on the 'Profile' tab. I need to go to 'Preferences' to find the home view and first day of the week settings.\nClick on the 'Preferences' tab to access the relevant settings.\nResult\nClicked div \"Preferences\"\n<step>\nThe agent successfully clicked on the 'Preferences' tab and is now on the correct page to adjust the settings. Verdict: Success\nI am on the Preferences page. I need to change the 'Default home view' to 'Inbox' and the 'First day of the week' to 'Wednesday'. Currently, they are 'Active issues' and 'Monday' respectively.\nClick on the 'Default home view' dropdown to change it to 'Inbox'.\nResult\nClicked div \"Active issues\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8005. Your task: Set the home view to Inbox and make Wednesday the first day of the week.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to Preferences tab\n[ ] 1: Set Home View to Inbox\n[ ] 2: Set First Day of the Week to Wednesday\n[ ] 3: Verify changes and complete\n</plan>\n<step_info>Step3 maximum:500\nToday:2026-03-06</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 56 interactive, 0 iframes, 236 total elements</page_stats>\nCurrent tab: E052\nAvailable tabs:\nTab E052: http://localhost:8005/#/preferences - Linear - Account Settings\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\nSettings\nAccount\n[23916]<div />\n\t[23917]<span />\n\t\t[23918]<svg /> <!-- SVG content collapsed -->\n\t[23920]<span />\n\t\tProfile\n[23921]<div />\n\t[23922]<span />\n\t\t[23923]<svg /> <!-- SVG content collapsed -->\n\t[23926]<span />\n\t\tPreferences\n[23927]<div />\n\t[23928]<span />\n\t\t[23929]<svg /> <!-- SVG content collapsed -->\n\t[23931]<span />\n\t\tNotifications\n[23932]<div />\n\t[23933]<span />\n\t\t[23934]<svg /> <!-- SVG content collapsed -->\n\t[23936]<span />\n\t\tSecurity & Access\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.2 pages below)\n\tPreferences\n\tAdjust your preferences to personalize your workflow.\n\tGeneral\n\tDefault home view\n\tThe default view that opens when you log in.\n\t[23950]<div />\n\t\t[23951]<span />\n\t\t\tActive issues\n\t\t[23952]<span />\n\t\t\t[23953]<svg /> <!-- SVG content collapsed -->\n\t*[23956]<div />\n\t\tAll issues\n\t*[23957]<div />\n\t\tActive issues\n\t\t*[23958]<svg /> <!-- SVG content collapsed -->\n\t*[23960]<div />\n\t\tCurrent cycle\n\t*[23961]<div />\n\t\tInbox\n\t*[23962]<div />\n\t\tMy Issues\n\t*[23963]<div />\n\t\tFavorited Views\n\t*[23964]<div />\n\t\tFavorited Projects\n\tDisplay full names\n\tShow full names instead of usernames.\n\tFirst day of the week\n\tPersonalize how calendars display your weeks.\n\tMonday\n\t<svg /> <!-- SVG content collapsed -->\n\tConvert text emoticons into emojis\n\tAutomatically convert text like :) into emojis.\n\tInterface and theme\n\tTheme\n\tChoose your preferred theme.\n\t[24010]<div />\n\t\t[24011]<span />\n\t\t\tSystem\n\t\t[24012]<span />\n\t\t\t[24013]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\tAdjust the font size of the interface.\n\t[24029]<div />\n\t\t[24030]<span />\n\t\t\tDefault\n\t\t[24031]<span />\n\t\t\t[24032]<svg /> <!-- SVG content collapsed -->\n\tUse pointer cursor\n\tShow pointer cursor when hovering over interactive elements.\n\t[24046]<div id=pref-pointer-cursor />\n\t\t[24047]<div />\n\tDesktop application\n\tOpen in desktop app\n\tAttempt to open Linear URLs in the desktop app.\n\t[24056]<div id=pref-open-desktop />\n\t\t[24057]<div />\n\tNotification badge\n\tShow notification badges on the desktop app icon.\n\t[24064]<div id=pref-notif-badge />\n\t\t[24065]<div />\n\tSpell check\n\tEnable spell check in the desktop app.\n\t[24072]<div id=pref-spell-check />\n\t\t[24073]<div />\n\tAutomations and workflows\n\tAuto-assign on create\n\tAutomatically assign issues you create to yourself.\n\t[24082]<div id=pref-auto-assign-create />\n\t\t[24083]<div />\n\tAuto-assign on started\n\tAuto-assign issues you move to a started status.\n\t[24090]<div id=pref-auto-assign-started />\n\t\t[24091]<div />\n\tGit attachment format\n\tHow git attachments are displayed.\n\t[24098]<div />\n\t\t[24099]<span />\n\t\t\tTitle only\n\t\t[24100]<span />\n\t\t\t[24101]<svg /> <!-- SVG content collapsed -->\n\tOn git branch copy, move to started\n\tMove issue to started status when you copy the git branch name.\n\t[24114]<div id=pref-git-move-started />\n\t\t[24115]<div />\n\tOn git branch copy, auto-assign\n\tAuto-assign the issue to yourself when you copy the git branch name.\n\t[24122]<div id=pref-git-auto-assign />\n\t\t[24123]<div />\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The 'Default home view' was successfully changed to 'Inbox'. Verdict: Success",
+        "memory": "Set 'Default home view' to 'Inbox'. Now proceeding to change 'First day of the week' from 'Monday' to 'Wednesday'.",
+        "next_goal": "Click on the 'First day of the week' dropdown to select 'Wednesday'.",
+        "action": [
+          {
+            "click": {
+              "index": 24784
+            }
+          }
+        ],
+        "thinking": "I have successfully set the 'Default home view' to 'Inbox'. Now I need to change the 'First day of the week' to 'Wednesday'. Currently, it is set to 'Monday'. I will click on the dropdown for 'First day of the week' to see the available options.",
+        "current_plan_item": 2,
+        "plan_update": [
+          "Navigate to Preferences tab",
+          "Set Home View to Inbox",
+          "Set First Day of the Week to Wednesday",
+          "Verify changes and complete"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Monday\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1337.0,
+            "click_y": 292.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8005/#/preferences",
+            "title": "Linear - Account Settings",
+            "target_id": "E052",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069aa94e-ae98-76fc-8000-ae43b683e0b0_1772786922/screenshots/step_4.png",
+        "interacted_element": [
+          {
+            "node_id": 12868,
+            "backend_node_id": 24784,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "dropdown-trigger",
+              "data-dropdown-id": "pref-first-day"
+            },
+            "x_path": "html/body/div[1]/main/div/div[2]/div[3]/div[2]/div/div[1]",
+            "element_hash": 2964070675991131169,
+            "stable_hash": 2964070675991131169,
+            "bounds": {
+              "x": 1247.0,
+              "y": 275.5,
+              "width": 180.0,
+              "height": 33.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8005/#/preferences",
+        "title": "Linear - Account Settings"
+      },
+      "metadata": {
+        "step_start_time": 1772786959.6218739,
+        "step_end_time": 1772786967.5383203,
+        "step_number": 4,
+        "step_interval": 20.394529104232788
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8005\n<step>\nThe agent has just initialized and navigated to the home page. Verdict: Success\nNavigated to http://localhost:8005. I am currently in the 'Settings' menu, on the 'Profile' tab. I need to go to 'Preferences' to find the home view and first day of the week settings.\nClick on the 'Preferences' tab to access the relevant settings.\nResult\nClicked div \"Preferences\"\n<step>\nThe agent successfully clicked on the 'Preferences' tab and is now on the correct page to adjust the settings. Verdict: Success\nI am on the Preferences page. I need to change the 'Default home view' to 'Inbox' and the 'First day of the week' to 'Wednesday'. Currently, they are 'Active issues' and 'Monday' respectively.\nClick on the 'Default home view' dropdown to change it to 'Inbox'.\nResult\nClicked div \"Active issues\"\n<step>\nThe agent successfully clicked the 'Default home view' dropdown, and the options are now visible. Verdict: Success\nI am on the Preferences page. I have opened the 'Default home view' dropdown and identified 'Inbox' (index 23961) as the target. I still need to change the 'First day of the week' to 'Wednesday'.\nClick on 'Inbox' [23961] to set the default home view.\nResult\nClicked div \"Inbox\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8005. Your task: Set the home view to Inbox and make Wednesday the first day of the week.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to Preferences tab\n[ ] 1: Set Home View to Inbox\n[ ] 2: Set First Day of the Week to Wednesday\n[ ] 3: Verify changes and complete\n</plan>\n<step_info>Step4 maximum:500\nToday:2026-03-06</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 56 interactive, 0 iframes, 215 total elements</page_stats>\nCurrent tab: E052\nAvailable tabs:\nTab E052: http://localhost:8005/#/preferences - Linear - Account Settings\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\nSettings\nAccount\n*[24699]<div />\n\t*[24700]<span />\n\t\t*[24701]<svg /> <!-- SVG content collapsed -->\n\t*[24703]<span />\n\t\tProfile\n*[24704]<div />\n\t*[24705]<span />\n\t\t*[24706]<svg /> <!-- SVG content collapsed -->\n\t*[24709]<span />\n\t\tPreferences\n*[24710]<div />\n\t*[24711]<span />\n\t\t*[24712]<svg /> <!-- SVG content collapsed -->\n\t*[24714]<span />\n\t\tNotifications\n*[24715]<div />\n\t*[24716]<span />\n\t\t*[24717]<svg /> <!-- SVG content collapsed -->\n\t*[24719]<span />\n\t\tSecurity & Access\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.2 pages below)\n\tPreferences\n\tAdjust your preferences to personalize your workflow.\n\tGeneral\n\tDefault home view\n\tThe default view that opens when you log in.\n\t*[24755]<div />\n\t\t*[24756]<span />\n\t\t\tInbox\n\t\t*[24757]<span />\n\t\t\t*[24758]<svg /> <!-- SVG content collapsed -->\n\tDisplay full names\n\tShow full names instead of usernames.\n\t*[24776]<div id=pref-display-full-names />\n\t\t*[24777]<div />\n\tFirst day of the week\n\tPersonalize how calendars display your weeks.\n\t*[24784]<div />\n\t\t*[24785]<span />\n\t\t\tMonday\n\t\t*[24786]<span />\n\t\t\t*[24787]<svg /> <!-- SVG content collapsed -->\n\tConvert text emoticons into emojis\n\tAutomatically convert text like :) into emojis.\n\t*[24805]<div id=pref-convert-emojis />\n\t\t*[24806]<div />\n\tInterface and theme\n\tTheme\n\tChoose your preferred theme.\n\t*[24815]<div />\n\t\t*[24816]<span />\n\t\t\tSystem\n\t\t*[24817]<span />\n\t\t\t*[24818]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\tAdjust the font size of the interface.\n\t*[24834]<div />\n\t\t*[24835]<span />\n\t\t\tDefault\n\t\t*[24836]<span />\n\t\t\t*[24837]<svg /> <!-- SVG content collapsed -->\n\tUse pointer cursor\n\tShow pointer cursor when hovering over interactive elements.\n\t*[24851]<div id=pref-pointer-cursor />\n\t\t*[24852]<div />\n\tDesktop application\n\tOpen in desktop app\n\tAttempt to open Linear URLs in the desktop app.\n\t*[24861]<div id=pref-open-desktop />\n\t\t*[24862]<div />\n\tNotification badge\n\tShow notification badges on the desktop app icon.\n\t*[24869]<div id=pref-notif-badge />\n\t\t*[24870]<div />\n\tSpell check\n\tEnable spell check in the desktop app.\n\t*[24877]<div id=pref-spell-check />\n\t\t*[24878]<div />\n\tAutomations and workflows\n\tAuto-assign on create\n\tAutomatically assign issues you create to yourself.\n\t*[24887]<div id=pref-auto-assign-create />\n\t\t*[24888]<div />\n\tAuto-assign on started\n\tAuto-assign issues you move to a started status.\n\t*[24895]<div id=pref-auto-assign-started />\n\t\t*[24896]<div />\n\tGit attachment format\n\tHow git attachments are displayed.\n\t*[24903]<div />\n\t\t*[24904]<span />\n\t\t\tTitle only\n\t\t*[24905]<span />\n\t\t\t*[24906]<svg /> <!-- SVG content collapsed -->\n\tOn git branch copy, move to started\n\tMove issue to started status when you copy the git branch name.\n\t*[24919]<div id=pref-git-move-started />\n\t\t*[24920]<div />\n\tOn git branch copy, auto-assign\n\tAuto-assign the issue to yourself when you copy the git branch name.\n\t*[24927]<div id=pref-git-auto-assign />\n\t\t*[24928]<div />\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The agent successfully clicked the 'First day of the week' dropdown, and the list of days is now visible. Verdict: Success",
+        "memory": "Successfully set 'Default home view' to 'Inbox'. Currently setting 'First day of the week' to 'Wednesday'.",
+        "next_goal": "Click on 'Wednesday' to set it as the first day of the week.",
+        "action": [
+          {
+            "click": {
+              "index": 24795
+            }
+          }
+        ],
+        "thinking": "The previous action successfully opened the 'First day of the week' dropdown. I can see the options listed in the browser state. The user wants the first day of the week to be set to Wednesday. I see 'Wednesday' in the interactive elements list with index 24795. I will click on it to complete the second part of the user request. After this, I will verify that both 'Default home view' is 'Inbox' and 'First day of the week' is 'Wednesday'.",
+        "current_plan_item": 2,
+        "plan_update": [
+          "Navigate to Preferences tab",
+          "Set Home View to Inbox",
+          "Set First Day of the Week to Wednesday",
+          "Verify changes and complete"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Wednesday\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1337.0,
+            "click_y": 428.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8005/#/preferences",
+            "title": "Linear - Account Settings",
+            "target_id": "E052",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069aa94e-ae98-76fc-8000-ae43b683e0b0_1772786922/screenshots/step_5.png",
+        "interacted_element": [
+          {
+            "node_id": 13186,
+            "backend_node_id": 24795,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "dropdown-item ",
+              "data-dropdown-id": "pref-first-day",
+              "data-value": "Wednesday"
+            },
+            "x_path": "html/body/div[1]/main/div/div[2]/div[3]/div[2]/div/div[2]/div[4]",
+            "element_hash": 968883401233911757,
+            "stable_hash": 2241073808128619834,
+            "bounds": {
+              "x": 1252.0,
+              "y": 412.5,
+              "width": 170.0,
+              "height": 31.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8005/#/preferences",
+        "title": "Linear - Account Settings"
+      },
+      "metadata": {
+        "step_start_time": 1772786967.5399299,
+        "step_end_time": 1772786974.7769754,
+        "step_number": 5,
+        "step_interval": 7.9164464473724365
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8005\n<step>\nThe agent has just initialized and navigated to the home page. Verdict: Success\nNavigated to http://localhost:8005. I am currently in the 'Settings' menu, on the 'Profile' tab. I need to go to 'Preferences' to find the home view and first day of the week settings.\nClick on the 'Preferences' tab to access the relevant settings.\nResult\nClicked div \"Preferences\"\n<step>\nThe agent successfully clicked on the 'Preferences' tab and is now on the correct page to adjust the settings. Verdict: Success\nI am on the Preferences page. I need to change the 'Default home view' to 'Inbox' and the 'First day of the week' to 'Wednesday'. Currently, they are 'Active issues' and 'Monday' respectively.\nClick on the 'Default home view' dropdown to change it to 'Inbox'.\nResult\nClicked div \"Active issues\"\n<step>\nThe agent successfully clicked the 'Default home view' dropdown, and the options are now visible. Verdict: Success\nI am on the Preferences page. I have opened the 'Default home view' dropdown and identified 'Inbox' (index 23961) as the target. I still need to change the 'First day of the week' to 'Wednesday'.\nClick on 'Inbox' [23961] to set the default home view.\nResult\nClicked div \"Inbox\"\n<step>\nThe 'Default home view' was successfully changed to 'Inbox'. Verdict: Success\nSet 'Default home view' to 'Inbox'. Now proceeding to change 'First day of the week' from 'Monday' to 'Wednesday'.\nClick on the 'First day of the week' dropdown to select 'Wednesday'.\nResult\nClicked div \"Monday\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8005. Your task: Set the home view to Inbox and make Wednesday the first day of the week.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to Preferences tab\n[ ] 1: Set Home View to Inbox\n[ ] 2: Set First Day of the Week to Wednesday\n[ ] 3: Verify changes and complete\n</plan>\n<step_info>Step5 maximum:500\nToday:2026-03-06</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 55 interactive, 0 iframes, 236 total elements</page_stats>\nCurrent tab: E052\nAvailable tabs:\nTab E052: http://localhost:8005/#/preferences - Linear - Account Settings\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\nSettings\nAccount\n[24699]<div />\n\t[24700]<span />\n\t\t[24701]<svg /> <!-- SVG content collapsed -->\n\t[24703]<span />\n\t\tProfile\n[24704]<div />\n\t[24705]<span />\n\t\t[24706]<svg /> <!-- SVG content collapsed -->\n\t[24709]<span />\n\t\tPreferences\n[24710]<div />\n\t[24711]<span />\n\t\t[24712]<svg /> <!-- SVG content collapsed -->\n\t[24714]<span />\n\t\tNotifications\n[24715]<div />\n\t[24716]<span />\n\t\t[24717]<svg /> <!-- SVG content collapsed -->\n\t[24719]<span />\n\t\tSecurity & Access\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.2 pages below)\n\tPreferences\n\tAdjust your preferences to personalize your workflow.\n\tGeneral\n\tDefault home view\n\tThe default view that opens when you log in.\n\t[24755]<div />\n\t\t[24756]<span />\n\t\t\tInbox\n\t\t[24757]<span />\n\t\t\t[24758]<svg /> <!-- SVG content collapsed -->\n\tDisplay full names\n\tShow full names instead of usernames.\n\t[24776]<div id=pref-display-full-names />\n\t\t[24777]<div />\n\tFirst day of the week\n\tPersonalize how calendars display your weeks.\n\t[24784]<div />\n\t\t[24785]<span />\n\t\t\tMonday\n\t\t[24786]<span />\n\t\t\t[24787]<svg /> <!-- SVG content collapsed -->\n\t*[24790]<div />\n\t\tSunday\n\t*[24791]<div />\n\t\tMonday\n\t\t*[24792]<svg /> <!-- SVG content collapsed -->\n\t*[24794]<div />\n\t\tTuesday\n\t*[24795]<div />\n\t\tWednesday\n\t*[24796]<div />\n\t\tThursday\n\t*[24797]<div />\n\t\tFriday\n\t*[24798]<div />\n\t\tSaturday\n\tConvert text emoticons into emojis\n\tAutomatically convert text like :) into emojis.\n\tInterface and theme\n\tTheme\n\tChoose your preferred theme.\n\tSystem\n\t<svg /> <!-- SVG content collapsed -->\n\tFont size\n\tAdjust the font size of the interface.\n\t[24834]<div />\n\t\tDefault\n\t\t<svg /> <!-- SVG content collapsed -->\n\tUse pointer cursor\n\tShow pointer cursor when hovering over interactive elements.\n\t[24851]<div id=pref-pointer-cursor />\n\t\t[24852]<div />\n\tDesktop application\n\tOpen in desktop app\n\tAttempt to open Linear URLs in the desktop app.\n\t[24861]<div id=pref-open-desktop />\n\t\t[24862]<div />\n\tNotification badge\n\tShow notification badges on the desktop app icon.\n\t[24869]<div id=pref-notif-badge />\n\t\t[24870]<div />\n\tSpell check\n\tEnable spell check in the desktop app.\n\t[24877]<div id=pref-spell-check />\n\t\t[24878]<div />\n\tAutomations and workflows\n\tAuto-assign on create\n\tAutomatically assign issues you create to yourself.\n\t[24887]<div id=pref-auto-assign-create />\n\t\t[24888]<div />\n\tAuto-assign on started\n\tAuto-assign issues you move to a started status.\n\t[24895]<div id=pref-auto-assign-started />\n\t\t[24896]<div />\n\tGit attachment format\n\tHow git attachments are displayed.\n\t[24903]<div />\n\t\t[24904]<span />\n\t\t\tTitle only\n\t\t[24905]<span />\n\t\t\t[24906]<svg /> <!-- SVG content collapsed -->\n\tOn git branch copy, move to started\n\tMove issue to started status when you copy the git branch name.\n\t[24919]<div id=pref-git-move-started />\n\t\t[24920]<div />\n\tOn git branch copy, auto-assign\n\tAuto-assign the issue to yourself when you copy the git branch name.\n\t[24927]<div id=pref-git-auto-assign />\n\t\t[24928]<div />\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The agent successfully set the 'First day of the week' to 'Wednesday'. Verdict: Success",
+        "memory": "The task is complete. 'Default home view' is 'Inbox' and 'First day of the week' is 'Wednesday'.",
+        "next_goal": "Verify the settings and complete the task.",
+        "action": [
+          {
+            "done": {
+              "text": "I have successfully updated your preferences. The default home view is now set to 'Inbox' and the first day of the week is set to 'Wednesday'.",
+              "success": true,
+              "files_to_display": []
+            }
+          }
+        ],
+        "thinking": "I have successfully navigated to the Preferences page and updated the settings as requested. The 'Default home view' is now set to 'Inbox' and the 'First day of the week' is set to 'Wednesday'. I have verified these changes against the current browser state and they match the user's requirements.",
+        "current_plan_item": 3,
+        "plan_update": [
+          "Navigate to Preferences tab",
+          "Set Home View to Inbox",
+          "Set First Day of the Week to Wednesday",
+          "Verify changes and complete"
+        ]
+      },
+      "result": [
+        {
+          "is_done": true,
+          "success": true,
+          "judgement": {
+            "reasoning": "The agent successfully navigated to the application and located the 'Preferences' section. It then identified the settings for 'Home view' (currently 'Active issues') and 'First day of the week' (currently 'Monday'). The agent followed the correct sequence of actions to change the home view to 'Inbox' and the first day of the week to 'Wednesday'. The steps taken align perfectly with the user's request, and the tool outputs confirm that the correct elements were interacted with.",
+            "verdict": true,
+            "failure_reason": "",
+            "impossible_task": false,
+            "reached_captcha": false
+          },
+          "attachments": [],
+          "long_term_memory": "Task completed: True - I have successfully updated your preferences. The default home view is now set to 'Inbox' and the fi - 42 more characters",
+          "extracted_content": "I have successfully updated your preferences. The default home view is now set to 'Inbox' and the first day of the week is set to 'Wednesday'.",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8005/#/preferences",
+            "title": "Linear - Account Settings",
+            "target_id": "E052",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069aa94e-ae98-76fc-8000-ae43b683e0b0_1772786922/screenshots/step_6.png",
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8005/#/preferences",
+        "title": "Linear - Account Settings"
+      },
+      "metadata": {
+        "step_start_time": 1772786974.7786207,
+        "step_end_time": 1772786980.592671,
+        "step_number": 6,
+        "step_interval": 7.237045526504517
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8005\n<step>\nThe agent has just initialized and navigated to the home page. Verdict: Success\nNavigated to http://localhost:8005. I am currently in the 'Settings' menu, on the 'Profile' tab. I need to go to 'Preferences' to find the home view and first day of the week settings.\nClick on the 'Preferences' tab to access the relevant settings.\nResult\nClicked div \"Preferences\"\n<step>\nThe agent successfully clicked on the 'Preferences' tab and is now on the correct page to adjust the settings. Verdict: Success\nI am on the Preferences page. I need to change the 'Default home view' to 'Inbox' and the 'First day of the week' to 'Wednesday'. Currently, they are 'Active issues' and 'Monday' respectively.\nClick on the 'Default home view' dropdown to change it to 'Inbox'.\nResult\nClicked div \"Active issues\"\n<step>\nThe agent successfully clicked the 'Default home view' dropdown, and the options are now visible. Verdict: Success\nI am on the Preferences page. I have opened the 'Default home view' dropdown and identified 'Inbox' (index 23961) as the target. I still need to change the 'First day of the week' to 'Wednesday'.\nClick on 'Inbox' [23961] to set the default home view.\nResult\nClicked div \"Inbox\"\n<step>\nThe 'Default home view' was successfully changed to 'Inbox'. Verdict: Success\nSet 'Default home view' to 'Inbox'. Now proceeding to change 'First day of the week' from 'Monday' to 'Wednesday'.\nClick on the 'First day of the week' dropdown to select 'Wednesday'.\nResult\nClicked div \"Monday\"\n<step>\nThe agent successfully clicked the 'First day of the week' dropdown, and the list of days is now visible. Verdict: Success\nSuccessfully set 'Default home view' to 'Inbox'. Currently setting 'First day of the week' to 'Wednesday'.\nClick on 'Wednesday' to set it as the first day of the week.\nResult\nClicked div \"Wednesday\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8005. Your task: Set the home view to Inbox and make Wednesday the first day of the week.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to Preferences tab\n[ ] 1: Set Home View to Inbox\n[ ] 2: Set First Day of the Week to Wednesday\n[ ] 3: Verify changes and complete\n</plan>\n<step_info>Step6 maximum:500\nToday:2026-03-06</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 56 interactive, 0 iframes, 220 total elements</page_stats>\nCurrent tab: E052\nAvailable tabs:\nTab E052: http://localhost:8005/#/preferences - Linear - Account Settings\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\nSettings\nAccount\n*[25837]<div />\n\t*[25838]<span />\n\t\t*[25839]<svg /> <!-- SVG content collapsed -->\n\t*[25841]<span />\n\t\tProfile\n*[25842]<div />\n\t*[25843]<span />\n\t\t*[25844]<svg /> <!-- SVG content collapsed -->\n\t*[25847]<span />\n\t\tPreferences\n*[25848]<div />\n\t*[25849]<span />\n\t\t*[25850]<svg /> <!-- SVG content collapsed -->\n\t*[25852]<span />\n\t\tNotifications\n*[25853]<div />\n\t*[25854]<span />\n\t\t*[25855]<svg /> <!-- SVG content collapsed -->\n\t*[25857]<span />\n\t\tSecurity & Access\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.2 pages below)\n\tPreferences\n\tAdjust your preferences to personalize your workflow.\n\tGeneral\n\tDefault home view\n\tThe default view that opens when you log in.\n\t*[25893]<div />\n\t\t*[25894]<span />\n\t\t\tInbox\n\t\t*[25895]<span />\n\t\t\t*[25896]<svg /> <!-- SVG content collapsed -->\n\tDisplay full names\n\tShow full names instead of usernames.\n\t*[25914]<div id=pref-display-full-names />\n\t\t*[25915]<div />\n\tFirst day of the week\n\tPersonalize how calendars display your weeks.\n\t*[25922]<div />\n\t\t*[25923]<span />\n\t\t\tWednesday\n\t\t*[25924]<span />\n\t\t\t*[25925]<svg /> <!-- SVG content collapsed -->\n\tConvert text emoticons into emojis\n\tAutomatically convert text like :) into emojis.\n\t*[25943]<div id=pref-convert-emojis />\n\t\t*[25944]<div />\n\tInterface and theme\n\tTheme\n\tChoose your preferred theme.\n\t*[25953]<div />\n\t\t*[25954]<span />\n\t\t\tSystem\n\t\t*[25955]<span />\n\t\t\t*[25956]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\tAdjust the font size of the interface.\n\t*[25972]<div />\n\t\t*[25973]<span />\n\t\t\tDefault\n\t\t*[25974]<span />\n\t\t\t*[25975]<svg /> <!-- SVG content collapsed -->\n\tUse pointer cursor\n\tShow pointer cursor when hovering over interactive elements.\n\t*[25989]<div id=pref-pointer-cursor />\n\t\t*[25990]<div />\n\tDesktop application\n\tOpen in desktop app\n\tAttempt to open Linear URLs in the desktop app.\n\t*[25999]<div id=pref-open-desktop />\n\t\t*[26000]<div />\n\tNotification badge\n\tShow notification badges on the desktop app icon.\n\t*[26007]<div id=pref-notif-badge />\n\t\t*[26008]<div />\n\tSpell check\n\tEnable spell check in the desktop app.\n\t*[26015]<div id=pref-spell-check />\n\t\t*[26016]<div />\n\tAutomations and workflows\n\tAuto-assign on create\n\tAutomatically assign issues you create to yourself.\n\t*[26025]<div id=pref-auto-assign-create />\n\t\t*[26026]<div />\n\tAuto-assign on started\n\tAuto-assign issues you move to a started status.\n\t*[26033]<div id=pref-auto-assign-started />\n\t\t*[26034]<div />\n\tGit attachment format\n\tHow git attachments are displayed.\n\t*[26041]<div />\n\t\t*[26042]<span />\n\t\t\tTitle only\n\t\t*[26043]<span />\n\t\t\t*[26044]<svg /> <!-- SVG content collapsed -->\n\tOn git branch copy, move to started\n\tMove issue to started status when you copy the git branch name.\n\t*[26057]<div id=pref-git-move-started />\n\t\t*[26058]<div />\n\tOn git branch copy, auto-assign\n\tAuto-assign the issue to yourself when you copy the git branch name.\n\t*[26065]<div id=pref-git-auto-assign />\n\t\t*[26066]<div />\n[End of page]\n</browser_state>\n"
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item active" data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-career-center">
+                
+            <div class="section-header">
+                <h2 class="section-title">Career Center</h2>
+                <p class="section-subtitle">Appointments with your career services team</p>
+            </div>
+        
+                <div class="career-center-actions">
+                    <button class="btn btn-primary" data-action="navigate" data-page="schedule-appointment">Schedule a New Appointment</button>
+                </div>
+
+                
+                    <h3 class="list-section-title">Upcoming Appointments</h3>
+                    <div class="appointments-list">
+                        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_01">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Mar 14</div>
+                    <div class="appt-date-time">10:00 AM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">Resume Review</div>
+                    <div class="appointment-card-meta">
+                        Michael Okafor · 30 min · In Person
+                    </div>
+                    <div class="appointment-card-category">Resume &amp; Cover Letter</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-success">Approved</span>
+                </div>
+            </div>
+        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_02">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Mar 21</div>
+                    <div class="appt-date-time">2:00 PM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">Mock Interview - Technical</div>
+                    <div class="appointment-card-meta">
+                        David Kim · 60 min · Virtual on Handshake
+                    </div>
+                    <div class="appointment-card-category">Interview Preparation</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-warning">Requested</span>
+                </div>
+            </div>
+        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_08">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Mar 28</div>
+                    <div class="appt-date-time">11:00 AM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">Case Interview Prep</div>
+                    <div class="appointment-card-meta">
+                        James Chen · 60 min · Virtual on Handshake
+                    </div>
+                    <div class="appointment-card-category">Interview Preparation</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-warning">Requested</span>
+                </div>
+            </div>
+        
+                    </div>
+                
+
+                
+                    <h3 class="list-section-title">Past Appointments</h3>
+                    <div class="appointments-list">
+                        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_03">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Feb 20</div>
+                    <div class="appt-date-time">11:00 AM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">General Career Advising</div>
+                    <div class="appointment-card-meta">
+                        Dr. Patricia Williams · 45 min · In Person
+                    </div>
+                    <div class="appointment-card-category">Career Counseling</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-info">Completed</span>
+                </div>
+            </div>
+        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_04">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Jan 15</div>
+                    <div class="appt-date-time">3:00 PM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">Internship Planning</div>
+                    <div class="appointment-card-meta">
+                        Dr. Patricia Williams · 30 min · Virtual on Handshake
+                    </div>
+                    <div class="appointment-card-category">Job &amp; Internship Search</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-info">Completed</span>
+                </div>
+            </div>
+        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_05">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Jan 8</div>
+                    <div class="appt-date-time">9:00 AM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">LinkedIn Profile Review</div>
+                    <div class="appointment-card-meta">
+                        Michael Okafor · 30 min · Phone
+                    </div>
+                    <div class="appointment-card-category">Resume &amp; Cover Letter</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-info">Completed</span>
+                </div>
+            </div>
+        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_06">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Nov 10</div>
+                    <div class="appt-date-time">1:00 PM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">Mock Interview - Behavioral</div>
+                    <div class="appointment-card-meta">
+                        David Kim · 45 min · In Person
+                    </div>
+                    <div class="appointment-card-category">Interview Preparation</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-info">Completed</span>
+                </div>
+            </div>
+        
+            <div class="appointment-card" data-action="viewAppointment" data-appointment-id="appt_07">
+                <div class="appointment-card-date">
+                    <div class="appt-date-month">Sep 20</div>
+                    <div class="appt-date-time">10:00 AM</div>
+                </div>
+                <div class="appointment-card-info">
+                    <div class="appointment-card-type">Major Exploration</div>
+                    <div class="appointment-card-meta">
+                        Maria Rodriguez · 30 min · In Person
+                    </div>
+                    <div class="appointment-card-category">Career Counseling</div>
+                </div>
+                <div class="appointment-card-status">
+                    <span class="status-badge status-info">Completed</span>
+                </div>
+            </div>
+        
+                    </div>
+                
+
+                
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

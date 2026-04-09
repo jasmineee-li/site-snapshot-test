@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xero — Invoicing</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top-bar" id="topBar">
+    <div class="topbar-left">
+      <div class="topbar-brand">Xero</div>
+    </div>
+    <div class="topbar-center">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search invoices, quotes, contacts..." style="">
+        <button class="search-btn" data-action="do-search">🔍</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-org" id="topBarOrg"></div>
+      <div class="topbar-user" id="topBarUser"></div>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <div id="sidebarNav"><div class="sidebar-header"><div class="sidebar-logo">Xero</div><div class="sidebar-org">Demo Company (AU)</div></div><nav class="sidebar-nav"><a class="nav-item" data-route="dashboard"><span class="nav-icon">▢</span><span class="nav-label">Dashboard</span></a><div class="nav-section-title">Sales</div><a class="nav-item" data-route="invoices"><span class="nav-icon">📄</span><span class="nav-label">Invoices</span><span class="nav-badge">13</span></a><a class="nav-item active" data-route="quotes"><span class="nav-icon">📋</span><span class="nav-label">Quotes</span></a><a class="nav-item" data-route="credit-notes"><span class="nav-icon">💳</span><span class="nav-label">Credit Notes</span></a><a class="nav-item" data-route="repeating-invoices"><span class="nav-icon">🔄</span><span class="nav-label">Repeating Invoices</span></a><div class="nav-section-title">Settings</div><a class="nav-item" data-route="settings"><span class="nav-icon">⚙</span><span class="nav-label">Invoice Settings</span></a><a class="nav-item" data-route="templates"><span class="nav-icon">🎨</span><span class="nav-label">Branding Themes</span></a><a class="nav-item" data-route="reminders"><span class="nav-icon">🔔</span><span class="nav-label">Invoice Reminders</span></a></nav></div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <div id="contentWrapper"><div class="page-header"><h1>Quotes</h1><div class="header-actions"><button class="btn btn-primary" data-action="new-quote">New Quote</button></div></div><div class="tabs"><button class="tab active" data-action="switch-tab" data-tab="all">All <span class="tab-count">(8)</span></button><button class="tab" data-action="switch-tab" data-tab="draft">Draft <span class="tab-count">(1)</span></button><button class="tab" data-action="switch-tab" data-tab="sent">Sent <span class="tab-count">(3)</span></button><button class="tab" data-action="switch-tab" data-tab="accepted">Accepted <span class="tab-count">(3)</span></button><button class="tab" data-action="switch-tab" data-tab="declined">Declined <span class="tab-count">(1)</span></button></div><div class="table-container"><table class="data-table" data-testid="quote-table"><thead><tr><th>Number</th><th>Reference</th><th>To</th><th>Date</th><th>Expiry</th><th class="text-right">Total</th><th>Status</th></tr></thead><tbody><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_004">QU-0025</a></td><td></td><td>Fresh Start Catering Co</td><td>1 Mar 2026</td><td>31 Mar 2026</td><td class="text-right">$4,940.00</td><td><span class="status-badge badge-draft">Draft</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_007">QU-0028</a></td><td>MF-AUTO</td><td>Metro Fabrication Works</td><td>28 Feb 2026</td><td>30 Mar 2026</td><td class="text-right">$14,410.00</td><td><span class="status-badge badge-sent">Sent</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_003">QU-0024</a></td><td>AEC-COLLAB</td><td>Atlas Engineering Consultants</td><td>25 Feb 2026</td><td>27 Mar 2026</td><td class="text-right">$76,725.00</td><td><span class="status-badge badge-sent">Sent</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_002">QU-0023</a></td><td></td><td>Redback Mining Supplies</td><td>20 Feb 2026</td><td>22 Mar 2026</td><td class="text-right">$18,780.00</td><td><span class="status-badge badge-sent">Sent</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_008">QU-0029</a></td><td>ALI-PHASE2</td><td>Alpha Logistics International</td><td>10 Feb 2026</td><td>10 Mar 2026</td><td class="text-right">$17,600.00</td><td><span class="status-badge badge-accepted">Accepted</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_005">QU-0026</a></td><td>HM-VID-2026</td><td>Horizon Media &amp; Advertising</td><td>15 Jan 2026</td><td>14 Feb 2026</td><td class="text-right">$36,506.80</td><td><span class="status-badge badge-declined">Declined</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_001">QU-0022</a></td><td>PO-PENDING-9088</td><td>Pinnacle Construction Group</td><td>10 Jan 2026</td><td>10 Feb 2026</td><td class="text-right">$52,360.00</td><td><span class="status-badge badge-accepted">Accepted</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-quote" data-id="quo_006">QU-0027</a></td><td>SES-LMS</td><td>Stellar Education Services</td><td>1 Dec 2025</td><td>31 Dec 2025</td><td class="text-right">$6,600.00</td><td><span class="status-badge badge-accepted">Accepted</span> <span class="status-badge badge-paid">Invoiced</span></td></tr></tbody></table></div></div>
+  </main>
+
+  <div id="modalContainer" style="display:none"></div>
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/app.js"></script>
+
+
+</body></html>

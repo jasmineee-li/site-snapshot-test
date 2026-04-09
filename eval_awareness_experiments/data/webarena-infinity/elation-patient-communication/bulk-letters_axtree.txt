@@ -1,0 +1,15 @@
+- document:
+  - banner:
+    - button "Toggle sidebar": ☰
+    - text: E Elation SC Dr. Chen
+  - navigation:
+    - navigation: 🏠 Practice Home 📨 Patient Letters 12 📤 Sent 📝 Drafts 1 🔔 Reminders 9 👥 Patients 📅 Appointments 📧 Bulk Letters ⚙ Settings
+  - main:
+    - heading "Bulk Letters" [level=1]
+    - button "New Bulk Letter"
+    - strong: Patient portal reminder
+    - text: "Jan 10, 2026, 5:00 AM Subject: Access Your Health Records Online Sent to 15 patients by Sarah Chen Dear Patient, Did you know you can access your health records, message your doctor, and manage appointments through Patient Passport? Sign up today at our front desk or through the link in your invita..."
+    - strong: Holiday office hours notification
+    - text: "Dec 15, 2025, 4:00 AM Subject: Holiday Office Hours Sent to 50 patients by Amanda Wright Dear Patient, Our office will have modified hours during the holiday season. Dec 24-25: Closed. Dec 31-Jan 1: Closed. All other days: Normal hours (8 AM - 5 PM). For urgent needs, please call our afte..."
+    - strong: Flu season reminder 2025
+    - text: "Oct 1, 2025, 4:00 AM Subject: Flu Season Reminder Sent to 42 patients by Sarah Chen Dear Patient, This is a reminder that flu season is here. If you haven't received your flu vaccine yet, please schedule an appointment or visit your nearest pharmacy. The flu vaccine is especially imp..."

@@ -1,0 +1,19 @@
+{
+  "task_id": "task_e20",
+  "difficulty": "easy",
+  "instruction": "Change the Thank You slide's transition type to push.",
+  "passed": true,
+  "verifier_message": "Thank You slide transition type changed to push",
+  "elapsed": 50.1,
+  "steps": 6,
+  "is_done": true,
+  "final_result": "I have successfully changed the transition type of the 'Thank You' slide to 'Push'.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

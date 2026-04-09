@@ -1,0 +1,280 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "Feed" [level=2]
+    - paragraph: Stay connected with your career community
+    - button "Feed"
+    - button "Saved"
+    - text: MC Share something with the community...
+    - button "All"
+    - button "Employers"
+    - button "Top Posts"
+    - button "Intros"
+    - text: G Google 1d ago
+    - button:
+      - img
+    - text: Exciting news! We're expanding our Summer 2026 internship program with 500 new positions across engineering, product, and design. Apply now on Handshake!
+    - button "342":
+      - img
+      - text: "342"
+    - button:
+      - img
+    - button:
+      - img
+    - text: JP Jessica Park Stanford University · 1d ago
+    - button:
+      - img
+    - text: "Just got my return offer from Meta after an amazing summer internship! Happy to share tips about the interview process and what to expect. DM me or comment below! #internship #meta #tech"
+    - button "187":
+      - img
+      - text: "187"
+    - button "2":
+      - img
+      - text: "2"
+    - button:
+      - img
+    - text: TW Tyler Wong Congrats! Would love to hear about the coding interview format. 1d ago AS Anonymous Student How many rounds were there? 1d ago M Meta 3d ago
+    - button:
+      - img
+    - text: We're hosting a virtual info session on AI/ML careers at Meta next Thursday at 5pm PT. Sign up through Events on Handshake! We'll cover team overviews, project highlights, and Q&A with current engineers.
+    - button "256":
+      - img
+      - text: "256"
+    - button "1":
+      - img
+      - text: "1"
+    - button:
+      - img
+    - text: RG Rahul Gupta Is this open to all schools? 2d ago MJ Marcus Johnson University of Michigan · 3d ago
+    - button:
+      - img
+    - text: Just wrapped up my first week at Stripe as a backend engineer. The code review culture here is incredible - I've already learned so much about distributed systems. If anyone is considering Stripe, happy to share my experience!
+    - button "143":
+      - img
+      - text: "143"
+    - button:
+      - img
+    - button:
+      - img
+    - text: A Anthropic 3d ago
+    - button:
+      - img
+    - text: We believe in building AI that is safe, beneficial, and understandable. Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.
+    - button "198":
+      - img
+      - text: "198"
+    - button "1":
+      - img
+      - text: "1"
+    - button:
+      - img
+    - text: MC Maya Chen So excited about this! Just submitted my application for the Research Engineering role. 3d ago AM Aisha Mohammed Howard University · 4d ago
+    - button:
+      - img
+    - text: "Attending the National Society of Black Engineers conference next week! Who else will be there? Let's connect! I'm especially interested in meeting recruiters from tech companies. #NSBE #engineering #diversity"
+    - button "231":
+      - img
+      - text: "231"
+    - button "2":
+      - img
+      - text: "2"
+    - button:
+      - img
+    - text: DW Derek Williams See you there! I'll be at the Google and Microsoft booths. 3d ago JL Jasmine Lewis Can't wait! This will be my first NSBE conference. 3d ago A Amazon
+    - button "+ Follow"
+    - text: 4d ago
+    - button:
+      - img
+    - text: AWS re:Invent was incredible this year! Missed it? Check out our recap and highlights. We're also hiring across all AWS teams - SDE, Solutions Architect, PM, and more. 200+ new grad and intern positions available.
+    - button "178":
+      - img
+      - text: "178"
+    - button:
+      - img
+    - button:
+      - img
+    - text: KO Kevin O'Brien MIT · 4d ago
+    - button:
+      - img
+    - text: "After 6 months of preparation, I finally passed all my FAANG interviews! Here's my study plan: 1. LeetCode: 200 problems (focus on patterns, not quantity) 2. System Design: Grokking + YouTube 3. Behavioral: STAR method with real examples 4. Mock interviews: Pramp + friends Don't give up. The process is tough but worth it."
+    - button "534":
+      - img
+      - text: "534"
+    - button "3":
+      - img
+      - text: "3"
+    - button:
+      - img
+    - text: AS Anonymous Student How long did you study each day? 4d ago PS Priya Sharma Congrats Kevin! Which companies did you end up getting offers from? 4d ago
+    - button "View all 3 comments"
+    - text: M& McKinsey & Company
+    - button "+ Follow"
+    - text: 5d ago
+    - button:
+      - img
+    - text: Thinking about a career in consulting? Join our campus presentation at Stanford on March 15th. We'll cover what it's like to work at McKinsey, the types of projects you'll be on, and tips for the case interview.
+    - button "167":
+      - img
+      - text: "167"
+    - button:
+      - img
+    - button:
+      - img
+    - text: ER Emma Rodriguez Stanford University · 5d ago · Your school
+    - button:
+      - img
+    - text: Hi everyone! I'm a junior studying HCI and I just launched my portfolio website. Would love feedback from fellow designers and anyone in UX. Link in my profile bio. Also open to coffee chats about UX careers!
+    - button "89":
+      - img
+      - text: "89"
+    - button "1":
+      - img
+      - text: "1"
+    - button:
+      - img
+    - text: MC Maya Chen Love your case studies, Emma! The Spotify redesign is really thoughtful. 5d ago A Apple 6d ago
+    - button:
+      - img
+    - text: Our Apple Pathways intern program is designed for students from underrepresented backgrounds in tech. Applications are open for Summer 2026 across engineering, design, and marketing. We're committed to building a workforce as diverse as our user base.
+    - button "289":
+      - img
+      - text: "289"
+    - button:
+      - img
+    - button:
+      - img
+    - text: JT Jordan Taylor Northwestern University · 6d ago
+    - button:
+      - img
+    - text: "Hot take: You don't need to work at a FAANG company to have a great career in tech. I turned down a Big Tech offer to join a Series B startup and it was the best decision I ever made. Ownership, speed, and impact are unmatched."
+    - button "412":
+      - img
+      - text: "412"
+    - button "2":
+      - img
+      - text: "2"
+    - button:
+      - img
+    - text: "AR Alex Rivera Totally agree! I started at a startup and learned more in 6 months than some learn in 2 years at big companies. 6d ago AS Anonymous Student Counter-point: Big Tech gives you brand name recognition and structured mentorship that startups often lack. 6d ago S Stripe 6d ago"
+    - button:
+      - img
+    - text: "Engineering at Stripe: We process hundreds of billions of dollars in payments every year. Behind every transaction is elegant code. Our engineering blog just published a deep dive on our distributed systems architecture. Come build with us!"
+    - button "156":
+      - img
+      - text: "156"
+    - button:
+      - img
+    - button:
+      - img
+    - text: DL David Lee UC Berkeley · 1w ago
+    - button:
+      - img
+    - text: I created a study group for anyone preparing for PM interviews this spring. We meet virtually every Tuesday and Thursday at 7pm PT. Topics include product sense, analytical, and execution questions. Comment or DM to join!
+    - button "276":
+      - img
+      - text: "276"
+    - button "3":
+      - img
+      - text: "3"
+    - button:
+      - img
+    - text: SP Sam Patel This is exactly what I needed. Signing up! 1w ago MT Mia Thompson Is this open to people from other schools? 1w ago
+    - button "View all 3 comments"
+    - text: JC JPMorgan Chase
+    - button "+ Follow"
+    - text: 1w ago
+    - button:
+      - img
+    - text: Our Technology Analyst program is one of the largest in financial services. Over 1,500 new technologists join us each year. This summer, interns will have the opportunity to work on real projects in AI, cloud, and cybersecurity.
+    - button "134":
+      - img
+      - text: "134"
+    - button:
+      - img
+    - button:
+      - img
+    - text: NB Nathan Brooks Rice University · 1w ago
+    - button:
+      - img
+    - text: "Career fair tips from someone who's been to 12 of them: - Research companies beforehand - Prepare your 30-second pitch - Ask thoughtful questions (NOT \"what does your company do?\") - Follow up within 24 hours - Wear comfortable shoes Good luck to everyone attending the Stanford Career Fair next week!"
+    - button "325":
+      - img
+      - text: "325"
+    - button:
+      - img
+    - button:
+      - img
+    - text: TF Teach For America
+    - button "+ Follow"
+    - text: 1w ago
+    - button:
+      - img
+    - text: Every child deserves access to an excellent education. Our 2026 corps applications are still open. All majors welcome. Make an impact that lasts a lifetime. Learn more about the corps member experience on our brand page.
+    - button "98":
+      - img
+      - text: "98"
+    - button:
+      - img
+    - button:
+      - img
+    - text: SW Sophia Williams Harvard University · 1w ago
+    - button:
+      - img
+    - text: "Just finished reading \"Cracking the PM Interview\" - here are my top 5 takeaways for anyone preparing for PM roles: 1. Structure your answers (always) 2. Quantify impact wherever possible 3. Practice out loud, not just in your head 4. Know your \"why\" for each company 5. Build side projects to demonstrate product thinking"
+    - button "267":
+      - img
+      - text: "267"
+    - button "1":
+      - img
+      - text: "1"
+    - button:
+      - img
+    - text: "DL David Lee Great list! I'd add: always tie your answers back to user impact. 1w ago M Microsoft 1w ago"
+    - button:
+      - img
+    - text: "Microsoft Imagine Cup 2026 is here! Form your team and build a solution using Microsoft technology. Grand prize: $100K, mentorship from Microsoft leaders, and Azure credits. Registration closes March 31st."
+    - button "312":
+      - img
+      - text: "312"
+    - button "1":
+      - img
+      - text: "1"
+    - button:
+      - img
+    - text: OH Omar Hassan Looking for teammates! I'm a CS junior with experience in Azure and React. DM me! 1w ago RK Rachel Kim Yale University · 1w ago
+    - button:
+      - img
+    - text: Intro post! I'm Rachel, a sophomore at Yale studying Cognitive Science and CS. I'm interested in the intersection of psychology and technology, especially in UX research and human-AI interaction. Looking to connect with others in this space!
+    - button "145":
+      - img
+      - text: "145"
+    - button:
+      - img
+    - button:
+      - img
+    - text: Showing 20 of 20 results

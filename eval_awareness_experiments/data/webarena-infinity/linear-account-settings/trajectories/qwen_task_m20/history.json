@@ -1,0 +1,54 @@
+{
+  "history": [
+    {
+      "thought": "Action: Click on the \"Security & Access\" option in the left sidebar navigation menu.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[48, 194]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 92,
+          "y": 209
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"Chrome on Linux\" session entry in the sessions list.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[556, 421]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1068,
+          "y": 455
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"Revoke access\" button located in the top-right corner of the expanded Chrome on Linux session details card.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[710, 425]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1364,
+          "y": 459
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the red \"Revoke access\" button in the confirmation dialog to finalize revoking the Chrome on Linux session.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[574, 549]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1103,
+          "y": 593
+        }
+      ]
+    },
+    {
+      "thought": "Action: The task is completed successfully.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "terminate",
+          "status": "success"
+        }
+      ]
+    }
+  ],
+  "format": "vision_agent"
+}

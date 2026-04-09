@@ -1,0 +1,29 @@
+- document:
+  - complementary:
+    - img: T
+    - text: Design System v4.2 Typography
+    - navigation:
+      - img
+      - text: Layers
+      - img: T
+      - text: Typography
+      - img
+      - text: Text Styles
+      - img: Ag
+      - text: Fonts
+      - img
+      - text: Settings
+    - text: SC Sarah Chen Editor
+  - main:
+    - heading "Font Browser" [level=2]
+    - paragraph: Browse and preview available fonts
+    - img
+    - textbox "Search fonts..."
+    - button "All fonts"
+    - button "In this file"
+    - button "Popular"
+    - button "Used at Acme Corp"
+    - button "Installed by you"
+    - button "Google fonts"
+    - button "Variable fonts"
+    - text: 30 fonts Inter Variable Popular The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 9 styles 10 layers Thin Extra Light Light Regular Medium +4 wght slnt Roboto Variable Popular The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 6 styles 1 layer Thin Light Regular Medium Bold +1 wght wdth Open Sans Variable Popular The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 6 styles Light Regular Medium Semi Bold Bold +1 wght Lato Popular The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 5 styles Thin Light Regular Bold Black Montserrat Variable Popular The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 9 styles 2 layers Thin Extra Light Light Regular Medium +4 wght ital Poppins Popular The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 9 styles 1 layer Thin Extra Light Light Regular Medium +4 Playfair Display Variable Popular The quick brown fox jumps over the lazy dog 0123456789 serif Google Fonts 6 styles 1 layer Regular Medium Semi Bold Bold Extra Bold +1 wght Merriweather The quick brown fox jumps over the lazy dog 0123456789 serif Google Fonts 4 styles Light Regular Bold Black Source Code Pro Variable The quick brown fox jumps over the lazy dog 0123456789 monospace Google Fonts 7 styles Extra Light Light Regular Medium Semi Bold +2 wght JetBrains Mono Variable The quick brown fox jumps over the lazy dog 0123456789 monospace Google Fonts 8 styles 1 layer Thin Extra Light Light Regular Medium +3 wght Noto Sans Variable The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 9 styles Thin Extra Light Light Regular Medium +4 wght wdth Noto Serif Variable The quick brown fox jumps over the lazy dog 0123456789 serif Google Fonts 9 styles Thin Extra Light Light Regular Medium +4 wght wdth Noto Sans SC Simplified Chinese The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 6 styles Thin Light Regular Medium Bold +1 Noto Sans TC Traditional Chinese The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 6 styles Thin Light Regular Medium Bold +1 Noto Sans JP Japanese The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 6 styles 1 layer Thin Light Regular Medium Bold +1 Noto Sans KR Korean The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 6 styles Thin Light Regular Medium Bold +1 Noto Sans Arabic Variable Arabic RTL The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 7 styles 1 layer Thin Light Regular Medium Semi Bold +2 wght Noto Sans Hebrew Variable Hebrew RTL The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 7 styles 1 layer Thin Light Regular Medium Semi Bold +2 wght Raleway Variable The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 9 styles Thin Extra Light Light Regular Medium +4 wght Ubuntu The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 4 styles Light Regular Medium Bold PT Sans The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 2 styles Regular Bold Georgia The quick brown fox jumps over the lazy dog 0123456789 serif Installed 2 styles Regular Bold Helvetica Neue The quick brown fox jumps over the lazy dog 0123456789 sans-serif Installed 8 styles Ultra Light Thin Light Regular Medium +3 Arial The quick brown fox jumps over the lazy dog 0123456789 sans-serif Installed 3 styles Regular Bold Black SF Pro Variable The quick brown fox jumps over the lazy dog 0123456789 sans-serif Installed 9 styles Ultra Light Thin Light Regular Medium +4 wght opsz Fira Code Variable The quick brown fox jumps over the lazy dog 0123456789 monospace Installed 5 styles Light Regular Medium Semi Bold Bold wght DM Sans Variable The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 9 styles 1 layer Thin Extra Light Light Regular Medium +4 wght opsz Space Grotesk Variable The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 5 styles Light Regular Medium Semi Bold Bold wght IBM Plex Sans The quick brown fox jumps over the lazy dog 0123456789 sans-serif Google Fonts 7 styles Thin Extra Light Light Regular Medium +2 Crimson Text The quick brown fox jumps over the lazy dog 0123456789 serif Google Fonts 3 styles Regular Semi Bold Bold

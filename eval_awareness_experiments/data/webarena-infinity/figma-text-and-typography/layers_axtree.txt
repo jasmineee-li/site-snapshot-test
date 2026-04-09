@@ -1,0 +1,144 @@
+- document:
+  - complementary:
+    - img: T
+    - text: Design System v4.2 Typography
+    - navigation:
+      - img
+      - text: Layers
+      - img: T
+      - text: Typography
+      - img
+      - text: Text Styles
+      - img: Ag
+      - text: Fonts
+      - img
+      - text: Settings
+    - text: SC Sarah Chen Editor
+  - main:
+    - heading "Text Layers" [level=2]
+    - paragraph: 20 layers in this file
+    - img
+    - textbox "Search layers..."
+    - button "New Text":
+      - img
+      - text: New Text
+    - img: T
+    - text: Page Title Inter Bold · 48px · Heading/H1 Welcome to the Design System
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Body Text Inter Regular · 16px · Body/Regular Figma is a collaborative design tool that enables ...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Section Header Montserrat Semi Bold · 32px · Heading/H2 Typography Settings
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Feature List Inter Regular · 14px Real-time collaboration Component system and varia...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Pricing Tiers Inter Medium · 14px Starter - Free forever Professional - $12/editor/m...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Call to Action Poppins Semi Bold · 18px · Button/Primary Get Started for Free
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Copyright Notice Inter Regular · 12px · Caption/Small (c) 2026 Figma, Inc. All rights reserved. Terms of...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Arabic Welcome Noto Sans Arabic Bold · 28px مرحبا بكم في نظام التصميم
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Hebrew Body Noto Sans Hebrew Regular · 16px עיצוב טיפוגרפי הוא אמנות ומדע של סידור טקסט
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Japanese Heading Noto Sans JP Bold · 24px デザインシステムのガイド
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Truncated Preview Roboto Regular · 14px This is an extremely long text layer that demonstr...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: "Code Sample JetBrains Mono Regular · 13px · Code/Inline const typography = { fontFamily: \"Inter\", font..."
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Variable Font Demo Inter Regular · 20px Variable fonts allow granular control over weight,...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Strikethrough Example Inter Regular · 14px This text has been marked for deletion and review.
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Underlined Link Text Inter Medium · 14px Click here to learn more about advanced typography
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Indented Quote Playfair Display Regular · 22px "Good typography is invisible. Bad typography is e...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Small Caps Header Montserrat Medium · 14px · Label/SmallCaps Design Principles
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Mixed Direction Text Inter Regular · 16px The Arabic word مرحبا means "hello" in English.
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Release Notes Header DM Sans Bold · 36px What's New in v4.2
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img
+    - img: T
+    - text: Step Instructions Inter Regular · 14px Install the font file on your system Open Figma an...
+    - button "Hide":
+      - img
+    - button "Lock":
+      - img

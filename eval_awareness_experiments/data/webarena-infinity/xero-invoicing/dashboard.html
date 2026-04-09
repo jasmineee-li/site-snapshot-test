@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xero — Invoicing</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top-bar" id="topBar">
+    <div class="topbar-left">
+      <div class="topbar-brand">Xero</div>
+    </div>
+    <div class="topbar-center">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search invoices, quotes, contacts...">
+        <button class="search-btn" data-action="do-search">🔍</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-org" id="topBarOrg"></div>
+      <div class="topbar-user" id="topBarUser"></div>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <div id="sidebarNav"><div class="sidebar-header"><div class="sidebar-logo">Xero</div><div class="sidebar-org">Demo Company (AU)</div></div><nav class="sidebar-nav"><a class="nav-item active" data-route="dashboard"><span class="nav-icon">▢</span><span class="nav-label">Dashboard</span></a><div class="nav-section-title">Sales</div><a class="nav-item" data-route="invoices"><span class="nav-icon">📄</span><span class="nav-label">Invoices</span><span class="nav-badge">13</span></a><a class="nav-item" data-route="quotes"><span class="nav-icon">📋</span><span class="nav-label">Quotes</span></a><a class="nav-item" data-route="credit-notes"><span class="nav-icon">💳</span><span class="nav-label">Credit Notes</span></a><a class="nav-item" data-route="repeating-invoices"><span class="nav-icon">🔄</span><span class="nav-label">Repeating Invoices</span></a><div class="nav-section-title">Settings</div><a class="nav-item" data-route="settings"><span class="nav-icon">⚙</span><span class="nav-label">Invoice Settings</span></a><a class="nav-item" data-route="templates"><span class="nav-icon">🎨</span><span class="nav-label">Branding Themes</span></a><a class="nav-item" data-route="reminders"><span class="nav-icon">🔔</span><span class="nav-label">Invoice Reminders</span></a></nav></div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <div id="contentWrapper"><div class="page-header"><h1>Sales Overview</h1><div class="header-actions"><button class="btn btn-primary" data-action="new-invoice">New Invoice</button><button class="btn btn-secondary" data-action="new-quote">New Quote</button></div></div><div class="dashboard-cards"><div class="dash-card dash-card-draft" data-route="invoices" data-tab="draft"><div class="dash-card-label">Draft</div><div class="dash-card-count">3</div><div class="dash-card-total">$8,058.90</div></div><div class="dash-card dash-card-awaiting" data-route="invoices" data-tab="awaiting"><div class="dash-card-label">Awaiting Approval</div><div class="dash-card-count">2</div><div class="dash-card-total">$17,292.00</div></div><div class="dash-card dash-card-payment" data-route="invoices" data-tab="awaiting_payment"><div class="dash-card-label">Awaiting Payment</div><div class="dash-card-count">13</div><div class="dash-card-total">$139,403.10</div></div><div class="dash-card dash-card-overdue" data-route="invoices" data-tab="overdue"><div class="dash-card-label">Overdue</div><div class="dash-card-count">13</div><div class="dash-card-total">$139,403.10</div></div></div><div class="dashboard-summary"><div class="summary-card"><div class="summary-label">Total Outstanding</div><div class="summary-value">$139,403.10</div></div><div class="summary-card overdue"><div class="summary-label">Total Overdue</div><div class="summary-value">$139,403.10</div></div></div><div class="section-header"><h2>Recent Invoices</h2></div><div class="table-container"><table class="data-table" data-testid="invoice-table"><thead><tr><th>Number</th><th>Reference</th><th>To</th><th>Date</th><th>Due Date</th><th class="text-right">Total</th><th class="text-right">Due</th><th>Status</th></tr></thead><tbody><tr class="table-row clickable" data-id="inv_019"><td><a class="link" data-action="view-invoice" data-id="inv_019">INV-0060</a></td><td>RB-CONSULT</td><td>Redback Mining Supplies</td><td>2 Mar 2026</td><td>16 Apr 2026</td><td class="text-right">$3,450.00</td><td class="text-right">$3,450.00</td><td><span class="status-badge badge-draft">Draft</span></td></tr><tr class="table-row clickable" data-id="inv_017"><td><a class="link" data-action="view-invoice" data-id="inv_017">INV-0058</a></td><td>MRW-WEBSITE</td><td>Murray River Winery</td><td>1 Mar 2026</td><td>31 Mar 2026</td><td class="text-right">$4,280.00</td><td class="text-right">$4,280.00</td><td><span class="status-badge badge-draft">Draft</span></td></tr><tr class="table-row clickable" data-id="inv_018"><td><a class="link" data-action="view-invoice" data-id="inv_018">INV-0059</a></td><td></td><td>Bright Spark Electrical</td><td>1 Mar 2026</td><td>31 Mar 2026</td><td class="text-right">$328.90</td><td class="text-right">$328.90</td><td><span class="status-badge badge-draft">Draft</span></td></tr><tr class="table-row clickable" data-id="inv_016"><td><a class="link" data-action="view-invoice" data-id="inv_016">INV-0057</a></td><td></td><td>Stellar Education Services</td><td>28 Feb 2026</td><td>30 Mar 2026</td><td class="text-right">$6,600.00</td><td class="text-right">$6,600.00</td><td><span class="status-badge badge-awaiting">Awaiting Approval</span></td></tr><tr class="table-row clickable" data-id="inv_015"><td><a class="link" data-action="view-invoice" data-id="inv_015">INV-0056</a></td><td>HM-DIGITAL-Q1</td><td>Horizon Media &amp; Advertising</td><td>27 Feb 2026</td><td>31 Mar 2026</td><td class="text-right">$10,692.00</td><td class="text-right">$10,692.00</td><td><span class="status-badge badge-awaiting">Awaiting Approval</span></td></tr><tr class="table-row clickable" data-id="inv_014"><td><a class="link" data-action="view-invoice" data-id="inv_014">INV-0055</a></td><td>TV-Q1-2026</td><td>TechVault Solutions Pty Ltd</td><td>25 Feb 2026</td><td>11 Mar 2026</td><td class="text-right">$41,800.00</td><td class="text-right">$41,800.00</td><td><span class="status-badge badge-awaiting">Awaiting Payment</span></td></tr><tr class="table-row clickable" data-id="inv_013"><td><a class="link" data-action="view-invoice" data-id="inv_013">INV-0054</a></td><td>SBR-WEB</td><td>Sapphire Bay Resort</td><td>22 Feb 2026</td><td>24 Mar 2026</td><td class="text-right">$2,178.00</td><td class="text-right">$2,178.00</td><td><span class="status-badge badge-awaiting">Awaiting Payment</span></td></tr><tr class="table-row clickable" data-id="inv_012"><td><a class="link" data-action="view-invoice" data-id="inv_012">INV-0053</a></td><td></td><td>Vanguard Security Systems</td><td>20 Feb 2026</td><td>22 Mar 2026</td><td class="text-right">$823.90</td><td class="text-right">$823.90</td><td><span class="status-badge badge-awaiting">Awaiting Payment</span></td></tr></tbody></table></div></div>
+  </main>
+
+  <div id="modalContainer" style="display:none"></div>
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/app.js"></script>
+
+
+</body></html>

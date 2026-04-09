@@ -1,0 +1,44 @@
+- document:
+  - banner:
+    - text: ⚡ Superhuman 🔍
+    - textbox "Search emails... (use from:, to:, subject:, has:attachment)"
+    - button "📅"
+    - button "📆"
+    - button "⌘K"
+    - button "⚙"
+    - text: AM
+  - navigation:
+    - button "✎ Compose"
+    - text: ✉ Inbox 10 ★ Starred ✓ Done ⏰ Reminders 6 ➤ Sent ✎ Drafts 2 👁 Recent Opens 📄 Snippets ⚠ Spam 3 🗑 Trash Labels
+    - button "+"
+    - text: Work Personal Finance Clients Urgent Travel Newsletters Recruiting Legal Product Engineering Marketing Receipts Events
+  - main:
+    - heading "Recent Opens" [level=2]
+    - strong: Emily Rodriguez
+    - text: opened "Quarterly Board Update - Q1 2026" Mar 7 iPhone
+    - strong: David Kim
+    - text: "opened \"Proposal: Enterprise Pricing Update\" Mar 7 MacBook Pro"
+    - strong: Lena Johansson
+    - text: opened "Quarterly Board Update - Q1 2026" Mar 7 Windows Desktop
+    - strong: Nate Patel
+    - text: "opened \"Team Offsite - Save the Date: March 12\" Mar 7 iPhone"
+    - strong: Maya Patel
+    - text: "opened \"Team Offsite - Save the Date: March 12\" Mar 7 MacBook Pro"
+    - strong: Jordan Lee
+    - text: opened "Welcome to the team, Jordan!" Mar 7 Android
+    - strong: Robert Singh
+    - text: "opened \"Re: Guest Lecture Request - Stanford\" Mar 6 iMac"
+    - strong: David Kim
+    - text: "opened \"Proposal: Enterprise Pricing Update\" Mar 6 iPhone"
+    - strong: Patrick O'Neil
+    - text: opened "Quarterly Board Update - Q1 2026" Mar 6 MacBook Pro
+    - strong: David Kim
+    - text: "opened \"Re: Partnership Opportunity - FinancePlus x Acme\" Mar 6 MacBook Pro"
+    - strong: Tom Bradley
+    - text: "opened \"Team Offsite - Save the Date: March 12\" Mar 6 iPhone"
+    - strong: Ben Carter
+    - text: "opened \"Team Offsite - Save the Date: March 12\" Mar 6 MacBook Pro"
+    - strong: Sarah Chen
+    - text: "opened \"Team Offsite - Save the Date: March 12\" Mar 6 iPhone"
+    - strong: Rachel Foster
+    - text: "opened \"Team Offsite - Save the Date: March 12\" Mar 6 Windows Desktop"

@@ -1,0 +1,362 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item active" data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-employers">
+                
+            <div class="section-header">
+                <h2 class="section-title">Employers</h2>
+                <p class="section-subtitle">Explore companies and follow the ones you love</p>
+            </div>
+        
+                
+            <div class="search-input-wrapper">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"></circle><path d="M11 11L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                <input type="text" class="search-input" id="employerSearch" placeholder="Search employers by name, industry, or location..." value="" autocomplete="off">
+            </div>
+        
+                <div class="pagination-info">Showing 20 of 20 results</div>
+                <div class="employers-grid">
+                    
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_01">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #4285F4">G</div>
+                                    <button class="btn btn-sm btn-outline" data-action="unfollowEmployer" data-employer-id="emp_01">
+                                        Following
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Google</div>
+                                <div class="employer-card-meta">Technology · Mountain View, CA</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">45,200 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_02">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #003A70">JC</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_02">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">JPMorgan Chase</div>
+                                <div class="employer-card-meta">Finance · New York, NY</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">32,100 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_03">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #00A4EF">M</div>
+                                    <button class="btn btn-sm btn-outline" data-action="unfollowEmployer" data-employer-id="emp_03">
+                                        Following
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Microsoft</div>
+                                <div class="employer-card-meta">Technology · Redmond, WA</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">41,800 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_04">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #003C71">M&amp;</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_04">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">McKinsey &amp; Company</div>
+                                <div class="employer-card-meta">Consulting · New York, NY</div>
+                                <div class="employer-card-meta">5,001-10,000 employees · Private</div>
+                                <div class="employer-card-followers">28,700 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_05">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #000000">A</div>
+                                    <button class="btn btn-sm btn-outline" data-action="unfollowEmployer" data-employer-id="emp_05">
+                                        Following
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Apple</div>
+                                <div class="employer-card-meta">Technology · Cupertino, CA</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">52,300 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_06">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #7399C6">GS</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_06">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Goldman Sachs</div>
+                                <div class="employer-card-meta">Finance · New York, NY</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">29,500 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_07">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #0668E1">M</div>
+                                    <button class="btn btn-sm btn-outline" data-action="unfollowEmployer" data-employer-id="emp_07">
+                                        Following
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Meta</div>
+                                <div class="employer-card-meta">Technology · Menlo Park, CA</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">38,900 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_08">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #86BC25">D</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_08">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Deloitte</div>
+                                <div class="employer-card-meta">Consulting · New York, NY</div>
+                                <div class="employer-card-meta">10,000+ employees · Private</div>
+                                <div class="employer-card-followers">25,400 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_09">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #FF9900">A</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_09">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Amazon</div>
+                                <div class="employer-card-meta">Technology · Seattle, WA</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">47,600 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_10">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #635BFF">S</div>
+                                    <button class="btn btn-sm btn-outline" data-action="unfollowEmployer" data-employer-id="emp_10">
+                                        Following
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Stripe</div>
+                                <div class="employer-card-meta">Technology · San Francisco, CA</div>
+                                <div class="employer-card-meta">1,001-5,000 employees · Private</div>
+                                <div class="employer-card-followers">18,200 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_11">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #CC0000">B&amp;</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_11">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Bain &amp; Company</div>
+                                <div class="employer-card-meta">Consulting · Boston, MA</div>
+                                <div class="employer-card-meta">5,001-10,000 employees · Private</div>
+                                <div class="employer-card-followers">22,300 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_12">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #CC0000">T</div>
+                                    <button class="btn btn-sm btn-outline" data-action="unfollowEmployer" data-employer-id="emp_12">
+                                        Following
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Tesla</div>
+                                <div class="employer-card-meta">Automotive · Austin, TX</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">35,100 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_13">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #1DB954">S</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_13">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Spotify</div>
+                                <div class="employer-card-meta">Media &amp; Entertainment · New York, NY</div>
+                                <div class="employer-card-meta">5,001-10,000 employees · Public</div>
+                                <div class="employer-card-followers">19,800 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_14">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #E44D2E">ES</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_14">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Epic Systems</div>
+                                <div class="employer-card-meta">Healthcare Technology · Verona, WI</div>
+                                <div class="employer-card-meta">5,001-10,000 employees · Private</div>
+                                <div class="employer-card-followers">12,400 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_15">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #D4A574">A</div>
+                                    <button class="btn btn-sm btn-outline" data-action="unfollowEmployer" data-employer-id="emp_15">
+                                        Following
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Anthropic</div>
+                                <div class="employer-card-meta">Artificial Intelligence · San Francisco, CA</div>
+                                <div class="employer-card-meta">501-1,000 employees · Private</div>
+                                <div class="employer-card-followers">15,600 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_16">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #111111">N</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_16">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Nike</div>
+                                <div class="employer-card-meta">Retail · Beaverton, OR</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">31,200 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_17">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #101820">PT</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_17">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Palantir Technologies</div>
+                                <div class="employer-card-meta">Technology · Denver, CO</div>
+                                <div class="employer-card-meta">1,001-5,000 employees · Public</div>
+                                <div class="employer-card-followers">14,300 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_18">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #E31937">TF</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_18">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Teach For America</div>
+                                <div class="employer-card-meta">Nonprofit · New York, NY</div>
+                                <div class="employer-card-meta">1,001-5,000 employees · Nonprofit</div>
+                                <div class="employer-card-followers">8,900 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_19">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #00A1E0">S</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_19">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Salesforce</div>
+                                <div class="employer-card-meta">Technology · San Francisco, CA</div>
+                                <div class="employer-card-meta">10,000+ employees · Public</div>
+                                <div class="employer-card-followers">27,600 followers</div>
+                            </div>
+                        
+                            <div class="employer-card" data-action="viewEmployer" data-employer-id="emp_20">
+                                <div class="employer-card-header">
+                                    <div class="avatar avatar-large" style="background-color: #FF6B35">SG</div>
+                                    <button class="btn btn-sm btn-primary" data-action="followEmployer" data-employer-id="emp_20">
+                                        Follow
+                                    </button>
+                                </div>
+                                <div class="employer-card-name">Startup Grind Labs</div>
+                                <div class="employer-card-meta">Technology · Austin, TX</div>
+                                <div class="employer-card-meta">11-50 employees · Private</div>
+                                <div class="employer-card-followers">420 followers</div>
+                            </div>
+                        
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

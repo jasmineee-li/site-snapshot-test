@@ -1,0 +1,1134 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item active" data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-jobs">
+                
+            <div class="section-header">
+                <h2 class="section-title">Jobs</h2>
+                <p class="section-subtitle">Find internships and full-time positions</p>
+            </div>
+        
+                <div class="jobs-toolbar">
+                    
+            <div class="search-input-wrapper">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"></circle><path d="M11 11L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                <input type="text" class="search-input" id="jobSearch" placeholder="Search jobs, companies, keywords..." value="" autocomplete="off">
+            </div>
+        
+                    <div class="jobs-filters">
+                        
+            <div class="custom-dropdown" id="jobTypeFilter" data-value="">
+                <div class="dropdown-trigger" data-dropdown-id="jobTypeFilter">
+                    <span class="dropdown-value">Job Type</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="jobTypeFilter" data-value="">
+                            
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobTypeFilter" data-value="Internship">
+                            Internship
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobTypeFilter" data-value="Full-time">
+                            Full-time
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobTypeFilter" data-value="Part-time">
+                            Part-time
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                        
+            <div class="custom-dropdown" id="jobLocationFilter" data-value="">
+                <div class="dropdown-trigger" data-dropdown-id="jobLocationFilter">
+                    <span class="dropdown-value">Location</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="jobLocationFilter" data-value="">
+                            
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="San Francisco, CA">
+                            San Francisco, CA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="New York, NY">
+                            New York, NY
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Seattle, WA">
+                            Seattle, WA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Austin, TX">
+                            Austin, TX
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Los Angeles, CA">
+                            Los Angeles, CA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Chicago, IL">
+                            Chicago, IL
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Boston, MA">
+                            Boston, MA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Denver, CO">
+                            Denver, CO
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Atlanta, GA">
+                            Atlanta, GA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLocationFilter" data-value="Miami, FL">
+                            Miami, FL
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                        
+            <div class="custom-dropdown" id="jobLabelFilter" data-value="">
+                <div class="dropdown-trigger" data-dropdown-id="jobLabelFilter">
+                    <span class="dropdown-value">Label</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="jobLabelFilter" data-value="">
+                            
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="STEM">
+                            STEM
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Top Employer">
+                            Top Employer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Finance">
+                            Finance
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Consulting">
+                            Consulting
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="AI/ML">
+                            AI/ML
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Design">
+                            Design
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Healthcare">
+                            Healthcare
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Startup">
+                            Startup
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Remote-Friendly">
+                            Remote-Friendly
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Research">
+                            Research
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Nonprofit">
+                            Nonprofit
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Government">
+                            Government
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Media">
+                            Media
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Manufacturing">
+                            Manufacturing
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Marketing">
+                            Marketing
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Education">
+                            Education
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Consumer">
+                            Consumer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Quantitative">
+                            Quantitative
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Policy">
+                            Policy
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Retail">
+                            Retail
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="jobLabelFilter" data-value="Technology">
+                            Technology
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                    </div>
+                </div>
+                <div class="pagination-info">Showing 30 of 30 results</div>
+                <div class="jobs-list">
+                    
+                            <div class="job-card" data-action="viewJob" data-job-id="job_01">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #4285F4">G</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Software Engineering Intern, Summer 2026</div>
+                                    <div class="job-card-company">Google</div>
+                                    <div class="job-card-meta">
+                                        <span>Mountain View, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$55/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_01">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">2w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_02">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #4285F4">G</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Associate Product Manager Intern</div>
+                                    <div class="job-card-company">Google</div>
+                                    <div class="job-card-meta">
+                                        <span>San Francisco, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$52/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_02">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">2w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_03">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #003A70">JC</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Investment Banking Summer Analyst</div>
+                                    <div class="job-card-company">JPMorgan Chase</div>
+                                    <div class="job-card-meta">
+                                        <span>New York, NY</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$95,000/yr prorated</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Finance</span><span class="job-label">Top Employer</span>
+                                        <span class="job-label job-label-closed">Closed</span>
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn saved" data-action="unsaveJob" data-job-id="job_03">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="#4A90D9"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">Jan 10</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_04">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #00A4EF">M</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Software Engineer Intern</div>
+                                    <div class="job-card-company">Microsoft</div>
+                                    <div class="job-card-meta">
+                                        <span>Redmond, WA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$50/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_04">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">Feb 1</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_05">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #003C71">M&amp;</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Business Analyst Intern</div>
+                                    <div class="job-card-company">McKinsey &amp; Company</div>
+                                    <div class="job-card-meta">
+                                        <span>Multiple Locations</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Competitive</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Consulting</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_05">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">Jan 20</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_06">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #000000">A</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Hardware Engineering Intern</div>
+                                    <div class="job-card-company">Apple</div>
+                                    <div class="job-card-meta">
+                                        <span>Cupertino, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$48/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_06">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">3w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_07">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #0668E1">M</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Machine Learning Engineer Intern</div>
+                                    <div class="job-card-company">Meta</div>
+                                    <div class="job-card-meta">
+                                        <span>Menlo Park, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$56/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">AI/ML</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn saved" data-action="unsaveJob" data-job-id="job_07">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="#4A90D9"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">2w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_08">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #FF9900">A</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">SDE Intern, AWS</div>
+                                    <div class="job-card-company">Amazon</div>
+                                    <div class="job-card-meta">
+                                        <span>Seattle, WA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$51/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_08">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">Feb 5</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_09">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #635BFF">S</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Backend Engineer Intern</div>
+                                    <div class="job-card-company">Stripe</div>
+                                    <div class="job-card-meta">
+                                        <span>San Francisco, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$50/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Startup</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_09">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">1w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_10">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #7399C6">GS</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Summer Analyst, Securities Division</div>
+                                    <div class="job-card-company">Goldman Sachs</div>
+                                    <div class="job-card-meta">
+                                        <span>New York, NY</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$90,000/yr prorated</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Finance</span><span class="job-label">Top Employer</span>
+                                        <span class="job-label job-label-closed">Closed</span>
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_10">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">Jan 15</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_11">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #86BC25">D</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Technology Consulting Intern</div>
+                                    <div class="job-card-company">Deloitte</div>
+                                    <div class="job-card-meta">
+                                        <span>Chicago, IL</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$40/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Consulting</span><span class="job-label">Technology</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_11">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">3w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_12">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #D4A574">A</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Research Engineer Intern</div>
+                                    <div class="job-card-company">Anthropic</div>
+                                    <div class="job-card-meta">
+                                        <span>San Francisco, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$60/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">AI/ML</span><span class="job-label">Research</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn saved" data-action="unsaveJob" data-job-id="job_12">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="#4A90D9"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">1w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_13">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #CC0000">T</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Mechanical Engineering Intern</div>
+                                    <div class="job-card-company">Tesla</div>
+                                    <div class="job-card-meta">
+                                        <span>Austin, TX</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$42/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Manufacturing</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_13">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">3w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_14">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #CC0000">B&amp;</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Associate Consultant Intern</div>
+                                    <div class="job-card-company">Bain &amp; Company</div>
+                                    <div class="job-card-meta">
+                                        <span>Boston, MA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Competitive</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Consulting</span>
+                                        <span class="job-label job-label-closed">Closed</span>
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_14">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">Jan 25</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_15">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #1DB954">S</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Data Science Intern</div>
+                                    <div class="job-card-company">Spotify</div>
+                                    <div class="job-card-meta">
+                                        <span>New York, NY</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$47/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Media</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_15">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">6d ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_16">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #E44D2E">ES</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Technical Solutions Engineer</div>
+                                    <div class="job-card-company">Epic Systems</div>
+                                    <div class="job-card-meta">
+                                        <span>Verona, WI</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Full-time</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$95,000-$115,000/yr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Healthcare</span><span class="job-label">STEM</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_16">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">3w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_17">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #00A1E0">S</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Software Engineer, New Grad</div>
+                                    <div class="job-card-company">Salesforce</div>
+                                    <div class="job-card-meta">
+                                        <span>San Francisco, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Full-time</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$130,000-$160,000/yr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_17">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">2w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_18">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #111111">N</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Product Management Intern</div>
+                                    <div class="job-card-company">Nike</div>
+                                    <div class="job-card-meta">
+                                        <span>Beaverton, OR</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$40/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Retail</span><span class="job-label">Consumer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn saved" data-action="unsaveJob" data-job-id="job_18">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="#4A90D9"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">2w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_19">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #101820">PT</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Forward Deployed Engineer Intern</div>
+                                    <div class="job-card-company">Palantir Technologies</div>
+                                    <div class="job-card-meta">
+                                        <span>Denver, CO</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$55/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Government</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_19">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">2w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_20">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #E31937">TF</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Corps Member 2026</div>
+                                    <div class="job-card-company">Teach For America</div>
+                                    <div class="job-card-meta">
+                                        <span>Multiple Locations</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Full-time</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$33,000-$58,000/yr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Education</span><span class="job-label">Nonprofit</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_20">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">Jan 5</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_21">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #FF6B35">SG</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Full-Stack Engineer (Early Stage)</div>
+                                    <div class="job-card-company">Startup Grind Labs</div>
+                                    <div class="job-card-meta">
+                                        <span>Austin, TX (Remote OK)</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Full-time</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$110,000-$140,000 + equity</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Startup</span><span class="job-label">Remote-Friendly</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_21">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">6d ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_22">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #4285F4">G</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">UX Design Intern</div>
+                                    <div class="job-card-company">Google</div>
+                                    <div class="job-card-meta">
+                                        <span>San Francisco, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$50/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Design</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_22">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">1w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_23">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #00A4EF">M</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Program Manager Intern</div>
+                                    <div class="job-card-company">Microsoft</div>
+                                    <div class="job-card-meta">
+                                        <span>Redmond, WA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$48/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">STEM</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_23">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">2w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_24">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #FF9900">A</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Product Manager Intern</div>
+                                    <div class="job-card-company">Amazon</div>
+                                    <div class="job-card-meta">
+                                        <span>Seattle, WA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$53/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn saved" data-action="unsaveJob" data-job-id="job_24">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="#4A90D9"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">1w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_25">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #000000">A</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Machine Learning / AI Intern</div>
+                                    <div class="job-card-company">Apple</div>
+                                    <div class="job-card-meta">
+                                        <span>Cupertino, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$55/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">AI/ML</span><span class="job-label">Top Employer</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_25">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">6d ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_26">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #0668E1">M</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Product Design Intern</div>
+                                    <div class="job-card-company">Meta</div>
+                                    <div class="job-card-meta">
+                                        <span>Menlo Park, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$52/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Design</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_26">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">1w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_27">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #003A70">JC</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Quantitative Research Analyst</div>
+                                    <div class="job-card-company">JPMorgan Chase</div>
+                                    <div class="job-card-meta">
+                                        <span>New York, NY</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Full-time</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$120,000-$150,000/yr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Finance</span><span class="job-label">Quantitative</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_27">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">3w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_28">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #7399C6">GS</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Engineering Analyst, New Grad</div>
+                                    <div class="job-card-company">Goldman Sachs</div>
+                                    <div class="job-card-meta">
+                                        <span>New York, NY</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Full-time</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$110,000-$135,000/yr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Finance</span><span class="job-label">STEM</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_28">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">3w ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_29">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #D4A574">A</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Policy Research Intern</div>
+                                    <div class="job-card-company">Anthropic</div>
+                                    <div class="job-card-meta">
+                                        <span>San Francisco, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$45/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">AI/ML</span><span class="job-label">Policy</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_29">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">5d ago</div>
+                                </div>
+                            </div>
+                        
+                            <div class="job-card" data-action="viewJob" data-job-id="job_30">
+                                <div class="job-card-left">
+                                    <div class="avatar avatar-medium" style="background-color: #00A1E0">S</div>
+                                </div>
+                                <div class="job-card-info">
+                                    <div class="job-card-title">Marketing Analyst Intern</div>
+                                    <div class="job-card-company">Salesforce</div>
+                                    <div class="job-card-meta">
+                                        <span>San Francisco, CA</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>Internship</span>
+                                        <span class="meta-sep">·</span>
+                                        <span>$38/hr</span>
+                                    </div>
+                                    <div class="job-card-tags">
+                                        <span class="job-label">Marketing</span>
+                                        
+                                    </div>
+                                </div>
+                                <div class="job-card-right">
+                                    <button class="icon-btn bookmark-btn " data-action="saveJob" data-job-id="job_30">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 2h12v16l-6-3-6 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                                    </button>
+                                    <div class="job-card-posted">1w ago</div>
+                                </div>
+                            </div>
+                        
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

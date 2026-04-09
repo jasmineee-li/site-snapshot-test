@@ -1,0 +1,12 @@
+{
+  "task_id": "task_h28",
+  "difficulty": "hard",
+  "instruction": "Find the Q&A question about Google's interview process. Mark the non-anonymous answer as helpful, then bookmark Google's post in the feed.",
+  "passed": true,
+  "verifier_message": "ans_01 (Tyler Wong on qa_01) marked as helpful and post_01 (Google) is bookmarked.",
+  "elapsed": 63.3,
+  "steps": 6,
+  "is_done": true,
+  "final_result": "## Action:\nTerminate the task with success status as both objectives have been completed.\n\n## Code:\n```code\ncomputer.terminate(status=\"success\", answer='''Successfully completed both tasks:\n1. Found the Q&A question \"What is the Google SWE internship interview process like?\" and marked Tyler Wong's non-anonymous answer as helpful (the Helpful button now shows \"Helpful (68)\" in orange)\n2. Bookmarked Google's post in the feed about expanding their Summer 2026 internship program (the bookmark icon is now filled with blue color)''')\n```",
+  "errors": []
+}

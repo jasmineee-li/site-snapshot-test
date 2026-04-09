@@ -1,0 +1,87 @@
+- document:
+  - banner:
+    - text: "Elation Rodriguez, James Male | DOB: May 13, 1978 (47y) | MRN: pat_001"
+    - img
+    - text: Dr. Sarah Mitchell
+  - navigation:
+    - img
+    - text: Chart
+    - img
+    - text: Meds Hx
+    - img
+    - text: Rx Requests 8
+    - img
+    - text: Settings
+    - button "Prescribe":
+      - img: Rx
+      - text: Prescribe
+    - button "Document Med":
+      - img
+      - text: Document Med
+  - main:
+    - heading "Prescription Settings" [level=2]
+    - text: Rx Templates Custom Rx Sigs Drug Decision Support Preferences
+    - heading "Rx Templates" [level=3]
+    - button "Add Rx Template":
+      - img
+      - text: Add Rx Template
+    - text: "Lisinopril 10mg tablet Take 1 tablet by mouth once daily Qty: 30 tablets | Refills: 3 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Lisinopril 20mg tablet Take 1 tablet by mouth once daily Qty: 30 tablets | Refills: 3 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Metformin 500mg tablet Take 1 tablet by mouth twice daily with meals Qty: 60 tablets | Refills: 5 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Metformin 1000mg tablet Take 1 tablet by mouth twice daily with meals Qty: 60 tablets | Refills: 5 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Atorvastatin 20mg tablet Take 1 tablet by mouth at bedtime Qty: 30 tablets | Refills: 5 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Atorvastatin 40mg tablet Take 1 tablet by mouth at bedtime Qty: 30 tablets | Refills: 5 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Omeprazole 20mg capsule Take 1 capsule by mouth once daily before breakfast Qty: 30 capsules | Refills: 3 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Amoxicillin 500mg capsule Take 1 capsule by mouth three times daily for 10 days Qty: 30 capsules | Refills: 0 | Days: 10"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Azithromycin 250mg tablet (Z-Pack) Take 2 tablets day 1, then 1 tablet daily for days 2-5 Qty: 6 tablets | Refills: 0 | Days: 5"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Prednisone 10mg tablet (taper) Take as directed: 4 tabs day 1-2, 3 tabs day 3-4, 2 tabs day 5-6, 1 tab day 7 Qty: 21 tablets | Refills: 0 | Days: 7"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Sertraline 50mg tablet Take 1 tablet by mouth once daily in the morning Qty: 30 tablets | Refills: 5 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img
+    - text: "Amlodipine 5mg tablet Take 1 tablet by mouth once daily Qty: 30 tablets | Refills: 3 | Days: 30"
+    - button:
+      - img
+    - button:
+      - img

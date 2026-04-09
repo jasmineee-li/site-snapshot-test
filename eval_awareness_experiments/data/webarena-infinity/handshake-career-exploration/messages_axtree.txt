@@ -1,0 +1,35 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "Messages" [level=2]
+    - paragraph: Messages from employers
+    - button "Mark all as read"
+    - button "All"
+    - button "Unread 4"
+    - button "Top Match"
+    - text: "G Google Top Match 1d ago You're a top match for Software Engineering Intern! Hi Maya, Based on your profile, you're in the top 15% of candidates for our Software Engineering In... A Anthropic 2d ago Research Engineering Intern - Application Update Hi Maya, Thank you for your application to our Research Engineering Intern position. We were impres... M Meta Top Match 2d ago Exclusive: ML Engineer Intern positions now open Hi Maya, As a student who has expressed interest in machine learning, we wanted to let you know abo... M& McKinsey & Company 4d ago McKinsey campus presentation - See you there? Hi Maya, McKinsey & Company is hosting a campus presentation at Stanford on March 15th. We'll discu... M Microsoft 5d ago Your profile caught our attention! Hi Maya, Your Handshake profile stood out to our recruiting team. With your experience in software ... S Stripe 6d ago Backend Engineer Intern - We think you'd be great Hi Maya, We noticed your strong background in systems and algorithms. Our Backend Engineer Intern r... A Amazon 1w ago Amazon SDE Intern - Apply Now Dear Maya, Amazon is actively recruiting for SDE Intern positions across AWS, Alexa, and Amazon.com... A Apple Top Match 1w ago Apple Pathways - Exclusive invitation Hi Maya, You've been identified as a strong candidate for Apple's Pathways program, designed for ex... JC JPMorgan Chase 2w ago Tech Analyst Program - Applications Still Open Hi Maya, Our Technology Analyst program combines finance and engineering. If you're interested in f... S Salesforce 2w ago Futureforce Internship Program Hi Maya, Join Salesforce's Futureforce program and help build the future of CRM and enterprise soft... B& Bain & Company 3w ago Bain Associate Consultant Intern - Application Reminder Hi Maya, This is a friendly reminder that applications for our Associate Consultant Intern position... T Tesla 4w ago Tesla Summer Internships - Engineering Hello Maya, Tesla is looking for passionate engineers to join us this summer. While our focus inclu..."

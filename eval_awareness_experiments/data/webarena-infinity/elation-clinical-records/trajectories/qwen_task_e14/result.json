@@ -1,0 +1,12 @@
+{
+  "task_id": "task_e14",
+  "difficulty": "easy",
+  "instruction": "Add a priority tag '*High-Risk' to William O'Brien's chart.",
+  "passed": true,
+  "verifier_message": "Successfully verified that '*High-Risk' priority tag has been added to William O'Brien.",
+  "elapsed": 45.3,
+  "steps": 6,
+  "is_done": true,
+  "final_result": "Action: Terminate the task with a success status, as the goal of adding the '*High-Risk' priority tag to William O'Brien's chart has been successfully completed.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+  "errors": []
+}

@@ -1,0 +1,53 @@
+- document:
+  - banner:
+    - text: "Elation Rodriguez, James Male | DOB: May 13, 1978 (47y) | MRN: pat_001"
+    - img
+    - text: Dr. Sarah Mitchell
+  - navigation:
+    - img
+    - text: Chart
+    - img
+    - text: Meds Hx
+    - img
+    - text: Rx Requests 8
+    - img
+    - text: Settings
+    - button "Prescribe":
+      - img: Rx
+      - text: Prescribe
+    - button "Document Med":
+      - img
+      - text: Document Med
+  - main:
+    - heading "Rx Requests" [level=2]
+    - text: "Requiring Action (8) Refill Request Pending Feb 28, 2026 Lisinopril 10mg tablet Pharmacy: CVS Pharmacy #4521 Last Rx: Take 1 tablet by mouth once daily | Qty: 30 | Refills: 3 Last Dispensed: Jan 17, 2026"
+    - button "Approve"
+    - button "Approve with Modifications"
+    - button "Deny"
+    - text: "Refill Request Pending Feb 28, 2026 Atorvastatin 20mg tablet Pharmacy: CVS Pharmacy #4521 Last Rx: Take 1 tablet by mouth at bedtime | Qty: 30 | Refills: 5 Last Dispensed: Jan 19, 2026"
+    - button "Approve"
+    - button "Approve with Modifications"
+    - button "Deny"
+    - text: "Refill Request Pending Feb 27, 2026 Gabapentin 300mg capsule Pharmacy: CVS Pharmacy #4521 Last Rx: Take 1 capsule by mouth three times daily | Qty: 90 | Refills: 2 Last Dispensed: Dec 19, 2025 Patient reports running low, needs refill urgently"
+    - button "Approve"
+    - button "Approve with Modifications"
+    - button "Deny"
+    - text: "Refill Request Pending Feb 26, 2026 Omeprazole 20mg capsule Pharmacy: CVS Pharmacy #4521 Last Rx: Take 1 capsule by mouth once daily before breakfast | Qty: 30 | Refills: 3 Last Dispensed: Jan 9, 2026"
+    - button "Approve"
+    - button "Approve with Modifications"
+    - button "Deny"
+    - text: "Refill Request Pending Mar 1, 2026 Sertraline 50mg tablet Pharmacy: Walgreens #7892 Last Rx: Take 1 tablet by mouth once daily in the morning | Qty: 30 | Refills: 5 Last Dispensed: Jan 7, 2026"
+    - button "Approve"
+    - button "Approve with Modifications"
+    - button "Deny"
+    - text: "Refill Request Pending Mar 1, 2026 Metoprolol Succinate ER 50mg tablet Pharmacy: CVS Pharmacy #4521 Last Rx: Take 1 tablet by mouth once daily | Qty: 30 | Refills: 5 Last Dispensed: Jan 24, 2026"
+    - button "Approve"
+    - button "Approve with Modifications"
+    - button "Deny"
+    - text: "Change Request Pending Feb 28, 2026 Atorvastatin 20mg tablet Pharmacy: CVS Pharmacy #4521 Reason: Generic substitution - Rosuvastatin is preferred on patient formulary Requested: Atorvastatin 20mg tablet → Rosuvastatin 10mg tablet"
+    - button "Approve"
+    - button "Deny & Add Reason"
+    - text: "Change Request Pending Feb 27, 2026 Gabapentin 300mg capsule Pharmacy: CVS Pharmacy #4521 Reason: Clarification - Please confirm if patient should take 1 capsule TID or 2 capsules BID"
+    - button "Approve"
+    - button "Deny & Add Reason"
+    - text: "Recently Processed (2) Refill Request Approved Feb 25, 2026 Metformin 500mg tablet Pharmacy: CVS Pharmacy #4521 Last Rx: Take 1 tablet by mouth twice daily with meals | Qty: 60 | Refills: 5 Last Dispensed: Jan 21, 2026 Refill Request Denied Feb 24, 2026 Tramadol 50mg tablet Pharmacy: CVS Pharmacy #4521 Last Rx: Take 1 tablet by mouth every 6 hours as needed for pain | Qty: 30 | Refills: 0 Last Dispensed: Feb 1, 2023 Denial reason: Medication has been discontinued. Patient is now on Gabapentin for pain management."

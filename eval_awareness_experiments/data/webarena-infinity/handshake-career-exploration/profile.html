@@ -1,0 +1,227 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-profile">
+                
+            <div class="section-header">
+                <h2 class="section-title">My Profile</h2>
+                <p class="section-subtitle">Manage your profile information</p>
+            </div>
+        
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <div class="avatar avatar-xlarge" style="background-color: #4A90D9">MC</div>
+                        <div class="profile-header-info">
+                            <h2>Maya Chen</h2>
+                            <p>Stanford University · Computer Science · Class of 2027</p>
+                            <p>Stanford, CA</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-section">
+                    <h3>About</h3>
+                    <div class="profile-field-row">
+                        <label>Bio</label>
+                        <div class="profile-field-value" id="field-bio">CS student passionate about AI/ML and product design. Looking for summer 2026 internship opportunities in tech.</div>
+                        <button class="btn-edit" data-action="editProfileField" data-field="bio">Edit</button>
+                    </div>
+                    <div class="profile-field-row">
+                        <label>Email</label>
+                        <div class="profile-field-value">maya.chen@stanford.edu</div>
+                        <button class="btn-edit" data-action="editProfileField" data-field="email">Edit</button>
+                    </div>
+                    <div class="profile-field-row">
+                        <label>Phone</label>
+                        <div class="profile-field-value">(650) 555-0142</div>
+                        <button class="btn-edit" data-action="editProfileField" data-field="phone">Edit</button>
+                    </div>
+                    <div class="profile-field-row">
+                        <label>LinkedIn</label>
+                        <div class="profile-field-value">linkedin.com/in/mayachen</div>
+                        <button class="btn-edit" data-action="editProfileField" data-field="linkedinUrl">Edit</button>
+                    </div>
+                    <div class="profile-field-row">
+                        <label>Website</label>
+                        <div class="profile-field-value">mayachen.dev</div>
+                        <button class="btn-edit" data-action="editProfileField" data-field="websiteUrl">Edit</button>
+                    </div>
+                </div>
+
+                <div class="profile-section">
+                    <h3>Looking For</h3>
+                    <div class="profile-field-row">
+                        <label>Current status</label>
+                        <div class="profile-field-value">Internship</div>
+                    </div>
+                    <div class="profile-field-row">
+                        <label>Roles</label>
+                        <div class="profile-field-tags"><span class="tag">Software Engineer</span><span class="tag">Product Manager</span><span class="tag">Data Scientist</span><span class="tag">UX Designer</span></div>
+                    </div>
+                    <div class="profile-field-row">
+                        <label>Industries</label>
+                        <div class="profile-field-tags"><span class="tag">Technology</span><span class="tag">Artificial Intelligence</span><span class="tag">Finance</span><span class="tag">Healthcare Technology</span></div>
+                    </div>
+                    <div class="profile-field-row">
+                        <label>Locations</label>
+                        <div class="profile-field-tags"><span class="tag">San Francisco, CA</span><span class="tag">New York, NY</span><span class="tag">Seattle, WA</span><span class="tag">Austin, TX</span><span class="tag">Remote</span></div>
+                    </div>
+                    <button class="btn btn-outline" data-action="navigate" data-page="career-interests">Edit Career Interests</button>
+                </div>
+
+                <div class="profile-section">
+                    <h3>Profile Visibility</h3>
+                    <div class="profile-field-row">
+                        <label>Who can see your profile</label>
+                        
+            <div class="custom-dropdown" id="profileVisibility" data-value="Community">
+                <div class="dropdown-trigger" data-dropdown-id="profileVisibility">
+                    <span class="dropdown-value">Community</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="profileVisibility" data-value="Public">
+                            Public
+                            
+                        </div>
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="profileVisibility" data-value="Community">
+                            Community
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="profileVisibility" data-value="Employers">
+                            Employers
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="profileVisibility" data-value="Private">
+                            Private
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                    </div>
+                    <p class="help-text">Public: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you.</p>
+                </div>
+
+                <div class="profile-section">
+                    <h3>Work Experience</h3>
+                    
+                        <div class="experience-card">
+                            <div class="exp-title">Software Engineering Intern</div>
+                            <div class="exp-company">Meta</div>
+                            <div class="exp-dates">2025-06-01 - 2025-08-31</div>
+                            <div class="exp-desc">Built ML pipeline for content recommendations</div>
+                        </div>
+                    
+                        <div class="experience-card">
+                            <div class="exp-title">Research Assistant</div>
+                            <div class="exp-company">Stanford AI Lab</div>
+                            <div class="exp-dates">2025-01-15 - Present</div>
+                            <div class="exp-desc">NLP research under Prof. Manning</div>
+                        </div>
+                    
+                        <div class="experience-card">
+                            <div class="exp-title">Product Design Intern</div>
+                            <div class="exp-company">Figma</div>
+                            <div class="exp-dates">2024-06-15 - 2024-08-30</div>
+                            <div class="exp-desc">Redesigned plugin marketplace UX</div>
+                        </div>
+                    
+                </div>
+
+                <div class="profile-section">
+                    <h3>Skills</h3>
+                    <div class="profile-field-tags"><span class="tag">Python</span><span class="tag">JavaScript</span><span class="tag">React</span><span class="tag">Machine Learning</span><span class="tag">SQL</span><span class="tag">Figma</span><span class="tag">Product Strategy</span></div>
+                </div>
+
+                <div class="profile-section">
+                    <h3>Organizations</h3>
+                    <div class="profile-field-tags"><span class="tag">Stanford Women in Tech</span><span class="tag">ACM Student Chapter</span><span class="tag">Entrepreneurship Club</span></div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

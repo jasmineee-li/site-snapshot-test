@@ -1,0 +1,108 @@
+- document:
+  - complementary:
+    - text: ☤ Elation Dr. Sarah Chen Greenwood Family Medicine
+    - navigation: 👤 Patients 📄 Templates 📁 Categories ⚙ Settings
+  - main:
+    - heading "Settings" [level=2]
+    - heading "Provider Preferences" [level=3]
+    - text: Coded Visit Note Assessments
+    - paragraph: Show ICD-10 code search in assessment fields
+    - text: Show Dx Codes in Print
+    - paragraph: Display diagnosis codes in printed/faxed/shared notes
+    - text: Default Visit Note Format
+    - paragraph: Format used when creating new visit notes
+    - text: complete_hp ▾
+    - heading "Appointment Types & Visit Note Automation" [level=3]
+    - paragraph: Configure which visit note format, category, and template auto-populate when starting a note from each appointment type.
+    - table:
+      - rowgroup:
+        - row "Appointment Type Duration Note Format Category Template Actions":
+          - columnheader "Appointment Type"
+          - columnheader "Duration"
+          - columnheader "Note Format"
+          - columnheader "Category"
+          - columnheader "Template"
+          - columnheader "Actions"
+      - rowgroup:
+        - row "Office Visit 30 min Complete H&P Note (2-Column) Office Visit E* Problem-Focused Visit Edit":
+          - cell "Office Visit"
+          - cell "30 min"
+          - cell "Complete H&P Note (2-Column)"
+          - cell "Office Visit"
+          - cell "E* Problem-Focused Visit"
+          - cell "Edit":
+            - button "Edit"
+        - row "Annual Exam 60 min Complete H&P Note (2-Column) Annual Exam E* Annual Wellness Visit Edit":
+          - cell "Annual Exam"
+          - cell "60 min"
+          - cell "Complete H&P Note (2-Column)"
+          - cell "Annual Exam"
+          - cell "E* Annual Wellness Visit"
+          - cell "Edit":
+            - button "Edit"
+        - row "Telehealth Visit 20 min H&P Note (Single Column) Telehealth Telehealth Follow-Up Edit":
+          - cell "Telehealth Visit"
+          - cell "20 min"
+          - cell "H&P Note (Single Column)"
+          - cell "Telehealth"
+          - cell "Telehealth Follow-Up"
+          - cell "Edit":
+            - button "Edit"
+        - row "Flu Shot 15 min Simple Note Vaccination Only Flu Shot Administration Edit":
+          - cell "Flu Shot"
+          - cell "15 min"
+          - cell "Simple Note"
+          - cell "Vaccination Only"
+          - cell "Flu Shot Administration"
+          - cell "Edit":
+            - button "Edit"
+        - row "COVID Vaccine 30 min Simple Note Vaccination Only COVID-19 Vaccine Visit Edit":
+          - cell "COVID Vaccine"
+          - cell "30 min"
+          - cell "Simple Note"
+          - cell "Vaccination Only"
+          - cell "COVID-19 Vaccine Visit"
+          - cell "Edit":
+            - button "Edit"
+        - row "Follow-Up 20 min Complete H&P Note (2-Column) Follow-Up None Edit":
+          - cell "Follow-Up"
+          - cell "20 min"
+          - cell "Complete H&P Note (2-Column)"
+          - cell "Follow-Up"
+          - cell "None"
+          - cell "Edit":
+            - button "Edit"
+        - row "Procedure 45 min Complete H&P Note (2-Column) Procedure None Edit":
+          - cell "Procedure"
+          - cell "45 min"
+          - cell "Complete H&P Note (2-Column)"
+          - cell "Procedure"
+          - cell "None"
+          - cell "Edit":
+            - button "Edit"
+        - row "Urgent Same-Day 20 min Complete H&P Note (2-Column) Urgent Visit None Edit":
+          - cell "Urgent Same-Day"
+          - cell "20 min"
+          - cell "Complete H&P Note (2-Column)"
+          - cell "Urgent Visit"
+          - cell "None"
+          - cell "Edit":
+            - button "Edit"
+        - row "Well Child Check 45 min Complete H&P Note (2-Column) Annual Exam Well Child Visit (2-5 years) Edit":
+          - cell "Well Child Check"
+          - cell "45 min"
+          - cell "Complete H&P Note (2-Column)"
+          - cell "Annual Exam"
+          - cell "Well Child Visit (2-5 years)"
+          - cell "Edit":
+            - button "Edit"
+        - row "Pre-Op Clearance 60 min Pre-Op H&P Note Pre-Op Evaluation Pre-Operative Evaluation Edit":
+          - cell "Pre-Op Clearance"
+          - cell "60 min"
+          - cell "Pre-Op H&P Note"
+          - cell "Pre-Op Evaluation"
+          - cell "Pre-Operative Evaluation"
+          - cell "Edit":
+            - button "Edit"
+    - heading "Practice Information" [level=3]
+    - text: Practice Name Greenwood Family Medicine Address 2847 Greenwood Ave, Suite 300, Seattle, WA 98103 Phone (206) 555-0142 Fax (206) 555-0143

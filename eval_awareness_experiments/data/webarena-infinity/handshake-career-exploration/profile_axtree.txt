@@ -1,0 +1,58 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "My Profile" [level=2]
+    - paragraph: Manage your profile information
+    - text: MC
+    - heading "Maya Chen" [level=2]
+    - paragraph: Stanford University · Computer Science · Class of 2027
+    - paragraph: Stanford, CA
+    - heading "About" [level=3]
+    - text: Bio CS student passionate about AI/ML and product design. Looking for summer 2026 internship opportunities in tech.
+    - button "Edit"
+    - text: Email maya.chen@stanford.edu
+    - button "Edit"
+    - text: Phone (650) 555-0142
+    - button "Edit"
+    - text: LinkedIn linkedin.com/in/mayachen
+    - button "Edit"
+    - text: Website mayachen.dev
+    - button "Edit"
+    - heading "Looking For" [level=3]
+    - text: Current status Internship Roles Software Engineer Product Manager Data Scientist UX Designer Industries Technology Artificial Intelligence Finance Healthcare Technology Locations San Francisco, CA New York, NY Seattle, WA Austin, TX Remote
+    - button "Edit Career Interests"
+    - heading "Profile Visibility" [level=3]
+    - text: Who can see your profile Community
+    - img
+    - paragraph: "Public: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you."
+    - heading "Work Experience" [level=3]
+    - text: Software Engineering Intern Meta 2025-06-01 - 2025-08-31 Built ML pipeline for content recommendations Research Assistant Stanford AI Lab 2025-01-15 - Present NLP research under Prof. Manning Product Design Intern Figma 2024-06-15 - 2024-08-30 Redesigned plugin marketplace UX
+    - heading "Skills" [level=3]
+    - text: Python JavaScript React Machine Learning SQL Figma Product Strategy
+    - heading "Organizations" [level=3]
+    - text: Stanford Women in Tech ACM Student Chapter Entrepreneurship Club

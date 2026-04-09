@@ -1,0 +1,19 @@
+{
+  "task_id": "task_m8",
+  "difficulty": "medium",
+  "instruction": "Remove all collaborators who have the Viewer role.",
+  "passed": true,
+  "verifier_message": "All Viewer collaborators removed, 5 non-Viewer collaborators remain",
+  "elapsed": 81.2,
+  "steps": 6,
+  "is_done": true,
+  "final_result": "I have successfully removed all collaborators with the 'Viewer' role. James O'Brien and Tom Nguyen have been removed from the access list. The remaining collaborators are Sarah Chen (Owner) and five others with 'Can edit' permissions.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

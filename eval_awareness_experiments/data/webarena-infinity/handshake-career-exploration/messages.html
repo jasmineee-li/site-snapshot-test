@@ -1,0 +1,310 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item active" data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-messages">
+                <div class="messages-header">
+                    
+            <div class="section-header">
+                <h2 class="section-title">Messages</h2>
+                <p class="section-subtitle">Messages from employers</p>
+            </div>
+        
+                    <button class="btn btn-sm btn-outline" data-action="markAllRead">Mark all as read</button>
+                </div>
+                
+            <div class="tab-bar">
+                
+                    <button class="tab-item active" data-action="setMessageFilter" data-tab="all">
+                        All
+                        
+                    </button>
+                
+                    <button class="tab-item " data-action="setMessageFilter" data-tab="unread">
+                        Unread
+                        <span class="tab-count">4</span>
+                    </button>
+                
+                    <button class="tab-item " data-action="setMessageFilter" data-tab="top-match">
+                        Top Match
+                        
+                    </button>
+                
+            </div>
+        
+                <div class="messages-list">
+                    
+                        <div class="message-row unread" data-action="viewMessage" data-message-id="msg_01">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #4285F4">G</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Google</span>
+                                    <span class="top-match-badge">Top Match</span>
+                                    <span class="message-time">1d ago</span>
+                                </div>
+                                <div class="message-subject">You're a top match for Software Engineering Intern!</div>
+                                <div class="message-preview">Hi Maya,  Based on your profile, you're in the top 15% of candidates for our Software Engineering In...</div>
+                            </div>
+                            <div class="unread-dot"></div>
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_02">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #D4A574">A</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Anthropic</span>
+                                    
+                                    <span class="message-time">2d ago</span>
+                                </div>
+                                <div class="message-subject">Research Engineering Intern - Application Update</div>
+                                <div class="message-preview">Hi Maya,  Thank you for your application to our Research Engineering Intern position. We were impres...</div>
+                            </div>
+                            
+                        </div>
+                    
+                        <div class="message-row unread" data-action="viewMessage" data-message-id="msg_03">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #0668E1">M</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Meta</span>
+                                    <span class="top-match-badge">Top Match</span>
+                                    <span class="message-time">2d ago</span>
+                                </div>
+                                <div class="message-subject">Exclusive: ML Engineer Intern positions now open</div>
+                                <div class="message-preview">Hi Maya,  As a student who has expressed interest in machine learning, we wanted to let you know abo...</div>
+                            </div>
+                            <div class="unread-dot"></div>
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_04">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #003C71">M&amp;</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">McKinsey &amp; Company</span>
+                                    
+                                    <span class="message-time">4d ago</span>
+                                </div>
+                                <div class="message-subject">McKinsey campus presentation - See you there?</div>
+                                <div class="message-preview">Hi Maya,  McKinsey &amp; Company is hosting a campus presentation at Stanford on March 15th. We'll discu...</div>
+                            </div>
+                            
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_05">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #00A4EF">M</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Microsoft</span>
+                                    
+                                    <span class="message-time">5d ago</span>
+                                </div>
+                                <div class="message-subject">Your profile caught our attention!</div>
+                                <div class="message-preview">Hi Maya,  Your Handshake profile stood out to our recruiting team. With your experience in software ...</div>
+                            </div>
+                            
+                        </div>
+                    
+                        <div class="message-row unread" data-action="viewMessage" data-message-id="msg_06">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #635BFF">S</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Stripe</span>
+                                    
+                                    <span class="message-time">6d ago</span>
+                                </div>
+                                <div class="message-subject">Backend Engineer Intern - We think you'd be great</div>
+                                <div class="message-preview">Hi Maya,  We noticed your strong background in systems and algorithms. Our Backend Engineer Intern r...</div>
+                            </div>
+                            <div class="unread-dot"></div>
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_07">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #FF9900">A</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Amazon</span>
+                                    
+                                    <span class="message-time">1w ago</span>
+                                </div>
+                                <div class="message-subject">Amazon SDE Intern - Apply Now</div>
+                                <div class="message-preview">Dear Maya,  Amazon is actively recruiting for SDE Intern positions across AWS, Alexa, and Amazon.com...</div>
+                            </div>
+                            
+                        </div>
+                    
+                        <div class="message-row unread" data-action="viewMessage" data-message-id="msg_08">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #000000">A</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Apple</span>
+                                    <span class="top-match-badge">Top Match</span>
+                                    <span class="message-time">1w ago</span>
+                                </div>
+                                <div class="message-subject">Apple Pathways - Exclusive invitation</div>
+                                <div class="message-preview">Hi Maya,  You've been identified as a strong candidate for Apple's Pathways program, designed for ex...</div>
+                            </div>
+                            <div class="unread-dot"></div>
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_09">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #003A70">JC</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">JPMorgan Chase</span>
+                                    
+                                    <span class="message-time">2w ago</span>
+                                </div>
+                                <div class="message-subject">Tech Analyst Program - Applications Still Open</div>
+                                <div class="message-preview">Hi Maya,  Our Technology Analyst program combines finance and engineering. If you're interested in f...</div>
+                            </div>
+                            
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_10">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #00A1E0">S</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Salesforce</span>
+                                    
+                                    <span class="message-time">2w ago</span>
+                                </div>
+                                <div class="message-subject">Futureforce Internship Program</div>
+                                <div class="message-preview">Hi Maya,  Join Salesforce's Futureforce program and help build the future of CRM and enterprise soft...</div>
+                            </div>
+                            
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_11">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #CC0000">B&amp;</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Bain &amp; Company</span>
+                                    
+                                    <span class="message-time">3w ago</span>
+                                </div>
+                                <div class="message-subject">Bain Associate Consultant Intern - Application Reminder</div>
+                                <div class="message-preview">Hi Maya,  This is a friendly reminder that applications for our Associate Consultant Intern position...</div>
+                            </div>
+                            
+                        </div>
+                    
+                        <div class="message-row " data-action="viewMessage" data-message-id="msg_12">
+                            <div class="message-row-left">
+                                <div class="avatar avatar-medium" style="background-color: #CC0000">T</div>
+                            </div>
+                            <div class="message-row-content">
+                                <div class="message-row-header">
+                                    <span class="message-sender">Tesla</span>
+                                    
+                                    <span class="message-time">4w ago</span>
+                                </div>
+                                <div class="message-subject">Tesla Summer Internships - Engineering</div>
+                                <div class="message-preview">Hello Maya,  Tesla is looking for passionate engineers to join us this summer. While our focus inclu...</div>
+                            </div>
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

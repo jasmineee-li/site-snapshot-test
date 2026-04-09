@@ -1,0 +1,22 @@
+- document:
+  - complementary:
+    - img: T
+    - text: Design System v4.2 Typography
+    - navigation:
+      - img
+      - text: Layers
+      - img: T
+      - text: Typography
+      - img
+      - text: Text Styles
+      - img: Ag
+      - text: Fonts
+      - img
+      - text: Settings
+    - text: SC Sarah Chen Editor
+  - main:
+    - heading "Typography" [level=2]
+    - paragraph: Text properties and formatting
+    - img: T
+    - heading "No layer selected" [level=3]
+    - paragraph: Select a text layer from the Layers panel to edit its typography properties.

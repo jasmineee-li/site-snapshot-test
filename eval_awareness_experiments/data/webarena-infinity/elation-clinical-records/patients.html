@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Clinical Records</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"><div class="sidebar-header">
+            <div class="app-logo">
+                <span class="logo-icon">☤</span>
+                <span class="logo-text">Elation</span>
+            </div>
+            <div class="provider-info">
+                <div class="provider-name">Dr. Sarah Chen</div>
+                <div class="provider-practice">Greenwood Family Medicine</div>
+            </div>
+        </div>
+        <nav class="sidebar-nav"><div class="nav-item active" data-action="navigate" data-section="patients">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Patients</span>
+            </div><div class="nav-item" data-action="navigate" data-section="templates">
+                <span class="nav-icon">📄</span>
+                <span class="nav-label">Templates</span>
+            </div><div class="nav-item" data-action="navigate" data-section="categories">
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">Categories</span>
+            </div><div class="nav-item" data-action="navigate" data-section="settings">
+                <span class="nav-icon">⚙</span>
+                <span class="nav-label">Settings</span>
+            </div></nav></aside>
+        <main class="main-content" id="main-content"><div class="content-panel">
+            <div class="section-header">
+            <div class="section-header-text">
+                <h2>Patient List</h2>
+                <p class="section-subtitle">12 patients</p>
+            </div>
+            
+        </div>
+            <div class="toolbar">
+                <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" id="patient-search" placeholder="Search patients by name, DOB, phone, insurance..." value="">
+        </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table" id="patient-table">
+                    <thead><tr>
+                        <th>Name</th><th>DOB (Age)</th><th>Sex</th><th>Phone</th><th>Provider</th><th>Tags</th>
+                    </tr></thead>
+                    <tbody><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_001">
+                <td class="patient-name-cell"><strong>Henderson, Robert</strong></td>
+                <td>1958-03-14 (68)</td>
+                <td>Male</td>
+                <td>(206) 555-1001</td>
+                <td>Dr. Sarah Chen</td>
+                <td class="tags-cell"><span class="patient-tag tag-starred">*COVID-Dose-2-Complete</span> <span class="patient-tag">Diabetes-Management</span> <span class="patient-tag">Annual-Due</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_002">
+                <td class="patient-name-cell"><strong>Nakamura, Emily</strong></td>
+                <td>1985-07-22 (40)</td>
+                <td>Female</td>
+                <td>(206) 555-1002</td>
+                <td>Dr. Sarah Chen</td>
+                <td class="tags-cell"><span class="patient-tag tag-starred">*COVID-Dose-1-Only</span> <span class="patient-tag">Prenatal</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_003">
+                <td class="patient-name-cell"><strong>Johnson, Marcus</strong></td>
+                <td>1972-11-08 (53)</td>
+                <td>Male</td>
+                <td>(206) 555-1003</td>
+                <td>Dr. Michael Torres</td>
+                <td class="tags-cell"><span class="patient-tag">Hypertension-Monitoring</span> <span class="patient-tag">Smoker</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_004">
+                <td class="patient-name-cell"><strong>Rodriguez-Martinez, Sofia</strong></td>
+                <td>1995-02-28 (31)</td>
+                <td>Female</td>
+                <td>(206) 555-1004</td>
+                <td>Dr. Sarah Chen</td>
+                <td class="tags-cell"><span class="patient-tag tag-starred">*COVID-Dose-2-Complete</span> <span class="patient-tag">Asthma</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_005">
+                <td class="patient-name-cell"><strong>O'Brien, William</strong></td>
+                <td>1948-06-30 (77)</td>
+                <td>Male</td>
+                <td>(206) 555-1005</td>
+                <td>Dr. Michael Torres</td>
+                <td class="tags-cell"><span class="patient-tag tag-starred">*COVID-Booster-Due</span> <span class="patient-tag">CHF</span> <span class="patient-tag">Fall-Risk</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_006">
+                <td class="patient-name-cell"><strong>Sharma, Priya</strong></td>
+                <td>1990-12-15 (35)</td>
+                <td>Female</td>
+                <td>(206) 555-1006</td>
+                <td>Dr. Aisha Patel</td>
+                <td class="tags-cell"><span class="patient-tag">Pediatric-Parent</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_007">
+                <td class="patient-name-cell"><strong>Bergstrom, Thomas</strong></td>
+                <td>1965-09-03 (60)</td>
+                <td>Male</td>
+                <td>(425) 555-1007</td>
+                <td>Dr. Sarah Chen</td>
+                <td class="tags-cell"><span class="patient-tag">COPD</span> <span class="patient-tag">Diabetes-Management</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_008">
+                <td class="patient-name-cell"><strong>Washington, Aaliyah</strong></td>
+                <td>2015-04-18 (10)</td>
+                <td>Female</td>
+                <td>(206) 555-1008</td>
+                <td>Dr. Aisha Patel</td>
+                <td class="tags-cell"><span class="patient-tag">Pediatric</span> <span class="patient-tag">Immunizations-Due</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_009">
+                <td class="patient-name-cell"><strong>Kowalski, David</strong></td>
+                <td>1979-01-25 (47)</td>
+                <td>Male</td>
+                <td>(425) 555-1009</td>
+                <td>Rachel Kim</td>
+                <td class="tags-cell"><span class="patient-tag">Anxiety</span> <span class="patient-tag">Back-Pain</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_010">
+                <td class="patient-name-cell"><strong>Zhao, Helen</strong></td>
+                <td>1953-08-09 (72)</td>
+                <td>Female</td>
+                <td>(206) 555-1010</td>
+                <td>Dr. Sarah Chen</td>
+                <td class="tags-cell"><span class="patient-tag tag-starred">*COVID-Dose-2-Complete</span> <span class="patient-tag">Osteoporosis</span> <span class="patient-tag">Annual-Due</span></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_011">
+                <td class="patient-name-cell"><strong>Fitzgerald, James</strong></td>
+                <td>1988-05-11 (37)</td>
+                <td>Male</td>
+                <td>(206) 555-1011</td>
+                <td>Rachel Kim</td>
+                <td class="tags-cell"></td>
+            </tr><tr class="patient-row clickable" data-action="select-patient" data-patient-id="pat_012">
+                <td class="patient-name-cell"><strong>Wu, Mei-Ling</strong></td>
+                <td>2008-10-29 (17)</td>
+                <td>Female</td>
+                <td>(425) 555-1012</td>
+                <td>Dr. Aisha Patel</td>
+                <td class="tags-cell"><span class="patient-tag">Pediatric</span> <span class="patient-tag">Sports-Physical</span></td>
+            </tr></tbody>
+                </table>
+            </div>
+        </div></main>
+    </div>
+    <div id="modal-container"></div>
+    <div id="toast-container"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

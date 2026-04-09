@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xero — Invoicing</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top-bar" id="topBar">
+    <div class="topbar-left">
+      <div class="topbar-brand">Xero</div>
+    </div>
+    <div class="topbar-center">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search invoices, quotes, contacts..." style="">
+        <button class="search-btn" data-action="do-search">🔍</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-org" id="topBarOrg"></div>
+      <div class="topbar-user" id="topBarUser"></div>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <div id="sidebarNav"><div class="sidebar-header"><div class="sidebar-logo">Xero</div><div class="sidebar-org">Demo Company (AU)</div></div><nav class="sidebar-nav"><a class="nav-item" data-route="dashboard"><span class="nav-icon">▢</span><span class="nav-label">Dashboard</span></a><div class="nav-section-title">Sales</div><a class="nav-item" data-route="invoices"><span class="nav-icon">📄</span><span class="nav-label">Invoices</span><span class="nav-badge">13</span></a><a class="nav-item" data-route="quotes"><span class="nav-icon">📋</span><span class="nav-label">Quotes</span></a><a class="nav-item" data-route="credit-notes"><span class="nav-icon">💳</span><span class="nav-label">Credit Notes</span></a><a class="nav-item active" data-route="repeating-invoices"><span class="nav-icon">🔄</span><span class="nav-label">Repeating Invoices</span></a><div class="nav-section-title">Settings</div><a class="nav-item" data-route="settings"><span class="nav-icon">⚙</span><span class="nav-label">Invoice Settings</span></a><a class="nav-item" data-route="templates"><span class="nav-icon">🎨</span><span class="nav-label">Branding Themes</span></a><a class="nav-item" data-route="reminders"><span class="nav-icon">🔔</span><span class="nav-label">Invoice Reminders</span></a></nav></div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <div id="contentWrapper"><div class="page-header"><h1>Repeating Invoices</h1><div class="header-actions"><button class="btn btn-primary" data-action="new-repeating">New Repeating Invoice</button></div></div><div class="table-container"><table class="data-table" data-testid="repeating-table"><thead><tr><th>Contact</th><th>Frequency</th><th>Next Invoice</th><th>End Date</th><th>Save As</th><th>Status</th><th></th></tr></thead><tbody><tr class="table-row clickable"><td><a class="link" data-action="view-repeating" data-id="rep_001">Greenfield Organics</a></td><td>Monthly</td><td>1 Apr 2026</td><td>No end date</td><td>Approved for Sending</td><td><span class="status-badge badge-active">Active</span></td><td><button class="btn btn-sm btn-danger" data-action="delete-repeating" data-id="rep_001">Delete</button></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-repeating" data-id="rep_002">CloudNine Analytics</a></td><td>Monthly</td><td>1 Apr 2026</td><td>31 Dec 2026</td><td>Draft</td><td><span class="status-badge badge-active">Active</span></td><td><button class="btn btn-sm btn-danger" data-action="delete-repeating" data-id="rep_002">Delete</button></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-repeating" data-id="rep_003">Cascade Software Solutions</a></td><td>Monthly</td><td>1 Apr 2026</td><td>No end date</td><td>Approved for Sending</td><td><span class="status-badge badge-active">Active</span></td><td><button class="btn btn-sm btn-danger" data-action="delete-repeating" data-id="rep_003">Delete</button></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-repeating" data-id="rep_004">Vanguard Security Systems</a></td><td>Monthly</td><td>1 Apr 2026</td><td>No end date</td><td>Approved</td><td><span class="status-badge badge-active">Active</span></td><td><button class="btn btn-sm btn-danger" data-action="delete-repeating" data-id="rep_004">Delete</button></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-repeating" data-id="rep_005">Summit Health Group</a></td><td>Quarterly</td><td>1 Apr 2026</td><td>No end date</td><td>Draft</td><td><span class="status-badge badge-draft">Draft</span></td><td><button class="btn btn-sm btn-danger" data-action="delete-repeating" data-id="rep_005">Delete</button></td></tr></tbody></table></div></div>
+  </main>
+
+  <div id="modalContainer" style="display:none"></div>
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/app.js"></script>
+
+
+</body></html>

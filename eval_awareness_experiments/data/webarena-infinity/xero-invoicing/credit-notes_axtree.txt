@@ -1,0 +1,66 @@
+- document:
+  - banner:
+    - text: Xero
+    - textbox "Search invoices, quotes, contacts..."
+    - button "🔍"
+  - complementary:
+    - text: Demo Company (AU)
+    - navigation: ▢ Dashboard Sales 📄 Invoices 13 📋 Quotes 💳 Credit Notes 🔄 Repeating Invoices Settings ⚙ Invoice Settings 🎨 Branding Themes 🔔 Invoice Reminders
+  - main:
+    - heading "Credit Notes" [level=1]
+    - button "New Credit Note"
+    - button "All (5)"
+    - button "Draft (1)"
+    - button "Open (2)"
+    - button "Allocated (2)"
+    - table:
+      - rowgroup:
+        - row "Number Reference To Date Total Remaining Status":
+          - columnheader "Number"
+          - columnheader "Reference"
+          - columnheader "To"
+          - columnheader "Date"
+          - columnheader "Total"
+          - columnheader "Remaining"
+          - columnheader "Status"
+      - rowgroup:
+        - row "CN-0011 Pacific Freight Lines 1 Mar 2026 $968.00 $968.00 Draft":
+          - cell "CN-0011"
+          - cell
+          - cell "Pacific Freight Lines"
+          - cell "1 Mar 2026"
+          - cell "$968.00"
+          - cell "$968.00"
+          - cell "Draft"
+        - row "CN-0012 Scope reduction CloudNine Analytics 22 Feb 2026 $2,035.00 $2,035.00 Awaiting Payment":
+          - cell "CN-0012"
+          - cell "Scope reduction"
+          - cell "CloudNine Analytics"
+          - cell "22 Feb 2026"
+          - cell "$2,035.00"
+          - cell "$2,035.00"
+          - cell "Awaiting Payment"
+        - row "CN-0009 Damaged goods return Coastal Living Interiors 12 Feb 2026 $249.75 $249.75 Awaiting Payment":
+          - cell "CN-0009"
+          - cell "Damaged goods return"
+          - cell "Coastal Living Interiors"
+          - cell "12 Feb 2026"
+          - cell "$249.75"
+          - cell "$249.75"
+          - cell "Awaiting Payment"
+        - row "CN-0008 Discount adjustment Pinnacle Construction Group 15 Jan 2026 $1,100.00 $0.00 Paid":
+          - cell "CN-0008"
+          - cell "Discount adjustment"
+          - cell "Pinnacle Construction Group"
+          - cell "15 Jan 2026"
+          - cell "$1,100.00"
+          - cell "$0.00"
+          - cell "Paid"
+        - row "CN-0010 Overcharge correction TechVault Solutions Pty Ltd 22 Dec 2025 $220.00 $0.00 Paid":
+          - cell "CN-0010"
+          - cell "Overcharge correction"
+          - cell "TechVault Solutions Pty Ltd"
+          - cell "22 Dec 2025"
+          - cell "$220.00"
+          - cell "$0.00"
+          - cell "Paid"

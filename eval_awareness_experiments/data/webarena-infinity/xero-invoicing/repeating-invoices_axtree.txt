@@ -1,0 +1,67 @@
+- document:
+  - banner:
+    - text: Xero
+    - textbox "Search invoices, quotes, contacts..."
+    - button "🔍"
+  - complementary:
+    - text: Demo Company (AU)
+    - navigation: ▢ Dashboard Sales 📄 Invoices 13 📋 Quotes 💳 Credit Notes 🔄 Repeating Invoices Settings ⚙ Invoice Settings 🎨 Branding Themes 🔔 Invoice Reminders
+  - main:
+    - heading "Repeating Invoices" [level=1]
+    - button "New Repeating Invoice"
+    - table:
+      - rowgroup:
+        - row "Contact Frequency Next Invoice End Date Save As Status":
+          - columnheader "Contact"
+          - columnheader "Frequency"
+          - columnheader "Next Invoice"
+          - columnheader "End Date"
+          - columnheader "Save As"
+          - columnheader "Status"
+          - columnheader
+      - rowgroup:
+        - row "Greenfield Organics Monthly 1 Apr 2026 No end date Approved for Sending Active Delete":
+          - cell "Greenfield Organics"
+          - cell "Monthly"
+          - cell "1 Apr 2026"
+          - cell "No end date"
+          - cell "Approved for Sending"
+          - cell "Active"
+          - cell "Delete":
+            - button "Delete"
+        - row "CloudNine Analytics Monthly 1 Apr 2026 31 Dec 2026 Draft Active Delete":
+          - cell "CloudNine Analytics"
+          - cell "Monthly"
+          - cell "1 Apr 2026"
+          - cell "31 Dec 2026"
+          - cell "Draft"
+          - cell "Active"
+          - cell "Delete":
+            - button "Delete"
+        - row "Cascade Software Solutions Monthly 1 Apr 2026 No end date Approved for Sending Active Delete":
+          - cell "Cascade Software Solutions"
+          - cell "Monthly"
+          - cell "1 Apr 2026"
+          - cell "No end date"
+          - cell "Approved for Sending"
+          - cell "Active"
+          - cell "Delete":
+            - button "Delete"
+        - row "Vanguard Security Systems Monthly 1 Apr 2026 No end date Approved Active Delete":
+          - cell "Vanguard Security Systems"
+          - cell "Monthly"
+          - cell "1 Apr 2026"
+          - cell "No end date"
+          - cell "Approved"
+          - cell "Active"
+          - cell "Delete":
+            - button "Delete"
+        - row "Summit Health Group Quarterly 1 Apr 2026 No end date Draft Draft Delete":
+          - cell "Summit Health Group"
+          - cell "Quarterly"
+          - cell "1 Apr 2026"
+          - cell "No end date"
+          - cell "Draft"
+          - cell "Draft"
+          - cell "Delete":
+            - button "Delete"
