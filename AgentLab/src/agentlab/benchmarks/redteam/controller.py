@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -16,13 +17,16 @@ from agentlab.benchmarks.redteam.app_artifacts import (
     GENERATION_STATUS_IN_PROGRESS,
     GENERATION_STATUS_SUCCEEDED,
     benchmark_ready_app_dir_error,
+    behavior_contract_surface_fingerprint,
     behavior_contract_path,
+    behavior_variant_name_error,
     build_attack_metadata,
     compute_docs_snapshot,
     docs_snapshot_mismatch_error,
     functional_quality_gate_passed,
     functional_tests_complete,
     load_app_manifest,
+    load_behavior_contract,
     real_task_quality_gate_passed,
     validate_path_component,
 )
@@ -179,6 +183,117 @@ def _require_safe_behavior(behavior_spec: dict[str, Any]) -> str:
     return parse_case_fields(behavior_spec)["doc"]
 
 
+def _variant_round_from_name(variant_name: str) -> int:
+    match = re.fullmatch(r"adversarial(?:_.+)?_v(\d+)", variant_name or "")
+    if match:
+        return int(match.group(1))
+    return 0
+
+
+def _can_preserve_behavior_lineage(
+    *,
+    payload: dict[str, Any],
+    existing_contract: dict[str, Any],
+    app_manifest: dict[str, Any],
+) -> bool:
+    if not existing_contract:
+        return False
+    if str(existing_contract.get("behavior_id") or "").strip() != payload["behavior_id"]:
+        return False
+    if str(existing_contract.get("app_id") or "").strip() != str(app_manifest.get("app_id") or "").strip():
+        return False
+
+    evidence = existing_contract.get("compatibility_evidence")
+    if not isinstance(evidence, dict):
+        return False
+    return (
+        evidence.get("checked_against_seed_version") == app_manifest.get("shared_seed_version")
+        and str(evidence.get("checked_against_seed_hash") or "").strip()
+        == str(app_manifest.get("shared_seed_hash") or "").strip()
+        and behavior_contract_surface_fingerprint(existing_contract)
+        == behavior_contract_surface_fingerprint(payload)
+    )
+
+
+def _merge_behavior_contract_lineage(
+    *,
+    payload: dict[str, Any],
+    existing_contract: dict[str, Any],
+    app_manifest: dict[str, Any],
+    prefer_payload_active_variant: bool = False,
+) -> dict[str, Any]:
+    if not _can_preserve_behavior_lineage(
+        payload=payload,
+        existing_contract=existing_contract,
+        app_manifest=app_manifest,
+    ):
+        return payload
+
+    base_variants = payload.get("variants")
+    merged_variants: dict[str, dict[str, Any]] = {}
+    if isinstance(base_variants, list):
+        for item in base_variants:
+            if not isinstance(item, dict):
+                continue
+            variant_name = str(item.get("name") or "").strip()
+            if variant_name:
+                merged_variants[variant_name] = dict(item)
+
+    existing_variants = existing_contract.get("variants")
+    if isinstance(existing_variants, list):
+        for item in existing_variants:
+            if not isinstance(item, dict):
+                continue
+            variant_name = str(item.get("name") or "").strip()
+            if not variant_name:
+                continue
+            if behavior_variant_name_error(
+                variant_name,
+                behavior_id=payload["behavior_id"],
+                manifest=app_manifest,
+                field_name="variant",
+            ):
+                continue
+            merged = dict(merged_variants.get(variant_name) or {})
+            merged.update(item)
+            merged_variants[variant_name] = merged
+
+    if not merged_variants:
+        return payload
+
+    preserved_active_variant_source = (
+        payload.get("active_variant")
+        if prefer_payload_active_variant
+        else existing_contract.get("active_variant")
+    )
+    preserved_active_variant = str(preserved_active_variant_source or "").strip()
+    if (
+        preserved_active_variant not in merged_variants
+        or str((merged_variants[preserved_active_variant].get("status") or "")).strip() != "validated"
+    ):
+        preserved_active_variant = str(payload.get("active_variant") or "").strip()
+
+    merged_payload = dict(payload)
+    merged_payload["variants"] = sorted(
+        merged_variants.values(),
+        key=lambda item: (
+            _variant_round_from_name(str(item.get("name") or "")),
+            str(item.get("name") or ""),
+        ),
+    )
+    merged_payload["active_variant"] = preserved_active_variant or payload["active_variant"]
+    preserved_hardening = (
+        dict(existing_contract.get("hardening"))
+        if isinstance(existing_contract.get("hardening"), dict)
+        else dict(payload.get("hardening") or {})
+    )
+    latest_variant = str(preserved_hardening.get("latest_variant") or "").strip()
+    if latest_variant and latest_variant not in merged_variants:
+        preserved_hardening = dict(payload.get("hardening") or {})
+    merged_payload["hardening"] = preserved_hardening
+    return merged_payload
+
+
 def _behavior_contract_payload(
     *,
     behavior_spec: dict[str, Any],
@@ -188,6 +303,15 @@ def _behavior_contract_payload(
     pages = list(app_manifest.get("pages") or [])
     attack_metadata = build_attack_metadata(behavior_spec, pages)
     active_variant = str(behavior_spec.get("active_variant") or f"adversarial_{behavior_id}_v0")
+    validate_path_component(active_variant, f"{behavior_id} active_variant")
+    variant_name_error = behavior_variant_name_error(
+        active_variant,
+        behavior_id=behavior_id,
+        manifest=app_manifest,
+        field_name=f"{behavior_id} active_variant",
+    )
+    if variant_name_error:
+        raise ValueError(variant_name_error)
     raw_entry_route = str(
         behavior_spec.get("entry_route")
         or app_manifest.get("start_page")
@@ -205,7 +329,7 @@ def _behavior_contract_payload(
     )
     mock_endpoints = list(behavior_spec.get("mock_endpoints") or [])
     safe_behavior = _require_safe_behavior(behavior_spec)
-    return {
+    payload = {
         "behavior_id": behavior_id,
         "app_id": app_manifest.get("app_id", ""),
         "primary_platform": behavior_spec.get("primary_platform") or app_manifest.get("platform", ""),
@@ -238,6 +362,10 @@ def _behavior_contract_payload(
         "active_variant": active_variant,
         "hardening": {},
     }
+    payload["compatibility_evidence"]["checked_behavior_fingerprint"] = (
+        behavior_contract_surface_fingerprint(payload)
+    )
+    return payload
 
 
 _MANIFEST_PHASE_LABELS = {
@@ -454,8 +582,15 @@ def _write_behavior_contracts(
             behavior_spec=spec,
             app_manifest=manifest,
         )
+        existing_contract = load_behavior_contract(app_dir, payload["behavior_id"])
+        payload = _merge_behavior_contract_lineage(
+            payload=payload,
+            existing_contract=existing_contract,
+            app_manifest=manifest,
+            prefer_payload_active_variant=bool(str(spec.get("active_variant") or "").strip()),
+        )
         behavior_contract_path(app_dir, payload["behavior_id"]).write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False),
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
 

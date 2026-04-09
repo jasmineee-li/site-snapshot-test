@@ -40,8 +40,12 @@ from agentlab.benchmarks.hardening_prompts import (
 )
 from agentlab.benchmarks.redteam.audit import audit_benign_failures
 from agentlab.benchmarks.redteam.app_artifacts import (
+    behavior_variant_name_error,
+    behavior_contract_path,
     diff_variant_data as shared_diff_variant_data,
+    load_app_manifest,
     load_attack_metadata,
+    load_behavior_contract,
     read_variant_data_js as shared_read_variant_data_js,
 )
 from agentlab.benchmarks.redteam.data_validator import (
@@ -1072,16 +1076,81 @@ class HardeningPipeline:
             return None
         return int(match.group(1))
 
+    def _variant_belongs_to_behavior(
+        self,
+        behavior_id: str,
+        variant_name: str,
+        *,
+        app_dir: Path | None = None,
+    ) -> bool:
+        manifest = load_app_manifest(app_dir) if app_dir is not None else {}
+        return behavior_variant_name_error(
+            variant_name,
+            behavior_id=behavior_id,
+            manifest=manifest,
+            field_name="variant",
+        ) is None
+
+    def _sync_adversarial_env_variant(self, env_args: Any, variant_name: str) -> None:
+        prior_variant = (
+            getattr(env_args, "active_variant", "")
+            or getattr(env_args, "variant_name", "")
+            or getattr(env_args, "variant", "")
+        )
+        env_args.active_variant = variant_name
+        env_args.variant = variant_name
+        env_args.variant_name = variant_name
+
+        task_name = getattr(env_args, "task_name", "")
+        if not isinstance(task_name, str) or not task_name:
+            return
+
+        task_parts = task_name.split(".")
+        if task_parts and (
+            task_parts[-1] == prior_variant
+            or str(task_parts[-1]).startswith("adversarial")
+        ):
+            task_parts[-1] = variant_name
+            env_args.task_name = ".".join(task_parts)
+
     def _latest_app_variant_name(self, behavior_id: str) -> str | None:
         app_dir = self._get_app_dir(behavior_id)
         if not app_dir:
             return None
 
+        app_dir_path = Path(app_dir)
+        manifest = load_app_manifest(app_dir_path)
+        behavior_contract = load_behavior_contract(app_dir_path, behavior_id)
+        variants_by_name: dict[str, dict[str, Any]] = {}
+        for item in behavior_contract.get("variants") or []:
+            if not isinstance(item, dict):
+                continue
+            variant_name = str(item.get("name") or "").strip()
+            if not variant_name:
+                continue
+            if not self._variant_belongs_to_behavior(
+                behavior_id,
+                variant_name,
+                app_dir=app_dir_path,
+            ):
+                continue
+            variants_by_name[variant_name] = item
+
+        active_variant = str(behavior_contract.get("active_variant") or "").strip()
+        active_status = str((variants_by_name.get(active_variant) or {}).get("status") or "").strip()
+        if active_variant and active_status == "validated":
+            active_variant_path = app_dir_path / active_variant / "data.js"
+            if active_variant_path.exists():
+                return active_variant
+
         latest: tuple[int, str] | None = None
-        for candidate in Path(app_dir).glob("adversarial*/data.js"):
-            variant_name = candidate.parent.name
+        for variant_name, entry in variants_by_name.items():
+            if str(entry.get("status") or "").strip() != "validated":
+                continue
             variant_round = self._variant_round_from_name(variant_name)
             if variant_round is None:
+                continue
+            if not (app_dir_path / variant_name / "data.js").exists():
                 continue
             if latest is None or variant_round > latest[0]:
                 latest = (variant_round, variant_name)
@@ -1101,8 +1170,7 @@ class HardeningPipeline:
                 continue
 
             for env_args in self._get_behavior_env_args(behavior_id, include_benign=False):
-                env_args.variant = latest_variant
-                env_args.variant_name = latest_variant
+                self._sync_adversarial_env_variant(env_args, latest_variant)
 
             logger.info("[%s] Reconciled active app-mode variant to %s", behavior_id, latest_variant)
 
@@ -1226,7 +1294,15 @@ class HardeningPipeline:
             return None
 
         env_args = adversarial_envs[0]
-        current_variant = getattr(env_args, "variant", "") or env_args.variant_subdir
+        current_variant = env_args.variant_subdir
+        if not self._variant_belongs_to_behavior(
+            analysis.behavior_id,
+            current_variant,
+            app_dir=Path(env_args.app_dir),
+        ):
+            raise ValueError(
+                f"[{analysis.behavior_id}] Refusing to harden cross-behavior variant {current_variant!r}"
+            )
         current_round = self._variant_round_from_name(current_variant)
         if current_round is None:
             raise ValueError(f"Unsupported app-mode variant name: {current_variant}")
@@ -1287,8 +1363,16 @@ class HardeningPipeline:
         target_path.write_text(accepted_content, encoding="utf-8")
 
         for app_env in adversarial_envs:
-            app_env.variant = target_variant
-            app_env.variant_name = target_variant
+            self._sync_adversarial_env_variant(app_env, target_variant)
+
+        self._persist_behavior_contract_variant(
+            app_dir=app_dir,
+            behavior_id=analysis.behavior_id,
+            current_variant=current_variant,
+            target_variant=target_variant,
+            hardening_target=analysis.hardening_target,
+            hardening_rationale=analysis.hardening_rationale,
+        )
 
         logger.info(
             "[%s] Accepted hardened variant %s",
@@ -1296,6 +1380,82 @@ class HardeningPipeline:
             target_variant,
         )
         return target_path
+
+    def _persist_behavior_contract_variant(
+        self,
+        *,
+        app_dir: Path,
+        behavior_id: str,
+        current_variant: str,
+        target_variant: str,
+        hardening_target: str,
+        hardening_rationale: str,
+    ) -> None:
+        contract_path = behavior_contract_path(app_dir, behavior_id)
+        if not contract_path.exists():
+            logger.warning("[%s] Missing behavior contract at %s; skipping lineage update", behavior_id, contract_path)
+            return
+
+        behavior_contract = load_behavior_contract(app_dir, behavior_id)
+        if not behavior_contract:
+            return
+
+        manifest = load_app_manifest(app_dir)
+        variants_raw = behavior_contract.get("variants")
+        variants = [dict(item) for item in variants_raw if isinstance(item, dict)] if isinstance(variants_raw, list) else []
+        variants_by_name = {
+            str(item.get("name") or "").strip(): item
+            for item in variants
+            if str(item.get("name") or "").strip()
+        }
+
+        target_round = self._variant_round_from_name(target_variant)
+        if target_round is None:
+            raise ValueError(f"Unsupported app-mode variant name: {target_variant}")
+
+        existing_entry = dict(variants_by_name.get(target_variant) or {})
+        existing_entry.update(
+            {
+                "name": target_variant,
+                "round": target_round,
+                "status": "validated",
+                "base_variant": current_variant,
+                "derived_from": f"{current_variant}/data.js",
+                "source_seed_version": manifest.get("shared_seed_version"),
+                "source_seed_hash": manifest.get("shared_seed_hash"),
+                "append_only_vs_benign": True,
+            }
+        )
+        variants_by_name[target_variant] = existing_entry
+
+        def _sort_key(item: dict[str, Any]) -> tuple[int, str]:
+            variant_name = str(item.get("name") or "").strip()
+            round_num = self._variant_round_from_name(variant_name)
+            if round_num is None:
+                round_num = int(item.get("round", 0) or 0)
+            return (round_num, variant_name)
+
+        behavior_contract["variants"] = sorted(variants_by_name.values(), key=_sort_key)
+        behavior_contract["active_variant"] = target_variant
+
+        hardening = behavior_contract.get("hardening")
+        if not isinstance(hardening, dict):
+            hardening = {}
+        hardening.update(
+            {
+                "latest_round": target_round,
+                "latest_variant": target_variant,
+                "previous_variant": current_variant,
+                "last_hardened_at": datetime.now(timezone.utc).isoformat(),
+                "last_target_dimension": hardening_target,
+                "last_rationale": hardening_rationale,
+            }
+        )
+        behavior_contract["hardening"] = hardening
+        contract_path.write_text(
+            json.dumps(behavior_contract, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
 
     def _collect_results(
         self,

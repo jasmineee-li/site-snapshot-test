@@ -9,6 +9,7 @@ from agentlab.benchmarks.redteam.app_artifacts import (
     APP_MANIFEST_CONTRACT_VERSION,
     attack_metadata_archive_path,
     app_manifest_readiness_error,
+    behavior_contract_surface_fingerprint,
     behavior_contract_compatibility_error,
     benchmark_ready_app_dir_error,
     build_attack_metadata_archive_payload,
@@ -70,6 +71,9 @@ def _write_behavior_contract(
     }
     path = app_dir / "behaviors" / f"{behavior_id}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
+    contract["compatibility_evidence"]["checked_behavior_fingerprint"] = (
+        behavior_contract_surface_fingerprint(contract)
+    )
     path.write_text(json.dumps(contract, indent=2), encoding="utf-8")
     return contract
 
@@ -667,6 +671,58 @@ def test_behavior_contract_compatibility_rejects_non_validated_active_variant(tm
             behavior_id="demo",
         )
         == "behaviors/demo.json active_variant 'adversarial_demo_v0' must reference a validated lineage entry; found status draft"
+    )
+
+
+def test_behavior_contract_compatibility_rejects_cross_behavior_active_variant_on_shared_app(
+    tmp_path: Path,
+) -> None:
+    manifest = _complete_manifest()
+    manifest["behavior_ids"] = ["demo", "other"]
+    contract = _write_behavior_contract(
+        tmp_path / "app",
+        active_variant="adversarial_other_v1",
+    )
+    contract["variants"] = [{"name": "adversarial_other_v1", "round": 1, "status": "validated"}]
+
+    assert (
+        behavior_contract_compatibility_error(
+            contract,
+            manifest=manifest,
+            behavior_id="demo",
+        )
+        == "behaviors/demo.json active_variant 'adversarial_other_v1' belongs to behavior 'other', not 'demo'"
+    )
+
+
+def test_behavior_contract_compatibility_rejects_legacy_variant_on_shared_app(tmp_path: Path) -> None:
+    manifest = _complete_manifest()
+    manifest["behavior_ids"] = ["demo", "other"]
+    contract = _write_behavior_contract(tmp_path / "app", active_variant="adversarial_v1")
+    contract["variants"] = [{"name": "adversarial_v1", "round": 1, "status": "validated"}]
+
+    assert (
+        behavior_contract_compatibility_error(
+            contract,
+            manifest=manifest,
+            behavior_id="demo",
+        )
+        == "behaviors/demo.json active_variant 'adversarial_v1' uses legacy unscoped naming and is not allowed for shared apps"
+    )
+
+
+def test_behavior_contract_compatibility_rejects_surface_fingerprint_drift(tmp_path: Path) -> None:
+    manifest = _complete_manifest()
+    contract = _write_behavior_contract(tmp_path / "app")
+    contract["attack_metadata"]["injection_target"] = "THREADS"
+
+    assert (
+        behavior_contract_compatibility_error(
+            contract,
+            manifest=manifest,
+            behavior_id="demo",
+        )
+        == "behaviors/demo.json checked_behavior_fingerprint does not match current behavior contract"
     )
 
 

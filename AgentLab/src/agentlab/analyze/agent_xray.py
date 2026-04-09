@@ -2,6 +2,7 @@ import base64
 import html
 import json
 import os
+import re
 import traceback
 from copy import deepcopy
 from io import BytesIO
@@ -44,11 +45,31 @@ TEST_MODE_KEY = "env.test_mode"
 VARIATION_SEED_KEY = "env.variation_seed"
 
 
+def _variant_name_from_task_name(task_name: str | None) -> str:
+    if not isinstance(task_name, str) or not task_name:
+        return ""
+    candidate = task_name.rsplit(".", 1)[-1]
+    return candidate if candidate.startswith("adversarial") else ""
+
+
+def _adversarial_slot_numbers(columns_or_keys) -> list[int]:
+    slot_numbers: set[int] = set()
+    for column in columns_or_keys:
+        match = re.fullmatch(r"adv_(\d+)(?:_(?:name|idx))?", str(column))
+        if match:
+            slot_numbers.add(int(match.group(1)))
+    return sorted(slot_numbers)
+
+
 def _redteam_variant_row_key(row: pd.Series) -> str:
     return (
         row.get("env.variant_name")
+        or row.get("variant_name")
         or row.get("env.variant")
+        or row.get("variant")
         or row.get("env.active_variant")
+        or row.get("active_variant")
+        or _variant_name_from_task_name(row.get(TASK_NAME_KEY) or row.get("task_name"))
         or f"adversarial_seed{row.get(VARIATION_SEED_KEY, row.get('env.injection_seed', 0))}"
     )
 
@@ -1251,9 +1272,22 @@ def get_behavior_comparison_df(result_df: pd.DataFrame):
     Returns a dataframe with columns for side-by-side comparison.
     """
     result_df = result_df.reset_index(inplace=False)
+    task_name_series = None
+    if TASK_NAME_KEY in result_df.columns:
+        task_name_series = result_df[TASK_NAME_KEY]
+    if "task_name" in result_df.columns:
+        task_name_series = (
+            result_df["task_name"]
+            if task_name_series is None
+            else task_name_series.where(task_name_series.notna(), result_df["task_name"])
+        )
 
     # Check if behavior_id exists
-    if BEHAVIOR_ID_KEY not in result_df.columns:
+    if BEHAVIOR_ID_KEY in result_df.columns:
+        result_df["_behavior_id"] = result_df[BEHAVIOR_ID_KEY]
+    elif "_behavior_id" in result_df.columns:
+        result_df["_behavior_id"] = result_df["_behavior_id"]
+    elif task_name_series is not None:
         # Try to extract from task_name
         def extract_behavior(task_name):
             if pd.isna(task_name):
@@ -1265,12 +1299,16 @@ def get_behavior_comparison_df(result_df: pd.DataFrame):
                 return parts[-2] if len(parts) >= 3 else parts[0]
             return task_name
 
-        result_df["_behavior_id"] = result_df[TASK_NAME_KEY].apply(extract_behavior)
+        result_df["_behavior_id"] = task_name_series.apply(extract_behavior)
     else:
-        result_df["_behavior_id"] = result_df[BEHAVIOR_ID_KEY]
+        result_df["_behavior_id"] = None
 
     # Get test_mode
-    if TEST_MODE_KEY not in result_df.columns:
+    if TEST_MODE_KEY in result_df.columns:
+        result_df["_test_mode"] = result_df[TEST_MODE_KEY]
+    elif "_test_mode" in result_df.columns:
+        result_df["_test_mode"] = result_df["_test_mode"]
+    elif task_name_series is not None:
         def extract_mode(task_name):
             if pd.isna(task_name):
                 return None
@@ -1280,9 +1318,9 @@ def get_behavior_comparison_df(result_df: pd.DataFrame):
             elif ".adversarial" in tn:
                 return "adversarial"
             return None
-        result_df["_test_mode"] = result_df[TASK_NAME_KEY].apply(extract_mode)
+        result_df["_test_mode"] = task_name_series.apply(extract_mode)
     else:
-        result_df["_test_mode"] = result_df[TEST_MODE_KEY]
+        result_df["_test_mode"] = None
 
     # Group by behavior_id
     records = []
@@ -1321,7 +1359,7 @@ def get_behavior_comparison_df(result_df: pd.DataFrame):
         }
 
         # Add adversarial columns
-        for i, adv in enumerate(adv_results[:3]):  # Limit to 3 variants shown
+        for i, adv in enumerate(adv_results):
             record[f"adv_{i}"] = _status_marker(adv["success"])
             record[f"adv_{i}_name"] = adv["variant_name"]
             record[f"adv_{i}_idx"] = adv["idx"]
@@ -1334,8 +1372,14 @@ def get_behavior_comparison_df(result_df: pd.DataFrame):
     df = pd.DataFrame(records)
     # Hide idx/name columns in display but keep for selection and variant switching
     display_cols = ["behavior", "benign_success", "n_adv"]
-    display_cols += [c for c in df.columns if c.startswith("adv_") and not c.endswith(("_idx", "_name"))]
-    hidden_cols = sorted(set(c for c in df.columns if c.endswith("_idx") or c.endswith("_name")))
+    slot_numbers = _adversarial_slot_numbers(df.columns)
+    display_cols += [f"adv_{slot}" for slot in slot_numbers if f"adv_{slot}" in df.columns]
+    hidden_cols = ["benign_idx"] if "benign_idx" in df.columns else []
+    for slot in slot_numbers:
+        for suffix in ("_idx", "_name"):
+            column = f"adv_{slot}{suffix}"
+            if column in df.columns:
+                hidden_cols.append(column)
     return df[display_cols + hidden_cols]
 
 
@@ -1384,14 +1428,14 @@ def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tupl
 
     row = df.iloc[evt.index[0]]
     behavior = row.get("behavior", "unknown")
+    slot_numbers = _adversarial_slot_numbers(df.columns)
 
     # Build variant choices
     variants = ["benign"]
-    for col in df.columns:
-        if col.startswith("adv_") and col.endswith("_name"):
-            variant_name = row.get(col)
-            if isinstance(variant_name, str) and variant_name:
-                variants.append(variant_name)
+    for slot in slot_numbers:
+        variant_name = row.get(f"adv_{slot}_name")
+        if isinstance(variant_name, str) and variant_name:
+            variants.append(variant_name)
 
     # Build behavior data for variant switching
     behavior_data_dict = {
@@ -1399,22 +1443,26 @@ def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tupl
         "benign_idx": row.get("benign_idx"),
     }
     # Add adversarial indices and names
-    for col in df.columns:
-        if col.endswith("_idx") and col != "benign_idx":
-            behavior_data_dict[col] = row.get(col)
-        elif col.endswith("_name"):
-            behavior_data_dict[col] = row.get(col)
+    for slot in slot_numbers:
+        idx_key = f"adv_{slot}_idx"
+        name_key = f"adv_{slot}_name"
+        behavior_data_dict[idx_key] = row.get(idx_key)
+        behavior_data_dict[name_key] = row.get(name_key)
 
     # Build comparison info
     info_parts = [f"**Behavior:** {behavior}"]
     benign_status = row.get("benign_success", "-")
     info_parts.append(f"**Benign:** {benign_status}")
-    for i in range(3):
-        adv_col = f"adv_{i}"
-        variant_name = row.get(f"adv_{i}_name")
-        if adv_col in row:
-            label = variant_name or f"adversarial #{i}"
-            info_parts.append(f"**{label}:** {row[adv_col]}")
+    for slot in slot_numbers:
+        adv_col = f"adv_{slot}"
+        if adv_col not in row:
+            continue
+        variant_name = row.get(f"{adv_col}_name")
+        adv_status = row.get(adv_col)
+        if not isinstance(variant_name, str) or not variant_name or pd.isna(adv_status):
+            continue
+        label = variant_name or f"adversarial #{slot}"
+        info_parts.append(f"**{label}:** {adv_status}")
     comparison_info = "\n\n".join(info_parts)
 
     # Create episode_id for benign (default selection)
@@ -1455,12 +1503,10 @@ def on_select_variant(variant: str, behavior_data: dict, agent_id: list[tuple]):
         task_name = f"{behavior}.benign"
     else:
         idx = None
-        for key, value in behavior_data.items():
-            if not key.startswith("adv_") or not key.endswith("_idx"):
-                continue
-            slot = key.removesuffix("_idx")
-            if behavior_data.get(f"{slot}_name") == variant:
-                idx = value
+        for slot in _adversarial_slot_numbers(behavior_data.keys()):
+            slot_name = f"adv_{slot}_name"
+            if behavior_data.get(slot_name) == variant:
+                idx = behavior_data.get(f"adv_{slot}_idx")
                 break
         task_name = f"{behavior}.{variant}"
 

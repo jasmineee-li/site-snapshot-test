@@ -75,6 +75,8 @@ _SENSITIVE_STATE_VALUE_MARKERS = frozenset(
         "bearer ",
     }
 )
+_NAMESPACED_VARIANT_RE = re.compile(r"^adversarial_(?P<behavior_id>.+)_v(?P<round>\d+)$")
+_LEGACY_VARIANT_RE = re.compile(r"^adversarial_v(?P<round>\d+)$")
 
 
 def _timestamp() -> str:
@@ -408,6 +410,115 @@ def load_behavior_contract(app_dir: str | Path, behavior_id: str) -> dict[str, A
         return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def manifest_behavior_ids(manifest: dict[str, Any] | None) -> tuple[str, ...]:
+    """Return normalized behavior ids declared by the manifest."""
+    if not isinstance(manifest, dict):
+        return ()
+    behavior_ids = manifest.get("behavior_ids")
+    if not isinstance(behavior_ids, list):
+        return ()
+    return tuple(
+        str(value).strip()
+        for value in behavior_ids
+        if isinstance(value, str) and str(value).strip()
+    )
+
+
+def behavior_variant_name_error(
+    variant_name: str,
+    *,
+    behavior_id: str,
+    manifest: dict[str, Any] | None = None,
+    field_name: str = "variant",
+) -> str | None:
+    """Return a behavior-ownership error for an adversarial variant name, else ``None``."""
+    normalized_variant = str(variant_name or "").strip()
+    if not normalized_variant:
+        return f"{field_name} must be non-empty"
+
+    namespaced_match = _NAMESPACED_VARIANT_RE.fullmatch(normalized_variant)
+    if namespaced_match:
+        owner = str(namespaced_match.group("behavior_id") or "").strip()
+        if owner == behavior_id:
+            return None
+        return (
+            f"{field_name} {normalized_variant!r} belongs to behavior "
+            f"{owner!r}, not {behavior_id!r}"
+        )
+
+    if _LEGACY_VARIANT_RE.fullmatch(normalized_variant):
+        declared_behavior_ids = set(manifest_behavior_ids(manifest))
+        if not declared_behavior_ids or declared_behavior_ids == {behavior_id}:
+            return None
+        return (
+            f"{field_name} {normalized_variant!r} uses legacy unscoped naming "
+            "and is not allowed for shared apps"
+        )
+
+    return (
+        f"{field_name} {normalized_variant!r} must use behavior-scoped naming "
+        f"like 'adversarial_{behavior_id}_vN'"
+    )
+
+
+def variant_name_belongs_to_behavior(
+    variant_name: str,
+    *,
+    behavior_id: str,
+    manifest: dict[str, Any] | None = None,
+) -> bool:
+    """Return whether *variant_name* belongs to *behavior_id* under the manifest rules."""
+    return behavior_variant_name_error(
+        variant_name,
+        behavior_id=behavior_id,
+        manifest=manifest,
+    ) is None
+
+
+def _canonicalize_json_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _canonicalize_json_value(value[key])
+            for key in sorted(value)
+        }
+    if isinstance(value, list):
+        return [_canonicalize_json_value(item) for item in value]
+    return value
+
+
+def _canonicalize_unordered_json_list(values: Any) -> list[Any]:
+    if not isinstance(values, list):
+        return []
+    canonical = [_canonicalize_json_value(item) for item in values]
+    return sorted(
+        canonical,
+        key=lambda item: json.dumps(item, sort_keys=True, ensure_ascii=False),
+    )
+
+
+def behavior_contract_surface_fingerprint(behavior_contract: dict[str, Any]) -> str:
+    """Return a stable fingerprint for behavior-owned routing and attack-surface state."""
+    material = {
+        "entry_route": normalize_route_reference(str(behavior_contract.get("entry_route") or "")),
+        "allowed_routes": sorted(_normalize_routes(behavior_contract.get("allowed_routes") or [])),
+        "domain_bindings": _canonicalize_unordered_json_list(
+            behavior_contract.get("domain_bindings") or []
+        ),
+        "mock_endpoints": sorted(
+            {
+                str(endpoint).strip()
+                for endpoint in (behavior_contract.get("mock_endpoints") or [])
+                if str(endpoint).strip()
+            }
+        ),
+        "attack_metadata": _canonicalize_json_value(behavior_contract.get("attack_metadata") or {}),
+        "seed_refs": _canonicalize_unordered_json_list(behavior_contract.get("seed_refs") or []),
+    }
+    return hashlib.sha256(
+        json.dumps(material, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
 
 
 def load_platform_manifest(path: str | Path) -> dict[str, Any]:
@@ -906,6 +1017,23 @@ def behavior_contract_compatibility_error(
             f"behaviors/{behavior_id}.json checked_against_seed_hash does not match "
             "app_manifest.json shared_seed_hash"
         )
+    checked_entry_route = normalize_route_reference(str(evidence.get("checked_entry_route") or ""))
+    if checked_entry_route and checked_entry_route != entry_route:
+        return (
+            f"behaviors/{behavior_id}.json checked_entry_route does not match "
+            "current entry_route"
+        )
+    checked_behavior_fingerprint = str(
+        evidence.get("checked_behavior_fingerprint") or ""
+    ).strip()
+    if (
+        checked_behavior_fingerprint
+        and checked_behavior_fingerprint != behavior_contract_surface_fingerprint(behavior_contract)
+    ):
+        return (
+            f"behaviors/{behavior_id}.json checked_behavior_fingerprint does not match "
+            "current behavior contract"
+        )
 
     variants = behavior_contract.get("variants")
     if not isinstance(variants, list) or not variants:
@@ -917,6 +1045,14 @@ def behavior_contract_compatibility_error(
         validate_path_component(active_variant, f"behaviors/{behavior_id}.json active_variant")
     except ValueError as exc:
         return str(exc)
+    active_variant_error = behavior_variant_name_error(
+        active_variant,
+        behavior_id=behavior_id,
+        manifest=manifest,
+        field_name=f"behaviors/{behavior_id}.json active_variant",
+    )
+    if active_variant_error:
+        return active_variant_error
     variants_by_name: dict[str, dict[str, Any]] = {}
     for item in variants:
         if not isinstance(item, dict):
@@ -929,6 +1065,14 @@ def behavior_contract_compatibility_error(
             validate_path_component(variant_name, f"behaviors/{behavior_id}.json variant name")
         except ValueError as exc:
             return str(exc)
+        variant_name_error = behavior_variant_name_error(
+            variant_name,
+            behavior_id=behavior_id,
+            manifest=manifest,
+            field_name=f"behaviors/{behavior_id}.json variant name",
+        )
+        if variant_name_error:
+            return variant_name_error
     if active_variant not in variants_by_name:
         return (
             f"behaviors/{behavior_id}.json active_variant {active_variant!r} is not present "

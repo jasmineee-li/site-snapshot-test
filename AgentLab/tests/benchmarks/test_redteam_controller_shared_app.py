@@ -276,6 +276,187 @@ def test_run_behavior_rejects_shared_behavior_without_safe_behavior(tmp_path: Pa
         )
 
 
+def test_write_behavior_contracts_preserves_existing_lineage_state(tmp_path: Path) -> None:
+    app_dir = tmp_path / "shared-mail"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    spec = _shared_behavior_spec()["mapped_behaviors"][0]
+    manifest = {
+        "app_id": "shared-mail",
+        "platform": "mail",
+        "pages": [
+            {
+                "id": "mail",
+                "base_site_url": "https://mail.example.com",
+                "subdomains": ["/mail/u/0/#inbox"],
+                "details": {"/mail/u/0/#inbox": "Inbox"},
+            }
+        ],
+        "start_page": "https://mail.example.com/mail/u/0/#inbox",
+        "shared_seed_version": 1,
+        "shared_seed_hash": "sha256:test-seed",
+    }
+
+    original_payload = controller._behavior_contract_payload(
+        behavior_spec=spec,
+        app_manifest=manifest,
+    )
+    original_payload["variants"].append(
+        {
+            "name": "adversarial_demo-a_v1",
+            "round": 1,
+            "status": "validated",
+            "base_variant": "adversarial_demo-a_v0",
+            "derived_from": "adversarial_demo-a_v0/data.js",
+            "source_seed_version": 1,
+            "source_seed_hash": "sha256:test-seed",
+            "append_only_vs_benign": True,
+        }
+    )
+    original_payload["active_variant"] = "adversarial_demo-a_v1"
+    original_payload["hardening"] = {
+        "latest_round": 1,
+        "latest_variant": "adversarial_demo-a_v1",
+    }
+    contract_path = app_dir / "behaviors" / "demo-a.json"
+    contract_path.parent.mkdir(parents=True, exist_ok=True)
+    contract_path.write_text(json.dumps(original_payload, indent=2), encoding="utf-8")
+
+    controller._write_behavior_contracts(app_dir, [spec], manifest)
+
+    rewritten_contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    assert rewritten_contract["active_variant"] == "adversarial_demo-a_v1"
+    assert [item["name"] for item in rewritten_contract["variants"]] == [
+        "adversarial_demo-a_v0",
+        "adversarial_demo-a_v1",
+    ]
+    assert rewritten_contract["hardening"] == {
+        "latest_round": 1,
+        "latest_variant": "adversarial_demo-a_v1",
+    }
+
+
+def test_write_behavior_contracts_resets_lineage_when_behavior_surface_changes(tmp_path: Path) -> None:
+    app_dir = tmp_path / "shared-mail"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    spec = _shared_behavior_spec()["mapped_behaviors"][0]
+    manifest = {
+        "app_id": "shared-mail",
+        "platform": "mail",
+        "pages": [
+            {
+                "id": "mail",
+                "base_site_url": "https://mail.example.com",
+                "subdomains": ["/mail/u/0/#inbox"],
+                "details": {"/mail/u/0/#inbox": "Inbox"},
+            }
+        ],
+        "start_page": "https://mail.example.com/mail/u/0/#inbox",
+        "shared_seed_version": 1,
+        "shared_seed_hash": "sha256:test-seed",
+    }
+
+    original_payload = controller._behavior_contract_payload(
+        behavior_spec=spec,
+        app_manifest=manifest,
+    )
+    original_payload["variants"].append(
+        {
+            "name": "adversarial_demo-a_v1",
+            "round": 1,
+            "status": "validated",
+            "base_variant": "adversarial_demo-a_v0",
+            "derived_from": "adversarial_demo-a_v0/data.js",
+            "source_seed_version": 1,
+            "source_seed_hash": "sha256:test-seed",
+            "append_only_vs_benign": True,
+        }
+    )
+    original_payload["active_variant"] = "adversarial_demo-a_v1"
+    original_payload["hardening"] = {
+        "latest_round": 1,
+        "latest_variant": "adversarial_demo-a_v1",
+    }
+    contract_path = app_dir / "behaviors" / "demo-a.json"
+    contract_path.parent.mkdir(parents=True, exist_ok=True)
+    contract_path.write_text(json.dumps(original_payload, indent=2), encoding="utf-8")
+
+    changed_spec = dict(spec)
+    changed_spec["entry_route"] = "#/compose"
+    changed_spec["allowed_routes"] = ["#/compose"]
+
+    controller._write_behavior_contracts(app_dir, [changed_spec], manifest)
+
+    rewritten_contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    assert rewritten_contract["active_variant"] == "adversarial_demo-a_v0"
+    assert [item["name"] for item in rewritten_contract["variants"]] == [
+        "adversarial_demo-a_v0",
+    ]
+    assert rewritten_contract["hardening"] == {}
+    assert rewritten_contract["compatibility_evidence"]["checked_entry_route"] == "/#/compose"
+
+
+def test_write_behavior_contracts_honors_explicit_active_variant_override(tmp_path: Path) -> None:
+    app_dir = tmp_path / "shared-mail"
+    app_dir.mkdir(parents=True, exist_ok=True)
+    spec = _shared_behavior_spec()["mapped_behaviors"][0]
+    manifest = {
+        "app_id": "shared-mail",
+        "platform": "mail",
+        "pages": [
+            {
+                "id": "mail",
+                "base_site_url": "https://mail.example.com",
+                "subdomains": ["/mail/u/0/#inbox"],
+                "details": {"/mail/u/0/#inbox": "Inbox"},
+            }
+        ],
+        "start_page": "https://mail.example.com/mail/u/0/#inbox",
+        "shared_seed_version": 1,
+        "shared_seed_hash": "sha256:test-seed",
+    }
+
+    original_payload = controller._behavior_contract_payload(
+        behavior_spec=spec,
+        app_manifest=manifest,
+    )
+    original_payload["variants"].append(
+        {
+            "name": "adversarial_demo-a_v1",
+            "round": 1,
+            "status": "validated",
+            "base_variant": "adversarial_demo-a_v0",
+            "derived_from": "adversarial_demo-a_v0/data.js",
+            "source_seed_version": 1,
+            "source_seed_hash": "sha256:test-seed",
+            "append_only_vs_benign": True,
+        }
+    )
+    original_payload["active_variant"] = "adversarial_demo-a_v1"
+    original_payload["hardening"] = {
+        "latest_round": 1,
+        "latest_variant": "adversarial_demo-a_v1",
+    }
+    contract_path = app_dir / "behaviors" / "demo-a.json"
+    contract_path.parent.mkdir(parents=True, exist_ok=True)
+    contract_path.write_text(json.dumps(original_payload, indent=2), encoding="utf-8")
+
+    override_spec = dict(spec)
+    override_spec["active_variant"] = "adversarial_demo-a_v0"
+
+    controller._write_behavior_contracts(app_dir, [override_spec], manifest)
+
+    rewritten_contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    assert rewritten_contract["active_variant"] == "adversarial_demo-a_v0"
+    assert [item["name"] for item in rewritten_contract["variants"]] == [
+        "adversarial_demo-a_v0",
+        "adversarial_demo-a_v1",
+    ]
+    assert rewritten_contract["hardening"] == {
+        "latest_round": 1,
+        "latest_variant": "adversarial_demo-a_v1",
+    }
+
+
 def test_run_behavior_rejects_unsafe_app_id_before_workspace_creation(tmp_path: Path) -> None:
     repo_root = _init_git_repo(tmp_path)
     output_dir = repo_root / "apps"
