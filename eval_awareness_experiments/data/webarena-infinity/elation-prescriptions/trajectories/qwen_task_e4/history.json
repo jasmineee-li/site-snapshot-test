@@ -1,0 +1,24 @@
+{
+  "history": [
+    {
+      "thought": "Action: Click the 'X' button next to the Latex allergy entry to remove it from the patient's chart.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[123, 391]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 236,
+          "y": 422
+        }
+      ]
+    },
+    {
+      "thought": "Action: The task is completed successfully.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "terminate",
+          "status": "success"
+        }
+      ]
+    }
+  ],
+  "format": "vision_agent"
+}

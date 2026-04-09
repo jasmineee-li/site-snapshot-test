@@ -1,0 +1,52 @@
+- document:
+  - complementary:
+    - text: Settings
+    - navigation:
+      - text: Account
+      - img
+      - text: Profile
+      - img
+      - text: Preferences
+      - img
+      - text: Notifications
+      - img
+      - text: Security & Access
+  - main:
+    - heading "Profile" [level=2]
+    - paragraph: Manage your personal profile information.
+    - text: AM
+    - img
+    - text: Full name Alex Morgan
+    - button "Edit Full name":
+      - img
+    - text: Username alexmorgan
+    - button "Edit Username":
+      - img
+    - text: Email alex.morgan@acmecorp.io
+    - button "Edit Email":
+      - img
+    - heading "Connected Accounts" [level=2]
+    - paragraph: Manage your connected third-party accounts.
+    - img
+    - text: GitHub alexmorgan Connected
+    - button "Disconnect"
+    - img
+    - text: GitLab alex.morgan Connected
+    - button "Disconnect"
+    - img
+    - text: Slack Alex Morgan Connected
+    - button "Disconnect"
+    - img
+    - text: Figma alex.morgan@acmecorp.io Connected
+    - button "Disconnect"
+    - img
+    - text: Google alex.morgan@gmail.com Connected
+    - button "Disconnect"
+    - heading "Workspaces" [level=2]
+    - paragraph: Workspaces you are a member of.
+    - text: A Acme Corp Admin · 47 members
+    - button "Leave workspace"
+    - text: S Side Project Labs Member · 8 members
+    - button "Leave workspace"
+    - text: O Open Source Collective Member · 124 members
+    - button "Leave workspace"

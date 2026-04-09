@@ -1,0 +1,30 @@
+- document:
+  - complementary:
+    - text: Settings
+    - navigation:
+      - text: Account
+      - img
+      - text: Profile
+      - img
+      - text: Preferences
+      - img
+      - text: Notifications
+      - img
+      - text: Security & Access
+  - main:
+    - heading "Notifications" [level=2]
+    - paragraph: Manage how and when you receive notifications.
+    - img
+    - text: Desktop
+    - img
+    - img
+    - text: Mobile
+    - img
+    - img
+    - text: Email
+    - img
+    - img
+    - text: Slack
+    - img
+    - heading "Communications" [level=3]
+    - text: Changelogs Receive updates about new Linear features and improvements. DPA updates Receive updates about data processing agreement changes. Product updates Receive other product-related communications.

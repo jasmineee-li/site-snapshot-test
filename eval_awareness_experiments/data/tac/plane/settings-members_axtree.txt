@@ -1,0 +1,296 @@
+- document:
+  - alert
+  - button "T TheAgentCompany":
+    - text: T
+    - heading "TheAgentCompany" [level=4]
+  - button "S"
+  - button "New issue":
+    - img
+    - text: New issue
+  - button:
+    - img
+  - separator
+  - link "Home":
+    - /url: /tac/
+    - img
+    - paragraph: Home
+  - link "Notifications":
+    - /url: /tac/notifications/
+    - img
+    - paragraph: Notifications
+  - separator
+  - button "Workspace" [expanded]:
+    - text: Workspace
+    - img
+  - link "All Issues":
+    - /url: /tac/workspace-views/all-issues/
+    - img
+    - paragraph: All Issues
+  - link "Projects":
+    - /url: /tac/projects/
+    - img
+    - paragraph: Projects
+  - link "Active Cycles":
+    - /url: /tac/active-cycles/
+    - img
+    - paragraph: Active Cycles
+    - img
+  - link "Analytics":
+    - /url: /tac/analytics/
+    - img
+    - paragraph: Analytics
+  - link "Settings":
+    - /url: /tac/settings/
+    - img
+    - paragraph: Settings
+  - separator
+  - button "My projects"
+  - button:
+    - img
+  - button:
+    - img
+  - text: Community
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - main:
+    - listitem:
+      - link "TheAgentCompany":
+        - /url: /tac/settings/
+        - img
+        - text: TheAgentCompany
+    - listitem: Settings
+    - text: SETTINGS
+    - link "General":
+      - /url: /tac/settings/
+    - link "Members":
+      - /url: /tac/settings/members/
+    - link "Billing and plans":
+      - /url: /tac/settings/billing/
+    - link "Exports":
+      - /url: /tac/settings/exports/
+    - link "Webhooks":
+      - /url: /tac/settings/webhooks/
+    - link "API tokens":
+      - /url: /tac/settings/api-tokens/
+    - heading "Members" [level=4]
+    - img
+    - textbox "Search..."
+    - button "Add member"
+    - link "s":
+      - /url: /tac/profile/fdde8eda-a72c-4e09-a84d-36b18f796f00/
+    - link "Sara Johnson":
+      - /url: /tac/profile/fdde8eda-a72c-4e09-a84d-36b18f796f00/
+    - paragraph: sarah.johnson
+    - img
+    - paragraph: sarah.johnson@agentcompany.com
+    - button "Admin" [disabled]
+    - button:
+      - img
+    - link "a":
+      - /url: /tac/profile/f410bed0-db9c-4b33-8545-7957197f3086/
+    - link "theagentcompany":
+      - /url: /tac/profile/f410bed0-db9c-4b33-8545-7957197f3086/
+    - paragraph: agent
+    - img
+    - paragraph: agent@company.com
+    - button "Admin":
+      - text: Admin
+      - img
+    - button:
+      - img
+    - link "a":
+      - /url: /tac/profile/2148bd98-f9e6-4637-848b-62bc6a63b675/
+    - link "Alex Turner":
+      - /url: /tac/profile/2148bd98-f9e6-4637-848b-62bc6a63b675/
+    - paragraph: alex.turner
+    - img
+    - paragraph: alex.turner@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "c":
+      - /url: /tac/profile/16d920b9-979a-4d67-ad90-5365f581956e/
+    - link "Xinyi Chen":
+      - /url: /tac/profile/16d920b9-979a-4d67-ad90-5365f581956e/
+    - paragraph: chen.xinyi
+    - img
+    - paragraph: chen.xinyi@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "d":
+      - /url: /tac/profile/c780e405-0b75-4829-9121-ec545cc06b32/
+    - link "David Wong":
+      - /url: /tac/profile/c780e405-0b75-4829-9121-ec545cc06b32/
+    - paragraph: david.wong
+    - img
+    - paragraph: david.wong@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "e":
+      - /url: /tac/profile/8e15a7e6-635a-4ca9-a273-eb1c7a692c23/
+    - link "Emily Zhou":
+      - /url: /tac/profile/8e15a7e6-635a-4ca9-a273-eb1c7a692c23/
+    - paragraph: emily.zhou
+    - img
+    - paragraph: emily.zhou@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "e":
+      - /url: /tac/profile/c8c76e66-f8b2-4b58-9a9c-d779b60b8d15/
+    - link "Emma Lewis":
+      - /url: /tac/profile/c8c76e66-f8b2-4b58-9a9c-d779b60b8d15/
+    - paragraph: emma.lewis
+    - img
+    - paragraph: emma.lewis@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "h":
+      - /url: /tac/profile/1e69445c-b171-47f5-b4f4-08eaebe198c4/
+    - link "Jie Huang":
+      - /url: /tac/profile/1e69445c-b171-47f5-b4f4-08eaebe198c4/
+    - paragraph: huang.jie
+    - img
+    - paragraph: huang.jie@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "j":
+      - /url: /tac/profile/07ad0d18-61e0-4203-a55c-ff01766bee87/
+    - link "Jessica Chen":
+      - /url: /tac/profile/07ad0d18-61e0-4203-a55c-ff01766bee87/
+    - paragraph: jessica.chen
+    - img
+    - paragraph: jessica.chen@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "j":
+      - /url: /tac/profile/303df238-04c3-4354-825d-7e7c06dd2dd2/
+    - link "Jessica Lee":
+      - /url: /tac/profile/303df238-04c3-4354-825d-7e7c06dd2dd2/
+    - paragraph: jessica.lee
+    - img
+    - paragraph: jessica.lee@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "l":
+      - /url: /tac/profile/9ccb0f88-b7af-4a68-91ca-624da7f307a6/
+    - link "Ming Li":
+      - /url: /tac/profile/9ccb0f88-b7af-4a68-91ca-624da7f307a6/
+    - paragraph: li.ming
+    - img
+    - paragraph: li.ming@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "l":
+      - /url: /tac/profile/cbb199bb-82eb-44b7-bf4f-2f5d00584d1b/
+    - link "Qiang Liu":
+      - /url: /tac/profile/cbb199bb-82eb-44b7-bf4f-2f5d00584d1b/
+    - paragraph: liu.qiang
+    - img
+    - paragraph: liu.qiang@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "m":
+      - /url: /tac/profile/448b38b7-0b86-46d5-ab67-46be86b7b25a/
+    - link "Mark Johnson":
+      - /url: /tac/profile/448b38b7-0b86-46d5-ab67-46be86b7b25a/
+    - paragraph: mark.johnson
+    - img
+    - paragraph: mark.johnson@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "m":
+      - /url: /tac/profile/b0587bf0-54ed-4dfa-b7fc-45708285a422/
+    - link "Mike Chen":
+      - /url: /tac/profile/b0587bf0-54ed-4dfa-b7fc-45708285a422/
+    - paragraph: mike.chen
+    - img
+    - paragraph: mike.chen@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "p":
+      - /url: /tac/profile/14e90f53-5682-4a1e-b7c5-b285b7fdbe08/
+    - link "Priya Sharma":
+      - /url: /tac/profile/14e90f53-5682-4a1e-b7c5-b285b7fdbe08/
+    - paragraph: priya.sharma
+    - img
+    - paragraph: priya.sharma@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "s":
+      - /url: /tac/profile/9f7e60bf-4921-4c7a-94f4-3d3b5c36a82f/
+    - link "Sophia Rodriguez":
+      - /url: /tac/profile/9f7e60bf-4921-4c7a-94f4-3d3b5c36a82f/
+    - paragraph: sophia.rodriguez
+    - img
+    - paragraph: sophia.rodriguez@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "w":
+      - /url: /tac/profile/e1d06894-25cf-423d-bab9-532514049794/
+    - link "Fang Wang":
+      - /url: /tac/profile/e1d06894-25cf-423d-bab9-532514049794/
+    - paragraph: wang.fang
+    - img
+    - paragraph: wang.fang@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img
+    - link "z":
+      - /url: /tac/profile/cbd8e1ca-834f-43f1-92bf-fc25166ce59d/
+    - link "Wei Zang":
+      - /url: /tac/profile/cbd8e1ca-834f-43f1-92bf-fc25166ce59d/
+    - paragraph: zhang.wei
+    - img
+    - paragraph: zhang.wei@agentcompany.com
+    - button "Member":
+      - text: Member
+      - img
+    - button:
+      - img

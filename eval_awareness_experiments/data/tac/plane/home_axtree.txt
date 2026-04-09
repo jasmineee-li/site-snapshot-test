@@ -1,0 +1,172 @@
+- document:
+  - alert
+  - button "T TheAgentCompany":
+    - text: T
+    - heading "TheAgentCompany" [level=4]
+  - button "S"
+  - button "New issue":
+    - img
+    - text: New issue
+  - button:
+    - img
+  - separator
+  - link "Home":
+    - /url: /tac/
+    - img
+    - paragraph: Home
+  - link "Notifications":
+    - /url: /tac/notifications/
+    - img
+    - paragraph: Notifications
+  - separator
+  - button "Workspace" [expanded]:
+    - text: Workspace
+    - img
+  - link "All Issues":
+    - /url: /tac/workspace-views/all-issues/
+    - img
+    - paragraph: All Issues
+  - link "Projects":
+    - /url: /tac/projects/
+    - img
+    - paragraph: Projects
+  - link "Active Cycles":
+    - /url: /tac/active-cycles/
+    - img
+    - paragraph: Active Cycles
+    - img
+  - link "Analytics":
+    - /url: /tac/analytics/
+    - img
+    - paragraph: Analytics
+  - link "Settings":
+    - /url: /tac/settings/
+    - img
+    - paragraph: Settings
+  - separator
+  - button "My projects"
+  - button:
+    - img
+  - button:
+    - img
+  - text: Community
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - main:
+    - listitem:
+      - img
+      - text: Home
+    - link "What's new?":
+      - /url: https://plane.so/changelog
+      - img
+      - text: What's new?
+    - link "GitHub Logo Star us on GitHub":
+      - /url: https://github.com/makeplane/plane
+      - img "GitHub Logo"
+      - text: Star us on GitHub
+    - heading "Good evening, Sara Johnson" [level=3]
+    - heading "🌙️ Thursday, Apr 9 20:52" [level=6]
+    - link "0 Issues assigned":
+      - /url: /tac/workspace-views/assigned/
+      - heading "0" [level=5]
+      - paragraph: Issues assigned
+    - link "0 Issues overdue":
+      - /url: /tac/workspace-views/assigned/?state_group=backlog,unstarted,started&target_date=2026-04-09;before
+      - heading "0" [level=5]
+      - paragraph: Issues overdue
+    - link "0 Issues created":
+      - /url: /tac/workspace-views/created/
+      - heading "0" [level=5]
+      - paragraph: Issues created
+    - link "0 Issues completed":
+      - /url: /tac/workspace-views/assigned/?state_group=completed
+      - heading "0" [level=5]
+      - paragraph: Issues completed
+    - link "Assigned to you":
+      - /url: /tac/workspace-views/assigned/?state_group=backlog,unstarted,started
+    - button "All time":
+      - text: All time
+      - img
+    - tablist:
+      - tab "Pending" [selected]
+      - tab "Marked completed"
+    - tabpanel "Pending":
+      - img "Assigned issues"
+      - paragraph: Issues assigned to you that are pending will show up here.
+    - link "Created by you":
+      - /url: /tac/workspace-views/created/?state_group=backlog,unstarted,started
+    - button "All time":
+      - text: All time
+      - img
+    - tablist:
+      - tab "Pending" [selected]
+      - tab "Marked completed"
+    - tabpanel "Pending":
+      - img "Assigned issues"
+      - paragraph: Issues created by you that are pending will show up here.
+    - link "Assigned by state":
+      - /url: /tac/workspace-views/assigned/
+    - button "All time":
+      - text: All time
+      - img
+    - img "Issues by state group"
+    - paragraph: Issue assigned to you, broken down by state, will show up here.
+    - link "Assigned by priority":
+      - /url: /tac/workspace-views/assigned/
+    - button "All time":
+      - text: All time
+      - img
+    - img "Issues by state group"
+    - paragraph: Issues assigned to you, broken down by priority will show up here.
+    - link "Your issue activities":
+      - /url: /tac/profile/fdde8eda-a72c-4e09-a84d-36b18f796f00/activity/
+    - img "Issues by state group"
+    - paragraph: All your issue activities across projects will show up here.
+    - link "Recent projects":
+      - /url: /tac/projects/
+    - button "Create new project":
+      - img
+      - paragraph: Create new project
+    - link "computer OpenHands A L +4":
+      - /url: /tac/projects/73cb74f7-a7ac-4292-a915-e2f59a09a703/issues/
+      - img "computer"
+      - heading "OpenHands" [level=6]
+      - text: A L +4
+    - heading "Collaborators" [level=4]
+    - paragraph: View and find all members you collaborate with across projects
+    - img
+    - textbox "Search for collaborators"
+    - link "S You 0 active issue":
+      - /url: /tac/profile/fdde8eda-a72c-4e09-a84d-36b18f796f00/
+      - text: S
+      - heading "You" [level=6]
+      - paragraph: 0 active issue
+    - link "A agent 0 active issue":
+      - /url: /tac/profile/f410bed0-db9c-4b33-8545-7957197f3086/
+      - text: A
+      - heading "agent" [level=6]
+      - paragraph: 0 active issue
+    - link "S sophia.rodriguez 2 active issues":
+      - /url: /tac/profile/9f7e60bf-4921-4c7a-94f4-3d3b5c36a82f/
+      - text: S
+      - heading "sophia.rodriguez" [level=6]
+      - paragraph: 2 active issues
+    - link "M mike.chen 2 active issues":
+      - /url: /tac/profile/b0587bf0-54ed-4dfa-b7fc-45708285a422/
+      - text: M
+      - heading "mike.chen" [level=6]
+      - paragraph: 2 active issues
+    - link "L liu.qiang 4 active issues":
+      - /url: /tac/profile/cbb199bb-82eb-44b7-bf4f-2f5d00584d1b/
+      - text: L
+      - heading "liu.qiang" [level=6]
+      - paragraph: 4 active issues
+    - link "W wang.fang 2 active issues":
+      - /url: /tac/profile/e1d06894-25cf-423d-bab9-532514049794/
+      - text: W
+      - heading "wang.fang" [level=6]
+      - paragraph: 2 active issues

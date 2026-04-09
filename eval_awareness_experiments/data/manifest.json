@@ -927,5 +927,180 @@
       "requires_auth": true,
       "base_url": "https://www.figma.com"
     }
+  },
+  {
+    "id": "webarena-infinity_elation-clinical-records",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/elation-clinical-records",
+    "pages": [
+      "categories",
+      "patients",
+      "settings",
+      "templates"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "elation-clinical-records"
+    }
+  },
+  {
+    "id": "webarena-infinity_elation-patient-communication",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/elation-patient-communication",
+    "pages": [
+      "appointments",
+      "bulk-letters",
+      "drafts",
+      "home",
+      "inbox",
+      "patients",
+      "reminders",
+      "sent",
+      "settings"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "elation-patient-communication"
+    }
+  },
+  {
+    "id": "webarena-infinity_elation-prescriptions",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/elation-prescriptions",
+    "pages": [
+      "chart",
+      "med-history",
+      "rx-requests",
+      "settings"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "elation-prescriptions"
+    }
+  },
+  {
+    "id": "webarena-infinity_figma-slides",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/figma-slides",
+    "pages": [
+      "slides"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "figma-slides"
+    }
+  },
+  {
+    "id": "webarena-infinity_figma-text-and-typography",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/figma-text-and-typography",
+    "pages": [
+      "fonts",
+      "layers",
+      "properties",
+      "settings",
+      "styles"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "figma-text-and-typography"
+    }
+  },
+  {
+    "id": "webarena-infinity_handshake-career-exploration",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/handshake-career-exploration",
+    "pages": [
+      "career-center",
+      "career-interests",
+      "employers",
+      "events",
+      "feed",
+      "jobs",
+      "messages",
+      "profile",
+      "qa"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "handshake-career-exploration"
+    }
+  },
+  {
+    "id": "webarena-infinity_linear-account-settings",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/linear-account-settings",
+    "pages": [
+      "notifications",
+      "preferences",
+      "profile",
+      "security"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "linear-account-settings"
+    }
+  },
+  {
+    "id": "webarena-infinity_superhuman-general",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/superhuman-general",
+    "pages": [
+      "done",
+      "inbox",
+      "opens",
+      "reminders",
+      "sent",
+      "snippets"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "superhuman-general"
+    }
+  },
+  {
+    "id": "webarena-infinity_xero-invoicing",
+    "source": "webarena-infinity",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/webarena-infinity/xero-invoicing",
+    "pages": [
+      "credit-notes",
+      "dashboard",
+      "invoices",
+      "quotes",
+      "reminders",
+      "repeating-invoices",
+      "templates"
+    ],
+    "metadata": {
+      "benchmark": "webarena-infinity",
+      "app": "xero-invoicing"
+    }
+  },
+  {
+    "id": "tac_plane",
+    "source": "tac",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/tac/plane",
+    "pages": [
+      "home",
+      "projects",
+      "issues",
+      "cycles",
+      "settings-general",
+      "settings-members"
+    ],
+    "metadata": {
+      "benchmark": "theagentcompany",
+      "service": "plane"
+    }
   }
 ]

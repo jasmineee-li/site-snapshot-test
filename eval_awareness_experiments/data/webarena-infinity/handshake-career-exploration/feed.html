@@ -1,0 +1,1019 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item active" data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-feed">
+                
+            <div class="section-header">
+                <h2 class="section-title">Feed</h2>
+                <p class="section-subtitle">Stay connected with your career community</p>
+            </div>
+        
+                
+            <div class="tab-bar">
+                
+                    <button class="tab-item active" data-action="setFeedTab" data-tab="feed">
+                        Feed
+                        
+                    </button>
+                
+                    <button class="tab-item " data-action="setFeedTab" data-tab="saved">
+                        Saved
+                        
+                    </button>
+                
+            </div>
+        
+
+                
+                    
+                    <div class="create-post-box" data-action="openCreatePost">
+                        <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                        <span class="create-post-placeholder">Share something with the community...</span>
+                    </div>
+                    
+                    
+            <div class="filter-chips">
+                
+                    <button class="filter-chip active" data-action="setFeedFilter" data-value="All">All</button>
+                
+                    <button class="filter-chip " data-action="setFeedFilter" data-value="Employers">Employers</button>
+                
+                    <button class="filter-chip " data-action="setFeedFilter" data-value="Top Posts">Top Posts</button>
+                
+                    <button class="filter-chip " data-action="setFeedFilter" data-value="Intros">Intros</button>
+                
+            </div>
+        
+                
+
+                <div class="feed-posts">
+                    
+            <div class="feed-post" data-post-id="post_01">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #4285F4">G</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_01">Google</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            1d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_01"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Exciting news! We're expanding our Summer 2026 internship program with 500 new positions across engineering, product, and design. Apply now on Handshake!</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_01">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>342</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_01">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_01">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_02">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #E74C3C">JP</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Jessica Park</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            Stanford University · 
+                            1d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_02"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Just got my return offer from Meta after an amazing summer internship! Happy to share tips about the interview process and what to expect. DM me or comment below! <span class="hashtag">#internship</span> <span class="hashtag">#meta</span> <span class="hashtag">#tech</span></div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_02">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>187</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_02">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>2</span>
+                    </button>
+                    <button class="post-action-btn bookmarked" data-action="bookmarkPost" data-post-id="post_02">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#4A90D9"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #3498DB">TW</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Tyler Wong</span>
+                                    <span class="comment-text">Congrats! Would love to hear about the coding interview format.</span>
+                                    <span class="comment-time">1d ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #95A5A6">AS</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Anonymous Student</span>
+                                    <span class="comment-text">How many rounds were there?</span>
+                                    <span class="comment-time">1d ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_03">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #0668E1">M</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_07">Meta</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            3d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_03"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">We're hosting a virtual info session on AI/ML careers at Meta next Thursday at 5pm PT. Sign up through Events on Handshake! We'll cover team overviews, project highlights, and Q&amp;A with current engineers.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_03">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>256</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_03">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>1</span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_03">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #2ECC71">RG</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Rahul Gupta</span>
+                                    <span class="comment-text">Is this open to all schools?</span>
+                                    <span class="comment-time">2d ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_04">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #F39C12">MJ</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Marcus Johnson</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            University of Michigan · 
+                            3d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_04"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Just wrapped up my first week at Stripe as a backend engineer. The code review culture here is incredible - I've already learned so much about distributed systems. If anyone is considering Stripe, happy to share my experience!</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_04">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>143</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_04">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_04">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_05">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #D4A574">A</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_15">Anthropic</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            3d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_05"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">We believe in building AI that is safe, beneficial, and understandable. Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_05">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>198</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_05">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>1</span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_05">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #4A90D9">MC</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Maya Chen</span>
+                                    <span class="comment-text">So excited about this! Just submitted my application for the Research Engineering role.</span>
+                                    <span class="comment-time">3d ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_06">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #9B59B6">AM</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Aisha Mohammed</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            Howard University · 
+                            4d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_06"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Attending the National Society of Black Engineers conference next week! Who else will be there? Let's connect! I'm especially interested in meeting recruiters from tech companies. <span class="hashtag">#NSBE</span> <span class="hashtag">#engineering</span> <span class="hashtag">#diversity</span></div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_06">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>231</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_06">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>2</span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_06">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #1ABC9C">DW</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Derek Williams</span>
+                                    <span class="comment-text">See you there! I'll be at the Google and Microsoft booths.</span>
+                                    <span class="comment-time">3d ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #E67E22">JL</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Jasmine Lewis</span>
+                                    <span class="comment-text">Can't wait! This will be my first NSBE conference.</span>
+                                    <span class="comment-time">3d ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_07">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #FF9900">A</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_09">Amazon</span>
+                            <button class="btn-follow-small" data-action="followEmployer" data-employer-id="emp_09">+ Follow</button>
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            4d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_07"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">AWS re:Invent was incredible this year! Missed it? Check out our recap and highlights. We're also hiring across all AWS teams - SDE, Solutions Architect, PM, and more. 200+ new grad and intern positions available.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_07">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>178</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_07">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_07">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_08">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #34495E">KO</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Kevin O'Brien</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            MIT · 
+                            4d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_08"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">After 6 months of preparation, I finally passed all my FAANG interviews! Here's my study plan:<br><br>1. LeetCode: 200 problems (focus on patterns, not quantity)<br>2. System Design: Grokking + YouTube<br>3. Behavioral: STAR method with real examples<br>4. Mock interviews: Pramp + friends<br><br>Don't give up. The process is tough but worth it.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_08">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>534</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_08">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>3</span>
+                    </button>
+                    <button class="post-action-btn bookmarked" data-action="bookmarkPost" data-post-id="post_08">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#4A90D9"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #95A5A6">AS</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Anonymous Student</span>
+                                    <span class="comment-text">How long did you study each day?</span>
+                                    <span class="comment-time">4d ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #8E44AD">PS</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Priya Sharma</span>
+                                    <span class="comment-text">Congrats Kevin! Which companies did you end up getting offers from?</span>
+                                    <span class="comment-time">4d ago</span>
+                                </div>
+                            </div>
+                        
+                        <button class="view-all-comments" data-action="openComments" data-post-id="post_08">View all 3 comments</button>
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_09">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #003C71">M&amp;</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_04">McKinsey &amp; Company</span>
+                            <button class="btn-follow-small" data-action="followEmployer" data-employer-id="emp_04">+ Follow</button>
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            5d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_09"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Thinking about a career in consulting? Join our campus presentation at Stanford on March 15th. We'll cover what it's like to work at McKinsey, the types of projects you'll be on, and tips for the case interview.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_09">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>167</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_09">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_09">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_10">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #27AE60">ER</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Emma Rodriguez</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            Stanford University · 
+                            5d ago
+                             · <span class="audience-badge">Your school</span>
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_10"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Hi everyone! I'm a junior studying HCI and I just launched my portfolio website. Would love feedback from fellow designers and anyone in UX. Link in my profile bio. Also open to coffee chats about UX careers!</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_10">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>89</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_10">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>1</span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_10">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #4A90D9">MC</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Maya Chen</span>
+                                    <span class="comment-text">Love your case studies, Emma! The Spotify redesign is really thoughtful.</span>
+                                    <span class="comment-time">5d ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_11">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #000000">A</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_05">Apple</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            6d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_11"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Our Apple Pathways intern program is designed for students from underrepresented backgrounds in tech. Applications are open for Summer 2026 across engineering, design, and marketing. We're committed to building a workforce as diverse as our user base.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_11">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>289</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_11">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_11">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_12">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #C0392B">JT</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Jordan Taylor</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            Northwestern University · 
+                            6d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_12"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Hot take: You don't need to work at a FAANG company to have a great career in tech. I turned down a Big Tech offer to join a Series B startup and it was the best decision I ever made. Ownership, speed, and impact are unmatched.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_12">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>412</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_12">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>2</span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_12">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #16A085">AR</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Alex Rivera</span>
+                                    <span class="comment-text">Totally agree! I started at a startup and learned more in 6 months than some learn in 2 years at big companies.</span>
+                                    <span class="comment-time">6d ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #95A5A6">AS</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Anonymous Student</span>
+                                    <span class="comment-text">Counter-point: Big Tech gives you brand name recognition and structured mentorship that startups often lack.</span>
+                                    <span class="comment-time">6d ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_13">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #635BFF">S</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_10">Stripe</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            6d ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_13"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Engineering at Stripe: We process hundreds of billions of dollars in payments every year. Behind every transaction is elegant code. Our engineering blog just published a deep dive on our distributed systems architecture. Come build with us!</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_13">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>156</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_13">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_13">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_14">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #2980B9">DL</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">David Lee</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            UC Berkeley · 
+                            1w ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_14"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">I created a study group for anyone preparing for PM interviews this spring. We meet virtually every Tuesday and Thursday at 7pm PT. Topics include product sense, analytical, and execution questions. Comment or DM to join!</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_14">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>276</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_14">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>3</span>
+                    </button>
+                    <button class="post-action-btn bookmarked" data-action="bookmarkPost" data-post-id="post_14">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#4A90D9"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="#4A90D9" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #D35400">SP</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Sam Patel</span>
+                                    <span class="comment-text">This is exactly what I needed. Signing up!</span>
+                                    <span class="comment-time">1w ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #7F8C8D">MT</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Mia Thompson</span>
+                                    <span class="comment-text">Is this open to people from other schools?</span>
+                                    <span class="comment-time">1w ago</span>
+                                </div>
+                            </div>
+                        
+                        <button class="view-all-comments" data-action="openComments" data-post-id="post_14">View all 3 comments</button>
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_15">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #003A70">JC</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_02">JPMorgan Chase</span>
+                            <button class="btn-follow-small" data-action="followEmployer" data-employer-id="emp_02">+ Follow</button>
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            1w ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_15"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Our Technology Analyst program is one of the largest in financial services. Over 1,500 new technologists join us each year. This summer, interns will have the opportunity to work on real projects in AI, cloud, and cybersecurity.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_15">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>134</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_15">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_15">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_16">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #6C3483">NB</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Nathan Brooks</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            Rice University · 
+                            1w ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_16"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Career fair tips from someone who's been to 12 of them:<br><br>- Research companies beforehand<br>- Prepare your 30-second pitch<br>- Ask thoughtful questions (NOT "what does your company do?")<br>- Follow up within 24 hours<br>- Wear comfortable shoes<br><br>Good luck to everyone attending the Stanford Career Fair next week!</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_16">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>325</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_16">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_16">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_17">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #E31937">TF</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_18">Teach For America</span>
+                            <button class="btn-follow-small" data-action="followEmployer" data-employer-id="emp_18">+ Follow</button>
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            1w ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_17"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Every child deserves access to an excellent education. Our 2026 corps applications are still open. All majors welcome. Make an impact that lasts a lifetime. Learn more about the corps member experience on our brand page.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_17">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>98</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_17">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_17">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_18">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #A93226">SW</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Sophia Williams</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            Harvard University · 
+                            1w ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_18"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Just finished reading "Cracking the PM Interview" - here are my top 5 takeaways for anyone preparing for PM roles:<br><br>1. Structure your answers (always)<br>2. Quantify impact wherever possible<br>3. Practice out loud, not just in your head<br>4. Know your "why" for each company<br>5. Build side projects to demonstrate product thinking</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_18">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>267</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_18">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>1</span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_18">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #2980B9">DL</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">David Lee</span>
+                                    <span class="comment-text">Great list! I'd add: always tie your answers back to user impact.</span>
+                                    <span class="comment-time">1w ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_19">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #00A4EF">M</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name employer-name" data-action="viewEmployer" data-employer-id="emp_03">Microsoft</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            
+                            1w ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_19"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Microsoft Imagine Cup 2026 is here! Form your team and build a solution using Microsoft technology. Grand prize: $100K, mentorship from Microsoft leaders, and Azure credits. Registration closes March 31st.</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_19">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>312</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_19">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span>1</span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_19">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+                    <div class="feed-post-comments">
+                        
+                            <div class="comment">
+                                <div class="avatar avatar-tiny" style="background-color: #E67E22">OH</div>
+                                <div class="comment-body">
+                                    <span class="comment-author">Omar Hassan</span>
+                                    <span class="comment-text">Looking for teammates! I'm a CS junior with experience in Azure and React. DM me!</span>
+                                    <span class="comment-time">1w ago</span>
+                                </div>
+                            </div>
+                        
+                        
+                    </div>
+                
+            </div>
+        
+            <div class="feed-post" data-post-id="post_20">
+                <div class="feed-post-header">
+                    <div class="avatar avatar-medium" style="background-color: #148F77">RK</div>
+                    <div class="feed-post-author-info">
+                        <div class="feed-post-author-row">
+                            <span class="feed-post-author-name ">Rachel Kim</span>
+                            
+                        </div>
+                        <div class="feed-post-meta">
+                            Yale University · 
+                            1w ago
+                            
+                        </div>
+                    </div>
+                    <div class="feed-post-menu">
+                        <button class="icon-btn" data-action="togglePostMenu" data-post-id="post_20"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5" fill="currentColor"></circle><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><circle cx="13" cy="8" r="1.5" fill="currentColor"></circle></svg></button>
+                    </div>
+                </div>
+                <div class="feed-post-content">Intro post! I'm Rachel, a sophomore at Yale studying Cognitive Science and CS. I'm interested in the intersection of psychology and technology, especially in UX research and human-AI interaction. Looking to connect with others in this space!</div>
+                <div class="feed-post-actions">
+                    <button class="post-action-btn liked" data-action="likePost" data-post-id="post_20">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="#E44D2E"><path d="M9 15.5s-6.5-4-6.5-8A3.5 3.5 0 019 4.5a3.5 3.5 0 016.5 3c0 4-6.5 8-6.5 8z" stroke="#E44D2E" stroke-width="1.5"></path></svg>
+                        <span>145</span>
+                    </button>
+                    <button class="post-action-btn" data-action="openComments" data-post-id="post_20">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4h14v9H5l-3 3V4z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                        <span></span>
+                    </button>
+                    <button class="post-action-btn " data-action="bookmarkPost" data-post-id="post_20">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 2h10v14l-5-3-5 3V2z" stroke="currentColor" stroke-width="1.5"></path></svg>
+                    </button>
+                </div>
+                
+            </div>
+        
+                </div>
+                <div class="pagination-info">Showing 20 of 20 results</div>
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

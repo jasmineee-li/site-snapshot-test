@@ -1,0 +1,455 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item active" data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-events">
+                
+            <div class="section-header">
+                <h2 class="section-title">Events</h2>
+                <p class="section-subtitle">Discover career fairs, info sessions, and workshops</p>
+            </div>
+        
+                <div class="events-toolbar">
+                    
+            <div class="search-input-wrapper">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"></circle><path d="M11 11L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                <input type="text" class="search-input" id="eventSearch" placeholder="Search events..." value="" autocomplete="off">
+            </div>
+        
+                    <div class="events-filters">
+                        
+            <div class="custom-dropdown" id="eventTypeFilter" data-value="All Types">
+                <div class="dropdown-trigger" data-dropdown-id="eventTypeFilter">
+                    <span class="dropdown-value">All Types</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="eventTypeFilter" data-value="All Types">
+                            All Types
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="eventTypeFilter" data-value="Info Session">
+                            Info Session
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="eventTypeFilter" data-value="Career Fair">
+                            Career Fair
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="eventTypeFilter" data-value="Tech Talk">
+                            Tech Talk
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="eventTypeFilter" data-value="Workshop">
+                            Workshop
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="eventTypeFilter" data-value="Panel">
+                            Panel
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="eventTypeFilter" data-value="Speaker Event">
+                            Speaker Event
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="eventTypeFilter" data-value="Virtual Session">
+                            Virtual Session
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                        <label class="checkbox-row inline-filter" data-checkbox-id="virtualOnly">
+                            <div class="custom-checkbox " id="virtualOnly">
+                                
+                            </div>
+                            <span class="checkbox-label">Virtual only</span>
+                        </label>
+                    </div>
+                </div>
+
+                
+                    <h3 class="list-section-title">Upcoming Events</h3>
+                    <div class="events-list">
+                        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_01">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">15</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">McKinsey Campus Presentation - Stanford</div>
+                    <div class="event-card-meta">McKinsey &amp; Company · Info Session</div>
+                    <div class="event-card-meta">5:00 PM - 6:30 PM · Huang Engineering Center, Room 100</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Consulting</span><span class="event-label">Presentation</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">87 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_01">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_02">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">13</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">AI/ML Careers at Meta - Virtual Info Session</div>
+                    <div class="event-card-meta">Meta · Virtual Session</div>
+                    <div class="event-card-meta">5:00 PM - 6:00 PM PT · Virtual on Handshake</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Technology</span><span class="event-label">AI/ML</span><span class="event-label">Virtual</span>
+                        <span class="event-label virtual-label">Virtual</span>
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">234 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_02">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_03">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">20</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Stanford Spring Career Fair 2026</div>
+                    <div class="event-card-meta">Stanford Career Center · Career Fair</div>
+                    <div class="event-card-meta">10:00 AM - 4:00 PM · Arrillaga Alumni Center</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Career Fair</span><span class="event-label">All Industries</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">1256 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_03">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_04">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">18</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Google Tech Talk: Building Scalable ML Systems</div>
+                    <div class="event-card-meta">Google · Tech Talk</div>
+                    <div class="event-card-meta">4:00 PM - 5:30 PM · Gates Computer Science Building, Room B03</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Technology</span><span class="event-label">AI/ML</span><span class="event-label">Tech Talk</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">156 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_04">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_05">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">10</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Resume Workshop: Making Your Resume Stand Out</div>
+                    <div class="event-card-meta">Stanford Career Center · Workshop</div>
+                    <div class="event-card-meta">2:00 PM - 3:30 PM · Career Center, Room 201</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Workshop</span><span class="event-label">Career Development</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">45 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_05">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_06">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">22</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Anthropic Research Talk: AI Alignment</div>
+                    <div class="event-card-meta">Anthropic · Tech Talk</div>
+                    <div class="event-card-meta">3:00 PM - 4:30 PM PT · Virtual on Handshake</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Technology</span><span class="event-label">AI/ML</span><span class="event-label">Research</span><span class="event-label">Virtual</span>
+                        <span class="event-label virtual-label">Virtual</span>
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">198 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_06">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_07">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">25</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Virtual Career Fair - Technology Focus</div>
+                    <div class="event-card-meta">Stanford Career Center · Career Fair</div>
+                    <div class="event-card-meta">11:00 AM - 3:00 PM PT · Virtual on Handshake</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Career Fair</span><span class="event-label">Technology</span><span class="event-label">Virtual</span>
+                        <span class="event-label virtual-label">Virtual</span>
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">567 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_07">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_08">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">12</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">JPM Markets &amp; Trading Panel</div>
+                    <div class="event-card-meta">JPMorgan Chase · Panel</div>
+                    <div class="event-card-meta">6:00 PM - 7:30 PM · GSB Knight Management Center</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Finance</span><span class="event-label">Panel</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">92 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_08">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_09">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">8</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Interview Prep: Behavioral Questions Masterclass</div>
+                    <div class="event-card-meta">Stanford Career Center · Workshop</div>
+                    <div class="event-card-meta">1:00 PM - 2:30 PM · Career Center, Room 105</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Workshop</span><span class="event-label">Interview Prep</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">38 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_09">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_10">
+                <div class="event-card-date">
+                    <div class="event-date-month">Mar</div>
+                    <div class="event-date-day">17</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Salesforce Futureforce: Building Your Career in Cloud</div>
+                    <div class="event-card-meta">Salesforce · Info Session</div>
+                    <div class="event-card-meta">12:00 PM - 1:00 PM PT · Virtual on Handshake</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Technology</span><span class="event-label">Virtual</span>
+                        <span class="event-label virtual-label">Virtual</span>
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">123 attending</div>
+                    
+                        <button class="btn btn-sm btn-primary" data-action="rsvpEvent" data-event-id="evt_10">
+                            RSVP
+                        </button>
+                    
+                </div>
+            </div>
+        
+                    </div>
+                
+
+                
+                    <h3 class="list-section-title">Past Events</h3>
+                    <div class="events-list">
+                        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_11">
+                <div class="event-card-date">
+                    <div class="event-date-month">Feb</div>
+                    <div class="event-date-day">28</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Networking 101: Building Professional Relationships</div>
+                    <div class="event-card-meta">Stanford Career Center · Workshop</div>
+                    <div class="event-card-meta">3:00 PM - 4:00 PM · Career Center, Room 201</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Workshop</span><span class="event-label">Career Development</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">52 attending</div>
+                    <span class="event-past-label">Past</span>
+                </div>
+            </div>
+        
+            <div class="event-card" data-action="viewEvent" data-event-id="evt_12">
+                <div class="event-card-date">
+                    <div class="event-date-month">Feb</div>
+                    <div class="event-date-day">25</div>
+                </div>
+                <div class="event-card-info">
+                    <div class="event-card-title">Apple Design Speaker Series</div>
+                    <div class="event-card-meta">Apple · Speaker Event</div>
+                    <div class="event-card-meta">4:00 PM - 5:30 PM · d.school, Building 550</div>
+                    <div class="event-card-tags">
+                        <span class="event-label">Design</span><span class="event-label">Technology</span>
+                        
+                    </div>
+                </div>
+                <div class="event-card-right">
+                    <div class="event-rsvp-count">178 attending</div>
+                    <span class="event-past-label">Past</span>
+                </div>
+            </div>
+        
+                    </div>
+                
+
+                
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

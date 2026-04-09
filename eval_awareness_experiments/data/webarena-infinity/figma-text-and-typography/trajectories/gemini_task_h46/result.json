@@ -1,0 +1,18 @@
+{
+  "task_id": "task_h46",
+  "difficulty": "hard",
+  "instruction": "Among the text styles not currently applied to any layer, delete the one with the second-largest font size.",
+  "passed": true,
+  "verifier_message": "Heading/H3 (second-largest unused style) deleted correctly.",
+  "elapsed": 58.5,
+  "steps": 5,
+  "is_done": true,
+  "final_result": "I have successfully deleted the second-largest unused text style. After analyzing the 'Text Styles' page, I identified the unused styles as Heading/Display (64px), Heading/H3 (24px), Body/Large (18px), Body/Small (13px), and Label/Overline (11px). The second-largest among these was Heading/H3 (24px), which I have now deleted.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

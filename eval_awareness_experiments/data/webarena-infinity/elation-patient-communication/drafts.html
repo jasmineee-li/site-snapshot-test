@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Patient Communication</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">☰</button>
+        <div class="app-logo">
+            <div class="logo-icon">E</div>
+            <span>Elation</span>
+        </div>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-user">
+            <div id="userAvatar"><div class="avatar" style="width:32px;height:32px;background:#4A90D9;font-size:13px" title="Sarah Chen">SC</div></div>
+            <span class="topbar-user-name" id="userName">Dr. Chen</span>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div id="sidebarNav"><nav class="sidebar-nav"><div class="nav-item " data-route="home" data-testid="nav-home"><span class="nav-icon">🏠</span><span class="nav-text">Practice Home</span></div><div class="nav-item " data-route="inbox" data-testid="nav-inbox"><span class="nav-icon">📨</span><span class="nav-text">Patient Letters</span><span class="nav-badge">12</span></div><div class="nav-item " data-route="sent" data-testid="nav-sent"><span class="nav-icon">📤</span><span class="nav-text">Sent</span></div><div class="nav-item active" data-route="drafts" data-testid="nav-drafts"><span class="nav-icon">📝</span><span class="nav-text">Drafts</span><span class="nav-badge">1</span></div><div class="nav-item " data-route="reminders" data-testid="nav-reminders"><span class="nav-icon">🔔</span><span class="nav-text">Reminders</span><span class="nav-badge">9</span></div><div class="nav-divider"></div><div class="nav-item " data-route="patients" data-testid="nav-patients"><span class="nav-icon">👥</span><span class="nav-text">Patients</span></div><div class="nav-item " data-route="appointments" data-testid="nav-appointments"><span class="nav-icon">📅</span><span class="nav-text">Appointments</span></div><div class="nav-item " data-route="bulk-letters" data-testid="nav-bulk-letters"><span class="nav-icon">📧</span><span class="nav-text">Bulk Letters</span></div><div class="nav-divider"></div><div class="nav-item " data-route="settings" data-testid="nav-settings"><span class="nav-icon">⚙</span><span class="nav-text">Settings</span></div></nav></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div id="contentWrapper"><div class="page-content" data-testid="drafts-page"><div class="page-header"><h1 class="page-title">Drafts</h1></div><div class="letter-list full-list"><div class="letter-item draft" data-action="edit-draft" data-letter="ltr_35" data-testid="draft-ltr_35"><div class="letter-sender">To: Martha Reeves-Whitfield</div><div class="letter-subject">Annual Wellness Visit Summary</div><div class="letter-preview">Dear Mrs. Reeves-Whitfield, Thank you for coming in for your annual wellness visit on February 27th. We reviewed your me</div><div class="letter-actions"><button class="btn btn-sm btn-danger" data-action="delete-draft" data-letter="ltr_35">Delete</button></div></div></div></div></div>
+    </main>
+
+    <!-- Compose Overlay -->
+    <div class="compose-overlay" id="composeOverlay" style="display: none;"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="close-btn" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

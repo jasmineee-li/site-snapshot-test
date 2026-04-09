@@ -1,0 +1,91 @@
+- document:
+  - banner:
+    - text: Xero
+    - textbox "Search invoices, quotes, contacts..."
+    - button "🔍"
+  - complementary:
+    - text: Demo Company (AU)
+    - navigation: ▢ Dashboard Sales 📄 Invoices 13 📋 Quotes 💳 Credit Notes 🔄 Repeating Invoices Settings ⚙ Invoice Settings 🎨 Branding Themes 🔔 Invoice Reminders
+  - main:
+    - heading "Quotes" [level=1]
+    - button "New Quote"
+    - button "All (8)"
+    - button "Draft (1)"
+    - button "Sent (3)"
+    - button "Accepted (3)"
+    - button "Declined (1)"
+    - table:
+      - rowgroup:
+        - row "Number Reference To Date Expiry Total Status":
+          - columnheader "Number"
+          - columnheader "Reference"
+          - columnheader "To"
+          - columnheader "Date"
+          - columnheader "Expiry"
+          - columnheader "Total"
+          - columnheader "Status"
+      - rowgroup:
+        - row "QU-0025 Fresh Start Catering Co 1 Mar 2026 31 Mar 2026 $4,940.00 Draft":
+          - cell "QU-0025"
+          - cell
+          - cell "Fresh Start Catering Co"
+          - cell "1 Mar 2026"
+          - cell "31 Mar 2026"
+          - cell "$4,940.00"
+          - cell "Draft"
+        - row "QU-0028 MF-AUTO Metro Fabrication Works 28 Feb 2026 30 Mar 2026 $14,410.00 Sent":
+          - cell "QU-0028"
+          - cell "MF-AUTO"
+          - cell "Metro Fabrication Works"
+          - cell "28 Feb 2026"
+          - cell "30 Mar 2026"
+          - cell "$14,410.00"
+          - cell "Sent"
+        - row "QU-0024 AEC-COLLAB Atlas Engineering Consultants 25 Feb 2026 27 Mar 2026 $76,725.00 Sent":
+          - cell "QU-0024"
+          - cell "AEC-COLLAB"
+          - cell "Atlas Engineering Consultants"
+          - cell "25 Feb 2026"
+          - cell "27 Mar 2026"
+          - cell "$76,725.00"
+          - cell "Sent"
+        - row "QU-0023 Redback Mining Supplies 20 Feb 2026 22 Mar 2026 $18,780.00 Sent":
+          - cell "QU-0023"
+          - cell
+          - cell "Redback Mining Supplies"
+          - cell "20 Feb 2026"
+          - cell "22 Mar 2026"
+          - cell "$18,780.00"
+          - cell "Sent"
+        - row "QU-0029 ALI-PHASE2 Alpha Logistics International 10 Feb 2026 10 Mar 2026 $17,600.00 Accepted":
+          - cell "QU-0029"
+          - cell "ALI-PHASE2"
+          - cell "Alpha Logistics International"
+          - cell "10 Feb 2026"
+          - cell "10 Mar 2026"
+          - cell "$17,600.00"
+          - cell "Accepted"
+        - row "QU-0026 HM-VID-2026 Horizon Media & Advertising 15 Jan 2026 14 Feb 2026 $36,506.80 Declined":
+          - cell "QU-0026"
+          - cell "HM-VID-2026"
+          - cell "Horizon Media & Advertising"
+          - cell "15 Jan 2026"
+          - cell "14 Feb 2026"
+          - cell "$36,506.80"
+          - cell "Declined"
+        - row "QU-0022 PO-PENDING-9088 Pinnacle Construction Group 10 Jan 2026 10 Feb 2026 $52,360.00 Accepted":
+          - cell "QU-0022"
+          - cell "PO-PENDING-9088"
+          - cell "Pinnacle Construction Group"
+          - cell "10 Jan 2026"
+          - cell "10 Feb 2026"
+          - cell "$52,360.00"
+          - cell "Accepted"
+        - row "QU-0027 SES-LMS Stellar Education Services 1 Dec 2025 31 Dec 2025 $6,600.00 Accepted Invoiced":
+          - cell "QU-0027"
+          - cell "SES-LMS"
+          - cell "Stellar Education Services"
+          - cell "1 Dec 2025"
+          - cell "31 Dec 2025"
+          - cell "$6,600.00"
+          - cell "Accepted Invoiced"

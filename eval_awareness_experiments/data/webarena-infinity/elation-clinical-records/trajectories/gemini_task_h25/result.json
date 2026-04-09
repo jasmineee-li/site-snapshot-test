@@ -1,0 +1,24 @@
+{
+  "task_id": "task_h25",
+  "difficulty": "hard",
+  "instruction": "Look up the billing code on the Pre-Operative Evaluation template and add it as a new billing item to David Kowalski's draft visit note.",
+  "passed": true,
+  "verifier_message": "Kowalski's draft note (note_012) has billing item with cptCode 99215 (from Pre-Op Evaluation template).",
+  "elapsed": 107.4,
+  "steps": 11,
+  "is_done": true,
+  "final_result": "I have successfully added the billing code '99215' (Pre-Operative Evaluation) to David Kowalski's draft visit note as requested.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

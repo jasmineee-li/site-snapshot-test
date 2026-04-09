@@ -1,0 +1,58 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "Events" [level=2]
+    - paragraph: Discover career fairs, info sessions, and workshops
+    - img
+    - textbox "Search events..."
+    - text: All Types
+    - img
+    - text: Virtual only
+    - heading "Upcoming Events" [level=3]
+    - text: Mar 15 McKinsey Campus Presentation - Stanford McKinsey & Company · Info Session 5:00 PM - 6:30 PM · Huang Engineering Center, Room 100 Consulting Presentation 87 attending
+    - button "RSVP"
+    - text: Mar 13 AI/ML Careers at Meta - Virtual Info Session Meta · Virtual Session 5:00 PM - 6:00 PM PT · Virtual on Handshake Technology AI/ML Virtual Virtual 234 attending
+    - button "RSVP"
+    - text: Mar 20 Stanford Spring Career Fair 2026 Stanford Career Center · Career Fair 10:00 AM - 4:00 PM · Arrillaga Alumni Center Career Fair All Industries 1256 attending
+    - button "RSVP"
+    - text: "Mar 18 Google Tech Talk: Building Scalable ML Systems Google · Tech Talk 4:00 PM - 5:30 PM · Gates Computer Science Building, Room B03 Technology AI/ML Tech Talk 156 attending"
+    - button "RSVP"
+    - text: "Mar 10 Resume Workshop: Making Your Resume Stand Out Stanford Career Center · Workshop 2:00 PM - 3:30 PM · Career Center, Room 201 Workshop Career Development 45 attending"
+    - button "RSVP"
+    - text: "Mar 22 Anthropic Research Talk: AI Alignment Anthropic · Tech Talk 3:00 PM - 4:30 PM PT · Virtual on Handshake Technology AI/ML Research Virtual Virtual 198 attending"
+    - button "RSVP"
+    - text: Mar 25 Virtual Career Fair - Technology Focus Stanford Career Center · Career Fair 11:00 AM - 3:00 PM PT · Virtual on Handshake Career Fair Technology Virtual Virtual 567 attending
+    - button "RSVP"
+    - text: Mar 12 JPM Markets & Trading Panel JPMorgan Chase · Panel 6:00 PM - 7:30 PM · GSB Knight Management Center Finance Panel 92 attending
+    - button "RSVP"
+    - text: "Mar 8 Interview Prep: Behavioral Questions Masterclass Stanford Career Center · Workshop 1:00 PM - 2:30 PM · Career Center, Room 105 Workshop Interview Prep 38 attending"
+    - button "RSVP"
+    - text: "Mar 17 Salesforce Futureforce: Building Your Career in Cloud Salesforce · Info Session 12:00 PM - 1:00 PM PT · Virtual on Handshake Technology Virtual Virtual 123 attending"
+    - button "RSVP"
+    - heading "Past Events" [level=3]
+    - text: "Feb 28 Networking 101: Building Professional Relationships Stanford Career Center · Workshop 3:00 PM - 4:00 PM · Career Center, Room 201 Workshop Career Development 52 attending Past Feb 25 Apple Design Speaker Series Apple · Speaker Event 4:00 PM - 5:30 PM · d.school, Building 550 Design Technology 178 attending Past"

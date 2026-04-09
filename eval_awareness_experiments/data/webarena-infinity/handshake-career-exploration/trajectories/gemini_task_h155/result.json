@@ -1,0 +1,25 @@
+{
+  "task_id": "task_h155",
+  "difficulty": "hard",
+  "instruction": "Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.",
+  "passed": true,
+  "verifier_message": "Profile visibility set to Public. Bio updated with full-time mention. New post about full-time AI opportunities created.",
+  "elapsed": 110.7,
+  "steps": 12,
+  "is_done": true,
+  "final_result": "I have successfully updated your profile and shared your introduction on the feed. \n\n1. **Profile Visibility**: Updated to 'Public'.\n2. **Bio**: Updated to: 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\n3. **Feed Post**: Published a post: 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

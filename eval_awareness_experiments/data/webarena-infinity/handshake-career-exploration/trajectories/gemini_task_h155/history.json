@@ -1,0 +1,940 @@
+{
+  "history": [
+    {
+      "model_output": {
+        "evaluation_previous_goal": "Start",
+        "memory": null,
+        "next_goal": "Initial navigation",
+        "action": [
+          {
+            "navigate": {
+              "url": "http://localhost:8006",
+              "new_tab": false
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "long_term_memory": "Found initial url and automatically loaded it. Navigated to http://localhost:8006",
+          "extracted_content": "🔗 Navigated to http://localhost:8006",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [],
+        "screenshot_path": null,
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8006",
+        "title": "Initial Actions"
+      },
+      "metadata": {
+        "step_start_time": 1772983508.6003642,
+        "step_end_time": 1772983508.6003642,
+        "step_number": 0,
+        "step_interval": null
+      },
+      "state_message": null
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The agent was just initialized and successfully navigated to the home page. Verdict: Success",
+        "memory": "Starting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.",
+        "next_goal": "Navigate to the profile page by clicking on the user's name.",
+        "action": [
+          {
+            "click": {
+              "index": 132
+            }
+          }
+        ],
+        "thinking": "The user wants to update their profile visibility, bio, and create a feed post. I am currently on the feed page. I will first navigate to the profile page to handle the visibility and bio updates. I'll click on the user's name 'Maya Chen' to see if it leads to the profile or settings.",
+        "current_plan_item": 0,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Maya Chen\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 115.5390625,
+            "click_y": 1033.75
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/",
+            "title": "localhost:8006",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_1.png",
+        "interacted_element": [
+          {
+            "node_id": 76,
+            "backend_node_id": 132,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "sidebar-user-name"
+            },
+            "x_path": "html/body/div[1]/aside/div[2]/div/div[2]/div[1]",
+            "element_hash": 4076058032924426278,
+            "stable_hash": 4076058032924426278,
+            "bounds": {
+              "x": 66.0,
+              "y": 1024.0,
+              "width": 99.078125,
+              "height": 19.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8006/",
+        "title": "localhost:8006"
+      },
+      "metadata": {
+        "step_start_time": 1772983508.6004105,
+        "step_end_time": 1772983516.396242,
+        "step_number": 1,
+        "step_interval": 0.0
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<step_info>Step1 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 76 interactive, 0 iframes, 322 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/ - localhost:8006\n\n<page_info>0.0 above, 4.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n[42]<button />\n\tFeed\n[54]<button />\n\tJobs\n[65]<button />\n\tEmployers\n[76]<button />\n\tEvents\n[87]<button />\n\tMessages\n[100]<button />\n\tCareer Center\n[111]<button />\n\tQ&A\n[125]<div />\n\t[127]<div />\n\t\tMC\n\t[130]<div />\n\t\t[132]<div />\n\t\t\tMaya Chen\n\t\t[135]<div />\n\t\t\tStanford University\nFeed\nStay connected with your career community\n[157]<button />\n\tFeed\n[160]<button />\n\tSaved\n[164]<div />\n\t[166]<div />\n\t\tMC\n\t[169]<span />\n\t\tShare something with the community...\n[175]<button />\n\tAll\n[178]<button />\n\tEmployers\n[181]<button />\n\tTop Posts\n[184]<button />\n\tIntros\n[194]<div />\n[201]<span />\n\tGoogle\n1d ago\n[209]<div />\n\t[211]<button />\nExciting news! We're expanding our Summer 2026 internship program with 500 new positions across engineering, product, and design. Apply now on Handshake!\n[224]<button />\n\t342\n[233]<button />\n\t[238]<span />\n[241]<button />\n[253]<div />\n\tJP\nJessica Park\nStanford University · \n                            1d ago\n[267]<div />\n\t[269]<button />\nJust got my return offer from Meta after an amazing summer internship! Happy to share tips about the interview process and what to expect. DM me or comment below!\n#internship\n[282]<span />\n\t#meta\n[285]<span />\n\t#tech\n[290]<button />\n\t187\n[299]<button />\n[308]<button />\n[319]<div />\n\tTW\nTyler Wong\nCongrats! Would love to hear about the coding interview format.\n1d ago\n[337]<div />\n\tAS\nAnonymous Student\nHow many rounds were there?\n1d ago\n[358]<div />\n[365]<span />\n\tMeta\n3d ago\n[373]<div />\n\t[375]<button />\nWe're hosting a virtual info session on AI/ML careers at Meta next Thursday at 5pm PT. Sign up through Events on Handshake! We'll cover team overviews, project highlights, and Q&A with current engineers.\n[388]<button />\n\t256\n[397]<button />\n[406]<button />\n[417]<div />\n\tRG\nRahul Gupta\nIs this open to all schools?\n2d ago\n[439]<div />\n\tMJ\nMarcus Johnson\nUniversity of Michigan · \n                            3d ago\n[454]<div />\n\t[456]<button />\nJust wrapped up my first week at Stripe as a backend engineer. The code review culture here is incredible - I've already learned so much about distributed systems. If anyone is considering Stripe, happy to share my experience!\n[469]<button />\n\t143\n[478]<button />\n\t[483]<span />\n[486]<button />\n[498]<div />\n[505]<span />\n\tAnthropic\n3d ago\n[513]<div />\n\t[515]<button />\nWe believe in building AI that is safe, beneficial, and understandable. Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.\n[528]<button />\n\t198\n[537]<button />\n[546]<button />\n[557]<div />\n\tMC\nMaya Chen\nSo excited about this! Just submitted my application for the Research Engineering role.\n3d ago\n[579]<div />\n\tAM\nAisha Mohammed\nHoward University · \n                            4d ago\n[594]<div />\n\t[596]<button />\nAttending the National Society of Black Engineers conference next week! Who else will be there? Let's connect! I'm especially interested in meeting recruiters from tech companies.\n[606]<span />\n\t#NSBE\n#engineering\n#diversity\n[617]<button />\n\t231\n[626]<button />\n[635]<button />\n[646]<div />\n\tDW\nDerek Williams\nSee you there! I'll be at the Google and Microsoft booths.\n3d ago\n[664]<div />\n\tJL\nJasmine Lewis\nCan't wait! This will be my first NSBE conference.\n3d ago\n[686]<div />\n[693]<span />\n\tAmazon\n[696]<button />\n\t+ Follow\n4d ago\n[704]<div />\n\t[706]<button />\nAWS re:Invent was incredible this year! Missed it? Check out our recap and highlights. We're also hiring across all AWS teams - SDE, Solutions Architect, PM, and more. 200+ new grad and intern positions available.\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "Successfully navigated to the profile page. Verdict: Success",
+        "memory": "On the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.",
+        "next_goal": "Click on the profile visibility setting to change it to 'Public'.",
+        "action": [
+          {
+            "click": {
+              "index": 1899
+            }
+          }
+        ],
+        "thinking": "I have successfully navigated to the profile page. My first goal is to change the profile visibility to 'Public'. Currently, it is set to 'Community'. I will click on the visibility setting to see the options. After that, I will update the bio and then create the feed post as requested.",
+        "current_plan_item": 1,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Community\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 559.78125,
+            "click_y": 997.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/profile",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_2.png",
+        "interacted_element": [
+          {
+            "node_id": 1164,
+            "backend_node_id": 1899,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "dropdown-trigger",
+              "data-dropdown-id": "profileVisibility"
+            },
+            "x_path": "html/body/div[1]/main/div/div[5]/div/div/div[1]",
+            "element_hash": 3528799760099048564,
+            "stable_hash": 3528799760099048564,
+            "bounds": {
+              "x": 469.78125,
+              "y": 978.5,
+              "width": 180.0,
+              "height": 37.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8006/#/profile",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983516.397978,
+        "step_end_time": 1772983525.6053905,
+        "step_number": 2,
+        "step_interval": 7.7958314418792725
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step2 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 23 interactive, 0 iframes, 238 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/profile - Handshake - Career Exploration\n\n<page_info>0.0 above, 0.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n*[1784]<button />\n\tFeed\n*[1791]<button />\n\tJobs\n*[1797]<button />\n\tEmployers\n*[1803]<button />\n\tEvents\n*[1809]<button />\n\tMessages\n*[1815]<button />\n\tCareer Center\n*[1821]<button />\n\tQ&A\n*[1828]<div />\n\t*[1829]<div />\n\t\tMC\n\t*[1830]<div />\n\t\t*[1831]<div />\n\t\t\tMaya Chen\n\t\t*[1832]<div />\n\t\t\tStanford University\nMy Profile\nManage your profile information\nMC\nMaya Chen\nStanford University · Computer Science · Class of 2027\nStanford, CA\nAbout\nBio\nCS student passionate about AI/ML and product design. Looking for summer 2026 internship opportunities in tech.\n*[1849]<button />\n\tEdit\nEmail\nmaya.chen@stanford.edu\n*[1853]<button />\n\tEdit\nPhone\n(650) 555-0142\n*[1857]<button />\n\tEdit\nLinkedIn\nlinkedin.com/in/mayachen\n*[1861]<button />\n\tEdit\nWebsite\nmayachen.dev\n*[1865]<button />\n\tEdit\nLooking For\nCurrent status\nInternship\nRoles\nSoftware Engineer\nProduct Manager\nData Scientist\nUX Designer\nIndustries\nTechnology\nArtificial Intelligence\nFinance\nHealthcare Technology\nLocations\nSan Francisco, CA\nNew York, NY\nSeattle, WA\nAustin, TX\nRemote\n*[1893]<button />\n\tEdit Career Interests\nProfile Visibility\nWho can see your profile\n*[1899]<div />\n\t*[1900]<span />\n\t\tCommunity\n\t*[1901]<span />\n\t\t*[1902]<svg /> <!-- SVG content collapsed -->\nPublic: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you.\nWork Experience\nSoftware Engineering Intern\nMeta\n2025-06-01 - 2025-08-31\nBuilt ML pipeline for content recommendations\nResearch Assistant\nStanford AI Lab\n2025-01-15 - Present\nNLP research under Prof. Manning\nProduct Design Intern\nFigma\n2024-06-15 - 2024-08-30\nRedesigned plugin marketplace UX\nSkills\nPython\nJavaScript\nReact\nMachine Learning\n*[1936]<span />\n\tSQL\nFigma\nProduct Strategy\nOrganizations\nStanford Women in Tech\nACM Student Chapter\nEntrepreneurship Club\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The click on 'Community' successfully opened the visibility selection menu. Verdict: Success",
+        "memory": "I am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.",
+        "next_goal": "Select the 'Public' visibility option from the menu.",
+        "action": [
+          {
+            "click": {
+              "index": 1905
+            }
+          }
+        ],
+        "thinking": "The previous action opened the profile visibility options. Now I need to select 'Public' to fulfill the first part of the user request. After that, I will proceed to update the bio. I see the 'Public' option at index 1905. Once clicked, I'll check if the visibility updated before moving to the bio edit.",
+        "current_plan_item": 1,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div \"Public\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 559.78125,
+            "click_y": 1042.75
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/profile",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_3.png",
+        "interacted_element": [
+          {
+            "node_id": 1451,
+            "backend_node_id": 1905,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "dropdown-item ",
+              "data-dropdown-id": "profileVisibility",
+              "data-value": "Public"
+            },
+            "x_path": "html/body/div[1]/main/div/div[5]/div/div/div[2]/div[1]",
+            "element_hash": 4773369543413614123,
+            "stable_hash": 14221309186658262528,
+            "bounds": {
+              "x": 474.78125,
+              "y": 1025.0,
+              "width": 170.0,
+              "height": 35.5
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8006/#/profile",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983525.6069777,
+        "step_end_time": 1772983534.0327952,
+        "step_number": 3,
+        "step_interval": 9.207412481307983
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step3 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 28 interactive, 0 iframes, 243 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/profile - Handshake - Career Exploration\n\n<page_info>0.0 above, 0.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n[1784]<button />\n\tFeed\n[1791]<button />\n\tJobs\n[1797]<button />\n\tEmployers\n[1803]<button />\n\tEvents\n[1809]<button />\n\tMessages\n[1815]<button />\n\tCareer Center\n[1821]<button />\n\tQ&A\n[1828]<div />\n\t[1829]<div />\n\t\tMC\n\t[1830]<div />\n\t\t[1831]<div />\n\t\t\tMaya Chen\n\t\t[1832]<div />\n\t\t\tStanford University\nMy Profile\nManage your profile information\nMC\nMaya Chen\nStanford University · Computer Science · Class of 2027\nStanford, CA\nAbout\nBio\nCS student passionate about AI/ML and product design. Looking for summer 2026 internship opportunities in tech.\n[1849]<button />\n\tEdit\nEmail\nmaya.chen@stanford.edu\n[1853]<button />\n\tEdit\nPhone\n(650) 555-0142\n[1857]<button />\n\tEdit\nLinkedIn\nlinkedin.com/in/mayachen\n[1861]<button />\n\tEdit\nWebsite\nmayachen.dev\n[1865]<button />\n\tEdit\nLooking For\nCurrent status\nInternship\nRoles\nSoftware Engineer\nProduct Manager\nData Scientist\nUX Designer\nIndustries\nTechnology\nArtificial Intelligence\nFinance\nHealthcare Technology\nLocations\nSan Francisco, CA\nNew York, NY\nSeattle, WA\nAustin, TX\nRemote\n[1893]<button />\n\tEdit Career Interests\nProfile Visibility\nWho can see your profile\n[1899]<div />\n\t[1900]<span />\n\t\tCommunity\n\t[1901]<span />\n\t\t[1902]<svg /> <!-- SVG content collapsed -->\n*[1905]<div />\n\tPublic\n*[1906]<div />\n\tCommunity\n\t*[1907]<svg /> <!-- SVG content collapsed -->\n*[1909]<div />\n\tEmployers\n*[1910]<div />\n\tPrivate\nPublic: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you.\nWork Experience\nSoftware Engineering Intern\nMeta\n2025-06-01 - 2025-08-31\nBuilt ML pipeline for content recommendations\nResearch Assistant\nStanford AI Lab\n2025-01-15 - Present\nNLP research under Prof. Manning\nProduct Design Intern\nFigma\n2024-06-15 - 2024-08-30\nRedesigned plugin marketplace UX\nSkills\nPython\nJavaScript\nReact\nMachine Learning\n[1936]<span />\n\tSQL\nFigma\nProduct Strategy\nOrganizations\nStanford Women in Tech\nACM Student Chapter\nEntrepreneurship Club\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The click on 'Public' successfully updated the profile visibility. Verdict: Success",
+        "memory": "Profile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.",
+        "next_goal": "Click the 'Edit' button in the 'About' section to update the bio.",
+        "action": [
+          {
+            "click": {
+              "index": 2500
+            }
+          }
+        ],
+        "thinking": "I have successfully changed the profile visibility to 'Public' as indicated by the 'Public' status in the 'Profile Visibility' section. My next objective is to update the bio to mention looking for full-time positions after graduation. I will click the 'Edit' button in the 'About' section to modify the bio text.",
+        "current_plan_item": 2,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked button \"Edit\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1059.734375,
+            "click_y": 344.5
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/profile",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_4.png",
+        "interacted_element": [
+          {
+            "node_id": 1642,
+            "backend_node_id": 2500,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "BUTTON",
+            "attributes": {
+              "class": "btn-edit",
+              "data-action": "editProfileField",
+              "data-field": "bio"
+            },
+            "x_path": "html/body/div[1]/main/div/div[3]/div[1]/button",
+            "element_hash": 6869956063915985996,
+            "stable_hash": 6869956063915985996,
+            "bounds": {
+              "x": 1040.46875,
+              "y": 334.0,
+              "width": 38.53125,
+              "height": 21.0
+            },
+            "ax_name": "Edit"
+          }
+        ],
+        "url": "http://localhost:8006/#/profile",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983534.0344439,
+        "step_end_time": 1772983543.0803645,
+        "step_number": 4,
+        "step_interval": 8.425817489624023
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step4 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 23 interactive, 0 iframes, 233 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/profile - Handshake - Career Exploration\n\n<page_info>0.0 above, 0.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n*[2376]<button />\n\tFeed\n*[2383]<button />\n\tJobs\n*[2389]<button />\n\tEmployers\n*[2395]<button />\n\tEvents\n*[2401]<button />\n\tMessages\n*[2407]<button />\n\tCareer Center\n*[2413]<button />\n\tQ&A\n*[2420]<div />\n\t*[2421]<div />\n\t\tMC\n\t*[2422]<div />\n\t\t*[2423]<div />\n\t\t\tMaya Chen\n\t\t*[2424]<div />\n\t\t\tStanford University\nMy Profile\nManage your profile information\nMC\nMaya Chen\nStanford University · Computer Science · Class of 2027\nStanford, CA\nAbout\nBio\nCS student passionate about AI/ML and product design. Looking for summer 2026 internship opportunities in tech.\n*[2500]<button />\n\tEdit\nEmail\nmaya.chen@stanford.edu\n*[2504]<button />\n\tEdit\nPhone\n(650) 555-0142\n*[2508]<button />\n\tEdit\nLinkedIn\nlinkedin.com/in/mayachen\n*[2512]<button />\n\tEdit\nWebsite\nmayachen.dev\n*[2516]<button />\n\tEdit\nLooking For\nCurrent status\nInternship\nRoles\nSoftware Engineer\nProduct Manager\nData Scientist\nUX Designer\nIndustries\nTechnology\nArtificial Intelligence\nFinance\nHealthcare Technology\nLocations\nSan Francisco, CA\nNew York, NY\nSeattle, WA\nAustin, TX\nRemote\n*[2544]<button />\n\tEdit Career Interests\nProfile Visibility\nWho can see your profile\n*[2550]<div />\n\t*[2551]<span />\n\t\tPublic\n\t*[2552]<span />\n\t\t*[2553]<svg /> <!-- SVG content collapsed -->\nPublic: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you.\nWork Experience\nSoftware Engineering Intern\nMeta\n2025-06-01 - 2025-08-31\nBuilt ML pipeline for content recommendations\nResearch Assistant\nStanford AI Lab\n2025-01-15 - Present\nNLP research under Prof. Manning\nProduct Design Intern\nFigma\n2024-06-15 - 2024-08-30\nRedesigned plugin marketplace UX\nSkills\nPython\nJavaScript\nReact\nMachine Learning\n*[2587]<span />\n\tSQL\nFigma\nProduct Strategy\nOrganizations\nStanford Women in Tech\nACM Student Chapter\nEntrepreneurship Club\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The 'Edit' button for the bio was clicked successfully, and the edit interface is now visible. Verdict: Success",
+        "memory": "Updated profile visibility to 'Public'. Now updating the bio to mention full-time positions after graduation. Next, I will navigate to the feed to create a post.",
+        "next_goal": "Update the bio text and save the changes.",
+        "action": [
+          {
+            "input": {
+              "index": 3214,
+              "text": "CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.",
+              "clear": true
+            }
+          },
+          {
+            "click": {
+              "index": 3217
+            }
+          }
+        ],
+        "thinking": "The profile visibility has been set to 'Public'. Now I need to update the bio as requested. The 'Edit Bio' section is currently open, and I can see a textarea (index 3214) and a 'Save' button (index 3217). I will input the new bio text which mentions looking for full-time positions after graduation and then save it. After that, I will move on to creating the feed post.",
+        "current_plan_item": 2,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "long_term_memory": "Typed 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'",
+          "extracted_content": "Typed 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "input_x": 957.0,
+            "input_y": 544.75
+          },
+          "include_in_memory": false
+        },
+        {
+          "is_done": false,
+          "extracted_content": "Clicked button \"Save\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1156.2734375,
+            "click_y": 668.75
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/profile",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_5.png",
+        "interacted_element": [
+          {
+            "node_id": 2096,
+            "backend_node_id": 3214,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "TEXTAREA",
+            "attributes": {
+              "class": "form-textarea",
+              "id": "editProfileInput",
+              "rows": "4"
+            },
+            "x_path": "html/body/div[2]/div/div/div[2]/div/textarea",
+            "element_hash": 254350380999879004,
+            "stable_hash": 9477722417854654808,
+            "bounds": {
+              "x": 727.0,
+              "y": 495.75,
+              "width": 460.0,
+              "height": 98.0
+            },
+            "ax_name": null
+          },
+          {
+            "node_id": 2104,
+            "backend_node_id": 3217,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "BUTTON",
+            "attributes": {
+              "class": "btn btn-primary",
+              "data-action": "confirmEditProfile",
+              "data-field": "bio"
+            },
+            "x_path": "html/body/div[2]/div/div/div[3]/button[2]",
+            "element_hash": 816587459851032578,
+            "stable_hash": 16957488524346890235,
+            "bounds": {
+              "x": 1125.546875,
+              "y": 651.75,
+              "width": 61.453125,
+              "height": 34.0
+            },
+            "ax_name": "Save"
+          }
+        ],
+        "url": "http://localhost:8006/#/profile",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983543.0822446,
+        "step_end_time": 1772983554.617141,
+        "step_number": 5,
+        "step_interval": 9.045920610427856
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n<step>\nThe click on 'Public' successfully updated the profile visibility. Verdict: Success\nProfile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.\nClick the 'Edit' button in the 'About' section to update the bio.\nResult\nClicked button \"Edit\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step5 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 5 interactive, 0 iframes, 1 shadow(open), 0 shadow(closed), 249 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/profile - Handshake - Career Exploration\n\n<page_info>0.0 above, 0.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\nFeed\nJobs\nEmployers\nEvents\nMessages\nCareer Center\nQ&A\nMC\nMaya Chen\nStanford University\nMy Profile\nManage your profile information\nMC\nMaya Chen\nStanford University · Computer Science · Class of 2027\nStanford, CA\nAbout\nBio\nCS student passionate about AI/ML and product design. Looking for summer 2026 internship opportunities in tech.\nEdit\nEmail\nmaya.chen@stanford.edu\nEdit\nPhone\n(650) 555-0142\nEdit\nLinkedIn\nlinkedin.com/in/mayachen\nEdit\nWebsite\nmayachen.dev\nEdit\nLooking For\nCurrent status\nInternship\nRoles\nSoftware Engineer\nProduct Manager\nData Scientist\nUX Designer\nIndustries\nTechnology\nArtificial Intelligence\nFinance\nHealthcare Technology\nLocations\nSan Francisco, CA\nNew York, NY\nSeattle, WA\nAustin, TX\nRemote\nEdit Career Interests\nProfile Visibility\nWho can see your profile\nPublic\n<svg /> <!-- SVG content collapsed -->\nPublic: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you.\nWork Experience\nSoftware Engineering Intern\nMeta\n2025-06-01 - 2025-08-31\nBuilt ML pipeline for content recommendations\nResearch Assistant\nStanford AI Lab\n2025-01-15 - Present\nNLP research under Prof. Manning\nProduct Design Intern\nFigma\n2024-06-15 - 2024-08-30\nRedesigned plugin marketplace UX\nSkills\nPython\nJavaScript\nReact\nMachine Learning\n*[3196]<span />\n\tSQL\nFigma\nProduct Strategy\nOrganizations\nStanford Women in Tech\nACM Student Chapter\nEntrepreneurship Club\nEdit Bio\n*[3209]<button />\nBio\n|SHADOW(open)|*[3214]<textarea id=editProfileInput />\n*[3216]<button />\n\tCancel\n*[3217]<button />\n\tSave\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The bio was successfully updated and saved. Verdict: Success",
+        "memory": "Updated profile visibility to 'Public' and bio to 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'. Now moving to the Feed to create a post about AI opportunities.",
+        "next_goal": "Navigate to the feed by clicking the 'Feed' button.",
+        "action": [
+          {
+            "click": {
+              "index": 3692
+            }
+          }
+        ],
+        "thinking": "I have successfully updated the profile visibility to 'Public' and updated the bio to mention looking for full-time positions after graduation. Now, I need to navigate back to the feed to create a post as requested. I will click on the 'Feed' button in the navigation bar.",
+        "current_plan_item": 3,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked button \"Feed\"",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/profile",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_6.png",
+        "interacted_element": [
+          {
+            "node_id": 2145,
+            "backend_node_id": 3692,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "BUTTON",
+            "attributes": {
+              "class": "sidebar-item ",
+              "data-action": "navigate",
+              "data-page": "feed"
+            },
+            "x_path": "html/body/div[1]/aside/nav/button[1]",
+            "element_hash": 1871915761020126641,
+            "stable_hash": 939621107249570895,
+            "bounds": {
+              "x": 8.0,
+              "y": 68.0,
+              "width": 223.0,
+              "height": 40.0
+            },
+            "ax_name": "Feed"
+          }
+        ],
+        "url": "http://localhost:8006/#/profile",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983554.6193056,
+        "step_end_time": 1772983562.0812047,
+        "step_number": 6,
+        "step_interval": 11.53489637374878
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n<step>\nThe click on 'Public' successfully updated the profile visibility. Verdict: Success\nProfile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.\nClick the 'Edit' button in the 'About' section to update the bio.\nResult\nClicked button \"Edit\"\n<step>\nThe 'Edit' button for the bio was clicked successfully, and the edit interface is now visible. Verdict: Success\nUpdated profile visibility to 'Public'. Now updating the bio to mention full-time positions after graduation. Next, I will navigate to the feed to create a post.\nUpdate the bio text and save the changes.\nResult\nTyped 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\nClicked button \"Save\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step6 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 23 interactive, 0 iframes, 235 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/profile - Handshake - Career Exploration\n\n<page_info>0.0 above, 0.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n*[3692]<button />\n\tFeed\n*[3699]<button />\n\tJobs\n*[3705]<button />\n\tEmployers\n*[3711]<button />\n\tEvents\n*[3717]<button />\n\tMessages\n*[3723]<button />\n\tCareer Center\n*[3729]<button />\n\tQ&A\n*[3736]<div />\n\t*[3737]<div />\n\t\tMC\n\t*[3738]<div />\n\t\t*[3739]<div />\n\t\t\tMaya Chen\n\t\t*[3740]<div />\n\t\t\tStanford University\nMy Profile\nManage your profile information\nMC\nMaya Chen\nStanford University · Computer Science · Class of 2027\nStanford, CA\nAbout\nBio\nCS student passionate about AI/ML and product design. Looking for full-time positions after graduation.\n*[3816]<button />\n\tEdit\nEmail\nmaya.chen@stanford.edu\n*[3820]<button />\n\tEdit\nPhone\n(650) 555-0142\n*[3824]<button />\n\tEdit\nLinkedIn\nlinkedin.com/in/mayachen\n*[3828]<button />\n\tEdit\nWebsite\nmayachen.dev\n*[3832]<button />\n\tEdit\nLooking For\nCurrent status\nInternship\nRoles\nSoftware Engineer\nProduct Manager\nData Scientist\nUX Designer\nIndustries\nTechnology\nArtificial Intelligence\nFinance\nHealthcare Technology\nLocations\nSan Francisco, CA\nNew York, NY\nSeattle, WA\nAustin, TX\nRemote\n*[3860]<button />\n\tEdit Career Interests\nProfile Visibility\nWho can see your profile\n*[3866]<div />\n\t*[3867]<span />\n\t\tPublic\n\t*[3868]<span />\n\t\t*[3869]<svg /> <!-- SVG content collapsed -->\nPublic: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you.\nWork Experience\nSoftware Engineering Intern\nMeta\n2025-06-01 - 2025-08-31\nBuilt ML pipeline for content recommendations\nResearch Assistant\nStanford AI Lab\n2025-01-15 - Present\nNLP research under Prof. Manning\nProduct Design Intern\nFigma\n2024-06-15 - 2024-08-30\nRedesigned plugin marketplace UX\nSkills\nPython\nJavaScript\nReact\nMachine Learning\n*[3903]<span />\n\tSQL\nFigma\nProduct Strategy\nOrganizations\nStanford Women in Tech\nACM Student Chapter\nEntrepreneurship Club\nProfile updated\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The click on the 'Feed' button was executed, but the browser state still shows the profile page. Verdict: Uncertain/Pending",
+        "memory": "Profile visibility is 'Public' and the bio is updated. I am now attempting to navigate to the Feed to create the final post.",
+        "next_goal": "Navigate to the Feed page by clicking the 'Feed' button.",
+        "action": [
+          {
+            "click": {
+              "index": 4382
+            }
+          }
+        ],
+        "thinking": "The previous step's action was to click the 'Feed' button, but the current URL is still 'http://localhost:8006/#/profile'. This suggests the navigation hasn't occurred yet. I will click the 'Feed' button again to ensure I reach the feed page where I can create the post as requested. Once on the feed page, I will look for an option to create a new post.",
+        "current_plan_item": 3,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked button \"Feed\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 119.5,
+            "click_y": 88.0
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/profile",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_7.png",
+        "interacted_element": [
+          {
+            "node_id": 2425,
+            "backend_node_id": 4382,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "BUTTON",
+            "attributes": {
+              "class": "sidebar-item ",
+              "data-action": "navigate",
+              "data-page": "feed"
+            },
+            "x_path": "html/body/div[1]/aside/nav/button[1]",
+            "element_hash": 1871915761020126641,
+            "stable_hash": 939621107249570895,
+            "bounds": {
+              "x": 8.0,
+              "y": 68.0,
+              "width": 223.0,
+              "height": 40.0
+            },
+            "ax_name": "Feed"
+          }
+        ],
+        "url": "http://localhost:8006/#/profile",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983562.0833714,
+        "step_end_time": 1772983572.377046,
+        "step_number": 7,
+        "step_interval": 7.461899042129517
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n<step>\nThe click on 'Public' successfully updated the profile visibility. Verdict: Success\nProfile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.\nClick the 'Edit' button in the 'About' section to update the bio.\nResult\nClicked button \"Edit\"\n<step>\nThe 'Edit' button for the bio was clicked successfully, and the edit interface is now visible. Verdict: Success\nUpdated profile visibility to 'Public'. Now updating the bio to mention full-time positions after graduation. Next, I will navigate to the feed to create a post.\nUpdate the bio text and save the changes.\nResult\nTyped 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\nClicked button \"Save\"\n<step>\nThe bio was successfully updated and saved. Verdict: Success\nUpdated profile visibility to 'Public' and bio to 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'. Now moving to the Feed to create a post about AI opportunities.\nNavigate to the feed by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step7 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 23 interactive, 0 iframes, 233 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/profile - Handshake - Career Exploration\n\n<page_info>0.0 above, 0.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n*[4382]<button />\n\tFeed\n*[4389]<button />\n\tJobs\n*[4395]<button />\n\tEmployers\n*[4401]<button />\n\tEvents\n*[4407]<button />\n\tMessages\n*[4413]<button />\n\tCareer Center\n*[4419]<button />\n\tQ&A\n*[4426]<div />\n\t*[4427]<div />\n\t\tMC\n\t*[4428]<div />\n\t\t*[4429]<div />\n\t\t\tMaya Chen\n\t\t*[4430]<div />\n\t\t\tStanford University\nMy Profile\nManage your profile information\nMC\nMaya Chen\nStanford University · Computer Science · Class of 2027\nStanford, CA\nAbout\nBio\nCS student passionate about AI/ML and product design. Looking for full-time positions after graduation.\n*[4447]<button />\n\tEdit\nEmail\nmaya.chen@stanford.edu\n*[4451]<button />\n\tEdit\nPhone\n(650) 555-0142\n*[4455]<button />\n\tEdit\nLinkedIn\nlinkedin.com/in/mayachen\n*[4459]<button />\n\tEdit\nWebsite\nmayachen.dev\n*[4463]<button />\n\tEdit\nLooking For\nCurrent status\nInternship\nRoles\nSoftware Engineer\nProduct Manager\nData Scientist\nUX Designer\nIndustries\nTechnology\nArtificial Intelligence\nFinance\nHealthcare Technology\nLocations\nSan Francisco, CA\nNew York, NY\nSeattle, WA\nAustin, TX\nRemote\n*[4491]<button />\n\tEdit Career Interests\nProfile Visibility\nWho can see your profile\n*[4497]<div />\n\t*[4498]<span />\n\t\tPublic\n\t*[4499]<span />\n\t\t*[4500]<svg /> <!-- SVG content collapsed -->\nPublic: visible to everyone. Community: visible to all Handshake users. Employers: visible to employers only. Private: visible only to you.\nWork Experience\nSoftware Engineering Intern\nMeta\n2025-06-01 - 2025-08-31\nBuilt ML pipeline for content recommendations\nResearch Assistant\nStanford AI Lab\n2025-01-15 - Present\nNLP research under Prof. Manning\nProduct Design Intern\nFigma\n2024-06-15 - 2024-08-30\nRedesigned plugin marketplace UX\nSkills\nPython\nJavaScript\nReact\nMachine Learning\n*[4534]<span />\n\tSQL\nFigma\nProduct Strategy\nOrganizations\nStanford Women in Tech\nACM Student Chapter\nEntrepreneurship Club\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The navigation to the Feed page was successful as the current URL is http://localhost:8006/#/feed and the feed content is visible. Verdict: Success",
+        "memory": "Profile visibility is set to 'Public'. Bio is updated to reflect looking for full-time positions. Currently on the Feed page to create the final post.",
+        "next_goal": "Click on the 'Share something with the community...' area to initiate the creation of a new feed post.",
+        "action": [
+          {
+            "click": {
+              "index": 4860
+            }
+          }
+        ],
+        "thinking": "I have successfully updated the profile visibility to 'Public' and updated the bio. I have also navigated to the Feed page. Now, I need to create a feed post as requested. I see an element 'Share something with the community...' which is likely the trigger to open the post creation modal or input field. I will click on it to start the process of creating the post.",
+        "current_plan_item": 4,
+        "plan_update": [
+          "[x] 0: Navigate to profile page",
+          "[x] 1: Change profile visibility to 'Public'",
+          "[x] 2: Update bio to mention looking for full-time positions after graduation",
+          "[x] 3: Navigate back to feed",
+          "[>] 4: Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked span \"Share something with the commu...\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 470.0,
+            "click_y": 207.0
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/feed",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_8.png",
+        "interacted_element": [
+          {
+            "node_id": 2779,
+            "backend_node_id": 4860,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "SPAN",
+            "attributes": {
+              "class": "create-post-placeholder"
+            },
+            "x_path": "html/body/div[1]/main/div/div[3]/span",
+            "element_hash": 193505386270291159,
+            "stable_hash": 16334406450766148816,
+            "bounds": {
+              "x": 341.0,
+              "y": 196.5,
+              "width": 258.0,
+              "height": 21.0
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8006/#/feed",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983572.3787065,
+        "step_end_time": 1772983581.287666,
+        "step_number": 8,
+        "step_interval": 10.29367470741272
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n<step>\nThe click on 'Public' successfully updated the profile visibility. Verdict: Success\nProfile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.\nClick the 'Edit' button in the 'About' section to update the bio.\nResult\nClicked button \"Edit\"\n<step>\nThe 'Edit' button for the bio was clicked successfully, and the edit interface is now visible. Verdict: Success\nUpdated profile visibility to 'Public'. Now updating the bio to mention full-time positions after graduation. Next, I will navigate to the feed to create a post.\nUpdate the bio text and save the changes.\nResult\nTyped 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\nClicked button \"Save\"\n<step>\nThe bio was successfully updated and saved. Verdict: Success\nUpdated profile visibility to 'Public' and bio to 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'. Now moving to the Feed to create a post about AI opportunities.\nNavigate to the feed by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n<step>\nThe click on the 'Feed' button was executed, but the browser state still shows the profile page. Verdict: Uncertain/Pending\nProfile visibility is 'Public' and the bio is updated. I am now attempting to navigate to the Feed to create the final post.\nNavigate to the Feed page by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step8 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 76 interactive, 0 iframes, 322 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/feed - Handshake - Career Exploration\n\n<page_info>0.0 above, 4.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n*[4802]<button />\n\tFeed\n*[4809]<button />\n\tJobs\n*[4815]<button />\n\tEmployers\n*[4821]<button />\n\tEvents\n*[4827]<button />\n\tMessages\n*[4833]<button />\n\tCareer Center\n*[4839]<button />\n\tQ&A\n*[4846]<div />\n\t*[4847]<div />\n\t\tMC\n\t*[4848]<div />\n\t\t*[4849]<div />\n\t\t\tMaya Chen\n\t\t*[4850]<div />\n\t\t\tStanford University\nFeed\nStay connected with your career community\n*[4856]<button />\n\tFeed\n*[4857]<button />\n\tSaved\n*[4858]<div />\n\t*[4859]<div />\n\t\tMC\n\t*[4860]<span />\n\t\tShare something with the community...\n*[4862]<button />\n\tAll\n*[4863]<button />\n\tEmployers\n*[4864]<button />\n\tTop Posts\n*[4865]<button />\n\tIntros\n*[4869]<div />\n*[4872]<span />\n\tGoogle\n1d ago\n*[4874]<div />\n\t*[4875]<button />\nExciting news! We're expanding our Summer 2026 internship program with 500 new positions across engineering, product, and design. Apply now on Handshake!\n*[4882]<button />\n\t342\n*[4886]<button />\n\t*[4889]<span />\n*[4890]<button />\n*[4895]<div />\n\tJP\nJessica Park\nStanford University · \n                            1d ago\n*[4900]<div />\n\t*[4901]<button />\nJust got my return offer from Meta after an amazing summer internship! Happy to share tips about the interview process and what to expect. DM me or comment below!\n#internship\n*[4908]<span />\n\t#meta\n*[4909]<span />\n\t#tech\n*[4911]<button />\n\t187\n*[4915]<button />\n*[4919]<button />\n*[4924]<div />\n\tTW\nTyler Wong\nCongrats! Would love to hear about the coding interview format.\n1d ago\n*[4930]<div />\n\tAS\nAnonymous Student\nHow many rounds were there?\n1d ago\n*[4937]<div />\n*[4940]<span />\n\tMeta\n3d ago\n*[4942]<div />\n\t*[4943]<button />\nWe're hosting a virtual info session on AI/ML careers at Meta next Thursday at 5pm PT. Sign up through Events on Handshake! We'll cover team overviews, project highlights, and Q&A with current engineers.\n*[4950]<button />\n\t256\n*[4954]<button />\n*[4958]<button />\n*[4963]<div />\n\tRG\nRahul Gupta\nIs this open to all schools?\n2d ago\n*[4970]<div />\n\tMJ\nMarcus Johnson\nUniversity of Michigan · \n                            3d ago\n*[4975]<div />\n\t*[4976]<button />\nJust wrapped up my first week at Stripe as a backend engineer. The code review culture here is incredible - I've already learned so much about distributed systems. If anyone is considering Stripe, happy to share my experience!\n*[4983]<button />\n\t143\n*[4987]<button />\n\t*[4990]<span />\n*[4991]<button />\n*[4996]<div />\n*[4999]<span />\n\tAnthropic\n3d ago\n*[5001]<div />\n\t*[5002]<button />\nWe believe in building AI that is safe, beneficial, and understandable. Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.\n*[5009]<button />\n\t198\n*[5013]<button />\n*[5017]<button />\n*[5022]<div />\n\tMC\nMaya Chen\nSo excited about this! Just submitted my application for the Research Engineering role.\n3d ago\n*[5029]<div />\n\tAM\nAisha Mohammed\nHoward University · \n                            4d ago\n*[5034]<div />\n\t*[5035]<button />\nAttending the National Society of Black Engineers conference next week! Who else will be there? Let's connect! I'm especially interested in meeting recruiters from tech companies.\n*[5041]<span />\n\t#NSBE\n#engineering\n#diversity\n*[5045]<button />\n\t231\n*[5049]<button />\n*[5053]<button />\n*[5058]<div />\n\tDW\nDerek Williams\nSee you there! I'll be at the Google and Microsoft booths.\n3d ago\n*[5064]<div />\n\tJL\nJasmine Lewis\nCan't wait! This will be my first NSBE conference.\n3d ago\n*[5071]<div />\n*[5074]<span />\n\tAmazon\n*[5075]<button />\n\t+ Follow\n4d ago\n*[5077]<div />\n\t*[5078]<button />\nAWS re:Invent was incredible this year! Missed it? Check out our recap and highlights. We're also hiring across all AWS teams - SDE, Solutions Architect, PM, and more. 200+ new grad and intern positions available.\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The click on the post creation area was successful, and the modal with a textarea is now visible. Verdict: Success",
+        "memory": "Updated profile visibility to Public and bio to mention full-time positions. Now creating a feed post about AI opportunities.",
+        "next_goal": "Input the introductory message into the post textarea and then click the Post button.",
+        "action": [
+          {
+            "input": {
+              "index": 7282,
+              "text": "Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!",
+              "clear": true
+            }
+          }
+        ],
+        "thinking": "I have successfully navigated to the Feed and opened the post creation modal. Now I need to input the post content as requested by the user. The post should introduce the user and mention they are looking for full-time AI opportunities. After typing the content, I will look for the 'Post' button to submit it. The visibility is already set to 'Everyone on Handshake' which satisfies the 'visible to everyone' requirement.",
+        "current_plan_item": 4
+      },
+      "result": [
+        {
+          "is_done": false,
+          "long_term_memory": "Typed 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'",
+          "extracted_content": "Typed 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "input_x": 957.0,
+            "input_y": 567.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/feed",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_9.png",
+        "interacted_element": [
+          {
+            "node_id": 4651,
+            "backend_node_id": 7282,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "TEXTAREA",
+            "attributes": {
+              "class": "form-textarea",
+              "id": "newPostContent",
+              "placeholder": "Share something with the community...",
+              "rows": "6",
+              "maxlength": "3000"
+            },
+            "x_path": "html/body/div[2]/div/div/div[2]/div/textarea",
+            "element_hash": 1656029285190664982,
+            "stable_hash": 1656029285190664982,
+            "bounds": {
+              "x": 727.0,
+              "y": 499.25,
+              "width": 460.0,
+              "height": 136.0
+            },
+            "ax_name": "Share something with the community..."
+          }
+        ],
+        "url": "http://localhost:8006/#/feed",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983581.2894387,
+        "step_end_time": 1772983591.4873195,
+        "step_number": 9,
+        "step_interval": 8.90895962715149
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n<step>\nThe click on 'Public' successfully updated the profile visibility. Verdict: Success\nProfile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.\nClick the 'Edit' button in the 'About' section to update the bio.\nResult\nClicked button \"Edit\"\n<step>\nThe 'Edit' button for the bio was clicked successfully, and the edit interface is now visible. Verdict: Success\nUpdated profile visibility to 'Public'. Now updating the bio to mention full-time positions after graduation. Next, I will navigate to the feed to create a post.\nUpdate the bio text and save the changes.\nResult\nTyped 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\nClicked button \"Save\"\n<step>\nThe bio was successfully updated and saved. Verdict: Success\nUpdated profile visibility to 'Public' and bio to 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'. Now moving to the Feed to create a post about AI opportunities.\nNavigate to the feed by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n<step>\nThe click on the 'Feed' button was executed, but the browser state still shows the profile page. Verdict: Uncertain/Pending\nProfile visibility is 'Public' and the bio is updated. I am now attempting to navigate to the Feed to create the final post.\nNavigate to the Feed page by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n<step>\nThe navigation to the Feed page was successful as the current URL is http://localhost:8006/#/feed and the feed content is visible. Verdict: Success\nProfile visibility is set to 'Public'. Bio is updated to reflect looking for full-time positions. Currently on the Feed page to create the final post.\nClick on the 'Share something with the community...' area to initiate the creation of a new feed post.\nResult\nClicked span \"Share something with the commu...\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: [x] 0: Navigate to profile page\n[ ] 1: [x] 1: Change profile visibility to 'Public'\n[ ] 2: [x] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: [x] 3: Navigate back to feed\n[ ] 4: [>] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step9 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 37 interactive, 0 iframes, 1 shadow(open), 0 shadow(closed), 353 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/feed - Handshake - Career Exploration\n\n<page_info>0.0 above, 4.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\nFeed\nJobs\nEmployers\nEvents\nMessages\nCareer Center\nQ&A\nMC\nMaya Chen\nStanford University\nFeed\nStay connected with your career community\nFeed\nSaved\nMC\nShare something with the community...\nAll\nEmployers\nTop Posts\nIntros\nGoogle\n1d ago\nExciting news! We're expanding our Summer 2026 internship program with 500 new positions across engineering, product, and design. Apply now on Handshake!\n342\nJP\nJessica Park\nStanford University · \n                            1d ago\nJust got my return offer from Meta after an amazing summer internship! Happy to share tips about the interview process and what to expect. DM me or comment below!\n#internship\n#meta\n#tech\n187\nTW\nTyler Wong\nCongrats! Would love to hear about the coding interview format.\n1d ago\nAS\nAnonymous Student\nHow many rounds were there?\n1d ago\nMeta\n3d ago\nWe're hosting a virtual info session on AI/ML careers at Meta next Thursday at 5pm PT. Sign up through Events on Handshake! We'll cover team overviews, project highlights, and Q&A with current engineers.\n256\nRG\nRahul Gupta\nIs this open to all schools?\n2d ago\n*[6705]<div />\n\tMJ\nMarcus Johnson\nUniversity of Michigan · \n                            3d ago\n*[6710]<div />\n\t*[6711]<button />\nJust wrapped up my first week at Stripe as a backend engineer. The code review culture here is incredible - I've already learned so much about distributed systems. If anyone is considering Stripe, happy to share my experience!\n*[6718]<button />\n\t143\n*[6722]<button />\n\t*[6725]<span />\n*[6726]<button />\n*[6731]<div />\n*[6734]<span />\n\tAnthropic\n3d ago\n*[6736]<div />\n\t*[6737]<button />\nWe believe in building AI that is safe, beneficial, and understandable. Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.\n*[6744]<button />\n\t198\n*[6748]<button />\n*[6752]<button />\n*[6757]<div />\n\tMC\nMaya Chen\nSo excited about this! Just submitted my application for the Research Engineering role.\n3d ago\n*[6764]<div />\n\tAM\nAisha Mohammed\nHoward University · \n                            4d ago\n*[6769]<div />\n\t*[6770]<button />\nAttending the National Society of Black Engineers conference next week! Who else will be there? Let's connect! I'm especially interested in meeting recruiters from tech companies.\n*[6776]<span />\n\t#NSBE\n#engineering\n#diversity\n*[6780]<button />\n\t231\n*[6784]<button />\n*[6788]<button />\n*[6793]<div />\n\tDW\nDerek Williams\nSee you there! I'll be at the Google and Microsoft booths.\n3d ago\n*[6799]<div />\n\tJL\nJasmine Lewis\nCan't wait! This will be my first NSBE conference.\n3d ago\n*[6806]<div />\n*[6809]<span />\n\tAmazon\n*[6810]<button />\n\t+ Follow\n4d ago\n*[6812]<div />\n\t*[6813]<button />\nAWS re:Invent was incredible this year! Missed it? Check out our recap and highlights. We're also hiring across all AWS teams - SDE, Solutions Architect, PM, and more. 200+ new grad and intern positions available.\nCreate a Post\n*[7261]<button />\n*[7265]<div />\n\tMC\nMaya Chen\n*[7270]<div />\n\t*[7271]<span />\n\t\tEveryone on Handshake\n\t*[7272]<span />\n\t\t*[7273]<svg /> <!-- SVG content collapsed -->\n|SHADOW(open)|*[7282]<textarea id=newPostContent placeholder=Share something with the community... maxlength=3000 />\n/ 3,000\n*[7286]<button />\n\tCancel\nPost\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The post content was successfully typed into the textarea. Verdict: Success",
+        "memory": "Profile visibility: Public. Bio: Updated. Feed post content: Typed. Next: Click Post button.",
+        "next_goal": "Click the 'Post' button to publish the feed post.",
+        "action": [
+          {
+            "click": {
+              "index": 7287
+            }
+          }
+        ],
+        "thinking": "I have successfully updated the profile visibility to 'Public' and updated the bio. I am now in the process of creating a feed post. I have already typed the post content into the textarea. The current visibility for the post is set to 'Everyone on Handshake', which satisfies the requirement for the post to be 'visible to everyone'. Now, I need to click the 'Post' button to finalize the creation of the post.",
+        "current_plan_item": 4,
+        "plan_update": [
+          "Navigate to profile page",
+          "Change profile visibility to 'Public'",
+          "Update bio to mention looking for full-time positions after graduation",
+          "Navigate back to feed",
+          "Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked button \"Post\" id=postSubmitBtn",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1157.15625,
+            "click_y": 712.25
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/feed",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_10.png",
+        "interacted_element": [
+          {
+            "node_id": 5825,
+            "backend_node_id": 7287,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "BUTTON",
+            "attributes": {
+              "class": "btn btn-primary",
+              "data-action": "confirmCreatePost",
+              "id": "postSubmitBtn"
+            },
+            "x_path": "html/body/div[2]/div/div/div[3]/button[2]",
+            "element_hash": 469792178391023938,
+            "stable_hash": 9693164215245799742,
+            "bounds": {
+              "x": 1127.3125,
+              "y": 695.25,
+              "width": 59.6875,
+              "height": 34.0
+            },
+            "ax_name": "Post"
+          }
+        ],
+        "url": "http://localhost:8006/#/feed",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983591.4897504,
+        "step_end_time": 1772983600.727393,
+        "step_number": 10,
+        "step_interval": 10.197880744934082
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n<step>\nThe click on 'Public' successfully updated the profile visibility. Verdict: Success\nProfile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.\nClick the 'Edit' button in the 'About' section to update the bio.\nResult\nClicked button \"Edit\"\n<step>\nThe 'Edit' button for the bio was clicked successfully, and the edit interface is now visible. Verdict: Success\nUpdated profile visibility to 'Public'. Now updating the bio to mention full-time positions after graduation. Next, I will navigate to the feed to create a post.\nUpdate the bio text and save the changes.\nResult\nTyped 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\nClicked button \"Save\"\n<step>\nThe bio was successfully updated and saved. Verdict: Success\nUpdated profile visibility to 'Public' and bio to 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'. Now moving to the Feed to create a post about AI opportunities.\nNavigate to the feed by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n<step>\nThe click on the 'Feed' button was executed, but the browser state still shows the profile page. Verdict: Uncertain/Pending\nProfile visibility is 'Public' and the bio is updated. I am now attempting to navigate to the Feed to create the final post.\nNavigate to the Feed page by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n<step>\nThe navigation to the Feed page was successful as the current URL is http://localhost:8006/#/feed and the feed content is visible. Verdict: Success\nProfile visibility is set to 'Public'. Bio is updated to reflect looking for full-time positions. Currently on the Feed page to create the final post.\nClick on the 'Share something with the community...' area to initiate the creation of a new feed post.\nResult\nClicked span \"Share something with the commu...\"\n<step>\nThe click on the post creation area was successful, and the modal with a textarea is now visible. Verdict: Success\nUpdated profile visibility to Public and bio to mention full-time positions. Now creating a feed post about AI opportunities.\nInput the introductory message into the post textarea and then click the Post button.\nResult\nTyped 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[x] 0: [x] 0: Navigate to profile page\n[x] 1: [x] 1: Change profile visibility to 'Public'\n[x] 2: [x] 2: Update bio to mention looking for full-time positions after graduation\n[x] 3: [x] 3: Navigate back to feed\n[>] 4: [>] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step10 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 38 interactive, 0 iframes, 1 shadow(open), 0 shadow(closed), 354 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/feed - Handshake - Career Exploration\n\n<page_info>0.0 above, 4.6 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\nFeed\nJobs\nEmployers\nEvents\nMessages\nCareer Center\nQ&A\nMC\nMaya Chen\nStanford University\nFeed\nStay connected with your career community\nFeed\nSaved\nMC\nShare something with the community...\nAll\nEmployers\nTop Posts\nIntros\nGoogle\n1d ago\nExciting news! We're expanding our Summer 2026 internship program with 500 new positions across engineering, product, and design. Apply now on Handshake!\n342\nJP\nJessica Park\nStanford University · \n                            1d ago\nJust got my return offer from Meta after an amazing summer internship! Happy to share tips about the interview process and what to expect. DM me or comment below!\n#internship\n#meta\n#tech\n187\nTW\nTyler Wong\nCongrats! Would love to hear about the coding interview format.\n1d ago\nAS\nAnonymous Student\nHow many rounds were there?\n1d ago\nMeta\n3d ago\nWe're hosting a virtual info session on AI/ML careers at Meta next Thursday at 5pm PT. Sign up through Events on Handshake! We'll cover team overviews, project highlights, and Q&A with current engineers.\n256\nRG\nRahul Gupta\nIs this open to all schools?\n2d ago\n[6705]<div />\n\tMJ\nMarcus Johnson\nUniversity of Michigan · \n                            3d ago\n[6710]<div />\n\t[6711]<button />\nJust wrapped up my first week at Stripe as a backend engineer. The code review culture here is incredible - I've already learned so much about distributed systems. If anyone is considering Stripe, happy to share my experience!\n[6718]<button />\n\t143\n[6722]<button />\n\t[6725]<span />\n[6726]<button />\n[6731]<div />\n[6734]<span />\n\tAnthropic\n3d ago\n[6736]<div />\n\t[6737]<button />\nWe believe in building AI that is safe, beneficial, and understandable. Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.\n[6744]<button />\n\t198\n[6748]<button />\n[6752]<button />\n[6757]<div />\n\tMC\nMaya Chen\nSo excited about this! Just submitted my application for the Research Engineering role.\n3d ago\n[6764]<div />\n\tAM\nAisha Mohammed\nHoward University · \n                            4d ago\n[6769]<div />\n\t[6770]<button />\nAttending the National Society of Black Engineers conference next week! Who else will be there? Let's connect! I'm especially interested in meeting recruiters from tech companies.\n[6776]<span />\n\t#NSBE\n#engineering\n#diversity\n[6780]<button />\n\t231\n[6784]<button />\n[6788]<button />\n[6793]<div />\n\tDW\nDerek Williams\nSee you there! I'll be at the Google and Microsoft booths.\n3d ago\n[6799]<div />\n\tJL\nJasmine Lewis\nCan't wait! This will be my first NSBE conference.\n3d ago\n[6806]<div />\n[6809]<span />\n\tAmazon\n[6810]<button />\n\t+ Follow\n4d ago\n[6812]<div />\n\t[6813]<button />\nAWS re:Invent was incredible this year! Missed it? Check out our recap and highlights. We're also hiring across all AWS teams - SDE, Solutions Architect, PM, and more. 200+ new grad and intern positions available.\nCreate a Post\n[7261]<button />\n[7265]<div />\n\tMC\nMaya Chen\n[7270]<div />\n\t[7271]<span />\n\t\tEveryone on Handshake\n\t[7272]<span />\n\t\t[7273]<svg /> <!-- SVG content collapsed -->\n|SHADOW(open)|[7282]<textarea id=newPostContent placeholder=Share something with the community... maxlength=3000 />\n145\n/ 3,000\n[7286]<button />\n\tCancel\n*[7287]<button id=postSubmitBtn />\n\tPost\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The post was successfully published as evidenced by its appearance in the feed and the 'Post shared!' notification. Verdict: Success",
+        "memory": "Completed all tasks: updated profile visibility to Public, updated bio for full-time roles, and posted an introduction on the feed. All actions verified through browser state and history.",
+        "next_goal": "Verify the profile changes one last time and then conclude the task.",
+        "action": [
+          {
+            "done": {
+              "text": "I have successfully updated your profile and shared your introduction on the feed. \n\n1. **Profile Visibility**: Updated to 'Public'.\n2. **Bio**: Updated to: 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\n3. **Feed Post**: Published a post: 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'",
+              "success": true,
+              "files_to_display": []
+            }
+          }
+        ],
+        "thinking": "I have completed all parts of the user request: \n1. Changed profile visibility to 'Public' (Step 4).\n2. Updated bio to mention looking for full-time positions after graduation (Step 6).\n3. Created a feed post introducing Maya Chen as open to full-time AI opportunities (Steps 9-10).\n\nIn the current browser state, I can see the post I just created at the top of the feed: 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'. The message 'Post shared!' is also visible. I am confident that the task is complete.",
+        "current_plan_item": 4,
+        "plan_update": [
+          "x: Navigate to profile page",
+          "x: Change profile visibility to 'Public'",
+          "x: Update bio to mention looking for full-time positions after graduation",
+          "x: Navigate back to feed",
+          "x: Create a public feed post introducing self for full-time AI opportunities"
+        ]
+      },
+      "result": [
+        {
+          "is_done": true,
+          "success": true,
+          "judgement": {
+            "reasoning": "The agent successfully completed all three parts of the user's request. First, it navigated to the profile section and updated the visibility to 'Public'. Second, it edited the profile bio to include the specific phrase about looking for full-time positions after graduation. Third, it navigated to the feed and created a post introducing the user and expressing interest in full-time AI opportunities. The trajectory shows a logical progression through the UI, and the final output accurately reflects the actions taken.",
+            "verdict": true,
+            "failure_reason": "",
+            "impossible_task": false,
+            "reached_captcha": false
+          },
+          "attachments": [],
+          "long_term_memory": "Task completed: True - I have successfully updated your profile and shared your introduction on the feed. \n\n1. **Profile Vi - 346 more characters",
+          "extracted_content": "I have successfully updated your profile and shared your introduction on the feed. \n\n1. **Profile Visibility**: Updated to 'Public'.\n2. **Bio**: Updated to: 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\n3. **Feed Post**: Published a post: 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8006/#/feed",
+            "title": "Handshake - Career Exploration",
+            "target_id": "3E44",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad94d-1836-701c-8000-1af32665e00d_1772983505/screenshots/step_11.png",
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8006/#/feed",
+        "title": "Handshake - Career Exploration"
+      },
+      "metadata": {
+        "step_start_time": 1772983600.729269,
+        "step_end_time": 1772983609.1821117,
+        "step_number": 11,
+        "step_interval": 9.237642526626587
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8006\n<step>\nThe agent was just initialized and successfully navigated to the home page. Verdict: Success\nStarting the task to update profile visibility to 'Public', update bio for full-time positions, and create an AI-related feed post.\nNavigate to the profile page by clicking on the user's name.\nResult\nClicked div \"Maya Chen\"\n<step>\nSuccessfully navigated to the profile page. Verdict: Success\nOn the profile page. Need to: 1. Change visibility to Public. 2. Update bio for full-time positions. 3. Post on feed about AI opportunities.\nClick on the profile visibility setting to change it to 'Public'.\nResult\nClicked div \"Community\"\n<step>\nThe click on 'Community' successfully opened the visibility selection menu. Verdict: Success\nI am currently on the profile page. I have opened the visibility menu and am about to select 'Public'. After this, I need to edit the bio and then create a feed post.\nSelect the 'Public' visibility option from the menu.\nResult\nClicked div \"Public\"\n<step>\nThe click on 'Public' successfully updated the profile visibility. Verdict: Success\nProfile visibility is now set to 'Public'. I am now proceeding to update the bio to reflect the user's search for full-time positions after graduation.\nClick the 'Edit' button in the 'About' section to update the bio.\nResult\nClicked button \"Edit\"\n<step>\nThe 'Edit' button for the bio was clicked successfully, and the edit interface is now visible. Verdict: Success\nUpdated profile visibility to 'Public'. Now updating the bio to mention full-time positions after graduation. Next, I will navigate to the feed to create a post.\nUpdate the bio text and save the changes.\nResult\nTyped 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'\nClicked button \"Save\"\n<step>\nThe bio was successfully updated and saved. Verdict: Success\nUpdated profile visibility to 'Public' and bio to 'CS student passionate about AI/ML and product design. Looking for full-time positions after graduation.'. Now moving to the Feed to create a post about AI opportunities.\nNavigate to the feed by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n<step>\nThe click on the 'Feed' button was executed, but the browser state still shows the profile page. Verdict: Uncertain/Pending\nProfile visibility is 'Public' and the bio is updated. I am now attempting to navigate to the Feed to create the final post.\nNavigate to the Feed page by clicking the 'Feed' button.\nResult\nClicked button \"Feed\"\n<step>\nThe navigation to the Feed page was successful as the current URL is http://localhost:8006/#/feed and the feed content is visible. Verdict: Success\nProfile visibility is set to 'Public'. Bio is updated to reflect looking for full-time positions. Currently on the Feed page to create the final post.\nClick on the 'Share something with the community...' area to initiate the creation of a new feed post.\nResult\nClicked span \"Share something with the commu...\"\n<step>\nThe click on the post creation area was successful, and the modal with a textarea is now visible. Verdict: Success\nUpdated profile visibility to Public and bio to mention full-time positions. Now creating a feed post about AI opportunities.\nInput the introductory message into the post textarea and then click the Post button.\nResult\nTyped 'Hi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!'\n<step>\nThe post content was successfully typed into the textarea. Verdict: Success\nProfile visibility: Public. Bio: Updated. Feed post content: Typed. Next: Click Post button.\nClick the 'Post' button to publish the feed post.\nResult\nClicked button \"Post\" id=postSubmitBtn\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8006. Your task: Change your profile visibility to 'Public'. Update your bio to mention that you're looking for full-time positions after graduation. Then create a feed post visible to everyone introducing yourself as open to full-time AI opportunities.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Navigate to profile page\n[ ] 1: Change profile visibility to 'Public'\n[ ] 2: Update bio to mention looking for full-time positions after graduation\n[ ] 3: Navigate back to feed\n[ ] 4: Create a public feed post introducing self for full-time AI opportunities\n</plan>\n<step_info>Step11 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>0 links, 79 interactive, 0 iframes, 330 total elements</page_stats>\nCurrent tab: 3E44\nAvailable tabs:\nTab 3E44: http://localhost:8006/#/feed - Handshake - Career Exploration\n\n<page_info>0.0 above, 4.8 below </page_info>\n\nInteractive elements:\n[Start of page]\n<svg /> <!-- SVG content collapsed -->\nHandshake\n*[9292]<button />\n\tFeed\n*[9299]<button />\n\tJobs\n*[9305]<button />\n\tEmployers\n*[9311]<button />\n\tEvents\n*[9317]<button />\n\tMessages\n*[9323]<button />\n\tCareer Center\n*[9329]<button />\n\tQ&A\n*[9336]<div />\n\t*[9337]<div />\n\t\tMC\n\t*[9338]<div />\n\t\t*[9339]<div />\n\t\t\tMaya Chen\n\t\t*[9340]<div />\n\t\t\tStanford University\nFeed\nStay connected with your career community\n*[9405]<button />\n\tFeed\n*[9406]<button />\n\tSaved\n*[9407]<div />\n\t*[9408]<div />\n\t\tMC\n\t*[9409]<span />\n\t\tShare something with the community...\n*[9411]<button />\n\tAll\n*[9412]<button />\n\tEmployers\n*[9413]<button />\n\tTop Posts\n*[9414]<button />\n\tIntros\n*[9418]<div />\n\tMC\nMaya Chen\nStanford University · \n                            Just now\n*[9423]<div />\n\t*[9424]<button />\nHi everyone! I'm Maya Chen. I'm a CS student looking for full-time AI opportunities after graduation. Looking forward to connecting with you all!\n*[9431]<button />\n\t*[9434]<span />\n*[9435]<button />\n\t*[9438]<span />\n*[9439]<button />\n*[9444]<div />\n*[9447]<span />\n\tGoogle\n1d ago\n*[9449]<div />\n\t*[9450]<button />\nExciting news! We're expanding our Summer 2026 internship program with 500 new positions across engineering, product, and design. Apply now on Handshake!\n*[9457]<button />\n\t342\n*[9461]<button />\n\t*[9464]<span />\n*[9465]<button />\n*[9470]<div />\n\tJP\nJessica Park\nStanford University · \n                            1d ago\n*[9475]<div />\n\t*[9476]<button />\nJust got my return offer from Meta after an amazing summer internship! Happy to share tips about the interview process and what to expect. DM me or comment below!\n#internship\n*[9483]<span />\n\t#meta\n*[9484]<span />\n\t#tech\n*[9486]<button />\n\t187\n*[9490]<button />\n*[9494]<button />\n*[9499]<div />\n\tTW\nTyler Wong\nCongrats! Would love to hear about the coding interview format.\n1d ago\n*[9505]<div />\n\tAS\nAnonymous Student\nHow many rounds were there?\n1d ago\n*[9512]<div />\n*[9515]<span />\n\tMeta\n3d ago\n*[9517]<div />\n\t*[9518]<button />\nWe're hosting a virtual info session on AI/ML careers at Meta next Thursday at 5pm PT. Sign up through Events on Handshake! We'll cover team overviews, project highlights, and Q&A with current engineers.\n*[9525]<button />\n\t256\n*[9529]<button />\n*[9533]<button />\n*[9538]<div />\n\tRG\nRahul Gupta\nIs this open to all schools?\n2d ago\n*[9545]<div />\n\tMJ\nMarcus Johnson\nUniversity of Michigan · \n                            3d ago\n*[9550]<div />\n\t*[9551]<button />\nJust wrapped up my first week at Stripe as a backend engineer. The code review culture here is incredible - I've already learned so much about distributed systems. If anyone is considering Stripe, happy to share my experience!\n*[9558]<button />\n\t143\n*[9562]<button />\n\t*[9565]<span />\n*[9566]<button />\n*[9571]<div />\n*[9574]<span />\n\tAnthropic\n3d ago\n*[9576]<div />\n\t*[9577]<button />\nWe believe in building AI that is safe, beneficial, and understandable. Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.\n*[9584]<button />\n\t198\n*[9588]<button />\n*[9592]<button />\n*[9597]<div />\n\tMC\nMaya Chen\nSo excited about this! Just submitted my application for the Research Engineering role.\n3d ago\n*[9604]<div />\n\tAM\nAisha Mohammed\nHoward University · \n                            4d ago\n*[9609]<div />\n\t*[9610]<button />\nAttending the National Society of Black Engineers conference next week! Who else will be there? Let's connect! I'm especially interested in meeting recruiters from tech companies.\n*[9616]<span />\n\t#NSBE\n#engineering\n#diversity\n*[9620]<button />\n\t231\n*[9624]<button />\n*[9628]<button />\n*[9633]<div />\n\tDW\nDerek Williams\nSee you there! I'll be at the Google and Microsoft booths.\n3d ago\n*[9639]<div />\n\tJL\nJasmine Lewis\nCan't wait! This will be my first NSBE conference.\nPost shared!\n</browser_state>\n"
+    }
+  ]
+}

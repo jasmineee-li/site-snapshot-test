@@ -1,0 +1,73 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "Employers" [level=2]
+    - paragraph: Explore companies and follow the ones you love
+    - img
+    - textbox "Search employers by name, industry, or location..."
+    - text: Showing 20 of 20 results G
+    - button "Following"
+    - text: Google Technology · Mountain View, CA 10,000+ employees · Public 45,200 followers JC
+    - button "Follow"
+    - text: JPMorgan Chase Finance · New York, NY 10,000+ employees · Public 32,100 followers M
+    - button "Following"
+    - text: Microsoft Technology · Redmond, WA 10,000+ employees · Public 41,800 followers M&
+    - button "Follow"
+    - text: McKinsey & Company Consulting · New York, NY 5,001-10,000 employees · Private 28,700 followers A
+    - button "Following"
+    - text: Apple Technology · Cupertino, CA 10,000+ employees · Public 52,300 followers GS
+    - button "Follow"
+    - text: Goldman Sachs Finance · New York, NY 10,000+ employees · Public 29,500 followers M
+    - button "Following"
+    - text: Meta Technology · Menlo Park, CA 10,000+ employees · Public 38,900 followers D
+    - button "Follow"
+    - text: Deloitte Consulting · New York, NY 10,000+ employees · Private 25,400 followers A
+    - button "Follow"
+    - text: Amazon Technology · Seattle, WA 10,000+ employees · Public 47,600 followers S
+    - button "Following"
+    - text: Stripe Technology · San Francisco, CA 1,001-5,000 employees · Private 18,200 followers B&
+    - button "Follow"
+    - text: Bain & Company Consulting · Boston, MA 5,001-10,000 employees · Private 22,300 followers T
+    - button "Following"
+    - text: Tesla Automotive · Austin, TX 10,000+ employees · Public 35,100 followers S
+    - button "Follow"
+    - text: Spotify Media & Entertainment · New York, NY 5,001-10,000 employees · Public 19,800 followers ES
+    - button "Follow"
+    - text: Epic Systems Healthcare Technology · Verona, WI 5,001-10,000 employees · Private 12,400 followers A
+    - button "Following"
+    - text: Anthropic Artificial Intelligence · San Francisco, CA 501-1,000 employees · Private 15,600 followers N
+    - button "Follow"
+    - text: Nike Retail · Beaverton, OR 10,000+ employees · Public 31,200 followers PT
+    - button "Follow"
+    - text: Palantir Technologies Technology · Denver, CO 1,001-5,000 employees · Public 14,300 followers TF
+    - button "Follow"
+    - text: Teach For America Nonprofit · New York, NY 1,001-5,000 employees · Nonprofit 8,900 followers S
+    - button "Follow"
+    - text: Salesforce Technology · San Francisco, CA 10,000+ employees · Public 27,600 followers SG
+    - button "Follow"
+    - text: Startup Grind Labs Technology · Austin, TX 11-50 employees · Private 420 followers

@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xero — Invoicing</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top-bar" id="topBar">
+    <div class="topbar-left">
+      <div class="topbar-brand">Xero</div>
+    </div>
+    <div class="topbar-center">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search invoices, quotes, contacts..." style="">
+        <button class="search-btn" data-action="do-search">🔍</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-org" id="topBarOrg"></div>
+      <div class="topbar-user" id="topBarUser"></div>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <div id="sidebarNav"><div class="sidebar-header"><div class="sidebar-logo">Xero</div><div class="sidebar-org">Demo Company (AU)</div></div><nav class="sidebar-nav"><a class="nav-item" data-route="dashboard"><span class="nav-icon">▢</span><span class="nav-label">Dashboard</span></a><div class="nav-section-title">Sales</div><a class="nav-item" data-route="invoices"><span class="nav-icon">📄</span><span class="nav-label">Invoices</span><span class="nav-badge">13</span></a><a class="nav-item" data-route="quotes"><span class="nav-icon">📋</span><span class="nav-label">Quotes</span></a><a class="nav-item active" data-route="credit-notes"><span class="nav-icon">💳</span><span class="nav-label">Credit Notes</span></a><a class="nav-item" data-route="repeating-invoices"><span class="nav-icon">🔄</span><span class="nav-label">Repeating Invoices</span></a><div class="nav-section-title">Settings</div><a class="nav-item" data-route="settings"><span class="nav-icon">⚙</span><span class="nav-label">Invoice Settings</span></a><a class="nav-item" data-route="templates"><span class="nav-icon">🎨</span><span class="nav-label">Branding Themes</span></a><a class="nav-item" data-route="reminders"><span class="nav-icon">🔔</span><span class="nav-label">Invoice Reminders</span></a></nav></div>
+  </aside>
+
+  <main class="main-content" id="mainContent">
+    <div id="contentWrapper"><div class="page-header"><h1>Credit Notes</h1><div class="header-actions"><button class="btn btn-primary" data-action="new-credit-note">New Credit Note</button></div></div><div class="tabs"><button class="tab active" data-action="switch-tab" data-tab="all">All <span class="tab-count">(5)</span></button><button class="tab" data-action="switch-tab" data-tab="draft">Draft <span class="tab-count">(1)</span></button><button class="tab" data-action="switch-tab" data-tab="awaiting_payment">Open <span class="tab-count">(2)</span></button><button class="tab" data-action="switch-tab" data-tab="paid">Allocated <span class="tab-count">(2)</span></button></div><div class="table-container"><table class="data-table" data-testid="cn-table"><thead><tr><th>Number</th><th>Reference</th><th>To</th><th>Date</th><th class="text-right">Total</th><th class="text-right">Remaining</th><th>Status</th></tr></thead><tbody><tr class="table-row clickable"><td><a class="link" data-action="view-credit-note" data-id="cn_004">CN-0011</a></td><td></td><td>Pacific Freight Lines</td><td>1 Mar 2026</td><td class="text-right">$968.00</td><td class="text-right">$968.00</td><td><span class="status-badge badge-draft">Draft</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-credit-note" data-id="cn_005">CN-0012</a></td><td>Scope reduction</td><td>CloudNine Analytics</td><td>22 Feb 2026</td><td class="text-right">$2,035.00</td><td class="text-right">$2,035.00</td><td><span class="status-badge badge-awaiting">Awaiting Payment</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-credit-note" data-id="cn_002">CN-0009</a></td><td>Damaged goods return</td><td>Coastal Living Interiors</td><td>12 Feb 2026</td><td class="text-right">$249.75</td><td class="text-right">$249.75</td><td><span class="status-badge badge-awaiting">Awaiting Payment</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-credit-note" data-id="cn_001">CN-0008</a></td><td>Discount adjustment</td><td>Pinnacle Construction Group</td><td>15 Jan 2026</td><td class="text-right">$1,100.00</td><td class="text-right">$0.00</td><td><span class="status-badge badge-paid">Paid</span></td></tr><tr class="table-row clickable"><td><a class="link" data-action="view-credit-note" data-id="cn_003">CN-0010</a></td><td>Overcharge correction</td><td>TechVault Solutions Pty Ltd</td><td>22 Dec 2025</td><td class="text-right">$220.00</td><td class="text-right">$0.00</td><td><span class="status-badge badge-paid">Paid</span></td></tr></tbody></table></div></div>
+  </main>
+
+  <div id="modalContainer" style="display:none"></div>
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/app.js"></script>
+
+
+</body></html>

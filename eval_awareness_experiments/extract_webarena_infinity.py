@@ -70,6 +70,73 @@ APP_PAGES: dict[str, list[tuple[str, str]]] = {
         ("gift-cards", "click:[data-view='gift-cards']"),
         ("preferences", "click:[data-view='preferences']"),
     ],
+    "elation-clinical-records": [
+        ("patients", "#/patients"),
+        ("templates", "#/templates"),
+        ("categories", "#/categories"),
+        ("settings", "#/settings"),
+    ],
+    "elation-patient-communication": [
+        ("home", "#/home"),
+        ("inbox", "#/inbox"),
+        ("sent", "#/sent"),
+        ("drafts", "#/drafts"),
+        ("reminders", "#/reminders"),
+        ("patients", "#/patients"),
+        ("appointments", "#/appointments"),
+        ("bulk-letters", "#/bulk-letters"),
+        ("settings", "#/settings"),
+    ],
+    "elation-prescriptions": [
+        ("chart", "#/chart"),
+        ("med-history", "#/med-history"),
+        ("rx-requests", "#/rx-requests"),
+        ("settings", "#/settings"),
+    ],
+    "figma-slides": [
+        ("slides", "click:[data-action='setView'][data-view='slides']"),
+    ],
+    "figma-text-and-typography": [
+        ("layers", "#/layers"),
+        ("properties", "#/properties"),
+        ("styles", "#/styles"),
+        ("fonts", "#/fonts"),
+        ("settings", "#/settings"),
+    ],
+    "handshake-career-exploration": [
+        ("feed", "#/feed"),
+        ("jobs", "#/jobs"),
+        ("employers", "#/employers"),
+        ("events", "#/events"),
+        ("messages", "#/messages"),
+        ("career-center", "#/career-center"),
+        ("qa", "#/qa"),
+        ("profile", "#/profile"),
+        ("career-interests", "#/career-interests"),
+    ],
+    "linear-account-settings": [
+        ("profile", "#/profile"),
+        ("preferences", "#/preferences"),
+        ("notifications", "#/notifications"),
+        ("security", "#/security"),
+    ],
+    "superhuman-general": [
+        ("inbox", "#/inbox"),
+        ("done", "#/done"),
+        ("reminders", "#/reminders"),
+        ("sent", "#/sent"),
+        ("snippets", "#/snippets"),
+        ("opens", "#/opens"),
+    ],
+    "xero-invoicing": [
+        ("dashboard", "#/dashboard"),
+        ("invoices", "#/invoices"),
+        ("quotes", "#/quotes"),
+        ("credit-notes", "#/credit-notes"),
+        ("repeating-invoices", "#/repeating-invoices"),
+        ("reminders", "#/reminders"),
+        ("templates", "#/templates"),
+    ],
 }
 
 
@@ -218,8 +285,9 @@ def update_manifest(entries: list[dict], manifest_path: Path) -> None:
     if manifest_path.exists():
         existing = json.loads(manifest_path.read_text())
 
-    # Remove old webarena-infinity entries
-    existing = [e for e in existing if e.get("source") != "webarena-infinity"]
+    # Remove only the entries being replaced (by ID)
+    new_ids = {e["id"] for e in entries}
+    existing = [e for e in existing if e["id"] not in new_ids]
     existing.extend(entries)
 
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,58 @@
+- document:
+  - complementary:
+    - text: ☤ Elation Dr. Sarah Chen Greenwood Family Medicine
+    - navigation: 👤 Patients 📄 Templates 📁 Categories ⚙ Settings
+  - main:
+    - heading "Visit Note Templates" [level=2]
+    - paragraph: 10 templates
+    - button "+ New Template"
+    - strong: E* Annual Wellness Visit
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Sarah Chen Jan 15, 2024 Sections: hpi, ros, pe Billing: 99395 Annual Preventive"
+    - strong: E* Problem-Focused Visit
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Sarah Chen Jan 15, 2024 Sections: hpi, assessment Billing: 99213 Problem-Focused"
+    - strong: Telehealth Follow-Up
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Sarah Chen Feb 20, 2024 Sections: hpi, assessment Billing: 99214 POS: 02 Telehealth Follow-Up"
+    - strong: Flu Shot Administration
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Maria Santos Mar 1, 2024 Sections: proceduresAdministered Billing: 90686 90471 Vaccination Flu"
+    - strong: COVID-19 Vaccine Visit
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Sarah Chen Mar 15, 2024 Sections: proceduresAdministered, assessment Billing: 91301 0003A COVID-19 Vaccination"
+    - strong: Diabetes Management
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Michael Torres Apr 10, 2024 Sections: hpi, ros, pe Billing: 99214 Diabetes Chronic-Care"
+    - strong: Hypertension Follow-Up
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Michael Torres Apr 20, 2024 Sections: hpi, assessment Billing: 99213 Hypertension Chronic-Care"
+    - strong: Well Child Visit (2-5 years)
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Aisha Patel May 5, 2024 Sections: hpi, ros, pe Billing: 99392 Pediatric Well-Child"
+    - strong: Injectable Administration
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Maria Santos May 15, 2024 Sections: proceduresAdministered Billing: 96372 Injectable Procedure"
+    - strong: Pre-Operative Evaluation
+    - button "Edit"
+    - button "Duplicate"
+    - button "Delete"
+    - text: "By Dr. Sarah Chen Jun 1, 2024 Sections: hpi, ros, pe, assessment Billing: 99215 Pre-Op Clearance"

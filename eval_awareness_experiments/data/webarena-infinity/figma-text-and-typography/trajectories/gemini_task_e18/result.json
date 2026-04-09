@@ -1,0 +1,20 @@
+{
+  "task_id": "task_e18",
+  "difficulty": "easy",
+  "instruction": "Disable smart symbols.",
+  "passed": true,
+  "verifier_message": "Smart symbols is disabled.",
+  "elapsed": 60.0,
+  "steps": 7,
+  "is_done": true,
+  "final_result": "I have successfully disabled the 'Smart symbols' feature. \n\nVerification:\n- Navigated to the Settings page.\n- Located the 'Smart symbols' toggle (id: toggle-smart-symbols).\n- Toggled the setting.\n- Verified that the element's class is now 'toggle-switch ', whereas other enabled settings (like Smart quotes) have the 'active' class (e.g., 'toggle-switch active').",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

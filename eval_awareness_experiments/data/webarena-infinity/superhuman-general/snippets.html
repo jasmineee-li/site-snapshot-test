@@ -1,0 +1,453 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superhuman Mail</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="">
+    <!-- Top Bar -->
+    <header class="top-bar" id="topBar">
+        <div class="top-bar-left">
+            <div class="logo" data-testid="superhuman-logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Superhuman</span>
+            </div>
+        </div>
+        <div class="top-bar-center">
+            <div class="search-bar" id="searchBar" data-testid="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search emails... (use from:, to:, subject:, has:attachment)" data-testid="search-input" autocomplete="off" style="">
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <button class="top-btn" data-action="toggle-calendar" data-testid="calendar-toggle-btn" title="Calendar (0)">📅</button>
+            <button class="top-btn" data-action="show-week-view" data-testid="week-view-btn" title="Week View (2)">📆</button>
+            <button class="top-btn" data-action="open-command-palette" data-testid="cmd-k-btn" title="Command Palette (Cmd+K)">⌘K</button>
+            <button class="top-btn" data-action="open-settings" data-testid="settings-btn" title="Settings">⚙</button>
+            <div class="user-avatar" id="userAvatar" data-testid="user-avatar" style="background: rgb(108, 79, 247);">
+                <span id="userInitials">AM</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar" data-testid="sidebar">
+        <div class="compose-btn-wrapper">
+            <button class="compose-btn" id="composeBtn" data-action="compose" data-testid="compose-btn">
+                <span class="compose-icon">✎</span>
+                <span>Compose</span>
+            </button>
+        </div>
+        <div class="sidebar-nav" id="sidebarNav"><div class="sidebar-folders">
+            <a class="sidebar-item" data-action="navigate" data-route="inbox" data-testid="sidebar-inbox">
+                <span class="sidebar-icon">✉</span>
+                <span class="sidebar-label">Inbox</span>
+                <span class="badge">10</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="starred" data-testid="sidebar-starred">
+                <span class="sidebar-icon">★</span>
+                <span class="sidebar-label">Starred</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="done" data-testid="sidebar-done">
+                <span class="sidebar-icon">✓</span>
+                <span class="sidebar-label">Done</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="reminders" data-testid="sidebar-reminders">
+                <span class="sidebar-icon">⏰</span>
+                <span class="sidebar-label">Reminders</span>
+                <span class="badge">6</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="sent" data-testid="sidebar-sent">
+                <span class="sidebar-icon">➤</span>
+                <span class="sidebar-label">Sent</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="drafts" data-testid="sidebar-drafts">
+                <span class="sidebar-icon">✎</span>
+                <span class="sidebar-label">Drafts</span>
+                <span class="badge">2</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="opens" data-testid="sidebar-opens">
+                <span class="sidebar-icon">👁</span>
+                <span class="sidebar-label">Recent Opens</span>
+                
+            </a><a class="sidebar-item active" data-action="navigate" data-route="snippets" data-testid="sidebar-snippets">
+                <span class="sidebar-icon">📄</span>
+                <span class="sidebar-label">Snippets</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="spam" data-testid="sidebar-spam">
+                <span class="sidebar-icon">⚠</span>
+                <span class="sidebar-label">Spam</span>
+                <span class="badge">3</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="trash" data-testid="sidebar-trash">
+                <span class="sidebar-icon">🗑</span>
+                <span class="sidebar-label">Trash</span>
+                
+            </a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">
+                <span>Labels</span>
+                <button class="sidebar-add-btn" data-action="create-label" data-testid="create-label-btn" title="Create label">+</button>
+            </div>
+            <a class="sidebar-item" data-action="navigate" data-route="label/label_1" data-testid="sidebar-label-label_1">
+                <span class="label-dot" style="background:#6C4FF7"></span>
+                <span class="sidebar-label">Work</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_2" data-testid="sidebar-label-label_2">
+                <span class="label-dot" style="background:#34A853"></span>
+                <span class="sidebar-label">Personal</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_3" data-testid="sidebar-label-label_3">
+                <span class="label-dot" style="background:#FF9800"></span>
+                <span class="sidebar-label">Finance</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_4" data-testid="sidebar-label-label_4">
+                <span class="label-dot" style="background:#E54D89"></span>
+                <span class="sidebar-label">Clients</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_5" data-testid="sidebar-label-label_5">
+                <span class="label-dot" style="background:#F44336"></span>
+                <span class="sidebar-label">Urgent</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_6" data-testid="sidebar-label-label_6">
+                <span class="label-dot" style="background:#00BCD4"></span>
+                <span class="sidebar-label">Travel</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_7" data-testid="sidebar-label-label_7">
+                <span class="label-dot" style="background:#9C27B0"></span>
+                <span class="sidebar-label">Newsletters</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_8" data-testid="sidebar-label-label_8">
+                <span class="label-dot" style="background:#795548"></span>
+                <span class="sidebar-label">Recruiting</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_9" data-testid="sidebar-label-label_9">
+                <span class="label-dot" style="background:#607D8B"></span>
+                <span class="sidebar-label">Legal</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_10" data-testid="sidebar-label-label_10">
+                <span class="label-dot" style="background:#2196F3"></span>
+                <span class="sidebar-label">Product</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_11" data-testid="sidebar-label-label_11">
+                <span class="label-dot" style="background:#4CAF50"></span>
+                <span class="sidebar-label">Engineering</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_12" data-testid="sidebar-label-label_12">
+                <span class="label-dot" style="background:#E91E63"></span>
+                <span class="sidebar-label">Marketing</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_13" data-testid="sidebar-label-label_13">
+                <span class="label-dot" style="background:#CDDC39"></span>
+                <span class="sidebar-label">Receipts</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_14" data-testid="sidebar-label-label_14">
+                <span class="label-dot" style="background:#FF5722"></span>
+                <span class="sidebar-label">Events</span>
+            </a>
+        </div></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent" data-testid="main-content">
+        <!-- Toolbar -->
+        <div class="toolbar" id="toolbar"><div class="toolbar-left"></div>
+                <div class="toolbar-right"></div></div>
+        <!-- Content area -->
+        <div class="content-wrapper" id="contentWrapper"><div class="snippets-list" data-testid="snippets-list">
+            <div class="snippets-header">
+                <h2 class="section-title">Snippets</h2>
+                <button class="btn btn-primary btn-sm" data-action="create-snippet" data-testid="create-snippet-btn">+ New Snippet</button>
+            </div>
+            <div class="snippet-item" data-testid="snippet-snip_1">
+                <div class="snippet-main">
+                    <div class="snippet-name">Meeting Follow-up <span class="snippet-shared-badge">Shared</span></div>
+                    <div class="snippet-preview">Hi {first_name},
+
+Thank you for meeting with me today. As discussed, here are the next steps:
+
+1. {action_item_1}
+2. {ac...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">47 sends | 89% opens | 72% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_1" data-testid="edit-snippet-snip_1" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_1" data-testid="share-snippet-snip_1" title="Unshare">👥</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_1" data-testid="delete-snippet-snip_1" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_2">
+                <div class="snippet-main">
+                    <div class="snippet-name">Introduction <span class="snippet-shared-badge">Shared</span></div>
+                    <div class="snippet-preview">Hi {first_name},
+
+I wanted to introduce you to {contact_name} ({contact_email}). {contact_name} is {contact_role} and I ...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">23 sends | 91% opens | 78% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_2" data-testid="edit-snippet-snip_2" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_2" data-testid="share-snippet-snip_2" title="Unshare">👥</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_2" data-testid="delete-snippet-snip_2" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_3">
+                <div class="snippet-main">
+                    <div class="snippet-name">Scheduling Request </div>
+                    <div class="snippet-preview">Hi {first_name},
+
+I'd love to find some time to connect. Would any of these times work for you?
+
+{available_times}
+
+Alte...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">65 sends | 85% opens | 81% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_3" data-testid="edit-snippet-snip_3" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_3" data-testid="share-snippet-snip_3" title="Share">👤</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_3" data-testid="delete-snippet-snip_3" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_4">
+                <div class="snippet-main">
+                    <div class="snippet-name">[Sales] Product Demo <span class="snippet-shared-badge">Shared</span></div>
+                    <div class="snippet-preview">Hi {first_name},
+
+Thank you for your interest in Acme. I'd love to schedule a demo to show you how we can help with {use...</div>
+                    <div class="snippet-meta">
+                        <span>By Sarah Chen</span>
+                        <span class="snippet-metrics">112 sends | 76% opens | 45% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_4" data-testid="edit-snippet-snip_4" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_4" data-testid="share-snippet-snip_4" title="Unshare">👥</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_4" data-testid="delete-snippet-snip_4" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_5">
+                <div class="snippet-main">
+                    <div class="snippet-name">[Sales] Proposal Follow-up <span class="snippet-shared-badge">Shared</span></div>
+                    <div class="snippet-preview">Hi {first_name},
+
+I wanted to follow up on the proposal I sent over on {date_sent}. Have you had a chance to review it?
+...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">34 sends | 82% opens | 56% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_5" data-testid="edit-snippet-snip_5" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_5" data-testid="share-snippet-snip_5" title="Unshare">👥</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_5" data-testid="delete-snippet-snip_5" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_6">
+                <div class="snippet-main">
+                    <div class="snippet-name">Out of Office </div>
+                    <div class="snippet-preview">Hi {first_name},
+
+Thank you for your email. I'm currently out of the office and will return on {return_date}.
+
+For urgen...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">18 sends | 94% opens | 11% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_6" data-testid="edit-snippet-snip_6" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_6" data-testid="share-snippet-snip_6" title="Share">👤</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_6" data-testid="delete-snippet-snip_6" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_7">
+                <div class="snippet-main">
+                    <div class="snippet-name">[HR] Interview Confirmation <span class="snippet-shared-badge">Shared</span></div>
+                    <div class="snippet-preview">Hi {first_name},
+
+We're excited to confirm your interview for the {position} role at Acme Corp.
+
+Details:
+- Date: {inter...</div>
+                    <div class="snippet-meta">
+                        <span>By Rachel Foster</span>
+                        <span class="snippet-metrics">28 sends | 96% opens | 89% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_7" data-testid="edit-snippet-snip_7" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_7" data-testid="share-snippet-snip_7" title="Unshare">👥</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_7" data-testid="delete-snippet-snip_7" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_8">
+                <div class="snippet-main">
+                    <div class="snippet-name">Thank You </div>
+                    <div class="snippet-preview">Hi {first_name},
+
+Just wanted to say thank you for {reason}. It really made a difference and I appreciate it.
+
+Best,
+Ale...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">41 sends | 88% opens | 34% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_8" data-testid="edit-snippet-snip_8" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_8" data-testid="share-snippet-snip_8" title="Share">👤</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_8" data-testid="delete-snippet-snip_8" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_9">
+                <div class="snippet-main">
+                    <div class="snippet-name">[Engineering] Bug Report Response <span class="snippet-shared-badge">Shared</span></div>
+                    <div class="snippet-preview">Hi {first_name},
+
+Thank you for reporting this issue. We've logged it as {ticket_id} and assigned it to the {team} team....</div>
+                    <div class="snippet-meta">
+                        <span>By Nate Patel</span>
+                        <span class="snippet-metrics">56 sends | 71% opens | 28% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_9" data-testid="edit-snippet-snip_9" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_9" data-testid="share-snippet-snip_9" title="Unshare">👥</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_9" data-testid="delete-snippet-snip_9" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_10">
+                <div class="snippet-main">
+                    <div class="snippet-name">Quick Check-in </div>
+                    <div class="snippet-preview">Hi {first_name},
+
+Just checking in on {topic}. Any updates on your end?
+
+Let me know if there's anything I can help with...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">89 sends | 83% opens | 67% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_10" data-testid="edit-snippet-snip_10" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_10" data-testid="share-snippet-snip_10" title="Share">👤</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_10" data-testid="delete-snippet-snip_10" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_11">
+                <div class="snippet-main">
+                    <div class="snippet-name">[Marketing] Event Invitation <span class="snippet-shared-badge">Shared</span></div>
+                    <div class="snippet-preview">Hi {first_name},
+
+You're invited to {event_name}!
+
+Date: {event_date}
+Location: {location}
+RSVP: {rsvp_link}
+
+{event_des...</div>
+                    <div class="snippet-meta">
+                        <span>By Diana Reyes</span>
+                        <span class="snippet-metrics">145 sends | 68% opens | 42% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_11" data-testid="edit-snippet-snip_11" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_11" data-testid="share-snippet-snip_11" title="Unshare">👥</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_11" data-testid="delete-snippet-snip_11" title="Delete">🗑</button>
+                </div>
+            </div><div class="snippet-item" data-testid="snippet-snip_12">
+                <div class="snippet-main">
+                    <div class="snippet-name">Decline Politely </div>
+                    <div class="snippet-preview">Hi {first_name},
+
+Thank you for thinking of me. Unfortunately, I'm not able to {request} at this time due to {reason}.
+
+...</div>
+                    <div class="snippet-meta">
+                        <span>By Alex Morgan</span>
+                        <span class="snippet-metrics">15 sends | 93% opens | 20% replies</span>
+                    </div>
+                </div>
+                <div class="snippet-actions">
+                    <button class="btn-icon btn-sm" data-action="edit-snippet" data-snippet-id="snip_12" data-testid="edit-snippet-snip_12" title="Edit">✎</button>
+                    <button class="btn-icon btn-sm" data-action="toggle-snippet-share" data-snippet-id="snip_12" data-testid="share-snippet-snip_12" title="Share">👤</button>
+                    <button class="btn-icon btn-sm" data-action="delete-snippet" data-snippet-id="snip_12" data-testid="delete-snippet-snip_12" title="Delete">🗑</button>
+                </div>
+            </div>
+        </div></div>
+    </main>
+
+    <!-- Calendar Sidebar -->
+    <aside class="calendar-sidebar" id="calendarSidebar" style="display:none" data-testid="calendar-sidebar">
+        <!-- Populated by JS -->
+    </aside>
+
+    <!-- Compose Modal -->
+    <div class="compose-modal-overlay" id="composeModal" style="display:none">
+        <div class="compose-modal" data-testid="compose-modal">
+            <div class="compose-header">
+                <span class="compose-title" id="composeTitle">New Message</span>
+                <div class="compose-header-actions">
+                    <button class="compose-minimize" data-action="minimize-compose" aria-label="Minimize">–</button>
+                    <button class="compose-close" data-action="close-compose" aria-label="Close">×</button>
+                </div>
+            </div>
+            <div class="compose-fields">
+                <div class="compose-field">
+                    <label>To</label>
+                    <input type="text" id="composeTo" data-testid="compose-to" placeholder="Recipients" style="">
+                </div>
+                <div class="compose-field" id="composeCcField" style="display:none">
+                    <label>Cc</label>
+                    <input type="text" id="composeCc" data-testid="compose-cc" placeholder="" style="">
+                </div>
+                <div class="compose-field" id="composeBccField" style="display:none">
+                    <label>Bcc</label>
+                    <input type="text" id="composeBcc" data-testid="compose-bcc" placeholder="" style="">
+                </div>
+                <div class="compose-field-links">
+                    <a href="#" data-action="show-cc">Cc</a>
+                    <a href="#" data-action="show-bcc">Bcc</a>
+                    <a href="#" data-action="open-snippet-picker" data-testid="insert-snippet-btn" title="Insert Snippet (;)">📄 Snippet</a>
+                </div>
+                <div class="compose-field">
+                    <input type="text" id="composeSubject" data-testid="compose-subject" placeholder="Subject" style="">
+                </div>
+            </div>
+            <div class="compose-body">
+                <textarea id="composeBody" data-testid="compose-body" placeholder="Write your message..." style=""></textarea>
+            </div>
+            <div class="compose-footer">
+                <button class="btn btn-primary" data-action="send-email" data-testid="compose-send">Send</button>
+                <div class="compose-options">
+                    <button class="compose-option-btn" data-action="discard-draft" aria-label="Discard draft" data-testid="compose-discard">🗑</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Modal -->
+    <div class="modal-overlay" id="modalOverlay" style="display:none">
+        <div class="modal" id="modalContainer">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="modal-close" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel" style="display:none" data-testid="settings-panel">
+        <!-- Populated by JS -->
+    </div>
+
+    <!-- Command Palette -->
+    <div id="commandPaletteContainer" style="display:none"></div>
+
+    <!-- Pickers -->
+    <div id="reminderPickerContainer" style="display:none"></div>
+    <div id="labelPickerContainer" style="display:none"></div>
+    <div id="movePickerContainer" style="display:none"></div>
+    <div id="snippetPickerContainer" style="display:none"></div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

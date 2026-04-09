@@ -1,0 +1,38 @@
+- document:
+  - banner:
+    - button "Toggle sidebar": ☰
+    - text: E Elation SC Dr. Chen
+  - navigation:
+    - navigation: 🏠 Practice Home 📨 Patient Letters 12 📤 Sent 📝 Drafts 1 🔔 Reminders 9 👥 Patients 📅 Appointments 📧 Bulk Letters ⚙ Settings
+  - main:
+    - heading "Practice Home" [level=1]
+    - heading "Patient Letters" [level=2]
+    - text: 12 unread Christine Lee General Question Hi, I've been having trouble sleeping even with the Trazodone. I'm only getting ... Feb 28 Raymond Copeland General Question Dr. Kim, I've been experiencing increased thirst and urination. My last A1C was ... Feb 28 Barbara Andersen Test Results Hi Dr. Chen, I got my blood work done last week but haven't heard back about the... Feb 28 Susan Cho Appointment Request Hi, my urticaria has flared up again and the Loratadine isn't helping much. Can ... Feb 28 Deborah Takahashi Prescription Refill Good morning Dr. Chen, I need refills on my Amlodipine and Omeprazole. I'm also ... Feb 28 Janet Okonkwo General Question Dr. Chen, my blood sugar has been running higher than usual this week (200-250 f... Feb 28 Andrew McIntyre General Question Dr. Torres, I've been having more acid reflux episodes despite the Omeprazole. T... Feb 27 Helen Matsumoto General Question This is Ken Matsumoto writing on behalf of my mother Helen. She has been more fo... Feb 27 Sophia Nguyen Appointment Request Hi, I need to schedule my annual thyroid check-up. I prefer a telehealth visit i... Feb 27 Priya Sharma Medical Records Request Hi, I'm applying for life insurance and need copies of my medical records from t... Feb 27 View all patient letters
+    - heading "Reminders" [level=2]
+    - text: 9 Maria Gonzalez has not read "Resultados de laboratorio" sent on Feb 22 Feb 24
+    - button "Resend"
+    - button "Write Message"
+    - button "Acknowledge"
+    - text: Frank DeLuca read "PSA Test Results" but follow-up response pending Feb 26
+    - button "Resend"
+    - button "Write Message"
+    - button "Acknowledge"
+    - text: Aisha Patel - 32-week prenatal checkup tomorrow at 10:00 AM Mar 2
+    - button "Acknowledge"
+    - text: Martha Reeves-Whitfield - Annual wellness visit follow-up tomorrow at 2:00 PM Mar 2
+    - button "Acknowledge"
+    - text: Catherine Morales has read "Thyroid Function Update" - response received Feb 27
+    - button "Resend"
+    - button "Write Message"
+    - button "Acknowledge"
+    - text: Marcus Johnson invited to Passport on Jan 15 - still not registered Feb 15
+    - button "Acknowledge"
+    - text: William Chang invited to Passport on Feb 1 - still not registered Feb 20
+    - button "Acknowledge"
+    - text: Sophia Nguyen - Telehealth thyroid check-up on Mar 4 at 2:00 PM Mar 2
+    - button "Acknowledge"
+    - text: James Rodriguez - Diabetes follow-up on Mar 5 at 10:00 AM Mar 2
+    - button "Acknowledge"
+    - text: View all reminders
+    - heading "Upcoming Appointments" [level=2]
+    - text: 05/15/2026 6:00 AM Thomas Nakamura Cardiac monitoring 🏥 In-person View all appointments
