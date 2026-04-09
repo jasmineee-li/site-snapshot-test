@@ -1,0 +1,270 @@
+- document:
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Settings":
+    - img
+    - heading "Settings" [level=5]
+  - button "Open in new tab":
+    - img
+    - heading "Open in new tab" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - button "Join":
+    - img
+    - heading "Join" [level=5]
+  - button "Copy link":
+    - img
+    - heading "Copy link" [level=5]
+  - alert
+  - button "T TheAgentCompany":
+    - text: T
+    - heading "TheAgentCompany" [level=4]
+  - button "S"
+  - button "New issue":
+    - img
+    - text: New issue
+  - button:
+    - img
+  - separator
+  - link "Home":
+    - /url: /tac/
+    - img
+    - paragraph: Home
+  - link "Notifications":
+    - /url: /tac/notifications/
+    - img
+    - paragraph: Notifications
+  - separator
+  - button "Workspace" [expanded]:
+    - text: Workspace
+    - img
+  - link "All Issues":
+    - /url: /tac/workspace-views/all-issues/
+    - img
+    - paragraph: All Issues
+  - link "Projects":
+    - /url: /tac/projects/
+    - img
+    - paragraph: Projects
+  - link "Active Cycles":
+    - /url: /tac/active-cycles/
+    - img
+    - paragraph: Active Cycles
+    - img
+  - link "Analytics":
+    - /url: /tac/analytics/
+    - img
+    - paragraph: Analytics
+  - link "Settings":
+    - /url: /tac/settings/
+    - img
+    - paragraph: Settings
+  - separator
+  - button "My projects"
+  - button:
+    - img
+  - button:
+    - img
+  - text: Community
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - main:
+    - listitem:
+      - img
+      - text: Projects
+    - button:
+      - img
+    - img
+    - textbox "Search"
+    - button "Created date":
+      - img
+      - text: Created date
+      - img
+    - button "Filters":
+      - img
+      - text: Filters
+      - img
+    - button "Add Project"
+    - link "JanusGraph pushpin JanusGraph JANUS Project about JanusGraph A L +2 Join":
+      - /url: /tac/projects/f04e5c07-8fa2-4eaf-a35b-5cacf3f1d025/issues/
+      - img "JanusGraph"
+      - img "pushpin"
+      - heading "JanusGraph" [level=3]
+      - paragraph: JANUS
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Project about JanusGraph
+      - text: A L +2
+      - button "Join"
+    - link "RisingWave +1 RisingWave RISIN Created on Oct 05, 2024 A L +2 Join":
+      - /url: /tac/projects/ea796314-eeec-41aa-816d-58be13909bf2/issues/
+      - img "RisingWave"
+      - img "+1"
+      - heading "RisingWave" [level=3]
+      - paragraph: RISIN
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 05, 2024
+      - text: A L +2
+      - button "Join"
+    - link "OpenHands computer OpenHands OPENH Created on Oct 09, 2024 A L +4":
+      - /url: /tac/projects/73cb74f7-a7ac-4292-a915-e2f59a09a703/issues/
+      - img "OpenHands"
+      - img "computer"
+      - heading "OpenHands" [level=3]
+      - paragraph: OPENH
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 09, 2024
+      - text: A L +4
+      - link:
+        - /url: /tac/projects/73cb74f7-a7ac-4292-a915-e2f59a09a703/settings/
+        - img
+    - link "llama.cpp computer llama.cpp LLAMA Created on Oct 09, 2024 A L +2 Join":
+      - /url: /tac/projects/3edefc6d-20a9-49a3-aaa4-77f096375ed5/issues/
+      - img "llama.cpp"
+      - img "computer"
+      - heading "llama.cpp" [level=3]
+      - paragraph: LLAMA
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 09, 2024
+      - text: A L +2
+      - button "Join"
+    - link "Colly computer Colly COLLY Created on Oct 09, 2024 A L +2 Join":
+      - /url: /tac/projects/d6341c6c-6403-48c5-8d77-4e3564fd6cee/issues/
+      - img "Colly"
+      - img "computer"
+      - heading "Colly" [level=3]
+      - paragraph: COLLY
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 09, 2024
+      - text: A L +2
+      - button "Join"
+    - link "OpenSearch computer OpenSearch OPENS Created on Oct 09, 2024 A L +2 Join":
+      - /url: /tac/projects/1e6caa98-31a1-437b-99be-1bd99db0a461/issues/
+      - img "OpenSearch"
+      - img "computer"
+      - heading "OpenSearch" [level=3]
+      - paragraph: OPENS
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 09, 2024
+      - text: A L +2
+      - button "Join"
+    - link "Node-RED computer Node-RED NODER Created on Oct 09, 2024 A L +2 Join":
+      - /url: /tac/projects/a063d05f-37cf-4f97-b10c-486acf13b138/issues/
+      - img "Node-RED"
+      - img "computer"
+      - heading "Node-RED" [level=3]
+      - paragraph: NODER
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 09, 2024
+      - text: A L +2
+      - button "Join"
+    - link "API-Development computer API-Development APIDE Created on Oct 09, 2024 A L +2 Join":
+      - /url: /tac/projects/3ae3345f-d125-4d59-829b-6d767bf19407/issues/
+      - img "API-Development"
+      - img "computer"
+      - heading "API-Development" [level=3]
+      - paragraph: APIDE
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 09, 2024
+      - text: A L +2
+      - button "Join"
+    - link "Frontend Development computer Frontend Development FRONT Created on Oct 09, 2024 A L +2 Join":
+      - /url: /tac/projects/39ccbb74-8f1d-4259-8f75-df9ffbc9a962/issues/
+      - img "Frontend Development"
+      - img "computer"
+      - heading "Frontend Development" [level=3]
+      - paragraph: FRONT
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 09, 2024
+      - text: A L +2
+      - button "Join"
+    - link "Sotopia full moon with face Sotopia SOTOP Created on Oct 13, 2024 A Join":
+      - /url: /tac/projects/2bc631a1-8515-4bca-858e-129337c83c8d/issues/
+      - img "Sotopia"
+      - img "full moon with face"
+      - heading "Sotopia" [level=3]
+      - paragraph: SOTOP
+      - button:
+        - img
+      - button:
+        - img
+      - paragraph: Created on Oct 13, 2024
+      - text: A
+      - button "Join"

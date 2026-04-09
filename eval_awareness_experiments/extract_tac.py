@@ -97,6 +97,24 @@ SERVICES: dict[str, dict] = {
             ("users", "/index.php/settings/users"),
         ],
     },
+    "plane": {
+        "base_url": "http://localhost:8091",
+        "login": {
+            "url": "http://localhost:8091",
+            "type": "plane",  # two-step login
+            "email": "sarah.johnson@agentcompany.com",
+            "password": "sarah.johnson@agentcompany.com",
+        },
+        "pages": [
+            ("home", "/tac/"),
+            ("projects", "/tac/projects/"),
+            ("issues", "/tac/workspace-views/all-issues/"),
+            ("cycles", "/tac/active-cycles/"),
+            ("settings-general", "/tac/settings/"),
+            ("settings-members", "/tac/settings/members/"),
+        ],
+        "settle_time": 5,  # Plane's SPA needs more time to load data
+    },
 }
 
 
@@ -138,12 +156,26 @@ async def login(page, login_config: dict) -> bool:
     await asyncio.sleep(2)
 
     try:
-        # Fill username
-        await page.fill(login_config["username_selector"], login_config["username"])
-        # Fill password
-        await page.fill(login_config["password_selector"], login_config["password"])
-        # Submit
-        await page.click(login_config["submit_selector"], timeout=5000)
+        login_type = login_config.get("type", "standard")
+
+        if login_type == "plane":
+            # Two-step login: email → continue → password → go to workspace
+            await page.fill(
+                'input[placeholder="name@example.com"], input[placeholder="name@company.com"]',
+                login_config["email"],
+            )
+            await asyncio.sleep(0.5)
+            await page.click('button:has-text("Continue")')
+            await asyncio.sleep(2)
+            await page.fill('input[placeholder="Enter password"]', login_config["password"])
+            await asyncio.sleep(0.5)
+            await page.click('button:has-text("Go to workspace")')
+        else:
+            # Standard login: username + password + submit
+            await page.fill(login_config["username_selector"], login_config["username"])
+            await page.fill(login_config["password_selector"], login_config["password"])
+            await page.click(login_config["submit_selector"], timeout=5000)
+
         # Wait for navigation after login
         await page.wait_for_load_state("load", timeout=30000)
         await asyncio.sleep(3)  # extra settle time for JS-heavy apps
@@ -180,13 +212,14 @@ async def extract_service(
 
         # Capture each page (with retries for flaky services like GitLab)
         base_url = config["base_url"]
+        settle_time = config.get("settle_time", 1)
         max_retries = 3
         for page_name, path in config["pages"]:
             url = f"{base_url}{path}"
             for attempt in range(max_retries):
                 try:
                     response = await page.goto(url, wait_until="load", timeout=30000)
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(settle_time)
 
                     # Check for error pages or login redirects
                     title = await page.title()

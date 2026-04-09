@@ -59,5 +59,23 @@
       "benchmark": "theagentcompany",
       "service": "owncloud"
     }
+  },
+  {
+    "id": "tac_plane",
+    "source": "tac",
+    "label": "synthetic",
+    "path": "eval_awareness_experiments/data/tac/plane",
+    "pages": [
+      "home",
+      "projects",
+      "issues",
+      "cycles",
+      "settings-general",
+      "settings-members"
+    ],
+    "metadata": {
+      "benchmark": "theagentcompany",
+      "service": "plane"
+    }
   }
 ]
