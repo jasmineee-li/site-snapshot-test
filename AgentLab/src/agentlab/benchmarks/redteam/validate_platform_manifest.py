@@ -46,7 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--benchmark-file",
         default=None,
-        help="Optional behaviors JSON file used to verify full behavior coverage.",
+        help="Optional behaviors JSON file used to verify mapped behavior_ids are known.",
+    )
+    parser.add_argument(
+        "--require-full-coverage",
+        action="store_true",
+        help="Require the platform manifest to map every behavior_id in --benchmark-file.",
     )
     parser.add_argument(
         "--check-docs-paths",
@@ -83,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
     errors = validate_platform_manifest(
         platform_manifest,
         known_behavior_ids=known_behavior_ids,
+        repo_root_path=args.repo_root,
+        require_full_coverage=args.require_full_coverage,
     )
     if args.check_docs_paths:
         errors.extend(

@@ -14,8 +14,8 @@ from agentlab.benchmarks.redteam.app_artifacts import load_behavior_contract
 from agentlab.benchmarks.redteam.app_pipeline import (
     ensure_trusted_server_template,
     load_prompt_template,
-    run_claude_code,
 )
+from agentlab.benchmarks.redteam.claude_code import run_claude_code
 from agentlab.benchmarks.redteam.eval_harness import (
     DEFAULT_AGENT_CONFIG,
     DEFAULT_FUNCTIONAL_BACKEND,

@@ -2,12 +2,51 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers (de-duplicated from controller, app_pipeline, eval_harness,
+# app_artifacts)
+# ---------------------------------------------------------------------------
+
+
+def utc_timestamp() -> str:
+    """Return the current UTC time as an ISO-8601 string."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+def write_json(path: str | Path, payload: Any) -> None:
+    """Atomically write *payload* as pretty-printed JSON, creating parents."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def write_text(path: str | Path, content: str) -> None:
+    """Write *content* as UTF-8 text, creating parent directories."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding="utf-8")
+
+
+def sha256_bytes(payload: bytes) -> str:
+    """Return the hex SHA-256 digest of raw *payload* bytes."""
+    return hashlib.sha256(payload).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    """Return the hex SHA-256 digest of the file at *path*."""
+    return sha256_bytes(path.read_bytes())
 
 
 def normalize_hash_fragment(fragment: str) -> str:

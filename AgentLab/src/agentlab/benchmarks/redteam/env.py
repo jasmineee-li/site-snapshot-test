@@ -88,13 +88,20 @@ class RedteamEnv(AbstractEnv):
             page = self.browser_env.unwrapped.page
             context = page.context
 
-            from agentlab.benchmarks.redteam.routing import setup_route_interception
+            from agentlab.benchmarks.redteam.routing import (
+                install_browser_route_guard,
+                setup_route_interception,
+            )
 
-            setup_route_interception(
+            route_policy = setup_route_interception(
                 context=context,
                 domain_bindings=getattr(self.env_args, "domain_bindings", []) or [],
+                pages=list(getattr(self.env_args, "pages", []) or []),
+                allowed_routes=list(getattr(self.env_args, "allowed_routes", []) or []),
+                mock_endpoints=list(getattr(self.env_args, "mock_endpoints", []) or []),
                 server_port=self.server_port,
             )
+            install_browser_route_guard(page, policy=route_policy)
             external_start_url = self._resolve_app_start_url()
 
             logger.info(f"Navigating to start URL: {external_start_url}")

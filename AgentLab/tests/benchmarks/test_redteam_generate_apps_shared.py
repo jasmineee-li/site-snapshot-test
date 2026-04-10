@@ -14,6 +14,14 @@ from agentlab.benchmarks.redteam.generate_apps import _group_behaviors_by_app
 from agentlab.benchmarks.redteam.phase_ids import PHASE_4B, PHASE_5
 
 
+def _write_trusted_server(app_dir: Path) -> None:
+    template_path = Path(generate_apps.__file__).resolve().parent / "templates" / "server.py"
+    (app_dir / "server.py").write_text(
+        template_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+
 def test_group_behaviors_by_app_collapses_multiple_behaviors_onto_shared_app(tmp_path: Path) -> None:
     platform_manifest = tmp_path / "platform_manifest.json"
     platform_manifest.write_text(
@@ -224,6 +232,147 @@ def test_generate_apps_root_manifest_counts_apps_separately_from_behaviors(
     assert root_manifest["n_total_behaviors"] == 2
 
 
+def test_generate_apps_shared_allows_pilot_manifest_subset_without_filtering_benchmark(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    benchmark_file = tmp_path / "behaviors.json"
+    benchmark_file.write_text(
+        json.dumps([{"id": "demo-a"}, {"id": "demo-b"}, {"id": "unmapped"}], indent=2),
+        encoding="utf-8",
+    )
+    platform_manifest = tmp_path / "platform_manifest.json"
+    platform_manifest.write_text(
+        json.dumps(
+            {
+                "apps": [
+                    {
+                        "app_id": "shared-mail",
+                        "platform": "mail",
+                        "docs_path": "apps/user-manuals/mail",
+                        "behaviors": [
+                            {
+                                "behavior_id": "demo-a",
+                                "entry_route": "#/inbox",
+                                "allowed_routes": ["#/inbox"],
+                                "domain_bindings": [{"domain": "mail.example.com", "mode": "primary_spa"}],
+                            },
+                            {
+                                "behavior_id": "demo-b",
+                                "entry_route": "#/thread",
+                                "allowed_routes": ["#/inbox", "#/thread"],
+                                "domain_bindings": [{"domain": "mail.example.com", "mode": "primary_spa"}],
+                            },
+                        ],
+                    }
+                ]
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    docs_dir = tmp_path / "apps" / "user-manuals" / "mail"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    (docs_dir / "manual.md").write_text("# Mail Manual\n", encoding="utf-8")
+
+    captured: list[dict] = []
+
+    def fake_generate_single(**kwargs):
+        behavior = kwargs["behavior"]
+        captured.append(behavior)
+        return {
+            "contract_version": APP_MANIFEST_CONTRACT_VERSION,
+            "app_id": behavior["app_id"],
+            "platform": "mail",
+            "docs_path": "apps/user-manuals/mail",
+            "docs_snapshot": compute_docs_snapshot(
+                {"docs_path": "apps/user-manuals/mail"},
+                repo_root_path=tmp_path,
+            ),
+            "shared_seed_version": 1,
+            "shared_seed_hash": "sha256:test",
+            "behavior_ids": [item["id"] for item in behavior["mapped_behaviors"]],
+            "pages": [
+                {
+                    "id": "mail",
+                    "base_site_url": "https://mail.example.com",
+                    "subdomains": ["/mail/u/0/#inbox", "/mail/u/0/#thread"],
+                    "details": {
+                        "/mail/u/0/#inbox": "Inbox",
+                        "/mail/u/0/#thread": "Thread",
+                    },
+                    "screenshots": [],
+                    "existing_path": None,
+                    "skip_modification": False,
+                }
+            ],
+            "start_page": "https://mail.example.com/mail/u/0/#inbox",
+            "execution_backend": {"selected_backend": "modal"},
+            "variant_generation": {"status": "validated"},
+            "validation": {"passed": True},
+            "generation": {
+                "status": "succeeded",
+                "functional_tests_requested": True,
+                "functional_backend": "agent-browser",
+                "hardening_rounds": 0,
+                "run_final_regression": False,
+                "phases": {
+                    PHASE_4B: {"status": "skipped"},
+                    PHASE_5: {"status": "skipped"},
+                },
+            },
+            "functional_tests": {
+                "function_sanity_passed": True,
+                "real_sanity_passed": True,
+                "function_evaluation": {
+                    "ran": True,
+                    "backend": "agent-browser",
+                    "pass_rate": 1.0,
+                    "total": 1,
+                    "passed": 1,
+                    "results": [{"task_id": "task_1", "passed": True}],
+                    "results_dir": "results/function",
+                    "error": None,
+                },
+                "real_evaluation": {
+                    "ran": True,
+                    "backend": "agent-browser",
+                    "pass_rate": 1.0,
+                    "total": 1,
+                    "passed": 1,
+                    "results": [{"task_id": "task_r1", "passed": True}],
+                    "results_dir": "results/real",
+                    "error": None,
+                },
+                "quality_gate": {"passed": True, "pass_rate": 1.0, "threshold": 0.8},
+                "real_quality_gate": {"passed": True, "pass_rate": 1.0, "threshold": 1.0},
+            },
+        }
+
+    monkeypatch.setattr(generate_apps, "_generate_single", fake_generate_single)
+
+    output_dir = tmp_path / "apps-out"
+    generate_apps.main(
+        [
+            "--benchmark-file",
+            str(benchmark_file),
+            "--output-dir",
+            str(output_dir),
+            "--platform-manifest",
+            str(platform_manifest),
+        ]
+    )
+
+    assert len(captured) == 1
+    assert captured[0]["app_id"] == "shared-mail"
+    assert [item["id"] for item in captured[0]["mapped_behaviors"]] == ["demo-a", "demo-b"]
+
+    root_manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert root_manifest["n_total"] == 1
+    assert root_manifest["n_total_apps"] == 1
+    assert root_manifest["n_total_behaviors"] == 2
+
+
 def _write_successful_shared_app(
     app_dir: Path,
     *,
@@ -236,7 +385,7 @@ def _write_successful_shared_app(
     (app_dir / "adversarial_demo-a_v0").mkdir(exist_ok=True)
     if include_variant_b:
         (app_dir / "adversarial_demo-b_v0").mkdir(exist_ok=True)
-    (app_dir / "server.py").write_text("print('server')\n", encoding="utf-8")
+    _write_trusted_server(app_dir)
     (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
     (app_dir / "benign" / "data.js").write_text("const MODE = 'benign';\n", encoding="utf-8")
     (app_dir / "adversarial_demo-a_v0" / "data.js").write_text(
@@ -740,14 +889,24 @@ def test_generate_apps_resume_retries_incomplete_shared_apps(
     docs_dir = tmp_path / "apps" / "user-manuals" / "mail"
     docs_dir.mkdir(parents=True, exist_ok=True)
     (docs_dir / "manual.md").write_text("# Mail Manual\n", encoding="utf-8")
-    _write_successful_shared_app(output_dir / "shared-mail", include_behavior_b=False)
+    shared_app_dir = output_dir / "shared-mail"
+    _write_successful_shared_app(shared_app_dir, include_behavior_b=False)
+    manifest = json.loads((shared_app_dir / "app_manifest.json").read_text(encoding="utf-8"))
+    manifest["docs_snapshot"] = compute_docs_snapshot(
+        {"docs_path": "apps/user-manuals/mail"},
+        repo_root_path=tmp_path,
+    )
+    (shared_app_dir / "app_manifest.json").write_text(
+        json.dumps(manifest, indent=2),
+        encoding="utf-8",
+    )
 
-    calls: list[str] = []
+    calls: list[tuple[str, bool]] = []
     monkeypatch.setattr(
         generate_apps,
         "_generate_single",
         lambda **kwargs: (
-            calls.append(kwargs["behavior"]["app_id"]),
+            calls.append((kwargs["behavior"]["app_id"], kwargs["resume_generation"])),
             {
                 "contract_version": APP_MANIFEST_CONTRACT_VERSION,
                 "app_id": kwargs["behavior"]["app_id"],
@@ -809,7 +968,7 @@ def test_generate_apps_resume_retries_incomplete_shared_apps(
         ]
     )
 
-    assert calls == ["shared-mail"]
+    assert calls == [("shared-mail", True)]
 
 
 def test_generate_apps_shared_rejects_duplicate_behavior_ids_via_cli(
@@ -915,12 +1074,12 @@ def test_generate_apps_resume_retries_shared_app_when_docs_snapshot_is_stale(
     )
     manual_path.write_text("# Mail Manual\nUpdated\n", encoding="utf-8")
 
-    calls: list[str] = []
+    calls: list[tuple[str, bool]] = []
     monkeypatch.setattr(
         generate_apps,
         "_generate_single",
         lambda **kwargs: (
-            calls.append(kwargs["behavior"]["app_id"]),
+            calls.append((kwargs["behavior"]["app_id"], kwargs["resume_generation"])),
             manifest,
         )[-1],
     )
@@ -937,4 +1096,87 @@ def test_generate_apps_resume_retries_shared_app_when_docs_snapshot_is_stale(
         ]
     )
 
-    assert calls == ["shared-mail"]
+    assert calls == [("shared-mail", False)]
+
+
+def test_generate_apps_resume_retries_shared_app_when_docs_snapshot_is_stale_and_app_is_incomplete(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    benchmark_file = tmp_path / "behaviors.json"
+    benchmark_file.write_text(
+        json.dumps([{"id": "demo-a", "doc": "A"}, {"id": "demo-b", "doc": "B"}], indent=2),
+        encoding="utf-8",
+    )
+    platform_manifest = tmp_path / "platform_manifest.json"
+    platform_manifest.write_text(
+        json.dumps(
+            {
+                "apps": [
+                    {
+                        "app_id": "shared-mail",
+                        "platform": "mail",
+                        "docs_path": "apps/user-manuals/mail",
+                        "behaviors": [
+                            {
+                                "behavior_id": "demo-a",
+                                "entry_route": "#/inbox",
+                                "allowed_routes": ["#/inbox"],
+                                "domain_bindings": [{"domain": "mail.example.com", "mode": "primary_spa"}],
+                            },
+                            {
+                                "behavior_id": "demo-b",
+                                "entry_route": "#/inbox",
+                                "allowed_routes": ["#/inbox"],
+                                "domain_bindings": [{"domain": "mail.example.com", "mode": "primary_spa"}],
+                            },
+                        ],
+                    }
+                ]
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    docs_dir = tmp_path / "apps" / "user-manuals" / "mail"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    manual_path = docs_dir / "mail.md"
+    manual_path.write_text("# Mail Manual\n", encoding="utf-8")
+    output_dir = tmp_path / "apps"
+    shared_app_dir = output_dir / "shared-mail"
+    _write_successful_shared_app(shared_app_dir)
+    manifest = json.loads((shared_app_dir / "app_manifest.json").read_text(encoding="utf-8"))
+    manifest["docs_snapshot"] = compute_docs_snapshot(
+        {"docs_path": "apps/user-manuals/mail"},
+        repo_root_path=tmp_path,
+    )
+    (shared_app_dir / "app_manifest.json").write_text(
+        json.dumps(manifest, indent=2),
+        encoding="utf-8",
+    )
+    (shared_app_dir / "index.html").unlink()
+    manual_path.write_text("# Mail Manual\nUpdated\n", encoding="utf-8")
+
+    calls: list[tuple[str, bool]] = []
+    monkeypatch.setattr(
+        generate_apps,
+        "_generate_single",
+        lambda **kwargs: (
+            calls.append((kwargs["behavior"]["app_id"], kwargs["resume_generation"])),
+            manifest,
+        )[-1],
+    )
+
+    generate_apps.main(
+        [
+            "--benchmark-file",
+            str(benchmark_file),
+            "--output-dir",
+            str(output_dir),
+            "--platform-manifest",
+            str(platform_manifest),
+            "--resume",
+        ]
+    )
+
+    assert calls == [("shared-mail", False)]

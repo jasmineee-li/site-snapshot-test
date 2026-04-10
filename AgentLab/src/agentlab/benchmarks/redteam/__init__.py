@@ -18,10 +18,10 @@ from agentlab.benchmarks.redteam.app_pipeline import (
     generate_task_suite,
     generate_variants,
     load_prompt_template,
-    run_claude_code,
     run_task_validation_loop,
     validate_app,
 )
+from agentlab.benchmarks.redteam.claude_code import run_claude_code
 from agentlab.benchmarks.redteam.data_validator import (
     CheckResult,
     DataValidationResult,

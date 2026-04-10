@@ -13,6 +13,7 @@ from agentlab.benchmarks.redteam.app_artifacts import (
     APP_MANIFEST_CONTRACT_VERSION,
     compute_docs_snapshot,
 )
+from agentlab.benchmarks.redteam.errors import config_error
 from agentlab.benchmarks.redteam.phase_ids import PHASE_4B, PHASE_5
 
 
@@ -59,10 +60,28 @@ def _published_app_dir(output_dir: Path, behavior_id: str) -> Path:
     return output_dir / behavior_id
 
 
+def _write_manuals(repo_root: Path) -> dict:
+    docs_dir = repo_root / "apps" / "user-manuals" / "mail"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    (docs_dir / "mail.md").write_text("# Mail Manual\n", encoding="utf-8")
+    return compute_docs_snapshot(
+        {"docs_path": "apps/user-manuals/mail"},
+        repo_root_path=repo_root,
+    )
+
+
+def _write_trusted_server(app_dir: Path) -> None:
+    template_path = Path(generate_apps.__file__).resolve().parent / "templates" / "server.py"
+    (app_dir / "server.py").write_text(
+        template_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+
 def _write_runtime_assets(app_dir: Path) -> None:
     (app_dir / "benign").mkdir(parents=True, exist_ok=True)
     (app_dir / "adversarial_demo_v0").mkdir(parents=True, exist_ok=True)
-    (app_dir / "server.py").write_text("print('server')\n", encoding="utf-8")
+    _write_trusted_server(app_dir)
     (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
     (app_dir / "benign" / "data.js").write_text("const MODE = 'benign';\n", encoding="utf-8")
     (app_dir / "adversarial_demo_v0" / "data.js").write_text(
@@ -272,6 +291,78 @@ def test_generate_apps_passes_functional_backend_options(tmp_path: Path, monkeyp
     assert captured["functional_agent_config"] == "fake.Agent"
 
 
+def test_generate_apps_dry_run_lists_apps_without_generating(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    repo_root = _init_git_repo(tmp_path)
+    benchmark_file = tmp_path / "behaviors.json"
+    _write_benchmark(benchmark_file, ["demo"])
+    output_dir = repo_root / "apps"
+
+    monkeypatch.delenv("AGENTLAB_REDTEAM_SKIP_CONFIG_VALIDATION", raising=False)
+    monkeypatch.setattr(
+        "agentlab.benchmarks.redteam.pipeline_config.PipelineConfig.validate",
+        lambda self, check_cli=True: [],
+    )
+    monkeypatch.setattr(
+        generate_apps,
+        "_generate_single",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("dry-run should not generate apps")),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        generate_apps.main(
+            [
+                "--benchmark-file",
+                str(benchmark_file),
+                "--output-dir",
+                str(output_dir),
+                "--dry-run",
+            ]
+        )
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "DRY RUN: would generate 1 app(s):" in captured.out
+    assert "demo" in captured.out
+
+
+def test_generate_apps_dry_run_exits_on_fatal_config_validation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo_root = _init_git_repo(tmp_path)
+    benchmark_file = tmp_path / "behaviors.json"
+    _write_benchmark(benchmark_file, ["demo"])
+    output_dir = repo_root / "apps"
+
+    monkeypatch.delenv("AGENTLAB_REDTEAM_SKIP_CONFIG_VALIDATION", raising=False)
+    monkeypatch.setattr(
+        "agentlab.benchmarks.redteam.pipeline_config.PipelineConfig.validate",
+        lambda self, check_cli=True: [
+            config_error(
+                "E_CONFIG_API_KEY_MISSING",
+                "No API key found. Set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN.",
+            )
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        generate_apps.main(
+            [
+                "--benchmark-file",
+                str(benchmark_file),
+                "--output-dir",
+                str(output_dir),
+                "--dry-run",
+            ]
+        )
+
+    assert exc_info.value.code == 1
+
+
 def test_generate_apps_resume_retries_when_functional_tests_are_missing(tmp_path: Path, monkeypatch) -> None:
     repo_root = _init_git_repo(tmp_path)
     benchmark_file = tmp_path / "behaviors.json"
@@ -360,8 +451,10 @@ def test_generate_apps_resume_retries_when_requested_backend_changed(tmp_path: P
     benchmark_file = tmp_path / "behaviors.json"
     _write_benchmark(benchmark_file, ["demo"])
     output_dir = repo_root / "apps"
+    docs_snapshot = _write_manuals(repo_root)
 
     manifest = _successful_manifest("demo")
+    manifest["docs_snapshot"] = docs_snapshot
     manifest["generation"]["functional_backend"] = "generic-agent"
     manifest["functional_tests"]["function_evaluation"]["backend"] = "generic-agent"
     manifest["functional_tests"]["real_evaluation"]["backend"] = "generic-agent"
@@ -385,10 +478,10 @@ def test_generate_apps_resume_retries_when_requested_backend_changed(tmp_path: P
         encoding="utf-8",
     )
 
-    calls: list[str] = []
+    calls: list[tuple[str, bool]] = []
 
     def fake_generate_single(**kwargs):
-        calls.append(kwargs["behavior"]["id"])
+        calls.append((kwargs["behavior"]["id"], kwargs["resume_generation"]))
         return _successful_manifest(kwargs["behavior"]["id"])
 
     monkeypatch.setattr(generate_apps, "_generate_single", fake_generate_single)
@@ -405,7 +498,7 @@ def test_generate_apps_resume_retries_when_requested_backend_changed(tmp_path: P
         ]
     )
 
-    assert calls == ["demo"]
+    assert calls == [("demo", True)]
 
 
 def test_generate_apps_resume_retries_when_functional_results_are_missing(
@@ -416,14 +509,17 @@ def test_generate_apps_resume_retries_when_functional_results_are_missing(
     benchmark_file = tmp_path / "behaviors.json"
     _write_benchmark(benchmark_file, ["demo"])
     output_dir = repo_root / "apps"
+    docs_snapshot = _write_manuals(repo_root)
 
-    _write_manifest(_published_app_dir(output_dir, "demo"), _successful_manifest("demo"))
+    manifest = _successful_manifest("demo")
+    manifest["docs_snapshot"] = docs_snapshot
+    _write_manifest(_published_app_dir(output_dir, "demo"), manifest)
     _write_runtime_assets(_published_app_dir(output_dir, "demo"))
 
-    calls: list[str] = []
+    calls: list[tuple[str, bool]] = []
 
     def fake_generate_single(**kwargs):
-        calls.append(kwargs["behavior"]["id"])
+        calls.append((kwargs["behavior"]["id"], kwargs["resume_generation"]))
         return _successful_manifest(kwargs["behavior"]["id"])
 
     monkeypatch.setattr(generate_apps, "_generate_single", fake_generate_single)
@@ -438,7 +534,7 @@ def test_generate_apps_resume_retries_when_functional_results_are_missing(
         ]
     )
 
-    assert calls == ["demo"]
+    assert calls == [("demo", True)]
 
 
 def test_generate_apps_resume_retries_when_functional_results_are_malformed(
@@ -449,15 +545,18 @@ def test_generate_apps_resume_retries_when_functional_results_are_malformed(
     benchmark_file = tmp_path / "behaviors.json"
     _write_benchmark(benchmark_file, ["demo"])
     output_dir = repo_root / "apps"
+    docs_snapshot = _write_manuals(repo_root)
 
-    _write_manifest(_published_app_dir(output_dir, "demo"), _successful_manifest("demo"))
+    manifest = _successful_manifest("demo")
+    manifest["docs_snapshot"] = docs_snapshot
+    _write_manifest(_published_app_dir(output_dir, "demo"), manifest)
     _write_runtime_assets(_published_app_dir(output_dir, "demo"))
     _write_functional_results(_published_app_dir(output_dir, "demo"), malformed=True)
 
-    calls: list[str] = []
+    calls: list[tuple[str, bool]] = []
 
     def fake_generate_single(**kwargs):
-        calls.append(kwargs["behavior"]["id"])
+        calls.append((kwargs["behavior"]["id"], kwargs["resume_generation"]))
         return _successful_manifest(kwargs["behavior"]["id"])
 
     monkeypatch.setattr(generate_apps, "_generate_single", fake_generate_single)
@@ -472,7 +571,7 @@ def test_generate_apps_resume_retries_when_functional_results_are_malformed(
         ]
     )
 
-    assert calls == ["demo"]
+    assert calls == [("demo", True)]
 
 
 def test_generate_apps_resume_retries_when_docs_snapshot_is_stale(

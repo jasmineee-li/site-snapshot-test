@@ -25,6 +25,7 @@ from agentlab.benchmarks.redteam.app_artifacts import (
     resolve_repo_root_path,
     validate_path_component,
 )
+from agentlab.benchmarks.redteam.behavior_ids import resolve_behavior_id
 from agentlab.benchmarks.redteam.config import Page, RedteamEnvArgs, parse_case_fields
 from agentlab.benchmarks.redteam_attacker import RedteamAttackerAgent
 from agentlab.benchmarks.redteam_actions import done as done_action
@@ -77,6 +78,7 @@ class RedteamBenchmark(AbstractBenchmark):
     # Pre-generated environment support
     pregenerated_env_dir: str | Path = None
     platform_manifest: str | Path | None = None
+    behavior_ids: list[str] | None = None
 
     # Functional correctness quality gate
     functional_threshold: float = 0.80  # Minimum function-task pass rate
@@ -111,7 +113,30 @@ class RedteamBenchmark(AbstractBenchmark):
         self.name = benchmark_name
         logger.info(f"Loading redteam benchmark: {benchmark_name}")
 
+        selected_behavior_ids = self._normalized_behavior_ids_filter()
+        selected_behavior_filter = set(selected_behavior_ids) if selected_behavior_ids else None
+        if selected_behavior_filter is not None:
+            available_behavior_ids = {
+                resolve_behavior_id(case_data, case_idx)
+                for case_idx, case_data in enumerate(cases)
+            }
+            missing_behavior_ids = [
+                behavior_id
+                for behavior_id in selected_behavior_ids
+                if behavior_id not in available_behavior_ids
+            ]
+            if missing_behavior_ids:
+                raise PregeneratedAppManifestError(
+                    "behavior_ids filter references benchmark behaviors that do not exist: "
+                    + ", ".join(missing_behavior_ids)
+                )
+
+        loaded_behavior_ids: list[str] = []
         for case_idx, case_data in enumerate(cases):
+            behavior_id = resolve_behavior_id(case_data, case_idx)
+            if selected_behavior_filter is not None and behavior_id not in selected_behavior_filter:
+                continue
+            loaded_behavior_ids.append(behavior_id)
             try:
                 variants = self._parse_case(case_idx, case_data)
             except PregeneratedAppManifestError as exc:
@@ -120,13 +145,17 @@ class RedteamBenchmark(AbstractBenchmark):
             if variants:
                 self.env_args_list.extend(variants)
 
+        if selected_behavior_filter is not None and not loaded_behavior_ids:
+            raise PregeneratedAppManifestError(
+                "behavior_ids filter selected no benchmark behaviors"
+            )
         if invalid_pregenerated_apps:
             raise PregeneratedAppManifestError(
                 "Invalid pregenerated redteam app-mode artifacts:\n- "
                 + "\n- ".join(invalid_pregenerated_apps)
             )
 
-        n_behaviors = len(cases)
+        n_behaviors = len(loaded_behavior_ids)
         logger.info(
             f"Loaded {len(self.env_args_list)} tasks "
             f"({n_behaviors} behaviors \u00d7 2 variants each: 1 benign + 1 active adversarial)"
@@ -138,6 +167,21 @@ class RedteamBenchmark(AbstractBenchmark):
         """Return the resolved platform manifest path for shared-app loading."""
         configured = self.platform_manifest or default_platform_manifest_path()
         return Path(configured)
+
+    def _normalized_behavior_ids_filter(self) -> list[str]:
+        if not self.behavior_ids:
+            return []
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw_behavior_id in self.behavior_ids:
+            behavior_id = validate_path_component(
+                str(raw_behavior_id or "").strip(),
+                "behavior_ids entry",
+            )
+            if behavior_id not in seen:
+                seen.add(behavior_id)
+                normalized.append(behavior_id)
+        return normalized
 
     def _load_pregenerated_app_contracts(
         self,

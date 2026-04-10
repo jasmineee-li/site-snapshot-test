@@ -43,11 +43,24 @@ def test_validate_platform_manifest_rejects_missing_and_duplicate_behavior_mappi
     payload["apps"][0]["behaviors"][1]["behavior_id"] = "demo-a"
     payload["apps"][0]["behaviors"][0]["allowed_routes"] = []
 
-    errors = validate_platform_manifest(payload, known_behavior_ids={"demo-a", "demo-b"})
+    errors = validate_platform_manifest(
+        payload,
+        known_behavior_ids={"demo-a", "demo-b"},
+        require_full_coverage=True,
+    )
 
     assert any("missing non-empty allowed_routes" in error for error in errors)
     assert any("duplicates behavior_id 'demo-a'" in error for error in errors)
     assert any("missing mappings for behavior_ids: demo-b" in error for error in errors)
+
+
+def test_validate_platform_manifest_allows_partial_benchmark_coverage_by_default() -> None:
+    payload = _platform_manifest_payload()
+    payload["apps"][0]["behaviors"] = payload["apps"][0]["behaviors"][:1]
+
+    errors = validate_platform_manifest(payload, known_behavior_ids={"demo-a", "demo-b"})
+
+    assert errors == []
 
 
 def test_validate_platform_manifest_rejects_path_like_ids() -> None:
@@ -60,6 +73,29 @@ def test_validate_platform_manifest_rejects_path_like_ids() -> None:
     assert any("apps[0] app_id" in error and "path component" in error for error in errors)
     assert any(
         "apps[0].behaviors[0] behavior_id" in error and "path component" in error
+        for error in errors
+    )
+
+
+def test_validate_platform_manifest_rejects_invalid_or_unreachable_mock_endpoints() -> None:
+    payload = _platform_manifest_payload()
+    payload["apps"][0]["behaviors"][0]["mock_endpoints"] = ["/api/reset"]
+
+    errors = validate_platform_manifest(payload)
+
+    assert any("invalid mock_endpoints" in error and "stay under /mock" in error for error in errors)
+
+    payload = _platform_manifest_payload()
+    payload["apps"][0]["behaviors"][0]["domain_bindings"] = [
+        {"domain": "mail.example.com", "mode": "shim", "shim_path": "/shim"}
+    ]
+    payload["apps"][0]["behaviors"][0]["mock_endpoints"] = ["/mock/mail/submit"]
+
+    errors = validate_platform_manifest(payload)
+
+    assert any(
+        "mock_endpoints entry '/mock/mail/submit' is not reachable through any primary_spa or mock domain binding"
+        in error
         for error in errors
     )
 
@@ -170,6 +206,21 @@ def test_validate_platform_manifest_cli_checks_behavior_coverage_and_docs_paths(
                 str(manifest_path),
                 "--benchmark-file",
                 str(benchmark_path),
+                "--repo-root",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+
+    assert (
+        main(
+            [
+                "--platform-manifest",
+                str(manifest_path),
+                "--benchmark-file",
+                str(benchmark_path),
+                "--require-full-coverage",
                 "--repo-root",
                 str(tmp_path),
             ]

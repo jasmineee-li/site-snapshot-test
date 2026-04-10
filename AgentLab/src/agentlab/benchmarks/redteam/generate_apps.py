@@ -35,10 +35,10 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -57,12 +57,40 @@ from agentlab.benchmarks.redteam.app_artifacts import (
 )
 from agentlab.benchmarks.redteam.behavior_ids import normalize_behavior_spec, resolve_behavior_id
 from agentlab.benchmarks.redteam.git_ops import normalize_output_dir
+from agentlab.benchmarks.redteam.utils import utc_timestamp
 
 logger = logging.getLogger(__name__)
+_FRESH_GENERATION_MARKER = "Regenerate the shared app from scratch instead of resuming."
+
+
+def _validate_pipeline_config_or_exit() -> None:
+    if os.getenv("AGENTLAB_REDTEAM_SKIP_CONFIG_VALIDATION"):
+        return
+
+    from agentlab.benchmarks.redteam.pipeline_config import PipelineConfig
+
+    pipeline_cfg = PipelineConfig()
+    config_errors = pipeline_cfg.validate(check_cli=True)
+    fatal_errors = [error for error in config_errors if error.severity == "fatal"]
+    if not fatal_errors:
+        return
+
+    logger.error("Configuration validation failed:")
+    for error in fatal_errors:
+        logger.error("  %s", error.to_log_line())
+    sys.exit(1)
 
 
 def _published_app_dir(output_dir: Path, app_or_behavior: str) -> Path:
     return output_dir / validate_path_component(app_or_behavior, "app directory name")
+
+
+def _generation_target_id(spec: dict[str, Any]) -> str:
+    return str(spec.get("app_id") or resolve_behavior_id(spec))
+
+
+def _resume_requires_fresh_generation(readiness_error: str | None) -> bool:
+    return bool(readiness_error and _FRESH_GENERATION_MARKER in readiness_error)
 
 
 def _shared_app_behavior_ids(app_spec: dict[str, Any]) -> list[str]:
@@ -97,24 +125,28 @@ def _shared_app_resume_readiness_error(
 ) -> str | None:
     """Return a shared-app specific readiness error for resume/skip decisions."""
     app_dir = _published_app_dir(output_dir, app_spec["app_id"])
+    try:
+        manifest = load_app_manifest(app_dir)
+    except (OSError, json.JSONDecodeError) as exc:
+        return f"unreadable app_manifest.json ({exc})"
+    if manifest:
+        docs_error = docs_snapshot_mismatch_error(
+            manifest=manifest,
+            behavior_spec=app_spec,
+            repo_root_path=repo_root_path,
+            fail_closed_on_missing=True,
+        )
+        if docs_error:
+            return docs_error
+
     app_level_error = benchmark_ready_app_dir_error(
         app_dir,
+        manifest=manifest or None,
         requested_functional_backend=requested_functional_backend,
     )
     if app_level_error:
         return app_level_error
 
-    try:
-        manifest = load_app_manifest(app_dir)
-    except (OSError, json.JSONDecodeError) as exc:
-        return f"unreadable app_manifest.json ({exc})"
-    docs_error = docs_snapshot_mismatch_error(
-        manifest=manifest,
-        behavior_spec=app_spec,
-        repo_root_path=repo_root_path,
-    )
-    if docs_error:
-        return docs_error
     for behavior_id in _shared_app_behavior_ids(app_spec):
         try:
             behavior_contract = load_behavior_contract(app_dir, behavior_id)
@@ -144,21 +176,27 @@ def _single_app_resume_readiness_error(
         output_dir,
         behavior_spec.get("app_id", behavior_spec.get("id", behavior_spec.get("behavior_id", "unknown"))),
     )
-    app_level_error = benchmark_ready_app_dir_error(
-        app_dir,
-        requested_functional_backend=requested_functional_backend,
-    )
-    if app_level_error:
-        return app_level_error
     try:
         manifest = load_app_manifest(app_dir)
     except (OSError, json.JSONDecodeError) as exc:
         return f"unreadable app_manifest.json ({exc})"
-    return docs_snapshot_mismatch_error(
-        manifest=manifest,
-        behavior_spec=behavior_spec,
-        repo_root_path=repo_root_path,
+    if manifest:
+        docs_error = docs_snapshot_mismatch_error(
+            manifest=manifest,
+            behavior_spec=behavior_spec,
+            repo_root_path=repo_root_path,
+            fail_closed_on_missing=True,
+        )
+        if docs_error:
+            return docs_error
+    app_level_error = benchmark_ready_app_dir_error(
+        app_dir,
+        manifest=manifest or None,
+        requested_functional_backend=requested_functional_backend,
     )
+    if app_level_error:
+        return app_level_error
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +428,7 @@ def _generate_single(
         return {
             "app_id": behavior_id,
             "error": str(exc),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": utc_timestamp(),
         }
 
 
@@ -474,6 +512,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Override the AgentLab agent config used by the selected functional backend.",
     )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate config and show what would be generated without running.",
+    )
     return p
 
 
@@ -536,15 +579,10 @@ def main(argv: list[str] | None = None) -> None:
             logger.error("No shared apps in %s matched filter set: %s", platform_manifest_path, filter_set)
             sys.exit(1)
         selected_manifest_behavior_ids = _platform_manifest_behavior_ids(selected_platform_manifest)
-        relevant_known_behavior_ids = (
-            known_behavior_ids & selected_manifest_behavior_ids
-            if filter_set
-            else known_behavior_ids
-        )
         repo_root_path = resolve_repo_root_path(platform_manifest_path)
         platform_manifest_errors = validate_platform_manifest(
             selected_platform_manifest,
-            known_behavior_ids=relevant_known_behavior_ids,
+            known_behavior_ids=known_behavior_ids,
             repo_root_path=repo_root_path,
         )
         platform_manifest_errors.extend(
@@ -564,7 +602,7 @@ def main(argv: list[str] | None = None) -> None:
         ]
         try:
             app_specs = _group_behaviors_by_app(
-                behaviors=selected_benchmark_behaviors if filter_set else benchmark_behaviors,
+                behaviors=selected_benchmark_behaviors,
                 platform_manifest=selected_platform_manifest,
             )
         except ValueError as exc:
@@ -595,28 +633,33 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     # Resume: skip only successfully generated behaviors
+    resume_generation_by_target: dict[str, bool] = {}
     if args.resume:
         before = len(app_specs)
-        app_specs = [
-            b
-            for b in app_specs
-            if (
+        resumable_specs: list[dict[str, Any]] = []
+        for spec in app_specs:
+            readiness_error = (
                 _shared_app_resume_readiness_error(
-                    app_spec=b,
+                    app_spec=spec,
                     output_dir=output_dir,
                     requested_functional_backend=args.functional_backend,
                     repo_root_path=resume_repo_root,
                 )
                 if args.platform_manifest
                 else _single_app_resume_readiness_error(
-                    behavior_spec=b,
+                    behavior_spec=spec,
                     output_dir=output_dir,
                     requested_functional_backend=args.functional_backend,
                     repo_root_path=resume_repo_root,
                 )
             )
-            is not None
-        ]
+            if readiness_error is None:
+                continue
+            resumable_specs.append(spec)
+            resume_generation_by_target[_generation_target_id(spec)] = (
+                not _resume_requires_fresh_generation(readiness_error)
+            )
+        app_specs = resumable_specs
         skipped = before - len(app_specs)
         if skipped:
             logger.info("Resuming: skipped %d successfully generated app(s)", skipped)
@@ -650,14 +693,26 @@ def main(argv: list[str] | None = None) -> None:
         logger.warning("No apps to generate after filtering.")
         sys.exit(0)
 
-        logger.info(
-            "Generating %d app(s) (output=%s, parallel=%d, resume=%s, skip_existing=%s)",
-            len(app_specs),
-            output_dir,
-            args.parallel,
-        args.resume,
-        args.skip_existing,
+    _validate_pipeline_config_or_exit()
+
+    logger.info(
+        "Generating %d app(s) covering %d behavior(s) (output=%s, parallel=%d)",
+        len(app_specs),
+        selected_behavior_count,
+        output_dir,
+        args.parallel,
     )
+
+    if args.dry_run:
+        print(f"DRY RUN: would generate {len(app_specs)} app(s):")
+        for spec in app_specs:
+            bid = spec.get("app_id", spec.get("id", spec.get("behavior_id", "unknown")))
+            mapped = spec.get("mapped_behaviors", [])
+            if mapped:
+                print(f"  - {bid} ({len(mapped)} behaviors)")
+            else:
+                print(f"  - {bid}")
+        sys.exit(0)
 
     # Run generation
     manifests: list[dict] = []
@@ -666,7 +721,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.parallel <= 1:
         # Serial execution
         for i, behavior in enumerate(app_specs, 1):
-            bid = behavior.get("app_id", behavior.get("id", behavior.get("behavior_id", "unknown")))
+            bid = _generation_target_id(behavior)
             logger.info("[%d/%d] Starting %s", i, len(app_specs), bid)
             manifest = _generate_single(
                 behavior=behavior,
@@ -676,7 +731,7 @@ def main(argv: list[str] | None = None) -> None:
                 generate_functional_tests=args.functional_tests,
                 functional_backend=args.functional_backend,
                 functional_agent_config=args.functional_agent_config,
-                resume_generation=args.resume,
+                resume_generation=resume_generation_by_target.get(bid, args.resume),
             )
             manifests.append(manifest)
             status = "ERROR" if "error" in manifest else "OK"
@@ -694,8 +749,11 @@ def main(argv: list[str] | None = None) -> None:
                     generate_functional_tests=args.functional_tests,
                     functional_backend=args.functional_backend,
                     functional_agent_config=args.functional_agent_config,
-                    resume_generation=args.resume,
-                ): b.get("app_id", b.get("id", b.get("behavior_id", "unknown")))
+                    resume_generation=resume_generation_by_target.get(
+                        _generation_target_id(b),
+                        args.resume,
+                    ),
+                ): _generation_target_id(b)
                 for b in app_specs
             }
             for fut in as_completed(futures):
@@ -717,7 +775,7 @@ def main(argv: list[str] | None = None) -> None:
                         {
                             "app_id": bid,
                             "error": "Worker exception",
-                            "generated_at": datetime.now(timezone.utc).isoformat(),
+                            "generated_at": utc_timestamp(),
                         }
                     )
 
@@ -735,7 +793,7 @@ def main(argv: list[str] | None = None) -> None:
     failed = [m for m in manifests if m not in succeeded]
 
     root_manifest = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": utc_timestamp(),
         "benchmark_file": str(args.benchmark_file),
         "output_dir": str(output_dir),
         "n_total": len(app_specs),

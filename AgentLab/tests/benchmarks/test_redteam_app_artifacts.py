@@ -23,6 +23,16 @@ from agentlab.benchmarks.redteam.app_artifacts import (
 from agentlab.benchmarks.redteam.phase_ids import PHASE_4B, PHASE_5
 
 
+def _write_trusted_server(app_dir: Path) -> None:
+    from agentlab.benchmarks.redteam import app_artifacts as app_artifacts_module
+
+    template_path = Path(app_artifacts_module.__file__).resolve().parent / "templates" / "server.py"
+    (app_dir / "server.py").write_text(
+        template_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+
 def _write_data_js(path: Path, emails: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -42,6 +52,27 @@ def _write_behavior_contract(
     active_variant: str = "adversarial_demo_v0",
     compatibility_status: str = "passed",
 ) -> dict:
+    real_tasks_dir = app_dir / "real-tasks"
+    real_tasks_dir.mkdir(parents=True, exist_ok=True)
+    (real_tasks_dir / "task_r1.py").write_text(
+        "def verify(server_url):\n    return True, 'ok'\n",
+        encoding="utf-8",
+    )
+    (app_dir / "real-tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task_r1",
+                    "instruction": "Do the safe thing",
+                    "success_condition": "Open the inbox",
+                    "verify": "real-tasks/task_r1.py",
+                    "behavior_compatibility": {"behavior_id": behavior_id},
+                }
+            ],
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     contract = {
         "behavior_id": behavior_id,
         "app_id": "shared-mail",
@@ -64,8 +95,27 @@ def _write_behavior_contract(
             "checked_against_seed_version": 1,
             "checked_against_seed_hash": "sha256:test-seed",
             "checked_entry_route": "#/inbox",
+            "checked_safe_behavior": "Do the safe thing",
+            "checked_success_condition": "Open the inbox",
+            "seed_refs_resolved": True,
+            "compatibility_task": {
+                "suite": "real-tasks",
+                "behavior_id": behavior_id,
+                "task_id": "task_r1",
+                "instruction": "Do the safe thing",
+                "success_condition": "Open the inbox",
+                "passed": True,
+            },
         },
-        "variants": [{"name": active_variant, "round": 0, "status": "validated"}],
+        "variants": [
+            {
+                "name": active_variant,
+                "round": 0,
+                "status": "validated",
+                "source_seed_version": 1,
+                "source_seed_hash": "sha256:test-seed",
+            }
+        ],
         "active_variant": active_variant,
         "hardening": {},
     }
@@ -141,6 +191,7 @@ def _complete_manifest(*, quality_gate_passed: bool = True, real_quality_gate_pa
                 "total": 1,
                 "passed": 1 if real_quality_gate_passed else 0,
                 "results_dir": "results/real",
+                "results": [{"task_id": "task_r1", "passed": real_quality_gate_passed}],
                 "error": None,
             },
             "quality_gate": {
@@ -579,8 +630,27 @@ def test_behavior_contract_compatibility_rejects_seed_mismatch() -> None:
         "compatibility_evidence": {
             "checked_against_seed_version": 1,
             "checked_against_seed_hash": "sha256:test-seed",
+            "checked_safe_behavior": "Do the safe thing",
+            "checked_success_condition": "Open the inbox",
+            "seed_refs_resolved": True,
+            "compatibility_task": {
+                "suite": "real-tasks",
+                "behavior_id": "demo",
+                "task_id": "task_r1",
+                "instruction": "Do the safe thing",
+                "success_condition": "Open the inbox",
+                "passed": True,
+            },
         },
-        "variants": [{"name": "adversarial_demo_v0", "round": 0, "status": "validated"}],
+        "variants": [
+            {
+                "name": "adversarial_demo_v0",
+                "round": 0,
+                "status": "validated",
+                "source_seed_version": 1,
+                "source_seed_hash": "sha256:test-seed",
+            }
+        ],
         "active_variant": "adversarial_demo_v0",
         "hardening": {},
     }
@@ -748,10 +818,24 @@ def test_docs_snapshot_mismatch_error_detects_manual_drift(tmp_path: Path) -> No
     )
 
 
+def test_docs_snapshot_mismatch_error_fails_closed_when_provenance_is_missing() -> None:
+    manifest = _complete_manifest()
+    manifest["docs_snapshot"] = {}
+
+    assert (
+        docs_snapshot_mismatch_error(
+            manifest=manifest,
+            behavior_spec={"docs_path": "apps/user-manuals/mail"},
+            fail_closed_on_missing=True,
+        )
+        == "Manual provenance is missing from app_manifest.json. Regenerate the shared app from scratch instead of resuming."
+    )
+
+
 def test_benchmark_ready_app_dir_rejects_missing_backend_block_and_summary_mismatch(tmp_path: Path) -> None:
     app_dir = tmp_path / "app"
     app_dir.mkdir()
-    (app_dir / "server.py").write_text("print('server')\n", encoding="utf-8")
+    _write_trusted_server(app_dir)
     (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
     _write_data_js(app_dir / "benign" / "data.js", [])
     _write_data_js(app_dir / "adversarial_demo_v0" / "data.js", [])
@@ -868,6 +952,38 @@ def test_behavior_contract_compatibility_rejects_mock_prefix_outside_mock_namesp
     )
 
 
+def test_behavior_contract_compatibility_rejects_invalid_mock_endpoints(tmp_path: Path) -> None:
+    manifest = _complete_manifest()
+    contract = _write_behavior_contract(tmp_path / "app")
+    contract["mock_endpoints"] = ["/api/reset"]
+
+    assert behavior_contract_compatibility_error(
+        contract,
+        manifest=manifest,
+        behavior_id="demo",
+    ) == (
+        "behaviors/demo.json invalid mock_endpoints: "
+        "mock_endpoints[0] must stay under /mock"
+    )
+
+
+def test_behavior_contract_compatibility_rejects_unreachable_mock_endpoints(tmp_path: Path) -> None:
+    manifest = _complete_manifest()
+    contract = _write_behavior_contract(tmp_path / "app")
+    contract["domain_bindings"] = [
+        {"domain": "mail.example.com", "mode": "shim", "shim_path": "/shim"}
+    ]
+
+    assert behavior_contract_compatibility_error(
+        contract,
+        manifest=manifest,
+        behavior_id="demo",
+    ) == (
+        "behaviors/demo.json mock_endpoints entry '/mock/mail/submit' is not reachable "
+        "through any primary_spa or mock domain binding"
+    )
+
+
 def test_behavior_contract_compatibility_rejects_shim_path_outside_shim_namespace() -> None:
     manifest = _complete_manifest()
     behavior_contract = {
@@ -905,7 +1021,7 @@ def test_behavior_contract_compatibility_rejects_shim_path_outside_shim_namespac
 def test_benchmark_ready_app_dir_uses_readiness_baseline_for_manifest_validation(tmp_path: Path) -> None:
     app_dir = tmp_path / "app"
     app_dir.mkdir()
-    (app_dir / "server.py").write_text("print('server')\n", encoding="utf-8")
+    _write_trusted_server(app_dir)
     (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
     _write_data_js(app_dir / "benign" / "data.js", [])
     _write_data_js(app_dir / "adversarial_demo_v0" / "data.js", [])
@@ -947,7 +1063,7 @@ def test_benchmark_ready_app_dir_uses_readiness_baseline_for_manifest_validation
 def test_benchmark_ready_app_dir_rejects_requested_backend_mismatch(tmp_path: Path) -> None:
     app_dir = tmp_path / "app"
     app_dir.mkdir()
-    (app_dir / "server.py").write_text("print('server')\n", encoding="utf-8")
+    _write_trusted_server(app_dir)
     (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
     _write_data_js(app_dir / "benign" / "data.js", [])
     _write_data_js(app_dir / "adversarial_demo_v0" / "data.js", [])
@@ -988,7 +1104,7 @@ def test_benchmark_ready_app_dir_rejects_requested_backend_mismatch(tmp_path: Pa
 def test_benchmark_ready_app_dir_accepts_matching_requested_backend(tmp_path: Path) -> None:
     app_dir = tmp_path / "app"
     app_dir.mkdir()
-    (app_dir / "server.py").write_text("print('server')\n", encoding="utf-8")
+    _write_trusted_server(app_dir)
     (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
     _write_data_js(app_dir / "benign" / "data.js", [])
     _write_data_js(app_dir / "adversarial_demo_v0" / "data.js", [])
@@ -1022,4 +1138,82 @@ def test_benchmark_ready_app_dir_accepts_matching_requested_backend(tmp_path: Pa
             requested_functional_backend="agent-browser",
         )
         is None
+    )
+
+
+def test_benchmark_ready_app_dir_rejects_modified_trusted_server(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    _write_trusted_server(app_dir)
+    (app_dir / "server.py").write_text("# tampered\n", encoding="utf-8")
+    (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
+    _write_data_js(app_dir / "benign" / "data.js", [])
+    _write_data_js(app_dir / "adversarial_demo_v0" / "data.js", [])
+
+    manifest = _complete_manifest()
+    behavior_contract = _write_behavior_contract(app_dir)
+    (app_dir / "app_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (app_dir / "functional_results.json").write_text(
+        json.dumps(
+            {
+                "backends": {
+                    "generic-agent": {
+                        "backend": "generic-agent",
+                        "function_pass_rate": 1.0,
+                        "real_pass_rate": 1.0,
+                        "function_tasks": {"total": 1, "passed": 1, "results": [{"task_id": "task_1", "passed": True}]},
+                        "real_tasks": {"total": 1, "passed": 1, "results": [{"task_id": "task_r1", "passed": True}]},
+                    }
+                }
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    assert benchmark_ready_app_dir_error(app_dir, manifest=manifest) == (
+        "reserved runtime file server.py does not match trusted template"
+    )
+
+
+def test_benchmark_ready_app_dir_rejects_symlinked_variant_assets(tmp_path: Path) -> None:
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    _write_trusted_server(app_dir)
+    (app_dir / "index.html").write_text("<html></html>\n", encoding="utf-8")
+    _write_data_js(app_dir / "benign" / "data.js", [])
+    outside_variant = tmp_path / "outside.js"
+    outside_variant.write_text("const MODE = 'adversarial';\n", encoding="utf-8")
+    variant_dir = app_dir / "adversarial_demo_v0"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    (variant_dir / "data.js").symlink_to(outside_variant)
+
+    manifest = _complete_manifest()
+    behavior_contract = _write_behavior_contract(app_dir)
+    (app_dir / "app_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (app_dir / "functional_results.json").write_text(
+        json.dumps(
+            {
+                "backends": {
+                    "generic-agent": {
+                        "backend": "generic-agent",
+                        "function_pass_rate": 1.0,
+                        "real_pass_rate": 1.0,
+                        "function_tasks": {"total": 1, "passed": 1, "results": [{"task_id": "task_1", "passed": True}]},
+                        "real_tasks": {"total": 1, "passed": 1, "results": [{"task_id": "task_r1", "passed": True}]},
+                    }
+                }
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    assert benchmark_ready_app_dir_error(
+        app_dir,
+        manifest=manifest,
+        behavior_contract=behavior_contract,
+        behavior_id="demo",
+    ) == (
+        f"variant data.js resolves outside {app_dir}"
     )

@@ -1110,7 +1110,16 @@ def test_build_claude_env_omits_unset_vars(monkeypatch) -> None:
 def test_build_claude_command_basic() -> None:
     cmd = execution.build_claude_command("hello world")
 
-    assert cmd == ["claude", "--print", "hello world"]
+    assert cmd == [
+        "claude",
+        "--print",
+        "--permission-mode",
+        "plan",
+        "--verbose",
+        "--effort",
+        "high",
+        "hello world",
+    ]
 
 
 def test_build_claude_command_skip_permissions(monkeypatch) -> None:
@@ -1118,4 +1127,14 @@ def test_build_claude_command_skip_permissions(monkeypatch) -> None:
 
     cmd = execution.build_claude_command("hello")
 
-    assert cmd == ["claude", "--print", "--dangerously-skip-permissions", "hello"]
+    assert cmd == [
+        "claude",
+        "--print",
+        "--dangerously-skip-permissions",
+        "--permission-mode",
+        "plan",
+        "--verbose",
+        "--effort",
+        "high",
+        "hello",
+    ]

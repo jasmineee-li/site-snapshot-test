@@ -180,10 +180,14 @@ def test_reset_uses_safe_behavior_as_agent_goal(tmp_path: Path, monkeypatch) -> 
     class _FakePage:
         def __init__(self) -> None:
             self.context = object()
+            self.init_scripts: list[str] = []
 
         def goto(self, url: str, wait_until: str | None = None) -> None:
             captured["goto_url"] = url
             captured["goto_wait_until"] = wait_until
+
+        def add_init_script(self, script: str) -> None:
+            self.init_scripts.append(script)
 
     class _FakeUnwrapped:
         def __init__(self) -> None:
@@ -211,7 +215,11 @@ def test_reset_uses_safe_behavior_as_agent_goal(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr("agentlab.benchmarks.redteam.env.RedteamEnv._start_server", lambda self: setattr(self, "server_port", 7777))
     monkeypatch.setattr(
         "agentlab.benchmarks.redteam.routing.setup_route_interception",
-        lambda **kwargs: captured.setdefault("route_setup", kwargs["server_port"]),
+        lambda **kwargs: (captured.setdefault("route_setup", kwargs["server_port"]), None)[1],
+    )
+    monkeypatch.setattr(
+        "agentlab.benchmarks.redteam.routing.install_browser_route_guard",
+        lambda page, *, policy: captured.setdefault("route_guard_policy", policy),
     )
 
     env = RedteamEnv(
@@ -230,6 +238,7 @@ def test_reset_uses_safe_behavior_as_agent_goal(tmp_path: Path, monkeypatch) -> 
     assert captured["task_kwargs"]["goal"] == "Open the inbox safely"
     assert obs["goal_object"] == [{"type": "text", "text": "Open the inbox safely"}]
     assert info["doc"] == "Open the inbox safely"
+    assert "route_guard_policy" in captured
 
 
 def test_reset_tears_down_existing_browser_and_server_state(tmp_path: Path, monkeypatch) -> None:
@@ -241,9 +250,13 @@ def test_reset_tears_down_existing_browser_and_server_state(tmp_path: Path, monk
     class _FakePage:
         def __init__(self) -> None:
             self.context = object()
+            self.init_scripts: list[str] = []
 
         def goto(self, url: str, wait_until: str | None = None) -> None:
             events.append(f"goto:{url}")
+
+        def add_init_script(self, script: str) -> None:
+            self.init_scripts.append(script)
 
     class _FakeUnwrapped:
         def __init__(self) -> None:
@@ -288,7 +301,11 @@ def test_reset_tears_down_existing_browser_and_server_state(tmp_path: Path, monk
     )
     monkeypatch.setattr(
         "agentlab.benchmarks.redteam.routing.setup_route_interception",
-        lambda **kwargs: events.append(f"route:{kwargs['server_port']}"),
+        lambda **kwargs: (events.append(f"route:{kwargs['server_port']}"), None)[1],
+    )
+    monkeypatch.setattr(
+        "agentlab.benchmarks.redteam.routing.install_browser_route_guard",
+        lambda page, *, policy: events.append("route-guard"),
     )
 
     env = RedteamEnv(
@@ -304,7 +321,7 @@ def test_reset_tears_down_existing_browser_and_server_state(tmp_path: Path, monk
     assert old_browser.closed is True
     assert env.browser_env is new_browser
     assert env.server_port == 7777
-    assert events[:4] == ["close:old", "stop-server", "start-server", "reset:new:11"]
+    assert events[:6] == ["close:old", "stop-server", "start-server", "reset:new:11", "route:7777", "route-guard"]
 
 
 def test_reset_cleans_up_partial_setup_failure(tmp_path: Path, monkeypatch) -> None:
@@ -319,7 +336,7 @@ def test_reset_cleans_up_partial_setup_failure(tmp_path: Path, monkeypatch) -> N
             self.unwrapped = type(
                 "_FakeUnwrapped",
                 (),
-                {"page": type("_FakePage", (), {"context": object()})()},
+                {"page": type("_FakePage", (), {"context": object(), "add_init_script": lambda self, script: None})()},
             )()
 
         def reset(self, seed: int = None):

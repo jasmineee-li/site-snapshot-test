@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import hashlib
 import json
 import logging
 import os
@@ -46,6 +45,7 @@ from agentlab.experiments.loop import ExpArgs
 from agentlab.benchmarks.redteam.config import Page, RedteamEnvArgs
 from agentlab.benchmarks.redteam.execution import copy_workspace_tree, run_python_script, run_trusted_worker
 from agentlab.benchmarks.redteam.runtime_ops import ensure_local_seed_materialization
+from agentlab.benchmarks.redteam.utils import sha256_file as _sha256_file
 
 logger = logging.getLogger(__name__)
 
@@ -128,10 +128,6 @@ def suite_variant_name(task_suite: str) -> str:
 
 def _trusted_server_template_path() -> Path:
     return Path(__file__).resolve().parent / "templates" / "server.py"
-
-
-def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def validate_trusted_server_launch(app_dir: str | Path) -> None:

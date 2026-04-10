@@ -233,13 +233,21 @@ def execution_backend_metadata(backend: str | None = None) -> dict[str, Any]:
 
 def build_claude_command(prompt: str) -> list[str]:
     """Return the Claude Code command for the hardened pipeline."""
-    command = ["claude", "--print"]
+    command = [
+        "claude",
+        "--print",
+        "--permission-mode",
+        "plan",
+        "--verbose",
+        "--effort",
+        "high",
+    ]
     if os.getenv(CLAUDE_SKIP_PERMISSIONS_ENV) == "1":
         logger.warning(
             "Using claude --dangerously-skip-permissions because %s=1",
             CLAUDE_SKIP_PERMISSIONS_ENV,
         )
-        command.append("--dangerously-skip-permissions")
+        command.insert(2, "--dangerously-skip-permissions")
     command.append(prompt)
     return command
 
