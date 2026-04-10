@@ -5,6 +5,7 @@ Provides a thin interface matching what the judges expect:
     text = result.message.text
 """
 
+import asyncio
 import base64
 import os
 from dataclasses import dataclass
@@ -44,7 +45,7 @@ class LLM:
         print(result.message.text)
     """
 
-    def __init__(self, model: str, max_tokens: int = 4096, thinking: bool = False):
+    def __init__(self, model: str, max_tokens: int = 4096, thinking: bool = False, concurrency: int = 64):
         # Strip :thinking suffix and enable thinking mode
         if model.endswith(":thinking"):
             model = model.removesuffix(":thinking")
@@ -52,6 +53,7 @@ class LLM:
         self.model = model
         self.max_tokens = max_tokens
         self.thinking = thinking
+        self._semaphore = asyncio.Semaphore(concurrency)
         self._client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
@@ -72,12 +74,13 @@ class LLM:
         else:
             messages = [{"role": m.role, "content": m.content} for m in prompt]
 
-        resp = await self._client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            max_tokens=self.max_tokens,
-            **self._extra_kwargs(),
-        )
+        async with self._semaphore:
+            resp = await self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=self.max_tokens,
+                **self._extra_kwargs(),
+            )
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
 
@@ -112,12 +115,13 @@ class LLM:
             }
         ]
 
-        resp = await self._client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            max_tokens=self.max_tokens,
-            **self._extra_kwargs(),
-        )
+        async with self._semaphore:
+            resp = await self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=self.max_tokens,
+                **self._extra_kwargs(),
+            )
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
 

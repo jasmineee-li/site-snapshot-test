@@ -116,7 +116,7 @@ async def run_experiment(config: dict) -> None:
     print(f"  Sources: {set(s.source for s in samples)}")
     print(f"  Website types: {set(s.website_type for s in samples)}")
 
-    for model_name in models:
+    async def _run_model(model_name: str):
         print(f"\n--- Model: {model_name} ---")
         model = LLM(model_name)
         exp_output = output_dir / config.get("name", experiment_name) / model_name.replace("/", "_")
@@ -129,6 +129,8 @@ async def run_experiment(config: dict) -> None:
                 await experiment.run_pairs(samples, fmt)
         else:
             await experiment.run(samples, formats)
+
+    await asyncio.gather(*[_run_model(m) for m in models])
 
     print("\nDone!")
 
