@@ -20,3 +20,4 @@ results
 nohup*.out
 .venv
 .cursor
+eval_awareness_experiments/data/real/_auth/

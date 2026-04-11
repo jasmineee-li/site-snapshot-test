@@ -1,0 +1,2016 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://newyork.craigslist.org/
+    - button "new york"
+    - text: 
+    - button "all new york"
+    - text: 
+    - button "housing"
+    - text: 
+    - button "apartments / housing for rent"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/nyc
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search apartments / housing for rent"
+    - button ""
+    - button ""
+    - heading "apartments / housing for rent" [level=1]
+    - button ""
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "show duplicates"
+    - text: show duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - text: price $
+    - textbox "min"
+    - text: – $
+    - textbox "max"
+    - img
+    - img: $0 $2k $4k $60k
+    - img: "avg: $3,149"
+    - img
+    - text: bedrooms
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - text: bathrooms
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - text: sq ft
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - checkbox "cats ok"
+    - text: cats ok
+    - checkbox "dogs ok"
+    - text: dogs ok
+    - checkbox "furnished"
+    - text: furnished
+    - checkbox "no smoking"
+    - text: no smoking
+    - checkbox "wheelchair accessible"
+    - text: wheelchair accessible
+    - checkbox "air conditioning"
+    - text: air conditioning
+    - checkbox "EV charging"
+    - text: EV charging
+    - checkbox "no broker fee"
+    - text: no broker fee
+    - checkbox "no application fee"
+    - text: no application fee
+    - button " rent period"
+    - combobox:
+      - option "all dates" [selected]
+      - option "within 30 days"
+      - option "beyond 30 days"
+    - button " housing type"
+    - button " laundry"
+    - button " parking"
+    - text: open house date
+    - table:
+      - rowgroup:
+        - row "S M T W T F S":
+          - cell "S"
+          - cell "M"
+          - cell "T"
+          - cell "W"
+          - cell "T"
+          - cell "F"
+          - cell "S"
+        - row "5 6 7 8 9 10 11":
+          - cell "5"
+          - cell "6"
+          - cell "7"
+          - cell "8"
+          - cell "9"
+          - cell "10"
+          - cell "11"
+        - row "12 13 14 15 16 17 18":
+          - cell "12"
+          - cell "13"
+          - cell "14"
+          - cell "15"
+          - cell "16"
+          - cell "17"
+          - cell "18"
+        - row "19 20 21 22 23 24 25":
+          - cell "19"
+          - cell "20"
+          - cell "21"
+          - cell "22"
+          - cell "23"
+          - cell "24"
+          - cell "25"
+        - row "26 27 28 29 30 1 2":
+          - cell "26"
+          - cell "27"
+          - cell "28"
+          - cell "29"
+          - cell "30"
+          - cell "1"
+          - cell "2"
+        - row "3 4 5 6 7 8 9":
+          - cell "3"
+          - cell "4"
+          - cell "5"
+          - cell "6"
+          - cell "7"
+          - cell "8"
+          - cell "9"
+    - button " related searches"
+    - button "reset"
+    - button "apply"
+    - link "fair housing":
+      - /url: https://www.craigslist.org/about/FHA
+    - link "avoiding scams":
+      - /url: https://www.craigslist.org/about/help/safety/scams
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "price"
+    - button "beds"
+    - button "baths"
+    - button "type"
+    - button "cats ok"
+    - button "dogs ok"
+    - button "furnished"
+    - text: 1 - 6 of 4,374
+    - heading "see also" [level=2]
+    - link "studio":
+      - /url: https://newyork.craigslist.org/search/studio-apartment#search=2~gallery~0
+    - link "1-BR":
+      - /url: https://newyork.craigslist.org/search/one-bedroom-apartment#search=2~gallery~0
+    - link "2-BR":
+      - /url: https://newyork.craigslist.org/search/two-bedroom-apartment#search=2~gallery~0
+    - link "furnished":
+      - /url: https://newyork.craigslist.org/search/furnished-apartment#search=2~gallery~0
+    - link "house for rent":
+      - /url: https://newyork.craigslist.org/search/house-for-rent#search=2~gallery~0
+    - link "pet-friendly":
+      - /url: https://newyork.craigslist.org/search/pet-friendly-apartment#search=2~gallery~0
+    - link " no image":
+      - /url: https://newyork.craigslist.org/brk/apa/d/pelham-brownstone-stories-5b-3b-prime/7926705135.html
+      - text: 
+      - paragraph: no image
+    - link "brownstone 3-stories, 5b/3b - Prime Park Slope":
+      - /url: https://newyork.craigslist.org/brk/apa/d/pelham-brownstone-stories-5b-3b-prime/7926705135.html
+    - button ""
+    - text: <1hr ago • 5br2700ft2 • park slope
+    - button ""
+    - text: $8,600
+    - link "WHERE LUXURY MEETS LOCATION 1":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-where-luxury-meets-location/7926703898.html
+      - img "WHERE LUXURY MEETS LOCATION 1"
+    - text: • • • • •
+    - link "WHERE LUXURY MEETS LOCATION":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-where-luxury-meets-location/7926703898.html
+    - button ""
+    - text: <1hr ago • 2br • Midtown East
+    - button ""
+    - text: $4,600
+    - link "107 Baden Pl 1":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-107-baden-pl/7926589330.html
+      - img "107 Baden Pl 1"
+    - text: • • • • • • • • • • • • • •
+    - link "107 Baden Pl":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-107-baden-pl/7926589330.html
+    - button ""
+    - text: <1hr ago • 2br • Staten Island
+    - button ""
+    - text: $3,400
+    - link "24hr Doorman • Fitness Center • Garage • Laundry • Terrace • E,F,M,R 1":
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926697952.html
+      - img "24hr Doorman • Fitness Center • Garage • Laundry • Terrace • E,F,M,R 1"
+    - text: • • • • • • • • •
+    - link "24hr Doorman • Fitness Center • Garage • Laundry • Terrace • E,F,M,R":
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926697952.html
+    - button ""
+    - text: <1hr ago • 3br1327ft2 • Forest Hills
+    - button ""
+    - text: $5,375
+    - link "24hr Doorman • Fitness Center • Garage • Laundry • Terrace • E,F,M,R 1":
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926696215.html
+      - img "24hr Doorman • Fitness Center • Garage • Laundry • Terrace • E,F,M,R 1"
+    - text: • • • • • • • • •
+    - link "24hr Doorman • Fitness Center • Garage • Laundry • Terrace • E,F,M,R":
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926696215.html
+    - button ""
+    - text: <1hr ago • 2br1022ft2 • Forest Hills
+    - button ""
+    - text: $4,900
+    - link "Sunlit Luxury 1BR 🌞 251 Front St • $4,600 1":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-sunlit-luxury-1br-251-front-st/7926700622.html
+      - img "Sunlit Luxury 1BR 🌞 251 Front St • $4,600 1"
+    - text: • • • • • • • • • • • • • •
+    - link "Sunlit Luxury 1BR 🌞 251 Front St • $4,600":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-sunlit-luxury-1br-251-front-st/7926700622.html
+    - button ""
+    - text: <1hr ago • 1br • Brooklyn
+    - button ""
+    - text: $4,600
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-waterfrontviews-huge-layouts/7926700159.html
+    - text: • • • • •
+    - link "WATERFRONT_VIEWS! HUGE LAYOUTS!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-waterfrontviews-huge-layouts/7926700159.html
+    - button ""
+    - text: <1hr ago • 2br • Midtown East
+    - button ""
+    - text: $4,450
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-charming-2br-brownstone-washer/7926699835.html
+    - text: • • • • • • • •
+    - link "Charming 2BR Brownstone Washer/Dryer All utilities Exclusive Backyard":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-charming-2br-brownstone-washer/7926699835.html
+    - button ""
+    - text: <1hr ago • 2br • Fort Greene /Clinton hill/Bed stuy/Prospect Heights
+    - button ""
+    - text: $4,499
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-private-room-available-in-park/7926699786.html
+    - text: • •
+    - link "PRIVATE ROOM Available in a Park Slope Townhouse":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-private-room-available-in-park/7926699786.html
+    - button ""
+    - text: <1hr ago • 1br • Park Slope
+    - button ""
+    - text: $1,295
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/fresh-meadows-freshmeadow-two-bedrooms/7926699463.html
+    - text: • • • • • • •
+    - link "Freshmeadow Two Bedrooms":
+      - /url: https://newyork.craigslist.org/que/apa/d/fresh-meadows-freshmeadow-two-bedrooms/7926699463.html
+    - button ""
+    - text: <1hr ago • 2br780ft2 • Freshmeadow
+    - button ""
+    - text: $1,600
+    - link " no image":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-spacious-bedroom/7926699252.html
+      - text: 
+      - paragraph: no image
+    - link "Spacious 3-Bedroom Apartment in New Brighton – Available Now!":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-spacious-bedroom/7926699252.html
+    - button ""
+    - text: <1hr ago • 3br1300ft2 • New Brighton
+    - button ""
+    - text: $3,660
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-no-fee-br-fully-renovated-apt/7926699180.html
+    - text: • • • • • • • • •
+    - link "NO FEE - 1 BR Fully renovated apt with Huge Balcony near Prospect park":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-no-fee-br-fully-renovated-apt/7926699180.html
+    - button ""
+    - text: <1hr ago • 1br • Brooklyn
+    - button ""
+    - text: $2,200
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-awesome-25-bedroom-duplex-in/7926699073.html
+    - text: • • • • • • • • • •
+    - link "Awesome 2.5 Bedroom Duplex in Central WBurg! Avail ASAP!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-awesome-25-bedroom-duplex-in/7926699073.html
+    - button ""
+    - text: <1hr ago • 2br • Williamsburg @ Montrose L, Lorimer JMZ, Broadway G
+    - button ""
+    - text: $4,399
+    - link " no image":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-block-from-train-by-owner/7926699059.html
+      - text: 
+      - paragraph: no image
+    - link "1 Block from L train-by owner":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-block-from-train-by-owner/7926699059.html
+    - button ""
+    - text: <1hr ago • 2br • Bushwick
+    - button ""
+    - text: $2,600
+    - link " no image":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-spacious-bedroom/7926698647.html
+      - text: 
+      - paragraph: no image
+    - link "Spacious 2-Bedroom Apartment in New Brighton – Available Now!":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-spacious-bedroom/7926698647.html
+    - button ""
+    - text: <1hr ago • 2br950ft2 • New Brighton
+    - button ""
+    - text: $2,997
+    - link:
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-large-bedroom-apartment-longwood/7926697883.html
+    - text: • • • • •
+    - link "Large 1 Bedroom Apartment Longwood Section of Bronx":
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-large-bedroom-apartment-longwood/7926697883.html
+    - button ""
+    - text: <1hr ago • 1br • bronx
+    - button ""
+    - text: $1,550
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-prewar-bedroom-available-asap/7926696446.html
+    - text: • • • • • • • • •
+    - link "PREWAR 1 BEDROOM AVAILABLE ASAP":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-prewar-bedroom-available-asap/7926696446.html
+    - button ""
+    - text: <1hr ago • 1br • Williamsburg @ Hewes JMZ
+    - button ""
+    - text: $3,199
+    - link:
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-large-bedroom-apartment-longwood/7926695652.html
+    - text: • • • • •
+    - link "Large 1 Bedroom Apartment Longwood Section of Bronx":
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-large-bedroom-apartment-longwood/7926695652.html
+    - button ""
+    - text: <1hr ago • 1br • bronx
+    - button ""
+    - text: $1,400
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-perfect-bedroom-in-central/7926694967.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "PERFECT 3 BEDROOM IN CENTRAL WBURG! AVAIL ASAP!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-perfect-bedroom-in-central/7926694967.html
+    - button ""
+    - text: <1hr ago • 3br • Williamsburg @ Lorimer, Metropolitan Ave L and G
+    - button ""
+    - text: $5,499
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/bayside-bayside-two-bedrooms-two-baths/7926694312.html
+    - text: • • • • • • •
+    - link "Bayside Two Bedrooms Two Baths on the First Floor":
+      - /url: https://newyork.craigslist.org/que/apa/d/bayside-bayside-two-bedrooms-two-baths/7926694312.html
+    - button ""
+    - text: <1hr ago • 2br900ft2 • Bayside
+    - button ""
+    - text: $2,600
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/new-york-gorgeous-sunlit-1bed-in/7926693486.html
+    - text: • • • • •
+    - link "Gorgeous Sunlit 1Bed in Washington Heights – Near A/C/1 Train & Park!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/new-york-gorgeous-sunlit-1bed-in/7926693486.html
+    - button ""
+    - text: <1hr ago • 1br • Washington Heights
+    - button ""
+    - text: $1,280
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-perfect-bed-in-amenity/7926692118.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "Perfect 2 Bed in Amenity Building On Transmitter Park":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-perfect-bed-in-amenity/7926692118.html
+    - button ""
+    - text: 1h ago • 2br • Greenpoint @ Transmitter Park
+    - button ""
+    - text: $4,799
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926691776.html
+    - text: • • • • • • • •
+    - link "24hr Doorman • Fitness Center • Garage • Laundry • Terrace • E,F,M,R":
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926691776.html
+    - button ""
+    - text: 1h ago • 1br782ft2 • Forest Hills
+    - button ""
+    - text: $3,709
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/flushing-flushing-two-bedrooms-apartment/7926690732.html
+    - text: • • • • • •
+    - link "Flushing Two Bedrooms apartment":
+      - /url: https://newyork.craigslist.org/que/apa/d/flushing-flushing-two-bedrooms-apartment/7926690732.html
+    - button ""
+    - text: 1h ago • 2br950ft2 • queens
+    - button ""
+    - text: $2,500
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926690204.html
+    - text: • • • • • •
+    - link "24hr Doorman • Fitness Center • Garage • Laundry • Storage • E,F,M,R":
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-24hr-doorman-fitness-center/7926690204.html
+    - button ""
+    - text: 1h ago • 531ft2 • Forest Hills
+    - button ""
+    - text: $2,650
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-highflrwaterviewsspacious/7926689253.html
+    - text: • • • • •
+    - link "HIGH_FLR_WATER_VIEWS_SPACIOUS!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-highflrwaterviewsspacious/7926689253.html
+    - button ""
+    - text: 1h ago • 2br • Midtown East
+    - button ""
+    - text: $4,400
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-fantastic-huge-bedroom-in/7926689184.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "FANTASTIC HUGE 2 BEDROOM IN AMENITY BUILDING":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-fantastic-huge-bedroom-in/7926689184.html
+    - button ""
+    - text: 1h ago • 2br • North Greenpoint @ Greenpoint Ave L
+    - button ""
+    - text: $4,999
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-sun-drenchedlayout-primemidtown/7926687287.html
+    - text: • • • •
+    - link "SUN-DRENCHED_LAYOUT! PRIME_MIDTOWN_":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-sun-drenchedlayout-primemidtown/7926687287.html
+    - button ""
+    - text: 1h ago • 1br • Midtown East
+    - button ""
+    - text: $4,250
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-penthouse-views-convertible/7926686719.html
+    - text: • • • • • •
+    - link "Penthouse Views, Convertible 4 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-penthouse-views-convertible/7926686719.html
+    - button ""
+    - text: 1h ago • 4br • Financial District
+    - button ""
+    - text: $7,295
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-building-convertible/7926686582.html
+    - text: • • • • • • •
+    - link "Brand New Building! Convertible 4 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-building-convertible/7926686582.html
+    - button ""
+    - text: 1h ago • 4br • Financial District
+    - button ""
+    - text: $7,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-convertible-bedroom/7926686365.html
+    - text: • • • • • • •
+    - link "Corner Convertible 4 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-convertible-bedroom/7926686365.html
+    - button ""
+    - text: 1h ago • 4br • Financial District
+    - button ""
+    - text: $6,995
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-least-expensive-best-value/7926686028.html
+    - text: • • • • • • • • •
+    - link "Least Expensive, Best Value, Flex 3 Bed":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-least-expensive-best-value/7926686028.html
+    - button ""
+    - text: 1h ago • 3br • Financial District
+    - button ""
+    - text: $4,795
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-views-flex-bedroom/7926685804.html
+    - text: • • • • • • • • •
+    - link "Bright Views, Flex 3 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-views-flex-bedroom/7926685804.html
+    - button ""
+    - text: 1h ago • 3br • Financial District
+    - button ""
+    - text: $5,300
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-development/7926685640.html
+    - text: • • • • • • • • • • • • • •
+    - link "Brand New Development, Convertible 3 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-development/7926685640.html
+    - button ""
+    - text: 1h ago • 3br • Financial District
+    - button ""
+    - text: $5,595
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-large-2br-immediate-occupancy/7926685278.html
+    - text: • • • • •
+    - link "LARGE 2BR *** IMMEDIATE OCCUPANCY *** LAUNDRY ROOM":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-large-2br-immediate-occupancy/7926685278.html
+    - button ""
+    - text: 1h ago • 2br • Gramercy
+    - button ""
+    - text: $5,200
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-lofty-flex-bedroom/7926685153.html
+    - text: • • • • • • • •
+    - link "Lofty Flex 3 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-lofty-flex-bedroom/7926685153.html
+    - button ""
+    - text: 1h ago • 3br • Financial District
+    - button ""
+    - text: $5,795
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-large-convertible-bedroom/7926685019.html
+    - text: • • • • • • • • • •
+    - link "Large Convertible 3 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-large-convertible-bedroom/7926685019.html
+    - button ""
+    - text: 2h ago • 3br • Financial District
+    - button ""
+    - text: $5,695
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-large-flex-bedroom/7926684891.html
+    - text: • • • • • • • • • • • •
+    - link "Bright Large Flex 3 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-large-flex-bedroom/7926684891.html
+    - button ""
+    - text: 2h ago • 3br • Financial District
+    - button ""
+    - text: $5,995
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-convertible-bedroom/7926684740.html
+    - text: • • • • • • • • • •
+    - link "Bright Convertible 2 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-convertible-bedroom/7926684740.html
+    - button ""
+    - text: 2h ago • 2br • Financial District
+    - button ""
+    - text: $3,900
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-development/7926684485.html
+    - text: • • • • • • • • • • • • • •
+    - link "Brand New Development, Convertible 2 Bed":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-development/7926684485.html
+    - button ""
+    - text: 2h ago • 2br700ft2 • Financial District
+    - button ""
+    - text: $4,095
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-west-facing-views-convertible/7926684117.html
+    - text: • • • • • • • • •
+    - link "West Facing Views, Convertible 2 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-west-facing-views-convertible/7926684117.html
+    - button ""
+    - text: 2h ago • 2br640ft2 • Financial District
+    - button ""
+    - text: $3,600
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-development/7926683874.html
+    - text: • • • • • • • • • • • • • •
+    - link "Brand New Development, Convertible 2 Bed":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brand-new-development/7926683874.html
+    - button ""
+    - text: 2h ago • 2br700ft2 • Financial District
+    - button ""
+    - text: $4,095
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-windows-convertible/7926683722.html
+    - text: • • • • • • • • •
+    - link "Bright Windows, Convertible 2 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-windows-convertible/7926683722.html
+    - button ""
+    - text: 2h ago • 2br600ft2 • Financial District
+    - button ""
+    - text: $3,895
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-renovated-convertible/7926683502.html
+    - text: • • • • • • • • • • •
+    - link "New Renovated, Convertible 2 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-renovated-convertible/7926683502.html
+    - button ""
+    - text: 2h ago • 2br600ft2 • Financial District
+    - button ""
+    - text: $3,800
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-seaport-views/7926683130.html
+    - text: • • • • • • • • •
+    - link "New Development, Seaport Views":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-seaport-views/7926683130.html
+    - button ""
+    - text: 2h ago • Financial District
+    - button ""
+    - text: $3,295
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-laundry-in-unit/7926682960.html
+    - text: • • • • • • • • •
+    - link "New Development, Laundry in unit":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-laundry-in-unit/7926682960.html
+    - button ""
+    - text: 2h ago • Financial District
+    - button ""
+    - text: $3,295
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-laundry-in-unit/7926682830.html
+    - text: • • • • • • • • •
+    - link "New Development, Laundry in Unit":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-laundry-in-unit/7926682830.html
+    - button ""
+    - text: 2h ago • Financial District
+    - button ""
+    - text: $3,295
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-chelsea-train-nearby-at-your/7926682163.html
+    - text: • • • • • • • • • • • •
+    - link "(Chelsea) C & E Train Nearby - At your Doorsteps!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-chelsea-train-nearby-at-your/7926682163.html
+    - button ""
+    - text: 2h ago • New York
+    - button ""
+    - text: $5,000
+    - link " no image":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-studio-available-for-rent/7926678345.html
+      - text: 
+      - paragraph: no image
+    - link "Studio available for rent":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-studio-available-for-rent/7926678345.html
+    - button ""
+    - text: 2h ago • staten island
+    - button ""
+    - text: $1,200
+    - link " no image":
+      - /url: https://newyork.craigslist.org/wch/apa/d/yonkers-glenwood/7926675763.html
+      - text: 
+      - paragraph: no image
+    - link "1 Glenwood":
+      - /url: https://newyork.craigslist.org/wch/apa/d/yonkers-glenwood/7926675763.html
+    - button ""
+    - text: 2h ago • 1br600ft2 • Yonkers
+    - button ""
+    - text: $2,200
+    - link:
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-bedroom-apt-for-rent/7926675218.html
+    - text: • • • •
+    - link "1 Bedroom apt for rent":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-bedroom-apt-for-rent/7926675218.html
+    - button ""
+    - text: 2h ago • 1br • Silver Lake
+    - button ""
+    - text: $1,900
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-oversized-sun-filled-two/7926672898.html
+    - text: • • • • • • •
+    - link "Oversized & Sun-Filled Two-bedroom apartment for rent in Bensonhurst":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-oversized-sun-filled-two/7926672898.html
+    - button ""
+    - text: 2h ago • 2br • Bensonhurst
+    - button ""
+    - text: $1,740
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-top-floor-2br-in-unit-d-in-bed/7926670771.html
+    - text: • • • • • • • • • • •
+    - link "Top-Floor 2BR w/ In-Unit W/D in Bed-Stuy Brownstone- June 1st":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-top-floor-2br-in-unit-d-in-bed/7926670771.html
+    - button ""
+    - text: 2h ago • 2br • Bedford–Stuyvesant
+    - button ""
+    - text: $3,800
+    - link " no image":
+      - /url: https://newyork.craigslist.org/wch/apa/d/yonkers-glennwood-avenue/7926670661.html
+      - text: 
+      - paragraph: no image
+    - link "Glennwood Avenue":
+      - /url: https://newyork.craigslist.org/wch/apa/d/yonkers-glennwood-avenue/7926670661.html
+    - button ""
+    - text: 2h ago • 400ft2 • Yonkers
+    - button ""
+    - text: $1,825
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-sunny-bedroom-with-balcony-29th/7926669160.html
+    - text: • • • • • • • •
+    - link "Sunny 1 bedroom with balcony 29th street and 30th avenue":
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-sunny-bedroom-with-balcony-29th/7926669160.html
+    - button ""
+    - text: 2h ago • 1br600ft2 • queens
+    - button ""
+    - text: $2,700
+    - link "PRÍVATE ROOMS AVAILABLE in mount Vernon ny 1":
+      - /url: https://newyork.craigslist.org/brx/apa/d/mount-vernon-prvate-rooms-available-in/7926668599.html
+      - img "PRÍVATE ROOMS AVAILABLE in mount Vernon ny 1"
+    - text: •
+    - link "PRÍVATE ROOMS AVAILABLE in mount Vernon ny":
+      - /url: https://newyork.craigslist.org/brx/apa/d/mount-vernon-prvate-rooms-available-in/7926668599.html
+    - button ""
+    - text: 2h ago • Gramatan av
+    - button ""
+    - text: $700
+    - link " no image":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/brooklyn-the-astra/7926667517.html
+      - text: 
+      - paragraph: no image
+    - link "The Astra":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/brooklyn-the-astra/7926667517.html
+    - button ""
+    - text: 2h ago • 1br • Bedford-Stuyvesant
+    - button ""
+    - text: $2,847
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-gorgeous-studio-in-crown/7926666282.html
+    - text: • • • • •
+    - link "Gorgeous Studio in Crown Heights by A/C2/5 Trains - Pet friendly!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-gorgeous-studio-in-crown/7926666282.html
+    - button ""
+    - text: 3h ago • 1br • Crown Heights
+    - button ""
+    - text: $1,280
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-or-bed-massive-terracecozy/7926666263.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2 bed or 3 bed w/ Massive TERRACE+COZY CLOSED IN PATIO!🔥🔥🔥🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-or-bed-massive-terracecozy/7926666263.html
+    - button ""
+    - text: 3h ago • 3br • fT
+    - button ""
+    - text: $4,200
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-huge-bed-washer-in-unit-ac/7926666070.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "Huge 1 bed w/ Washer in unit-AC-Dish-closed in kitchen🔥🔥🔥Pratt":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-huge-bed-washer-in-unit-ac/7926666070.html
+    - button ""
+    - text: 3h ago • 1br • Clinton Hill
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-cornelia-one-bedroom/7926660839.html
+    - text: • • • • • •
+    - link "Cornelia one bedroom":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-cornelia-one-bedroom/7926660839.html
+    - button ""
+    - text: 3h ago • 1br • Bushwick
+    - button ""
+    - text: $2,800
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-sun-soaked-bed-bath/7926660616.html
+    - text: • • • • • • • • • • •
+    - link "SUN SOAKED 2 BED 2 BATH BEAUTY!CLOSET SPACE!NEAR MTA!MUST SEE!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-sun-soaked-bed-bath/7926660616.html
+    - button ""
+    - text: 3h ago • 2br800ft2 • Bed Stuy
+    - button ""
+    - text: $3,400
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-spacious-bedroom-east-20th/7926658115.html
+    - text: • • • • • •
+    - link "Spacious 3 Bedroom East 20th Street Apartment (Gramercy)":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-spacious-bedroom-east-20th/7926658115.html
+    - button ""
+    - text: 3h ago • 3br • Gramercy
+    - button ""
+    - text: $6,295
+    - link " no image":
+      - /url: https://newyork.craigslist.org/wch/apa/d/dobbs-ferry-large-bedroom-apartment/7926657348.html
+      - text: 
+      - paragraph: no image
+    - link "Large 1 Bedroom Apartment Available in Dobbs Ferry (NO BROKERS FEE)":
+      - /url: https://newyork.craigslist.org/wch/apa/d/dobbs-ferry-large-bedroom-apartment/7926657348.html
+    - button ""
+    - text: 3h ago • 1br • Dobbs Ferry
+    - button ""
+    - text: $2,600
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-spacious-bedroom-east-13th/7926657345.html
+    - text: • • • • •
+    - link "Spacious 2 Bedroom East 13th Street Apartment (East Village)":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-spacious-bedroom-east-13th/7926657345.html
+    - button ""
+    - text: 3h ago • 2br • East Village
+    - button ""
+    - text: $5,095
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-spacious-bedroom-east-20th/7926657179.html
+    - text: • • • • • •
+    - link "Spacious 2 Bedroom East 20th Street Apartment (Gramercy)":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-spacious-bedroom-east-20th/7926657179.html
+    - button ""
+    - text: 3h ago • 2br • Gramercy
+    - button ""
+    - text: $5,095
+    - link " no image":
+      - /url: https://newyork.craigslist.org/wch/apa/d/mount-vernon-brand-new-bedroom-bath/7926656360.html
+      - text: 
+      - paragraph: no image
+    - link "Brand New 3 Bedroom, 2 Bath Apartment Available - NO BROKERS FEE.":
+      - /url: https://newyork.craigslist.org/wch/apa/d/mount-vernon-brand-new-bedroom-bath/7926656360.html
+    - button ""
+    - text: 3h ago • 3br • Mount Vernon
+    - button ""
+    - text: $3,200
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-cute-real-1br-in-owner/7926656035.html
+    - text: • • • • • • • • • •
+    - link "Cute, real 1br in owner-occupied building":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-cute-real-1br-in-owner/7926656035.html
+    - button ""
+    - text: 3h ago • 1br550ft2 • Prospect/Crown Heights
+    - button ""
+    - text: $2,600
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-large-3br-immediate-occupancy/7926650683.html
+    - text: • • • • • •
+    - link "LARGE 3BR *** IMMEDIATE OCCUPANCY *** LAUNDRY ROOM":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-large-3br-immediate-occupancy/7926650683.html
+    - button ""
+    - text: 3h ago • 3br950ft2 • Gramercy
+    - button ""
+    - text: $7,200
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-park-slope-1br-home-office/7926642511.html
+    - text: • • • • • • •
+    - link "Park Slope 1BR + Home Office – Exposed Brick & Pre-War Charm!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-park-slope-1br-home-office/7926642511.html
+    - button ""
+    - text: 4h ago • 1br • Park Slope
+    - button ""
+    - text: $1,340
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/brooklyn-rent-stabilized-bedroom/7926641221.html
+    - text: • • • • • •
+    - link "RENT STABILIZED 1 BEDROOM W/ TERRACE IN CROWN HEIGHTS – $2,866":
+      - /url: https://newyork.craigslist.org/que/apa/d/brooklyn-rent-stabilized-bedroom/7926641221.html
+    - button ""
+    - text: 4h ago • 1br • Brooklyn
+    - button ""
+    - text: $2,866
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-financial-district-sculpt-this/7926638422.html
+    - text: • • • • • • • • • • • • • •
+    - link "(Financial District) Sculpt this residence into your next home":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-financial-district-sculpt-this/7926638422.html
+    - button ""
+    - text: 4h ago • 2br • New York
+    - button ""
+    - text: $9,790
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-modern-high-end-studio/7926638369.html
+    - text: • • • • •
+    - link "Modern High-End Studio Apartment in Williamsburg Near L/M/Z Trains":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-modern-high-end-studio/7926638369.html
+    - button ""
+    - text: 4h ago • 1br • Williamsburg
+    - button ""
+    - text: $1,260
+    - link "Hire us to find you a rent stabilized apartment in Sunset Park 1":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-hire-us-to-find-you-rent/7926637394.html
+      - img "Hire us to find you a rent stabilized apartment in Sunset Park 1"
+    - text: •
+    - link "Hire us to find you a rent stabilized apartment in Sunset Park":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-hire-us-to-find-you-rent/7926637394.html
+    - button ""
+    - text: 4h ago • 1br • Sunset Park
+    - button ""
+    - text: $2,000
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brand-new-luxury-building-in/7926636284.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "Brand new luxury building in the heart of Bushwick of Morgan L":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brand-new-luxury-building-in/7926636284.html
+    - button ""
+    - text: 4h ago • 1br • Bushwick
+    - button ""
+    - text: $3,300
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/east-elmhurst-beautiful-spacious/7926635640.html
+    - text: • • • • • • • • • •
+    - link "***Beautiful Spacious 2 bedroom Apartment - Upper Ditmars***":
+      - /url: https://newyork.craigslist.org/que/apa/d/east-elmhurst-beautiful-spacious/7926635640.html
+    - button ""
+    - text: 4h ago • 2br • queens
+    - button ""
+    - text: $3,000
+    - link " no image":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-apartment/7926633378.html
+      - text: 
+      - paragraph: no image
+    - link "Apartment":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-apartment/7926633378.html
+    - button ""
+    - text: 4h ago • 1br • staten island
+    - button ""
+    - text: $1,650
+    - link:
+      - /url: https://newyork.craigslist.org/fct/apa/d/bridgeport-new-apartment/7926630476.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "NEW APARTMENT":
+      - /url: https://newyork.craigslist.org/fct/apa/d/bridgeport-new-apartment/7926630476.html
+    - button ""
+    - text: 5h ago • 3br • Bridgeport, CT
+    - button ""
+    - text: $2,950
+    - link:
+      - /url: https://newyork.craigslist.org/fct/apa/d/bridgeport-new-apartment/7926630317.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "NEW APARTMENT":
+      - /url: https://newyork.craigslist.org/fct/apa/d/bridgeport-new-apartment/7926630317.html
+    - button ""
+    - text: 5h ago • 4br • Bridgeport, CT
+    - button ""
+    - text: $3,650
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-gorg-1br-duplx-lg/7926629646.html
+    - text: • • • • • • • • • • • • •
+    - link "NO FEE-GORG 1BR DUPLX-LG BALCONY-DM/ELEV/LNDRY-LRG LIV RM-DINE AREA-DW":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-gorg-1br-duplx-lg/7926629646.html
+    - button ""
+    - text: 5h ago • 1br • East Village
+    - button ""
+    - text: $8,350
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-107-vanderveer-st-brooklyn-ny/7926628136.html
+    - text: • •
+    - link "107 Vanderveer St Brooklyn, NY 11207":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-107-vanderveer-st-brooklyn-ny/7926628136.html
+    - button ""
+    - text: 5h ago • 1br250ft2 • Brooklyn, NY
+    - button ""
+    - text: $2,500
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-mint-spac-studio-lg-liv/7926623127.html
+    - text: • • • •
+    - link "NO FEE-MINT SPAC STUDIO-LG LIV RM-SEP KIT-FULL REFRIG-AMPLE CLOSET SPA":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-mint-spac-studio-lg-liv/7926623127.html
+    - button ""
+    - text: 5h ago • Inwood / Wash Hts
+    - button ""
+    - text: $1,900
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-sunny-one-bedroom-townhouse/7926621647.html
+    - text: • • • • • • • • • • •
+    - link "SUNNY ONE BEDROOM TOWNHOUSE RENTAL/ NO FEE / PET FRIENDLY":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-sunny-one-bedroom-townhouse/7926621647.html
+    - button ""
+    - text: 5h ago • 1br • East Harlem
+    - button ""
+    - text: $2,850
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-cityviewssundrenched/7926620580.html
+    - text: • • • •
+    - link "CITY_VIEWS_SUN_DRENCHED!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-cityviewssundrenched/7926620580.html
+    - button ""
+    - text: 5h ago • 1br • Midtown East
+    - button ""
+    - text: $4,250
+    - link "Beautiful Alcove Studio in West Chelsea 1":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-beautiful-alcove-studio-in/7926532404.html
+      - img "Beautiful Alcove Studio in West Chelsea 1"
+    - text: •
+    - link "Beautiful Alcove Studio in West Chelsea":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-beautiful-alcove-studio-in/7926532404.html
+    - button ""
+    - text: 5h ago • 1br600ft2 • Chelsea
+    - button ""
+    - text: $1,200
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-room-available-in-rent/7926517204.html
+    - text: • • • •
+    - link "Room available in rent stabilized 2bed1bath Crown Heights apt":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-room-available-in-rent/7926517204.html
+    - button ""
+    - text: 5h ago • 2br • Brooklyn
+    - button ""
+    - text: $1,323
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-no-fee-sunny-classic-crown/7926617879.html
+    - text: • • • • •
+    - link "NO FEE / Sunny Classic Crown Heights 1-Bed, 1-Bath":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-no-fee-sunny-classic-crown/7926617879.html
+    - button ""
+    - text: 5h ago • 1br • Crown Heights
+    - button ""
+    - text: $3,117
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brightspaciousprime-midtown/7926617580.html
+    - text: • • • •
+    - link "BRIGHT_SPACIOUS_PRIME MIDTOWN!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brightspaciousprime-midtown/7926617580.html
+    - button ""
+    - text: 5h ago • 1br • Midtown East
+    - button ""
+    - text: $4,200
+    - link " no image":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-upgraded-bedroom-on-2nd/7926615767.html
+      - text: 
+      - paragraph: no image
+    - link "Upgraded 2 Bedroom on 2nd floor Accepting Cityfheps":
+      - /url: https://newyork.craigslist.org/stn/apa/d/staten-island-upgraded-bedroom-on-2nd/7926615767.html
+    - button ""
+    - text: 5h ago • 3br • Staten Isand
+    - button ""
+    - text: $2,698
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-two-bedroom-apartment-for-rent/7926614844.html
+    - text: • • • • • •
+    - link "Two-bedroom apartment for rent in Bensonhurst":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-two-bedroom-apartment-for-rent/7926614844.html
+    - button ""
+    - text: 5h ago • 2br • Brooklyn
+    - button ""
+    - text: $1,900
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brightspaciouscondofinishes/7926613797.html
+    - text: • • • •
+    - link "BRIGHT_SPACIOUS_CONDO_FINISHES!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-brightspaciouscondofinishes/7926613797.html
+    - button ""
+    - text: 6h ago • Midtown East
+    - button ""
+    - text: $3,299
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-stunning-charming-spacious/7926612169.html
+    - text: • • •
+    - link "Stunning Charming Spacious Studio Near Express Trains":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-stunning-charming-spacious/7926612169.html
+    - button ""
+    - text: 6h ago • Park slope/ South Slope/ Carroll Gardens/ Red Hook
+    - button ""
+    - text: $2,499
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-newly-renovated-amazing/7926611962.html
+    - text: • • • • •
+    - link "Newly renovated Amazing Charming One Bedroom Near Express Trains":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-newly-renovated-amazing/7926611962.html
+    - button ""
+    - text: 6h ago • 1br • Park slope/ Carroll Gardens/Brooklyn Heights/Beorum hill
+    - button ""
+    - text: $2,599
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/brooklyn-williamsburg-deal-2br-no-fee/7926611831.html
+    - text: • • • • • • • •
+    - link "🗽 🗽 🔥 WILLIAMSBURG DEAL – 2BR NO FEE $3,500 🔥🚨":
+      - /url: https://newyork.craigslist.org/que/apa/d/brooklyn-williamsburg-deal-2br-no-fee/7926611831.html
+    - button ""
+    - text: 6h ago • 2br • 347-998-1350 🗽
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/valley-stream-beautiful-3bd-2bath-for/7926611742.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "Beautiful 3bd 2bath for Rent!!":
+      - /url: https://newyork.craigslist.org/que/apa/d/valley-stream-beautiful-3bd-2bath-for/7926611742.html
+    - button ""
+    - text: 6h ago • 3br • Woodmere
+    - button ""
+    - text: $4,500
+    - link:
+      - /url: https://newyork.craigslist.org/lgi/apa/d/valley-stream-beautiful-3bd-2bath-for/7926610646.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "Beautiful 3bd 2bath for Rent!!":
+      - /url: https://newyork.craigslist.org/lgi/apa/d/valley-stream-beautiful-3bd-2bath-for/7926610646.html
+    - button ""
+    - text: 6h ago • 3br • Woodmere
+    - button ""
+    - text: $4,500
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-2bed-1bath-in/7926610370.html
+    - text: • • • • • • • • •
+    - link "Spacious 2Bed-1Bath in Greenwood/Sunset Park with in Unit W/D":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-2bed-1bath-in/7926610370.html
+    - button ""
+    - text: 6h ago • 2br • Brooklyn
+    - button ""
+    - text: $2,850
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-one-bedroom-in-new-luxury-bed/7926610215.html
+    - text: • • • • • • •
+    - link "ONE BEDROOM IN NEW LUXURY BED-STUY BUILDING! ELEVATOR, LAUNDRY IN-UNIT":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-one-bedroom-in-new-luxury-bed/7926610215.html
+    - button ""
+    - text: 6h ago • 1br • Bed-Stuy
+    - button ""
+    - text: $3,240
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-three-bed-with/7926609919.html
+    - text: • • • • •
+    - link "SPACIOUS THREE BED WITH BACKYARD ACCESS ~ HIGH CEILINGS ~ DISHWASHER":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-three-bed-with/7926609919.html
+    - button ""
+    - text: 6h ago • 3br • Bushwick
+    - button ""
+    - text: $3,950
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-renovated-bed-private-backyard/7926609666.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "Renovated 2-Bed + Private Backyard + 1,500 Sq Ft Recreation Space":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-renovated-bed-private-backyard/7926609666.html
+    - button ""
+    - text: 6h ago • 2br • Fort Greene
+    - button ""
+    - text: $6,500
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-no-fee-expansive-floor-duplex/7926609097.html
+    - text: • • • • • • • • • • • •
+    - link "NO FEE / EXPANSIVE 2-Floor Duplex / 2-Months Free / Renovated":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-no-fee-expansive-floor-duplex/7926609097.html
+    - button ""
+    - text: 6h ago • 6br • Bedford-Stuyvesant
+    - button ""
+    - text: $9,013
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-1sr-floor-bed-bath-duplex/7926607828.html
+    - text: • • • • • • • •
+    - link "✨ 1sr Floor 4 Bed / 3 Bath Duplex Ridgewood, Queens – No Fee! ✨":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-1sr-floor-bed-bath-duplex/7926607828.html
+    - button ""
+    - text: 6h ago • 4br • Ridgewood
+    - button ""
+    - text: $4,666
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-prime-west-village-energy/7926606405.html
+    - text: • • • •
+    - link "PRIME WEST VILLAGE ENERGY":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-prime-west-village-energy/7926606405.html
+    - button ""
+    - text: 6h ago • West Village
+    - button ""
+    - text: $4,895
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-massive-7br-duplex-with-in/7926604957.html
+    - text: • • • • • • • • • • •
+    - link "🔥🔑Massive 7BR Duplex with In-Unit W/D & Renovated Finishes🔥🔑":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-massive-7br-duplex-with-in/7926604957.html
+    - button ""
+    - text: 6h ago • 7br • Bed Stuy
+    - button ""
+    - text: $9,013
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-25br-apartment-in-bay-ridge/7926602743.html
+    - text: • • • • • • • • • • •
+    - link "2.5BR Apartment in Bay Ridge for Rent 73rd St & 5th Minutes Park Slope":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-25br-apartment-in-bay-ridge/7926602743.html
+    - button ""
+    - text: 6h ago • 2br1050ft2 • Bay Ridge
+    - button ""
+    - text: $2,695
+    - link:
+      - /url: https://newyork.craigslist.org/jsy/apa/d/jersey-city-compact-studio-apartment/7926601338.html
+    - text: • • • • • • • • •
+    - link "COMPACT STUDIO APARTMENT with a backyard":
+      - /url: https://newyork.craigslist.org/jsy/apa/d/jersey-city-compact-studio-apartment/7926601338.html
+    - button ""
+    - text: 6h ago • 1br • jersey city
+    - button ""
+    - text: $1,000
+    - link "3 BED/ GREAT APARTMENT FOR RENT/ BALCONY 1":
+      - /url: https://newyork.craigslist.org/que/apa/d/long-island-city-bed-great-apartment/7926599476.html
+      - img "3 BED/ GREAT APARTMENT FOR RENT/ BALCONY 1"
+    - text: •
+    - link "3 BED/ GREAT APARTMENT FOR RENT/ BALCONY":
+      - /url: https://newyork.craigslist.org/que/apa/d/long-island-city-bed-great-apartment/7926599476.html
+    - button ""
+    - text: 7h ago • 3br • Long Island City
+    - button ""
+    - text: $3,498
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/queens-village-bed-great-duplex/7926598228.html
+    - text: • • • • • • • •
+    - link "3 BED/ GREAT DUPLEX APARTMENT/ PARKING/ EASY APPROVAL":
+      - /url: https://newyork.craigslist.org/que/apa/d/queens-village-bed-great-duplex/7926598228.html
+    - button ""
+    - text: 7h ago • 3br • QUEENS VILLAGE
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-shared-laundry-roof/7926598176.html
+    - text: • • • • • •
+    - link "🌟 3 Bed w/ Shared Laundry + Roof available in PRIME Bushwick! 🌟":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-shared-laundry-roof/7926598176.html
+    - button ""
+    - text: 7h ago • 3br • Bushwick, short walk from Kickerbocker M
+    - button ""
+    - text: $3,395
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-3bed-3bath-in-unit-wd/7926598021.html
+    - text: • • • • • • • • • •
+    - link "🌟 3Bed 3Bath w/ in-unit W+D, Dishwasher, Outdoor Space! 🌟":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-3bed-3bath-in-unit-wd/7926598021.html
+    - button ""
+    - text: 7h ago • 3br • PRIME Ridgewood, near L & M
+    - button ""
+    - text: $4,013
+    - link " no image":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bed-bath-on-the-upper-east/7926597678.html
+      - text: 
+      - paragraph: no image
+    - link "2 Bed / 2 Bath on the Upper East Side - Luxury Building!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bed-bath-on-the-upper-east/7926597678.html
+    - button ""
+    - text: 7h ago • 2br1065ft2 • Upper East Side
+    - button ""
+    - text: $6,538
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-no-fee-bed-newly-renovated/7926596397.html
+    - text: • • • • • • •
+    - link "NO FEE/ 4 BED/ NEWLY RENOVATED/ CLOSE TO ASTORIA PARK/ NO FEE":
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-no-fee-bed-newly-renovated/7926596397.html
+    - button ""
+    - text: 7h ago • 4br • ASTORIA
+    - button ""
+    - text: $4,298
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-nice-spacious-heart-of/7926595953.html
+    - text: • • • • • • • • •
+    - link "NICE SPACIOUS! Heart Of Bushwick! Right By The Subway! Renovated!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-nice-spacious-heart-of/7926595953.html
+    - button ""
+    - text: 7h ago • 2br • brooklyn
+    - button ""
+    - text: $3,000
+    - button "show duplicates"
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-exposed-brick-spacious-heart/7926595876.html
+    - text: • • • • • • • • •
+    - link "Exposed Brick SPACIOUS! Heart Of Bushwick By Maria Hernandez Park!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-exposed-brick-spacious-heart/7926595876.html
+    - button ""
+    - text: 7h ago • 3br • bushwick
+    - button ""
+    - text: $3,300
+    - button "show duplicates"
+    - link:
+      - /url: https://newyork.craigslist.org/wch/apa/d/tarrytown-uniqueno-feew-in-the-heart-of/7926591455.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "UNIQUE*NO FEE*W/D *IN THE HEART OF TOWN-CLOSE TO RR/SHOPS*CATS OK*":
+      - /url: https://newyork.craigslist.org/wch/apa/d/tarrytown-uniqueno-feew-in-the-heart-of/7926591455.html
+    - button ""
+    - text: 7h ago • 2br1000ft2 • TARRYTOWN
+    - button ""
+    - text: $3,295
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/jamaica-25oo-2bed-1bath/7926590150.html
+    - text: • • • • • • •
+    - link "$2,5oo 2Bed 1Bath w/Rooftop+Elevator+Terrace ~ near E+J+Z trains":
+      - /url: https://newyork.craigslist.org/que/apa/d/jamaica-25oo-2bed-1bath/7926590150.html
+    - button ""
+    - text: 7h ago • 2br900ft2 • 153rd Street, Jamaica Center
+    - button ""
+    - text: $2
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/maspeth-27oo-2bed-1bath-laundryskylight/7926590001.html
+    - text: • • • • • • • •
+    - link "$2,7oo 2Bed 1Bath w/Laundry+Skylight":
+      - /url: https://newyork.craigslist.org/que/apa/d/maspeth-27oo-2bed-1bath-laundryskylight/7926590001.html
+    - button ""
+    - text: 7h ago • 2br900ft2 • 60th Street, Maspeth
+    - button ""
+    - text: $2
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-hot-new-listing-bed-bath-in/7926589832.html
+    - text: • • • • • • • •
+    - link "🔥 HOT NEW LISTING 🔥 3 BED 🛏️ 3 BATH 🛁 IN RIDGEWOOD 📍 WONT LAST!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-hot-new-listing-bed-bath-in/7926589832.html
+    - button ""
+    - text: 7h ago • 3br • Ridgewood
+    - button ""
+    - text: $4,200
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-just-listed-sq-ft-huge-vintage/7926589728.html
+    - text: • • • • • • •
+    - link "🚨 JUST LISTED 🚨 1800 SQ FT 📏 HUGE VINTAGE 1 BED W/ FIREPLACES! 🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-just-listed-sq-ft-huge-vintage/7926589728.html
+    - button ""
+    - text: 7h ago • 1br1800ft2 • Bushwick
+    - button ""
+    - text: $3,600
+    - button "show duplicates"
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brand-new-bed-bath-in-unit/7926589489.html
+    - text: • • • • • • • • •
+    - link "🚨 BRAND NEW 🚨 3 BED 🛏️ 3 BATH 🛁 IN-UNIT LAUNDRY 🧺 WONT LAST!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brand-new-bed-bath-in-unit/7926589489.html
+    - button ""
+    - text: 7h ago • 3br • Ridgewood
+    - button ""
+    - text: $4,000
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-dream-apartment-bed-bath-in/7926589323.html
+    - text: • • • • •
+    - link "🔥 DREAM APARTMENT 🔥 2 BED 🛏️ 2 BATH 🛁 IN UNIT LAUNDRY 🧺 JUNE 1!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-dream-apartment-bed-bath-in/7926589323.html
+    - button ""
+    - text: 7h ago • 2br • Bushwick
+    - button ""
+    - text: $3,995
+    - button "show duplicates"
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-garden-one-bedroom-summer/7926587798.html
+    - text: • • • • • • • • •
+    - link "Garden One Bedroom Summer Rental":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-garden-one-bedroom-summer/7926587798.html
+    - button ""
+    - text: 8h ago • 1br • Greenpoint
+    - button ""
+    - text: $1,500
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-gorgeous-townhouse-duplex/7926587248.html
+    - text: • • • • • • •
+    - link "2 Bed Gorgeous Townhouse Duplex with Deck in Greenpoint/Williamsburg":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-gorgeous-townhouse-duplex/7926587248.html
+    - button ""
+    - text: 8h ago • 2br1200ft2 • Greenpoint
+    - button ""
+    - text: $2,000
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bedroom-apartment-in-the/7926586475.html
+    - text: • • • • • • • • • • • •
+    - link "1 bedroom apartment in the Central Harlem neighborhood of Manhattan":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bedroom-apartment-in-the/7926586475.html
+    - button ""
+    - text: 8h ago • 1br • Harlem / Morningside
+    - button ""
+    - text: $4,160
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/richmond-hill-bed-1bath-737-ft/7926586448.html
+    - text: • • • • • • • • • •
+    - link "$2,200 / 1 bed, 1bath, 737 ft Beautiful Balcony, 8515 120th St, 4D":
+      - /url: https://newyork.craigslist.org/que/apa/d/richmond-hill-bed-1bath-737-ft/7926586448.html
+    - button ""
+    - text: 8h ago • 1br737ft2 • Richmond Hill
+    - button ""
+    - text: $2,200
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/flushing-sanford-ave-large-studio-near/7926585047.html
+    - text: • • • • •
+    - 'link "133-28 SANFORD AVE LARGE STUDIO NEAR #7 TRAIN AND 30MIN TO N Y C"':
+      - /url: https://newyork.craigslist.org/que/apa/d/flushing-sanford-ave-large-studio-near/7926585047.html
+    - button ""
+    - text: 8h ago • 650ft2 • FLUSHING
+    - button ""
+    - text: $1,800
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-2br-2ba-in-chelsea/7926584747.html
+    - text: • • • • • • •
+    - link "✨ No Fee 2BR / 2BA in Chelsea | Spacious Layout + Amenities":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-2br-2ba-in-chelsea/7926584747.html
+    - button ""
+    - text: 8h ago • 2br • Chelsea
+    - button ""
+    - text: $8,595
+    - link:
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-specious-bedrooms-apartment-in/7926584122.html
+    - text: • • • • •
+    - link "Specious 3 bedrooms apartment in a quiet area of north east bronx":
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-specious-bedrooms-apartment-in/7926584122.html
+    - button ""
+    - text: 8h ago • 3br • Seton av(e 233 st)
+    - button ""
+    - text: $2,800
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/woodside-nd-street-two-bedrooms-and-one/7926579921.html
+    - text: • • • • • • • • • •
+    - 'link "52-02 62ND STREET TWO BEDROOMS AND ONE BEAUTIFUL BALCONY NEAR #7"':
+      - /url: https://newyork.craigslist.org/que/apa/d/woodside-nd-street-two-bedrooms-and-one/7926579921.html
+    - button ""
+    - text: 8h ago • 2br800ft2 • WOODSIDE
+    - button ""
+    - text: $2,795
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-th-ave-two-bedrooms-near-q/7926579464.html
+    - text: • • • • • • • •
+    - link "23-50 31TH AVE TWO BEDROOMS NEAR N Q TRAIN AND 30MIN TO N Y C":
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-th-ave-two-bedrooms-near-q/7926579464.html
+    - button ""
+    - text: 4/9 • 2br800ft2 • ASTORIA
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/corona-89th-street-off-northern-blvd/7926578945.html
+    - text: • • • • • • • • • •
+    - 'link "89TH STREET OFF NORTHERN BLVD NEWLY RENO 3 BEDROOMS #7 TRAIN"':
+      - /url: https://newyork.craigslist.org/que/apa/d/corona-89th-street-off-northern-blvd/7926578945.html
+    - button ""
+    - text: 4/9 • 3br950ft2 • CORONA
+    - button ""
+    - text: $2,950
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/elmhurst-whitney-ave-bedrooms-newly/7926578103.html
+    - text: • • • • • • •
+    - 'link "92-30 WHITNEY AVE 3 BEDROOMS NEWLY RENO NEAR #7 TRAIN AND 30MIN TO N Y"':
+      - /url: https://newyork.craigslist.org/que/apa/d/elmhurst-whitney-ave-bedrooms-newly/7926578103.html
+    - button ""
+    - text: 4/9 • 3br850ft2 • ELMHURST
+    - button ""
+    - text: $2,850
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-bedroom-duplex-with/7926577995.html
+    - text: • • • • • • • • • • • •
+    - link "Spacious 2-Bedroom Duplex with Private Backyard & Huge Lower-Level":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-bedroom-duplex-with/7926577995.html
+    - button ""
+    - text: 4/9 • 2br • Fort Greene
+    - button ""
+    - text: $6,495
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/jackson-heights-81th-street-and-37th/7926577447.html
+    - text: • • • • • • • • • •
+    - 'link "81TH STREET AND 37TH AVE 3 BEDROOMS NEAR #7 TRAIN AND 30MIN TO N Y C"':
+      - /url: https://newyork.craigslist.org/que/apa/d/jackson-heights-81th-street-and-37th/7926577447.html
+    - button ""
+    - text: 4/9 • 3br900ft2 • JACKSON HEIGHTS
+    - button ""
+    - text: $2,950
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-crown-heights-prewar-loft-bed/7926576867.html
+    - text: • • • • • • • • • • • • • •
+    - link "🔥CROWN HEIGHTS PREWAR LOFT 3 BED ON PARK PL🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-crown-heights-prewar-loft-bed/7926576867.html
+    - button ""
+    - text: 4/9 • 3br • Crown Heights
+    - button ""
+    - text: $4,999
+    - link " no image":
+      - /url: https://newyork.craigslist.org/que/apa/d/ridgewood-bedroom-in-ridgewood-ny-11385/7926576216.html
+      - text: 
+      - paragraph: no image
+    - link "3 bedroom in Ridgewood ny 11385":
+      - /url: https://newyork.craigslist.org/que/apa/d/ridgewood-bedroom-in-ridgewood-ny-11385/7926576216.html
+    - button ""
+    - text: 4/9 • 3br • queens
+    - button ""
+    - text: $3,300
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-rare-luxury-studio-brooklyn/7926575648.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "Rare Luxury Studio | Brooklyn Heights | $3,700 | Doorman Amenity Bldg":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-rare-luxury-studio-brooklyn/7926575648.html
+    - button ""
+    - text: 4/9 • Brooklyn Heights
+    - button ""
+    - text: $3,700
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-crown-heights-pre-war-loft-bed/7926575271.html
+    - text: • • • • • • • • • • • •
+    - link "🔥CROWN HEIGHTS PRE WAR LOFT 2 BED ON BERGEN🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-crown-heights-pre-war-loft-bed/7926575271.html
+    - button ""
+    - text: 4/9 • 2br • Crown Heights
+    - button ""
+    - text: $3,495
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-franklin-ave-loft-bed-in-crown/7926574926.html
+    - text: • • • • • • • • • • • •
+    - link "🔥FRANKLIN AVE LOFT 1 BED IN CROWN HEIGHTS🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-franklin-ave-loft-bed-in-crown/7926574926.html
+    - button ""
+    - text: 4/9 • 1br • Crown Heights
+    - button ""
+    - text: $3,199
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-downtown-dumbo-loft-bed-duplex/7926573861.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "🔥DOWNTOWN/DUMBO LOFT 3 BED DUPLEX IN FULL AMENITY BUILDING🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-downtown-dumbo-loft-bed-duplex/7926573861.html
+    - button ""
+    - text: 4/9 • 3br • DUMBO/Downtown
+    - button ""
+    - text: $6,395
+    - link " no image":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brs-hire-broker-for-good-deal/7926573591.html
+      - text: 
+      - paragraph: no image
+    - link "1 BRS... HIRE A broker FOR A GOOD DEAL":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brs-hire-broker-for-good-deal/7926573591.html
+    - button ""
+    - text: 4/9 • 1br • East Village Gramercy
+    - button ""
+    - text: $2,785
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-massive-1br-private-south/7926573425.html
+    - text: • • • • • • • • • • • • •
+    - link "Massive 1BR w/ Private South-Facing Balcony $3500 call ASAP!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-massive-1br-private-south/7926573425.html
+    - button ""
+    - text: 4/9 • 1br • Bedford Stuyvesant
+    - button ""
+    - text: $3,495
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-downtown-luxury-loft-feel-bed/7926573360.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "🔥DOWNTOWN LUXURY LOFT FEEL 2 BED IN FULL AMENITY BUILDING🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-downtown-luxury-loft-feel-bed/7926573360.html
+    - button ""
+    - text: 4/9 • 2br • DUMBO/Downtown
+    - button ""
+    - text: $4,395
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-2br-1ba-pre-war-crown-heights/7926572894.html
+    - text: • • • • • • • • •
+    - link "2BR / 1BA Pre-War Crown Heights Apartment | $3,500 | Available 5/1":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-2br-1ba-pre-war-crown-heights/7926572894.html
+    - button ""
+    - text: 4/9 • 2br • West Crown Heights
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bedford-ave-loft-bed-private/7926572865.html
+    - text: • • • • • • • • • • •
+    - link "🔥BEDFORD AVE LOFT 1 BED + PRIVATE TERRACE & W/D IN UNIT🔥":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bedford-ave-loft-bed-private/7926572865.html
+    - button ""
+    - text: 4/9 • 1br • Crown Heights
+    - button ""
+    - text: $3,799
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-rent-stabilized-les-bed/7926572677.html
+    - text: • • • • •
+    - link "RENT STABILIZED LES 1 BED OASIS___PRIME LOCATION - A STEAL!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-rent-stabilized-les-bed/7926572677.html
+    - button ""
+    - text: 4/9 • 1br • Lower East Side
+    - button ""
+    - text: $2,695
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-1ba-massive-terrace/7926570845.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "$3500 1BR / 1BA w/ Massive Terrace & Dishwasher | Bedford & St. Johns":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-1ba-massive-terrace/7926570845.html
+    - button ""
+    - text: 4/9 • 1br • West Crown Heights
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-1br-1ba-private-balcony/7926570171.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "1BR / 1BA w/ Private Balcony & Dishwasher | Astoria (37th St) | $3,500":
+      - /url: https://newyork.craigslist.org/que/apa/d/astoria-1br-1ba-private-balcony/7926570171.html
+    - button ""
+    - text: 4/9 • 1br • Astoria
+    - button ""
+    - text: $3,495
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-the-right/7926570119.html
+    - text: • • • • •
+    - link "A Brooklyn 2-Bed With the Right Upgrades Built In":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-the-right/7926570119.html
+    - button ""
+    - text: 4/9 • 2br • Brooklyn
+    - button ""
+    - text: $4,795
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-comfort/7926570065.html
+    - text: • • • • •
+    - link "A Brooklyn 2-Bed With Comfort Built In":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-comfort/7926570065.html
+    - button ""
+    - text: 4/9 • 2br • Brooklyn
+    - button ""
+    - text: $2,595
+    - button "show duplicates"
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-comfort/7926570039.html
+    - text: • • • •
+    - link "A Brooklyn 1-Bed With Comfort Built In":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-comfort/7926570039.html
+    - button ""
+    - text: 4/9 • 1br • Brooklyn
+    - button ""
+    - text: $2,495
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-all-the-good/7926569986.html
+    - text: • • • • • • •
+    - link "A Brooklyn 1-Bed With All the Good Stuff (And a Pretty Nice Bonus)":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-all-the-good/7926569986.html
+    - button ""
+    - text: 4/9 • 1br • Brooklyn
+    - button ""
+    - text: $2,595
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-little-extra/7926569939.html
+    - text: • • • • • • •
+    - link "A Brooklyn 2-Bed With a Little Extra Comfort Built In":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-little-extra/7926569939.html
+    - button ""
+    - text: 4/9 • 2br • Brooklyn
+    - button ""
+    - text: $2,795
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-that-knows-what/7926569912.html
+    - text: • • • • • • • • • • •
+    - link "A Brooklyn 2-Bed That Knows What People Want":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-that-knows-what/7926569912.html
+    - button ""
+    - text: 4/9 • 2br • Brooklyn
+    - button ""
+    - text: $2,899
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-outdoor/7926569874.html
+    - text: • • • • • • •
+    - link "A Brooklyn 1-Bed With Outdoor Space to Enjoy":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-outdoor/7926569874.html
+    - button ""
+    - text: 4/9 • 1br • Brooklyn
+    - button ""
+    - text: $2,295
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-that-keeps-things/7926569844.html
+    - text: • • • • • •
+    - link "A Brooklyn 1-Bed That Keeps Things Easy":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-that-keeps-things/7926569844.html
+    - button ""
+    - text: 4/9 • 1br • Brooklyn
+    - button ""
+    - text: $2,295
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-straightforward-brooklyn-bed/7926569769.html
+    - text: • • • • • • • • • • •
+    - link "A Straightforward Brooklyn 2-Bed That Keeps It Easy":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-straightforward-brooklyn-bed/7926569769.html
+    - button ""
+    - text: 4/9 • 2br • Brooklyn
+    - button ""
+    - text: $2,795
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-yard-and-all/7926569720.html
+    - text: • • • • • • •
+    - link "A Brooklyn 3-Bed With a Yard (and All the Right Extras)":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-with-yard-and-all/7926569720.html
+    - button ""
+    - text: 4/9 • 3br • Brooklyn
+    - button ""
+    - text: $3,495
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-bath-that-makes/7926569628.html
+    - text: • • • • • • • •
+    - link "A Brooklyn 3-Bed / 3-Bath That Makes Sharing Easy":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-bed-bath-that-makes/7926569628.html
+    - button ""
+    - text: 4/9 • 3br • Brooklyn
+    - button ""
+    - text: $3,495
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-rare-rent-stabilized-1br-in/7926569464.html
+    - text: • • • • • • • • • • • • •
+    - link "🔥 Rare Rent-Stabilized 1BR w/ In-Unit Laundry + A/C — Won’t Last":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-rare-rent-stabilized-1br-in/7926569464.html
+    - button ""
+    - text: 4/9 • 1br • Crown Heights
+    - button ""
+    - text: $3,201
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-2ba-private-balcony-dual/7926569260.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "$6,395 | 3BR / 2BA w/ Private Balcony & Dual Exposure | Luxe Amenity":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-2ba-private-balcony-dual/7926569260.html
+    - button ""
+    - text: 4/9 • 3br • Crown Heights
+    - button ""
+    - text: $6,390
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-huge-private-balcony-ideal/7926569056.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "$4,400 | 2BR w/ Huge Private Balcony | Ideal for Couples | Downtown":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-huge-private-balcony-ideal/7926569056.html
+    - button ""
+    - text: 4/9 • 2br • Downtown Brooklyn
+    - button ""
+    - text: $4,400
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-2ba-duplex-private-roof/7926568974.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "**$6,395 | 3BR / 2BA Duplex w/ Private Roof Deck | Ideal for Couples |":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-br-2ba-duplex-private-roof/7926568974.html
+    - button ""
+    - text: 4/9 • 3br • DUMBO
+    - button ""
+    - text: $6,395
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-2br-1ba-smart-layout/7926565227.html
+    - text: • • • • • • •
+    - link "A Brooklyn 2BR / 1BA, Smart Layout, Great Flow":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-brooklyn-2br-1ba-smart-layout/7926565227.html
+    - button ""
+    - text: 4/9 • 2br • Bedford-Stuyvesant
+    - button ""
+    - text: $1,620
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-gorgeous-bright-xl/7926556409.html
+    - text: • • • • • • • • • • • • • • •
+    - link "NO FEE Gorgeous bright XL studio, prime Chelsea block, doorman, VIDEO!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-gorgeous-bright-xl/7926556409.html
+    - button ""
+    - text: 4/8 • Chelsea
+    - button ""
+    - text: $4,300
+    - link:
+      - /url: https://newyork.craigslist.org/fct/apa/d/stamford-top-spot2175dwntwnmodern1/7926555178.html
+    - text: • • • • • • • •
+    - link "Top SPOT*$2175,Dwntwn,Modern1 BR,Hardwd,W/D,Gym,Pool.":
+      - /url: https://newyork.craigslist.org/fct/apa/d/stamford-top-spot2175dwntwnmodern1/7926555178.html
+    - button ""
+    - text: 4/8 • 1br600ft2 • Stamford
+    - button ""
+    - text: $2,175
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-midtown-west-luxury-studios/7926549217.html
+    - text: • • • • • • • • •
+    - link "🔥 Midtown West Luxury | Studios, 1BR & 2BR | No Fee + Free Rent":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-midtown-west-luxury-studios/7926549217.html
+    - button ""
+    - text: 4/8 • Midtown West
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-mint-gramercy-bright/7926547602.html
+    - text: • • • • • • • • • •
+    - link "NO FEE! MINT Gramercy Bright 2BR/2BA, Terrace, WD, Doorman, VIDEO!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-mint-gramercy-bright/7926547602.html
+    - button ""
+    - text: 4/8 • 2br • Union Square
+    - button ""
+    - text: $8,900
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-bath-great-location-in/7926547164.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "5 bed 2 bath, great location in Ridgewood, no fee, M train":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bed-bath-great-location-in/7926547164.html
+    - button ""
+    - text: 4/8 • 5br • Ridgewood
+    - button ""
+    - text: $5,400
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-rent-stabilized-newly/7926547095.html
+    - text: • • • • • • • • • • • • • • •
+    - link "Rent Stabilized, newly renovated, 7 bed 3 bath, w/d in unit, No Fee":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-rent-stabilized-newly/7926547095.html
+    - button ""
+    - text: 4/8 • 7br • Clinton Hill/Bed-Stuy
+    - button ""
+    - text: $9,013
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-awesome-sun-lit-tranquil-ev/7926546665.html
+    - text: • • • • • • •
+    - link "AWESOME SUN LIT TRANQUIL EV 1 BED STUNNER__PRIME LOCATION - A STEAL!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-awesome-sun-lit-tranquil-ev/7926546665.html
+    - button ""
+    - text: 4/8 • 1br • East Village
+    - button ""
+    - text: $2,895
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bushwick-gem-bed-by-maria/7926545629.html
+    - text: • • • • • • • • •
+    - link "Bushwick Gem – 3 Bed by Maria Hernandez Park":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-bushwick-gem-bed-by-maria/7926545629.html
+    - button ""
+    - text: 4/8 • 3br • Brooklyn
+    - button ""
+    - text: $3,950
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/springfield-gardens-second-floor-apt/7926543114.html
+    - text: • • • •
+    - link "Second floor apt with heat and water included. Walk to Green Acres.":
+      - /url: https://newyork.craigslist.org/que/apa/d/springfield-gardens-second-floor-apt/7926543114.html
+    - button ""
+    - text: 4/8 • 3br • Springfield Gardens
+    - button ""
+    - text: $2,700
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-alcove-studio-convertible/7926540588.html
+    - text: • • • • • • • • • •
+    - link "Alcove Studio, Convertible 1 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-alcove-studio-convertible/7926540588.html
+    - button ""
+    - text: 4/8 • Midtown West
+    - button ""
+    - text: $3,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-renovated-studio/7926540485.html
+    - text: • • • • • • • • • • • •
+    - link "Bright, Renovated Studio, Laundry in Unit":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-renovated-studio/7926540485.html
+    - button ""
+    - text: 4/8 • Midtown West
+    - button ""
+    - text: $3,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-new-floor-to-ceiling/7926540380.html
+    - text: • • • • • • • • • • •
+    - link "Bright, New, Floor to Ceiling Windows":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-bright-new-floor-to-ceiling/7926540380.html
+    - button ""
+    - text: 4/8 • Midtown West
+    - button ""
+    - text: $3,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-flex-bedroom/7926540266.html
+    - text: • • • • • • • • • • • •
+    - link "New Development, Flex 3 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-new-development-flex-bedroom/7926540266.html
+    - button ""
+    - text: 4/8 • 3br • Midtown West
+    - button ""
+    - text: $5,995
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-best-value-large-flex/7926540214.html
+    - text: • • • • • • • • • • •
+    - link "Best Value, Large Flex 3":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-best-value-large-flex/7926540214.html
+    - button ""
+    - text: 4/8 • 2br • Midtown West
+    - button ""
+    - text: $5,400
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-west-facing-views/7926540129.html
+    - text: • • • • • • • • • • • •
+    - link "Corner Flex 3, West Facing Views":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-west-facing-views/7926540129.html
+    - button ""
+    - text: 4/8 • 3br • Midtown West
+    - button ""
+    - text: $6,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-windows-in-living/7926540047.html
+    - text: • • • • • • • • • • • • •
+    - link "Corner Flex 3, Windows in living room after flex":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-windows-in-living/7926540047.html
+    - button ""
+    - text: 4/8 • 3br • Midtown West
+    - button ""
+    - text: $6,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-bedroom-window-in/7926539781.html
+    - text: • • • • • • •
+    - link "Corner Flex 2 Bedroom, Window in Kitchen after Flex":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-bedroom-window-in/7926539781.html
+    - button ""
+    - text: 4/8 • 2br • Midtown West
+    - button ""
+    - text: $4,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-flex-lots-of-windows/7926539712.html
+    - text: • • • • • • • • • •
+    - link "Flex 2, Lots of Windows":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-flex-lots-of-windows/7926539712.html
+    - button ""
+    - text: 4/8 • 2br • Midtown West
+    - button ""
+    - text: $4,300
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-windows-in-living/7926539607.html
+    - text: • • • • • • • • • • • • •
+    - link "Corner Flex 2, Windows in living room after flex":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-flex-windows-in-living/7926539607.html
+    - button ""
+    - text: 4/8 • 2br • Midtown West
+    - button ""
+    - text: $4,295
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-unit-flex-bedroom/7926539498.html
+    - text: • • • • • • • • • • • •
+    - link "Corner Unit, Flex 2 Bedroom":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-corner-unit-flex-bedroom/7926539498.html
+    - button ""
+    - text: 4/8 • 2br • Midtown West
+    - button ""
+    - text: $4,200
+    - link:
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-large-studio-apartment-with/7926538900.html
+    - text: • • •
+    - link "Large studio apartment with private entrance!":
+      - /url: https://newyork.craigslist.org/brx/apa/d/bronx-large-studio-apartment-with/7926538900.html
+    - button ""
+    - text: 4/8 • Easchester rd(Gun hill rd)
+    - button ""
+    - text: $1,400
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/jamaica-one-bedroom-near-stjohns/7926536665.html
+    - text: • • • • •
+    - link "One bedroom near st.john’s university":
+      - /url: https://newyork.craigslist.org/que/apa/d/jamaica-one-bedroom-near-stjohns/7926536665.html
+    - button ""
+    - text: 4/8 • 1br650ft2 • Hillcrest
+    - button ""
+    - text: $1,000
+    - link:
+      - /url: https://newyork.craigslist.org/lgi/apa/d/westbury-basement-apartment-for-rent/7926534591.html
+    - text: • • • • • • • •
+    - link "Basement apartment for rent":
+      - /url: https://newyork.craigslist.org/lgi/apa/d/westbury-basement-apartment-for-rent/7926534591.html
+    - button ""
+    - text: 4/8 • 1br • Westbury NY
+    - button ""
+    - text: $2,000
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-simple-bright-2br-1ba-in-the/7926532446.html
+    - text: • • • • • •
+    - link "Simple & Bright 2BR/1BA in the Heart of Bushwick! No fee!!":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-simple-bright-2br-1ba-in-the/7926532446.html
+    - button ""
+    - text: 4/8 • 2br • Bushwick
+    - button ""
+    - text: $3,799
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-massive-bushwick-3bed-15bath/7926530000.html
+    - text: • • • • • • • • • • •
+    - link "Massive Bushwick 3bed/1.5bath duplex":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-massive-bushwick-3bed-15bath/7926530000.html
+    - button ""
+    - text: 4/8 • 3br • Brooklyn
+    - button ""
+    - text: $5,000
+    - link " no image":
+      - /url: https://newyork.craigslist.org/que/apa/d/wading-river-flat-for-rent-queens/7926529373.html
+      - text: 
+      - paragraph: no image
+    - link "Flat for Rent (Queens Village)":
+      - /url: https://newyork.craigslist.org/que/apa/d/wading-river-flat-for-rent-queens/7926529373.html
+    - button ""
+    - text: 4/8 • 2br • queens
+    - button ""
+    - text: $2,700
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-gorgeous-nomad-1br/7926526892.html
+    - text: • • • • • • •
+    - link "NO FEE! Gorgeous Nomad 1br, doorman, roofdeck, VIDEO":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-no-fee-gorgeous-nomad-1br/7926526892.html
+    - button ""
+    - text: 4/8 • Flatiron
+    - button ""
+    - text: $5,395
+    - link:
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-lovely-sunny-studio-prime/7926526468.html
+    - text: • • • • • • • • • • • • • •
+    - link "Lovely sunny studio, prime central West Vil block, VIDEO!":
+      - /url: https://newyork.craigslist.org/mnh/apa/d/new-york-lovely-sunny-studio-prime/7926526468.html
+    - button ""
+    - text: 4/8 • West Village
+    - button ""
+    - text: $3,695
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/jamaica-one-bedroom-near-stjohns/7926521841.html
+    - text: • • • • •
+    - link "One bedroom near st.john’s university":
+      - /url: https://newyork.craigslist.org/que/apa/d/jamaica-one-bedroom-near-stjohns/7926521841.html
+    - button ""
+    - text: 4/8 • 1br650ft2 • Hillcrest
+    - button ""
+    - text: $1,000
+    - link " no image":
+      - /url: https://newyork.craigslist.org/que/apa/d/elmont-charming-spacious-bedroom/7926521549.html
+      - text: 
+      - paragraph: no image
+    - link "A CHARMING /SPACIOUS 2 BEDROOM APARTMENT IN A ASTORIA":
+      - /url: https://newyork.craigslist.org/que/apa/d/elmont-charming-spacious-bedroom/7926521549.html
+    - button ""
+    - text: 4/8 • 2br900ft2 • queens
+    - button ""
+    - text: $2,500
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-looking-for-2br-for-2500-hire/7926515803.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "Looking for a 2BR for $2500? HIRE A BROKER + SEND YOUR INFORMATION":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-looking-for-2br-for-2500-hire/7926515803.html
+    - button ""
+    - text: 4/8 • 2br • Kensington; April 1
+    - button ""
+    - text: $2,500
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-2br-balcony-near-c-z/7926513503.html
+    - text: • • • • • • • •
+    - link "🌿 Spacious 2BR w/ Balcony | Near A/ C & J/Z Trains | 5 Min to Thomas Park🌳":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-spacious-2br-balcony-near-c-z/7926513503.html
+    - button ""
+    - text: 4/8 • 2br • Ocean Hill
+    - button ""
+    - text: $2,850
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-greenpoint-2br-with-luxury/7926513100.html
+    - text: • • • • • • • • •
+    - link "Greenpoint 2BR with Luxury Amenities – 44 Kent Laundry Elevator":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-greenpoint-2br-with-luxury/7926513100.html
+    - button ""
+    - text: 4/8 • 2br • Greenpoint
+    - button ""
+    - text: $4,800
+    - link:
+      - /url: https://newyork.craigslist.org/jsy/apa/d/east-orange-oversized-bed-bath-balcony/7926512142.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "OVERSIZED (3 Bed + 2 Bath) w/ Balcony, Central Air, Washer/dryer":
+      - /url: https://newyork.craigslist.org/jsy/apa/d/east-orange-oversized-bed-bath-balcony/7926512142.html
+    - button ""
+    - text: 4/8 • 3br2000ft2 • East Orange / Newark / Lower Vailsburg
+    - button ""
+    - text: $2,599
+    - link:
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-dazzling-duplex-bed-25-bath-3/7926511612.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "Dazzling Duplex 2 Bed + 2.5 Bath w/ 3 Balconies w/ Washer/Dryer":
+      - /url: https://newyork.craigslist.org/que/apa/d/rego-park-dazzling-duplex-bed-25-bath-3/7926511612.html
+    - button ""
+    - text: 4/8 • 2br • Rego Park / Forest Hills / Briarwood / Kew Gardens
+    - button ""
+    - text: $3,200
+    - link:
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-supreme-bed-bath-newly/7926511498.html
+    - text: • • • • • • • • • • • • •
+    - link "SUPREME ( 2 Bed + 2 Bath ) Newly Renovated, By 2/5 Trains @ Newkirk":
+      - /url: https://newyork.craigslist.org/brk/apa/d/brooklyn-supreme-bed-bath-newly/7926511498.html
+    - button ""
+    - text: 4/8 • 2br • Flatbush / East Flatbush
+    - button ""
+    - text: $2,999
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

@@ -1,0 +1,144 @@
+- document:
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - link "Back to app":
+      - /url: /kristys-team
+    - link "Preferences":
+      - /url: /kristys-team/settings/account/preferences
+    - link "Profile":
+      - /url: /kristys-team/settings/account/profile
+    - link "Notifications":
+      - /url: /kristys-team/settings/account/notifications
+    - link "Security & access":
+      - /url: /kristys-team/settings/account/security
+    - link "Connected accounts":
+      - /url: /kristys-team/settings/account/connections
+    - link "Agent personalization":
+      - /url: /kristys-team/settings/account/agents
+    - heading "Issues" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/issue-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/issue-templates
+    - link "SLAs":
+      - /url: /kristys-team/settings/sla
+    - heading "Projects" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/project-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/project-templates
+    - link "Statuses":
+      - /url: /kristys-team/settings/project-statuses
+    - link "Updates":
+      - /url: /kristys-team/settings/project-updates
+    - heading "Features" [level=2]
+    - link "AI & Agents":
+      - /url: /kristys-team/settings/ai
+    - link "Initiatives":
+      - /url: /kristys-team/settings/initiatives
+    - link "Documents":
+      - /url: /kristys-team/settings/documents
+    - link "Customer requests":
+      - /url: /kristys-team/settings/customer-requests
+    - link "Pulse":
+      - /url: /kristys-team/settings/pulse
+    - link "Asks":
+      - /url: /kristys-team/settings/asks
+    - link "Emojis":
+      - /url: /kristys-team/settings/emojis
+    - link "Integrations":
+      - /url: /kristys-team/settings/integrations
+    - heading "Administration" [level=2]
+    - link "Workspace":
+      - /url: /kristys-team/settings/workspace
+    - link "Teams":
+      - /url: /kristys-team/settings/teams
+    - link "Members":
+      - /url: /kristys-team/settings/members
+    - link "Security":
+      - /url: /kristys-team/settings/security
+    - link "API":
+      - /url: /kristys-team/settings/api
+    - link "Applications":
+      - /url: /kristys-team/settings/applications
+    - link "Billing":
+      - /url: /kristys-team/settings/billing
+    - link "Import & export":
+      - /url: /kristys-team/settings/import-export
+    - heading "Your teams" [level=2]
+    - link "Kristina Zhou":
+      - /url: /kristys-team/settings/teams/KRI
+    - text: Create a team
+  - button "Open Help menu"
+  - main:
+    - text: Preferences
+    - heading "General" [level=3]
+    - list:
+      - listitem:
+        - text: Default home view Select which view to display when launching Linear
+        - combobox "Default home view": Linear Agent
+      - listitem:
+        - text: Display names Select how names are displayed in the Linear interface
+        - combobox "Display names": Full name
+      - listitem:
+        - text: First day of the week Used for date pickers
+        - combobox "First day of the week": Sunday
+      - listitem:
+        - text: Convert text emoticons into emojis Strings like :) will be converted to 🙂
+        - checkbox "Convert text emoticons into emojis" [checked]
+      - listitem:
+        - text: Send comment on… Choose which key press is used to submit a comment
+        - combobox "Send comment on…": Enter
+    - heading "Interface and theme" [level=3]
+    - list:
+      - listitem:
+        - text: App sidebar Customize sidebar item visibility, ordering, and badge style
+        - button "Customize sidebar": Customize
+      - listitem:
+        - text: Font size Adjust the size of text across the app
+        - combobox "Font size": Default
+      - listitem:
+        - text: Use pointer cursors Change the cursor to a pointer when hovering over any interactive elements
+        - checkbox "Use pointer cursors"
+    - listitem:
+      - text: Interface theme Select or customize your interface color scheme
+      - combobox "Interface theme": System preference
+    - list:
+      - listitem:
+        - text: Light Theme to use for light system appearance
+        - combobox "Light"
+      - listitem:
+        - text: Dark Theme to use for dark system appearance
+        - combobox "Dark"
+    - heading "Desktop application" [level=3]
+    - list:
+      - listitem:
+        - text: Open in desktop app Automatically open links in desktop app when possible
+        - checkbox "Open in desktop app"
+    - heading "Coding tools" [level=3]
+    - list:
+      - listitem:
+        - link "Configure coding tools settings":
+          - /url: /kristys-team/settings/account/preferences/coding-tools
+        - text: Configure coding tools Configure tools which can be opened from Linear
+    - heading "Automations and workflows" [level=3]
+    - list:
+      - listitem:
+        - text: Auto-assign to self When creating new issues, always assign them to yourself by default
+        - checkbox "Auto-assign to self"
+      - listitem:
+        - text: Git attachment format The format of GitHub/GitLab attachments on issues
+        - combobox "Git attachment format": Title
+      - listitem:
+        - text: On git branch copy, move issue to started status After copying the git branch name, issue status is moved to the team’s first started workflow status. Hold to disable.
+        - checkbox "On git branch copy, move issue to started status"
+      - listitem:
+        - text: On open in coding tool, move issue to started status After opening an issue in a coding tool or copying as prompt, issue status is moved to the team’s first started workflow status. Hold to disable.
+        - checkbox "On open in coding tool, move issue to started status"
+      - listitem:
+        - text: On move to started status, assign to yourself When you move an unassigned issue to started, it will be automatically assigned to you
+        - checkbox "On move to started status, assign to yourself"
+  - button "Ask Linear"
+  - button "Chat history"
+  - region "Notifications alt+T"

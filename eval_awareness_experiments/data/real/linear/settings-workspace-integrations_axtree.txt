@@ -1,0 +1,541 @@
+- document:
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - link "Back to app":
+      - /url: /kristys-team
+    - link "Preferences":
+      - /url: /kristys-team/settings/account/preferences
+    - link "Profile":
+      - /url: /kristys-team/settings/account/profile
+    - link "Notifications":
+      - /url: /kristys-team/settings/account/notifications
+    - link "Security & access":
+      - /url: /kristys-team/settings/account/security
+    - link "Connected accounts":
+      - /url: /kristys-team/settings/account/connections
+    - link "Agent personalization":
+      - /url: /kristys-team/settings/account/agents
+    - heading "Issues" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/issue-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/issue-templates
+    - link "SLAs":
+      - /url: /kristys-team/settings/sla
+    - heading "Projects" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/project-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/project-templates
+    - link "Statuses":
+      - /url: /kristys-team/settings/project-statuses
+    - link "Updates":
+      - /url: /kristys-team/settings/project-updates
+    - heading "Features" [level=2]
+    - link "AI & Agents":
+      - /url: /kristys-team/settings/ai
+    - link "Initiatives":
+      - /url: /kristys-team/settings/initiatives
+    - link "Documents":
+      - /url: /kristys-team/settings/documents
+    - link "Customer requests":
+      - /url: /kristys-team/settings/customer-requests
+    - link "Pulse":
+      - /url: /kristys-team/settings/pulse
+    - link "Asks":
+      - /url: /kristys-team/settings/asks
+    - link "Emojis":
+      - /url: /kristys-team/settings/emojis
+    - link "Integrations":
+      - /url: /kristys-team/settings/integrations
+    - heading "Administration" [level=2]
+    - link "Workspace":
+      - /url: /kristys-team/settings/workspace
+    - link "Teams":
+      - /url: /kristys-team/settings/teams
+    - link "Members":
+      - /url: /kristys-team/settings/members
+    - link "Security":
+      - /url: /kristys-team/settings/security
+    - link "API":
+      - /url: /kristys-team/settings/api
+    - link "Applications":
+      - /url: /kristys-team/settings/applications
+    - link "Billing":
+      - /url: /kristys-team/settings/billing
+    - link "Import & export":
+      - /url: /kristys-team/settings/import-export
+    - heading "Your teams" [level=2]
+    - link "Kristina Zhou":
+      - /url: /kristys-team/settings/teams/KRI
+    - text: Create a team
+  - button "Open Help menu"
+  - main:
+    - text: Integrations Enhance your Linear experience with a wide variety of add-ons and integrations Search integrations
+    - textbox "Search integrations"
+    - tabpanel "Slack":
+      - figure:
+        - img "Linear’s \"Create a new issue\" dialog inside Slack with fields for issue metadata"
+      - text: Essentials
+      - img
+      - text: Slack Create issues from Slack messages and sync threads
+      - link "Slack":
+        - /url: /kristys-team/settings/integrations/slack
+    - tablist:
+      - tab "Linear Asks for Slack":
+        - img
+        - text: Linear Asks for Slack
+      - tab "Slack" [selected]:
+        - img
+        - text: Slack
+      - tab "GitHub":
+        - img
+        - text: GitHub
+      - tab "Figma":
+        - img
+        - text: Figma
+      - tab "Intercom":
+        - img
+        - text: Intercom
+      - tab "GitLab":
+        - img
+        - text: GitLab
+      - tab "Zapier":
+        - img
+        - text: Zapier
+      - tab "Jira":
+        - img
+        - text: Jira
+    - button "Scroll left" [disabled]
+    - button "Scroll right"
+    - heading "Essentials" [level=3]
+    - list:
+      - listitem:
+        - link "GitHub":
+          - /url: /kristys-team/settings/integrations/github
+        - text: GitHub Automate your pull request and commit workflows and keep issues synced both ways
+      - listitem:
+        - link "Slack":
+          - /url: /kristys-team/settings/integrations/slack
+        - text: Slack Create issues from Slack messages and sync threads
+      - listitem:
+        - link "GitLab":
+          - /url: /kristys-team/settings/integrations/gitlab
+        - text: GitLab Automate your Merge Request workflow
+      - listitem:
+        - link "Figma":
+          - /url: /kristys-team/settings/integrations/figma
+        - text: Figma Create and link issues directly from Figma
+      - listitem:
+        - link "Intercom":
+          - /url: /kristys-team/settings/integrations/intercom
+        - text: Intercom Keep a tight feedback loop with customers and streamline bug reports
+      - listitem:
+        - link "Google Sheets":
+          - /url: /kristys-team/settings/integrations/google-sheets
+        - text: Google Sheets Build custom dashboards and analytics from issue and project data
+    - heading "Agents" [level=3]
+    - list:
+      - listitem:
+        - link "Codex":
+          - /url: /kristys-team/settings/integrations/codex
+        - text: Codex Delegate issues to Codex directly from Linear
+      - listitem:
+        - link "Cursor":
+          - /url: /kristys-team/settings/integrations/cursor
+        - text: Cursor Turn issues into pull requests with Cursor cloud agents
+      - listitem:
+        - link "GitHub Copilot":
+          - /url: /kristys-team/settings/integrations/github-copilot
+        - text: GitHub Copilot Turn Linear issues into code with GitHub Copilot coding agent
+      - listitem:
+        - link "Factory":
+          - /url: /kristys-team/settings/integrations/factory
+        - text: Factory Assign issues from your backlog to Droids
+      - listitem:
+        - link "Sentry Agent":
+          - /url: /kristys-team/settings/integrations/sentry-agent
+        - text: Sentry Agent Resolve Linear Issues with Seer by Sentry
+      - listitem:
+        - link "Devin":
+          - /url: /kristys-team/settings/integrations/devin
+        - text: Devin Automate work from issue to tested PR with Devin
+      - listitem:
+        - link "ChatPRD":
+          - /url: /kristys-team/settings/integrations/chatprd
+        - text: ChatPRD Writes requirements, manages issues, and gives feedback on your product work
+      - listitem:
+        - link "Charlie":
+          - /url: /kristys-team/settings/integrations/charlie
+        - text: Charlie Plans, implements, and reviews your TypeScript PRs
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "AI clients" [level=3]
+    - list:
+      - listitem:
+        - link "Cursor MCP":
+          - /url: /kristys-team/settings/integrations/cursor-mcp
+        - text: Cursor MCP Connect Cursor to the Linear MCP server
+      - listitem:
+        - link "ChatGPT":
+          - /url: /kristys-team/settings/integrations/chatgpt
+        - text: ChatGPT Connect ChatGPT deep research to Linear
+      - listitem:
+        - link "Claude":
+          - /url: /kristys-team/settings/integrations/claude
+        - text: Claude Connect Claude to the Linear MCP server
+      - listitem:
+        - link "v0 by Vercel MCP connector":
+          - /url: /kristys-team/settings/integrations/v0
+        - text: v0 by Vercel MCP connector Connect v0 and Linear through MCP
+      - listitem:
+        - link "Windsurf":
+          - /url: /kristys-team/settings/integrations/windsurf
+        - text: Windsurf Connect Windsurf to the Linear MCP server
+      - listitem:
+        - link "Replit":
+          - /url: /kristys-team/settings/integrations/replit
+        - text: Replit Build Apps & Automations
+      - listitem:
+        - link "Dust":
+          - /url: /kristys-team/settings/integrations/dust
+        - text: Dust Build AI workflows with Linear issues
+      - listitem:
+        - link "ADK":
+          - /url: /kristys-team/settings/integrations/google-adk
+        - text: ADK Connect your Google ADK agents to Linear
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Engineering" [level=3]
+    - list:
+      - listitem:
+        - link "GitHub":
+          - /url: /kristys-team/settings/integrations/github
+        - text: GitHub Automate your pull request and commit workflows and keep issues synced both ways
+      - listitem:
+        - link "GitLab":
+          - /url: /kristys-team/settings/integrations/gitlab
+        - text: GitLab Automate your Merge Request workflow
+      - listitem:
+        - link "PagerDuty Triage Responsibility":
+          - /url: /kristys-team/settings/integrations/pagerduty-triage
+        - text: PagerDuty Triage Responsibility Automate the rotation of triage responsibility with PagerDuty schedules
+      - listitem:
+        - link "Sentry":
+          - /url: /kristys-team/settings/integrations/sentry
+        - text: Sentry Create and link issues with Sentry and automate issue creation
+      - listitem:
+        - link "VS Code":
+          - /url: /kristys-team/settings/integrations/vs-code
+        - text: VS Code Easily build VS Code extensions with Linear Connect
+      - listitem:
+        - link "Datadog":
+          - /url: /kristys-team/settings/integrations/datadog
+        - text: Datadog Create issues from Datadog
+      - listitem:
+        - link "incident.io":
+          - /url: /kristys-team/settings/integrations/incident-io
+        - text: incident.io Manage incidents and triage responsibility directly in Linear
+      - listitem:
+        - link "Raycast":
+          - /url: /kristys-team/settings/integrations/raycast
+        - text: Raycast Create, search, and modify your issues from anywhere
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Linear crafted" [level=3]
+    - list:
+      - listitem:
+        - link "GitHub":
+          - /url: /kristys-team/settings/integrations/github
+        - text: GitHub Automate your pull request and commit workflows and keep issues synced both ways
+      - listitem:
+        - link "Slack":
+          - /url: /kristys-team/settings/integrations/slack
+        - text: Slack Create issues from Slack messages and sync threads
+      - listitem:
+        - link "GitLab":
+          - /url: /kristys-team/settings/integrations/gitlab
+        - text: GitLab Automate your Merge Request workflow
+      - listitem:
+        - link "Figma":
+          - /url: /kristys-team/settings/integrations/figma
+        - text: Figma Create and link issues directly from Figma
+      - listitem:
+        - link "Linear Asks for Slack":
+          - /url: /kristys-team/settings/integrations/linear-asks
+        - text: Linear Asks for Slack Turn requests from Slack or email into actionable issues and enable helpdesk workflows
+      - listitem:
+        - link "Notion":
+          - /url: /kristys-team/settings/integrations/notion
+        - text: Notion Previews of Linear issues, views and projects and query Notion AI
+      - listitem:
+        - link "PagerDuty Triage Responsibility":
+          - /url: /kristys-team/settings/integrations/pagerduty-triage
+        - text: PagerDuty Triage Responsibility Automate the rotation of triage responsibility with PagerDuty schedules
+      - listitem:
+        - link "Zapier":
+          - /url: /kristys-team/settings/integrations/zapier
+        - text: Zapier Build custom automations to create or update Linear issues
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Bug Reporting" [level=3]
+    - list:
+      - listitem:
+        - link "Linear Asks for Slack":
+          - /url: /kristys-team/settings/integrations/linear-asks
+        - text: Linear Asks for Slack Turn requests from Slack or email into actionable issues and enable helpdesk workflows
+      - listitem:
+        - link "Sentry":
+          - /url: /kristys-team/settings/integrations/sentry
+        - text: Sentry Create and link issues with Sentry and automate issue creation
+      - listitem:
+        - link "incident.io":
+          - /url: /kristys-team/settings/integrations/incident-io
+        - text: incident.io Manage incidents and triage responsibility directly in Linear
+      - listitem:
+        - link "Bird Eats Bug":
+          - /url: /kristys-team/settings/integrations/bird-eats-bug
+        - text: Bird Eats Bug Speed up your bug reporting workflow with Bird Eats Bug
+      - listitem:
+        - link "Honeybadger":
+          - /url: /kristys-team/settings/integrations/honeybadger
+        - text: Honeybadger Manage Honeybadger errors via Linear issues
+      - listitem:
+        - link "Jam":
+          - /url: /kristys-team/settings/integrations/jam
+        - text: Jam Create Linear issues with all the details developers need to resolve bugs faster
+      - listitem:
+        - link "Vercel":
+          - /url: /kristys-team/settings/integrations/vercel
+        - text: Vercel Turn Vercel Preview Deployment comments into action items
+      - listitem:
+        - link "Arc":
+          - /url: /kristys-team/settings/integrations/arc
+        - text: Arc Pre-installed Create new issues right from your browser command bar
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Automations" [level=3]
+    - list:
+      - listitem:
+        - link "Zapier":
+          - /url: /kristys-team/settings/integrations/zapier
+        - text: Zapier Build custom automations to create or update Linear issues
+      - listitem:
+        - link "Create issues via email":
+          - /url: /kristys-team/settings/integrations/create-issues-via-email
+        - text: Create issues via email Pre-installed Set up email addresses for teams or templates to create issues via email
+      - listitem:
+        - link "Jira":
+          - /url: /kristys-team/settings/integrations/jira
+        - text: Jira Smoothly transition from Jira to Linear
+      - listitem:
+        - link "Raycast":
+          - /url: /kristys-team/settings/integrations/raycast
+        - text: Raycast Create, search, and modify your issues from anywhere
+      - listitem:
+        - link "Fivetran":
+          - /url: /kristys-team/settings/integrations/fivetran
+        - text: Fivetran Sync your Linear data with the Fivetran connector
+      - listitem:
+        - link "Axolo":
+          - /url: /kristys-team/settings/integrations/axolo
+        - text: Axolo Make code reviews easier by syncing your pull request channels with your Linear issues
+      - listitem:
+        - link "Capybara":
+          - /url: /kristys-team/settings/integrations/capybara
+        - text: Capybara Create Linear issues and comments based on Jira tasks
+      - listitem:
+        - link "Circleback":
+          - /url: /kristys-team/settings/integrations/circleback
+        - text: Circleback Automatically create Linear issues from meeting action items
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Customer Experience" [level=3]
+    - list:
+      - listitem:
+        - link "Zendesk":
+          - /url: /kristys-team/settings/integrations/zendesk
+        - text: Zendesk Keep a tight feedback loop with customers and streamline bug reports
+      - listitem:
+        - link "Intercom":
+          - /url: /kristys-team/settings/integrations/intercom
+        - text: Intercom Keep a tight feedback loop with customers and streamline bug reports
+      - listitem:
+        - link "Front":
+          - /url: /kristys-team/settings/integrations/front
+        - text: Front Keep a tight feedback loop with customers and streamline bug reports
+      - listitem:
+        - link "Canny":
+          - /url: /kristys-team/settings/integrations/canny
+        - text: Canny Sync Canny posts to Linear issues to keep customers in the loop
+      - listitem:
+        - link "Productlane":
+          - /url: /kristys-team/settings/integrations/productlane
+        - text: Productlane Helpdesk, customer requests portal, public roadmap, and changelog built on Linear
+      - listitem:
+        - link "Index":
+          - /url: /kristys-team/settings/integrations/index
+        - text: Index The Productboard and Jira Product Discovery alternative for Product Management on Linear
+      - listitem:
+        - link "Salesforce":
+          - /url: /kristys-team/settings/integrations/salesforce
+        - text: Salesforce Create Linear issues from Salesforce cases
+      - listitem:
+        - link "Atlas Support":
+          - /url: /kristys-team/settings/integrations/atlas-support
+        - text: Atlas Support Keep a tight feedback loop with customers and streamline customer requests
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Collaboration" [level=3]
+    - list:
+      - listitem:
+        - link "Slack":
+          - /url: /kristys-team/settings/integrations/slack
+        - text: Slack Create issues from Slack messages and sync threads
+      - listitem:
+        - link "Linear Asks for Slack":
+          - /url: /kristys-team/settings/integrations/linear-asks
+        - text: Linear Asks for Slack Turn requests from Slack or email into actionable issues and enable helpdesk workflows
+      - listitem:
+        - link "Notion":
+          - /url: /kristys-team/settings/integrations/notion
+        - text: Notion Previews of Linear issues, views and projects and query Notion AI
+      - listitem:
+        - link "Loom":
+          - /url: /kristys-team/settings/integrations/loom
+        - text: Loom Pre-installed Embed Loom videos in Linear issues and documents
+      - listitem:
+        - link "Discord":
+          - /url: /kristys-team/settings/integrations/discord
+        - text: Discord Create issues, share updates, and keep everyone in sync
+      - listitem:
+        - link "Descript":
+          - /url: /kristys-team/settings/integrations/descript
+        - text: Descript Pre-installed Embed Descript share URLs in Linear issues and documents
+      - listitem:
+        - link "Productlane":
+          - /url: /kristys-team/settings/integrations/productlane
+        - text: Productlane Helpdesk, customer requests portal, public roadmap, and changelog built on Linear
+      - listitem:
+        - link "Range":
+          - /url: /kristys-team/settings/integrations/range
+        - text: Range Pull Linear issues into async check-ins to keep your software development team in sync
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Media & Design" [level=3]
+    - list:
+      - listitem:
+        - link "Figma":
+          - /url: /kristys-team/settings/integrations/figma
+        - text: Figma Create and link issues directly from Figma
+      - listitem:
+        - link "Loom":
+          - /url: /kristys-team/settings/integrations/loom
+        - text: Loom Pre-installed Embed Loom videos in Linear issues and documents
+      - listitem:
+        - link "Descript":
+          - /url: /kristys-team/settings/integrations/descript
+        - text: Descript Pre-installed Embed Descript share URLs in Linear issues and documents
+      - listitem:
+        - link "Claap":
+          - /url: /kristys-team/settings/integrations/claap
+        - text: Claap Record bugs and directly create issues in Linear
+      - listitem:
+        - link "Miro":
+          - /url: /kristys-team/settings/integrations/miro
+        - text: Miro Import, create and manage issues directly in Miro
+      - listitem:
+        - link "Screenpresso":
+          - /url: /kristys-team/settings/integrations/screenpresso
+        - text: Screenpresso Effectively report an issue with embedded screenshots and videos
+      - listitem:
+        - link "Tella":
+          - /url: /kristys-team/settings/integrations/tella
+        - text: Tella Embed Tella videos in Linear
+      - listitem:
+        - link "YouTube":
+          - /url: /kristys-team/settings/integrations/youtube
+        - text: YouTube Pre-installed Embed YouTube videos in Linear issues and documents
+    - heading "Analytics" [level=3]
+    - list:
+      - listitem:
+        - link "Airbyte":
+          - /url: /kristys-team/settings/integrations/airbyte
+        - text: Airbyte Connect Linear to Airbyte and consolidate data in data warehouses, lakes, and databases
+      - listitem:
+        - link "Google Sheets":
+          - /url: /kristys-team/settings/integrations/google-sheets
+        - text: Google Sheets Build custom dashboards and analytics from issue and project data
+      - listitem:
+        - link "Fivetran":
+          - /url: /kristys-team/settings/integrations/fivetran
+        - text: Fivetran Sync your Linear data with the Fivetran connector
+      - listitem:
+        - link "Retool":
+          - /url: /kristys-team/settings/integrations/retool
+        - text: Retool Create, update, and analyze Linear issues in custom internal tools
+      - listitem:
+        - link "Span":
+          - /url: /kristys-team/settings/integrations/span
+        - text: Span See how work translates into engineering impact
+      - listitem:
+        - link "Jellyfish":
+          - /url: /kristys-team/settings/integrations/jellyfish
+        - text: Jellyfish Developer productivity insights and AI impact signals in one dashboard
+      - listitem:
+        - link "Coda by Packs4Coda":
+          - /url: /kristys-team/settings/integrations/packs4coda
+        - text: Coda by Packs4Coda Analyze your team's performance, project lifecycles, issues and more with the Linear Pack for Coda
+      - listitem:
+        - link "Cycle Report":
+          - /url: /kristys-team/settings/integrations/cycle-report
+        - text: Cycle Report Create reports of your cycles that your clients can review and sign off on
+      - listitem:
+        - button "View all"
+        - text: Show all
+    - heading "Security & Compliance" [level=3]
+    - list:
+      - listitem:
+        - link "Aikido Security":
+          - /url: /kristys-team/settings/integrations/aikido
+        - text: Aikido Security Put your application security on autopilot
+      - listitem:
+        - link "Cloudback":
+          - /url: /kristys-team/settings/integrations/cloudback
+        - text: Cloudback Automated daily backups of your Linear workspace with on-demand restore
+      - listitem:
+        - link "Drata":
+          - /url: /kristys-team/settings/integrations/drata
+        - text: Drata Simplify risk and managing frameworks like SOC 2, ISO 27001, PCI and more
+      - listitem:
+        - link "Fencer":
+          - /url: /kristys-team/settings/integrations/fencer
+        - text: Fencer Create and link issues directly from Fencer
+      - listitem:
+        - link "Kawach AI":
+          - /url: /kristys-team/settings/integrations/kawach-ai
+        - text: Kawach AI Keep your workspace compliant with org policies using Kawach.AI
+      - listitem:
+        - link "Orca Security":
+          - /url: /kristys-team/settings/integrations/orca-security
+        - text: Orca Security Streamline security fixes by sharing relevant context with the right people
+      - listitem:
+        - link "SecureSlate":
+          - /url: /kristys-team/settings/integrations/secureslate
+        - text: SecureSlate Create and link SecureSlate security tickets to Linear
+      - listitem:
+        - link "Vanta":
+          - /url: /kristys-team/settings/integrations/vanta
+        - text: Vanta Automate compliance. Simplify security. Demonstrate trust.
+  - button "Ask Linear"
+  - button "Chat history"
+  - region "Notifications alt+T"

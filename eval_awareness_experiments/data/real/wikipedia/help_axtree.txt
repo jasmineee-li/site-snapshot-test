@@ -1,0 +1,1208 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Help%3AContents
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Help%3AContents
+  - main:
+    - heading "Help:Contents" [level=1]
+    - button "Go to an article in another language. Available in 189 languages"
+    - navigation "Namespaces":
+      - list:
+        - listitem:
+          - link "Help page":
+            - /url: /wiki/Help:Contents
+        - listitem:
+          - link "Talk":
+            - /url: /wiki/Help_talk:Contents
+    - navigation "Views":
+      - list:
+        - listitem:
+          - link "Read":
+            - /url: /wiki/Help:Contents
+        - listitem:
+          - link "View source":
+            - /url: /w/index.php?title=Help:Contents&action=edit
+        - listitem:
+          - link "View history":
+            - /url: /w/index.php?title=Help:Contents&action=history
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small"
+          - text: Small
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Large"
+          - text: Large
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - link "Wikipedia Help desk":
+      - /url: /wiki/Wikipedia:Help_desk
+      - img "Wikipedia Help desk"
+    - link "Page semi-protected":
+      - /url: /wiki/Wikipedia:Protection_policy#semi
+      - img "Page semi-protected"
+    - text: From Wikipedia, the free encyclopedia
+    - paragraph
+    - region "Introduction":
+      - paragraph:
+        - text: This page provides help with the most common questions about
+        - link "Wikipedia":
+          - /url: /wiki/Wikipedia
+        - text: .
+      - paragraph: You can also use the search box below
+    - search:
+      - textbox "Search Help pages"
+      - button "Search Help"
+    - paragraph:
+      - text: Or browse the
+      - link "Help menu":
+        - /url: /wiki/Help:Menu
+      - text: or the
+      - link "Help directory":
+        - /url: /wiki/Help:Directory
+      - text: to find help pages. For interactive assistance related to using and editing Wikipedia, see the
+      - link "help desk":
+        - /url: /wiki/Wikipedia:Help_desk
+      - text: and the
+      - link "Teahouse":
+        - /url: /wiki/Wikipedia:TH/Q
+      - text: .
+    - region "Read or find an article":
+      - heading "Read or find an article" [level=2]
+      - paragraph:
+        - text: The
+        - link "Readers' FAQ":
+          - /url: /wiki/Wikipedia:FAQ/Readers
+        - text: and our
+        - link "about page":
+          - /url: /wiki/Wikipedia:About
+        - text: contain the most commonly sought information about Wikipedia.
+      - paragraph:
+        - text: For simple searches, there is a search bar at the top of every page. Type what you are looking for in the box. Suggested matches will appear in a dropdown list. Select any page in the list to go to that page. Or, select the "Search" button, or press ↵ Enter, to go to a full search result. For advanced searches, see
+        - link "Help:Searching":
+          - /url: /wiki/Help:Searching
+        - text: .
+      - paragraph:
+        - text: There are other ways to browse and explore Wikipedia articles; many can be found at
+        - link "Wikipedia:Contents":
+          - /url: /wiki/Wikipedia:Contents
+        - text: . See our
+        - link "disclaimer":
+          - /url: /wiki/Wikipedia:General_disclaimer
+        - text: for cautions about Wikipedia's limitations.
+      - paragraph:
+        - text: For
+        - link "mobile access":
+          - /url: /wiki/Help:Mobile_access
+        - text: ", press the"
+        - link "mobile view":
+          - /url: https://en.m.wikipedia.org/wiki/Help:Contents
+        - text: link at the very bottom of every
+        - link "desktop view":
+          - /url: https://en.wikipedia.org/wiki/Help:Contents
+        - text: page.
+    - region "Edit an article":
+      - heading "Edit an article" [level=2]
+      - paragraph:
+        - text: "Contributing is easy: see"
+        - link "how to edit a page":
+          - /url: /wiki/Help:Editing
+        - text: . For a quick summary on participating, see
+        - link "contributing to Wikipedia":
+          - /url: /wiki/Wikipedia:Contributing_to_Wikipedia
+        - text: ", and for a friendly tutorial, see"
+        - link "our introduction":
+          - /url: /wiki/Help:Introduction
+        - text: . The
+        - link "Simplified Manual of Style":
+          - /url: /wiki/Wikipedia:SMOS
+        - text: and
+        - link "Cheatsheet":
+          - /url: /wiki/Help:Cheatsheet
+        - text: can remind you of basic
+        - link "wiki markup":
+          - /url: /wiki/Help:Wikitext
+        - text: .
+      - paragraph:
+        - link "Be bold":
+          - /url: /wiki/Wikipedia:Be_bold
+        - text: in improving articles! When adding facts, please
+        - link "provide references":
+          - /url: /wiki/Help:Introduction_to_referencing/1
+        - text: so others may verify them. If you are affiliated with the article subject, please see our
+        - link "conflict of interest guideline":
+          - /url: /wiki/Wikipedia:Conflict_of_interest
+        - text: .
+      - paragraph:
+        - text: The
+        - link "simple guide to vandalism cleanup":
+          - /url: /wiki/Help:Simple_guide_to_vandalism_cleanup
+        - text: can help you undo malicious edits.
+      - paragraph:
+        - text: If you're looking for places you can help out, the
+        - link "Task Center":
+          - /url: /wiki/Wikipedia:Task_Center
+        - text: is the place to go, or check out what else is happening at the
+        - link "community portal":
+          - /url: /wiki/Wikipedia:Community_portal
+        - text: . You can practice editing and experiment in a
+        - link "sandbox":
+          - /url: /wiki/Wikipedia:Sandbox
+        - text: .
+    - region "Report a problem with an article":
+      - heading "Report a problem with an article" [level=2]
+      - paragraph:
+        - text: If there is a problem with an article about yourself, a family member, a friend or a colleague, please read
+        - link "Biographies of living persons/Help":
+          - /url: /wiki/Wikipedia:Biographies_of_living_persons/Help
+        - text: .
+      - paragraph:
+        - text: If you spot a problem with an article, you can fix it directly, by clicking on the "Edit" link at the top of that page.
+        - link "See the \"edit an article\" section of this page":
+          - /url: "#edit-heading"
+        - text: for more information.
+      - paragraph:
+        - text: If you don't feel ready to fix the article yourself, post a message on the article's
+        - link "talk page":
+          - /url: /wiki/Wikipedia:Talk_page_guidelines
+        - text: . This will bring the matter to the attention of others who work on that article. There is a "Talk" link at the beginning of
+        - emphasis: every
+        - text: article page.
+      - paragraph:
+        - text: You can
+        - link "contact us":
+          - /url: /wiki/Wikipedia:Contact_us_-_Readers
+        - text: . If it's an article about you or your organization, see
+        - link "Contact us – Subjects":
+          - /url: /wiki/Wikipedia:Contact_us_-_Subjects
+        - text: .
+    - region "Create a new article or upload media":
+      - heading "Create a new article or upload media" [level=2]
+      - paragraph:
+        - text: Check
+        - link "Your first article":
+          - /url: /wiki/Wikipedia:Your_first_article
+        - text: to see if your topic is appropriate, then the
+        - link "Article wizard":
+          - /url: /wiki/Wikipedia:Article_wizard
+        - text: will walk you through creating the article.
+      - paragraph:
+        - text: Once you have created an article, see
+        - link "Writing better articles":
+          - /url: /wiki/Wikipedia:Writing_better_articles
+        - text: for guidance on how to improve it and what to include (like reference
+        - link "citations":
+          - /url: /wiki/Wikipedia:Citing_sources
+        - text: ).
+      - paragraph:
+        - text: For contributing images, audio or video files, see the
+        - link "Introduction to uploading images":
+          - /url: /wiki/Help:Introduction_to_uploading_images/1
+        - text: . Then the
+        - link "Upload wizard":
+          - /url: /wiki/Wikipedia:File_Upload_Wizard
+        - text: will guide you through that process.
+    - region "FAQ and interactive help":
+      - heading "FAQ and interactive help" [level=2]
+      - paragraph:
+        - text: Answers to common problems can be found at
+        - link "frequently asked questions":
+          - /url: /wiki/Wikipedia:FAQ
+        - text: .
+      - paragraph:
+        - text: Or check out
+        - link "where to ask questions or make comments":
+          - /url: /wiki/Wikipedia:Questions
+        - text: .
+      - paragraph:
+        - text: New users should seek help at the
+        - link "Teahouse":
+          - /url: /wiki/Wikipedia:Teahouse
+        - text: if they're having problems while editing Wikipedia.
+      - paragraph:
+        - text: More complex questions can be posed at the
+        - link "Help desk":
+          - /url: /wiki/Wikipedia:Help_desk
+        - text: . Volunteers will respond as soon as they're able.
+      - paragraph:
+        - text: Or
+        - link "ask for help on your talk page":
+          - /url: https://en.wikipedia.org/w/index.php?title=Special:MyTalk&action=edit&section=new&preload=Help:Contents/helpmepreload&preloadtitle=Help+me%21
+        - text: and a volunteer will visit you there!
+      - paragraph:
+        - text: You can get live help with editing in the
+        - link "help chatroom":
+          - /url: /wiki/Wikipedia:IRC_help_disclaimer
+        - text: .
+      - paragraph:
+        - text: For help with technical issues, ask at the
+        - link "Village pump":
+          - /url: /wiki/Wikipedia:Village_pump_(technical)
+        - text: .
+    - region "Factual questions":
+      - heading "Factual questions" [level=2]
+      - paragraph:
+        - text: If
+        - link "searching Wikipedia":
+          - /url: /wiki/Special:Search
+        - text: has not answered your question (for example, questions like "Which country has the world's largest fishing fleet?"), try the
+        - link "Reference Desk":
+          - /url: /wiki/Wikipedia:Reference_desk
+        - text: . Volunteers there will attempt to answer your questions on any topic, or point you toward the information you need.
+    - complementary "Tip of the day":
+      - heading "Tip of the day" [level=2]
+      - text: Search box bookmarklet for your browser
+      - paragraph:
+        - link "Bookmarklets":
+          - /url: /wiki/Bookmarklet
+        - text: are
+        - link "Javascript":
+          - /url: /wiki/Javascript
+        - text: "programs that are stored as bookmarks in your browser, and which run when you click on them as opposed to bringing you to a page like a normal bookmark. Here is one that conducts a search in Wikipedia on any text you happen to have highlighted in whichever window you are in (or if no text is highlighted, presents you with a popup search box):"
+        - link "~axel/bookmarklet.html":
+          - /url: http://math-www.uni-paderborn.de/~axel/bookmarklet.html
+        - text: . See also
+        - link "Bookmarklets":
+          - /url: http://www.bookmarklets.com/
+        - text: .
+      - link "Prior tip":
+        - /url: /wiki/Wikipedia:Tip_of_the_day/April_8
+      - text: –
+      - link "Tips library":
+        - /url: /wiki/Wikipedia:Tips
+      - text: –
+      - link "Next tip":
+        - /url: /wiki/Wikipedia:Tip_of_the_day/April_10
+      - text: "Read more:"
+      - link "Bookmarklet":
+        - /url: /wiki/Bookmarklet
+      - link "Become a Wikipedia tipster":
+        - /url: /wiki/Wikipedia:Wikipedia_tipster
+      - text: –
+      - link "Tips library, by subject":
+        - /url: /wiki/Wikipedia:Tips
+      - note:
+        - text: "To add this auto-updating daily tip to your user page, use {{"
+        - link "totd":
+          - /url: /wiki/Template:Totd
+        - text: "}}"
+    - search "Additional searches":
+      - heading "Additional searches" [level=2]
+      - paragraph:
+        - text: Search
+        - link "Frequently Asked Questions":
+          - /url: /wiki/Wikipedia:FAQ
+      - textbox
+      - button "Search the FAQ"
+      - paragraph:
+        - text: Search the
+        - link "help desk archives":
+          - /url: /wiki/Wikipedia:Help_desk/Archives
+      - textbox
+      - button "Search the archives"
+    - separator
+    - navigation "Basic information on Wikipedia - (Search)":
+      - table:
+        - rowgroup:
+          - row "[hide] v · t · e Basic information on Wikipedia - (Search)":
+            - columnheader "[hide] v · t · e Basic information on Wikipedia - (Search)":
+              - button "[hide]" [expanded]
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: /wiki/Template:Basic_information
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: /wiki/Template_talk:Basic_information
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: /wiki/Special:EditPage/Template:Basic_information
+              - link "Basic information on Wikipedia":
+                - /url: /wiki/Category:Wikipedia_basic_information
+              - text: "- ("
+              - link "Search":
+                - /url: /wiki/Help:Searching#Custom_search_boxes
+              - text: )
+          - row "Help (directory · menu) · Teahouse (interactive help for new editors)":
+            - cell "Help (directory · menu) · Teahouse (interactive help for new editors)":
+              - list:
+                - listitem:
+                  - text: Help
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "directory":
+                        - /url: /wiki/Help:Directory
+                      - text: ·
+                    - listitem:
+                      - link "menu":
+                        - /url: /wiki/Help:Menu
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Teahouse":
+                    - /url: /wiki/Wikipedia:Teahouse
+                  - text: (interactive help for new editors)
+          - row "About Wikipedia Administration · FAQs (Purpose · Who writes Wikipedia? · Organization) · Censorship · In brief · General disclaimer":
+            - rowheader "About Wikipedia":
+              - link "About Wikipedia":
+                - /url: /wiki/Wikipedia:About
+            - cell "Administration · FAQs (Purpose · Who writes Wikipedia? · Organization) · Censorship · In brief · General disclaimer":
+              - list:
+                - listitem:
+                  - link "Administration":
+                    - /url: /wiki/Wikipedia:Administration
+                  - text: ·
+                - listitem:
+                  - link "FAQs":
+                    - /url: /wiki/Wikipedia:FAQ/Index
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Purpose":
+                        - /url: /wiki/Wikipedia:Purpose
+                      - text: ·
+                    - listitem:
+                      - link "Who writes Wikipedia?":
+                        - /url: /wiki/Wikipedia:Who_writes_Wikipedia%3F
+                      - text: ·
+                    - listitem:
+                      - link "Organization":
+                        - /url: /wiki/Wikipedia:Formal_organization
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Censorship":
+                    - /url: /wiki/Help:Censorship
+                  - text: ·
+                - listitem:
+                  - link "In brief":
+                    - /url: /wiki/Wikipedia:Wikipedia_in_brief
+                  - text: ·
+                - listitem:
+                  - link "General disclaimer":
+                    - /url: /wiki/Wikipedia:General_disclaimer
+          - row "Readers' FAQ Student help · Navigation · Searching · Viewing media (Help) · Mobile access · Parental advice · Other languages · Researching with Wikipedia (Citing Wikipedia) · Copyright":
+            - rowheader "Readers' FAQ":
+              - link "Readers' FAQ":
+                - /url: /wiki/Wikipedia:FAQ/Readers
+            - cell "Student help · Navigation · Searching · Viewing media (Help) · Mobile access · Parental advice · Other languages · Researching with Wikipedia (Citing Wikipedia) · Copyright":
+              - list:
+                - listitem:
+                  - link "Student help":
+                    - /url: /wiki/Help:Student_help
+                  - text: ·
+                - listitem:
+                  - link "Navigation":
+                    - /url: /wiki/Help:Navigation
+                  - text: ·
+                - listitem:
+                  - link "Searching":
+                    - /url: /wiki/Help:Searching
+                  - text: ·
+                - listitem:
+                  - link "Viewing media":
+                    - /url: /wiki/Help:Viewing_media
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Help":
+                        - /url: /wiki/Help:Media
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Mobile access":
+                    - /url: /wiki/Help:Mobile_access
+                  - text: ·
+                - listitem:
+                  - link "Parental advice":
+                    - /url: /wiki/Wikipedia:Advice_for_parents
+                  - text: ·
+                - listitem:
+                  - link "Other languages":
+                    - /url: /wiki/Help:Other_languages
+                  - text: ·
+                - listitem:
+                  - link "Researching with Wikipedia":
+                    - /url: /wiki/Wikipedia:Researching_with_Wikipedia
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Citing Wikipedia":
+                        - /url: /wiki/Wikipedia:Citing_Wikipedia
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Copyright":
+                    - /url: /wiki/Help:Copyright
+          - row "Introductions to contributing Main introduction · List of tutorials and introductions · The answer · Dos and don'ts · Learning the ropes · Common mistakes · Newcomer primer · Simplified ruleset · The \"Missing Manual\" · Your first article (Wizard) · Young Wikipedians · The Wikipedia Adventure · Accounts (Why create an account? · Logging in · Email confirmation) · Editing (Toolbar · Conflict) · VisualEditor (User guide)":
+            - rowheader "Introductions to contributing":
+              - link "Introductions to contributing":
+                - /url: /wiki/Wikipedia:Contributing_to_Wikipedia
+            - cell "Main introduction · List of tutorials and introductions · The answer · Dos and don'ts · Learning the ropes · Common mistakes · Newcomer primer · Simplified ruleset · The \"Missing Manual\" · Your first article (Wizard) · Young Wikipedians · The Wikipedia Adventure · Accounts (Why create an account? · Logging in · Email confirmation) · Editing (Toolbar · Conflict) · VisualEditor (User guide)":
+              - list:
+                - listitem:
+                  - link "Main introduction":
+                    - /url: /wiki/Help:Introduction
+                  - text: ·
+                - listitem:
+                  - link "List of tutorials and introductions":
+                    - /url: /wiki/Help:Getting_started
+                  - text: ·
+                - listitem:
+                  - link "The answer":
+                    - /url: /wiki/Wikipedia:The_answer_to_life,_the_universe,_and_everything
+                  - text: ·
+                - listitem:
+                  - link "Dos and don'ts":
+                    - /url: /wiki/Wikipedia:Dos_and_don%27ts
+                  - text: ·
+                - listitem:
+                  - link "Learning the ropes":
+                    - /url: /wiki/Wikipedia:Learning_the_ropes
+                  - text: ·
+                - listitem:
+                  - link "Common mistakes":
+                    - /url: /wiki/Wikipedia:Avoiding_common_mistakes
+                  - text: ·
+                - listitem:
+                  - link "Newcomer primer":
+                    - /url: /wiki/Wikipedia:A_primer_for_newcomers
+                  - text: ·
+                - listitem:
+                  - link "Simplified ruleset":
+                    - /url: /wiki/Wikipedia:Simplified_ruleset
+                  - text: ·
+                - listitem:
+                  - link "The \"Missing Manual\"":
+                    - /url: /wiki/Help:Wikipedia:_The_Missing_Manual
+                  - text: ·
+                - listitem:
+                  - link "Your first article":
+                    - /url: /wiki/Help:Your_first_article
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Wizard":
+                        - /url: /wiki/Wikipedia:Article_wizard
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Young Wikipedians":
+                    - /url: /wiki/Wikipedia:Guidance_for_younger_editors
+                  - text: ·
+                - listitem:
+                  - link "The Wikipedia Adventure":
+                    - /url: /wiki/Wikipedia:The_Wikipedia_Adventure
+                  - text: ·
+                - listitem:
+                  - text: Accounts
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Why create an account?":
+                        - /url: /wiki/Wikipedia:Why_create_an_account%3F
+                      - text: ·
+                    - listitem:
+                      - link "Logging in":
+                        - /url: /wiki/Help:Logging_in
+                      - text: ·
+                    - listitem:
+                      - link "Email confirmation":
+                        - /url: /wiki/Help:Email_confirmation
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Editing":
+                    - /url: /wiki/Help:Editing
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Toolbar":
+                        - /url: /wiki/Help:Edit_toolbar
+                      - text: ·
+                    - listitem:
+                      - link "Conflict":
+                        - /url: /wiki/Help:Edit_conflict
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "VisualEditor":
+                    - /url: /wiki/Wikipedia:VisualEditor
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "User guide":
+                        - /url: /wiki/Wikipedia:VisualEditor/User_guide
+                      - text: )
+          - row "Pillars, policies and guidelines Five pillars · Manual of Style (Simplified) · Etiquette (Expectations · Oversight) · Principles · Ignore all rules (The rules are principles) · Core content policies · Policies and guidelines · Vandalism · Appealing blocks · What Wikipedia is not":
+            - rowheader "Pillars, policies and guidelines":
+              - link "Pillars, policies and guidelines":
+                - /url: /wiki/Wikipedia:Policies_and_guidelines
+            - cell "Five pillars · Manual of Style (Simplified) · Etiquette (Expectations · Oversight) · Principles · Ignore all rules (The rules are principles) · Core content policies · Policies and guidelines · Vandalism · Appealing blocks · What Wikipedia is not":
+              - list:
+                - listitem:
+                  - link "Five pillars":
+                    - /url: /wiki/Wikipedia:Five_pillars
+                  - text: ·
+                - listitem:
+                  - link "Manual of Style":
+                    - /url: /wiki/Wikipedia:Manual_of_Style
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Simplified":
+                        - /url: /wiki/Wikipedia:Simplified_Manual_of_Style
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Etiquette":
+                    - /url: /wiki/Wikipedia:Etiquette
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Expectations":
+                        - /url: /wiki/Wikipedia:Expectations_and_norms_of_the_Wikipedia_community
+                      - text: ·
+                    - listitem:
+                      - link "Oversight":
+                        - /url: /wiki/Wikipedia:Editorial_oversight_and_control
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Principles":
+                    - /url: /wiki/Wikipedia:Principles
+                  - text: ·
+                - listitem:
+                  - link "Ignore all rules":
+                    - /url: /wiki/Wikipedia:Ignore_all_rules
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "The rules are principles":
+                        - /url: /wiki/Wikipedia:The_rules_are_principles
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Core content policies":
+                    - /url: /wiki/Wikipedia:Core_content_policies
+                  - text: ·
+                - listitem:
+                  - link "Policies and guidelines":
+                    - /url: /wiki/Wikipedia:List_of_policies_and_guidelines
+                  - text: ·
+                - listitem:
+                  - link "Vandalism":
+                    - /url: /wiki/Wikipedia:Vandalism
+                  - text: ·
+                - listitem:
+                  - link "Appealing blocks":
+                    - /url: /wiki/Wikipedia:Guide_to_appealing_blocks
+                  - text: ·
+                - listitem:
+                  - link "What Wikipedia is not":
+                    - /url: /wiki/Wikipedia:What_Wikipedia_is_not
+          - row "Getting help Help menu · Help desk · Reference desk · Category · Requests for help (Disputes resolution requests) · IRC live chat (Tutorial) · Contact us":
+            - rowheader "Getting help":
+              - link "Getting help":
+                - /url: /wiki/Wikipedia:Questions
+            - cell "Help menu · Help desk · Reference desk · Category · Requests for help (Disputes resolution requests) · IRC live chat (Tutorial) · Contact us":
+              - list:
+                - listitem:
+                  - link "Help menu":
+                    - /url: /wiki/Help:Menu
+                  - text: ·
+                - listitem:
+                  - link "Help desk":
+                    - /url: /wiki/Wikipedia:Help_desk
+                  - text: ·
+                - listitem:
+                  - link "Reference desk":
+                    - /url: /wiki/Wikipedia:Reference_desk
+                  - text: ·
+                - listitem:
+                  - link "Category":
+                    - /url: /wiki/Help:Category
+                  - text: ·
+                - listitem:
+                  - link "Requests for help":
+                    - /url: /wiki/Wikipedia:Request_directory
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Disputes resolution requests":
+                        - /url: /wiki/Wikipedia:Dispute_resolution_requests
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "IRC live chat":
+                    - /url: /wiki/Wikipedia:IRC
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Tutorial":
+                        - /url: /wiki/Wikipedia:IRC/Tutorial
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Contact us":
+                    - /url: /wiki/Wikipedia:Contact_us
+          - 'row "Wikipedia community Departments · Meetups · WikiProjects (Overview · FAQ) · Village pump (policy · technical · proposals · idea lab · wikimedia · misc) · Newsletters: (Signpost · Library Newsletter · GLAM Newsletter) · Informational: (Community portal · Dashboard (Noticeboards) · Maintenance (Task Center) · Essays) · Open letters"':
+            - rowheader "Wikipedia community":
+              - link "Wikipedia community":
+                - /url: /wiki/Wikipedia_community
+            - 'cell "Departments · Meetups · WikiProjects (Overview · FAQ) · Village pump (policy · technical · proposals · idea lab · wikimedia · misc) · Newsletters: (Signpost · Library Newsletter · GLAM Newsletter) · Informational: (Community portal · Dashboard (Noticeboards) · Maintenance (Task Center) · Essays) · Open letters"':
+              - list:
+                - listitem:
+                  - link "Departments":
+                    - /url: /wiki/Wikipedia:Department_directory
+                  - text: ·
+                - listitem:
+                  - link "Meetups":
+                    - /url: /wiki/Wikipedia:Meetup
+                  - text: ·
+                - listitem:
+                  - link "WikiProjects":
+                    - /url: /wiki/Wikipedia:WikiProject
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Overview":
+                        - /url: /wiki/Wikipedia:WikiProject_Council/Guide#What_is_a_WikiProject?
+                      - text: ·
+                    - listitem:
+                      - link "FAQ":
+                        - /url: /wiki/Wikipedia:Wikipedia_Signpost/2013-04-01/WikiProject_report
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Village pump":
+                    - /url: /wiki/Wikipedia:Village_pump
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "policy":
+                        - /url: /wiki/Wikipedia:Village_pump_(policy)
+                      - text: ·
+                    - listitem:
+                      - link "technical":
+                        - /url: /wiki/Wikipedia:Village_pump_(technical)
+                      - text: ·
+                    - listitem:
+                      - link "proposals":
+                        - /url: /wiki/Wikipedia:Village_pump_(proposals)
+                      - text: ·
+                    - listitem:
+                      - link "idea lab":
+                        - /url: /wiki/Wikipedia:Village_pump_(idea_lab)
+                      - text: ·
+                    - listitem:
+                      - link "wikimedia":
+                        - /url: /wiki/Wikipedia:Village_pump_(WMF)
+                      - text: ·
+                    - listitem:
+                      - link "misc":
+                        - /url: /wiki/Wikipedia:Village_pump_(miscellaneous)
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Newsletters":
+                    - /url: /wiki/Wikipedia:News
+                  - text: ":"
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Signpost":
+                        - /url: /wiki/Wikipedia:Wikipedia_Signpost
+                      - text: ·
+                    - listitem:
+                      - link "Library Newsletter":
+                        - /url: https://meta.wikimedia.org/wiki/The_Wikipedia_Library/Newsletter
+                      - text: ·
+                    - listitem:
+                      - link "GLAM Newsletter":
+                        - /url: https://meta.wikimedia.org/wiki/GLAM/Newsletter
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - text: "Informational:"
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Community portal":
+                        - /url: /wiki/Wikipedia:Community_portal
+                      - text: ·
+                    - listitem:
+                      - link "Dashboard":
+                        - /url: /wiki/Wikipedia:Dashboard
+                      - list:
+                        - listitem:
+                          - text: (
+                          - link "Noticeboards":
+                            - /url: /wiki/Wikipedia:Noticeboards
+                          - text: )
+                      - text: ·
+                    - listitem:
+                      - link "Maintenance":
+                        - /url: /wiki/Wikipedia:Maintenance
+                      - list:
+                        - listitem:
+                          - text: (
+                          - link "Task Center":
+                            - /url: /wiki/Wikipedia:Task_Center
+                          - text: )
+                      - text: ·
+                    - listitem:
+                      - link "Essays":
+                        - /url: /wiki/Wikipedia:Essays
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Open letters":
+                    - /url: /wiki/Wikipedia:Open_letters
+          - row "Sourcing and referencing Research Wikipedia Library (Request Resources · Free resources · Request access to major databases) · WikiProject Resource Exchange (Shared resources) Guidelines Finding sources · Combining sources · Referencing · Citations (Citation Style 1 · Citation templates · Footnotes · Page numbers · Cite errors)":
+            - rowheader "Sourcing and referencing":
+              - link "Sourcing":
+                - /url: /wiki/Wikipedia:Citing_sources
+              - text: and
+              - link "referencing":
+                - /url: /wiki/Wikipedia:Reliable_sources
+            - cell "Research Wikipedia Library (Request Resources · Free resources · Request access to major databases) · WikiProject Resource Exchange (Shared resources) Guidelines Finding sources · Combining sources · Referencing · Citations (Citation Style 1 · Citation templates · Footnotes · Page numbers · Cite errors)":
+              - table:
+                - rowgroup:
+                  - row "Research Wikipedia Library (Request Resources · Free resources · Request access to major databases) · WikiProject Resource Exchange (Shared resources)":
+                    - rowheader "Research"
+                    - cell "Wikipedia Library (Request Resources · Free resources · Request access to major databases) · WikiProject Resource Exchange (Shared resources)":
+                      - list:
+                        - listitem:
+                          - link "Wikipedia Library":
+                            - /url: /wiki/Wikipedia:The_Wikipedia_Library
+                          - list:
+                            - listitem:
+                              - text: (
+                              - link "Request Resources":
+                                - /url: /wiki/Wikipedia:WikiProject_Resource_Exchange/Resource_Request
+                              - text: ·
+                            - listitem:
+                              - link "Free resources":
+                                - /url: /wiki/Wikipedia:The_Wikipedia_Library/Free_resources
+                              - text: ·
+                            - listitem:
+                              - link "Request access to major databases":
+                                - /url: https://wikipedialibrary.wmflabs.org/
+                              - text: )
+                          - text: ·
+                        - listitem:
+                          - link "WikiProject Resource Exchange":
+                            - /url: /wiki/Wikipedia:WikiProject_Resource_Exchange
+                          - list:
+                            - listitem:
+                              - text: (
+                              - link "Shared resources":
+                                - /url: /wiki/Wikipedia:WikiProject_Resource_Exchange/Shared_Resources
+                              - text: )
+                  - row "Guidelines Finding sources · Combining sources · Referencing · Citations (Citation Style 1 · Citation templates · Footnotes · Page numbers · Cite errors)":
+                    - rowheader "Guidelines"
+                    - cell "Finding sources · Combining sources · Referencing · Citations (Citation Style 1 · Citation templates · Footnotes · Page numbers · Cite errors)":
+                      - list:
+                        - listitem:
+                          - link "Finding sources":
+                            - /url: /wiki/Help:Find_sources
+                          - text: ·
+                        - listitem:
+                          - link "Combining sources":
+                            - /url: /wiki/Wikipedia:Combining_sources
+                          - text: ·
+                        - listitem:
+                          - link "Referencing":
+                            - /url: /wiki/Help:Referencing_for_beginners
+                          - text: ·
+                        - listitem:
+                          - link "Citations":
+                            - /url: /wiki/Help:Citations_quick_reference
+                          - list:
+                            - listitem:
+                              - text: (
+                              - link "Citation Style 1":
+                                - /url: /wiki/Help:Citation_Style_1
+                              - text: ·
+                            - listitem:
+                              - link "Citation templates":
+                                - /url: /wiki/Wikipedia:Citation_templates
+                              - text: ·
+                            - listitem:
+                              - link "Footnotes":
+                                - /url: /wiki/Help:Footnotes
+                              - text: ·
+                            - listitem:
+                              - link "Page numbers":
+                                - /url: /wiki/Help:References_and_page_numbers
+                              - text: ·
+                            - listitem:
+                              - link "Cite errors":
+                                - /url: /wiki/Help:Cite_errors
+                              - text: )
+          - row "How-to guides Category · Tools · Infoboxes · Writing articles (Development · Better writing) · Files (Images · Media files · Uploading · Deletion) · User contribution pages · Editing pages (Diffs · Namespaces · Deletion · Merging · Renaming · Requests · Redirecting · Reverting) · Vandalism cleanup · Talk pages (Archiving)":
+            - rowheader "How-to guides":
+              - link "How-to guides":
+                - /url: /wiki/Category:Wikipedia_how-to
+            - cell "Category · Tools · Infoboxes · Writing articles (Development · Better writing) · Files (Images · Media files · Uploading · Deletion) · User contribution pages · Editing pages (Diffs · Namespaces · Deletion · Merging · Renaming · Requests · Redirecting · Reverting) · Vandalism cleanup · Talk pages (Archiving)":
+              - list:
+                - listitem:
+                  - link "Category":
+                    - /url: /wiki/Category:Wikipedia_information_pages
+                  - text: ·
+                - listitem:
+                  - link "Tools":
+                    - /url: /wiki/Wikipedia:Tools
+                  - text: ·
+                - listitem:
+                  - link "Infoboxes":
+                    - /url: /wiki/Help:Infobox
+                  - text: ·
+                - listitem:
+                  - link "Writing articles":
+                    - /url: /wiki/Wikipedia:Essays_in_a_nutshell/Article_writing
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Development":
+                        - /url: /wiki/Wikipedia:Article_development
+                      - text: ·
+                    - listitem:
+                      - link "Better writing":
+                        - /url: /wiki/Wikipedia:Writing_better_articles
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Files":
+                    - /url: /wiki/Help:Files
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Images":
+                        - /url: /wiki/Wikipedia:Images
+                      - text: ·
+                    - listitem:
+                      - link "Media files":
+                        - /url: /wiki/Help:Creation_and_usage_of_media_files
+                      - text: ·
+                    - listitem:
+                      - link "Uploading":
+                        - /url: /wiki/Wikipedia:Uploading_images
+                      - text: ·
+                    - listitem:
+                      - link "Deletion":
+                        - /url: /wiki/Wikipedia:Guide_to_image_deletion
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "User contribution pages":
+                    - /url: /wiki/Help:User_contributions
+                  - text: ·
+                - listitem:
+                  - link "Editing pages":
+                    - /url: /wiki/Help:Editing
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Diffs":
+                        - /url: /wiki/Help:Diff
+                      - text: ·
+                    - listitem:
+                      - link "Namespaces":
+                        - /url: /wiki/Wikipedia:Namespace
+                      - text: ·
+                    - listitem:
+                      - link "Deletion":
+                        - /url: /wiki/Wikipedia:Guide_to_deletion
+                      - text: ·
+                    - listitem:
+                      - link "Merging":
+                        - /url: /wiki/Wikipedia:Merging
+                      - text: ·
+                    - listitem:
+                      - link "Renaming":
+                        - /url: /wiki/Help:How_to_move_a_page
+                      - text: ·
+                    - listitem:
+                      - link "Requests":
+                        - /url: /wiki/Wikipedia:Requested_moves
+                      - text: ·
+                    - listitem:
+                      - link "Redirecting":
+                        - /url: /wiki/Help:Redirect
+                      - text: ·
+                    - listitem:
+                      - link "Reverting":
+                        - /url: /wiki/Help:Reverting
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Vandalism cleanup":
+                    - /url: /wiki/Help:Simple_guide_to_vandalism_cleanup
+                  - text: ·
+                - listitem:
+                  - link "Talk pages":
+                    - /url: /wiki/Help:Talk_pages
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Archiving":
+                        - /url: /wiki/Help:Archiving_a_talk_page
+                      - text: )
+          - row "Wiki markup Wiki markup (Cheatsheet) · Columns · HTML · Lists · Magic words (For beginners) · Sections · Sounds · Special Characters · Tables · Templates (Documentation · Index) · Substitution · Transclusion · Image and video markup (Tutorial) · Linking":
+            - rowheader "Wiki markup"
+            - cell "Wiki markup (Cheatsheet) · Columns · HTML · Lists · Magic words (For beginners) · Sections · Sounds · Special Characters · Tables · Templates (Documentation · Index) · Substitution · Transclusion · Image and video markup (Tutorial) · Linking":
+              - list:
+                - listitem:
+                  - link "Wiki markup":
+                    - /url: /wiki/Help:Wikitext
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Cheatsheet":
+                        - /url: /wiki/Help:Cheatsheet
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Columns":
+                    - /url: /wiki/Help:Columns
+                  - text: ·
+                - listitem:
+                  - link "HTML":
+                    - /url: /wiki/Help:HTML_in_wikitext
+                  - text: ·
+                - listitem:
+                  - link "Lists":
+                    - /url: /wiki/Help:List
+                  - text: ·
+                - listitem:
+                  - link "Magic words":
+                    - /url: /wiki/Help:Magic_words
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "For beginners":
+                        - /url: /wiki/Help:Magic_words_for_beginners
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Sections":
+                    - /url: /wiki/Help:Section
+                  - text: ·
+                - listitem:
+                  - link "Sounds":
+                    - /url: /wiki/Help:Sound_file_markup
+                  - text: ·
+                - listitem:
+                  - link "Special Characters":
+                    - /url: /wiki/Help:Special_characters
+                  - text: ·
+                - listitem:
+                  - link "Tables":
+                    - /url: /wiki/Help:Table
+                  - text: ·
+                - listitem:
+                  - link "Templates":
+                    - /url: /wiki/Help:Template
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Documentation":
+                        - /url: /wiki/Wikipedia:Template_documentation
+                      - text: ·
+                    - listitem:
+                      - link "Index":
+                        - /url: /wiki/Wikipedia:Template_index
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Substitution":
+                    - /url: /wiki/Wikipedia:Substitution
+                  - text: ·
+                - listitem:
+                  - link "Transclusion":
+                    - /url: /wiki/Wikipedia:Transclusion
+                  - text: ·
+                - listitem:
+                  - link "Image and video markup":
+                    - /url: /wiki/Help:Visual_file_markup
+                  - list:
+                    - listitem:
+                      - text: (
+                      - link "Tutorial":
+                        - /url: /wiki/Help:Pictures
+                      - text: )
+                  - text: ·
+                - listitem:
+                  - link "Linking":
+                    - /url: /wiki/Help:Link
+          - row "Directories and glossaries Category · Abbreviations · AI · Contents · Edit summaries · Essays · Glossary · Index · Shortcuts · Tips":
+            - rowheader "Directories and glossaries":
+              - link "Directories":
+                - /url: /wiki/Wikipedia:Directories_and_indexes
+              - text: and glossaries
+            - cell "Category · Abbreviations · AI · Contents · Edit summaries · Essays · Glossary · Index · Shortcuts · Tips":
+              - list:
+                - listitem:
+                  - link "Category":
+                    - /url: /wiki/Category:Wikipedia_directories
+                  - text: ·
+                - listitem:
+                  - link "Abbreviations":
+                    - /url: /wiki/Wikipedia:Wikipedia_abbreviations
+                  - text: ·
+                - listitem:
+                  - link "AI":
+                    - /url: /wiki/Wikipedia:Artificial_intelligence_resources
+                  - text: ·
+                - listitem:
+                  - link "Contents":
+                    - /url: /wiki/Wikipedia:Contents
+                  - text: ·
+                - listitem:
+                  - link "Edit summaries":
+                    - /url: /wiki/Wikipedia:Edit_summary_legend
+                  - text: ·
+                - listitem:
+                  - link "Essays":
+                    - /url: /wiki/Wikipedia:Essay_directory
+                  - text: ·
+                - listitem:
+                  - link "Glossary":
+                    - /url: /wiki/Wikipedia:Glossary
+                  - text: ·
+                - listitem:
+                  - link "Index":
+                    - /url: /wiki/Wikipedia:Editor%27s_index_to_Wikipedia
+                  - text: ·
+                - listitem:
+                  - link "Shortcuts":
+                    - /url: /wiki/Wikipedia:Shortcut_index
+                  - text: ·
+                - listitem:
+                  - link "Tips":
+                    - /url: /wiki/Wikipedia:Tips
+    - separator
+    - note:
+      - link "Shortcuts":
+        - /url: /wiki/Wikipedia:Shortcut
+      - text: "to this page:"
+      - list:
+        - listitem:
+          - link "WP:HELP":
+            - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:HELP&redirect=no
+          - text: ·
+        - listitem:
+          - link "WP:H":
+            - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:H&redirect=no
+    - link "Categories":
+      - /url: /wiki/Help:Category
+    - text: ":"
+    - list:
+      - listitem:
+        - link "Help":
+          - /url: /wiki/Category:Help
+      - listitem:
+        - link "Wikipedia help contents":
+          - /url: /wiki/Category:Wikipedia_help_contents
+  - contentinfo:
+    - list:
+      - listitem: This page was last edited on 24 March 2026, at 08:49 (UTC).
+      - listitem:
+        - text: Text is available under the
+        - link "Creative Commons Attribution-ShareAlike 4.0 License":
+          - /url: /wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License
+        - text: ; additional terms may apply. By using this site, you agree to the
+        - link "Terms of Use":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use
+        - text: and
+        - link "Privacy Policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+        - text: . Wikipedia® is a registered trademark of the
+        - link "Wikimedia Foundation, Inc.":
+          - /url: https://wikimediafoundation.org/
+        - text: ", a non-profit organization."
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Help:Contents&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list

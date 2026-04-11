@@ -1,0 +1,1938 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "for sale"
+    - text: 
+    - button "cars+trucks"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search cars+trucks"
+    - button ""
+    - button ""
+    - heading "cars+trucks" [level=1]
+    - button ""
+    - list:
+      - button "all"
+      - button "owner"
+      - button "dealer"
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "hide duplicates"
+    - text: hide duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - text: price
+    - checkbox "free"
+    - text: free $
+    - textbox "min"
+    - text: – $
+    - textbox "max"
+    - img
+    - img: $0 $10k $20k $30k $1M
+    - img: "avg: $12,417"
+    - img
+    - text: monthly payment $
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "- $"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - text: make and model
+    - textbox
+    - text: odometer
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - text: model year
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - button " transmission"
+    - button " drive"
+    - button " cylinders"
+    - button " title status"
+    - button " fuel"
+    - button " condition"
+    - button " paint color"
+    - button " type"
+    - checkbox "cryptocurrency ok"
+    - text: cryptocurrency ok
+    - checkbox "delivery available"
+    - text: delivery available
+    - button " language of posting"
+    - button " related searches"
+    - button "reset"
+    - button "apply"
+    - link "safety tips":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "prohibited items":
+      - /url: https://www.craigslist.org/about/prohibited
+    - link "product recalls":
+      - /url: https://www.craigslist.org/about/recalled_items
+    - link "avoiding scams":
+      - /url: https://www.craigslist.org/about/help/safety/scams
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "price"
+    - button "sold by"
+    - button "type"
+    - button "model year"
+    - button "fuel"
+    - button "condition"
+    - text: 1 - 6 of 10,000+
+    - heading "see also" [level=2]
+    - link "SUVs":
+      - /url: https://sfbay.craigslist.org/search/suvs#search=2~gallery~0
+    - link "classic cars":
+      - /url: https://sfbay.craigslist.org/search/classic-cars#search=2~gallery~0
+    - link "electric cars":
+      - /url: https://sfbay.craigslist.org/search/electric-cars#search=2~gallery~0
+    - link "pickups-trucks":
+      - /url: https://sfbay.craigslist.org/search/pickups-trucks#search=2~gallery~0
+    - link "2013 Hyundai Santa Fe SUV 1":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fairfield-2013-hyundai-santa-fe-suv/7926704187.html
+      - img "2013 Hyundai Santa Fe SUV 1"
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2013 Hyundai Santa Fe SUV":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fairfield-2013-hyundai-santa-fe-suv/7926704187.html
+    - button ""
+    - text: <1hr ago • 181k mi • east bay area
+    - button ""
+    - text: $5,350
+    - link "2020 Chevy 2500 High Country 4x4 Diesel 1":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/pleasanton-2020-chevy-2500-high-country/7926703447.html
+      - img "2020 Chevy 2500 High Country 4x4 Diesel 1"
+    - text: • • • • •
+    - link "2020 Chevy 2500 High Country 4x4 Diesel":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/pleasanton-2020-chevy-2500-high-country/7926703447.html
+    - button ""
+    - text: <1hr ago • 135k mi • dublin / pleasanton / livermore
+    - button ""
+    - text: $44,000
+    - link "2003 LINCOLN LS V8 4DR. SMOGD. CLEAN TITLE & CLEAN CARFAX 1":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/concord-2003-lincoln-ls-v8-4dr-smogd/7926702908.html
+      - img "2003 LINCOLN LS V8 4DR. SMOGD. CLEAN TITLE & CLEAN CARFAX 1"
+    - text: • • • • • • • • • • • • •
+    - link "2003 LINCOLN LS V8 4DR. SMOGD. CLEAN TITLE & CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/concord-2003-lincoln-ls-v8-4dr-smogd/7926702908.html
+    - button ""
+    - text: <1hr ago • 161k mi • concord / pleasant hill / martinez
+    - button ""
+    - text: $3,500
+    - link "2016 SUBARU OUTBACK PREMIUM WAGON AWD 152K MILES CLEAN TITLE PASS SMOG 1":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-subaru-outback-premium/7926701701.html
+      - img "2016 SUBARU OUTBACK PREMIUM WAGON AWD 152K MILES CLEAN TITLE PASS SMOG 1"
+    - text: • • • • • • • • • • • • •
+    - link "2016 SUBARU OUTBACK PREMIUM WAGON AWD 152K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-subaru-outback-premium/7926701701.html
+    - button ""
+    - text: <1hr ago • 153k mi • san mateo
+    - button ""
+    - text: $8,999
+    - link "2016 Ford F-350 Super Duty XL 4x4 2dr Regular Cab 141 in. WB SRW Chass 1":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2016-ford-350-super-duty-xl/7926701260.html
+      - img "2016 Ford F-350 Super Duty XL 4x4 2dr Regular Cab 141 in. WB SRW Chass 1"
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2016 Ford F-350 Super Duty XL 4x4 2dr Regular Cab 141 in. WB SRW Chass":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2016-ford-350-super-duty-xl/7926701260.html
+    - button ""
+    - text: <1hr ago • 123k mi • alamo square / nopa
+    - button ""
+    - text: $19,995
+    - link "2016 Ford F-350 Super Duty XL 4x4 2dr Regular Cab 141 in. WB SRW Chass 1":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2016-ford-350-super-duty-xl/7926701259.html
+      - img "2016 Ford F-350 Super Duty XL 4x4 2dr Regular Cab 141 in. WB SRW Chass 1"
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2016 Ford F-350 Super Duty XL 4x4 2dr Regular Cab 141 in. WB SRW Chass":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2016-ford-350-super-duty-xl/7926701259.html
+    - button ""
+    - text: <1hr ago • 123k mi • alameda
+    - button ""
+    - text: $19,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/san-jose-2023-honda-rideline-rtl-awd/7926701335.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2023 HONDA RIDELINE RTL – E AWD":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/san-jose-2023-honda-rideline-rtl-awd/7926701335.html
+    - button ""
+    - text: <1hr ago • 24k mi • city of san francisco
+    - button ""
+    - text: $35,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2018-ram-1500-tradesman-4x2/7926701135.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2018 RAM 1500 Tradesman 4x2 2dr Regular Cab 6.3 ft. SB Pickup":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2018-ram-1500-tradesman-4x2/7926701135.html
+    - button ""
+    - text: <1hr ago • 110k mi • alameda
+    - button ""
+    - text: $13,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2018-ram-1500-tradesman-4x2/7926701141.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2018 RAM 1500 Tradesman 4x2 2dr Regular Cab 6.3 ft. SB Pickup":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2018-ram-1500-tradesman-4x2/7926701141.html
+    - button ""
+    - text: <1hr ago • 110k mi • alamo square / nopa
+    - button ""
+    - text: $13,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2021-gmc-sierra-1500-sle-4x4/7926701007.html
+    - text: • • • • • •
+    - link "2021 GMC Sierra 1500 SLE 4x4 4dr Double Cab 6.6 ft. SB":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2021-gmc-sierra-1500-sle-4x4/7926701007.html
+    - button ""
+    - text: <1hr ago • 93k mi • alamo square / nopa
+    - button ""
+    - text: $27,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2021-gmc-sierra-1500-sle-4x4/7926700997.html
+    - text: • • • • • •
+    - link "2021 GMC Sierra 1500 SLE 4x4 4dr Double Cab 6.6 ft. SB":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2021-gmc-sierra-1500-sle-4x4/7926700997.html
+    - button ""
+    - text: <1hr ago • 93k mi • alameda
+    - button ""
+    - text: $27,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2019-ram-1500-classic/7926700892.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2019 RAM 1500 Classic Tradesman 4x2 2dr Regular Cab 8 ft. LB Pickup":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2019-ram-1500-classic/7926700892.html
+    - button ""
+    - text: <1hr ago • 83k mi • alameda
+    - button ""
+    - text: $14,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2019-ram-1500-classic/7926700871.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2019 RAM 1500 Classic Tradesman 4x2 2dr Regular Cab 8 ft. LB Pickup":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2019-ram-1500-classic/7926700871.html
+    - button ""
+    - text: <1hr ago • 83k mi • alamo square / nopa
+    - button ""
+    - text: $14,995
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/mountain-view-2010-lexus-is-350c/7926700397.html
+    - text: • • • • • • • •
+    - link "2010 Lexus IS 350C":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/mountain-view-2010-lexus-is-350c/7926700397.html
+    - button ""
+    - text: <1hr ago • 44k mi • mountain view
+    - button ""
+    - text: $21,875
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2009-mercedes-e350-amg-sport/7926700359.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2009 Mercedes E350 AMG SPORT 2 OWNERS 92K Miles CLEAN TITLE":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2009-mercedes-e350-amg-sport/7926700359.html
+    - button ""
+    - text: <1hr ago • 92k mi • san jose north
+    - button ""
+    - text: $8,700
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2011-bmw-328i-xdrive/7926700338.html
+    - text: • • • • • • • • • • • • •
+    - link "2011 BMW 328i xdrive":
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2011-bmw-328i-xdrive/7926700338.html
+    - button ""
+    - text: <1hr ago • 122k mi • marina / cow hollow
+    - button ""
+    - text: $5,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2015-honda-odyssey-ex/7926700040.html
+    - text: • • • • • • • • • • •
+    - link "2015 Honda Odyssey EX-L":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2015-honda-odyssey-ex/7926700040.html
+    - button ""
+    - text: <1hr ago • 52k mi • cupertino
+    - button ""
+    - text: $17,700
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2000-toyota-4runner-sr5-2wd/7926699692.html
+    - text: • • • • • • • • • •
+    - link "2000 Toyota 4Runner SR5 2WD – Low Miles – Clean Title – Run Great":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2000-toyota-4runner-sr5-2wd/7926699692.html
+    - button ""
+    - text: <1hr ago • 160k mi • cupertino
+    - button ""
+    - text: $65,000
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2006-tacoma-clean-title/7926699126.html
+    - text: • • • • • • • •
+    - link "2006 Tacoma clean title":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2006-tacoma-clean-title/7926699126.html
+    - button ""
+    - text: <1hr ago • 130k mi • san jose south
+    - button ""
+    - text: $13,400
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2013-honda-fit-4cyl-153k/7926699069.html
+    - text: • • • • • • • • • • • •
+    - link "2013 HONDA FIT 4CYL 153K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2013-honda-fit-4cyl-153k/7926699069.html
+    - button ""
+    - text: <1hr ago • 154k mi • san mateo
+    - button ""
+    - text: $6,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/concord-2008-honda-accord-lx-4dr-sedan/7926698878.html
+    - text: • • • • • • •
+    - link "2008 HONDA ACCORD LX 4DR SEDAN. SMOGD, CLEAN TITLE & CARFAX":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/concord-2008-honda-accord-lx-4dr-sedan/7926698878.html
+    - button ""
+    - text: <1hr ago • 222mi • concord / pleasant hill / martinez
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2011-ford-econoline-250-cargo/7926698795.html
+    - text: • • • • •
+    - link "2011 Ford Econoline E-250 Cargo Van":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2011-ford-econoline-250-cargo/7926698795.html
+    - button ""
+    - text: <1hr ago • 196k mi • San Mateo
+    - button ""
+    - text: $6,000
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2013-honda-odyssey-ex/7926698262.html
+    - text: • • • • • • • • • • •
+    - link "2013 Honda Odyssey EX, Clean Title":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2013-honda-odyssey-ex/7926698262.html
+    - button ""
+    - text: <1hr ago • 152k mi • mountain view
+    - button ""
+    - text: $7,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/modesto-2017-ford-edge-financing/7926697782.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2017 Ford Edge - Financing Available!":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/modesto-2017-ford-edge-financing/7926697782.html
+    - button ""
+    - text: <1hr ago • 101k mi • MODESTO
+    - button ""
+    - text: $11,595
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2014-ford-f150-xl-8ft-long-bed/7926697545.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2014 FORD F150 XL 8FT LONG BED 4X4 OFF ROAD CLEAN V6 GAS SAVER 95K MIL":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2014-ford-f150-xl-8ft-long-bed/7926697545.html
+    - button ""
+    - text: <1hr ago • 96k mi • DRIVE A LITTLE SAVE A LOT IN SAN JOSE! WE FINANCE BAD CREDIT
+    - button ""
+    - text: $10,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-toyota-corolla-lesxle/7926697224.html
+    - text: • •
+    - link "TOYOTA COROLLA 2009 2010 2011 2012 2013 2014 2015 2016 2017 le,s,xle":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-toyota-corolla-lesxle/7926697224.html
+    - button ""
+    - text: <1hr ago • 111k mi • W.A.N.T.E.D!All Bay Areas,problems ok
+    - button ""
+    - text: $11,111
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/el-sobrante-2005-e46-bmw-325i/7926697226.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2005 E46 BMW 325i convertible very good condition":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/el-sobrante-2005-e46-bmw-325i/7926697226.html
+    - button ""
+    - text: <1hr ago • 148k mi • El Sobrante
+    - button ""
+    - text: $5,900
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2017-audi-4/7926696726.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2017 Audi a 4":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2017-audi-4/7926696726.html
+    - button ""
+    - text: <1hr ago • 108k mi • east bay area
+    - button ""
+    - text: $8,888
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2014-acura-mdx/7926696347.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "2014 Acura mdx":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2014-acura-mdx/7926696347.html
+    - button ""
+    - text: <1hr ago • 245k mi • east bay area
+    - button ""
+    - text: $6,386
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2011-nissan-versa-148k-miles/7926696225.html
+    - text: • • • • • • • • • • • • •
+    - link "2011 NISSAN VERSA S 148K MILES 1OWNER 4CYL CLEAN CARFAX PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2011-nissan-versa-148k-miles/7926696225.html
+    - button ""
+    - text: <1hr ago • 149k mi • san mateo
+    - button ""
+    - text: $3,999
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/ctd/d/santa-cruz-2014-gmc-sierra-denali-wheel/7926695986.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2014 GMC SIERRA DENALI 1500 4 WHEEL DRIVE LOADED":
+      - /url: https://sfbay.craigslist.org/scz/ctd/d/santa-cruz-2014-gmc-sierra-denali-wheel/7926695986.html
+    - button ""
+    - text: <1hr ago • 150k mi • santa cruz
+    - button ""
+    - text: $17,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2019-ford-fusion-se/7926695953.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2019 ford fusion se":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2019-ford-fusion-se/7926695953.html
+    - button ""
+    - text: <1hr ago • 144k mi • east bay area
+    - button ""
+    - text: $5,555
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-francisco-1996-gmc-explorer-limited/7926695727.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "1996 Gmc Explorer Limited HighTop Conversion Van Classic":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-francisco-1996-gmc-explorer-limited/7926695727.html
+    - button ""
+    - text: <1hr ago • 170k mi • peninsula
+    - button ""
+    - text: $5,900
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2015-honda-accord/7926695432.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2015 Honda accord":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2015-honda-accord/7926695432.html
+    - button ""
+    - text: <1hr ago • 198k mi • east bay area
+    - button ""
+    - text: $5,386
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-1999-toyota-camry/7926694884.html
+    - text: • • • • •
+    - link "1999 Toyota Camry":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-1999-toyota-camry/7926694884.html
+    - button ""
+    - text: <1hr ago • 194k mi • san jose south
+    - button ""
+    - text: $2,200
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/ctd/d/santa-cruz-2015-mazda-mazda5-hatchback/7926693727.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2015 MAZDA MAZDA5 HATCHBACK 4 DOOR AUTO 4 CYLINDER ONE OWNER":
+      - /url: https://sfbay.craigslist.org/scz/ctd/d/santa-cruz-2015-mazda-mazda5-hatchback/7926693727.html
+    - button ""
+    - text: <1hr ago • 152k mi • santa cruz
+    - button ""
+    - text: $6,595
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/ctd/d/santa-cruz-2004-bmw-530i-automatic/7926693522.html
+    - text: • • • • • • • • • • • • • •
+    - link "2004 BMW 530I AUTOMATIC SEDAN EXCELLENT":
+      - /url: https://sfbay.craigslist.org/scz/ctd/d/santa-cruz-2004-bmw-530i-automatic/7926693522.html
+    - button ""
+    - text: <1hr ago • 141k mi • santa cruz
+    - button ""
+    - text: $4,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/newark-2013-chevrolet-chevy-express/7926693307.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "2013 Chevrolet Chevy Express 2500 Cargo Van 3D":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/newark-2013-chevrolet-chevy-express/7926693307.html
+    - button ""
+    - text: <1hr ago • 163k mi • + Bayautofinance.com
+    - button ""
+    - text: $6,988
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/auburn-beauty-2020-land-rover-range/7926693181.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "BEAUTY 2020 Land Rover Range Rover Velar P250 R-Dynamic S":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/auburn-beauty-2020-land-rover-range/7926693181.html
+    - button ""
+    - text: <1hr ago • 29k mi • 1010 GRASS VALLEY HWY, AUBURN, CA 95603
+    - button ""
+    - text: $26,950
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/sunnyvale-2005-mercedes-benz-c55-amg-v8/7926693258.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2005 Mercedes-Benz C55 AMG V8 NICE ONE! MUST SEE!":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/sunnyvale-2005-mercedes-benz-c55-amg-v8/7926693258.html
+    - button ""
+    - text: <1hr ago • 127k mi • sunnyvale
+    - button ""
+    - text: $6,950
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/cto/d/rohnert-park-ford-bronco-11-wheel-drive/7926693205.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "FORD BRONCO 11 4 WHEEL DRIVE EDDIE BOWER EDITION":
+      - /url: https://sfbay.craigslist.org/nby/cto/d/rohnert-park-ford-bronco-11-wheel-drive/7926693205.html
+    - button ""
+    - text: <1hr ago • 53k mi • rohnert pk / cotati
+    - button ""
+    - text: $1,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/gilroy-2016-ford-fusion-shiny-and-clean/7926693060.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2016 FORD FUSION SHINY AND CLEAN 98K MI":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/gilroy-2016-ford-fusion-shiny-and-clean/7926693060.html
+    - button ""
+    - text: <1hr ago • 98k mi • Gilroy
+    - button ""
+    - text: $8,500
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2024-ford-escape-active-for/7926692879.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2024 Ford Escape Active FOR ONLY $541/mo!":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2024-ford-escape-active-for/7926692879.html
+    - button ""
+    - text: <1hr ago • 2,803mi • Call for Price
+    - button ""
+    - text: $541
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/antioch-2007-honda-pilot-wheeler/7926692995.html
+    - text: • • •
+    - link "2007 Honda pilot (wheeler)":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/antioch-2007-honda-pilot-wheeler/7926692995.html
+    - button ""
+    - text: <1hr ago • 209k mi • pittsburg / antioch
+    - button ""
+    - text: $2,700
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/sunnyvale-2011-toyota-tacoma-crew-cab/7926692783.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2011 Toyota Tacoma Crew Cab Medium Bed AWD TRD SPORT PKG":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/sunnyvale-2011-toyota-tacoma-crew-cab/7926692783.html
+    - button ""
+    - text: <1hr ago • 217k mi • sunnyvale
+    - button ""
+    - text: $10,450
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2012-volkswagen-golf-25l-5cyl/7926692580.html
+    - text: • • • • • • • • • • • • •
+    - link "2012 VOLKSWAGEN GOLF 2.5L 5CYL 120K MILES 1OWNER CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2012-volkswagen-golf-25l-5cyl/7926692580.html
+    - button ""
+    - text: <1hr ago • 120k mi • san mateo
+    - button ""
+    - text: $6,999
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/sunnyvale-2015-ford-escape-titanium-awd/7926692571.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2015 Ford Escape Titanium AWD 4D SUV ALL OPTIONS!":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/sunnyvale-2015-ford-escape-titanium-awd/7926692571.html
+    - button ""
+    - text: <1hr ago • 128k mi • sunnyvale
+    - button ""
+    - text: $5,595
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2018-chevrolet-malibu-ls/7926692185.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2018 Chevrolet Malibu LS Fleet 4dr Sedan":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2018-chevrolet-malibu-ls/7926692185.html
+    - button ""
+    - text: <1hr ago • 79k mi • alameda
+    - button ""
+    - text: $12,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2018-chevrolet-malibu-ls/7926692188.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2018 Chevrolet Malibu LS Fleet 4dr Sedan":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2018-chevrolet-malibu-ls/7926692188.html
+    - button ""
+    - text: <1hr ago • 79k mi • alamo square / nopa
+    - button ""
+    - text: $12,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2012-chevrolet-colorado-regular/7926692216.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2012 Chevrolet Colorado Regular Cab Work Truck Pickup 2D 6 ft 5-Cyl, 3":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2012-chevrolet-colorado-regular/7926692216.html
+    - button ""
+    - text: <1hr ago • 143k mi • fremont / union city / newark
+    - button ""
+    - text: $8,499
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2022-ford-ranger-xl-4x4-4dr/7926691949.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "2022 Ford Ranger XL 4x4 4dr SuperCab 6.1 ft. SB":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2022-ford-ranger-xl-4x4-4dr/7926691949.html
+    - button ""
+    - text: <1hr ago • 71k mi • alamo square / nopa
+    - button ""
+    - text: $20,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2022-ford-ranger-xl-4x4-4dr/7926691947.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "2022 Ford Ranger XL 4x4 4dr SuperCab 6.1 ft. SB":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2022-ford-ranger-xl-4x4-4dr/7926691947.html
+    - button ""
+    - text: <1hr ago • 71k mi • alameda
+    - button ""
+    - text: $20,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2015-ford-350-super-duty-xl/7926691749.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2015 Ford F-350 Super Duty XL 4x2 2dr Regular Cab 165 in. WB DRW Chass":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2015-ford-350-super-duty-xl/7926691749.html
+    - button ""
+    - text: 1h ago • 11k mi • alameda
+    - button ""
+    - text: $24,994
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2015-ford-350-super-duty-xl/7926691712.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2015 Ford F-350 Super Duty XL 4x2 2dr Regular Cab 165 in. WB DRW Chass":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2015-ford-350-super-duty-xl/7926691712.html
+    - button ""
+    - text: 1h ago • 11k mi • alamo square / nopa
+    - button ""
+    - text: $24,994
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-2010-toyota-prius/7926691724.html
+    - text: • • • •
+    - link "2010 toyota prius":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-2010-toyota-prius/7926691724.html
+    - button ""
+    - text: 1h ago • 244k mi • Santa Clara
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2018-gmc-sierra-1500-base-4x2/7926691485.html
+    - text: • • • • • •
+    - link "2018 GMC Sierra 1500 Base 4x2 2dr Regular Cab 6.5 ft. SB":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2018-gmc-sierra-1500-base-4x2/7926691485.html
+    - button ""
+    - text: 1h ago • 81k mi • alameda
+    - button ""
+    - text: $22,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2018-gmc-sierra-1500-base-4x2/7926691486.html
+    - text: • • • • • •
+    - link "2018 GMC Sierra 1500 Base 4x2 2dr Regular Cab 6.5 ft. SB":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2018-gmc-sierra-1500-base-4x2/7926691486.html
+    - button ""
+    - text: 1h ago • 81k mi • alamo square / nopa
+    - button ""
+    - text: $22,995
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/daly-city-2005-chrysler-300c-smogged/7926691367.html
+    - text: • • • • • • • • • • •
+    - link "2005 Chrysler 300c smogged Runs good no leaks":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/daly-city-2005-chrysler-300c-smogged/7926691367.html
+    - button ""
+    - text: 1h ago • 181k mi • daly city
+    - button ""
+    - text: $5,000
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-2014-honda-civic-hybrid/7926691345.html
+    - text: • • • • • • • • • • • •
+    - link "2014 honda civic hybrid":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-2014-honda-civic-hybrid/7926691345.html
+    - button ""
+    - text: 1h ago • 170k mi • Santa Clara
+    - button ""
+    - text: $7,900
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/daly-city-1991-bmw-325i/7926691254.html
+    - text: • • • • • • • • • • •
+    - link "1991 BMW 325i":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/daly-city-1991-bmw-325i/7926691254.html
+    - button ""
+    - text: 1h ago • 175k mi • daly city
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2013-subaru-xv-crosstrek-20i/7926691249.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2013 Subaru XV Crosstrek 2.0I Limited 115000 miles":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2013-subaru-xv-crosstrek-20i/7926691249.html
+    - button ""
+    - text: 1h ago • 15k mi • foster city
+    - button ""
+    - text: $4,950
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2024-toyota-tacoma-sr-4x2-2dr/7926691126.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2024 Toyota Tacoma SR 4x2 2dr XtraCab 6.1 ft LB":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2024-toyota-tacoma-sr-4x2-2dr/7926691126.html
+    - button ""
+    - text: 1h ago • 42k mi • alamo square / nopa
+    - button ""
+    - text: $26,495
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2024-toyota-tacoma-sr-4x2-2dr/7926691124.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2024 Toyota Tacoma SR 4x2 2dr XtraCab 6.1 ft LB":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2024-toyota-tacoma-sr-4x2-2dr/7926691124.html
+    - button ""
+    - text: 1h ago • 42k mi • alameda
+    - button ""
+    - text: $26,495
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/mountain-view-2014-mazda-cx5/7926690971.html
+    - text: • • • • • • • • • •
+    - link "2014 mazda cx5":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/mountain-view-2014-mazda-cx5/7926690971.html
+    - button ""
+    - text: 1h ago • 123k mi • Mountain View
+    - button ""
+    - text: $7,900
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2009-chevrolet-silverado/7926690766.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2009 Chevrolet Silverado 2500HD Work Truck 4x2 2dr Regular Cab LB":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2009-chevrolet-silverado/7926690766.html
+    - button ""
+    - text: 1h ago • 62k mi • alamo square / nopa
+    - button ""
+    - text: $19,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2009-chevrolet-silverado/7926690768.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2009 Chevrolet Silverado 2500HD Work Truck 4x2 2dr Regular Cab LB":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2009-chevrolet-silverado/7926690768.html
+    - button ""
+    - text: 1h ago • 62k mi • alameda
+    - button ""
+    - text: $19,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2011-ford-350-super-duty-xl/7926690639.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2011 Ford F-350 Super Duty XL 4x2 4dr Crew Cab 6.8 ft. SB SRW Pickup":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2011-ford-350-super-duty-xl/7926690639.html
+    - button ""
+    - text: 1h ago • 81k mi • alamo square / nopa
+    - button ""
+    - text: $17,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2011-ford-350-super-duty-xl/7926690637.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2011 Ford F-350 Super Duty XL 4x2 4dr Crew Cab 6.8 ft. SB SRW Pickup":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2011-ford-350-super-duty-xl/7926690637.html
+    - button ""
+    - text: 1h ago • 81k mi • alameda
+    - button ""
+    - text: $17,995
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/millbrae-2010-honda-crv-awd-limited/7926690561.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2010 HONDA CRV AWD LIMITED EDITION 68000 MILES":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/millbrae-2010-honda-crv-awd-limited/7926690561.html
+    - button ""
+    - text: 1h ago • 68k mi • millbrae
+    - button ""
+    - text: $5,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2019-chevrolet-silverado-1500/7926690434.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2019 Chevrolet Silverado 1500 Work Truck 4x2 4dr Double Cab 6.6 ft. SB":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2019-chevrolet-silverado-1500/7926690434.html
+    - button ""
+    - text: 1h ago • 62k mi • alamo square / nopa
+    - button ""
+    - text: $21,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2019-chevrolet-silverado-1500/7926690429.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2019 Chevrolet Silverado 1500 Work Truck 4x2 4dr Double Cab 6.6 ft. SB":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2019-chevrolet-silverado-1500/7926690429.html
+    - button ""
+    - text: 1h ago • 62k mi • alameda
+    - button ""
+    - text: $21,995
+    - link "2011 Chevrolet Tahoe LT. Excellent condition! 1":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/pleasanton-2011-chevrolet-tahoe-lt/7926690512.html
+      - img "2011 Chevrolet Tahoe LT. Excellent condition! 1"
+    - text: •
+    - link "2011 Chevrolet Tahoe LT. Excellent condition!":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/pleasanton-2011-chevrolet-tahoe-lt/7926690512.html
+    - button ""
+    - text: 1h ago • 145k mi • dublin / pleasanton / livermore
+    - button ""
+    - text: $10,495
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2017-dodge-grand-caravan-se/7926689990.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2017 Dodge Grand Caravan SE 4dr Mini Van":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2017-dodge-grand-caravan-se/7926689990.html
+    - button ""
+    - text: 1h ago • 84k mi • alamo square / nopa
+    - button ""
+    - text: $10,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2017-dodge-grand-caravan-se/7926689989.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2017 Dodge Grand Caravan SE 4dr Mini Van":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2017-dodge-grand-caravan-se/7926689989.html
+    - button ""
+    - text: 1h ago • 84k mi • alameda
+    - button ""
+    - text: $10,995
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/palo-alto-eurovan-winnebego-camper/7926689964.html
+    - text: • • • • • • • • •
+    - link "Eurovan Winnebego Camper":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/palo-alto-eurovan-winnebego-camper/7926689964.html
+    - button ""
+    - text: 1h ago • 155k mi • palo alto
+    - button ""
+    - text: $25,000
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2007-toyota-fj-cruiser-4x4/7926536800.html
+    - text: • • • • • • • • • • • • • •
+    - link "2007 Toyota FJ Cruiser 4x4":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2007-toyota-fj-cruiser-4x4/7926536800.html
+    - button ""
+    - text: 1h ago • 67k mi • south bay area
+    - button ""
+    - text: $19,800
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/fremont-2012-bmw-650i-coupe-xdrive/7926689909.html
+    - text: • • • • • • • • • •
+    - link "2012 BMW 650I Coupe Xdrive":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/fremont-2012-bmw-650i-coupe-xdrive/7926689909.html
+    - button ""
+    - text: 1h ago • 103k mi • Fremont
+    - button ""
+    - text: $4,800
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2015-honda-crv-ex/7926689606.html
+    - text: • • • • • • • • • • •
+    - link "2015 honda crv ex":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2015-honda-crv-ex/7926689606.html
+    - button ""
+    - text: 1h ago • 89k mi • San Jose
+    - button ""
+    - text: $1
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/palo-alto-2008-lifted-honda-odyssey/7926689595.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2008 Lifted Honda Odyssey Touring - Custom Camper Conversion":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/palo-alto-2008-lifted-honda-odyssey/7926689595.html
+    - button ""
+    - text: 1h ago • 242k mi • Palo Alto
+    - button ""
+    - text: $8,490
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/walnut-creek-2012-toyota-camry-le/7926689566.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2012 TOYOTA CAMRY LE HYBRID ONE OWNER":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/walnut-creek-2012-toyota-camry-le/7926689566.html
+    - button ""
+    - text: 1h ago • 177k mi • walnut creek
+    - button ""
+    - text: $8,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2017-chevrolet-express-lt-dr/7926689135.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2017 Chevrolet Express LT 3500 3dr Passenger Van":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2017-chevrolet-express-lt-dr/7926689135.html
+    - button ""
+    - text: 1h ago • 82k mi • alameda
+    - button ""
+    - text: $22,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2017-chevrolet-express-lt-dr/7926689136.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2017 Chevrolet Express LT 3500 3dr Passenger Van":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2017-chevrolet-express-lt-dr/7926689136.html
+    - button ""
+    - text: 1h ago • 82k mi • alamo square / nopa
+    - button ""
+    - text: $22,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/rocklin-2015-ford-f250-utility-only-70k/7926689067.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2015 Ford F250 Utility ~ Only 70K Miles!":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/rocklin-2015-ford-f250-utility-only-70k/7926689067.html
+    - button ""
+    - text: 1h ago • 71k mi • + WhyBuyNewAutos.com
+    - button ""
+    - text: $27,980
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2016-ford-250-super-duty-xl/7926688892.html
+    - text: • • • • • • • • • • • • • •
+    - link "2016 Ford F-250 Super Duty XL 4x2 4dr SuperCab 8 ft. LB Pickup":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/riverbank-2016-ford-250-super-duty-xl/7926688892.html
+    - button ""
+    - text: 1h ago • 114k mi • alameda
+    - button ""
+    - text: $18,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2016-ford-250-super-duty-xl/7926688890.html
+    - text: • • • • • • • • • • • • • •
+    - link "2016 Ford F-250 Super Duty XL 4x2 4dr SuperCab 8 ft. LB Pickup":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/riverbank-2016-ford-250-super-duty-xl/7926688890.html
+    - button ""
+    - text: 1h ago • 114k mi • alamo square / nopa
+    - button ""
+    - text: $18,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2003-toyota-tacoma-sr5/7926688717.html
+    - text: • • • • • • • • • • •
+    - link "2003 Toyota Tacoma SR5":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2003-toyota-tacoma-sr5/7926688717.html
+    - button ""
+    - text: 1h ago • 143k mi • San Jose
+    - button ""
+    - text: $7,800
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-1999-saab-3-convertible-113k/7926688335.html
+      - text: 
+      - paragraph: no image
+    - link "1999 SAAB 9-3 CONVERTIBLE 113K MILES 2OWNERS CLEAN CARFAX PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-1999-saab-3-convertible-113k/7926688335.html
+    - button ""
+    - text: 1h ago • 114k mi • san mateo
+    - button ""
+    - text: $4,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/walnut-creek-2015-toyota-corolla-le-plus/7926688202.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2015 TOYOTA COROLLA LE PLUS":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/walnut-creek-2015-toyota-corolla-le-plus/7926688202.html
+    - button ""
+    - text: 1h ago • 180k mi • walnut creek
+    - button ""
+    - text: $8,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/walnut-creek-2008-toyota-prius/7926688176.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2008 TOYOTA PRIUS":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/walnut-creek-2008-toyota-prius/7926688176.html
+    - button ""
+    - text: 1h ago • 172k mi • walnut creek
+    - button ""
+    - text: $5,900
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2004-lexus-lx-470/7926687908.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2004 LEXUS LX 470":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2004-lexus-lx-470/7926687908.html
+    - button ""
+    - text: 1h ago • 225k mi • south bay area
+    - button ""
+    - text: $14,500
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2018-chevrolet-malibu-chevy/7926687480.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2018 Chevrolet Malibu Chevy LS Sedan 4D Sedan":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2018-chevrolet-malibu-chevy/7926687480.html
+    - button ""
+    - text: 1h ago • 20k mi • Enriquez Auto Group
+    - button ""
+    - text: $17,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2005-cadillac-cts/7926687435.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2005 Cadillac CTS":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2005-cadillac-cts/7926687435.html
+    - button ""
+    - text: 1h ago • 204k mi • vallejo / benicia
+    - button ""
+    - text: $2,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2015-toyota-prius-one-owner/7926687386.html
+    - text: • • • • • • • • • • • • •
+    - link "2015 Toyota Prius one owner":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2015-toyota-prius-one-owner/7926687386.html
+    - button ""
+    - text: 1h ago • 65k mi • san jose north
+    - button ""
+    - text: $10,900
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2003-bmw-330i-81k/7926687324.html
+    - text: • • • • • • • • • • • • • •
+    - link "2003 BMW 330i 81K Original Miles original owner":
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2003-bmw-330i-81k/7926687324.html
+    - button ""
+    - text: 1h ago • 81k mi • inner sunset / UCSF
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2018-ford-transit-150-v6-gas/7926687168.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2018 FORD TRANSIT 150 V6 GAS SAVER NO WINDOW CARGO VAN 1OWNER 70K MILE":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2018-ford-transit-150-v6-gas/7926687168.html
+    - button ""
+    - text: 1h ago • 71k mi • DRIVE A LITTLE SAVE A LOT IN SAN JOSE! WE FINANCE BAD CREDIT
+    - button ""
+    - text: $18,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/rancho-cordova-2009-cadillac-cts-36l-v6/7926686326.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2009 Cadillac CTS 3.6L V6 4dr Sedan w/ 1SA - Comes with Warranty!":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/rancho-cordova-2009-cadillac-cts-36l-v6/7926686326.html
+    - button ""
+    - text: 1h ago • 94k mi • + www.BlackDiamondAutoSales.com
+    - button ""
+    - text: $6,995
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2006-volvo-s60-118k-miles/7926686333.html
+    - text: • • • • • • • • • • • • • •
+    - link "2006 VOLVO S60 118K MILES 5CYL TURBO 2OWNERS CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2006-volvo-s60-118k-miles/7926686333.html
+    - button ""
+    - text: 1h ago • 119k mi • san mateo
+    - button ""
+    - text: $4,999
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2007-toyota-fj-cruiser/7926685782.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2007 Toyota FJ cruiser Manuel transmission(4x4)":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2007-toyota-fj-cruiser/7926685782.html
+    - button ""
+    - text: 1h ago • 185k mi • south bay area
+    - button ""
+    - text: $14,200
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/milpitas-2009-infiniti-g37-journey-sedan/7926685596.html
+    - text: • • • • • • • • • • • • • •
+    - link "2009 Infiniti G37 Journey Sedan":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/milpitas-2009-infiniti-g37-journey-sedan/7926685596.html
+    - button ""
+    - text: 1h ago • 112k mi • milpitas
+    - button ""
+    - text: $7,800
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2004-toyota-sequoia-sr5/7926684898.html
+    - text: • • • • • • • • • • • • • •
+    - link "2004 TOYOTA SEQUOIA SR5":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2004-toyota-sequoia-sr5/7926684898.html
+    - button ""
+    - text: 2h ago • 130k mi • south bay area
+    - button ""
+    - text: $7,900
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/pleasanton-2017-subaru-outback-35/7926684560.html
+    - text: • • • •
+    - link "2017 Subaru Outback 3.5":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/pleasanton-2017-subaru-outback-35/7926684560.html
+    - button ""
+    - text: 2h ago • 123k mi • dublin / pleasanton / livermore
+    - button ""
+    - text: $12,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/santa-clara-2020-chevrolet-chevy/7926683935.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2020 Chevrolet Chevy Silverado 1500 Work Truck 4x4 4dr Crew Cab 5.8 ft. SB - We":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/santa-clara-2020-chevrolet-chevy/7926683935.html
+    - button ""
+    - text: 2h ago • 105k mi • + EURO AUTO SALE
+    - button ""
+    - text: $23,888
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/hayward-2021-chevrolet-express-2500/7926682919.html
+    - text: • • • • • • • • • • • • •
+    - link "2021 Chevrolet Express 2500 Cargo":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/hayward-2021-chevrolet-express-2500/7926682919.html
+    - button ""
+    - text: 2h ago • 124k mi • Hayward
+    - button ""
+    - text: $18,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-2016-honda-pilot-exl-awd/7926682599.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2016 Honda Pilot EXL AWD - Clean title, Low mileage":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-2016-honda-pilot-exl-awd/7926682599.html
+    - button ""
+    - text: 2h ago • 129k mi • santa clara
+    - button ""
+    - text: $14,600
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2014-toyota-prius-only-132k/7926682091.html
+    - text: • • • • • • • • •
+    - link "2014 Toyota Prius, Only 132K Miles, New Hybrid Battery":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2014-toyota-prius-only-132k/7926682091.html
+    - button ""
+    - text: 2h ago • 132k mi • foster city
+    - button ""
+    - text: $6,400
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2025-toyota-camry-le-sedan/7926681807.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2025 Toyota Camry LE Sedan 4D Sedan":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2025-toyota-camry-le-sedan/7926681807.html
+    - button ""
+    - text: 2h ago • 21k mi • Enriquez Auto Group
+    - button ""
+    - text: $29,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/walnut-creek-2010-audi-s6-v10-quattro/7926681273.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2010 Audi S6 V10 Quattro":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/walnut-creek-2010-audi-s6-v10-quattro/7926681273.html
+    - button ""
+    - text: 2h ago • 73k mi • walnut creek
+    - button ""
+    - text: $20,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/salida-2000-toyota-camry/7926681118.html
+    - text: • • • • • • •
+    - link "2000 Toyota Camry":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/salida-2000-toyota-camry/7926681118.html
+    - button ""
+    - text: 2h ago • 219k mi • dublin / pleasanton / livermore
+    - button ""
+    - text: $2,300
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2013-tesla-model-60/7926680137.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2013 Tesla Model S 60":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/san-jose-2013-tesla-model-60/7926680137.html
+    - button ""
+    - text: 2h ago • 92k mi • San Jose
+    - button ""
+    - text: $12,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/auburn-2003-dodge-ram-2500-slt-serviced/7926678827.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2003 Dodge Ram 2500 SLT SERVICED AND READY!":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/auburn-2003-dodge-ram-2500-slt-serviced/7926678827.html
+    - button ""
+    - text: 2h ago • 181k mi • 1010 GRASS VALLEY HWY, AUBURN, CA 95603
+    - button ""
+    - text: $28,450
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2013-nissan-altima-coupe-only/7926678946.html
+    - text: • • • • • • • • • • • • • •
+    - link "2013 Nissan Altima S Coupe * Only 110k Miles * Excellent Runner":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2013-nissan-altima-coupe-only/7926678946.html
+    - button ""
+    - text: 2h ago • 110k mi • vallejo / benicia
+    - button ""
+    - text: $5,250
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2004-subaru-forester-xs-awd/7926678616.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2004 Subaru Forester XS AWD Wagon * Leather Sunroof * Excellent Wagon":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2004-subaru-forester-xs-awd/7926678616.html
+    - button ""
+    - text: 2h ago • 189k mi • vallejo / benicia
+    - button ""
+    - text: $3,750
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2024-ford-escape-active-for/7926678417.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2024 Ford Escape Active FOR ONLY $487/mo!":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2024-ford-escape-active-for/7926678417.html
+    - button ""
+    - text: 2h ago • 1,152mi • Call for Price
+    - button ""
+    - text: $487
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2000-ford-ranger-xlt-ext/7926677777.html
+    - text: • • • • • • • • • • • • • •
+    - link "2000 Ford Ranger XLT Ext Cab (Passed-Smog)":
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2000-ford-ranger-xlt-ext/7926677777.html
+    - button ""
+    - text: 2h ago • 166k mi • SF
+    - button ""
+    - text: $3,500
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2002-volkswagen-passat-gls/7926677561.html
+    - text: • • • • • • • • • • • • •
+    - link "2002 VOLKSWAGEN PASSAT GLS LOADED 4CYL 1OWNER CLEAN CARFAX PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2002-volkswagen-passat-gls/7926677561.html
+    - button ""
+    - text: 2h ago • 58k mi • san mateo
+    - button ""
+    - text: $5,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2014-chevrolet-silverado-1500/7926677366.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2014 CHEVROLET SILVERADO 1500 V8 RWD 143K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2014-chevrolet-silverado-1500/7926677366.html
+    - button ""
+    - text: 2h ago • 143k mi • san mateo
+    - button ""
+    - text: $13,999
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-1998-toyota-camry-xle-leather/7926677268.html
+    - text: • • • • • • • • • • •
+    - link "1998 Toyota Camry XLE - Leather Interior, 53K Miles, $5500 OBO":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-1998-toyota-camry-xle-leather/7926677268.html
+    - button ""
+    - text: 2h ago • 53k mi • san jose south
+    - button ""
+    - text: $5,500
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2014-subaru-outback-limited/7926677203.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2014 SUBARU OUTBACK LIMITED AWD 4CYL 1OWNER 153K MILES CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2014-subaru-outback-limited/7926677203.html
+    - button ""
+    - text: 2h ago • 154k mi • san mateo
+    - button ""
+    - text: $7,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2006-toyota-solara/7926677012.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2006 TOYOTA SOLARA CONVERTIBLE V6 155K MILES 2OWNERS CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2006-toyota-solara/7926677012.html
+    - button ""
+    - text: 2h ago • 156k mi • san mateo
+    - button ""
+    - text: $5,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-chevrolet-equinox-ltz-v6/7926676853.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2016 CHEVROLET EQUINOX LTZ V6 AWD 2OWNERS 129K MILES CLEAN TITLE":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-chevrolet-equinox-ltz-v6/7926676853.html
+    - button ""
+    - text: 2h ago • 129k mi • san mateo
+    - button ""
+    - text: $8,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2018-mercedes-gle-350-awd-v6/7926676691.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2018 MERCEDES GLE 350 AWD V6 124K MILES LUXURY CLEAN CARFAX PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2018-mercedes-gle-350-awd-v6/7926676691.html
+    - button ""
+    - text: 2h ago • 124k mi • san mateo
+    - button ""
+    - text: $14,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2004-volkswagen-new-beetle-gls/7926676571.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2004 VOLKSWAGEN NEW BEETLE GLS CONVERTIBLE 65K MILE 1OWNER CLEANCARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2004-volkswagen-new-beetle-gls/7926676571.html
+    - button ""
+    - text: 2h ago • 65k mi • san mateo
+    - button ""
+    - text: $6,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2010-toyota-matrix-sport-wagon/7926676384.html
+    - text: • • • • • • • • • • • • •
+    - link "2010 TOYOTA MATRIX SPORT WAGON 4CYL 141K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2010-toyota-matrix-sport-wagon/7926676384.html
+    - button ""
+    - text: 2h ago • 141k mi • san mateo
+    - button ""
+    - text: $7,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2012-mini-cooper-hardtop-2d/7926676154.html
+    - text: • • • • • • • • • • • • • •
+    - link "2012 MINI COOPER HARDTOP 2D 4CYL 125K MILES 1OWNER CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2012-mini-cooper-hardtop-2d/7926676154.html
+    - button ""
+    - text: 2h ago • 125k mi • san mateo
+    - button ""
+    - text: $5,499
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2008-honda-fit-4cyl-120k-miles/7926676022.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2008 HONDA FIT 4CYL 120K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2008-honda-fit-4cyl-120k-miles/7926676022.html
+    - button ""
+    - text: 2h ago • 120k mi • san mateo
+    - button ""
+    - text: $6,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2002-lexus-sc430-hardtop/7926675865.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2002 Lexus Sc430 Hardtop Convertible * Only 160k Miles * Excellent Car":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2002-lexus-sc430-hardtop/7926675865.html
+    - button ""
+    - text: 2h ago • 160k mi • vallejo / benicia
+    - button ""
+    - text: $6,950
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2016-gmc-sierra-rwd-149k-miles/7926675866.html
+    - text: • • • • • • • • • •
+    - link "2016 GMC SIERRA 1500 2D RWD 149K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2016-gmc-sierra-rwd-149k-miles/7926675866.html
+    - button ""
+    - text: 2h ago • 149k mi • san mateo
+    - button ""
+    - text: $11,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2002-mercedes-benz-clk430-rwd/7926675735.html
+    - text: • • • • • • • • • • • • • •
+    - link "2002 MERCEDES-BENZ CLK430 RWD 82K MILES LUXURY COUPE CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2002-mercedes-benz-clk430-rwd/7926675735.html
+    - button ""
+    - text: 2h ago • 82k mi • san mateo
+    - button ""
+    - text: $7,499
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2003-jaguar-type-fully-loaded/7926675623.html
+    - text: • • • • • • • • • • • • • •
+    - link "2003 JAGUAR S-TYPE FULLY LOADED 54K MILES CLEAN CARFAX PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2003-jaguar-type-fully-loaded/7926675623.html
+    - button ""
+    - text: 2h ago • 54k mi • san mateo
+    - button ""
+    - text: $4,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2015volvo-s60t5-premier-4cyl/7926675539.html
+    - text: • • • • • • • • • • • • • •
+    - link "2015VOLVO S60T5 PREMIER 4CYL 78K MILES ONE OWNER CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2015volvo-s60t5-premier-4cyl/7926675539.html
+    - button ""
+    - text: 2h ago • 78k mi • san mateo
+    - button ""
+    - text: $10,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2009-volkswagen-passat-komfort/7926675358.html
+    - text: • • • • • • • • • • • •
+    - link "2009 VOLKSWAGEN PASSAT KOMFORT WAGON 4CYL 108K MILES CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2009-volkswagen-passat-komfort/7926675358.html
+    - button ""
+    - text: 2h ago • 109k mi • san mateo
+    - button ""
+    - text: $4,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2007-mazda-mazda3-touring-sedan/7926675277.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2007 Mazda Mazda3 Touring Sedan * Only 150k Miles * Gas Saver":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2007-mazda-mazda3-touring-sedan/7926675277.html
+    - button ""
+    - text: 2h ago • 150k mi • vallejo / benicia
+    - button ""
+    - text: $3,450
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2019-toyota-tacoma-double/7926674788.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2019 Toyota Tacoma Double Cab 4x4 4WD TRD Off-Road Pickup 4D 5 ft Truc":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2019-toyota-tacoma-double/7926674788.html
+    - button ""
+    - text: 2h ago • 85k mi • Enriquez Auto Group
+    - button ""
+    - text: $35,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2003-gmc-yukon-denali-xl-3rd/7926674568.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2003 GMC Yukon Denali XL * 3rd Row Seats 7 Adult":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2003-gmc-yukon-denali-xl-3rd/7926674568.html
+    - button ""
+    - text: 2h ago • 197k mi • vallejo / benicia
+    - button ""
+    - text: $3,450
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2005-toyota-prius-low-miles/7926674147.html
+    - text: • • • • • • • •
+    - link "2005 toyota prius low miles 48MPG":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-2005-toyota-prius-low-miles/7926674147.html
+    - button ""
+    - text: 2h ago • 137k mi • san mateo
+    - button ""
+    - text: $4,800
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2013-chevy-impala-ltz-great/7926674038.html
+    - text: • • • • • • • • • • • • • •
+    - link "2013 Chevy Impala LTZ * Great Sedan * 160K Miles":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2013-chevy-impala-ltz-great/7926674038.html
+    - button ""
+    - text: 2h ago • 160k mi • vallejo / benicia
+    - button ""
+    - text: $3,950
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2008-volvo-xc70-wagon-awd-only/7926673580.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2008 Volvo XC70 Wagon Awd * Only 160k Miles *":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2008-volvo-xc70-wagon-awd-only/7926673580.html
+    - button ""
+    - text: 2h ago • 160k mi • vallejo / benicia
+    - button ""
+    - text: $3,250
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/hayward-2003-maserati-cambio-corsa-coupe/7926672352.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "2003 Maserati Cambio Corsa Coupe":
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/hayward-2003-maserati-cambio-corsa-coupe/7926672352.html
+    - button ""
+    - text: 2h ago • 55k mi • city of san francisco
+    - button ""
+    - text: $8,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2010-ford-edge-sel-excellent-suv/7926671541.html
+    - text: • • • • • • • • • • • • • •
+    - link "2010 Ford Edge SEL * Excellent SUV":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2010-ford-edge-sel-excellent-suv/7926671541.html
+    - button ""
+    - text: 2h ago • 190k mi • vallejo / benicia
+    - button ""
+    - text: $3,450
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-1999-mercedes-benz-slk230/7926671451.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "1999 mercedes-benz slk230":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-1999-mercedes-benz-slk230/7926671451.html
+    - button ""
+    - text: 2h ago • 162k mi • san mateo
+    - button ""
+    - text: $4,900
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2008-subaru-outback-25-great/7926670709.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2008 Subaru Outback 2.5 * Great Wagon":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2008-subaru-outback-25-great/7926670709.html
+    - button ""
+    - text: 2h ago • 190k mi • vallejo / benicia
+    - button ""
+    - text: $3,250
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2010-ford-fusion-sport-great/7926670337.html
+    - text: • • • • • • • • • • • • •
+    - link "2010 Ford Fusion Sport * Great Family Sedan * Sunroof":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2010-ford-fusion-sport-great/7926670337.html
+    - button ""
+    - text: 2h ago • 170k mi • vallejo / benicia
+    - button ""
+    - text: $3,750
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/hayward-foerd-f150/7926670009.html
+    - text: • • • • • •
+    - link "foerd f150":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/hayward-foerd-f150/7926670009.html
+    - button ""
+    - text: 2h ago • 148k mi • hayward / castro valley
+    - button ""
+    - text: $8,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2012-bmw-x5-35i-navigation-30l/7926669937.html
+    - text: • • • • • • • • • • • • • •
+    - link "2012 Bmw X5 35i Navigation* 3.0L Engine * 180k Miles":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2012-bmw-x5-35i-navigation-30l/7926669937.html
+    - button ""
+    - text: 2h ago • 180k mi • vallejo / benicia
+    - button ""
+    - text: $3,450
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/sebastopol-2015-lexus-nx-200t-luxury/7926669427.html
+    - text: • • • • • • • • • • •
+    - link "2015 Lexus NX 200t Luxury AWD Crossover *Low Miles*New Brakes*":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/sebastopol-2015-lexus-nx-200t-luxury/7926669427.html
+    - button ""
+    - text: 2h ago • 85k mi • sebastopol
+    - button ""
+    - text: $19,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/campbell-2006-subaru-impreza-wrx-sti/7926668535.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2006 Subaru Impreza WRX STi Sedan 4D $40k in MODS 2007":
+      - /url: https://sfbay.craigslist.org/sby/ctd/d/campbell-2006-subaru-impreza-wrx-sti/7926668535.html
+    - button ""
+    - text: 2h ago • 93k mi • south bay area
+    - button ""
+    - text: $27,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/lathrop-2007-chevrolet-c4500-utility/7926668655.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2007 Chevrolet C4500 Utility Man Lift Aerial bucket Truck":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/lathrop-2007-chevrolet-c4500-utility/7926668655.html
+    - button ""
+    - text: 2h ago • 84k mi • Lathrop
+    - button ""
+    - text: $12,900
+    - link "HONDA PILOT 2005 2006 2007 2008 2009 2010 2011 2012 2013 lx ex e-xl 1":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/oakland-honda-pilot-lx-ex-xl/7926668248.html
+      - img "HONDA PILOT 2005 2006 2007 2008 2009 2010 2011 2012 2013 lx ex e-xl 1"
+    - text: •
+    - link "HONDA PILOT 2005 2006 2007 2008 2009 2010 2011 2012 2013 lx ex e-xl":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/oakland-honda-pilot-lx-ex-xl/7926668248.html
+    - button ""
+    - text: 2h ago • 111k mi • Problems Ok! ALL BAY AREAS
+    - button ""
+    - text: $9,999
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-compact-suv-honda-cr-awd/7926667383.html
+    - text: • • • •
+    - link "Compact SUV | 2012 Honda CR-V AWD":
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-compact-suv-honda-cr-awd/7926667383.html
+    - button ""
+    - text: 3h ago • 116k mi • San Francisco
+    - button ""
+    - text: $10,900
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2012-jeep-wrangler-unlimited/7926667287.html
+    - text: • • • • • • • • • •
+    - link "2012 Jeep Wrangler unlimited":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2012-jeep-wrangler-unlimited/7926667287.html
+    - button ""
+    - text: 3h ago • 89k mi • Cupertino
+    - button ""
+    - text: $14,500
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2019-ford-f250-super-duty/7926667156.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2019 Ford F250 Super Duty Crew Cab 4x4 4WD F-250 Lariat Pickup 4D 6 3/":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2019-ford-f250-super-duty/7926667156.html
+    - button ""
+    - text: 3h ago • 77k mi • Enriquez Auto Group
+    - button ""
+    - text: $58,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/rocklin-2016-chevrolet-chevy-silverado/7926667091.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2016 Chevrolet Chevy Silverado 2500HD Utility ~ Double Cab ~ Only 25K Miles!":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/rocklin-2016-chevrolet-chevy-silverado/7926667091.html
+    - button ""
+    - text: 3h ago • 26k mi • + WhyBuyNewAutos.com
+    - button ""
+    - text: $32,980
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2009-lexus-gx-470/7926666881.html
+    - text: • • • • • • • • • •
+    - link "2009 Lexus GX 470":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2009-lexus-gx-470/7926666881.html
+    - button ""
+    - text: 3h ago • 59k mi • san jose west
+    - button ""
+    - text: $18,300
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2020-chrysler-pacifica-fully/7926666866.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2020 Chrysler Pacifica *Fully Loaded* with only 57k Miles!":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2020-chrysler-pacifica-fully/7926666866.html
+    - button ""
+    - text: 3h ago • 57k mi • fremont / union city / newark
+    - button ""
+    - text: $19,990
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2004-volkswagen-beetle/7926666625.html
+    - text: • • • • • • • • • • • •
+    - link "2004 Volkswagen Beetle GLX Convertible Gas Saver 30Mpg!!":
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/san-francisco-2004-volkswagen-beetle/7926666625.html
+    - button ""
+    - text: 3h ago • 200k mi • city of san francisco
+    - button ""
+    - text: $2,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2017-toyota-tundra-double/7926666563.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "2017 Toyota Tundra Double Cab SR5 4X4 ~ 60.000 miles, clean title":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/mountain-view-2017-toyota-tundra-double/7926666563.html
+    - button ""
+    - text: 3h ago • 65k mi • sunnyvale
+    - button ""
+    - text: $28,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/milpitas-2004-lexus-es330/7926666499.html
+    - text: • • • • • • • • • •
+    - link "2004 Lexus ES330":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/milpitas-2004-lexus-es330/7926666499.html
+    - button ""
+    - text: 3h ago • 171k mi • Milpitas
+    - button ""
+    - text: $4,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/hayward-2005-cadillac-cts-36-v6/7926666238.html
+    - text: • • • • • • • • •
+    - link "2005 Cadillac CTS 3.6 L V6":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/hayward-2005-cadillac-cts-36-v6/7926666238.html
+    - button ""
+    - text: 3h ago • 245k mi • hayward / castro valley
+    - button ""
+    - text: $2,450
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2001-mercedes-clk430/7926666158.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2001 MERCEDES CLK430":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2001-mercedes-clk430/7926666158.html
+    - button ""
+    - text: 3h ago • 179k mi • willow glen / cambrian
+    - button ""
+    - text: $2,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2007-bmw-550-only-115k-miles/7926666146.html
+    - text: • • • • • • • •
+    - link "2007 Bmw 550 * Only 115k Miles * 1-Owner":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2007-bmw-550-only-115k-miles/7926666146.html
+    - button ""
+    - text: 3h ago • 115k mi • vallejo / benicia
+    - button ""
+    - text: $5,450
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2005-mercedes-e500-amg-like/7926666032.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2005 MERCEDES E500 AMG * LIKE NEW CONDITIONS":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/san-jose-2005-mercedes-e500-amg-like/7926666032.html
+    - button ""
+    - text: 3h ago • 122k mi • willow glen / cambrian
+    - button ""
+    - text: $11,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2000-honda-accord-23l-se-gas/7926665793.html
+    - text: • • • • • • • • • •
+    - link "2000 Honda Accord 2.3L SE * Gas Saver":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2000-honda-accord-23l-se-gas/7926665793.html
+    - button ""
+    - text: 3h ago • 245k mi • vallejo / benicia
+    - button ""
+    - text: $2,950
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2013-subaru-forester-25x/7926665574.html
+    - text: • • • • • • • • • • • •
+    - link "2013 SUBARU FORESTER 2.5X LIMITED AWD 1OWNER (106K MILES) CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2013-subaru-forester-25x/7926665574.html
+    - button ""
+    - text: 3h ago • 106k mi • san mateo
+    - button ""
+    - text: $8,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2005-gmc-yukon-denali-awd-3rd/7926665482.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2005 GMC Yukon Denali AWD * 3rd Row Seat * Luxury Edition":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/vallejo-2005-gmc-yukon-denali-awd-3rd/7926665482.html
+    - button ""
+    - text: 3h ago • 220k mi • vallejo / benicia
+    - button ""
+    - text: $4,750
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2013-honda-civic-coupe-cyl-one/7926665357.html
+    - text: • • • • • • • • • • • •
+    - link "2013 HONDA CIVIC COUPE 4 CYL ONE OWNER 106K MILES CLEAN CARFAX":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2013-honda-civic-coupe-cyl-one/7926665357.html
+    - button ""
+    - text: 3h ago • 106k mi • san mateo
+    - button ""
+    - text: $9,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2016-buick-verano-sport-2owners/7926665243.html
+    - text: • • • • • • • • • • • •
+    - link "2016 BUICK VERANO SPORT 2OWNERS 4CYL 115K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2016-buick-verano-sport-2owners/7926665243.html
+    - button ""
+    - text: 3h ago • 115k mi • san mateo
+    - button ""
+    - text: $7,499
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/emeryville-bmw-x5-117k-miles-44-v8-srts/7926665098.html
+    - text: • • • • •
+    - link "BMW X5 117k miles 4.4 V8 srts rte up needs tune up !":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/emeryville-bmw-x5-117k-miles-44-v8-srts/7926665098.html
+    - button ""
+    - text: 3h ago • 117k mi • oakland north / temescal
+    - button ""
+    - text: $1,300
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2001-acura-cl-type-coupe-v6/7926664935.html
+    - text: • • • • • • • • • •
+    - link "2001 ACURA CL TYPE S COUPE V6 109K MILES CLEAN CARFAX PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/belmont-2001-acura-cl-type-coupe-v6/7926664935.html
+    - button ""
+    - text: 3h ago • 110k mi • san mateo
+    - button ""
+    - text: $5,499
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2010-cadillac-dts-82k-miles/7926664816.html
+    - text: • • • • • • • • • • • •
+    - link "2010 CADILLAC DTS. 82K MILES ONLY, CLEAN TITLE, PASS SMOG, RUNS GREAT!":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2010-cadillac-dts-82k-miles/7926664816.html
+    - button ""
+    - text: 3h ago • 83k mi • san mateo
+    - button ""
+    - text: $6,499
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2012-ford-focus-se/7926664556.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2012 Ford Focus SE":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2012-ford-focus-se/7926664556.html
+    - button ""
+    - text: 3h ago • 147k mi • east bay area
+    - button ""
+    - text: $4,950
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2011-scion-tc/7926664535.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2011 Scion tC":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/fremont-2011-scion-tc/7926664535.html
+    - button ""
+    - text: 3h ago • 119k mi • east bay area
+    - button ""
+    - text: $8,750
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2014-ford-edge-sel-v6-123k/7926664524.html
+    - text: • • • • • • • • • • • • •
+    - link "2014 FORD EDGE SEL V6 123K MILES CLEAN CARFAX PASS SMOG FULLY LOADED":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2014-ford-edge-sel-v6-123k/7926664524.html
+    - button ""
+    - text: 3h ago • 123k mi • san mateo
+    - button ""
+    - text: $7,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/el-cerrito-2008-toyota-tacoma-128k-miles/7926664434.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "2008 Toyota Tacoma 128k miles":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/el-cerrito-2008-toyota-tacoma-128k-miles/7926664434.html
+    - button ""
+    - text: 3h ago • 128k mi • albany / el cerrito
+    - button ""
+    - text: $9,950
+    - link "We pay cash on site in minutes any car 1":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-we-pay-cash-on-site-in/7926663925.html
+      - img "We pay cash on site in minutes any car 1"
+    - text: •
+    - link "We pay cash on site in minutes any car":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/san-mateo-we-pay-cash-on-site-in/7926663925.html
+    - button ""
+    - text: 3h ago • 70k mi • san mateo
+    - button ""
+    - text: $30,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/lathrop-2016-ford-explorer-all-wheel/7926663480.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2016 Ford Explorer All Wheel Drive":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/lathrop-2016-ford-explorer-all-wheel/7926663480.html
+    - button ""
+    - text: 3h ago • 79k mi • Lathrop
+    - button ""
+    - text: $4,900
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2005-toyota-sequoia-limited/7926663108.html
+    - text: • • • • • • • • • • • • • • •
+    - link "2005 Toyota Sequoia Limited 4X4 - clean suv":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/cupertino-2005-toyota-sequoia-limited/7926663108.html
+    - button ""
+    - text: 3h ago • 224k mi • cupertino
+    - button ""
+    - text: $9,500
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2009-toyota-prius-hybrid-141k/7926662544.html
+    - text: • • • • • • • • • • • • •
+    - link "2009 TOYOTA PRIUS HYBRID 141K MILES CLEAN CARFAX PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2009-toyota-prius-hybrid-141k/7926662544.html
+    - button ""
+    - text: 3h ago • 142k mi • san mateo
+    - button ""
+    - text: $6,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-buick-regal-premium-awd/7926662415.html
+    - text: • • • • • • • • • •
+    - link "2016 Buick Regal Premium AWD 87K MILES ONLY CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-buick-regal-premium-awd/7926662415.html
+    - button ""
+    - text: 3h ago • 87k mi • san mateo
+    - button ""
+    - text: $9,499
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2017-dodge-journey-se-4cyl/7926662000.html
+    - text: • • • • • • • • • • • • •
+    - link "2017 DODGE JOURNEY SE 4CYL 96K MILES 7SEATERS CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2017-dodge-journey-se-4cyl/7926662000.html
+    - button ""
+    - text: 3h ago • 97k mi • san mateo
+    - button ""
+    - text: $7,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2017-chevrolet-trax-cyl-93k/7926661736.html
+    - text: • • • • • • • • • • • •
+    - link "2017 CHEVROLET TRAX 4 CYL 93K MILES CLEAN CARFAX PASS SMOG RUNS GREAT":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2017-chevrolet-trax-cyl-93k/7926661736.html
+    - button ""
+    - text: 3h ago • 93k mi • san mateo
+    - button ""
+    - text: $7,499
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/cto/d/el-dorado-hills-2019-ford-e450/7926661660.html
+    - text: • • • • •
+    - link "2019 Ford E450 Ultimaster Step Van 16ft Miles 52,800k Exl Food Truck":
+      - /url: https://sfbay.craigslist.org/pen/cto/d/el-dorado-hills-2019-ford-e450/7926661660.html
+    - button ""
+    - text: 3h ago • 53k mi • burlingame
+    - button ""
+    - text: $47,900
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2013-volkswagen-beetle-speed/7926661623.html
+    - text: • • • • • • • • • • • •
+    - link "2013 VOLKSWAGEN BEETLE 5 SPEED MANUAL 5CYL 1OWNER 140K MIL CLEAN TITLE":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2013-volkswagen-beetle-speed/7926661623.html
+    - button ""
+    - text: 3h ago • 141k mi • san mateo
+    - button ""
+    - text: $6,999
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-chevrolet-sonic-4cyl/7926661473.html
+    - text: • • • • • • • • • • •
+    - link "2016 CHEVROLET SONIC 4CYL 119K MILES COMMUTER CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2016-chevrolet-sonic-4cyl/7926661473.html
+    - button ""
+    - text: 3h ago • 119k mi • san mateo
+    - button ""
+    - text: $5,499
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2011-bmw-x3-sport-awd-v6-128k/7926661194.html
+    - text: • • • • • • • • • • • •
+    - link "2011 BMW X3 SPORT AWD V6 128K MILES CLEAN TITLE PASS SMOG":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2011-bmw-x3-sport-awd-v6-128k/7926661194.html
+    - button ""
+    - text: 3h ago • 129k mi • san mateo
+    - button ""
+    - text: $6,499
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/auburn-2006-dodge-ram-2500-laramie/7926660776.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2006 Dodge Ram 2500 Laramie SERVICED AND READY!":
+      - /url: https://sfbay.craigslist.org/sfc/ctd/d/auburn-2006-dodge-ram-2500-laramie/7926660776.html
+    - button ""
+    - text: 3h ago • 111k mi • 1010 GRASS VALLEY HWY, AUBURN, CA 95603
+    - button ""
+    - text: $31,950
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2009-bmw-535i-xdrive-v6-126k/7926660547.html
+    - text: • • • • • • • • • • • •
+    - link "2009 BMW 535I XDRIVE V6 126K MILES CLEAN TITLE PASS SMOG RUNS PERFECT":
+      - /url: https://sfbay.craigslist.org/pen/ctd/d/san-mateo-2009-bmw-535i-xdrive-v6-126k/7926660547.html
+    - button ""
+    - text: 3h ago • 126k mi • san mateo
+    - button ""
+    - text: $5,999
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2024-ford-escape-stline-st/7926660295.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2024 Ford Escape STLine ST Line ST-Line FOR ONLY $480/mo!":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2024-ford-escape-stline-st/7926660295.html
+    - button ""
+    - text: 3h ago • 1,619mi • Call for Price
+    - button ""
+    - text: $480
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2025-gmc-sierra-1500-crew/7926660210.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "2025 GMC Sierra 1500 Crew Cab SLT Pickup 4D 5 3/4 ft Truck":
+      - /url: https://sfbay.craigslist.org/nby/ctd/d/santa-rosa-2025-gmc-sierra-1500-crew/7926660210.html
+    - button ""
+    - text: 3h ago • 17k mi • Enriquez Auto Group
+    - button ""
+    - text: $54,999
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-honda-element-ex-low-mileage/7926659640.html
+    - text: • • • • • • • • • • • • • •
+    - link "Honda Element EX - low mileage":
+      - /url: https://sfbay.craigslist.org/sby/cto/d/santa-clara-honda-element-ex-low-mileage/7926659640.html
+    - button ""
+    - text: 3h ago • 108k mi • santa clara
+    - button ""
+    - text: $9,700
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2013-mercedes-benz-ml-350/7926659177.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2013 Mercedes-Benz ML 350 4MATIC Luxury that works as hard as you d":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2013-mercedes-benz-ml-350/7926659177.html
+    - button ""
+    - text: 3h ago • 124k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $9,750
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2010-mercedes-benz-timeless/7926659134.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2010 Mercedes-Benz S 550 - Timeless Luxury. V8 Authority.":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2010-mercedes-benz-timeless/7926659134.html
+    - button ""
+    - text: 3h ago • 108k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $12,450
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2018-mercedes-benz-gls-550/7926659086.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "2018 Mercedes-Benz GLS 550 Full-Size Luxury, Full V8 Authority.":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2018-mercedes-benz-gls-550/7926659086.html
+    - button ""
+    - text: 3h ago • 110k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $20,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2002-lexus-sc-430-timeless/7926659051.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2002 Lexus SC 430 Timeless Luxury, V8 Power, Open-Top Elegance.":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2002-lexus-sc-430-timeless/7926659051.html
+    - button ""
+    - text: 3h ago • 184k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $6,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2011-lexus-ls-460-v8-luxury/7926659013.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "2011 Lexus LS 460 L V8 Luxury, One Owner, Ultimate Comfort":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2011-lexus-ls-460-v8-luxury/7926659013.html
+    - button ""
+    - text: 3h ago • 134k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $12,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2013-mercedes-benz-250-sport/7926658970.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2013 Mercedes-Benz C 250 Sport Classy, Quick, and Confident":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2013-mercedes-benz-250-sport/7926658970.html
+    - button ""
+    - text: 3h ago • 113k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $8,399
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2010-cadillac-cts-luxury/7926658931.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "2010 Cadillac CTS Luxury Classic American refinement with V6 confid":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2010-cadillac-cts-luxury/7926658931.html
+    - button ""
+    - text: 3h ago • 121k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $8,450
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2014-audi-audi-a5-20t/7926658883.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "2014 Audi Audi A5 2.0T quattro Premium Plus Turbocharged Elegance w":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2014-audi-audi-a5-20t/7926658883.html
+    - button ""
+    - text: 3h ago • 118k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $12,876
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2011-cadillac-cts-36l/7926658847.html
+    - text: • • • • • • • • • • • • • •
+    - link "2011 Cadillac CTS 3.6L Premium Luxury that still knows how to move.":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2011-cadillac-cts-36l/7926658847.html
+    - button ""
+    - text: 3h ago • 133k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $9,999
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/cto/d/oakland-1990-chevy-turck/7926658952.html
+    - text: • • • • • •
+    - link "1990 chevy turck":
+      - /url: https://sfbay.craigslist.org/eby/cto/d/oakland-1990-chevy-turck/7926658952.html
+    - button ""
+    - text: 3h ago • 146k mi • Oakland
+    - button ""
+    - text: $9,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2014-ford-fusion-se-sensible/7926658809.html
+    - text: • • • • • • • • • • • • • • • • • • • • • •
+    - link "2014 Ford Fusion SE Sensible Style, Smart Power":
+      - /url: https://sfbay.craigslist.org/eby/ctd/d/sacramento-2014-ford-fusion-se-sensible/7926658809.html
+    - button ""
+    - text: 3h ago • 72k mi • CALL 916-545-2255 * 7 STAR AUTO SALES // 5000 MADISON AVE
+    - button ""
+    - text: $8,875
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

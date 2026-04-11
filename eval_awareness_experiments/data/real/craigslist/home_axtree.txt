@@ -1,0 +1,1246 @@
+- document:
+  - button " SF bay area"
+  - button "sfc"
+  - button "sby"
+  - button "eby"
+  - button "pen"
+  - button "nby"
+  - button "scz"
+  - link " faves":
+    - /url: ""
+  - link " post":
+    - /url: https://post.craigslist.org/c/sfo
+  - link " acct":
+    - /url: https://accounts.craigslist.org/login/home
+  - heading "craigslist" [level=1]
+  - list:
+    - listitem:
+      - link "post an ad":
+        - /url: https://post.craigslist.org/c/sfo
+  - text: 
+  - textbox "search craigslist"
+  - heading "event calendar" [level=4]:
+    - link "event calendar":
+      - /url: /search/eee
+  - table:
+    - rowgroup:
+      - row "S M T W T F S":
+        - columnheader "S"
+        - columnheader "M"
+        - columnheader "T"
+        - columnheader "W"
+        - columnheader "T"
+        - columnheader "F"
+        - columnheader "S"
+      - row "5 6 7 8 9 10 11":
+        - cell "5"
+        - cell "6"
+        - cell "7"
+        - cell "8"
+        - cell "9":
+          - link "9":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-09
+        - cell "10":
+          - link "10":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-10
+        - cell "11":
+          - link "11":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-11
+      - row "12 13 14 15 16 17 18":
+        - cell "12":
+          - link "12":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-12
+        - cell "13":
+          - link "13":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-13
+        - cell "14":
+          - link "14":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-14
+        - cell "15":
+          - link "15":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-15
+        - cell "16":
+          - link "16":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-16
+        - cell "17":
+          - link "17":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-17
+        - cell "18":
+          - link "18":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-18
+      - row "19 20 21 22 23 24 25":
+        - cell "19":
+          - link "19":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-19
+        - cell "20":
+          - link "20":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-20
+        - cell "21":
+          - link "21":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-21
+        - cell "22":
+          - link "22":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-22
+        - cell "23":
+          - link "23":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-23
+        - cell "24":
+          - link "24":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-24
+        - cell "25":
+          - link "25":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-25
+      - row "26 27 28 29 30 1 2":
+        - cell "26":
+          - link "26":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-26
+        - cell "27":
+          - link "27":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-27
+        - cell "28":
+          - link "28":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-28
+        - cell "29":
+          - link "29":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-29
+        - cell "30":
+          - link "30":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-04-30
+        - cell "1":
+          - link "1":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-05-01
+        - cell "2":
+          - link "2":
+            - /url: https://sfbay.craigslist.org/search/eee?sale_date=2026-05-02
+  - list:
+    - listitem:
+      - link "help, faq, abuse, legal":
+        - /url: https://www.craigslist.org/about/help/
+    - listitem:
+      - link "avoid scams & fraud":
+        - /url: https://www.craigslist.org/about/help/safety/scams
+    - listitem:
+      - link "personal safety tips":
+        - /url: https://www.craigslist.org/about/help/safety
+  - list:
+    - listitem:
+      - link "about craigslist":
+        - /url: https://www.craigslist.org/about/
+    - listitem:
+      - link "best-of-craigslist":
+        - /url: https://www.craigslist.org/about/best/all/
+    - listitem:
+      - link "craigslist is hiring":
+        - /url: https://www.craigslist.org/about/craigslist_is_hiring
+    - listitem:
+      - link "what's new":
+        - /url: https://www.craigslist.org/about/whats-new
+    - listitem:
+      - link "system status":
+        - /url: https://www.craigslist.org/about/help/system-status
+  - list:
+    - listitem:
+      - link "craigslist charitable":
+        - /url: https://www.craigslistfund.org/
+    - listitem:
+      - link "🌎🐮🐷🐔🐟":
+        - /url: https://www.craigslistfund.org/
+    - listitem:
+      - link "craig newmark philanthropies":
+        - /url: https://craignewmarkphilanthropies.org/
+  - heading "community" [level=3]:
+    - link "community":
+      - /url: /search/ccc
+      - text: community
+      - superscript
+  - list:
+    - listitem:
+      - link "activities":
+        - /url: /search/act
+        - text: activities
+        - superscript
+    - listitem:
+      - link "artists":
+        - /url: /search/ats
+        - text: artists
+        - superscript
+    - listitem:
+      - link "childcare":
+        - /url: /search/kid
+        - text: childcare
+        - superscript
+    - listitem:
+      - link "classes":
+        - /url: /search/cls
+        - text: classes
+        - superscript
+    - listitem:
+      - link "events":
+        - /url: /search/eve
+        - text: events
+        - superscript
+    - listitem:
+      - link "general":
+        - /url: /search/com
+        - text: general
+        - superscript
+    - listitem:
+      - link "groups":
+        - /url: /search/grp
+        - text: groups
+        - superscript
+    - listitem:
+      - link "local news":
+        - /url: /search/vnn
+        - text: local news
+        - superscript
+  - list:
+    - listitem:
+      - link "lost+found":
+        - /url: /search/laf
+        - text: lost+found
+        - superscript
+    - listitem:
+      - link "missed connections":
+        - /url: /search/mis
+        - text: missed connections
+        - superscript
+    - listitem:
+      - link "musicians":
+        - /url: /search/muc
+        - text: musicians
+        - superscript
+    - listitem:
+      - link "pets":
+        - /url: /search/pet
+        - text: pets
+        - superscript
+    - listitem:
+      - link "politics":
+        - /url: /search/pol
+        - text: politics
+        - superscript
+    - listitem:
+      - link "rants & raves":
+        - /url: /search/rnr
+        - text: rants & raves
+        - superscript
+    - listitem:
+      - link "rideshare":
+        - /url: /search/rid
+        - text: rideshare
+        - superscript
+    - listitem:
+      - link "volunteers":
+        - /url: /search/vol
+        - text: volunteers
+        - superscript
+  - heading "services" [level=3]:
+    - link "services":
+      - /url: /search/bbb
+      - text: services
+      - superscript
+  - list:
+    - listitem:
+      - link "automotive":
+        - /url: /search/aos
+        - text: automotive
+        - superscript
+    - listitem:
+      - link "beauty":
+        - /url: /search/bts
+        - text: beauty
+        - superscript
+    - listitem:
+      - link "cell/mobile":
+        - /url: /search/cms
+        - text: cell/mobile
+        - superscript
+    - listitem:
+      - link "computer":
+        - /url: /search/cps
+        - text: computer
+        - superscript
+    - listitem:
+      - link "creative":
+        - /url: /search/crs
+        - text: creative
+        - superscript
+    - listitem:
+      - link "cycle":
+        - /url: /search/cys
+        - text: cycle
+        - superscript
+    - listitem:
+      - link "event":
+        - /url: /search/evs
+        - text: event
+        - superscript
+    - listitem:
+      - link "farm+garden":
+        - /url: /search/fgs
+        - text: farm+garden
+        - superscript
+    - listitem:
+      - link "financial":
+        - /url: /search/fns
+        - text: financial
+        - superscript
+    - listitem:
+      - link "health/well":
+        - /url: /search/hws
+        - text: health/well
+        - superscript
+    - listitem:
+      - link "household":
+        - /url: /search/hss
+        - text: household
+        - superscript
+  - list:
+    - listitem:
+      - link "labor/move":
+        - /url: /search/lbs
+        - text: labor/move
+        - superscript
+    - listitem:
+      - link "legal":
+        - /url: /search/lgs
+        - text: legal
+        - superscript
+    - listitem:
+      - link "lessons":
+        - /url: /search/lss
+        - text: lessons
+        - superscript
+    - listitem:
+      - link "marine":
+        - /url: /search/mas
+        - text: marine
+        - superscript
+    - listitem:
+      - link "pet":
+        - /url: /search/pas
+        - text: pet
+        - superscript
+    - listitem:
+      - link "real estate":
+        - /url: /search/rts
+        - text: real estate
+        - superscript
+    - listitem:
+      - link "skilled trade":
+        - /url: /search/sks
+        - text: skilled trade
+        - superscript
+    - listitem:
+      - link "sm biz ads":
+        - /url: /search/biz
+        - text: sm biz ads
+        - superscript
+    - listitem:
+      - link "travel/vac":
+        - /url: /search/trv
+        - text: travel/vac
+        - superscript
+    - listitem:
+      - link "write/ed/tran":
+        - /url: /search/wet
+        - text: write/ed/tran
+        - superscript
+  - heading "discussion forums" [level=3]:
+    - link "discussion forums":
+      - /url: https://forums.craigslist.org/?areaID=1
+      - text: discussion forums
+      - superscript
+  - list:
+    - listitem:
+      - link "apple":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=3232
+        - text: apple
+        - superscript
+    - listitem:
+      - link "arts":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=49
+        - text: arts
+        - superscript
+    - listitem:
+      - link "atheist":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=78
+        - text: atheist
+        - superscript
+    - listitem:
+      - link "autos":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=5
+        - text: autos
+        - superscript
+    - listitem:
+      - link "beauty":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=88
+        - text: beauty
+        - superscript
+    - listitem:
+      - link "bikes":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=95
+        - text: bikes
+        - superscript
+    - listitem:
+      - link "celebs":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=47
+        - text: celebs
+        - superscript
+    - listitem:
+      - link "comp":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=34
+        - text: comp
+        - superscript
+    - listitem:
+      - link "cosmos":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=1564
+        - text: cosmos
+        - superscript
+    - listitem:
+      - link "diet":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=122
+        - text: diet
+        - superscript
+    - listitem:
+      - link "divorce":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=76
+        - text: divorce
+        - superscript
+    - listitem:
+      - link "dying":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=130
+        - text: dying
+        - superscript
+    - listitem:
+      - link "eco":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=99
+        - text: eco
+        - superscript
+    - listitem:
+      - link "feedbk":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=8
+        - text: feedbk
+        - superscript
+    - listitem:
+      - link "film":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=41
+        - text: film
+        - superscript
+    - listitem:
+      - link "fixit":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=64
+        - text: fixit
+        - superscript
+    - listitem:
+      - link "food":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=22
+        - text: food
+        - superscript
+  - list:
+    - listitem:
+      - link "frugal":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=2007
+        - text: frugal
+        - superscript
+    - listitem:
+      - link "gaming":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=85
+        - text: gaming
+        - superscript
+    - listitem:
+      - link "garden":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=54
+        - text: garden
+        - superscript
+    - listitem:
+      - link "haiku":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=575
+        - text: haiku
+        - superscript
+    - listitem:
+      - link "help":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=9
+        - text: help
+        - superscript
+    - listitem:
+      - link "history":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=81
+        - text: history
+        - superscript
+    - listitem:
+      - link "housing":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=6
+        - text: housing
+        - superscript
+    - listitem:
+      - link "jobs":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=7
+        - text: jobs
+        - superscript
+    - listitem:
+      - link "jokes":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=1257
+        - text: jokes
+        - superscript
+    - listitem:
+      - link "legal":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=73
+        - text: legal
+        - superscript
+    - listitem:
+      - link "manners":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=79
+        - text: manners
+        - superscript
+    - listitem:
+      - link "marriage":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=1926
+        - text: marriage
+        - superscript
+    - listitem:
+      - link "money":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=53
+        - text: money
+        - superscript
+    - listitem:
+      - link "music":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=24
+        - text: music
+        - superscript
+    - listitem:
+      - link "open":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=4
+        - text: open
+        - superscript
+    - listitem:
+      - link "parent":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=39
+        - text: parent
+        - superscript
+    - listitem:
+      - link "pets":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=26
+        - text: pets
+        - superscript
+  - list:
+    - listitem:
+      - link "philos":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=71
+        - text: philos
+        - superscript
+    - listitem:
+      - link "photo":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=5500
+        - text: photo
+        - superscript
+    - listitem:
+      - link "politics":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=20
+        - text: politics
+        - superscript
+    - listitem:
+      - link "psych":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=29
+        - text: psych
+        - superscript
+    - listitem:
+      - link "recover":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=12
+        - text: recover
+        - superscript
+    - listitem:
+      - link "religion":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=59
+        - text: religion
+        - superscript
+    - listitem:
+      - link "rofo":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=28
+        - text: rofo
+        - superscript
+    - listitem:
+      - link "science":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=96
+        - text: science
+        - superscript
+    - listitem:
+      - link "spirit":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=93
+        - text: spirit
+        - superscript
+    - listitem:
+      - link "sports":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=32
+        - text: sports
+        - superscript
+    - listitem:
+      - link "super":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=2012
+        - text: super
+        - superscript
+    - listitem:
+      - link "tax":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=1040
+        - text: tax
+        - superscript
+    - listitem:
+      - link "travel":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=42
+        - text: travel
+        - superscript
+    - listitem:
+      - link "tv":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=98
+        - text: tv
+        - superscript
+    - listitem:
+      - link "vegan":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=2400
+        - text: vegan
+        - superscript
+    - listitem:
+      - link "words":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=7000
+        - text: words
+        - superscript
+    - listitem:
+      - link "writing":
+        - /url: https://forums.craigslist.org/?areaID=1&forumID=27
+        - text: writing
+        - superscript
+  - heading "housing" [level=3]:
+    - link "housing":
+      - /url: /search/hhh
+      - text: housing
+      - superscript
+  - list:
+    - listitem:
+      - link "apts / housing":
+        - /url: /search/apa
+        - text: apts / housing
+        - superscript
+    - listitem:
+      - link "housing swap":
+        - /url: /search/swp
+        - text: housing swap
+        - superscript
+    - listitem:
+      - link "housing wanted":
+        - /url: /search/hsw
+        - text: housing wanted
+        - superscript
+    - listitem:
+      - link "office / commercial":
+        - /url: /search/off
+        - text: office / commercial
+        - superscript
+    - listitem:
+      - link "parking / storage":
+        - /url: /search/prk
+        - text: parking / storage
+        - superscript
+    - listitem:
+      - link "real estate for sale":
+        - /url: /search/rea
+        - text: real estate for sale
+        - superscript
+    - listitem:
+      - link "rooms / shared":
+        - /url: /search/roo
+        - text: rooms / shared
+        - superscript
+    - listitem:
+      - link "rooms wanted":
+        - /url: /search/sha
+        - text: rooms wanted
+        - superscript
+    - listitem:
+      - link "sublets / temporary":
+        - /url: /search/sub
+        - text: sublets / temporary
+        - superscript
+    - listitem:
+      - link "vacation rentals":
+        - /url: /search/vac
+        - text: vacation rentals
+        - superscript
+  - heading "for sale" [level=3]:
+    - link "for sale":
+      - /url: /search/sss
+      - text: for sale
+      - superscript
+  - list:
+    - listitem:
+      - link "antiques":
+        - /url: /search/ata
+        - text: antiques
+        - superscript
+    - listitem:
+      - link "appliances":
+        - /url: /search/ppa
+        - text: appliances
+        - superscript
+    - listitem:
+      - link "arts+crafts":
+        - /url: /search/ara
+        - text: arts+crafts
+        - superscript
+    - listitem:
+      - link "atv/utv/sno":
+        - /url: /search/sna
+        - text: atv/utv/sno
+        - superscript
+    - listitem:
+      - link "auto parts":
+        - /url: /search/pta
+        - text: auto parts
+        - superscript
+    - listitem:
+      - link "aviation":
+        - /url: /search/ava
+        - text: aviation
+        - superscript
+    - listitem:
+      - link "baby+kid":
+        - /url: /search/baa
+        - text: baby+kid
+        - superscript
+    - listitem:
+      - link "barter":
+        - /url: /search/bar
+        - text: barter
+        - superscript
+    - listitem:
+      - link "beauty+hlth":
+        - /url: /search/haa
+        - text: beauty+hlth
+        - superscript
+    - listitem:
+      - link "bike parts":
+        - /url: /search/bip
+        - text: bike parts
+        - superscript
+    - listitem:
+      - link "bikes":
+        - /url: /search/bia
+        - text: bikes
+        - superscript
+    - listitem:
+      - link "boat parts":
+        - /url: /search/bpa
+        - text: boat parts
+        - superscript
+    - listitem:
+      - link "boats":
+        - /url: /search/boo
+        - text: boats
+        - superscript
+    - listitem:
+      - link "books":
+        - /url: /search/bka
+        - text: books
+        - superscript
+    - listitem:
+      - link "business":
+        - /url: /search/bfa
+        - text: business
+        - superscript
+    - listitem:
+      - link "cars+trucks":
+        - /url: /search/cta
+        - text: cars+trucks
+        - superscript
+    - listitem:
+      - link "cds/dvd/vhs":
+        - /url: /search/ema
+        - text: cds/dvd/vhs
+        - superscript
+    - listitem:
+      - link "cell phones":
+        - /url: /search/moa
+        - text: cell phones
+        - superscript
+    - listitem:
+      - link "clothes+acc":
+        - /url: /search/cla
+        - text: clothes+acc
+        - superscript
+    - listitem:
+      - link "collectibles":
+        - /url: /search/cba
+        - text: collectibles
+        - superscript
+    - listitem:
+      - link "computer parts":
+        - /url: /search/syp
+        - text: computer parts
+        - superscript
+    - listitem:
+      - link "computers":
+        - /url: /search/sya
+        - text: computers
+        - superscript
+    - listitem:
+      - link "electronics":
+        - /url: /search/ela
+        - text: electronics
+        - superscript
+  - list:
+    - listitem:
+      - link "farm+garden":
+        - /url: /search/gra
+        - text: farm+garden
+        - superscript
+    - listitem:
+      - link "free":
+        - /url: /search/zip
+        - text: free
+        - superscript
+    - listitem:
+      - link "furniture":
+        - /url: /search/fua
+        - text: furniture
+        - superscript
+    - listitem:
+      - link "garage sale":
+        - /url: /search/gms
+        - text: garage sale
+        - superscript
+    - listitem:
+      - link "general":
+        - /url: /search/foa
+        - text: general
+        - superscript
+    - listitem:
+      - link "heavy equip":
+        - /url: /search/hva
+        - text: heavy equip
+        - superscript
+    - listitem:
+      - link "household":
+        - /url: /search/hsa
+        - text: household
+        - superscript
+    - listitem:
+      - link "jewelry":
+        - /url: /search/jwa
+        - text: jewelry
+        - superscript
+    - listitem:
+      - link "materials":
+        - /url: /search/maa
+        - text: materials
+        - superscript
+    - listitem:
+      - link "motorcycle parts":
+        - /url: /search/mpa
+        - text: motorcycle parts
+        - superscript
+    - listitem:
+      - link "motorcycles":
+        - /url: /search/mca
+        - text: motorcycles
+        - superscript
+    - listitem:
+      - link "music instr":
+        - /url: /search/msa
+        - text: music instr
+        - superscript
+    - listitem:
+      - link "photo+video":
+        - /url: /search/pha
+        - text: photo+video
+        - superscript
+    - listitem:
+      - link "rvs+camp":
+        - /url: /search/rva
+        - text: rvs+camp
+        - superscript
+    - listitem:
+      - link "sporting":
+        - /url: /search/sga
+        - text: sporting
+        - superscript
+    - listitem:
+      - link "tickets":
+        - /url: /search/tia
+        - text: tickets
+        - superscript
+    - listitem:
+      - link "tools":
+        - /url: /search/tla
+        - text: tools
+        - superscript
+    - listitem:
+      - link "toys+games":
+        - /url: /search/taa
+        - text: toys+games
+        - superscript
+    - listitem:
+      - link "trailers":
+        - /url: /search/tra
+        - text: trailers
+        - superscript
+    - listitem:
+      - link "video gaming":
+        - /url: /search/vga
+        - text: video gaming
+        - superscript
+    - listitem:
+      - link "wanted":
+        - /url: /search/waa
+        - text: wanted
+        - superscript
+    - listitem:
+      - link "wheels+tires":
+        - /url: /search/wta
+        - text: wheels+tires
+        - superscript
+  - heading "jobs" [level=3]:
+    - link "jobs":
+      - /url: /search/jjj
+      - text: jobs
+      - superscript
+  - list:
+    - listitem:
+      - link "accounting+finance":
+        - /url: /search/acc
+        - text: accounting+finance
+        - superscript
+    - listitem:
+      - link "admin / office":
+        - /url: /search/ofc
+        - text: admin / office
+        - superscript
+    - listitem:
+      - link "arch / engineering":
+        - /url: /search/egr
+        - text: arch / engineering
+        - superscript
+    - listitem:
+      - link "art / media / design":
+        - /url: /search/med
+        - text: art / media / design
+        - superscript
+    - listitem:
+      - link "biotech / science":
+        - /url: /search/sci
+        - text: biotech / science
+        - superscript
+    - listitem:
+      - link "business / mgmt":
+        - /url: /search/bus
+        - text: business / mgmt
+        - superscript
+    - listitem:
+      - link "customer service":
+        - /url: /search/csr
+        - text: customer service
+        - superscript
+    - listitem:
+      - link "education":
+        - /url: /search/edu
+        - text: education
+        - superscript
+    - listitem:
+      - link "etc / misc":
+        - /url: /search/etc
+        - text: etc / misc
+        - superscript
+    - listitem:
+      - link "food / bev / hosp":
+        - /url: /search/fbh
+        - text: food / bev / hosp
+        - superscript
+    - listitem:
+      - link "general labor":
+        - /url: /search/lab
+        - text: general labor
+        - superscript
+    - listitem:
+      - link "government":
+        - /url: /search/gov
+        - text: government
+        - superscript
+    - listitem:
+      - link "human resources":
+        - /url: /search/hum
+        - text: human resources
+        - superscript
+    - listitem:
+      - link "legal / paralegal":
+        - /url: /search/lgl
+        - text: legal / paralegal
+        - superscript
+    - listitem:
+      - link "manufacturing":
+        - /url: /search/mnu
+        - text: manufacturing
+        - superscript
+    - listitem:
+      - link "marketing / pr / ad":
+        - /url: /search/mar
+        - text: marketing / pr / ad
+        - superscript
+    - listitem:
+      - link "medical / health":
+        - /url: /search/hea
+        - text: medical / health
+        - superscript
+    - listitem:
+      - link "nonprofit sector":
+        - /url: /search/npo
+        - text: nonprofit sector
+        - superscript
+    - listitem:
+      - link "real estate":
+        - /url: /search/rej
+        - text: real estate
+        - superscript
+    - listitem:
+      - link "retail / wholesale":
+        - /url: /search/ret
+        - text: retail / wholesale
+        - superscript
+    - listitem:
+      - link "sales / biz dev":
+        - /url: /search/sls
+        - text: sales / biz dev
+        - superscript
+    - listitem:
+      - link "salon / spa / fitness":
+        - /url: /search/spa
+        - text: salon / spa / fitness
+        - superscript
+    - listitem:
+      - link "security":
+        - /url: /search/sec
+        - text: security
+        - superscript
+    - listitem:
+      - link "skilled trade / craft":
+        - /url: /search/trd
+        - text: skilled trade / craft
+        - superscript
+    - listitem:
+      - link "software / qa / dba":
+        - /url: /search/sof
+        - text: software / qa / dba
+        - superscript
+    - listitem:
+      - link "systems / network":
+        - /url: /search/sad
+        - text: systems / network
+        - superscript
+    - listitem:
+      - link "technical support":
+        - /url: /search/tch
+        - text: technical support
+        - superscript
+    - listitem:
+      - link "transport":
+        - /url: /search/trp
+        - text: transport
+        - superscript
+    - listitem:
+      - link "tv / film / video":
+        - /url: /search/tfr
+        - text: tv / film / video
+        - superscript
+    - listitem:
+      - link "web / info design":
+        - /url: /search/web
+        - text: web / info design
+        - superscript
+    - listitem:
+      - link "writing / editing":
+        - /url: /search/wri
+        - text: writing / editing
+        - superscript
+  - heading "gigs" [level=3]:
+    - link "gigs":
+      - /url: /search/ggg
+      - text: gigs
+      - superscript
+  - list:
+    - listitem:
+      - link "computer":
+        - /url: /search/cpg
+        - text: computer
+        - superscript
+    - listitem:
+      - link "creative":
+        - /url: /search/crg
+        - text: creative
+        - superscript
+    - listitem:
+      - link "crew":
+        - /url: /search/cwg
+        - text: crew
+        - superscript
+    - listitem:
+      - link "domestic":
+        - /url: /search/dmg
+        - text: domestic
+        - superscript
+  - list:
+    - listitem:
+      - link "event":
+        - /url: /search/evg
+        - text: event
+        - superscript
+    - listitem:
+      - link "labor":
+        - /url: /search/lbg
+        - text: labor
+        - superscript
+    - listitem:
+      - link "talent":
+        - /url: /search/tlg
+        - text: talent
+        - superscript
+    - listitem:
+      - link "writing":
+        - /url: /search/wrg
+        - text: writing
+        - superscript
+  - heading "resumes" [level=3]:
+    - link "resumes":
+      - /url: /search/rrr
+      - text: resumes
+      - superscript
+  - combobox:
+    - option "dansk"
+    - option "deutsch"
+    - option "english" [selected]
+    - option "español"
+    - option "français"
+    - option "italiano"
+    - option "português"
+    - option "suomi"
+    - option "svenska"
+    - option "tiếng việt"
+    - option "türkçe"
+    - option "русский"
+    - option "中文"
+    - option "日本語"
+    - option "한국말"
+  - list:
+    - listitem:
+      - heading "nearby cl" [level=5]
+      - list:
+        - listitem:
+          - link "bakersfield":
+            - /url: https://bakersfield.craigslist.org/
+        - listitem:
+          - link "chico":
+            - /url: https://chico.craigslist.org/
+        - listitem:
+          - link "fresno":
+            - /url: https://fresno.craigslist.org/
+        - listitem:
+          - link "gold country":
+            - /url: https://goldcountry.craigslist.org/
+        - listitem:
+          - link "hanford":
+            - /url: https://hanford.craigslist.org/
+        - listitem:
+          - link "humboldt":
+            - /url: https://humboldt.craigslist.org/
+        - listitem:
+          - link "inland empire":
+            - /url: https://inlandempire.craigslist.org/
+        - listitem:
+          - link "klamath falls":
+            - /url: https://klamath.craigslist.org/
+        - listitem:
+          - link "las vegas":
+            - /url: https://lasvegas.craigslist.org/
+        - listitem:
+          - link "los angeles":
+            - /url: https://losangeles.craigslist.org/
+        - listitem:
+          - link "medford":
+            - /url: https://medford.craigslist.org/
+        - listitem:
+          - link "mendocino co":
+            - /url: https://mendocino.craigslist.org/
+        - listitem:
+          - link "merced":
+            - /url: https://merced.craigslist.org/
+        - listitem:
+          - link "modesto":
+            - /url: https://modesto.craigslist.org/
+        - listitem:
+          - link "monterey":
+            - /url: https://monterey.craigslist.org/
+        - listitem:
+          - link "orange co":
+            - /url: https://orangecounty.craigslist.org/
+        - listitem:
+          - link "palm springs":
+            - /url: https://palmsprings.craigslist.org/
+        - listitem:
+          - link "redding":
+            - /url: https://redding.craigslist.org/
+        - listitem:
+          - link "reno":
+            - /url: https://reno.craigslist.org/
+        - listitem:
+          - link "roseburg":
+            - /url: https://roseburg.craigslist.org/
+        - listitem:
+          - link "sacramento":
+            - /url: https://sacramento.craigslist.org/
+        - listitem:
+          - link "san luis obispo":
+            - /url: https://slo.craigslist.org/
+        - listitem:
+          - link "santa barbara":
+            - /url: https://santabarbara.craigslist.org/
+        - listitem:
+          - link "santa maria":
+            - /url: https://santamaria.craigslist.org/
+        - listitem:
+          - link "siskiyou co":
+            - /url: https://siskiyou.craigslist.org/
+        - listitem:
+          - link "stockton":
+            - /url: https://stockton.craigslist.org/
+        - listitem:
+          - link "susanville":
+            - /url: https://susanville.craigslist.org/
+        - listitem:
+          - link "ventura":
+            - /url: https://ventura.craigslist.org/
+        - listitem:
+          - link "visalia-tulare":
+            - /url: https://visalia.craigslist.org/
+        - listitem:
+          - link "yuba-sutter":
+            - /url: https://yubasutter.craigslist.org/
+    - listitem:
+      - heading "us cities" [level=5]
+    - listitem:
+      - heading "us states" [level=5]
+    - listitem:
+      - heading "canada" [level=5]
+    - listitem:
+      - heading "cl worldwide" [level=5]
+  - link "help":
+    - /url: https://www.craigslist.org/about/help/
+  - link "safety":
+    - /url: https://www.craigslist.org/about/help/safety
+  - link "privacy":
+    - /url: https://www.craigslist.org/about/privacy.policy
+  - link "terms":
+    - /url: https://www.craigslist.org/about/terms.of.use
+  - link "about":
+    - /url: https://www.craigslist.org/about/
+  - link "app":
+    - /url: https://www.craigslist.org/about/craigslist_app
+  - link "sitemap":
+    - /url: https://sfbay.craigslist.org/sitemap.html
+  - text: © 2026 craigslist

@@ -1,0 +1,107 @@
+- document:
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - link "Back to app":
+      - /url: /kristys-team
+    - link "Preferences":
+      - /url: /kristys-team/settings/account/preferences
+    - link "Profile":
+      - /url: /kristys-team/settings/account/profile
+    - link "Notifications":
+      - /url: /kristys-team/settings/account/notifications
+    - link "Security & access":
+      - /url: /kristys-team/settings/account/security
+    - link "Connected accounts":
+      - /url: /kristys-team/settings/account/connections
+    - link "Agent personalization":
+      - /url: /kristys-team/settings/account/agents
+    - heading "Issues" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/issue-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/issue-templates
+    - link "SLAs":
+      - /url: /kristys-team/settings/sla
+    - heading "Projects" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/project-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/project-templates
+    - link "Statuses":
+      - /url: /kristys-team/settings/project-statuses
+    - link "Updates":
+      - /url: /kristys-team/settings/project-updates
+    - heading "Features" [level=2]
+    - link "AI & Agents":
+      - /url: /kristys-team/settings/ai
+    - link "Initiatives":
+      - /url: /kristys-team/settings/initiatives
+    - link "Documents":
+      - /url: /kristys-team/settings/documents
+    - link "Customer requests":
+      - /url: /kristys-team/settings/customer-requests
+    - link "Pulse":
+      - /url: /kristys-team/settings/pulse
+    - link "Asks":
+      - /url: /kristys-team/settings/asks
+    - link "Emojis":
+      - /url: /kristys-team/settings/emojis
+    - link "Integrations":
+      - /url: /kristys-team/settings/integrations
+    - heading "Administration" [level=2]
+    - link "Workspace":
+      - /url: /kristys-team/settings/workspace
+    - link "Teams":
+      - /url: /kristys-team/settings/teams
+    - link "Members":
+      - /url: /kristys-team/settings/members
+    - link "Security":
+      - /url: /kristys-team/settings/security
+    - link "API":
+      - /url: /kristys-team/settings/api
+    - link "Applications":
+      - /url: /kristys-team/settings/applications
+    - link "Billing":
+      - /url: /kristys-team/settings/billing
+    - link "Import & export":
+      - /url: /kristys-team/settings/import-export
+    - heading "Your teams" [level=2]
+    - link "Kristina Zhou":
+      - /url: /kristys-team/settings/teams/KRI
+    - text: Create a team
+  - button "Open Help menu"
+  - main:
+    - text: API Linear's GraphQL API provides a programmable interface to your data. Use our API to build public or private apps, workflows, and integrations for Linear.
+    - link "Join our Slack":
+      - /url: https://linear.app/join-slack
+    - text: for help and questions.
+    - link "Docs↗":
+      - /url: https://linear.app/developers/graphql
+    - heading "OAuth Applications" [level=3]
+    - text: Manage your organization's OAuth applications.
+    - link "Docs↗":
+      - /url: https://linear.app/developers/oauth-2-0-authentication
+    - listitem:
+      - text: No OAuth applications
+      - button "New OAuth application"
+    - heading "Webhooks" [level=3]
+    - text: Webhooks allow you to receive HTTP requests when an entity is created, updated, or deleted.
+    - link "Docs↗":
+      - /url: https://linear.app/developers/webhooks
+    - listitem:
+      - text: No webhooks
+      - button "New webhook"
+    - heading "Member API keys" [level=3]
+    - text: Members of your workspace can create API keys to interact with the Linear API on their behalf. View your personal API keys from your
+    - link "security & access settings":
+      - /url: /kristys-team/settings/account/security
+    - text: .
+    - list:
+      - listitem:
+        - text: API key creation Who can create API keys to interact with the Linear API on their behalf
+        - combobox "API key creation": All members
+    - listitem: No API keys have been created yet
+  - button "Ask Linear"
+  - button "Chat history"
+  - region "Notifications alt+T"

@@ -1,0 +1,1781 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "jobs"
+    - text: 
+    - button "all"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search jobs"
+    - button ""
+    - button ""
+    - heading "jobs" [level=1]
+    - button ""
+    - list:
+      - list:
+        - listitem:
+          - link "food/beverage/hospitality":
+            - /url: https://sfbay.craigslist.org/search/fbh#search=2~thumb~0
+          - text: "959"
+          - checkbox [checked]
+        - listitem:
+          - link "skilled trades/artisan":
+            - /url: https://sfbay.craigslist.org/search/trd#search=2~thumb~0
+          - text: "543"
+          - checkbox [checked]
+        - listitem:
+          - link "general labor":
+            - /url: https://sfbay.craigslist.org/search/lab#search=2~thumb~0
+          - text: "444"
+          - checkbox [checked]
+        - listitem:
+          - link "transportation":
+            - /url: https://sfbay.craigslist.org/search/trp#search=2~thumb~0
+          - text: "270"
+          - checkbox [checked]
+        - listitem:
+          - link "healthcare":
+            - /url: https://sfbay.craigslist.org/search/hea#search=2~thumb~0
+          - text: "240"
+          - checkbox [checked]
+      - button "+ show 26 more"
+    - button "check all"
+    - button "uncheck all"
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "hide duplicates"
+    - text: hide duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - checkbox "telecommuting ok"
+    - text: telecommuting ok
+    - checkbox "internship"
+    - text: internship
+    - checkbox "non-profit organization"
+    - text: non-profit organization
+    - button " employment type"
+    - button " related searches"
+    - button "reset"
+    - button "apply"
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "has image"
+    - button "posted today"
+    - text: 1 - 7 of 4,056
+    - heading "see also" [level=2]
+    - link "entry-level":
+      - /url: https://sfbay.craigslist.org/search/entry-level-jobs#search=2~thumb~0
+    - link "hiring now":
+      - /url: https://sfbay.craigslist.org/search/jobs-hiring-now#search=2~thumb~0
+    - link "part-time":
+      - /url: https://sfbay.craigslist.org/search/part-time-jobs#search=2~thumb~0
+    - link "remote jobs":
+      - /url: https://sfbay.craigslist.org/search/remote-jobs#search=2~thumb~0
+    - link "weekly pay":
+      - /url: https://sfbay.craigslist.org/search/jobs-weekly-pay#search=2~thumb~0
+    - link "Liholiho Yacht Club Line Cook - Full Time 1":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-liholiho-yacht-club-line/7926703414.html
+      - img "Liholiho Yacht Club Line Cook - Full Time 1"
+    - text: nob hill
+    - button ""
+    - link "Liholiho Yacht Club Line Cook - Full Time":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-liholiho-yacht-club-line/7926703414.html
+    - text: 17m ago•Average $35- $40/hr (including $23/hr +...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/scz/hea/d/aptos-temp-rdh/7926702491.html
+    - text: aptos
+    - button ""
+    - link "Temp RDH":
+      - /url: https://sfbay.craigslist.org/scz/hea/d/aptos-temp-rdh/7926702491.html
+    - text: 22m ago•Hourly•Brian Del Core DDS
+    - button ""
+    - link "Office and Program Assistant for LITA (Love is the Answer) 1":
+      - /url: https://sfbay.craigslist.org/nby/npo/d/san-rafael-office-and-program-assistant/7926701547.html
+      - img "Office and Program Assistant for LITA (Love is the Answer) 1"
+    - text: san rafael
+    - button ""
+    - link "Office and Program Assistant for LITA (Love is the Answer)":
+      - /url: https://sfbay.craigslist.org/nby/npo/d/san-rafael-office-and-program-assistant/7926701547.html
+    - text: 26m ago•$23-25/hr.•LITA (Love is the Answer)
+    - button ""
+    - link "BOOTH RENTAL/COSMETOLOGIST/BARBER/PART TIME / FULL TIME 1":
+      - /url: https://sfbay.craigslist.org/scz/spa/d/santa-cruz-booth-rental-cosmetologist/7926700690.html
+      - img "BOOTH RENTAL/COSMETOLOGIST/BARBER/PART TIME / FULL TIME 1"
+    - text: santa cruz
+    - button ""
+    - link "BOOTH RENTAL/COSMETOLOGIST/BARBER/PART TIME / FULL TIME":
+      - /url: https://sfbay.craigslist.org/scz/spa/d/santa-cruz-booth-rental-cosmetologist/7926700690.html
+    - text: 30m ago•CONTRACTOR
+    - button ""
+    - link "Project Coordinator Home Remodeling Company-Bathrooms (Onsite) 1":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/concord-project-coordinator-home/7926695125.html
+      - img "Project Coordinator Home Remodeling Company-Bathrooms (Onsite) 1"
+    - text: concord / pleasant hill / martinez
+    - button ""
+    - link "Project Coordinator Home Remodeling Company-Bathrooms (Onsite)":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/concord-project-coordinator-home/7926695125.html
+    - text: 49m ago•$70,000-$80,000•Rose Remodeling Inc.
+    - button ""
+    - link "Project Coordinator Home Remodeling Company-Bathrooms (Onsite) 1":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/concord-project-coordinator-home/7926695124.html
+      - img "Project Coordinator Home Remodeling Company-Bathrooms (Onsite) 1"
+    - text: concord / pleasant hill / martinez
+    - button ""
+    - link "Project Coordinator Home Remodeling Company-Bathrooms (Onsite)":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/concord-project-coordinator-home/7926695124.html
+    - text: 49m ago•$70,000-$80,000•Rose Remodeling Inc.
+    - button ""
+    - link "Casino Table Game Associate 1":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/napa-casino-table-game-associate/7926695060.html
+      - img "Casino Table Game Associate 1"
+    - text: napa county
+    - button ""
+    - link "Casino Table Game Associate":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/napa-casino-table-game-associate/7926695060.html
+    - text: 49m ago•$22 - $26•Players Edge Services
+    - button ""
+    - link "Casino Table Game Associate 1":
+      - /url: https://sfbay.craigslist.org/eby/csr/d/emeryville-casino-table-game-associate/7926694894.html
+      - img "Casino Table Game Associate 1"
+    - text: emeryville
+    - button ""
+    - link "Casino Table Game Associate":
+      - /url: https://sfbay.craigslist.org/eby/csr/d/emeryville-casino-table-game-associate/7926694894.html
+    - text: 49m ago•$22 - $31•Players Edge Services
+    - button ""
+    - link "Casino Table Game Associate 1":
+      - /url: https://sfbay.craigslist.org/eby/csr/d/martinez-casino-table-game-associate/7926694877.html
+      - img "Casino Table Game Associate 1"
+    - text: concord / pleasant hill / martinez
+    - button ""
+    - link "Casino Table Game Associate":
+      - /url: https://sfbay.craigslist.org/eby/csr/d/martinez-casino-table-game-associate/7926694877.html
+    - text: 50m ago•$22 - $31 p/hr•Players Edge Services
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/san-francisco-remote-data-entry-clerk/7926692242.html
+    - text: san francisco
+    - button ""
+    - link "remote data entry clerk":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/san-francisco-remote-data-entry-clerk/7926692242.html
+    - text: 59m ago•20/hr
+    - button ""
+    - link "Casino Table Game Associate 1":
+      - /url: https://sfbay.craigslist.org/eby/csr/d/pleasanton-casino-table-game-associate/7926691852.html
+      - img "Casino Table Game Associate 1"
+    - text: dublin / pleasanton / livermore
+    - button ""
+    - link "Casino Table Game Associate":
+      - /url: https://sfbay.craigslist.org/eby/csr/d/pleasanton-casino-table-game-associate/7926691852.html
+    - text: 1h ago•$22 - $31 p/hr•Players Edge Services
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/egr/d/san-jose-construction-management/7926689582.html
+    - text: san jose downtown
+    - button ""
+    - link "Construction Management Services":
+      - /url: https://sfbay.craigslist.org/sby/egr/d/san-jose-construction-management/7926689582.html
+    - text: 1h ago•Negotiable•ENGCO
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/oakland-join-our-team-cdl-truck-drivers/7926688644.html
+    - text: oakland east
+    - button ""
+    - 'link "Join Our Team: CDL Truck Drivers Wanted!"':
+      - /url: https://sfbay.craigslist.org/eby/trp/d/oakland-join-our-team-cdl-truck-drivers/7926688644.html
+    - text: 1h ago•$31 per hour•Standard Iron and Metals Co
+    - button ""
+    - link "Hiring Experienced Tile Setter- Bay Area 1":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/san-jose-hiring-experienced-tile-setter/7926688094.html
+      - img "Hiring Experienced Tile Setter- Bay Area 1"
+    - text: South Bay Area
+    - button ""
+    - link "Hiring Experienced Tile Setter- Bay Area":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/san-jose-hiring-experienced-tile-setter/7926688094.html
+    - text: 1h ago•TBD•International Handymen LLC
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/mnu/d/san-leandro-printer-operator-entry-level/7926687606.html
+    - text: san leandro
+    - button ""
+    - link "Printer Operator (Entry Level)":
+      - /url: https://sfbay.craigslist.org/eby/mnu/d/san-leandro-printer-operator-entry-level/7926687606.html
+    - text: 1h ago•$20.00/hr starting pay, then $22/hr if ...•Gantri
+    - button ""
+    - link "Home Daily CDL Truck Driver | $33.50 per Hour + Overtime | Richmond,CA 1":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/richmond-home-daily-cdl-truck-driver/7926687297.html
+      - img "Home Daily CDL Truck Driver | $33.50 per Hour + Overtime | Richmond,CA 1"
+    - text: richmond / point / annex
+    - button ""
+    - link "Home Daily CDL Truck Driver | $33.50 per Hour + Overtime | Richmond,CA":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/richmond-home-daily-cdl-truck-driver/7926687297.html
+    - text: 1h ago•Get paid weekly while averaging $80,000...
+    - button ""
+    - link "Kids Activities - Mayacama Golf Club 1":
+      - /url: https://sfbay.craigslist.org/nby/edu/d/santa-rosa-kids-activities-mayacama/7926686291.html
+      - img "Kids Activities - Mayacama Golf Club 1"
+    - text: santa rosa
+    - button ""
+    - link "Kids Activities - Mayacama Golf Club":
+      - /url: https://sfbay.craigslist.org/nby/edu/d/santa-rosa-kids-activities-mayacama/7926686291.html
+    - text: 1h ago•20.00hr•Mayacama Golf Club
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-experienced-pizza-cook/7926686093.html
+    - text: nob hill
+    - button ""
+    - link "Experienced Pizza Cook (San Francisco)":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-experienced-pizza-cook/7926686093.html
+    - text: 1h ago•Plus tips•victore pizza
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-immigration-law-firm/7926686021.html
+    - text: financial district
+    - button ""
+    - link "Immigration Law Firm Looking for Assoc. Clinical Social Worker (ASW)":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-immigration-law-firm/7926686021.html
+    - text: 1h ago•Based on Experience•Salgado and Peralta PA
+    - button ""
+    - link "Line Cook 1":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/santa-rosa-line-cook/7926685850.html
+      - img "Line Cook 1"
+    - text: santa rosa
+    - button ""
+    - link "Line Cook":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/santa-rosa-line-cook/7926685850.html
+    - text: 1h ago•$24 hr•Mayacama Golf Club, LLC
+    - button ""
+    - link "Line Cook @ Pool- Mayacama Golf Club 1":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/santa-rosa-line-cook-pool-mayacama-golf/7926685439.html
+      - img "Line Cook @ Pool- Mayacama Golf Club 1"
+    - text: santa rosa
+    - button ""
+    - link "Line Cook @ Pool- Mayacama Golf Club":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/santa-rosa-line-cook-pool-mayacama-golf/7926685439.html
+    - text: 1h ago•$24hr•Mayacama Golf Club
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/edu/d/santa-clara-immediate-openings-nanny/7926681495.html
+    - text: santa clara
+    - button ""
+    - 'link "☂️ IMMEDIATE OPENINGS: Nanny, Babysitter, Caregivers - Flexible Hours"':
+      - /url: https://sfbay.craigslist.org/sby/edu/d/santa-clara-immediate-openings-nanny/7926681495.html
+    - text: 2h ago•Set your own rates and keep 100% of wha...•UrbanSitter
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/edu/d/san-francisco-immediate-openings-nanny/7926679551.html
+    - text: San Francisco
+    - button ""
+    - 'link "☂️ IMMEDIATE OPENINGS: Nanny, Babysitter, Caregivers - Flexible Hours"':
+      - /url: https://sfbay.craigslist.org/sfc/edu/d/san-francisco-immediate-openings-nanny/7926679551.html
+    - text: 2h ago•Set your own rates and keep 100% of wha...•UrbanSitter
+    - button ""
+    - link "★$250 Video Game Playtest!★ 1":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/south-san-francisco-250-video-game/7926674564.html
+      - img "★$250 Video Game Playtest!★ 1"
+    - text: south san francisco
+    - button ""
+    - link "★$250 Video Game Playtest!★":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/south-san-francisco-250-video-game/7926674564.html
+    - text: 2h ago•$250•VGM
+    - button ""
+    - link "Luxury Cloth Store Manager 1":
+      - /url: https://sfbay.craigslist.org/sby/bus/d/san-jose-luxury-cloth-store-manager/7926674164.html
+      - img "Luxury Cloth Store Manager 1"
+    - text: san jose downtown
+    - button ""
+    - link "Luxury Cloth Store Manager":
+      - /url: https://sfbay.craigslist.org/sby/bus/d/san-jose-luxury-cloth-store-manager/7926674164.html
+    - text: 2h ago•Competitive base salary + commission (h...•MissionHires
+    - button ""
+    - link "Construction Assistant 1":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/fairfield-construction-assistant/7926673243.html
+      - img "Construction Assistant 1"
+    - text: Fairfield
+    - button ""
+    - link "Construction Assistant":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/fairfield-construction-assistant/7926673243.html
+    - text: 2h ago•Based on Experience•Emergency Construction Services, Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-line-cook-cocinero-san-ho/7926671778.html
+    - text: mission district
+    - button ""
+    - link "Line Cook/Cocinero - SAN HO WON":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-line-cook-cocinero-san-ho/7926671778.html
+    - text: 2h ago•$25/hour
+    - button ""
+    - link "Junior, Assistant, or Associate Engineer needed at MARIN WATER 1":
+      - /url: https://sfbay.craigslist.org/nby/gov/d/corte-madera-junior-assistant-or/7926670502.html
+      - img "Junior, Assistant, or Associate Engineer needed at MARIN WATER 1"
+    - text: corte madera
+    - button ""
+    - link "Junior, Assistant, or Associate Engineer needed at MARIN WATER":
+      - /url: https://sfbay.craigslist.org/nby/gov/d/corte-madera-junior-assistant-or/7926670502.html
+    - text: 2h ago•$9,039.00 - $14,714.00 Monthly•Marin Water
+    - button ""
+    - link "Junior, Assistant, or Associate Engineer needed at MARIN WATER 1":
+      - /url: https://sfbay.craigslist.org/nby/egr/d/corte-madera-junior-assistant-or/7926670501.html
+      - img "Junior, Assistant, or Associate Engineer needed at MARIN WATER 1"
+    - text: corte madera
+    - button ""
+    - link "Junior, Assistant, or Associate Engineer needed at MARIN WATER":
+      - /url: https://sfbay.craigslist.org/nby/egr/d/corte-madera-junior-assistant-or/7926670501.html
+    - text: 2h ago•$9,039.00 - $14,714.00 Monthly•Marin Water
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/sunnyvale-now-hiring-barista-ice-cream/7926669915.html
+    - text: sunnyvale
+    - button ""
+    - link "Now Hiring – Barista, Ice Cream Team Members 🍦☕":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/sunnyvale-now-hiring-barista-ice-cream/7926669915.html
+    - text: 2h ago•$20-23 +overtime•Falafel STOP
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/rej/d/san-jose-seeking-full-time-bilingual-sp/7926668161.html
+    - text: san jose east
+    - button ""
+    - link "Seeking a Full-Time, Bilingual (SP/Eng) Assistant Property Manager":
+      - /url: https://sfbay.craigslist.org/sby/rej/d/san-jose-seeking-full-time-bilingual-sp/7926668161.html
+    - text: 2h ago•Flexible but Entirely Dependent on Rele...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/redwood-city-hvac-administrative/7926667312.html
+    - text: san carlos
+    - button ""
+    - link "HVAC Administrative & Billing Coordinator":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/redwood-city-hvac-administrative/7926667312.html
+    - text: 3h ago•$25 - $28; Medical and Dental Plans; PT...•Alternative HVAC Solutions
+    - button ""
+    - link "Prep Cook/Cocinero - SAN HO WON 1":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-prep-cook-cocinero-san-ho/7926666704.html
+      - img "Prep Cook/Cocinero - SAN HO WON 1"
+    - text: mission district
+    - button ""
+    - link "Prep Cook/Cocinero - SAN HO WON":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-prep-cook-cocinero-san-ho/7926666704.html
+    - text: 3h ago•$22/hour
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/redwood-city-hvac-sales-estimator/7926664806.html
+    - text: san carlos
+    - button ""
+    - link "HVAC Sales Estimator":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/redwood-city-hvac-sales-estimator/7926664806.html
+    - text: 3h ago•$100K - $150K annually + commissions; M...•Alternative HVAC Solutions
+    - button ""
+    - link "Farm / Landscape / Event Set-up Labor / Horses - Sat and Sun mornings 1":
+      - /url: https://sfbay.craigslist.org/nby/lab/d/glen-ellen-farm-landscape-event-set-up/7926662663.html
+      - img "Farm / Landscape / Event Set-up Labor / Horses - Sat and Sun mornings 1"
+    - text: sonoma
+    - button ""
+    - link "Farm / Landscape / Event Set-up Labor / Horses - Sat and Sun mornings":
+      - /url: https://sfbay.craigslist.org/nby/lab/d/glen-ellen-farm-landscape-event-set-up/7926662663.html
+    - text: 3h ago•$22-$25/hour•Beltane Ranch
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/csr/d/san-jose-multi-location-customer/7926661511.html
+    - text: san jose downtown
+    - button ""
+    - link "Multi Location Customer Service / Event Staff (Part-Time)":
+      - /url: https://sfbay.craigslist.org/sby/csr/d/san-jose-multi-location-customer/7926661511.html
+    - text: 3h ago•$20.00•Labor Finders
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-mateo-cashier-at-nick-the-greek-hr/7926661479.html
+    - text: san mateo
+    - button ""
+    - link "Cashier at Nick The Greek $20 - $25 hr. (san mateo bridgepoint)":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-mateo-cashier-at-nick-the-greek-hr/7926661479.html
+    - text: 3h ago•$20 - $25 hr.•Nick the Greek
+    - button ""
+    - link "TARTINE IS OPENING IN MILL VALLEY AND WE'RE HIRING A TALENTED CHEF! 1":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-tartine-is-opening-in/7926661124.html
+      - img "TARTINE IS OPENING IN MILL VALLEY AND WE'RE HIRING A TALENTED CHEF! 1"
+    - text: mission district
+    - button ""
+    - link "TARTINE IS OPENING IN MILL VALLEY AND WE'RE HIRING A TALENTED CHEF!":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-tartine-is-opening-in/7926661124.html
+    - text: "3h ago•Pay: $90,000 - $105,000.00 per year + B...•Tartine Bakery: Strawberry Village, Mill Valley, ..."
+    - button ""
+    - link "Picture Framing & Design 1":
+      - /url: https://sfbay.craigslist.org/nby/med/d/san-rafael-picture-framing-design/7926659572.html
+      - img "Picture Framing & Design 1"
+    - text: san rafael
+    - button ""
+    - link "Picture Framing & Design":
+      - /url: https://sfbay.craigslist.org/nby/med/d/san-rafael-picture-framing-design/7926659572.html
+    - text: 3h ago•$16.90 - $19.50•CP Photos & Frames
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/etc/d/san-francisco-hiring-housekeeper-needed/7926658089.html
+    - text: lower haight
+    - button ""
+    - link "HIRING - Housekeeper Needed!":
+      - /url: https://sfbay.craigslist.org/sfc/etc/d/san-francisco-hiring-housekeeper-needed/7926658089.html
+    - text: 3h ago•$50-$55/hr
+    - button ""
+    - link "*** Contractor Needed for Rental Work *** 1":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/san-francisco-contractor-needed-for/7926657520.html
+      - img "*** Contractor Needed for Rental Work *** 1"
+    - text: twin peaks / diamond hts
+    - button ""
+    - link "*** Contractor Needed for Rental Work ***":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/san-francisco-contractor-needed-for/7926657520.html
+    - text: 3h ago•10000•FREEHOLDWORKS LLC.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/los-altos-hiring-light-housekeeper/7926656775.html
+    - text: los altos
+    - button ""
+    - link "HIRING - Light Housekeeper + Laundress Needed!":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/los-altos-hiring-light-housekeeper/7926656775.html
+    - text: 3h ago•$50/hr
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-pizza-antica-santana-row/7926656753.html
+    - text: san jose west
+    - button ""
+    - link "Pizza Antica Santana Row Hiring Bartenders":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-pizza-antica-santana-row/7926656753.html
+    - text: 3h ago•Hourly + Tips•Pizza Antica Santana Row
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-augustine-hiring-lead-bartender/7926656185.html
+    - text: san jose west
+    - button ""
+    - link "Augustine Hiring Lead Bartender":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-augustine-hiring-lead-bartender/7926656185.html
+    - text: 3h ago•$20/hr + Tips•Augustine
+    - button ""
+    - link "Woodlands Market is Hiring in Cashier, Deli, Grocery& More! 1":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/belvedere-tiburon-woodlands-market-is/7926654549.html
+      - img "Woodlands Market is Hiring in Cashier, Deli, Grocery& More! 1"
+    - text: tiburon / belvedere
+    - button ""
+    - link "Woodlands Market is Hiring in Cashier, Deli, Grocery& More!":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/belvedere-tiburon-woodlands-market-is/7926654549.html
+    - text: 3h ago•18-23•Woodlands Market
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/concord-parts-driver-earthwork/7926654313.html
+    - text: pittsburg / antioch
+    - button ""
+    - link "Parts Driver (Earthwork & Underground Utility Construction)":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/concord-parts-driver-earthwork/7926654313.html
+    - text: 3h ago•$25+ DOE•Diablo General Engineering
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/concord-parts-driver-earthwork/7926654312.html
+    - text: pittsburg / antioch
+    - button ""
+    - link "Parts Driver (Earthwork & Underground Utility Construction)":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/concord-parts-driver-earthwork/7926654312.html
+    - text: 3h ago•$25+ DOE•Diablo General Engineering
+    - button ""
+    - link "Woodlands Market is Hiring in Cashier, Deli, Grocery& More! 1":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/san-francisco-woodlands-market-is/7926654158.html
+      - img "Woodlands Market is Hiring in Cashier, Deli, Grocery& More! 1"
+    - text: San Francisco
+    - button ""
+    - link "Woodlands Market is Hiring in Cashier, Deli, Grocery& More!":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/san-francisco-woodlands-market-is/7926654158.html
+    - text: 3h ago•20-21•Woodlands Market
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/tch/d/san-francisco-robotics-data-collector/7926650026.html
+    - text: mission district
+    - button ""
+    - link "Robotics Data Collector Jobs Available in San Francisco, CA ($20 /Hr)":
+      - /url: https://sfbay.craigslist.org/sfc/tch/d/san-francisco-robotics-data-collector/7926650026.html
+    - text: 4h ago•$20/Hour•Employbridge/Bluecrew
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/trd/d/campbell-porsche-bmw-audi-mechanic/7926648563.html
+    - text: campbell
+    - button ""
+    - link "Porsche/BMW/Audi Mechanic":
+      - /url: https://sfbay.craigslist.org/sby/trd/d/campbell-porsche-bmw-audi-mechanic/7926648563.html
+    - text: 4h ago•Health Insurance, Dental, Paid Vacation...•BTM Motorwerks
+    - button ""
+    - link "Test Drivers 1":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/fremont-test-drivers/7926647156.html
+      - img "Test Drivers 1"
+    - text: fremont / union city / newark
+    - button ""
+    - link "Test Drivers":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/fremont-test-drivers/7926647156.html
+    - text: 4h ago•$23-$25•Express Employment Professionals
+    - button ""
+    - link "LIMPIADORAS / HOUSE CLEANERS 1":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/san-francisco-limpiadoras-house-cleaners/7926518410.html
+      - img "LIMPIADORAS / HOUSE CLEANERS 1"
+    - text: San Francisco
+    - button ""
+    - link "LIMPIADORAS / HOUSE CLEANERS":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/san-francisco-limpiadoras-house-cleaners/7926518410.html
+    - text: 4h ago•on experience, $23-$25, plus mileage an...•Buttercup Cleaning LLC
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/scz/fbh/d/boulder-creek-housekeeper-for-retreat/7926639590.html
+    - text: boulder creek
+    - button ""
+    - link "Housekeeper for Retreat Center":
+      - /url: https://sfbay.craigslist.org/scz/fbh/d/boulder-creek-housekeeper-for-retreat/7926639590.html
+    - text: 4h ago•Full-time, 35 hour per week position, h...•Vajrapani Institute
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-hiring-parent-partners-abw/7926637944.html
+    - text: hayward / castro valley
+    - button ""
+    - link "Hiring Parent Partner's @ ABW!":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-hiring-parent-partners-abw/7926637944.html
+    - text: 4h ago•$23 - $27/hr•A Better Way, Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/lab/d/san-jose-limpieza-de-casas-housekeeper/7926631092.html
+    - text: san jose downtown
+    - button ""
+    - link "Limpieza de casas - Housekeeper - $35-40 per hour":
+      - /url: https://sfbay.craigslist.org/sby/lab/d/san-jose-limpieza-de-casas-housekeeper/7926631092.html
+    - text: 5h ago•$35-$40
+    - button ""
+    - 'link "Outdoor Educator: Bushcraft, Archery & Fishing 1"':
+      - /url: https://sfbay.craigslist.org/eby/edu/d/oakland-outdoor-educator-bushcraft/7926630559.html
+      - 'img "Outdoor Educator: Bushcraft, Archery & Fishing 1"'
+    - text: oakland north / temescal
+    - button ""
+    - 'link "Outdoor Educator: Bushcraft, Archery & Fishing"':
+      - /url: https://sfbay.craigslist.org/eby/edu/d/oakland-outdoor-educator-bushcraft/7926630559.html
+    - text: "5h ago•Coordinator: $1,352 per week / Speciali...•Trackers Earth"
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/san-quentin-account-service-advisor/7926627926.html
+    - text: san rafael
+    - button ""
+    - link "Account Service Advisor / Dispatcher":
+      - /url: https://sfbay.craigslist.org/nby/csr/d/san-quentin-account-service-advisor/7926627926.html
+    - text: 5h ago•$25 - $30 per hour + monthly production...•American Leak Detection
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-cook-dishwasher-prep/7926627873.html
+    - text: lower haight
+    - button ""
+    - link "Cook/Dishwasher/Prep":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-cook-dishwasher-prep/7926627873.html
+    - text: 5h ago•tbd based on experience
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/american-canyon-irrigation-technician/7926624703.html
+    - text: napa county
+    - button ""
+    - link "Irrigation Technician":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/american-canyon-irrigation-technician/7926624703.html
+    - text: 5h ago•$28 - $35•LandCare
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/lab/d/american-canyon-irrigation-technician/7926624702.html
+    - text: napa county
+    - button ""
+    - link "Irrigation Technician":
+      - /url: https://sfbay.craigslist.org/nby/lab/d/american-canyon-irrigation-technician/7926624702.html
+    - text: 5h ago•$28 - $35•LandCare
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/ofc/d/morgan-hill-customer-experience/7926624382.html
+    - text: morgan hill
+    - button ""
+    - link "Customer Experience Representative - Available Now - Call Today":
+      - /url: https://sfbay.craigslist.org/sby/ofc/d/morgan-hill-customer-experience/7926624382.html
+    - text: 5h ago•based on experience
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/mnu/d/sunnyvale-deburr-detail-and-polish/7926618519.html
+    - text: sunnyvale
+    - button ""
+    - link "Deburr, Detail and Polish Technician":
+      - /url: https://sfbay.craigslist.org/sby/mnu/d/sunnyvale-deburr-detail-and-polish/7926618519.html
+    - text: 5h ago•Dependent on skill level and experience
+    - button ""
+    - link "Dog Walker, Part-Time W2, $22/hr & lots of fun! 1":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/redwood-city-dog-walker-part-time-w2-22/7926617761.html
+      - img "Dog Walker, Part-Time W2, $22/hr & lots of fun! 1"
+    - text: redwood city
+    - button ""
+    - link "Dog Walker, Part-Time W2, $22/hr & lots of fun!":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/redwood-city-dog-walker-part-time-w2-22/7926617761.html
+    - text: 5h ago•$22 per hour, up to $1760+ per month de...•Simply The Best Pet Care
+    - button ""
+    - link "🚨$0 DOWN NO ESCROW | $5000 SIGN ON BONUS | FREE TRAILER🚨 1":
+      - /url: https://sfbay.craigslist.org/sfc/trp/d/san-francisco-down-no-escrow-sign-on/7926617129.html
+      - img "🚨$0 DOWN NO ESCROW | $5000 SIGN ON BONUS | FREE TRAILER🚨 1"
+    - text: San Francisco, CA
+    - button ""
+    - link "🚨$0 DOWN NO ESCROW | $5000 SIGN ON BONUS | FREE TRAILER🚨":
+      - /url: https://sfbay.craigslist.org/sfc/trp/d/san-francisco-down-no-escrow-sign-on/7926617129.html
+    - text: 5h ago•$8k - $10k weekly gross•Extra Mile International
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-rintaro-is-hiring-for-foh/7926615480.html
+    - text: mission district
+    - button ""
+    - link "Rintaro is hiring for FOH":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-rintaro-is-hiring-for-foh/7926615480.html
+    - text: 5h ago•minimum wage + pooled tips and benefits•Rintaro
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/hea/d/san-mateo-weekend-in-home-companion-for/7926615315.html
+    - text: san mateo
+    - button ""
+    - link "Weekend in home companion for senior Filipina lady (San Mateo)":
+      - /url: https://sfbay.craigslist.org/pen/hea/d/san-mateo-weekend-in-home-companion-for/7926615315.html
+    - text: 5h ago•$300/day
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/concrete-line-pump-operator/7926615156.html
+    - text: petaluma
+    - button ""
+    - link "Concrete LINE pump OPERATOR":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/concrete-line-pump-operator/7926615156.html
+    - text: 5h ago•10-40
+    - button ""
+    - link "💰 Turn Robocalls Into Cash! 💰 1":
+      - /url: https://sfbay.craigslist.org/sfc/sls/d/san-francisco-turn-robocalls-into-cash/7926612969.html
+      - img "💰 Turn Robocalls Into Cash! 💰 1"
+    - text: bayview
+    - button ""
+    - link "💰 Turn Robocalls Into Cash! 💰":
+      - /url: https://sfbay.craigslist.org/sfc/sls/d/san-francisco-turn-robocalls-into-cash/7926612969.html
+    - text: 6h ago•$300-$700 a week•Robo Profit
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/mnu/d/morgan-hill-senior-cnc-machine-operator/7926612094.html
+    - text: morgan hill
+    - button ""
+    - link "Senior CNC Machine Operator - Horizontals":
+      - /url: https://sfbay.craigslist.org/sby/mnu/d/morgan-hill-senior-cnc-machine-operator/7926612094.html
+    - text: 6h ago•$21- $27 per hour•Kalman Manufacturing
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/mnu/d/morgan-hill-cnc-machine-operator-night/7926611926.html
+    - text: morgan hill
+    - button ""
+    - link "CNC Machine Operator - Night Shift":
+      - /url: https://sfbay.craigslist.org/sby/mnu/d/morgan-hill-cnc-machine-operator-night/7926611926.html
+    - text: 6h ago•$23 to $27 per hour
+    - button ""
+    - link "Experienced Planchero / Taquero Needed – Don Julio’s Taqueria (Union C 1":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/union-city-experienced-planchero/7926611826.html
+      - img "Experienced Planchero / Taquero Needed – Don Julio’s Taqueria (Union C 1"
+    - text: fremont / union city / newark
+    - button ""
+    - link "Experienced Planchero / Taquero Needed – Don Julio’s Taqueria (Union C":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/union-city-experienced-planchero/7926611826.html
+    - text: 6h ago•Pay to be negociated based on experiance•Don Julio's Taqueria
+    - button ""
+    - link "Join Our Award-Winning Team! Seeking Dedicated Personal Assistants 1":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/belvedere-tiburon-join-our-award/7926610124.html
+      - img "Join Our Award-Winning Team! Seeking Dedicated Personal Assistants 1"
+    - text: Marin County
+    - button ""
+    - link "Join Our Award-Winning Team! Seeking Dedicated Personal Assistants":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/belvedere-tiburon-join-our-award/7926610124.html
+    - text: 6h ago•$30/hour•Marin Home Care
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/livermore-customer-care-rep-dispatch/7926609935.html
+    - text: dublin / pleasanton / livermore
+    - button ""
+    - link "Customer care Rep. / Dispatch help":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/livermore-customer-care-rep-dispatch/7926609935.html
+    - text: 6h ago•Hourly•Advanced Plumbing and Rooter Service
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/napa-boa-steakhouse-hiring-event-all/7926607134.html
+    - text: napa county
+    - button ""
+    - link "BOA STEAKHOUSE Hiring Event - ALL Positions":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/napa-boa-steakhouse-hiring-event-all/7926607134.html
+    - text: 6h ago•Competitive Wages and Benefits•Innovative Dining Group
+    - button ""
+    - link "New Pizzeria Opening! Looking for pizza cooks & servers ASAP 1":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-new-pizzeria-opening/7926606766.html
+      - img "New Pizzeria Opening! Looking for pizza cooks & servers ASAP 1"
+    - text: inner richmond
+    - button ""
+    - link "New Pizzeria Opening! Looking for pizza cooks & servers ASAP":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-new-pizzeria-opening/7926606766.html
+    - text: 6h ago•20-27 per hour
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-eligibility-worker/7926606253.html
+    - text: mission district
+    - button ""
+    - link "Eligibility Worker I":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-eligibility-worker/7926606253.html
+    - text: 6h ago•$24.57-$31.88 per hour (Depending on Re...•Health Advocates
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/spa/d/san-rafael-salon-assistant/7926606067.html
+    - text: san rafael
+    - button ""
+    - link "Salon Assistant":
+      - /url: https://sfbay.craigslist.org/nby/spa/d/san-rafael-salon-assistant/7926606067.html
+    - text: 6h ago•$21/Hour•Tan Bella
+    - button ""
+    - link "precision machine operator 1":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/san-leandro-precision-machine-operator/7926605916.html
+      - img "precision machine operator 1"
+    - text: san leandro
+    - button ""
+    - link "precision machine operator":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/san-leandro-precision-machine-operator/7926605916.html
+    - text: 6h ago•17 to 19 per hour and much room for adv...•MARS Engineering
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/spa/d/front-desk-sales-specialist/7926605860.html
+    - text: san rafael
+    - button ""
+    - link "Front Desk Sales Specialist":
+      - /url: https://sfbay.craigslist.org/nby/spa/d/front-desk-sales-specialist/7926605860.html
+    - text: 6h ago•$22/training. Once training is complet...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/spa/d/san-francisco-sales-specialist-castro/7926605398.html
+    - text: castro / upper market
+    - button ""
+    - link "Sales Specialist- CASTRO":
+      - /url: https://sfbay.craigslist.org/sfc/spa/d/san-francisco-sales-specialist-castro/7926605398.html
+    - text: 6h ago•$22 while training. $25 plus commissio...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/san-francisco-virtual-focus-group/7926603594.html
+    - text: San Francisco
+    - button ""
+    - link "Virtual Focus Group Facilitator Assistant":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/san-francisco-virtual-focus-group/7926603594.html
+    - text: 6h ago•Based on Experience
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/egr/d/union-city-structural-steel-estimator/7926602992.html
+    - text: fremont / union city / newark
+    - button ""
+    - link "Structural Steel Estimator":
+      - /url: https://sfbay.craigslist.org/eby/egr/d/union-city-structural-steel-estimator/7926602992.html
+    - text: 6h ago•$50 / hr
+    - button ""
+    - link "Kitchen Manager | Lulu Dae's | Now Hiring 1":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/mill-valley-kitchen-manager-lulu-daes/7926601093.html
+      - img "Kitchen Manager | Lulu Dae's | Now Hiring 1"
+    - text: mill valley
+    - button ""
+    - link "Kitchen Manager | Lulu Dae's | Now Hiring":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/mill-valley-kitchen-manager-lulu-daes/7926601093.html
+    - text: 6h ago•Hourly ($27.00 - $30.00) plus tips
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/orinda-administrative-personal-assistant/7926600617.html
+    - text: lafayette / orinda / moraga
+    - button ""
+    - link "Administrative/personal assistant":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/orinda-administrative-personal-assistant/7926600617.html
+    - text: 6h ago•$20-30 per hour depending on experience•California Aesthetics, Inc
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/berkeley-ic-vendor-loss-control/7926598816.html
+    - text: berkeley north / hills
+    - button ""
+    - link "I.C Vendor Loss Control Insurance Inspector Berkely North":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/berkeley-ic-vendor-loss-control/7926598816.html
+    - text: 7h ago•Per Piece•Pacific Inspections Inc
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/richmond-ic-vendor-loss-control/7926597735.html
+    - text: Richmond and surrounding
+    - button ""
+    - link "I.C Vendor Loss Control Insurance Inspector Richmond":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/richmond-ic-vendor-loss-control/7926597735.html
+    - text: 7h ago•Per Piece•Pacific Inspections Inc
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/lab/d/alviso-ic-vendor-loss-control-insurance/7926597512.html
+    - text: mountain view
+    - button ""
+    - link "I.C Vendor Loss Control Insurance Inspector San Jose and surrounding":
+      - /url: https://sfbay.craigslist.org/sby/lab/d/alviso-ic-vendor-loss-control-insurance/7926597512.html
+    - text: 7h ago•Per Piece•Pacific Inspections Inc
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/lab/d/san-jose-become-your-own-boss-as/7926597453.html
+    - text: santa clara
+    - button ""
+    - 'link "Become Your Own Boss: As a Profitable Loss Control Inspector"':
+      - /url: https://sfbay.craigslist.org/sby/lab/d/san-jose-become-your-own-boss-as/7926597453.html
+    - text: 7h ago•Per Piece•Pacific Inspections Inc
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/oakland-ic-vendor-loss-control/7926597326.html
+    - text: Oakland and surrounding
+    - button ""
+    - link "I.C Vendor Loss Control Insurance Inspector Oakland":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/oakland-ic-vendor-loss-control/7926597326.html
+    - text: 7h ago•Per Piece•Pacific Inspections Inc
+    - button ""
+    - link "SIGN UP BONUS $1K 🚚DEDICATED CDL A TEAM – HIGH MILES 🚚 1":
+      - /url: https://sfbay.craigslist.org/sfc/trp/d/lockport-sign-up-bonus-1k-dedicated-cdl/7926595242.html
+      - img "SIGN UP BONUS $1K 🚚DEDICATED CDL A TEAM – HIGH MILES 🚚 1"
+    - text: SOMA / south beach
+    - button ""
+    - link "SIGN UP BONUS $1K 🚚DEDICATED CDL A TEAM – HIGH MILES 🚚":
+      - /url: https://sfbay.craigslist.org/sfc/trp/d/lockport-sign-up-bonus-1k-dedicated-cdl/7926595242.html
+    - text: 7h ago•depending on experience•AGY LOGISTICS
+    - button ""
+    - link "Full-Time Golf Course Maintenance Position 1":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/san-pablo-full-time-golf-course/7926582842.html
+      - img "Full-Time Golf Course Maintenance Position 1"
+    - text: richmond / point / annex
+    - button ""
+    - link "Full-Time Golf Course Maintenance Position":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/san-pablo-full-time-golf-course/7926582842.html
+    - text: 8h ago•$21–$26 per hour (based on golf course ...•Richmond Golf Club
+    - button ""
+    - link "Customer service oriented dispatcher for Busy Plumbin 1":
+      - /url: https://sfbay.craigslist.org/sfc/csr/d/san-francisco-customer-service-oriented/7926572372.html
+      - img "Customer service oriented dispatcher for Busy Plumbin 1"
+    - text: SOMA / south beach
+    - button ""
+    - link "Customer service oriented dispatcher for Busy Plumbin":
+      - /url: https://sfbay.craigslist.org/sfc/csr/d/san-francisco-customer-service-oriented/7926572372.html
+    - text: 4/9•Range of $20-$25 per hour to start and ...•Ace Plumbing and Rooter, Inc.
+    - button ""
+    - link "Warehouse Janitorial Associate 1":
+      - /url: https://sfbay.craigslist.org/scz/trp/d/hollister-warehouse-janitorial-associate/7926567060.html
+      - img "Warehouse Janitorial Associate 1"
+    - text: santa cruz co
+    - button ""
+    - link "Warehouse Janitorial Associate":
+      - /url: https://sfbay.craigslist.org/scz/trp/d/hollister-warehouse-janitorial-associate/7926567060.html
+    - text: 4/9•$16.9 - $18.0 per hour•Kellermeyer Bergensons Services
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-ihss-recipient-seeks/7926564698.html
+    - text: bernal heights
+    - button ""
+    - link "IHSS Recipient SEEKS CAREGIVER":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-ihss-recipient-seeks/7926564698.html
+    - text: 4/9•$22.50 with $.50 per hour increases eve...•In Home Health Services
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/cupertino-contratando-ayudante-de/7926564578.html
+    - text: cupertino
+    - button ""
+    - link "Contratando Ayudante de cocina y Lavaplatos":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/cupertino-contratando-ayudante-de/7926564578.html
+    - text: 4/9•Buen pago, depende de la experiencia•Peces Contigo
+    - button ""
+    - link "Retail Warehouse Associate 1":
+      - /url: https://sfbay.craigslist.org/pen/ret/d/brisbane-retail-warehouse-associate/7926563512.html
+      - img "Retail Warehouse Associate 1"
+    - text: peninsula
+    - button ""
+    - link "Retail Warehouse Associate":
+      - /url: https://sfbay.craigslist.org/pen/ret/d/brisbane-retail-warehouse-associate/7926563512.html
+    - text: 4/9•18.25•Employbridge
+    - button ""
+    - link "General Manager - Contract Logistics Operations 1":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/union-city-general-manager-contract/7926563219.html
+      - img "General Manager - Contract Logistics Operations 1"
+    - text: peninsula
+    - button ""
+    - link "General Manager - Contract Logistics Operations":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/union-city-general-manager-contract/7926563219.html
+    - text: 4/9•$165000 to $190000 per year•Forward Air
+    - button ""
+    - link "Administrative Assistant I 1":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/palo-alto-administrative-assistant/7926563576.html
+      - img "Administrative Assistant I 1"
+    - text: peninsula
+    - button ""
+    - link "Administrative Assistant I":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/palo-alto-administrative-assistant/7926563576.html
+    - text: 4/9•USD $24.40/Hr. - USD $29.28/Hr.•Vi Living
+    - button ""
+    - link "Dining Room Manager 1":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-dining-room-manager/7926563577.html
+      - img "Dining Room Manager 1"
+    - text: peninsula
+    - button ""
+    - link "Dining Room Manager":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-dining-room-manager/7926563577.html
+    - text: 4/9•USD $70,384.47/Yr. - USD $87,996.54/Yr.•Vi Living
+    - button ""
+    - link "Underwriting Specialist OR Executive Underwriter - Middle Market 1":
+      - /url: https://sfbay.craigslist.org/sfc/acc/d/stinson-beach-underwriting-specialist/7926562875.html
+      - img "Underwriting Specialist OR Executive Underwriter - Middle Market 1"
+    - text: city of san francisco
+    - button ""
+    - link "Underwriting Specialist OR Executive Underwriter - Middle Market":
+      - /url: https://sfbay.craigslist.org/sfc/acc/d/stinson-beach-underwriting-specialist/7926562875.html
+    - text: 4/9•$98600 to $213400 per year•Zurich Insurance Company Ltd.
+    - button ""
+    - link "Underwriting Specialist or Executive Underwriter, Core Contract Surety 1":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/stinson-beach-underwriting-specialist/7926562878.html
+      - img "Underwriting Specialist or Executive Underwriter, Core Contract Surety 1"
+    - text: city of san francisco
+    - button ""
+    - link "Underwriting Specialist or Executive Underwriter, Core Contract Surety":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/stinson-beach-underwriting-specialist/7926562878.html
+    - text: 4/9•$75000 to $165000 per year•Zurich Insurance Company Ltd.
+    - button ""
+    - link "Dispatcher 1":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/redwood-city-dispatcher/7926562338.html
+      - img "Dispatcher 1"
+    - text: peninsula
+    - button ""
+    - link "Dispatcher":
+      - /url: https://sfbay.craigslist.org/pen/ofc/d/redwood-city-dispatcher/7926562338.html
+    - text: 4/9•$32.34/hour•MV Transportation
+    - button ""
+    - link "Dispatcher 1":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/emeryville-dispatcher/7926562324.html
+      - img "Dispatcher 1"
+    - text: east bay area
+    - button ""
+    - link "Dispatcher":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/emeryville-dispatcher/7926562324.html
+    - text: 4/9•$27.11/hour•MV Transportation
+    - button ""
+    - link "SFO GSE Mechanic 1":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/burlingame-sfo-gse-mechanic/7926562685.html
+      - img "SFO GSE Mechanic 1"
+    - text: peninsula
+    - button ""
+    - link "SFO GSE Mechanic":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/burlingame-sfo-gse-mechanic/7926562685.html
+    - text: 4/9•$33.0 to $43.0 per hour•Swissport International AG
+    - button ""
+    - link "Sales Development Manager - Point of Care Diagnostics - N. CA 1":
+      - /url: https://sfbay.craigslist.org/sfc/sls/d/san-francisco-sales-development-manager/7926562233.html
+      - img "Sales Development Manager - Point of Care Diagnostics - N. CA 1"
+    - text: city of san francisco
+    - button ""
+    - link "Sales Development Manager - Point of Care Diagnostics - N. CA":
+      - /url: https://sfbay.craigslist.org/sfc/sls/d/san-francisco-sales-development-manager/7926562233.html
+    - text: 4/9•$68000 to $136000 per year•Abbott Laboratories
+    - button ""
+    - link "CDL A Driver Walk-in Interviews (4/15) - APPLY NOW 1":
+      - /url: https://sfbay.craigslist.org/scz/trp/d/gilroy-cdl-driver-walk-in-interviews/7926562060.html
+      - img "CDL A Driver Walk-in Interviews (4/15) - APPLY NOW 1"
+    - text: santa cruz co
+    - button ""
+    - link "CDL A Driver Walk-in Interviews (4/15) - APPLY NOW":
+      - /url: https://sfbay.craigslist.org/scz/trp/d/gilroy-cdl-driver-walk-in-interviews/7926562060.html
+    - text: 4/9•$350 daily minimum•Performance Foodservice
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/ofc/d/san-jose-hybrid-work-small-office/7926561929.html
+    - text: san jose east
+    - button ""
+    - link "hybrid work small office":
+      - /url: https://sfbay.craigslist.org/sby/ofc/d/san-jose-hybrid-work-small-office/7926561929.html
+    - text: 4/9•$20
+    - button ""
+    - link "Class B Box Truck Driver - Healthcare (Hazmat endorsement highly pr... 1":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/richmond-class-box-truck-driver/7926561600.html
+      - img "Class B Box Truck Driver - Healthcare (Hazmat endorsement highly pr... 1"
+    - text: east bay area
+    - button ""
+    - link "Class B Box Truck Driver - Healthcare (Hazmat endorsement highly pr...":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/richmond-class-box-truck-driver/7926561600.html
+    - text: 4/9•$18.63 - $43.27 Hourly•Clean Harbors
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-no-experience-needed/7926560483.html
+    - text: downtown / civic / van ness
+    - button ""
+    - link "No experience needed! Health Care Careers":
+      - /url: https://sfbay.craigslist.org/sfc/hea/d/san-francisco-no-experience-needed/7926560483.html
+    - text: 4/8•DOE
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-line-cook/7926560067.html
+    - text: bernal heights
+    - button ""
+    - link "Line cook":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-line-cook/7926560067.html
+    - text: 4/8•25-35•Precita Social
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/hea/d/walnut-creek-medical-assistant/7926559888.html
+    - text: walnut creek
+    - button ""
+    - link "Medical Assistant":
+      - /url: https://sfbay.craigslist.org/eby/hea/d/walnut-creek-medical-assistant/7926559888.html
+    - text: 4/8•Hourly•Vital Total Health Medical Group Inc
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-carlos-food-prep-needed-asap/7926557272.html
+    - text: San Carlos
+    - button ""
+    - link "FOOD PREP - NEEDED ASAP":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-carlos-food-prep-needed-asap/7926557272.html
+    - text: 4/8•$21-$23 ($20 an hour + tips)•Poke'd Out
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/mar/d/san-francisco-local-san-francisco/7926553799.html
+    - text: castro / upper market
+    - button ""
+    - link "Local San Francisco Campaign Recruiting Phonebankers and Canvassers":
+      - /url: https://sfbay.craigslist.org/sfc/mar/d/san-francisco-local-san-francisco/7926553799.html
+    - text: 4/8•Local San Francisco Campaign Recruiting...•To be disclosed
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/hea/d/redwood-city-medical-assistant/7926552153.html
+    - text: redwood city
+    - button ""
+    - link "Medical assistant":
+      - /url: https://sfbay.craigslist.org/pen/hea/d/redwood-city-medical-assistant/7926552153.html
+    - text: 4/8•Negotiable
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/hea/d/walnut-creek-man-with-vestibular/7926551976.html
+    - text: Walnut Creek
+    - button ""
+    - link "Man with Vestibular Syndrome needs caretaker 4 hours a week":
+      - /url: https://sfbay.craigslist.org/eby/hea/d/walnut-creek-man-with-vestibular/7926551976.html
+    - text: 4/8•$25 an hour for 4 hours at a time. Most...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/oakland-residential-finish-carpenter/7926551702.html
+    - text: oakland rockridge / claremont
+    - button ""
+    - link "Residential Finish Carpenter":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/oakland-residential-finish-carpenter/7926551702.html
+    - text: 4/8•Competitive salary with experience and ...•Joinery Structures
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/vallejo-daikon-kbbq-dishwashers-se/7926547657.html
+    - text: Vallejo
+    - button ""
+    - link "Daikon KBBQ - Dishwashers (Se Hablo Espanol)":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/vallejo-daikon-kbbq-dishwashers-se/7926547657.html
+    - text: 4/8•18$ an hour•Daikon
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/acc/d/millbrae-data-processing-clerk-for/7926542224.html
+    - text: millbrae
+    - button ""
+    - link "Data Processing Clerk for a local CPA Firm (Part-Time)":
+      - /url: https://sfbay.craigslist.org/pen/acc/d/millbrae-data-processing-clerk-for/7926542224.html
+    - text: 4/8•$22 per hour, DOE
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/lab/d/rohnert-park-carpet-cleaning-technician/7926537705.html
+    - text: rohnert pk / cotati
+    - button ""
+    - link "Carpet Cleaning Technician":
+      - /url: https://sfbay.craigslist.org/nby/lab/d/rohnert-park-carpet-cleaning-technician/7926537705.html
+    - text: 4/8•Depending on experience.•Diamond Quality Cleaning
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/egr/d/san-francisco-spacecraft-qualification/7926535539.html
+    - text: SOMA / south beach
+    - button ""
+    - link "Spacecraft Qualification Engineer at Planet Labs PBC":
+      - /url: https://sfbay.craigslist.org/sfc/egr/d/san-francisco-spacecraft-qualification/7926535539.html
+    - text: "4/8•Wage Offer: $126,000/yr•Planet Labs PBC"
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/lab/d/south-san-francisco-full-time-body-shop/7926534832.html
+    - text: south san francisco
+    - button ""
+    - link "Full Time Body Shop Worker Needed":
+      - /url: https://sfbay.craigslist.org/pen/lab/d/south-san-francisco-full-time-body-shop/7926534832.html
+    - text: 4/8•Depends on Experience•P&R Services
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/oakland-arizmendi-bakery-hiring-new/7926533570.html
+    - text: oakland lake merritt / grand
+    - button ""
+    - link "Arizmendi Bakery - hiring new worker-owners":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/oakland-arizmendi-bakery-hiring-new/7926533570.html
+    - text: 4/8•$30/hour, health and dental insurance, ...•Arizmendi Bakery (Lakeshore Avenue)
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/mnu/d/fremont-30-entry-level-test-operators/7926530309.html
+    - text: fremont / union city / newark
+    - button ""
+    - link "30 Entry Level Test Operators":
+      - /url: https://sfbay.craigslist.org/eby/mnu/d/fremont-30-entry-level-test-operators/7926530309.html
+    - text: 4/8•21.5•Volt
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/pleasanton-receptionist-admin-assistant/7926528900.html
+    - text: dublin / pleasanton / livermore
+    - button ""
+    - link "Receptionist/Admin Assistant":
+      - /url: https://sfbay.craigslist.org/eby/ofc/d/pleasanton-receptionist-admin-assistant/7926528900.html
+    - text: 4/8•$18 - $30/hr - Compensation based on Ex...•QPS Dental Support
+    - button ""
+    - link "Kitchen Manager (Catering High Volume Production Experience Required) 1":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/oakland-kitchen-manager-catering-high/7926527869.html
+      - img "Kitchen Manager (Catering High Volume Production Experience Required) 1"
+    - text: oakland north / temescal
+    - button ""
+    - link "Kitchen Manager (Catering High Volume Production Experience Required)":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/oakland-kitchen-manager-catering-high/7926527869.html
+    - text: 4/8•$29-32 Hourly DOE with benefits after 9...•Just Fare
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-dishwasher-prep-for/7926527166.html
+    - text: SOMA / south beach
+    - button ""
+    - link "DISHWASHER - PREP FOR ATWATER TAVERN, 2 Days/wk Offered":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-dishwasher-prep-for/7926527166.html
+    - text: 4/8•19.18/HR. 1 Family Meal PER SHIFT, BENE...•ATWATER TAVERN
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-fryer-job-at-atwater/7926526231.html
+    - text: SOMA / south beach
+    - button ""
+    - link "FRYER JOB at ATWATER TAVERN, Mission Bay":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-fryer-job-at-atwater/7926526231.html
+    - text: 4/8•STARTING PAY Depending on experience. H...•ATwater Tavern
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/trp/d/gilroy-dump-truck-driver-position/7926520649.html
+    - text: san jose south
+    - button ""
+    - link "Dump Truck driver position available":
+      - /url: https://sfbay.craigslist.org/sby/trp/d/gilroy-dump-truck-driver-position/7926520649.html
+    - text: 4/8•DOE
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-hiring-parent-advocates-abw/7926520516.html
+    - text: hayward / castro valley
+    - button ""
+    - link "Hiring Parent Advocate's @ ABW!":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-hiring-parent-advocates-abw/7926520516.html
+    - text: 4/8•$23 - $27/hr•A Better Way, Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-hiring-parent-partners-abw/7926520274.html
+    - text: hayward / castro valley
+    - button ""
+    - link "Hiring Parent Partner's @ ABW!":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-hiring-parent-partners-abw/7926520274.html
+    - text: 4/8•$23 - $27/hr•A Better Way, Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-family-support-specialist/7926520025.html
+    - text: hayward / castro valley
+    - button ""
+    - link "Family Support Specialist needed @ ABW!":
+      - /url: https://sfbay.craigslist.org/eby/npo/d/hayward-family-support-specialist/7926520025.html
+    - text: 4/8•$25 - $27/hr•A Better Way, Inc.
+    - button ""
+    - link "Purchasing Agent 1":
+      - /url: https://sfbay.craigslist.org/scz/ofc/d/santa-cruz-purchasing-agent/7926517188.html
+      - img "Purchasing Agent 1"
+    - text: santa cruz
+    - button ""
+    - link "Purchasing Agent":
+      - /url: https://sfbay.craigslist.org/scz/ofc/d/santa-cruz-purchasing-agent/7926517188.html
+    - text: 4/8•$68,000 - $78,000•NHS, Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/el-verano-all-kitchen-boh-positions/7926514021.html
+    - text: sonoma
+    - button ""
+    - link "All Kitchen/BOH Positions - Chef, Sous Chef, Cooks, Dishwashers":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/el-verano-all-kitchen-boh-positions/7926514021.html
+    - text: 4/8•Varies by position•the girl & the fig, LLC
+    - button ""
+    - link "Seasonal Sales Associate I, Golden Gate Bridge Welcome Center 1":
+      - /url: https://sfbay.craigslist.org/sfc/ret/d/san-francisco-seasonal-sales-associate/7926512670.html
+      - img "Seasonal Sales Associate I, Golden Gate Bridge Welcome Center 1"
+    - text: city of san francisco
+    - button ""
+    - link "Seasonal Sales Associate I, Golden Gate Bridge Welcome Center":
+      - /url: https://sfbay.craigslist.org/sfc/ret/d/san-francisco-seasonal-sales-associate/7926512670.html
+    - text: 4/8•$21/hour•Golden Gate National Parks Conservancy
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-bruno-jacks-restaurant-bar-is-hiring/7926512272.html
+    - text: san bruno
+    - button ""
+    - link "JACK'S RESTAURANT & BAR IS HIRING!!":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-bruno-jacks-restaurant-bar-is-hiring/7926512272.html
+    - text: 4/8•16.90-22.00•Jack's Restaurant & Bar
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-mateo-jacks-restaurant-bar-is-hiring/7926512061.html
+    - text: san mateo
+    - button ""
+    - link "JACK'S RESTAURANT & BAR IS HIRING!!":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/san-mateo-jacks-restaurant-bar-is-hiring/7926512061.html
+    - text: 4/8•20.00-22.00
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-cashier-or-barista/7926511339.html
+    - text: north beach / telegraph hill
+    - button ""
+    - link "Cashier or Barista @ Reveille Coffee":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-cashier-or-barista/7926511339.html
+    - text: 4/8•DOE•Reveille Coffee
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/menlo-park-full-time-resident-apartment/7926509894.html
+    - text: menlo park
+    - button ""
+    - link "Full-time Resident Apartment Manager ~ Menlo Park ~ 128 units":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/menlo-park-full-time-resident-apartment/7926509894.html
+    - text: 4/8•$70,000 - $75,000 salary range, 2 bedro...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/ofc/d/los-gatos-full-time-office-assistant/7926509503.html
+    - text: los gatos
+    - button ""
+    - link "Full-Time Office Assistant":
+      - /url: https://sfbay.craigslist.org/sby/ofc/d/los-gatos-full-time-office-assistant/7926509503.html
+    - text: 4/8•full benefits•Office Assistant
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-jacks-restaurant-bar-is-hiring/7926508864.html
+    - text: san jose east
+    - button ""
+    - link "JACK'S RESTAURANT & BAR IS HIRING!!":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-jacks-restaurant-bar-is-hiring/7926508864.html
+    - text: 4/8•18.45-22.00•Jack's Restaurant & Bar
+    - button ""
+    - link "Kitchen Helper (Entry-Level) – Sushi @ Tsunami Sushi Panhandle\" 1":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-kitchen-helper-entry/7926507981.html
+      - img "Kitchen Helper (Entry-Level) – Sushi @ Tsunami Sushi Panhandle\" 1"
+    - text: western addition
+    - button ""
+    - link "Kitchen Helper (Entry-Level) – Sushi @ Tsunami Sushi Panhandle\"":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-kitchen-helper-entry/7926507981.html
+    - text: 4/8•$20/hour•Tsunami Panhandle
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/rohnert-park-experienced-carpenter/7926507506.html
+    - text: rohnert pk / cotati
+    - button ""
+    - link "Experienced Carpenter/Foreman- (10+ Years Required)":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/rohnert-park-experienced-carpenter/7926507506.html
+    - text: 4/8•TBD Based on Experience•A & C Noma Construction, Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/san-francisco-now-hiring-dry-cleaner/7926506411.html
+    - text: inner richmond
+    - button ""
+    - link "**Now Hiring – Dry Cleaner (Inner Richmond)**":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/san-francisco-now-hiring-dry-cleaner/7926506411.html
+    - text: 4/8•TBD•Sonias Cleaners
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/san-leandro-experienced-template/7926505536.html
+    - text: san leandro
+    - button ""
+    - link "Experienced Template Technician – Stone Fabrication":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/san-leandro-experienced-template/7926505536.html
+    - text: 4/8•Based on Experience
+    - button ""
+    - link "Practice Operations Manager (Patient-Focused Healthcare Leadership) 1":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/san-francisco-practice-operations/7926504513.html
+      - img "Practice Operations Manager (Patient-Focused Healthcare Leadership) 1"
+    - text: inner richmond
+    - button ""
+    - link "Practice Operations Manager (Patient-Focused Healthcare Leadership)":
+      - /url: https://sfbay.craigslist.org/sfc/ofc/d/san-francisco-practice-operations/7926504513.html
+    - text: 4/8•$70,000.00 - $80,000.00 per year plus b...•Healthy Life Chiropractic
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/sec/d/portola-valley-pt-ft-security-officer/7926504062.html
+    - text: Portola Valley
+    - button ""
+    - link "PT/FT Security Officer":
+      - /url: https://sfbay.craigslist.org/pen/sec/d/portola-valley-pt-ft-security-officer/7926504062.html
+    - text: 4/8•$21-$24 per hour to start DOE and post ...•Woodside Patrol
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/sec/d/portola-valley-dispatcher-receptionist/7926503836.html
+    - text: portola valley
+    - button ""
+    - link "Dispatcher/Receptionist":
+      - /url: https://sfbay.craigslist.org/pen/sec/d/portola-valley-dispatcher-receptionist/7926503836.html
+    - text: 4/8•19.00-22.00 per hour to start DOE•Woodside & Portola Private Patrol
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/sec/d/portola-valley-armed-pt-ft-security/7926503521.html
+    - text: Portola Valley
+    - button ""
+    - link "Armed PT/FT Security Officer":
+      - /url: https://sfbay.craigslist.org/pen/sec/d/portola-valley-armed-pt-ft-security/7926503521.html
+    - text: 4/8•$25.00-$30.00/hr DOE and assignment•Woodside Patrol
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/sec/d/oakland-security-officer-needed-in/7926503015.html
+    - text: oakland hills / mills
+    - button ""
+    - link "Security Officer Needed in Oakland (Lincoln Square)":
+      - /url: https://sfbay.craigslist.org/eby/sec/d/oakland-security-officer-needed-in/7926503015.html
+    - text: 4/8•$20 per Hour•Forbes Security Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-line-cook-bar-back-at/7926502924.html
+    - text: mission district
+    - button ""
+    - link "Line Cook & Bar Back at Lore Speakeasy and Escape Room":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-line-cook-bar-back-at/7926502924.html
+    - text: 4/8•$20.25/hr with tips•Lore Speakeasy and Escape Room
+    - button ""
+    - link "Senior Sales Coordinator 1":
+      - /url: https://sfbay.craigslist.org/pen/sls/d/san-mateo-senior-sales-coordinator/7926502637.html
+      - img "Senior Sales Coordinator 1"
+    - text: san mateo
+    - button ""
+    - link "Senior Sales Coordinator":
+      - /url: https://sfbay.craigslist.org/pen/sls/d/san-mateo-senior-sales-coordinator/7926502637.html
+    - text: 4/8•$38.00 per hour•San Mateo County Event Center
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/sec/d/livermore-security-officers-needed-in/7926502610.html
+    - text: dublin / pleasanton / livermore
+    - button ""
+    - link "Security Officers Needed in Livermore (Shops at Livermore)":
+      - /url: https://sfbay.craigslist.org/eby/sec/d/livermore-security-officers-needed-in/7926502610.html
+    - text: 4/8•$21.00 per Hour•Forbes Security Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/acc/d/san-jose-wanted-financial-aid/7926499687.html
+    - text: San Jose
+    - button ""
+    - link "**WANTED** FINANCIAL AID REPRESENTATIVES! (IBT)":
+      - /url: https://sfbay.craigslist.org/sby/acc/d/san-jose-wanted-financial-aid/7926499687.html
+    - text: "4/8•Compensation: $23-$24 hour and UP (depe...•Institute for Business and Technology"
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/palo-alto-full-time-leasing-specialist/7926496881.html
+    - text: palo alto
+    - button ""
+    - link "Full-time Leasing Specialist ~ Palo Alto ~ 271 units":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/palo-alto-full-time-leasing-specialist/7926496881.html
+    - text: 4/8•$30.00 - $32.70 / hour depending on qua...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/rej/d/sunnyvale-regional-leasing-specialist/7926496801.html
+    - text: sunnyvale
+    - button ""
+    - link "Regional Leasing Specialist":
+      - /url: https://sfbay.craigslist.org/sby/rej/d/sunnyvale-regional-leasing-specialist/7926496801.html
+    - text: 4/8•$65,000 - $70,000 / year depending on q...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/menlo-park-apartment-maintenance/7926496729.html
+    - text: menlo park
+    - button ""
+    - link "Apartment Maintenance Technician":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/menlo-park-apartment-maintenance/7926496729.html
+    - text: 4/8•$34 - $40 per hour depending on qualifi...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/san-mateo-regional-leasing-specialist/7926496653.html
+    - text: san mateo
+    - button ""
+    - link "Regional Leasing Specialist":
+      - /url: https://sfbay.craigslist.org/pen/rej/d/san-mateo-regional-leasing-specialist/7926496653.html
+    - text: 4/8•$65,000 - $70,000 / year depending on q...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/rej/d/sunnyvale-apartment-maintenance/7926496567.html
+    - text: sunnyvale
+    - button ""
+    - link "Apartment Maintenance Technician":
+      - /url: https://sfbay.craigslist.org/sby/rej/d/sunnyvale-apartment-maintenance/7926496567.html
+    - text: 4/8•$34 - $40 / hour depending on qualifica...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/etc/d/hayward-do-you-love-cars-do-you-love/7926494289.html
+    - text: hayward / castro valley
+    - button ""
+    - link "Do you love cars? Do you love driving cars?":
+      - /url: https://sfbay.craigslist.org/eby/etc/d/hayward-do-you-love-cars-do-you-love/7926494289.html
+    - text: 4/8•$20.00 per hour•DriveShop
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/walnut-creek-roofing-runner-helper/7926493064.html
+    - text: downtown / civic / van ness
+    - button ""
+    - link "Roofing Runner / Helper – Walnut Creek & Bay Area":
+      - /url: https://sfbay.craigslist.org/sfc/lab/d/walnut-creek-roofing-runner-helper/7926493064.html
+    - text: 4/8•TBD
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/spa/d/belmont-station-for-rent/7926491967.html
+    - text: belmont
+    - button ""
+    - link "STATION FOR RENT":
+      - /url: https://sfbay.craigslist.org/pen/spa/d/belmont-station-for-rent/7926491967.html
+    - text: 4/8•rental•HAIR TODAY
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/lab/d/walnut-creek-roofing-runner-helper/7926490989.html
+    - text: san jose downtown
+    - button ""
+    - link "Roofing Runner / Helper – Walnut Creek & Bay Area":
+      - /url: https://sfbay.craigslist.org/sby/lab/d/walnut-creek-roofing-runner-helper/7926490989.html
+    - text: 4/8•TBD
+    - button ""
+    - link "LANDSCAPE INSTALLATION CREW MEMBERS NEEDED 1":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/san-rafael-landscape-installation-crew/7926490680.html
+      - img "LANDSCAPE INSTALLATION CREW MEMBERS NEEDED 1"
+    - text: san rafael
+    - button ""
+    - link "LANDSCAPE INSTALLATION CREW MEMBERS NEEDED":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/san-rafael-landscape-installation-crew/7926490680.html
+    - text: 4/8•$30 - $40 hourly depending on experience•Kaiser Gardens Inc.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/hea/d/santa-clara-healthcare-aide/7926490325.html
+    - text: santa clara
+    - button ""
+    - link "Healthcare aide":
+      - /url: https://sfbay.craigslist.org/sby/hea/d/santa-clara-healthcare-aide/7926490325.html
+    - text: 4/8•$25/hr. 3 hrs twice weekly
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/lab/d/rohnert-park-now-hiring-part-time-full/7926489868.html
+    - text: rohnert pk / cotati
+    - button ""
+    - 'link "🚐✨ NOW HIRING: Part-Time/Full-Time Automotive & RV Detailer"':
+      - /url: https://sfbay.craigslist.org/nby/lab/d/rohnert-park-now-hiring-part-time-full/7926489868.html
+    - text: 4/8•23•SONOMA RV AND NORTH BAY MOTORS
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/trd/d/san-jose-commercial-industrial/7926489513.html
+    - text: san jose south
+    - button ""
+    - link "COMMERCIAL/INDUSTRIAL JOURNEYMAN PLUMBER":
+      - /url: https://sfbay.craigslist.org/sby/trd/d/san-jose-commercial-industrial/7926489513.html
+    - text: 4/8•DOE
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/livermore-hvac-commercial-service-tech/7926489035.html
+    - text: dublin / pleasanton / livermore
+    - button ""
+    - link "HVAC Commercial Service Tech":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/livermore-hvac-commercial-service-tech/7926489035.html
+    - text: "4/8•Pay: $40.00 - $50.00 per hour•HVAC COMPANY"
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/edu/d/san-francisco-now-hiring-preschool/7926488703.html
+    - text: laurel hts / presidio
+    - button ""
+    - link "NOW HIRING!! Preschool Teachers (ALL LEVELS)":
+      - /url: https://sfbay.craigslist.org/sfc/edu/d/san-francisco-now-hiring-preschool/7926488703.html
+    - text: 4/8•$22 - $34 Hourly, based on experience a...•Jewish Community Center of San Francisco
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/sls/d/san-rafael-customer-service-computer/7926488566.html
+    - text: san rafael
+    - button ""
+    - link "Customer Service Computer Store":
+      - /url: https://sfbay.craigslist.org/nby/sls/d/san-rafael-customer-service-computer/7926488566.html
+    - text: 4/8•$20/hr, monthly bonus, paid lunch, no o...•Renew Computers
+    - button ""
+    - link "Attorney / Paralegal – Legal Tech (AI) | $150K+ OTE | Remote 1":
+      - /url: https://sfbay.craigslist.org/sfc/lgl/d/san-francisco-attorney-paralegal-legal/7926487664.html
+      - img "Attorney / Paralegal – Legal Tech (AI) | $150K+ OTE | Remote 1"
+    - text: financial district
+    - button ""
+    - link "Attorney / Paralegal – Legal Tech (AI) | $150K+ OTE | Remote":
+      - /url: https://sfbay.craigslist.org/sfc/lgl/d/san-francisco-attorney-paralegal-legal/7926487664.html
+    - text: 4/8•$120,000 base + commission (OTE $150K–$...•LawFusion.ai
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/berkeley-glazier-east-bay/7926482300.html
+    - text: berkeley
+    - button ""
+    - link "GLAZIER EAST BAY":
+      - /url: https://sfbay.craigslist.org/eby/trd/d/berkeley-glazier-east-bay/7926482300.html
+    - text: 4/8•hourly
+    - button ""
+    - link "Journeyman Electrician. 1":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/sausalito-journeyman-electrician/7926482264.html
+      - img "Journeyman Electrician. 1"
+    - text: sausalito
+    - button ""
+    - link "Journeyman Electrician.":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/sausalito-journeyman-electrician/7926482264.html
+    - text: 4/8•$35-$55 BOE•Allcom Electric
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/antioch-painters-wanted-se-buscan/7926480304.html
+    - text: pittsburg / antioch
+    - button ""
+    - link "Painters Wanted / Se Buscan Pintores":
+      - /url: https://sfbay.craigslist.org/eby/lab/d/antioch-painters-wanted-se-buscan/7926480304.html
+    - text: 4/8•$23 to $35 depending on your level of e...•Blank Canvas Painting Inc
+    - button ""
+    - link "Host | Ethel's Fancy | Now Hiring 1":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-host-ethels-fancy-now-hiring/7926480114.html
+      - img "Host | Ethel's Fancy | Now Hiring 1"
+    - text: palo alto
+    - button ""
+    - link "Host | Ethel's Fancy | Now Hiring":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-host-ethels-fancy-now-hiring/7926480114.html
+    - text: 4/8•Hourly ($18.70 - $20.00) plus tips
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/south-san-francisco-mobile-service/7926480053.html
+    - text: south san francisco
+    - button ""
+    - link "Mobile Service Technician/Mechanic":
+      - /url: https://sfbay.craigslist.org/pen/trd/d/south-san-francisco-mobile-service/7926480053.html
+    - text: 4/8•$22-$30/HR plus commission•Nanoo Mobile
+    - button ""
+    - link "Lead Line Cook | RT Rotisserie | Now Hiring 1":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-lead-line-cook-rt/7926479474.html
+      - img "Lead Line Cook | RT Rotisserie | Now Hiring 1"
+    - text: city of san francisco
+    - button ""
+    - link "Lead Line Cook | RT Rotisserie | Now Hiring":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-lead-line-cook-rt/7926479474.html
+    - text: 4/8•Hourly ($24.00 - $25.00)
+    - button ""
+    - link "★$150 Video Game Playtest!★ 1":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/south-san-francisco-150-video-game/7926479107.html
+      - img "★$150 Video Game Playtest!★ 1"
+    - text: south san francisco
+    - button ""
+    - link "★$150 Video Game Playtest!★":
+      - /url: https://sfbay.craigslist.org/pen/etc/d/south-san-francisco-150-video-game/7926479107.html
+    - text: 4/8•$150•VGM
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/ret/d/union-city-warehouse-associate/7926478286.html
+    - text: fremont / union city / newark
+    - button ""
+    - link "Warehouse Associate":
+      - /url: https://sfbay.craigslist.org/eby/ret/d/union-city-warehouse-associate/7926478286.html
+    - text: 4/8•$20-25/ hr•The Artisan Variety LLC
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/med/d/martinez-photo-assistant-must-love/7926477488.html
+    - text: concord / pleasant hill / martinez
+    - button ""
+    - link "PHOTO ASSISTANT - MUST LOVE WORKING WITH KIDS!!!!":
+      - /url: https://sfbay.craigslist.org/eby/med/d/martinez-photo-assistant-must-love/7926477488.html
+    - text: 4/8•Starts at $18 per hour•Sandbox Photographers
+    - button ""
+    - link "Sekoya is seeking a Chef de Cuisine 1":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-sekoya-is-seeking-chef-de/7926477292.html
+      - img "Sekoya is seeking a Chef de Cuisine 1"
+    - text: palo alto
+    - button ""
+    - link "Sekoya is seeking a Chef de Cuisine":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-sekoya-is-seeking-chef-de/7926477292.html
+    - text: 4/8•$85,000 - $100,000
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/hea/d/san-jose-travel-registered-nurse/7926476924.html
+    - text: south bay area
+    - button ""
+    - link "Travel Registered Nurse":
+      - /url: https://sfbay.craigslist.org/sby/hea/d/san-jose-travel-registered-nurse/7926476924.html
+    - text: "4/8•PAY RANGE: $2,000-$2,800 per week based..."
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/hea/d/dental-immediate-entry-level-dental/7926475786.html
+    - text: san mateo
+    - button ""
+    - link "Dental -- Immediate Entry Level Dental Assistant / Part time":
+      - /url: https://sfbay.craigslist.org/pen/hea/d/dental-immediate-entry-level-dental/7926475786.html
+    - text: 4/8•TBD
+    - button ""
+    - link "**Morning / Lunch Dishwasher Needed at Sundance The Steakhouse** 1":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/stanford-morning-lunch-dishwasher/7926474329.html
+      - img "**Morning / Lunch Dishwasher Needed at Sundance The Steakhouse** 1"
+    - text: palo alto
+    - button ""
+    - link "**Morning / Lunch Dishwasher Needed at Sundance The Steakhouse**":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/stanford-morning-lunch-dishwasher/7926474329.html
+    - text: 4/8•20 to 22 dollars per hour•Sundance The Steakhouse
+    - button ""
+    - link "CoffeeShop is Hiring. 1":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-coffeeshop-is-hiring/7926473540.html
+      - img "CoffeeShop is Hiring. 1"
+    - text: San Francisco
+    - button ""
+    - link "CoffeeShop is Hiring.":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-coffeeshop-is-hiring/7926473540.html
+    - text: 4/8•$20 plus Tips•CoffeeShop
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-cafe-line-cook-part-time/7926468122.html
+    - text: san jose downtown
+    - button ""
+    - link "Cafe Line Cook Part-Time":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/san-jose-cafe-line-cook-part-time/7926468122.html
+    - text: 4/8•$25.00/hour plus tips•Tony Caters/Smashing Dishes
+    - button ""
+    - link "Farmers Market Attendant 1":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/santa-rosa-farmers-market-attendant/7926466662.html
+      - img "Farmers Market Attendant 1"
+    - text: santa rosa
+    - button ""
+    - link "Farmers Market Attendant":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/santa-rosa-farmers-market-attendant/7926466662.html
+    - text: 4/8•$20+ DOE with Benefits, Healthcare, Mat...•Sonoma County Meat Co.
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/glen-ellen-line-cook-jack-london-saloon/7926465659.html
+    - text: sonoma
+    - button ""
+    - link "LINE COOK- Jack London Saloon":
+      - /url: https://sfbay.craigslist.org/nby/fbh/d/glen-ellen-line-cook-jack-london-saloon/7926465659.html
+    - text: 4/8•competitive
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-asistentes-de-cocina-prep/7926465306.html
+    - text: hayes valley
+    - button ""
+    - link "Asistentes de Cocina (Prep Cooks), Carniceros (Butchers) y Laundry":
+      - /url: https://sfbay.craigslist.org/sfc/fbh/d/san-francisco-asistentes-de-cocina-prep/7926465306.html
+    - text: 4/8•$20 per hour•Espetus Churrascaria
+    - button ""
+    - link "Driver Conductora 1":
+      - /url: https://sfbay.craigslist.org/sby/trp/d/milpitas-driver-conductora/7926464269.html
+      - img "Driver Conductora 1"
+    - text: san jose north
+    - button ""
+    - link "Driver Conductora":
+      - /url: https://sfbay.craigslist.org/sby/trp/d/milpitas-driver-conductora/7926464269.html
+    - text: 4/8•Compensation is per trip. La remuneraci...•Safe Speed Transportation
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/pool-service-tech/7926463374.html
+    - text: san rafael
+    - button ""
+    - link "Pool Service Tech":
+      - /url: https://sfbay.craigslist.org/nby/trd/d/pool-service-tech/7926463374.html
+    - text: 4/8•$20 an hour•Herb's Pool Service
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/lab/d/daly-city-part-time-house-cleaner-25-hr/7926461359.html
+    - text: daly city
+    - button ""
+    - link "Part Time House Cleaner ($25/hr + TIPS + BONUSES)":
+      - /url: https://sfbay.craigslist.org/pen/lab/d/daly-city-part-time-house-cleaner-25-hr/7926461359.html
+    - text: 4/8•$25/hr + TIPS + $10 GAS BONUS + $10 BON...•Cali Cleaning Crew
+    - button ""
+    - link "SALES ASSOCIATE 1":
+      - /url: https://sfbay.craigslist.org/sfc/ret/d/san-francisco-sales-associate/7926460247.html
+      - img "SALES ASSOCIATE 1"
+    - text: downtown / civic / van ness
+    - button ""
+    - link "SALES ASSOCIATE":
+      - /url: https://sfbay.craigslist.org/sfc/ret/d/san-francisco-sales-associate/7926460247.html
+    - text: 4/8•$21/hour + commission•ZastaStudio
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/concord-hiring-experienced-servers/7926457913.html
+    - text: concord / pleasant hill / martinez
+    - button ""
+    - link "Hiring Experienced Servers, Bartenders, & Bussers! (Concord)":
+      - /url: https://sfbay.craigslist.org/eby/fbh/d/concord-hiring-experienced-servers/7926457913.html
+    - text: 4/8•$18.60/hr + Tips after training•Espetus Churrascaria Concord
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/mnu/d/rohnert-park-machinist-model-maker/7926457123.html
+    - text: rohnert pk / cotati
+    - button ""
+    - link "Machinist - Model Maker":
+      - /url: https://sfbay.craigslist.org/nby/mnu/d/rohnert-park-machinist-model-maker/7926457123.html
+    - text: 4/8•$23 to $45 per hour - depending on leve...•LEMO
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-pizzeria-cashier-needed/7926457097.html
+    - text: palo alto
+    - button ""
+    - link "Pizzeria Cashier needed":
+      - /url: https://sfbay.craigslist.org/pen/fbh/d/palo-alto-pizzeria-cashier-needed/7926457097.html
+    - text: 4/8•$$•New York Pizza Palo Alto
+    - button ""
+    - link "Caregiver AM & PM shifts 1":
+      - /url: https://sfbay.craigslist.org/scz/hea/d/aptos-caregiver-am-pm-shifts/7926456520.html
+      - img "Caregiver AM & PM shifts 1"
+    - text: aptos
+    - button ""
+    - link "Caregiver AM & PM shifts":
+      - /url: https://sfbay.craigslist.org/scz/hea/d/aptos-caregiver-am-pm-shifts/7926456520.html
+    - text: 4/8•Hrly pay 22.00-24.00 Sick pay, PTO pay,...
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/lab/d/redwood-city-warehouse-associate/7926456314.html
+    - text: redwood city
+    - button ""
+    - link "Warehouse Associate":
+      - /url: https://sfbay.craigslist.org/pen/lab/d/redwood-city-warehouse-associate/7926456314.html
+    - text: 4/8•Starting up to $20/hr•Master Plumbing & Sewer Inc
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/edu/d/san-jose-vice-president-student-services/7926454324.html
+    - text: south bay area
+    - button ""
+    - link "VICE PRESIDENT, STUDENT SERVICES":
+      - /url: https://sfbay.craigslist.org/sby/edu/d/san-jose-vice-president-student-services/7926454324.html
+    - text: 4/8
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/saratoga-day-of-wedding-coordinator/7926454217.html
+    - text: saratoga
+    - button ""
+    - link "Day-Of Wedding Coordinator":
+      - /url: https://sfbay.craigslist.org/sby/fbh/d/saratoga-day-of-wedding-coordinator/7926454217.html
+    - text: 4/8•$25-30 per hour•Saratoga Springs Events & Weddings
+    - button ""
+    - link "Class A CDL Driver part-time 1":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/fremont-class-cdl-driver-part-time/7926454131.html
+      - img "Class A CDL Driver part-time 1"
+    - text: fremont / union city / newark
+    - button ""
+    - link "Class A CDL Driver part-time":
+      - /url: https://sfbay.craigslist.org/eby/trp/d/fremont-class-cdl-driver-part-time/7926454131.html
+    - text: 4/8•$30 - $35/hr. DOE•Lanz Cabinets
+    - button ""
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

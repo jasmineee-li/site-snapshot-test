@@ -1,0 +1,278 @@
+- document:
+  - banner:
+    - text: 80% off your first 3 months*
+    - paragraph: Get 80% off your plan for your first 3 months.
+    - link "Buy now":
+      - /url: https://www.xero.com/us/pricing-plans/
+    - button "Dismiss":
+      - img "Dismiss"
+    - navigation "Primary navigation":
+      - link "Xero homepage":
+        - /url: /us/
+        - img "Xero homepage"
+      - list:
+        - listitem:
+          - button "Features"
+        - listitem:
+          - link "Pricing":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - button "For small business"
+        - listitem:
+          - button "For accountants & bookkeepers"
+        - listitem:
+          - button "Support"
+      - list:
+        - listitem:
+          - link "Get one month free":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - link "Log in":
+            - /url: https://login.xero.com/identity/user/login
+  - main:
+    - heading "Resources for doing business" [level=1]
+    - paragraph: Develop your business skills and Xero expertise with tools, guides, and links to financial business resources.
+    - img "Two bakers prepare dough in a commercial bakery."
+    - heading "Explore resources" [level=2]
+    - paragraph: This collection of tools, resources, and stories is designed to help and inspire you as you work to make your business beautiful with Xero.
+    - list:
+      - listitem:
+        - heading "Small business guides" [level=3]:
+          - link "Small business guides":
+            - /url: /us/guides/
+        - paragraph: Tips for running a successful business.
+      - listitem:
+        - heading "Small business customer stories" [level=3]:
+          - link "Small business customer stories":
+            - /url: /us/small-businesses/customers/
+        - paragraph: Small business owners share why they’re passionate about what they do and how Xero helps.
+      - listitem:
+        - heading "Templates for your business" [level=3]:
+          - link "Templates for your business":
+            - /url: /us/templates/
+        - paragraph: Handy tools for people who are in business, or are planning to be.
+      - listitem:
+        - heading "Accountant and bookkeeper resources" [level=3]:
+          - link "Accountant and bookkeeper resources":
+            - /url: /us/resources/accountant-bookkeeper-resources/
+        - paragraph: Find a wealth of knowledge and ideas for running your accounting or bookkeeping business and advising your clients.
+      - listitem:
+        - heading "Accountant and bookkeeper stories" [level=3]:
+          - link "Accountant and bookkeeper stories":
+            - /url: /us/accountants-bookkeepers/customers/
+        - paragraph: Xero advisors share their triumphs, failures, and learnings on their journey.
+      - listitem:
+        - heading "Accountant and bookkeeper guides" [level=3]:
+          - link "Accountant and bookkeeper guides":
+            - /url: /us/accountant-bookkeeper-guides/
+        - paragraph: Tips, tricks and essentials for the success of your practice.
+      - listitem:
+        - heading "Xero podcasts" [level=3]:
+          - link "Xero podcasts":
+            - /url: /us/podcasts/
+        - paragraph: Get innovative ideas from people who know business inside out.
+      - listitem:
+        - heading "Xero TV video library" [level=3]:
+          - link "Xero TV video library":
+            - /url: https://tv.xero.com/
+        - paragraph: Find videos on using Xero, case studies, product updates and more in the Xero TV video library.
+  - contentinfo:
+    - heading "Footer" [level=2]
+    - heading "Accounting software" [level=3]
+    - list:
+      - listitem:
+        - link "How Xero accounting software works":
+          - /url: /us/accounting-software/
+      - listitem:
+        - link "Find an accountant or bookkeeper":
+          - /url: /us/advisors/
+      - listitem:
+        - link "Explore the Xero App Store":
+          - /url: https://apps.xero.com/
+      - listitem:
+        - link "Pricing":
+          - /url: /us/pricing-plans/
+    - heading "Xero for" [level=3]
+    - list:
+      - listitem:
+        - link "Small business":
+          - /url: /us/small-businesses/
+      - listitem:
+        - link "Accountants & bookkeepers":
+          - /url: /us/accountants-bookkeepers/
+      - listitem:
+        - link "App integrators":
+          - /url: /us/integrators/
+      - listitem:
+        - link "App developers":
+          - /url: https://developer.xero.com/
+      - listitem:
+        - link "Channel partners":
+          - /url: /us/campaign/xero-partnership/
+      - listitem:
+        - link "Affiliates":
+          - /url: /us/affiliate-program/
+      - listitem:
+        - link "End of Fiscal Year":
+          - /url: /us/initiative/end-of-fiscal-year/
+      - listitem:
+        - link "Self-employed":
+          - /url: /us/small-businesses/self-employed/
+      - listitem:
+        - link "Nonprofit":
+          - /url: /us/small-businesses/non-profit/
+      - listitem:
+        - link "Startup":
+          - /url: /us/small-businesses/startup/
+      - listitem:
+        - link "Construction":
+          - /url: /us/small-businesses/construction/
+    - heading "Resources" [level=3]
+    - list:
+      - listitem:
+        - link "Small business insights":
+          - /url: /us/resources/small-business-insights/
+      - listitem:
+        - link "Small business guides":
+          - /url: /us/guides/
+      - listitem:
+        - link "Small business templates":
+          - /url: /us/templates/
+      - listitem:
+        - link "Invoice template":
+          - /url: /us/templates/invoice-template/
+      - listitem:
+        - link "Pay stub template":
+          - /url: /us/templates/pay-stub-template/
+      - listitem:
+        - link "Receipt template":
+          - /url: /us/templates/receipt-template/
+      - listitem:
+        - link "Calculators":
+          - /url: /us/calculators/
+      - listitem:
+        - link "Accounting glossary":
+          - /url: /us/glossary/
+      - listitem:
+        - link "Business resources":
+          - /url: /us/resources/
+      - listitem:
+        - link "Customer stories":
+          - /url: /us/small-businesses/customers/
+      - listitem:
+        - link "Refer a friend":
+          - /url: /us/campaign/refer-a-friend/?utm_source=website&utm_medium=website&utm_campaign=footer
+    - heading "Popular features" [level=3]
+    - list:
+      - listitem:
+        - link "Invoicing":
+          - /url: /us/accounting-software/send-invoices/
+      - listitem:
+        - link "Accept payments":
+          - /url: /us/accounting-software/accept-payments/
+      - listitem:
+        - link "Inventory management":
+          - /url: /us/accounting-software/manage-inventory/
+      - listitem:
+        - link "Payroll":
+          - /url: /us/accounting-software/payroll/
+      - listitem:
+        - link "Manage expenses":
+          - /url: /us/accounting-software/claim-expenses/
+      - listitem:
+        - link "JAX - Your AI financial superagent":
+          - /url: /us/ai-in-accounting/jax-vision/
+      - listitem:
+        - link "See all features":
+          - /url: /us/accounting-software/all-features/
+    - heading "Compare" [level=3]
+    - list:
+      - listitem:
+        - link "Xero vs Quickbooks":
+          - /url: /us/versus/quickbooks-alternative/
+      - listitem:
+        - link "Xero vs Freshbooks":
+          - /url: /us/versus/freshbooks-alternative/
+      - listitem:
+        - link "Xero vs Sage":
+          - /url: /us/versus/sage-alternative/
+    - heading "Company" [level=3]
+    - list:
+      - listitem:
+        - link "About Xero":
+          - /url: /us/about/
+      - listitem:
+        - link "Get support":
+          - /url: https://central.xero.com/
+      - listitem:
+        - link "Innovation at Xero":
+          - /url: https://innovations.xero.com/
+      - listitem:
+        - link "Sustainability at Xero":
+          - /url: /us/sustainability/
+      - listitem:
+        - link "Governance and leadership":
+          - /url: /us/investors/governance/
+      - listitem:
+        - link "Blog":
+          - /url: https://blog.xero.com/
+      - listitem:
+        - link "Our brands":
+          - /url: /us/about/our-brands/
+      - listitem:
+        - link "Product updates":
+          - /url: https://blog.xero.com/product-updates/
+      - listitem:
+        - link "Careers":
+          - /url: https://careers.xero.com/
+      - listitem:
+        - link "Contact us":
+          - /url: /us/about/contact/
+      - listitem:
+        - link "Investors":
+          - /url: /ca/investors/
+      - listitem:
+        - link "Media":
+          - /url: /ca/media/
+    - separator
+    - paragraph: © 2026 Xero Limited. All rights reserved. "Xero", "Beautiful business" and "Your business supercharged" are trademarks of Xero Limited.
+    - list:
+      - listitem:
+        - link "Legal":
+          - /url: /us/legal/terms/
+      - listitem:
+        - link "Privacy notice":
+          - /url: /us/legal/privacy/
+      - listitem:
+        - link "Sitemap":
+          - /url: /us/sitemap/
+      - listitem:
+        - link "Accessibility":
+          - /url: /us/accessibility/
+      - listitem:
+        - button "Do Not Sell My Personal Information"
+    - img "The current region is United States"
+    - text: Region
+    - button "Change region": United States (USD)
+    - list:
+      - listitem:
+        - link "Facebook":
+          - /url: https://www.facebook.com/xero
+          - img "Facebook"
+      - listitem:
+        - link "Youtube":
+          - /url: https://www.youtube.com/user/XeroOnlineAccounting
+          - img "Youtube"
+      - listitem:
+        - link "Linkedin":
+          - /url: https://www.linkedin.com/company/xero
+          - img "Linkedin"
+      - listitem:
+        - link "Instagram":
+          - /url: https://www.instagram.com/xero/
+          - img "Instagram"
+      - listitem:
+        - link "Twitter":
+          - /url: https://twitter.com/xero/
+          - img "Twitter"
+  - alert

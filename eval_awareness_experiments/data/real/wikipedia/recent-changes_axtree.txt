@@ -1,0 +1,1398 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Special%3ARecentChanges
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Special%3ARecentChanges
+  - main:
+    - heading "Recent changes" [level=1]
+    - link "Help":
+      - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Recent_changes
+    - navigation "Namespaces"
+    - navigation "Views"
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small" [disabled]
+          - text: Small
+          - radio "Standard" [disabled]
+          - text: Standard
+          - radio "Large" [disabled]
+          - text: Large
+          - paragraph: This page always uses small font size
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - paragraph: This is a list of recent changes to Wikipedia.
+    - button "Other review tools"
+    - text: Active filters
+    - button "Hide"
+    - text: Human (not bot)
+    - button "Remove 'Human (not bot)'"
+    - text: Page edits
+    - button "Remove 'Page edits'"
+    - text: Page creations
+    - button "Remove 'Page creations'"
+    - text: Logged actions
+    - button "Remove 'Logged actions'"
+    - text: Account creations
+    - button "Remove 'Account creations'"
+    - button "Clear all filters"
+    - textbox "Filter changes (use menu or search for filter name)"
+    - button "Filter results by namespace": Namespaces
+    - button "Filter results using edit tags": Tags
+    - button "Live updates"
+    - button "50 changes, 1 day"
+    - group:
+      - text: List of abbreviations (
+      - link "help":
+        - /url: /wiki/Help:Watchlist#How_to_read_a_watchlist_(or_Recent_Changes)
+      - text: "):"
+      - term: D
+      - definition:
+        - text: Edit made at
+        - link "Wikidata":
+          - /url: /wiki/Wikipedia:Wikidata
+          - text: Wiki
+          - emphasis: d
+          - text: ata
+      - term: r
+      - definition:
+        - text: Edit flagged by
+        - link "ORES":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/ORES_review_tool
+      - term: "N"
+      - definition:
+        - link "New page":
+          - /url: /wiki/Special:NewPages
+      - term: m
+      - definition:
+        - link "Minor edit":
+          - /url: /wiki/Help:Minor_edit
+      - term: b
+      - definition:
+        - link "Bot edit":
+          - /url: /wiki/Wikipedia:Bots
+      - term: (±123)
+      - definition: Page byte size change
+      - term:
+        - img "Temporarily watched page"
+      - definition: Temporarily watched page
+    - heading "9 April 2026" [level=4]
+    - list:
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Wikipedia:Articles_for_deletion/Cabela%27s_Big_Game_Hunter:_2004_Season&curid=82899586&diff=1347959745&oldid=1347865429
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Wikipedia:Articles_for_deletion/Cabela%27s_Big_Game_Hunter:_2004_Season&curid=82899586&action=history
+        - text: ) . .
+        - 'link "Wikipedia:Articles for deletion/Cabela''s Big Game Hunter: 2004 Season"':
+          - /url: /wiki/Wikipedia:Articles_for_deletion/Cabela%27s_Big_Game_Hunter:_2004_Season
+        - text: ; 20:58 . .
+        - strong: (+1,825)
+        - text: . .
+        - link "MidnightMayhem":
+          - /url: /wiki/User:MidnightMayhem
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:MidnightMayhem
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/MidnightMayhem
+        - text: ) (
+        - 'link "→Cabela''s Big Game Hunter: 2004 Season"':
+          - /url: /wiki/Wikipedia:Articles_for_deletion/Cabela%27s_Big_Game_Hunter:_2004_Season#Cabela's_Big_Game_Hunter:_2004_Season
+        - text: ": Closed as speedy keep ("
+        - link "XFDcloser":
+          - /url: /wiki/Wikipedia:XFDC#4.0.16
+        - text: ))
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=User_talk:~2026-21948-84&curid=82912949&diff=1347959744&oldid=1347958854
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=User_talk:~2026-21948-84&curid=82912949&action=history
+        - text: ) . .
+        - link "User talk:~2026-21948-84":
+          - /url: /wiki/User_talk:~2026-21948-84
+        - text: ; 20:58 . .
+        - strong: (+538)
+        - text: . .
+        - link "Lagtrainzzz":
+          - /url: /wiki/User:Lagtrainzzz
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Lagtrainzzz
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Lagtrainzzz
+        - text: )
+      - listitem:
+        - text: (diff |
+        - link "hist":
+          - /url: /w/index.php?title=File_talk:Comradely_Objects.jpg&curid=82912999&action=history
+        - text: ) . . N
+        - link "File talk:Comradely Objects.jpg":
+          - /url: /wiki/File_talk:Comradely_Objects.jpg
+        - text: ; 20:58 . . (+31) . .
+        - link "J04n":
+          - /url: /wiki/User:J04n
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:J04n
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/J04n
+        - text: ) (adding project)
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Wikipedia_talk:WikiProject_Politics&curid=2770526&diff=1347959741&oldid=1347913130
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Wikipedia_talk:WikiProject_Politics&curid=2770526&action=history
+        - text: ) . .
+        - link "Wikipedia talk:WikiProject Politics":
+          - /url: /wiki/Wikipedia_talk:WikiProject_Politics
+        - text: ; 20:58 . .
+        - strong: (+1,064)
+        - text: . .
+        - link "Myceteae":
+          - /url: /wiki/User:Myceteae
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Myceteae
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Myceteae
+        - text: ) (
+        - link "→Requested move at Talk:Anti-miscegenation laws in the United States § Requested move 8 April 2026":
+          - /url: /wiki/Wikipedia_talk:WikiProject_Politics#Requested_move_at_Talk:Anti-miscegenation_laws_in_the_United_States_§_Requested_move_8_April_2026
+        - text: ": new section) ("
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "New topic":
+          - /url: https://www.mediawiki.org/wiki/Help:DiscussionTools#New_topic_tool
+        - text: )
+      - listitem:
+        - text: (diff |
+        - link "hist":
+          - /url: /w/index.php?title=South_East_Lancashire_and_North_East_Cheshire_Passenger_Transport_Executive&curid=82912998&action=history
+        - text: ) . . N
+        - link "South East Lancashire and North East Cheshire Passenger Transport Executive":
+          - /url: /w/index.php?title=South_East_Lancashire_and_North_East_Cheshire_Passenger_Transport_Executive&redirect=no
+        - text: ; 20:58 . . (+62) . .
+        - link "Mauls":
+          - /url: /wiki/User:Mauls
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Mauls
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Mauls
+        - text: ) (
+        - link "←":
+          - /url: /wiki/Wikipedia:AES
+        - text: Redirected page to
+        - link "Greater Manchester Passenger Transport Executive":
+          - /url: /wiki/Greater_Manchester_Passenger_Transport_Executive
+        - text: ) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ": New redirect)"
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Marvel_Legends&curid=2381037&diff=1347959735&oldid=1347959508
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Marvel_Legends&curid=2381037&action=history
+        - text: ) . .
+        - link "Marvel Legends":
+          - /url: /wiki/Marvel_Legends
+        - text: ; 20:58 . . (−282) . .
+        - link "Fma12":
+          - /url: /wiki/User:Fma12
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Fma12
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Fma12
+        - text: ) (
+        - link "→External links":
+          - /url: /wiki/Marvel_Legends#External_links
+        - text: ": format)"
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Talk:Liquid_Glass&curid=80177286&diff=1347959736&oldid=1347789177
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Talk:Liquid_Glass&curid=80177286&action=history
+        - text: ) . .
+        - link "Talk:Liquid Glass":
+          - /url: /wiki/Talk:Liquid_Glass
+        - text: ; 20:58 . . (+149) . .
+        - link "EnderDragon8158":
+          - /url: /wiki/User:EnderDragon8158
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:EnderDragon8158
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/EnderDragon8158
+        - text: ) (
+        - link "→Liquid Glass Example":
+          - /url: /wiki/Talk:Liquid_Glass#Liquid_Glass_Example
+        - text: ": Reply) ("
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Reply":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:DiscussionTools
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=User:Gerda_Arendt&curid=24089444&diff=1347959734&oldid=1347903381
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=User:Gerda_Arendt&curid=24089444&action=history
+        - text: ) . . m
+        - link "User:Gerda Arendt":
+          - /url: /wiki/User:Gerda_Arendt
+        - text: ; 20:58 . . (+87) . .
+        - link "Gerda Arendt":
+          - /url: /wiki/User:Gerda_Arendt
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Gerda_Arendt
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Gerda_Arendt
+        - text: ) (
+        - link "→for others":
+          - /url: /wiki/User:Gerda_Arendt#for_others
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Diana,_West_Virginia&curid=11206894&diff=1347959733&oldid=1347959579
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Diana,_West_Virginia&curid=11206894&action=history
+        - text: ) . . m
+        - link "Diana, West Virginia":
+          - /url: /wiki/Diana,_West_Virginia
+        - text: ; 20:58 . . (+23) . .
+        - link "JECWV":
+          - /url: /wiki/User:JECWV
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:JECWV
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/JECWV
+        - text: ) (
+        - link "→Notable person":
+          - /url: /wiki/Diana,_West_Virginia#Notable_person
+        - text: ) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Visual edit":
+          - /url: /wiki/Wikipedia:VisualEditor
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Mawson_Peak&curid=2141428&diff=1347959731&oldid=1347875210
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Mawson_Peak&curid=2141428&action=history
+        - text: ) . .
+        - link "Mawson Peak":
+          - /url: /wiki/Mawson_Peak
+        - text: ; 20:58 . . (+71) . .
+        - link "Dclemens1971":
+          - /url: /wiki/User:Dclemens1971
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Dclemens1971
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Dclemens1971
+        - text: ) (adding image)
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Category:Academic_staff_of_the_Rotman_School_of_Management&curid=82436148&diff=1347959730&oldid=1338724503
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Category:Academic_staff_of_the_Rotman_School_of_Management&curid=82436148&action=history
+        - text: ) . .
+        - link "Category:Academic staff of the Rotman School of Management":
+          - /url: /wiki/Category:Academic_staff_of_the_Rotman_School_of_Management
+        - text: ; 20:58 . . (+41) . .
+        - link "RapidDweller":
+          - /url: /wiki/User:RapidDweller
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:RapidDweller
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/RapidDweller
+        - text: ) (added
+        - link "Category:Rotman School of Management":
+          - /url: /wiki/Category:Rotman_School_of_Management
+        - text: using
+        - link "HotCat":
+          - /url: /wiki/Wikipedia:HC
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Wikipedia:Redirects_for_discussion/Log/2026_April_5&curid=82842475&diff=1347959728&oldid=1347956069
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Wikipedia:Redirects_for_discussion/Log/2026_April_5&curid=82842475&action=history
+        - text: ) . .
+        - link "Wikipedia:Redirects for discussion/Log/2026 April 5":
+          - /url: /wiki/Wikipedia:Redirects_for_discussion/Log/2026_April_5
+        - text: ; 20:58 . . (+217) . .
+        - link "Thryduulf":
+          - /url: /wiki/User:Thryduulf
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Thryduulf
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Thryduulf
+        - text: ) (
+        - link "→list of hoaxes on wikipedia":
+          - /url: /wiki/Wikipedia:Redirects_for_discussion/Log/2026_April_5#list_of_hoaxes_on_wikipedia
+        - text: ": retarget)"
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=List_of_horror_films_of_2026&curid=77370238&diff=1347959723&oldid=1347881205
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=List_of_horror_films_of_2026&curid=77370238&action=history
+        - text: ) . .
+        - link "List of horror films of 2026":
+          - /url: /wiki/List_of_horror_films_of_2026
+        - text: ; 20:58 . . (0) . .
+        - link "Russiaoniichan":
+          - /url: /wiki/User:Russiaoniichan
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Russiaoniichan
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Russiaoniichan
+        - text: ) (Scream 7 updated box office) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Visual edit":
+          - /url: /wiki/Wikipedia:VisualEditor
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Draft:Demographics_of_Iowa&curid=82911554&diff=1347959725&oldid=1347957675
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Draft:Demographics_of_Iowa&curid=82911554&action=history
+        - text: ) . .
+        - link "Draft:Demographics of Iowa":
+          - /url: /wiki/Draft:Demographics_of_Iowa
+        - text: ; 20:58 . .
+        - strong: (+756)
+        - text: . .
+        - link "Domen von Wielkopolska":
+          - /url: /wiki/User:Domen_von_Wielkopolska
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Domen_von_Wielkopolska
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Domen_von_Wielkopolska
+        - text: ) (Economics) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Visual edit":
+          - /url: /wiki/Wikipedia:VisualEditor
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Fabr%C3%ADcio_Bruno&curid=52997856&diff=1347959724&oldid=1342448787
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Fabr%C3%ADcio_Bruno&curid=52997856&action=history
+        - text: ) . .
+        - link "Fabrício Bruno":
+          - /url: /wiki/Fabr%C3%ADcio_Bruno
+        - text: ; 20:58 . . (−3) . .
+        - link "Caber33":
+          - /url: /w/index.php?title=User:Caber33&action=edit&redlink=1
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Caber33
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Caber33
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Ibrahim_Sangar%C3%A9_(Ivorian_footballer)&curid=52255878&diff=1347959726&oldid=1347959676
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Ibrahim_Sangar%C3%A9_(Ivorian_footballer)&curid=52255878&action=history
+        - text: ) . .
+        - link "Ibrahim Sangaré (Ivorian footballer)":
+          - /url: /wiki/Ibrahim_Sangar%C3%A9_(Ivorian_footballer)
+        - text: ; 20:58 . . (−2) . .
+        - link "Mediocre Legacy":
+          - /url: /wiki/User:Mediocre_Legacy
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Mediocre_Legacy
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Mediocre_Legacy
+        - text: ) (
+        - link "Tags":
+          - /url: /wiki/Special:Tags
+        - text: ": Mobile edit, Mobile web edit,"
+        - link "Advanced mobile edit":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Reading/Web/Advanced_mobile_contributions
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=User:Radiobioneer/Chantal_Jaquet&curid=82815419&diff=1347959721&oldid=1347959615
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=User:Radiobioneer/Chantal_Jaquet&curid=82815419&action=history
+        - text: ) . .
+        - link "User:Radiobioneer/Chantal Jaquet":
+          - /url: /wiki/User:Radiobioneer/Chantal_Jaquet
+        - text: ; 20:58 . . (0) . .
+        - link "Radiobioneer":
+          - /url: /wiki/User:Radiobioneer
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Radiobioneer
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Radiobioneer
+        - text: ) (ISBN format corrected) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Visual edit":
+          - /url: /wiki/Wikipedia:VisualEditor
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Wikipedia:Wiki_Ed/University_of_North_Carolina,_Charlotte/Eating_Across_the_Ages-_A_global_history_and_politics_of_food_(Spring_2026)&curid=82078368&diff=1347959722&oldid=1347952666
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Wikipedia:Wiki_Ed/University_of_North_Carolina,_Charlotte/Eating_Across_the_Ages-_A_global_history_and_politics_of_food_(Spring_2026)&curid=82078368&action=history
+        - text: ) . .
+        - link "Wikipedia:Wiki Ed/University of North Carolina, Charlotte/Eating Across the Ages- A global history and politics of food (Spring 2026)":
+          - /url: /wiki/Wikipedia:Wiki_Ed/University_of_North_Carolina,_Charlotte/Eating_Across_the_Ages-_A_global_history_and_politics_of_food_(Spring_2026)
+        - text: ; 20:58 . . (+19) . .
+        - link "Bcking0937":
+          - /url: /wiki/User:Bcking0937
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Bcking0937
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Bcking0937
+        - text: ) (Updating course from dashboard.wikiedu.org) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "dashboard.wikiedu.org [2.3]":
+          - /url: /wiki/Special:OAuthListConsumers/view/c9674b41e8804663ade5a472f512e279
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Draft:Han_Qin_(entrepreneur)&curid=82896983&diff=1347959719&oldid=1347959319
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Draft:Han_Qin_(entrepreneur)&curid=82896983&action=history
+        - text: ) . .
+        - link "Draft:Han Qin (entrepreneur)":
+          - /url: /wiki/Draft:Han_Qin_(entrepreneur)
+        - text: ; 20:58 . . (−39) . .
+        - link "Silverwolfqinhan":
+          - /url: /w/index.php?title=User:Silverwolfqinhan&action=edit&redlink=1
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Silverwolfqinhan
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Silverwolfqinhan
+        - text: ) (Remove company website from personal infobox per WP:PROMOTION)
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Louis_Mosley&curid=82276390&diff=1347959717&oldid=1347959480
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Louis_Mosley&curid=82276390&action=history
+        - text: ) . .
+        - link "Louis Mosley":
+          - /url: /wiki/Louis_Mosley
+        - text: ; 20:58 . . (+4) . .
+        - link "UtherSRG":
+          - /url: /wiki/User:UtherSRG
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:UtherSRG
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/UtherSRG
+        - text: ) (
+        - link "→top":
+          - /url: /wiki/Louis_Mosley#top
+        - text: ": infobox above lead, bold title in lead)"
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=User_talk:Matkicyt&curid=82407425&diff=1347959720&oldid=1338524826
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=User_talk:Matkicyt&curid=82407425&action=history
+        - text: ) . .
+        - link "User talk:Matkicyt":
+          - /url: /wiki/User_talk:Matkicyt
+        - text: ; 20:58 . . (+92) . .
+        - link "Matkicyt":
+          - /url: /wiki/User:Matkicyt
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Matkicyt
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Matkicyt
+        - text: ) (
+        - link "→New message from Matrix":
+          - /url: /wiki/User_talk:Matkicyt#New_message_from_Matrix
+        - text: ": Reply) ("
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Reply":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:DiscussionTools
+        - text: )
+      - listitem:
+        - link "(User creation log)":
+          - /url: /wiki/Special:Log/newusers
+        - text: ; 20:58 . . User account
+        - link "Osbal.garcia":
+          - /url: /w/index.php?title=User:Osbal.garcia&action=edit&redlink=1
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:Osbal.garcia&action=edit&redlink=1
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Osbal.garcia
+        - text: ) was created
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Creature_of_Habit_(album)&curid=82186918&diff=1347959716&oldid=1347907061
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Creature_of_Habit_(album)&curid=82186918&action=history
+        - text: ) . . m
+        - link "Creature of Habit (album)":
+          - /url: /wiki/Creature_of_Habit_(album)
+        - text: ; 20:58 . . (0) . .
+        - link "Fundgy":
+          - /url: /wiki/User:Fundgy
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Fundgy
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Fundgy
+        - text: ) (
+        - link "→Critical reception":
+          - /url: /wiki/Creature_of_Habit_(album)#Critical_reception
+        - text: ": MC update)"
+      - listitem:
+        - text: (diff |
+        - link "hist":
+          - /url: /w/index.php?title=Draft:Wyatt_Small&curid=82912997&action=history
+        - text: ) . . N
+        - link "Draft:Wyatt Small":
+          - /url: /wiki/Draft:Wyatt_Small
+        - text: ; 20:58 . . (+138) . .
+        - link "Frostez.offside":
+          - /url: /w/index.php?title=User:Frostez.offside&action=edit&redlink=1
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:Frostez.offside&action=edit&redlink=1
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Frostez.offside
+        - text: ) (
+        - link "←":
+          - /url: /wiki/Wikipedia:AES
+        - text: Created page with 'Wyatt Small is a 14 year old male, whose dream is to be famous, and rich. He is currently living in Maine with his mother, and 2 siblings.')
+      - listitem:
+        - text: (diff |
+        - link "hist":
+          - /url: /w/index.php?title=User_talk:Nonentities37/TWA&curid=82912996&action=history
+        - text: ) . . N
+        - link "User talk:Nonentities37/TWA":
+          - /url: /wiki/User_talk:Nonentities37/TWA
+        - text: ; 20:58 . .
+        - strong: (+1,126)
+        - text: . .
+        - link "Nonentities37":
+          - /url: /wiki/User:Nonentities37
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Nonentities37
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Nonentities37
+        - text: ) (New Message (simulated automatically as part of
+        - link "The Wikipedia Adventure":
+          - /url: /wiki/Wikipedia:The_Wikipedia_Adventure
+        - text: ))
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Han_Mei_(speed_skater)&curid=52272081&diff=1347959713&oldid=1342485315
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Han_Mei_(speed_skater)&curid=52272081&action=history
+        - text: ) . . m
+        - link "Han Mei (speed skater)":
+          - /url: /wiki/Han_Mei_(speed_skater)
+        - text: ; 20:58 . . (+6) . .
+        - link "Zyxw":
+          - /url: /wiki/User:Zyxw
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Zyxw
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Zyxw
+        - text: ) (update medal templates) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "JWB":
+          - /url: /wiki/User:Joeytje50/JWB
+        - text: )
+      - listitem:
+        - link "(Move log)":
+          - /url: /wiki/Special:Log/move
+        - text: ; 20:58 . .
+        - link "Guz13":
+          - /url: /wiki/User:Guz13
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Guz13
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Guz13
+        - text: ) moved page
+        - link "Talk:Hanakago stable (1992)":
+          - /url: /w/index.php?title=Talk:Hanakago_stable_(1992)&redirect=no
+        - text: to
+        - link "Talk:Hanakago stable (1992-2012)":
+          - /url: /wiki/Talk:Hanakago_stable_(1992-2012)
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Roberto_Acu%C3%B1a&curid=2794592&diff=1347959706&oldid=1347959631
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Roberto_Acu%C3%B1a&curid=2794592&action=history
+        - text: ) . .
+        - link "Roberto Acuña":
+          - /url: /wiki/Roberto_Acu%C3%B1a
+        - text: ; 20:58 . . (+57) . .
+        - link "BrazilianDude70":
+          - /url: /wiki/User:BrazilianDude70
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:BrazilianDude70
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/BrazilianDude70
+        - text: ) (
+        - link "→External links":
+          - /url: /wiki/Roberto_Acu%C3%B1a#External_links
+        - text: ": Fixing.)"
+      - listitem:
+        - link "(Move log)":
+          - /url: /wiki/Special:Log/move
+        - text: ; 20:58 . .
+        - link "Guz13":
+          - /url: /wiki/User:Guz13
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Guz13
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Guz13
+        - text: ) moved page
+        - link "Hanakago stable (1992)":
+          - /url: /w/index.php?title=Hanakago_stable_(1992)&redirect=no
+        - text: to
+        - link "Hanakago stable (1992-2012)":
+          - /url: /wiki/Hanakago_stable_(1992-2012)
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=2025%E2%80%9326_UEFA_Europa_League_knockout_phase&curid=79878228&diff=1347959702&oldid=1347834112
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=2025%E2%80%9326_UEFA_Europa_League_knockout_phase&curid=79878228&action=history
+        - text: ) . .
+        - link "2025–26 UEFA Europa League knockout phase":
+          - /url: /wiki/2025%E2%80%9326_UEFA_Europa_League_knockout_phase
+        - text: ; 20:58 . . (+18) . .
+        - link "Alibene567":
+          - /url: /w/index.php?title=User:Alibene567&action=edit&redlink=1
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Alibene567
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Alibene567
+        - text: ) (
+        - link "→Quarter-finals":
+          - /url: /wiki/2025%E2%80%9326_UEFA_Europa_League_knockout_phase#Quarter-finals
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Ng_Lip_Yong&curid=76805028&diff=1347959709&oldid=1320569619
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Ng_Lip_Yong&curid=76805028&action=history
+        - text: ) . . m
+        - link "Ng Lip Yong":
+          - /url: /wiki/Ng_Lip_Yong
+        - text: ; 20:58 . . (−5) . .
+        - link "Neils51":
+          - /url: /wiki/User:Neils51
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Neils51
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Neils51
+        - text: ") (replaced: Honourary → Honorary, minor ce) ("
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "AWB":
+          - /url: /wiki/Wikipedia:AutoWikiBrowser
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Iraq_Stars_League&curid=4003781&diff=1347959700&oldid=1347959572
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Iraq_Stars_League&curid=4003781&action=history
+        - text: ) . .
+        - link "Iraq Stars League":
+          - /url: /wiki/Iraq_Stars_League
+        - text: ; 20:58 . . (−29) . .
+        - link "Kari0t":
+          - /url: /wiki/User:Kari0t
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Kari0t
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Kari0t
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Wikipedia_talk:WikiProject_African_diaspora&curid=5956144&diff=1347959704&oldid=1347760302
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Wikipedia_talk:WikiProject_African_diaspora&curid=5956144&action=history
+        - text: ) . .
+        - link "Wikipedia talk:WikiProject African diaspora":
+          - /url: /wiki/Wikipedia_talk:WikiProject_African_diaspora
+        - text: ; 20:58 . .
+        - strong: (+1,064)
+        - text: . .
+        - link "Myceteae":
+          - /url: /wiki/User:Myceteae
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Myceteae
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Myceteae
+        - text: ) (
+        - link "→Requested move at Talk:Anti-miscegenation laws in the United States § Requested move 8 April 2026":
+          - /url: /wiki/Wikipedia_talk:WikiProject_African_diaspora#Requested_move_at_Talk:Anti-miscegenation_laws_in_the_United_States_§_Requested_move_8_April_2026
+        - text: ": new section) ("
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "New topic":
+          - /url: https://www.mediawiki.org/wiki/Help:DiscussionTools#New_topic_tool
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Syria_at_the_2015_World_Championships_in_Athletics&curid=47539530&diff=1347959703&oldid=1263805031
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Syria_at_the_2015_World_Championships_in_Athletics&curid=47539530&action=history
+        - text: ) . .
+        - link "Syria at the 2015 World Championships in Athletics":
+          - /url: /wiki/Syria_at_the_2015_World_Championships_in_Athletics
+        - text: ; 20:58 . . (+33) . .
+        - link "Lollipoplollipoplollipop":
+          - /url: /wiki/User:Lollipoplollipoplollipop
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Lollipoplollipoplollipop
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Lollipoplollipoplollipop
+        - text: ") (Added {{"
+        - link "Unreferenced":
+          - /url: /wiki/Template:Unreferenced
+        - text: "}} tag) ("
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Twinkle":
+          - /url: /wiki/Wikipedia:Twinkle
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Jenny_Rathbone&curid=33580886&diff=1347959701&oldid=1347959337
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Jenny_Rathbone&curid=33580886&action=history
+        - text: ) . . m
+        - link "Jenny Rathbone":
+          - /url: /wiki/Jenny_Rathbone
+        - text: ; 20:58 . . (+14) . .
+        - link "Kalamikid":
+          - /url: /wiki/User:Kalamikid
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Kalamikid
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Kalamikid
+        - text: ) (Changed to past tense) (
+        - link "Tags":
+          - /url: /wiki/Special:Tags
+        - text: ": Mobile edit, Mobile app edit, iOS app edit,"
+        - link "App section source":
+          - /url: https://www.mediawiki.org/wiki/Wikimedia_Apps/Mobile_App_Edits_Revision_Tags#app-section-source
+        - text: ","
+        - link "Advanced mobile edit":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Reading/Web/Advanced_mobile_contributions
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Talk:Kangaroo_meat&curid=7297444&diff=1347959699&oldid=1346555160
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Talk:Kangaroo_meat&curid=7297444&action=history
+        - text: ) . .
+        - link "Talk:Kangaroo meat":
+          - /url: /wiki/Talk:Kangaroo_meat
+        - text: ; 20:58 . . (+38) . .
+        - link "Bcking0937":
+          - /url: /wiki/User:Bcking0937
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Bcking0937
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Bcking0937
+        - text: ) (Update
+        - link "Eating Across the Ages- A global history and politics of food":
+          - /url: /wiki/Wikipedia:Wiki_Ed/University_of_North_Carolina,_Charlotte/Eating_Across_the_Ages-_A_global_history_and_politics_of_food_(Spring_2026)
+        - text: assignment details) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "dashboard.wikiedu.org [2.3]":
+          - /url: /wiki/Special:OAuthListConsumers/view/c9674b41e8804663ade5a472f512e279
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Chex&curid=1822302&diff=1347959696&oldid=1346415963
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Chex&curid=1822302&action=history
+        - text: ) . . m
+        - link "Chex":
+          - /url: /wiki/Chex
+        - text: ; 20:57 . . (+4) . .
+        - link "Rxtreme":
+          - /url: /wiki/User:Rxtreme
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Rxtreme
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Rxtreme
+        - text: ) (Added link to Ralston Purina)
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Bita_Ghezelayagh&curid=50561311&diff=1347959697&oldid=1174401139
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Bita_Ghezelayagh&curid=50561311&action=history
+        - text: ) . .
+        - link "Bita Ghezelayagh":
+          - /url: /wiki/Bita_Ghezelayagh
+        - text: ; 20:57 . .
+        - strong: (+8,306)
+        - text: . .
+        - link "~2026-21924-13":
+          - /url: /wiki/Special:Contributions/~2026-21924-13
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:~2026-21924-13&action=edit&redlink=1
+        - text: ) (expaned biography, added infomation about artistic practice, added a list of selected solo and group exhibitions, added a list of collections, which hold works by her.) (
+        - link "Tags":
+          - /url: /wiki/Special:Tags
+        - text: ": possible AI-generated citations,"
+        - link "Visual edit":
+          - /url: /wiki/Wikipedia:VisualEditor
+        - text: ","
+        - link "Edit Check (references) shown":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Edit_check/False_positives
+        - text: ","
+        - link "Edit Check (paste) shown":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Edit_check#Paste_check
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Iqbal_Hassan_Mahmood&curid=52940089&diff=1347959695&oldid=1347947839
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Iqbal_Hassan_Mahmood&curid=52940089&action=history
+        - text: ) . . m
+        - link "Iqbal Hassan Mahmood":
+          - /url: /wiki/Iqbal_Hassan_Mahmood
+        - text: ; 20:57 . . (−8) . .
+        - link "Pocatellan":
+          - /url: /wiki/User:Pocatellan
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Pocatellan
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Pocatellan
+        - text: ) (Undid revision
+        - link "1347947839":
+          - /url: /wiki/Special:Diff/1347947839
+        - text: by
+        - link "~2026-21991-23":
+          - /url: /wiki/Special:Contributions/~2026-21991-23
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:~2026-21991-23&action=edit&redlink=1
+        - text: ) grammar) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Undo":
+          - /url: /wiki/Wikipedia:Undo
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Talk:Rust_monster&curid=5884111&diff=1347959694&oldid=1347956336
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Talk:Rust_monster&curid=5884111&action=history
+        - text: ) . .
+        - link "Talk:Rust monster":
+          - /url: /wiki/Talk:Rust_monster
+        - text: ; 20:57 . .
+        - strong: (+670)
+        - text: . .
+        - link "BD2412":
+          - /url: /wiki/User:BD2412
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:BD2412
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/BD2412
+        - text: ) (
+        - link "→Time to bring this one back?":
+          - /url: /wiki/Talk:Rust_monster#Time_to_bring_this_one_back?
+        - text: ": Of use from ''"
+        - link "The Monsters Know What They're Doing":
+          - /url: /wiki/The_Monsters_Know_What_They%27re_Doing
+        - text: "'' (in my opinion):)"
+      - listitem:
+        - text: (diff |
+        - link "hist":
+          - /url: /w/index.php?title=User_talk:Encyclobird&curid=82912993&action=history
+        - text: ) . . N
+        - link "User talk:Encyclobird":
+          - /url: /wiki/User_talk:Encyclobird
+        - text: ; 20:57 . .
+        - strong: (+3,838)
+        - text: . .
+        - link "Namita Tudu":
+          - /url: /wiki/User:Namita_Tudu
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Namita_Tudu
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Namita_Tudu
+        - text: ") (Notification: Your"
+        - link "Articles for Creation submission":
+          - /url: /wiki/Draft:James_K
+        - text: has been declined) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "AFCH":
+          - /url: /wiki/Wikipedia:AFCH
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=List_of_proposed_state_mergers&curid=20754972&diff=1347959691&oldid=1347957253
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=List_of_proposed_state_mergers&curid=20754972&action=history
+        - text: ) . .
+        - link "List of proposed state mergers":
+          - /url: /wiki/List_of_proposed_state_mergers
+        - text: ; 20:57 . .
+        - strong: (+1,694)
+        - text: . .
+        - link "~2026-21945-53":
+          - /url: /wiki/Special:Contributions/~2026-21945-53
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:~2026-21945-53&action=edit&redlink=1
+        - text: ) (
+        - link "→20th century":
+          - /url: /wiki/List_of_proposed_state_mergers#20th_century
+        - text: )
+      - listitem:
+        - text: (diff |
+        - link "hist":
+          - /url: /w/index.php?title=%CE%9C%CC%83&curid=82912992&action=history
+        - text: ) . . N
+        - link "Μ̃":
+          - /url: /w/index.php?title=%CE%9C%CC%83&redirect=no
+        - text: ; 20:57 . . (+20) . .
+        - link "Sixaxis":
+          - /url: /wiki/User:Sixaxis
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Sixaxis
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Sixaxis
+        - text: ) (
+        - link "←":
+          - /url: /wiki/Wikipedia:AES
+        - text: Redirected page to
+        - link "Median":
+          - /url: /wiki/Median
+        - text: ) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ": New redirect)"
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=List_of_tallest_buildings_in_Ankara&curid=19452789&diff=1347959687&oldid=1344155550
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=List_of_tallest_buildings_in_Ankara&curid=19452789&action=history
+        - text: ) . .
+        - link "List of tallest buildings in Ankara":
+          - /url: /wiki/List_of_tallest_buildings_in_Ankara
+        - text: ; 20:57 . . (+1) . .
+        - link "~2026-21882-61":
+          - /url: /wiki/Special:Contributions/~2026-21882-61
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:~2026-21882-61&action=edit&redlink=1
+        - text: ) (changed is to was since 2020 was 6 years ago) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Visual edit":
+          - /url: /wiki/Wikipedia:VisualEditor
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Draft:James_K&curid=82723194&diff=1347959688&oldid=1344815640
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Draft:James_K&curid=82723194&action=history
+        - text: ) . .
+        - link "Draft:James K":
+          - /url: /wiki/Draft:James_K
+        - text: ; 20:57 . . (+19) . .
+        - link "Namita Tudu":
+          - /url: /wiki/User:Namita_Tudu
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Namita_Tudu
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Namita_Tudu
+        - text: ") (Declining submission: bio - Submission is about a person not yet shown to meet notability guidelines) ("
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "AFCH":
+          - /url: /wiki/Wikipedia:AFCH
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Bull_Shoals_Lake&curid=299340&diff=1347959684&oldid=1300609576
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Bull_Shoals_Lake&curid=299340&action=history
+        - text: ) . .
+        - link "Bull Shoals Lake":
+          - /url: /wiki/Bull_Shoals_Lake
+        - text: ; 20:57 . . (−27) . .
+        - link "SamuelNelsonGISP":
+          - /url: /wiki/User:SamuelNelsonGISP
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:SamuelNelsonGISP
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/SamuelNelsonGISP
+        - text: ) (Changing
+        - link "short description":
+          - /url: /wiki/Wikipedia:Short_description
+        - text: from "Reservoir in northern Arkansas and southern Missouri, United States" to "Reservoir in Arkansas and Missouri, U.S.") (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Shortdesc helper":
+          - /url: /wiki/Wikipedia:Shortdesc_helper
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Peanut_butter_sandwich&curid=6938585&diff=1347959686&oldid=1302155765
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Peanut_butter_sandwich&curid=6938585&action=history
+        - text: ) . .
+        - link "Peanut butter sandwich":
+          - /url: /wiki/Peanut_butter_sandwich
+        - text: ; 20:57 . . (−2) . .
+        - link "~2026-13603-23":
+          - /url: /wiki/Special:Contributions/~2026-13603-23
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:~2026-13603-23&action=edit&redlink=1
+        - text: ) (
+        - link "→References":
+          - /url: /wiki/Peanut_butter_sandwich#References
+        - text: ": important) ("
+        - link "Tags":
+          - /url: /wiki/Special:Tags
+        - text: ": Mobile edit, Mobile app edit, Android app edit,"
+        - link "App section source":
+          - /url: https://www.mediawiki.org/wiki/Wikimedia_Apps/Mobile_App_Edits_Revision_Tags#app-section-source
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Kazuki_Yoshinaga&curid=56549198&diff=1347959685&oldid=1339948999
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Kazuki_Yoshinaga&curid=56549198&action=history
+        - text: ) . . m
+        - link "Kazuki Yoshinaga":
+          - /url: /wiki/Kazuki_Yoshinaga
+        - text: ; 20:57 . . (+1) . .
+        - link "Zyxw":
+          - /url: /wiki/User:Zyxw
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Zyxw
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/Zyxw
+        - text: ) (update medal templates) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "JWB":
+          - /url: /wiki/User:Joeytje50/JWB
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Aircraft_in_fiction&curid=24989316&diff=1347959693&oldid=1346786604
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Aircraft_in_fiction&curid=24989316&action=history
+        - text: ) . .
+        - link "Aircraft in fiction":
+          - /url: /wiki/Aircraft_in_fiction
+        - text: ; 20:57 . . (+255) . .
+        - link "~2026-22047-22":
+          - /url: /wiki/Special:Contributions/~2026-22047-22
+        - text: (
+        - link "talk":
+          - /url: /w/index.php?title=User_talk:~2026-22047-22&action=edit&redlink=1
+        - text: ) (
+        - link "→A-10 Thunderbolt II":
+          - /url: /wiki/Aircraft_in_fiction#A-10_Thunderbolt_II
+        - text: )
+      - listitem:
+        - text: (
+        - link "diff":
+          - /url: /w/index.php?title=Cooper_Reithmeier&curid=82912411&diff=1347959683&oldid=1347959621
+        - text: "|"
+        - link "hist":
+          - /url: /w/index.php?title=Cooper_Reithmeier&curid=82912411&action=history
+        - text: ) . .
+        - link "Cooper Reithmeier":
+          - /url: /wiki/Cooper_Reithmeier
+        - text: ; 20:57 . . (−10) . .
+        - link "JLN2026":
+          - /url: /wiki/User:JLN2026
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:JLN2026
+        - text: "|"
+        - link "contribs":
+          - /url: /wiki/Special:Contributions/JLN2026
+        - text: ) (Removed accidental duplicate template) (
+        - link "Tag":
+          - /url: /wiki/Special:Tags
+        - text: ":"
+        - link "Visual edit":
+          - /url: /wiki/Wikipedia:VisualEditor
+        - text: )
+  - contentinfo:
+    - list
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Special:RecentChanges&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list

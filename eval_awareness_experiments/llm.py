@@ -84,36 +84,37 @@ class LLM:
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
 
-    async def generate_with_image(
-        self, text_prompt: str, image_path: str | Path
+    async def generate_with_images(
+        self, text_prompt: str, image_paths: list[str | Path]
     ) -> GenerateResult:
-        """Generate a response with an image input (for screenshot experiments).
+        """Generate a response with one or more image inputs.
+
+        Images are attached in order, followed by the text prompt. This matches
+        how most vision models expect multi-image chat turns. Supply a single-
+        element list for the common one-image case.
 
         Args:
             text_prompt: The text prompt to send.
-            image_path: Path to the image file.
+            image_paths: Paths to image files, in the order the model should see them.
 
         Returns:
             GenerateResult with .message.text containing the response.
         """
-        image_path = Path(image_path)
-        with open(image_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("utf-8")
+        content: list[dict] = []
+        for raw_path in image_paths:
+            image_path = Path(raw_path)
+            with open(image_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            suffix = image_path.suffix.lower()
+            mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(
+                suffix, "image/png"
+            )
+            content.append(
+                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+            )
+        content.append({"type": "text", "text": text_prompt})
 
-        suffix = image_path.suffix.lower()
-        mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(
-            suffix, "image/png"
-        )
-
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
-                    {"type": "text", "text": text_prompt},
-                ],
-            }
-        ]
+        messages = [{"role": "user", "content": content}]
 
         async with self._semaphore:
             resp = await self._client.chat.completions.create(

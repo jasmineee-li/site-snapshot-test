@@ -1,0 +1,1150 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "events"
+    - text: 
+    - button "all"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search events"
+    - button ""
+    - button ""
+    - heading "events" [level=1]
+    - button ""
+    - list:
+      - list:
+        - listitem:
+          - link "events":
+            - /url: https://sfbay.craigslist.org/search/eve#search=2~list~0
+          - text: "90"
+          - checkbox [checked]
+        - listitem:
+          - link "classes":
+            - /url: https://sfbay.craigslist.org/search/cls#search=2~list~0
+          - text: "63"
+          - checkbox [checked]
+    - button "check all"
+    - button "uncheck all"
+    - table:
+      - rowgroup:
+        - row "S M T W T F S":
+          - cell "S"
+          - cell "M"
+          - cell "T"
+          - cell "W"
+          - cell "T"
+          - cell "F"
+          - cell "S"
+        - row "5 6 7 8 9 10 11":
+          - cell "5"
+          - cell "6"
+          - cell "7"
+          - cell "8"
+          - cell "9"
+          - cell "10"
+          - cell "11"
+        - row "12 13 14 15 16 17 18":
+          - cell "12"
+          - cell "13"
+          - cell "14"
+          - cell "15"
+          - cell "16"
+          - cell "17"
+          - cell "18"
+        - row "19 20 21 22 23 24 25":
+          - cell "19"
+          - cell "20"
+          - cell "21"
+          - cell "22"
+          - cell "23"
+          - cell "24"
+          - cell "25"
+        - row "26 27 28 29 30 1 2":
+          - cell "26"
+          - cell "27"
+          - cell "28"
+          - cell "29"
+          - cell "30"
+          - cell "1"
+          - cell "2"
+        - row "3 4 5 6 7 8 9":
+          - cell "3"
+          - cell "4"
+          - cell "5"
+          - cell "6"
+          - cell "7"
+          - cell "8"
+          - cell "9"
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "hide duplicates"
+    - text: hide duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - checkbox "charitable"
+    - text: charitable
+    - checkbox "free"
+    - text: free
+    - checkbox "literary"
+    - text: literary
+    - checkbox "tech"
+    - text: tech
+    - checkbox "music"
+    - text: music
+    - checkbox "sustainability"
+    - text: sustainability
+    - checkbox "fest/fair"
+    - text: fest/fair
+    - checkbox "food/drink"
+    - text: food/drink
+    - checkbox "sale"
+    - text: sale
+    - checkbox "kid friendly"
+    - text: kid friendly
+    - checkbox "art/film"
+    - text: art/film
+    - checkbox "outdoor"
+    - text: outdoor
+    - checkbox "singles"
+    - text: singles
+    - checkbox "dance"
+    - text: dance
+    - checkbox "fitness/health"
+    - text: fitness/health
+    - checkbox "competition"
+    - text: competition
+    - checkbox "career"
+    - text: career
+    - button "reset"
+    - button "apply"
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "has image"
+    - button "posted today"
+    - text: 1 - 15 of 153
+    - button ""
+    - link "⛪ FULLY TRADITIONAL CATHOLIC LATIN MASS & CHANT-ST JOHN'S ORATORY":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-fully-traditional/7926677451.html
+    - text: •north beach / telegraph hill•4/12•posted 1h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "How to Become a High-Paid AI Consultant In the Next 90 Days!":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-how-to-become-high-paid-ai/7926675209.html
+    - text: •san jose downtown•4/9•posted 1h ago•
+    - button "hide"
+    - button ""
+    - link "Map Your Neighborhood 1&2":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-map-your-neighborhood-12/7926669448.html
+    - text: •mission district•4/11•posted 2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Starlite Ballroom FBO Dance Classes Saturday Nights":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-starlite-ballroom-fbo-dance/7926604876.html
+    - text: •san jose west•4/11•posted 6h ago•
+    - button "hide"
+    - button ""
+    - link "Need Spanish Language Teacher":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-need-spanish-language-teacher/7926547285.html
+    - text: •san jose west•4/8-4/21•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Ocean fishing Aptos":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/aptos-ocean-fishing-aptos/7926539488.html
+    - text: •aptos•4/11•posted 4/8•
+    - button "hide"
+    - button ""
+    - link "n Marin Speed Dating at Upscale Hotel":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/san-rafael-marin-speed-dating-at/7926534748.html
+    - text: •san rafael•5/6•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Sausalito City Wide Yard Sale-POSTPONED to APRIL 18th":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/sausalito-sausalito-city-wide-yard-sale/7926498170.html
+    - text: •sausalito•4/18•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Live music, no cover, May 2nd":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/antioch-live-music-no-cover-may-2nd/7926491637.html
+    - text: •pittsburg / antioch•5/2•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Earth Day Marin 2026 Celebrates Climate Action":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/mill-valley-earth-day-marin-2026/7926482851.html
+    - text: •mill valley•4/26•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "SOFTBALL Pick Up or Batting Practice":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/alameda-softball-pick-up-or-batting/7926464273.html
+    - text: •alameda•4/11-4/24•posted 4/8•
+    - button "hide"
+    - button ""
+    - link "Summer Camps 2026":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-summer-camps-2026/7926467722.html
+    - text: •Oakland•4/8-4/21•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Youth Soccer Classes ⚽️":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-youth-soccer-classes/7926466712.html
+    - text: •Oakland•4/8-4/21•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Tuesday's Pottery Wheel - @ Sutter St Studio":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-tuesdays-pottery-wheel/7926442078.html
+    - text: •nob hill•4/14•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Tickets Going Fast! Doobie Brothers Tribute • May 2 • San Leandro":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/san-leandro-tickets-going-fast-doobie/7926346778.html
+    - text: •san leandro•5/2•posted 4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "DIYBuildYourOwn SHED":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/vallejo-diybuildyourown-shed/7926332462.html
+    - text: •east bay area•5/2-5/5•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "I am a miracle healer":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-am-miracle-healer/7926321159.html
+    - text: •city of san francisco•4/7-4/20•posted 4/7•
+    - button "hide"
+    - button ""
+    - link "Cinco de Mayo Party for Single Professionals, 50+":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-cinco-de-mayo-party-for/7926296681.html
+    - text: •sunset / parkside•5/5•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Trivia Thursday at Inklings Coffee & Tea":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/pleasanton-trivia-thursday-at-inklings/7926285886.html
+    - text: •dublin / pleasanton / livermore•4/30•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "10 Warning Signs of Alzheimer’s":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-10-warning-signs-of-alzheimers/7926285587.html
+    - text: •san jose west•4/7-4/20•posted 4/7•
+    - button "hide"
+    - button ""
+    - link "Contra Costa Con April 19 celebrates Star Trek and Star Wars":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/concord-contra-costa-con-april-19/7926258927.html
+    - text: •concord / pleasant hill / martinez•4/19•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "Free: Argentine Tango Beginner Class 4/15"':
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-free-argentine-tango/7926245553.html
+    - text: •sunset / parkside•4/15•posted 4/7•
+    - button "hide"
+    - button ""
+    - 'link "Professional Development Opportunity: Curriculum for CCC Faculty"':
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-professional-development/7926234117.html
+    - text: •south bay area•4/30•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Monday Potter's Wheel - @ SUTTER Studio":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-monday-potters-wheel/7926212705.html
+    - text: •nob hill•4/13•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Friday Night Social Ballroom Dance Party":
+      - /url: https://sfbay.craigslist.org/pen/cls/d/palo-alto-friday-night-social-ballroom/7926159764.html
+    - text: •palo alto•4/10•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "Beauty classes: hands on learning"':
+      - /url: https://sfbay.craigslist.org/sby/cls/d/cupertino-beauty-classes-hands-on/7926118045.html
+    - text: •Cupertino•4/9-4/22•posted 4/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "The Lark - A Night Of Magic & Mystery featuring Christian Cagigal":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/larkspur-the-lark-night-of-magic/7926103926.html
+    - text: •larkspur•4/11•posted 4/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Pasta Making Classes In the Bay Area":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/alameda-pasta-making-classes-in-the-bay/7926088835.html
+    - text: •alameda•4/30•posted 4/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Choux Pastry Lessons In Person":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/richmond-choux-pastry-lessons-in-person/7926087348.html
+    - text: •richmond / point / annex•4/12•posted 4/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Spring Fever at 51 and Tel (Allergic to boring nights)":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/oakland-spring-fever-at-51-and-tel/7926064356.html
+    - text: •oakland north / temescal•4/11•posted 4/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Tuesday-April 14th - Card Making Class-Windsor Senior Center":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/windsor-tuesday-april-14th-card-making/7926062743.html
+    - text: •healdsburg / windsor•4/14•posted 4/6•
+    - button "hide"
+    - button ""
+    - link "Go to the Kentucky Derby":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-go-to-the-kentucky-derby/7926040384.html
+    - text: •city of san francisco•4/15-4/27•posted 4/6•
+    - button "hide"
+    - button ""
+    - link "Past Life Regression – Small Group Experience (Limited to 20)":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/napa-past-life-regression-small-group/7926025260.html
+    - text: •napa county•4/30•posted 4/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Take an hour to reconnect with yourself":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-take-an-hour-to-reconnect/7926009096.html
+    - text: •city of san francisco•4/15•posted 4/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Sunday Potter's Wheel - @ 24th St Studio":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-sunday-potters-wheel-24th/7925981655.html
+    - text: •mission district•4/12•posted 4/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Beginning English Classes every Sat. a.m. FREE!":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-beginning-english-classes-every/7925957640.html
+    - text: •oakland lake merritt / grand•4/11•posted 4/6•
+    - button "hide"
+    - button ""
+    - link "I train NBA player":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-train-nba-player/7925901831.html
+    - text: •city of san francisco•4/6-4/19•posted 4/6•
+    - button "hide"
+    - button ""
+    - link "Day of Illusion!":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/sebastopol-day-of-illusion/7925882093.html
+    - text: •sebastopol•4/19•posted 4/5•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Saturday Pottery Throwing - @ Sutter St Studio":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-saturday-pottery-throwing/7925817873.html
+    - text: •nob hill•4/11•posted 4/5•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Comedy with host Danny Dechi at Mayes Oyster House every Wednesday!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-comedy-with-host-danny/7925802382.html
+    - text: •lower nob hill•5/13•posted 4/5•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Taiwan Innovation Spotlight":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/palo-alto-taiwan-innovation-spotlight/7925731233.html
+    - text: •mountain view•5/8•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "From Lab to Market in the AI Era":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/sunnyvale-from-lab-to-market-in-the-ai/7925730947.html
+    - text: •sunnyvale•4/20•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Whiskers and Watercolors - Art Class with Rescue Cats":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-whiskers-and-watercolors/7925677041.html
+    - text: •mission district•4/26•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Cello and Chill with Cats (Live Concert)":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-cello-and-chill-with-cats/7925674016.html
+    - text: •mission district•4/17•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Cats on Mats Purrlates - Pilates With Rescue Cats!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-cats-on-mats-purrlates/7925670309.html
+    - text: •mission district•4/10•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "🏒 WATCH THE OAKLAND SKATES: FREE SEMI-PRO HOCKEY ON APRIL 18!"':
+      - /url: https://sfbay.craigslist.org/eby/eve/d/oakland-watch-the-oakland-skates-free/7925657023.html
+    - text: •oakland lake merritt / grand•4/18•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "SF E-Scooter Club's Opening Event":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-sf-scooter-clubs-opening/7925639949.html
+    - text: •San Francisco•4/11•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Friday Pottery Class - @ 24th St Studio":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-friday-pottery-class-24th/7925598789.html
+    - text: •mission district•4/10•posted 4/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Lavender Botanical Toner Workshop (Hands-On Experience)":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/morgan-hill-lavender-botanical-toner/7925529774.html
+    - text: •morgan hill•5/2•posted 4/3•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "North Bay Speed Dating Party for 40s/50s":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/petaluma-north-bay-speed-dating-party/7925527412.html
+    - text: •petaluma•5/3•posted 4/3•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Bay Area Craft Events — Art Prints & Home Decor 🌸":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/hayward-bay-area-craft-events-art/7925444497.html
+    - text: •hayward / castro valley•4/25•posted 4/3•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "✨️SPRING OFFER✨️Neurographic Art":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/concord-spring-offerneurographic-art/7925402306.html
+    - text: •concord / pleasant hill / martinez•4/4-4/17•posted 4/3•
+    - button "hide"
+    - button ""
+    - link "Adult/Pediatric First Aid/CPR/AED, Opioid Emergency & Naloxone course":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-adult-pediatric-first-aid-cpr/7925384349.html
+    - text: •oakland west•4/19•posted 4/3•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Adult and Pediatric First Aid/CPR/AED r.25 course":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-adult-and-pediatric-first-aid/7925382243.html
+    - text: •oakland west•4/19•posted 4/3•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Shining A Different Light on Ancient Egyptian Frog Lamps":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/berkeley-shining-different-light-on/7925304416.html
+    - text: •berkeley•4/19•posted 4/2•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "K-pop one-day class in San Jose":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-pop-one-day-class-in-san-jose/7925288146.html
+    - text: •San Jose•4/2-4/15•posted 4/2•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Carnival of Psychos 🤡":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-carnival-of-psychos/7925268567.html
+    - text: •north beach / telegraph hill•4/18•posted 4/2•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Pickleball lessons":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/brentwood-pickleball-lessons/7925267729.html
+    - text: •brentwood / oakley•4/6-4/19•posted 4/2•
+    - button "hide"
+    - button ""
+    - link "GRAND OPENING OF NEW FURNITURE SHOWROOM! SHOP LOCAL!":
+      - /url: https://sfbay.craigslist.org/pen/eve/d/belmont-grand-opening-of-new-furniture/7925235906.html
+    - text: •belmont•4/2-4/15•posted 4/2•
+    - button "hide"
+    - button ""
+    - link "Fusion belly dance show at the Halfway to Halloween Hafla - 4/25":
+      - /url: https://sfbay.craigslist.org/pen/eve/d/belmont-fusion-belly-dance-show-at-the/7925089812.html
+    - text: •belmont•4/25•posted 4/1•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "Fractionees: Different Denominators for Middle Schoolers"':
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-fractionees-different/7925076374.html
+    - text: •oakland east•4/25•posted 4/1•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Spring Special 2nd Thursday Night Market Idyll Time Wine and Gift Shop":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/santa-clara-spring-special-2nd-thursday/7925041239.html
+    - text: •santa clara•4/9•posted 4/1•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Comedy with host Danny Dechi at Mayes Oyster House every Wednesday!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-comedy-with-host-danny/7925040590.html
+    - text: •lower nob hill•5/6•posted 4/1•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Woodworking Workshops for Women":
+      - /url: https://sfbay.craigslist.org/nby/cls/d/sebastopol-woodworking-workshops-for/7924980552.html
+    - text: •sebastopol•4/11-4/12•posted 4/1•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Affordable Family Photo Mini Sessions – Pay What You Want (Santa Clara":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/santa-clara-affordable-family-photo/7924851426.html
+    - text: •santa clara•4/25•posted 3/31•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Drum Lessons At Your Home! (English & Spanish) (San Francisco)":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-drum-lessons-at-your-home/7924643552.html
+    - text: •city of san francisco•3/31-4/13•posted 3/30•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Make money fast":
+      - /url: https://sfbay.craigslist.org/pen/cls/d/redwood-city-make-money-fast/7924633771.html
+    - text: •Redwood City•3/30-4/12•posted 3/30•
+    - button "hide"
+    - button ""
+    - link "Photo Shoot":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/walnut-creek-photo-shoot/7924631643.html
+    - text: •danville / san ramon•4/11-4/13•posted 3/30•
+    - button "hide"
+    - button ""
+    - link "Spring Arts & Crafts Boutique in Alameda- April 25":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/alameda-spring-arts-crafts-boutique-in/7924618805.html
+    - text: •alameda•4/25•posted 3/30•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Healdsburg International Short Film Festival Audience Favorites":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/healdsburg-healdsburg-international/7924611050.html
+    - text: •healdsburg / windsor•4/11-4/12•posted 3/30•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Day trading penny stocks":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-day-trading-penny-stocks/7924601758.html
+    - text: •bayview•4/6-4/10•posted 3/30•
+    - button "hide"
+    - button ""
+    - link "Summer Camp for Kids (Art, Music & Learning) – San Jose":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-summer-camp-for-kids-art-music/7924543708.html
+    - text: •San Jose•3/30-4/12•posted 3/30•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Introduction to Sufism":
+      - /url: https://sfbay.craigslist.org/nby/cls/d/novato-introduction-to-sufism/7924520341.html
+    - text: •north bay / marin•4/10•posted 3/30•
+    - button "hide"
+    - button ""
+    - 'link "Step Into Your Inner World: An Evening of Guided Creative Exploration"':
+      - /url: https://sfbay.craigslist.org/sby/cls/d/mountain-view-step-into-your-inner/7924512724.html
+    - text: •mountain view•4/15•posted 3/30•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "VW Parts Swap Meet at the Red Barn in Aromas":
+      - /url: https://sfbay.craigslist.org/scz/eve/d/aromas-vw-parts-swap-meet-at-the-red/7924481492.html
+    - text: •watsonville•4/17-4/18•posted 3/30•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "John Rybak + Friends @ The Cats":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/redwood-estates-john-rybak-friends-the/7924462889.html
+    - text: •los gatos•4/17•posted 3/30•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "Venture Capital Panel: Investment & Latest Innovation in Climate Tech"':
+      - /url: https://sfbay.craigslist.org/pen/eve/d/palo-alto-venture-capital-panel/7924392496.html
+    - text: •palo alto•4/16•posted 3/29•
+    - button "hide"
+    - button ""
+    - link "AP Biology Practice & Revise Online Classes":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/pleasanton-ap-biology-practice-revise/7924314722.html
+    - text: •dublin / pleasanton / livermore•4/5-4/18•posted 3/29•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "CCSF Connect Open House & Resource Fair":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-ccsf-connect-open-house/7924213302.html
+    - text: •excelsior / outer mission•4/18•posted 3/28•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Clase de piano para musica cristiana":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/watsonville-clase-de-piano-para-musica/7924174814.html
+    - text: •Watsonville•4/2-4/15•posted 3/28•
+    - button "hide"
+    - button ""
+    - link "Clase de piano para musica cristiana":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/watsonville-clase-de-piano-para-musica/7924174744.html
+    - text: •Watsonville•4/2-4/15•posted 3/28•
+    - button "hide"
+    - button ""
+    - link "Clases De Piano Cristiano":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/watsonville-clases-de-piano-cristiano/7924175115.html
+    - text: •Watsonville•3/31-4/13•posted 3/28•
+    - button "hide"
+    - button ""
+    - link "Clase de piano para musica cristiana":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/watsonville-clase-de-piano-para-musica/7924174673.html
+    - text: •Watsonville•4/2-4/15•posted 3/28•
+    - button "hide"
+    - button ""
+    - link "Clase de piano para musica cristiana":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/watsonville-clase-de-piano-para-musica/7924175027.html
+    - text: •Watsonville•3/28-4/10•posted 3/28•
+    - button "hide"
+    - button ""
+    - link "Clase de piano para musica cristiana":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/watsonville-clase-de-piano-para-musica/7924174927.html
+    - text: •Watsonville•3/30-4/12•posted 3/28•
+    - button "hide"
+    - button ""
+    - link "Clase de piano para musica cristiana":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/watsonville-clase-de-piano-para-musica/7924174866.html
+    - text: •Watsonville•4/2-4/15•posted 3/28•
+    - button "hide"
+    - button ""
+    - link "Summer Art Camp":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/newark-summer-art-camp/7924082008.html
+    - text: •fremont / union city / newark•6/8•posted 3/28•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "St. Anne Yard Sale & Blood Drive":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-st-anne-yard-sale-blood/7924043333.html
+    - text: •inner sunset / UCSF•4/12•posted 3/28•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Job & Internship Fair":
+      - /url: https://sfbay.craigslist.org/scz/eve/d/capitola-job-internship-fair/7924002968.html
+    - text: •santa cruz co•4/16•posted 3/27•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Introduction to Sourdough Baking Workshop - From \"Starter\" to Finish":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/berkeley-introduction-to-sourdough/7923996771.html
+    - text: •berkeley•4/12•posted 3/27•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "need someone for a gig":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/san-pablo-need-someone-for-gig/7923966444.html
+    - text: •hercules, pinole, san pablo, el sob•3/27-4/9•posted 3/27•
+    - button "hide"
+    - button ""
+    - 'link "FREE Class: Christianity, Astrotheology & Ecology"':
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-free-class-christianity/7923892754.html
+    - text: •ingleside / SFSU / CCSF•4/15•posted 3/27•
+    - button "hide"
+    - button ""
+    - link "CARD & MEMORABILIA SHOW MAY 1ST":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/santa-rosa-card-memorabilia-show-may-1st/7923820028.html
+    - text: •Santa Rosa•5/1•posted 3/27•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "The Ultimate Highwayman Show - Live at Historic BAL Theatre San Leandro Apr 17":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/san-leandro-the-ultimate-highwayman/7923802765.html
+    - text: •dublin / pleasanton / livermore•4/17•posted 3/26•
+    - button "hide"
+    - button ""
+    - link "Beginning SWING DANCE & LINDY HOP - Group and private lessons!":
+      - /url: https://sfbay.craigslist.org/nby/cls/d/san-anselmo-beginning-swing-dance-lindy/7923772331.html
+    - text: •larkspur•4/14•posted 3/26•
+    - button "hide"
+    - button ""
+    - link "Interested in Day Trading??? Join My 14-Day Class For As Low As $30":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-interested-in-day-trading/7923760604.html
+    - text: •San Francisco•3/31-4/13•posted 3/26•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Great Music Belongs to Everyone":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/port-costa-great-music-belongs-to/7923647049.html
+    - text: •Benicia•5/24•posted 3/26•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Effective and Practical Martial Arts Filipino Martial Arts":
+      - /url: https://sfbay.craigslist.org/nby/cls/d/santa-rosa-effective-and-practical/7923604648.html
+    - text: •santa rosa•3/30-4/12•posted 3/26•
+    - button "hide"
+    - button ""
+    - link "Great Music Belongs to Everyone":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-great-music-belongs-to/7923586437.html
+    - text: •city of san francisco•5/30•posted 3/25•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "East Bay Speed Dating for 30s/40s":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/emeryville-east-bay-speed-dating-for/7923559567.html
+    - text: •emeryville•4/22•posted 3/25•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "El Cerrito Toastmasters!":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/albany-el-cerrito-toastmasters/7923536349.html
+    - text: •albany / el cerrito•4/14•posted 3/25•
+    - button "hide"
+    - button ""
+    - link "Big Semi-Annual Used Booksale to Benefit the Hercules Library":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/hercules-big-semi-annual-used-booksale/7923469238.html
+    - text: •hercules, pinole, san pablo, el sob•4/18-4/19•posted 3/25•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "The Complexities of Caregiving Lecture":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/san-jose-the-complexities-of-caregiving/7923362632.html
+    - text: •south bay area•5/29•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Don Edwards Habitat Restoration Volunteer Day":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/alviso-don-edwards-habitat-restoration/7923362197.html
+    - text: •south bay area•5/17•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Alviso Habitat Restoration Volunteer Day":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/alviso-alviso-habitat-restoration/7923361340.html
+    - text: •south bay area•5/2•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Wildflowers of Calero Lake for adults age 50+":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/saratoga-wildflowers-of-calero-lake-for/7923359381.html
+    - text: •south bay area•4/17•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Comedy Showcase at Bazaar Café with Danny Dechi & Friends!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-comedy-showcase-at-bazaar/7923354443.html
+    - text: •richmond / seacliff•5/15•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "April 19, 2026 Sunday Back2Nature Wellness Market Bay Area Makerfarm":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/alameda-april-sunday-back2nature/7923317561.html
+    - text: •alameda•4/19•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Mother's Day Kids' Floral Workshop":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/gilroy-mothers-day-kids-floral-workshop/7923303915.html
+    - text: •gilroy•5/9•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Fuze Event Venue/Patio for Cinco De Mayo":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/san-jose-fuze-event-venue-patio-for/7923200264.html
+    - text: •Downtown San Jose•5/2•posted 3/24•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Helping Monarch Butterflies in Marin":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/san-rafael-helping-monarch-butterflies/7922956813.html
+    - text: •san rafael•4/14•posted 3/23•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Sugartown Festival 2026":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/crockett-sugartown-festival-2026/7922889933.html
+    - text: •hercules, pinole, san pablo, el sob•7/19•posted 3/22•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Food and drinks":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-food-and-drinks/7922545040.html
+    - text: •glen park•5/1-5/12•posted 3/20•
+    - button "hide"
+    - button ""
+    - link "Comedy with host Danny Dechi at Mayes Oyster House every Wednesday!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-comedy-with-host-danny/7922540705.html
+    - text: •lower nob hill•4/29•posted 3/20•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "FREE Career Fair ~ 100's of Jobs ~ TOP Employers":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-free-career-fair-100s-of/7922530432.html
+    - text: •San Francisco•4/9•posted 3/20•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "50 & Fabulous Party for Single Professionals 50+":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/los-gatos-50-fabulous-party-for-single/7922354339.html
+    - text: •los gatos•4/19•posted 3/19•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "San Francisco Burners - Camp Speed Dating & Recruitment":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-san-francisco-burners/7922293956.html
+    - text: •SOMA / south beach•5/14•posted 3/19•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Laney College- Music lesson":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-laney-college-music-lesson/7922265566.html
+    - text: •oakland downtown•7/1-7/14•posted 3/19•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "The Vetted Social, where every man comes highly recommended.":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-the-vetted-social-where/7921809026.html
+    - text: •san francisco•4/15•posted 3/17•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Looking for a fun cover band for a 40th bday":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/greenbrae-looking-for-fun-cover-band/7921709018.html
+    - text: •larkspur•5/29•posted 3/16•
+    - button "hide"
+    - button ""
+    - link "The Living Room Show - FREE!!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-the-living-room-show-free/7921635711.html
+    - text: •San Francisco•4/10•posted 3/16•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Evening of Creative Self Exploration (Online Event)":
+      - /url: https://sfbay.craigslist.org/scz/cls/d/santa-cruz-evening-of-creative-self/7921392882.html
+    - text: •santa cruz co•4/13•posted 3/15•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Comedy with host Danny Dechi at Mayes Oyster House every Wednesday!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-comedy-with-host-danny/7921066339.html
+    - text: •lower nob hill•4/22•posted 3/13•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Call For Artists - April 18 & 19, 1-9 PM":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/san-jose-call-for-artists-april-pm/7920897406.html
+    - text: •san jose downtown•4/18-4/19•posted 3/12•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "🎶 Spring Concert – Diablo Women’s Chorale 🎶":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/orinda-spring-concert-diablo-womens/7920464289.html
+    - text: •lafayette / orinda / moraga•5/1•posted 3/10•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Advanced Degrees Mixer for Single Professionals with Doctorate/Masters":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-advanced-degrees-mixer/7920452578.html
+    - text: •san francisco•4/9•posted 3/10•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Embodied Birth Planning Workshop":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/berkeley-embodied-birth-planning/7920422413.html
+    - text: •berkeley•4/19•posted 3/10•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Free Mom's Day Boutique in Hilton Concord on April 26":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/concord-free-moms-day-boutique-in/7920123392.html
+    - text: •concord / pleasant hill / martinez•4/26•posted 3/9•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Comedy with host Danny Dechi at Mayes Oyster House every Wednesday!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-comedy-with-host-danny/7919941444.html
+    - text: •lower nob hill•4/15•posted 3/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "April Orchid Show and Sale":
+      - /url: https://sfbay.craigslist.org/pen/eve/d/san-mateo-april-orchid-show-and-sale/7919926319.html
+    - text: •san mateo•4/18-4/19•posted 3/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Documentary - Driver, Camera Person, Project Manager Wanted":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-documentary-driver-camera/7919808548.html
+    - text: •San Francisco•5/30•posted 3/7•
+    - button "hide"
+    - button ""
+    - link "Twenty Second Annual Bringing Back the Natives Garden Tour":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/richmond-twenty-second-annual-bringing/7919799037.html
+    - text: •East Bay•5/2-5/3•posted 3/7•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Walk for lives":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-walk-for-lives/7919568804.html
+    - text: •San Francisco•6/13•posted 3/6•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Free Construction Training Program":
+      - /url: https://sfbay.craigslist.org/pen/cls/d/redwood-city-free-construction-training/7919097452.html
+    - text: •san mateo•4/1-4/14•posted 3/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "SCCC Presents: Anthony B"':
+      - /url: https://sfbay.craigslist.org/nby/eve/d/sebastopol-sccc-presents-anthony/7919079944.html
+    - text: •sebastopol•4/10•posted 3/4•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "New Living Expo April 17-19th":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/san-rafael-new-living-expo-april-17-19th/7918914906.html
+    - text: •san rafael•4/17-4/19•posted 3/3•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Puppet wars - oakland":
+      - /url: https://sfbay.craigslist.org/eby/eve/d/oakland-puppet-wars-oakland/7918809947.html
+    - text: •oakland west•4/11•posted 3/3•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "2nd Annual BLOOM HIP HOP FESTIVAL & CAR SHOW":
+      - /url: https://sfbay.craigslist.org/nby/eve/d/sebastopol-2nd-annual-bloom-hip-hop/7918008621.html
+    - text: •sebastopol•5/17•posted 2/27•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "31st Annual Senior Smiles and Wellness Health Fair":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-31st-annual-senior-smiles/7917781365.html
+    - text: •San Francisco•5/2•posted 2/26•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Laney College-Great Wall Chinese Youth Orchestra":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/oakland-laney-college-great-wall/7917531638.html
+    - text: •oakland downtown•8/22-9/4•posted 2/25•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "✔ 11-week IN-PERSON Japanese lessons ••►~ $8/hr.☚ BEST QUALITY..":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-11-week-in-person/7915678820.html
+    - text: •San Francisco)•4/4-4/16•posted 2/17•
+    - button "hide"
+    - button ""
+    - link "Hands-On Leadership Program for High School Students (Grades 10–12)":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/santa-clara-hands-on-leadership-program/7915571261.html
+    - text: •santa clara•4/14-4/16•posted 2/16•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Hands-On Leadership Program for High School Students– April 7–9":
+      - /url: https://sfbay.craigslist.org/eby/cls/d/walnut-creek-hands-on-leadership/7915570909.html
+    - text: •walnut creek•4/7-4/9•posted 2/16•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Retreat Oasis - Strength in Stillness":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/carmel-by-the-sea-retreat-oasis/7915427861.html
+    - text: •city of san francisco•4/17-4/18•posted 2/15•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Comedy Showcase at Bazaar Café with Danny Dechi & Friends!":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-comedy-showcase-at-bazaar/7914978256.html
+    - text: •richmond / seacliff•4/17•posted 2/13•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Intro to Meditation for Silicon Valley Professionals":
+      - /url: https://sfbay.craigslist.org/sby/cls/d/san-jose-intro-to-meditation-for/7914677516.html
+    - text: •Live Online ~ Pacific Time•4/11•posted 2/12•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "World DOG SURFING CHAMPIONSHIPS - AUGUST 1st":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/pacifica-world-dog-surfing/7914330474.html
+    - text: •Pacifica•8/1•posted 2/10•
+    - button "hide"
+    - button ""
+    - 'link "Portrait Photography Class: $400, Thurs Evenings April-May"':
+      - /url: https://sfbay.craigslist.org/eby/cls/d/berkeley-portrait-photography-class-400/7914169043.html
+    - text: •berkeley•4/2-4/9•posted 2/9•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Tierra Bella Bicycle Tour":
+      - /url: https://sfbay.craigslist.org/sby/eve/d/gilroy-tierra-bella-bicycle-tour/7912173051.html
+    - text: •Gilroy•4/12•posted 1/31•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Living Wisdom Meditation Retreat. All Backgrounds Welcome.":
+      - /url: https://sfbay.craigslist.org/pen/cls/d/palo-alto-living-wisdom-meditation/7909410684.html
+    - text: •palo alto•7/7-7/8•posted 1/17•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "SCCC Presents: Dervish"':
+      - /url: https://sfbay.craigslist.org/nby/eve/d/sebastopol-sccc-presents-dervish/7908444891.html
+    - text: •sebastopol•5/1•posted 1/13•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Woodworking classes and shop space":
+      - /url: https://sfbay.craigslist.org/sfc/cls/d/san-francisco-woodworking-classes-and/7897652049.html
+    - text: •mission district•5/1•posted 11/22•
+    - button "hide"
+    - button ""
+    - link "Fight For Air Climb | San Francisco":
+      - /url: https://sfbay.craigslist.org/sfc/eve/d/san-francisco-fight-for-air-climb-san/7889971435.html
+    - text: •San Francisco•4/18•posted 10/20•
+    - button "hide"
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

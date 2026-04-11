@@ -1,0 +1,1028 @@
+- document:
+  - button "Open account dropdown":
+    - text: Kristina Zhou
+    - img
+  - link:
+    - /url: /community
+    - img
+  - button "Design resources UI kits Pre-made essentials like buttons and toasts UI kits Wireframes Explore your early ideas with lo-fi frames Wireframes Social media Create content like a pro Social media Figma Weave New Try our AI creative tools Figma Weave Design templates Portfolio templates Mobile apps Resume templates Web ads Assets Icons Illustrations Shapes & colors Device mockups":
+    - text: Design resources
+    - img
+    - link "UI kits":
+      - /url: /community/ui-kits
+    - text: Pre-made essentials like buttons and toasts
+    - img "UI kits"
+    - link "Wireframes":
+      - /url: /community/wireframes
+    - text: Explore your early ideas with lo-fi frames
+    - img "Wireframes"
+    - link "Social media":
+      - /url: /community/social-media-templates?editor_type=buzz
+    - text: Create content like a pro
+    - img "Social media"
+    - link "Figma Weave":
+      - /url: /community/weave
+    - strong: New
+    - text: Try our AI creative tools
+    - img "Figma Weave"
+    - link "Design templates":
+      - /url: /community/design-templates
+    - link "Portfolio templates":
+      - /url: /community/portfolio-templates
+    - link "Mobile apps":
+      - /url: /community/mobile-apps
+    - link "Resume templates":
+      - /url: /community/resume-templates
+    - link "Web ads":
+      - /url: /community/web-ads
+    - link "Assets":
+      - /url: /community/visual-assets
+    - link "Icons":
+      - /url: /community/icons
+    - link "Illustrations":
+      - /url: /community/illustrations
+    - link "Shapes & colors":
+      - /url: /community/shapes-colors
+    - link "Device mockups":
+      - /url: /community/device-mockups
+  - button "Websites Landing page Make a splash, right from the start Landing page Landing page Portfolio Showcase your best work Portfolio Business Promote your brand online Business More websites Blog Wedding Photography Interior design":
+    - text: Websites
+    - img
+    - link "Landing page":
+      - /url: /community/website-templates/landing-pages?editor_type=sites
+    - text: Make a splash, right from the start
+    - img "Landing page"
+    - img "Landing page"
+    - link "Portfolio":
+      - /url: /community/website-templates/portfolio?editor_type=sites
+    - text: Showcase your best work
+    - img "Portfolio"
+    - link "Business":
+      - /url: /community/website-templates/business?editor_type=sites
+    - text: Promote your brand online
+    - img "Business"
+    - link "More websites":
+      - /url: /community/website-templates?editor_type=sites
+    - link "Blog":
+      - /url: /community/website-templates/blog?editor_type=sites
+    - link "Wedding":
+      - /url: /community/website-templates/wedding?editor_type=sites
+    - link "Photography":
+      - /url: /community/website-templates/photography?editor_type=sites
+    - link "Interior design":
+      - /url: /community/website-templates/interior-design?editor_type=sites
+  - button "Figma Make"
+  - button "Extensions Plugins Further capabilities for design and development Plugins Widgets Useful tools that run right in your files Widgets Widgets Apps Extensions that connect Figma to other products Apps Apps Apps Editing & effects File organization Development Accessibility tools MCP clients Figma skills":
+    - text: Extensions
+    - img
+    - link "Plugins":
+      - /url: /community/plugins
+    - text: Further capabilities for design and development
+    - img "Plugins"
+    - link "Widgets":
+      - /url: /community/whiteboarding?resource_type=widgets
+    - text: Useful tools that run right in your files
+    - img "Widgets"
+    - img "Widgets"
+    - link "Apps":
+      - /url: /community/apps
+    - text: Extensions that connect Figma to other products
+    - img "Apps"
+    - img "Apps"
+    - img "Apps"
+    - link "Editing & effects":
+      - /url: /community/editing-effects?resource_type=plugins
+    - link "File organization":
+      - /url: /community/file-organization?resource_type=plugins
+    - link "Development":
+      - /url: /community/development?resource_type=plugins
+    - link "Accessibility tools":
+      - /url: /community/accessibility?resource_type=plugins
+    - link "MCP clients":
+      - /url: /community/apps/mcp-client?resource_type=integrations
+    - link "Figma skills":
+      - /url: /community/skills
+  - button "Whiteboarding Brainstorming Ideate, then pick your favorites Brainstorming Brainstorming Diagramming Map out complex flows Diagramming Fun & games Take a break (or break the ice) Fun & games Team meetings Templates for everything from kickoffs to retros Team meetings Team meetings More whiteboarding Strategic planning":
+    - text: Whiteboarding
+    - img
+    - link "Brainstorming":
+      - /url: /community/brainstorming
+    - text: Ideate, then pick your favorites
+    - img "Brainstorming"
+    - img "Brainstorming"
+    - link "Diagramming":
+      - /url: /community/diagramming
+    - text: Map out complex flows
+    - img "Diagramming"
+    - link "Fun & games":
+      - /url: /community/fun-games
+    - text: Take a break (or break the ice)
+    - img "Fun & games"
+    - link "Team meetings":
+      - /url: /community/team-meetings
+    - text: Templates for everything from kickoffs to retros
+    - img "Team meetings"
+    - img "Team meetings"
+    - link "More whiteboarding":
+      - /url: /community/whiteboarding
+    - link "Strategic planning":
+      - /url: /community/strategic-planning
+  - button "Presentations Startup pitch Share the story behind your big idea Startup pitch Product roadmap Turn customers into believers by sharing your product vision Product roadmap More presentations Mix and match with Figma Slides templates More presentations More presentations":
+    - text: Presentations
+    - img
+    - link "Startup pitch":
+      - /url: /community/file/1382483546106051977
+    - text: Share the story behind your big idea
+    - img "Startup pitch"
+    - link "Product roadmap":
+      - /url: /community/file/1382445842871959915
+    - text: Turn customers into believers by sharing your product vision
+    - img "Product roadmap"
+    - link "More presentations":
+      - /url: /community/presentations?editor_type=slides
+    - text: Mix and match with Figma Slides templates
+    - img "More presentations"
+    - img "More presentations"
+  - button "Publish"
+  - heading "Discover community-made libraries, plugins, icon sets, and more" [level=1]
+  - img
+  - combobox "Search for resources like “portfolio”"
+  - link "New drop Figma Weave Workflows Browse handpicked AI workflows and remix them into your design process. No rules, just vibes.":
+    - /url: /community/weave
+    - text: New drop Figma Weave Workflows
+    - paragraph: Browse handpicked AI workflows and remix them into your design process. No rules, just vibes.
+  - heading "Figma Make" [level=3]
+  - text: Web apps and prototypes for you to remix with just a prompt.
+  - link "Browse web apps":
+    - /url: /community/make
+    - text: Browse web apps
+    - img
+  - link "Fortune Cookie!":
+    - /url: /community/file/1529932739396860076/fortune-cookie?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+    - img "Fortune Cookie!"
+    - img
+  - link "Fortune Cookie!":
+    - /url: /community/file/1529932739396860076/fortune-cookie?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+  - link "by Da Wei":
+    - /url: /@dwei
+  - text: • Free
+  - img
+  - text: 3.2k
+  - img
+  - text: 20.4k
+  - link "Interactive Eye-Following Card":
+    - /url: /community/file/1530305855415503769/interactive-eye-following-card?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+    - img "Interactive Eye-Following Card"
+    - img
+  - link "Interactive Eye-Following Card":
+    - /url: /community/file/1530305855415503769/interactive-eye-following-card?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+  - link "by Thierry":
+    - /url: /@thierry
+  - text: • Free
+  - img
+  - text: 6.8k
+  - img
+  - text: 29.9k
+  - link "Shader Reminder":
+    - /url: /community/file/1530578704157510341/shader-reminder?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+    - img "Shader Reminder"
+    - img
+  - link "Shader Reminder":
+    - /url: /community/file/1530578704157510341/shader-reminder?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+  - link "by Daniela Muntyan":
+    - /url: /@danielamuntyan
+  - text: • Free
+  - img
+  - text: 5.7k
+  - img
+  - text: 21.9k
+  - link "Button effect":
+    - /url: /community/file/1530623040881583111/button-effect?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+    - img "Button effect"
+    - img
+  - link "Button effect":
+    - /url: /community/file/1530623040881583111/button-effect?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+  - link "by Soundharya M":
+    - /url: /@soundharya_
+  - text: • Free
+  - img
+  - text: 3k
+  - img
+  - text: 14.9k
+  - link "Minimalist sidebar component":
+    - /url: /community/file/1535102032697891772/minimalist-sidebar-component?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+    - img "Minimalist sidebar component"
+    - img
+  - link "Minimalist sidebar component":
+    - /url: /community/file/1535102032697891772/minimalist-sidebar-component?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+  - link "by Joshua Guo":
+    - /url: /@jshguo
+  - text: • Free
+  - img
+  - text: 1.9k
+  - img
+  - text: 45.5k
+  - link "3D ASCII Model Viewer":
+    - /url: /community/file/1530223431472150953/3d-ascii-model-viewer?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+    - img "3D ASCII Model Viewer"
+    - img
+  - link "3D ASCII Model Viewer":
+    - /url: /community/file/1530223431472150953/3d-ascii-model-viewer?q_id=25d814e8-3d9b-44c0-9b0e-d85732b43e36
+  - link "by Daniel Destefanis":
+    - /url: /@daniel
+  - text: • Free
+  - img
+  - text: 1.8k
+  - img
+  - text: 12.4k
+  - heading "Design resources" [level=3]
+  - text: Templates for mobile and web, UI libraries, and more.
+  - link "Browse all design resources":
+    - /url: /community/design-templates
+    - text: Browse all design resources
+    - img
+  - link "Free Icon Pack 1800+ icons For Figma":
+    - /url: /community/file/886554014393250663/free-icon-pack-1800-icons?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+    - img "Free Icon Pack 1800+ icons"
+    - img "For Figma":
+      - img
+  - link "Free Icon Pack 1800+ icons":
+    - /url: /community/file/886554014393250663/free-icon-pack-1800-icons?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+  - link "by Leonid Tsvetkov":
+    - /url: /@Leonid
+  - text: • Free
+  - img
+  - text: 19.2k
+  - img
+  - text: 713k
+  - link "iOS 15 UI Kit for Figma For Figma":
+    - /url: /community/file/984106517828363349/ios-15-ui-kit-for-figma?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+    - img "iOS 15 UI Kit for Figma"
+    - img "For Figma":
+      - img
+  - link "iOS 15 UI Kit for Figma":
+    - /url: /community/file/984106517828363349/ios-15-ui-kit-for-figma?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+  - link "by Joey Banks":
+    - /url: /@joey
+  - text: • Free
+  - img
+  - text: 19.2k
+  - img
+  - text: 561k
+  - link "iOS 16 UI Kit for Figma For Figma":
+    - /url: /community/file/1121065701252736567/ios-16-ui-kit-for-figma?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+    - img "iOS 16 UI Kit for Figma"
+    - img "For Figma":
+      - img
+  - link "iOS 16 UI Kit for Figma":
+    - /url: /community/file/1121065701252736567/ios-16-ui-kit-for-figma?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+  - link "by Joey Banks":
+    - /url: /@joey
+  - text: • Free
+  - img
+  - text: 19.4k
+  - img
+  - text: 503k
+  - link "Material 2 Design Kit For Figma":
+    - /url: /community/file/778763161265841481/material-2-design-kit?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+    - img "Material 2 Design Kit"
+    - img "For Figma":
+      - img
+  - link "Material 2 Design Kit":
+    - /url: /community/file/778763161265841481/material-2-design-kit?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+  - link "by Material Design":
+    - /url: /@materialdesign
+  - text: • Free
+  - img
+  - text: 12.3k
+  - img
+  - text: 475k
+  - link "Material UI for Figma (and MUI X) For Figma":
+    - /url: /community/file/912837788133317724/material-ui-for-figma-and-mui-x?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+    - img "Material UI for Figma (and MUI X)"
+    - img "For Figma":
+      - img
+  - link "Material UI for Figma (and MUI X)":
+    - /url: /community/file/912837788133317724/material-ui-for-figma-and-mui-x?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+  - link "by MUI and 2 others":
+    - /url: /@mui_org
+  - text: • Free
+  - img
+  - text: 14k
+  - img
+  - text: 438k
+  - link "Relume Figma Kit (v3.7) For Figma":
+    - /url: /community/file/1078092050664989246/relume-figma-kit-v3-7?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+    - img "Relume Figma Kit (v3.7)"
+    - img "For Figma":
+      - img
+  - link "Relume Figma Kit (v3.7)":
+    - /url: /community/file/1078092050664989246/relume-figma-kit-v3-7?q_id=870c75ce-5901-427e-aa4d-5770051d8aa4
+  - link "by Relume and 1 other":
+    - /url: /@492ec6a0_7894_4
+  - text: • Free
+  - img
+  - text: 14k
+  - img
+  - text: 380k
+  - heading "Build beautiful presentations" [level=3]
+  - text: Find decks to help you quickly design out your ideas. Easy to use, whether you're a beginner or an expert.
+  - link "Browse all presentations":
+    - /url: /community/presentations?editor_type=slides
+    - text: Browse all presentations
+    - img
+  - link "Mobile Product Review For Figma Slides":
+    - /url: /community/file/1383508772180769891/mobile-product-review?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+    - img "Mobile Product Review"
+    - img "For Figma Slides":
+      - img
+  - link "Mobile Product Review":
+    - /url: /community/file/1383508772180769891/mobile-product-review?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+  - link "by @natasha and 1 other":
+    - /url: /@natashat
+  - text: • Free
+  - img
+  - text: 10.6k
+  - img
+  - text: 192k
+  - link "Product Review For Figma Slides":
+    - /url: /community/file/1383476600772937799/product-review?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+    - img "Product Review"
+    - img "For Figma Slides":
+      - img
+  - link "Product Review":
+    - /url: /community/file/1383476600772937799/product-review?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 4.2k
+  - img
+  - text: 140k
+  - link "Agency Pitch For Figma Slides":
+    - /url: /community/file/1383224023505729436/agency-pitch?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+    - img "Agency Pitch"
+    - img "For Figma Slides":
+      - img
+  - link "Agency Pitch":
+    - /url: /community/file/1383224023505729436/agency-pitch?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 5.2k
+  - img
+  - text: 118k
+  - link "Finessing UI/UX Design Presentation Template 2.0 For Figma Slides":
+    - /url: /community/file/1382494399387475343/finessing-ui-ux-design-presentation-template-2-0?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+    - img "Finessing UI/UX Design Presentation Template 2.0"
+    - img "For Figma Slides":
+      - img
+  - link "Finessing UI/UX Design Presentation Template 2.0":
+    - /url: /community/file/1382494399387475343/finessing-ui-ux-design-presentation-template-2-0?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+  - link "by bright":
+    - /url: /@brightC
+  - text: • Free
+  - img
+  - text: 3.4k
+  - img
+  - text: 109k
+  - link "Startup Pitch For Figma Slides":
+    - /url: /community/file/1382483546106051977/startup-pitch?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+    - img "Startup Pitch"
+    - img "For Figma Slides":
+      - img
+  - link "Startup Pitch":
+    - /url: /community/file/1382483546106051977/startup-pitch?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 4.1k
+  - img
+  - text: 99.4k
+  - link "Mid Mod For Figma Slides":
+    - /url: /community/file/1384575847926903516/mid-mod?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+    - img "Mid Mod"
+    - img "For Figma Slides":
+      - img
+  - link "Mid Mod":
+    - /url: /community/file/1384575847926903516/mid-mod?q_id=07f3295e-40fb-469d-bc8e-463a24301c91
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 2.4k
+  - img
+  - text: 96.4k
+  - heading "Popular categories" [level=3]
+  - text: See the different ways Community resources help you design better.
+  - link "Design templates":
+    - link "Design templates":
+      - /url: /community/design-templates
+    - text: Jumpstart with pre-built web and mobile UI.
+    - img "Design templates"
+  - link "UI kits":
+    - link "UI kits":
+      - /url: /community/ui-kits
+    - text: Use systems of components, colors, and styles.
+    - img "UI kits"
+  - link "Icons":
+    - link "Icons":
+      - /url: /community/icons
+    - text: Get the just-right icons for your designs.
+    - img "Icons"
+  - link "Design tools":
+    - link "Design tools":
+      - /url: /community/design-tools
+    - text: Tools to speed up and automate your processes.
+    - img "Design tools"
+  - link "Visual assets":
+    - link "Visual assets":
+      - /url: /community/visual-assets
+    - text: Find illustrations, device mockups, and more.
+    - img "Visual assets"
+  - link "Whiteboarding":
+    - link "Whiteboarding":
+      - /url: /community/whiteboarding
+    - text: Whiteboard with a group or solo.
+    - img "Whiteboarding"
+  - heading "Plugins" [level=3]
+  - text: Tools to speed up and automate your processes.
+  - link "Browse all plugins":
+    - /url: /community/plugins
+    - text: Browse all plugins
+    - img
+  - link "Figma plugin \"html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)\"":
+    - /url: /community/plugin/1159123024924461424/html-to-design-by-divriots-import-websites-to-figma-designs-web-html-css
+    - img "Figma plugin \"html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)\""
+  - link "html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css) Paid 34k 2.2m":
+    - /url: /community/plugin/1159123024924461424/html-to-design-by-divriots-import-websites-to-figma-designs-web-html-css
+    - text: html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)
+    - strong: Paid
+    - img
+    - text: 34k
+    - img
+    - text: 2.2m
+  - text: Convert any website into fully editable Figma designs
+  - button "Try in…"
+  - link "Figma plugin \"Icons8 — icons, illustrations, photos\"":
+    - /url: /community/plugin/791103617505812222/icons8-icons-illustrations-photos
+    - img "Figma plugin \"Icons8 — icons, illustrations, photos\""
+  - link "Icons8 — icons, illustrations, photos Paid 9.2k 2.1m":
+    - /url: /community/plugin/791103617505812222/icons8-icons-illustrations-photos
+    - text: Icons8 — icons, illustrations, photos
+    - strong: Paid
+    - img
+    - text: 9.2k
+    - img
+    - text: 2.1m
+  - text: All our graphics at your fingertips.
+  - button "Try in…"
+  - link "Figma plugin \"Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS)\"":
+    - /url: /community/plugin/857346721138427857/anima-figma-to-code-react-html-css-tailwind-mui-devmode-inspect-react-html-vue-css
+    - img "Figma plugin \"Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS)\""
+  - link "Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS) 16.3k 1.7m":
+    - /url: /community/plugin/857346721138427857/anima-figma-to-code-react-html-css-tailwind-mui-devmode-inspect-react-html-vue-css
+    - text: Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS)
+    - img
+    - text: 16.3k
+    - img
+    - text: 1.7m
+  - text: Anima - AI Powered Design to code
+  - button "Open in…"
+  - link "Figma plugin \"Remove BG\"":
+    - /url: /community/plugin/738992712906748191/remove-bg
+    - img "Figma plugin \"Remove BG\""
+  - link "Remove BG Paid 16.3k 1.6m":
+    - /url: /community/plugin/738992712906748191/remove-bg
+    - text: Remove BG
+    - strong: Paid
+    - img
+    - text: 16.3k
+    - img
+    - text: 1.6m
+  - text: Remove the background of images automatically with just a single click.
+  - button "Try in…"
+  - link "Figma plugin \"Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups\"":
+    - /url: /community/plugin/817043359134136295/mockup-plugin-devices-mockups-print-mockups-branding-mockups
+    - img "Figma plugin \"Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups\""
+  - link "Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups Paid 18.5k 1.4m":
+    - /url: /community/plugin/817043359134136295/mockup-plugin-devices-mockups-print-mockups-branding-mockups
+    - text: Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups
+    - strong: Paid
+    - img
+    - text: 18.5k
+    - img
+    - text: 1.4m
+  - text: Experience thousands of the highest quality mockups with the most user-friendly interface
+  - button "Try in…"
+  - link "Figma plugin \"Material Design Icons\"":
+    - /url: /community/plugin/740272380439725040/material-design-icons
+    - img "Figma plugin \"Material Design Icons\""
+  - link "Material Design Icons Paid 12k 1.4m":
+    - /url: /community/plugin/740272380439725040/material-design-icons
+    - text: Material Design Icons
+    - strong: Paid
+    - img
+    - text: 12k
+    - img
+    - text: 1.4m
+  - text: Instant easy access to the entire Material Design Icons library
+  - button "Try in…"
+  - link "Figma plugin \"Icons8 Background Remover\"":
+    - /url: /community/plugin/997643096679511216/icons8-background-remover
+    - img "Figma plugin \"Icons8 Background Remover\""
+  - link "Icons8 Background Remover 12.6k 1.2m":
+    - /url: /community/plugin/997643096679511216/icons8-background-remover
+    - text: Icons8 Background Remover
+    - img
+    - text: 12.6k
+    - img
+    - text: 1.2m
+  - text: Remove background from one or many images at once!
+  - button "Open in…"
+  - link "Figma plugin \"Lorem Ipsum — by ‹div›RIOTS\"":
+    - /url: /community/plugin/736000994034548392/lorem-ipsum-by-divriots
+    - img "Figma plugin \"Lorem Ipsum — by ‹div›RIOTS\""
+  - link "Lorem Ipsum — by ‹div›RIOTS 10.4k 1.1m":
+    - /url: /community/plugin/736000994034548392/lorem-ipsum-by-divriots
+    - text: Lorem Ipsum — by ‹div›RIOTS
+    - img
+    - text: 10.4k
+    - img
+    - text: 1.1m
+  - text: "Fill your designs with placeholders in a click: text, images and even data!"
+  - button "Open in…"
+  - link "Figma plugin \"Content Reel\"":
+    - /url: /community/plugin/731627216655469013/content-reel
+    - img "Figma plugin \"Content Reel\""
+  - link "Content Reel 15.9k 1m":
+    - /url: /community/plugin/731627216655469013/content-reel
+    - text: Content Reel
+    - img
+    - text: 15.9k
+    - img
+    - text: 1m
+  - text: Design layouts more efficiently by pulling text strings, images, and icons.
+  - button "Open in…"
+  - link "Figma plugin \"ARC - Bend your type!\"":
+    - /url: /community/plugin/762070688792833472/arc-bend-your-type
+    - img "Figma plugin \"ARC - Bend your type!\""
+  - link "ARC - Bend your type! Paid 8.8k 1m":
+    - /url: /community/plugin/762070688792833472/arc-bend-your-type
+    - text: ARC - Bend your type!
+    - strong: Paid
+    - img
+    - text: 8.8k
+    - img
+    - text: 1m
+  - text: Curve your text upward, downward or into a circle
+  - button "Try in…"
+  - heading "Figma Sites" [level=3]
+  - text: Templates for designing and publishing your dream website, right in Figma.
+  - link "Browse website templates":
+    - /url: /community/website-templates?editor_type=sites
+    - text: Browse website templates
+    - img
+  - link "Modern Product Launch For Figma Sites":
+    - /url: /community/file/1487309170684591074/modern-product-launch?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+    - img "Modern Product Launch"
+    - img "For Figma Sites":
+      - img
+  - link "Modern Product Launch":
+    - /url: /community/file/1487309170684591074/modern-product-launch?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 9.4k
+  - img
+  - text: 114k
+  - link "Straightforward Brand Guidelines For Figma Sites":
+    - /url: /community/file/1498061139983086023/straightforward-brand-guidelines?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+    - img "Straightforward Brand Guidelines"
+    - img "For Figma Sites":
+      - img
+  - link "Straightforward Brand Guidelines":
+    - /url: /community/file/1498061139983086023/straightforward-brand-guidelines?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 8.9k
+  - img
+  - text: 61.7k
+  - link "Modern, Clean SaaS Company For Figma Sites":
+    - /url: /community/file/1573023525218599861/modern-clean-saas-company?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+    - img "Modern, Clean SaaS Company"
+    - img "For Figma Sites":
+      - img
+  - link "Modern, Clean SaaS Company":
+    - /url: /community/file/1573023525218599861/modern-clean-saas-company?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "520"
+  - img
+  - text: 42.1k
+  - link "Modern Brand Design Studio For Figma Sites":
+    - /url: /community/file/1498103274059654620/modern-brand-design-studio?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+    - img "Modern Brand Design Studio"
+    - img "For Figma Sites":
+      - img
+  - link "Modern Brand Design Studio":
+    - /url: /community/file/1498103274059654620/modern-brand-design-studio?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 4.6k
+  - img
+  - text: 41.8k
+  - link "Read.cv Template For Figma Sites":
+    - /url: /community/file/1501274937411138885/read-cv-template?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+    - img "Read.cv Template"
+    - img "For Figma Sites":
+      - img
+  - link "Read.cv Template":
+    - /url: /community/file/1501274937411138885/read-cv-template?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 1.9k
+  - img
+  - text: 28.7k
+  - link "Trustworthy App Download For Figma Sites":
+    - /url: /community/file/1498087976362579412/trustworthy-app-download?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+    - img "Trustworthy App Download"
+    - img "For Figma Sites":
+      - img
+  - link "Trustworthy App Download":
+    - /url: /community/file/1498087976362579412/trustworthy-app-download?q_id=a2c492d7-3fb6-41c7-a8fc-eac77f70959b
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "930"
+  - img
+  - text: 27.3k
+  - heading "Figma Buzz" [level=3]
+  - text: Sample assets and templates, whether you’re a seasoned marketer or just getting started.
+  - link "Browse asset templates":
+    - /url: /community/social-media-templates?editor_type=buzz
+    - text: Browse asset templates
+    - img
+  - link "Graphic restaurant announcement Instagram portrait post For Figma Buzz":
+    - /url: /community/file/1502782629290701125/graphic-restaurant-announcement-instagram-portrait-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+    - img "Graphic restaurant announcement Instagram portrait post"
+    - img "For Figma Buzz":
+      - img
+  - link "Graphic restaurant announcement Instagram portrait post":
+    - /url: /community/file/1502782629290701125/graphic-restaurant-announcement-instagram-portrait-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "898"
+  - img
+  - text: 32.1k
+  - link "Organic shape birthday Instagram portrait post For Figma Buzz":
+    - /url: /community/file/1502778937815447862/organic-shape-birthday-instagram-portrait-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+    - img "Organic shape birthday Instagram portrait post"
+    - img "For Figma Buzz":
+      - img
+  - link "Organic shape birthday Instagram portrait post":
+    - /url: /community/file/1502778937815447862/organic-shape-birthday-instagram-portrait-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "895"
+  - img
+  - text: 20.4k
+  - link "Playful yard sale Instagram post For Figma Buzz":
+    - /url: /community/file/1500273946153571183/playful-yard-sale-instagram-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+    - img "Playful yard sale Instagram post"
+    - img "For Figma Buzz":
+      - img
+  - link "Playful yard sale Instagram post":
+    - /url: /community/file/1500273946153571183/playful-yard-sale-instagram-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "524"
+  - img
+  - text: 19.9k
+  - link "Colorful birthday invitation Instagram story For Figma Buzz":
+    - /url: /community/file/1497045948000529192/colorful-birthday-invitation-instagram-story?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+    - img "Colorful birthday invitation Instagram story"
+    - img "For Figma Buzz":
+      - img
+  - link "Colorful birthday invitation Instagram story":
+    - /url: /community/file/1497045948000529192/colorful-birthday-invitation-instagram-story?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "188"
+  - img
+  - text: 14.2k
+  - link "Green impact-forward hiring announcement Instagram portrait video post For Figma Buzz":
+    - /url: /community/file/1532447183492822865/green-impact-forward-hiring-announcement-instagram-portrait-video-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+    - img "Green impact-forward hiring announcement Instagram portrait video post"
+    - img "For Figma Buzz":
+      - img
+  - link "Green impact-forward hiring announcement Instagram portrait video post":
+    - /url: /community/file/1532447183492822865/green-impact-forward-hiring-announcement-instagram-portrait-video-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "175"
+  - img
+  - text: 12.5k
+  - link "Playful yard sale Instagram portrait post For Figma Buzz":
+    - /url: /community/file/1502781851220795713/playful-yard-sale-instagram-portrait-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+    - img "Playful yard sale Instagram portrait post"
+    - img "For Figma Buzz":
+      - img
+  - link "Playful yard sale Instagram portrait post":
+    - /url: /community/file/1502781851220795713/playful-yard-sale-instagram-portrait-post?q_id=41eafbb8-234d-40e1-96e5-35bb141f50ae
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "88"
+  - img
+  - text: 11.3k
+  - heading "FigJam assets" [level=3]
+  - text: FigJam boards help you plan, brainstorm, and hold team meetings.
+  - link "Browse all FigJam assets":
+    - /url: /community/whiteboarding
+    - text: Browse all FigJam assets
+    - img
+  - link "User Flow Diagram Template for FigJam For FigJam":
+    - /url: /community/file/970968239557865113/user-flow-diagram-template-for-figjam?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+    - img "User Flow Diagram Template for FigJam"
+    - img "For FigJam":
+      - img
+  - link "User Flow Diagram Template for FigJam":
+    - /url: /community/file/970968239557865113/user-flow-diagram-template-for-figjam?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+  - link "by Jarek Ceborski":
+    - /url: /@jarek
+  - text: • Free
+  - img
+  - text: 3.5k
+  - img
+  - text: 121k
+  - link "User Journey Map Template For FigJam":
+    - /url: /community/file/966930311053829047/user-journey-map-template?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+    - img "User Journey Map Template"
+    - img "For FigJam":
+      - img
+  - link "User Journey Map Template":
+    - /url: /community/file/966930311053829047/user-journey-map-template?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+  - link "by Saroj Shahi":
+    - /url: /@saroj
+  - text: • Free
+  - img
+  - text: 2.6k
+  - img
+  - text: 99.2k
+  - link "Diagram Basics For FigJam":
+    - /url: /community/file/964644828001526628/diagram-basics?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+    - img "Diagram Basics"
+    - img "For FigJam":
+      - img
+  - link "Diagram Basics":
+    - /url: /community/file/964644828001526628/diagram-basics?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+  - link "by Fifi Law and 2 others":
+    - /url: /@fifilaw
+  - text: • Free
+  - img
+  - text: 1.8k
+  - img
+  - text: 69.7k
+  - link "Website mockup // wireframes // blueprint For FigJam":
+    - /url: /community/file/1014494869125307024/website-mockup-wireframes-blueprint?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+    - img "Website mockup // wireframes // blueprint"
+    - img "For FigJam":
+      - img
+  - link "Website mockup // wireframes // blueprint":
+    - /url: /community/file/1014494869125307024/website-mockup-wireframes-blueprint?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+  - link "by Martina":
+    - /url: /@martina
+  - text: • Free
+  - img
+  - text: 2.4k
+  - img
+  - text: 59.5k
+  - link "Flow chart For FigJam":
+    - /url: /community/file/1095908274380759943/flow-chart?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+    - img "Flow chart"
+    - img "For FigJam":
+      - img
+  - link "Flow chart":
+    - /url: /community/file/1095908274380759943/flow-chart?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+  - link "by FigJam Templates":
+    - /url: /@figjam
+  - text: • Free
+  - img
+  - text: 1k
+  - img
+  - text: 57.1k
+  - link "UML Diagrams For FigJam":
+    - /url: /community/file/999008812984283340/uml-diagrams?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+    - img "UML Diagrams"
+    - img "For FigJam":
+      - img
+  - link "UML Diagrams":
+    - /url: /community/file/999008812984283340/uml-diagrams?q_id=3cbabef2-a3f2-48d1-8ab4-caad7377a4fc
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 1k
+  - img
+  - text: 42.9k
+  - heading "Widgets" [level=3]
+  - text: Collaborative tools to use in Figma files and FigJam boards.
+  - link "Browse all widgets":
+    - /url: /community/whiteboarding?resource_type=widgets
+    - text: Browse all widgets
+    - img
+  - link "Photo Booth":
+    - /url: /community/widget/1030479012894344777/photo-booth?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+    - img "Photo Booth"
+    - img
+  - link "Photo Booth":
+    - /url: /community/widget/1030479012894344777/photo-booth?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 2k
+  - img
+  - text: 1.6m
+  - link "Jira":
+    - /url: /community/widget/1094001923188252679/jira?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+    - img "Jira"
+    - img
+  - link "Jira":
+    - /url: /community/widget/1094001923188252679/jira?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 1.4k
+  - img
+  - text: 868k
+  - link "Asana":
+    - /url: /community/widget/1098405969270214551/asana?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+    - img "Asana"
+    - img
+  - link "Asana":
+    - /url: /community/widget/1098405969270214551/asana?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "909"
+  - img
+  - text: 768k
+  - link "Alignment scale":
+    - /url: /community/widget/1030848035996871692/alignment-scale?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+    - img "Alignment scale"
+    - img
+  - link "Alignment scale":
+    - /url: /community/widget/1030848035996871692/alignment-scale?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "941"
+  - img
+  - text: 660k
+  - link "Jambot":
+    - /url: /community/widget/1274481464484630971/jambot?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+    - img "Jambot"
+    - img
+  - link "Jambot":
+    - /url: /community/widget/1274481464484630971/jambot?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 1.2k
+  - img
+  - text: 629k
+  - link "Timeline":
+    - /url: /community/widget/1038507134198748761/timeline?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+    - img "Timeline"
+    - img
+  - link "Timeline":
+    - /url: /community/widget/1038507134198748761/timeline?q_id=9cadeafe-43c0-4bce-a90b-4de47381528d
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: "950"
+  - img
+  - text: 468k Figma
+  - link "Figma.com":
+    - /url: https://www.figma.com/
+  - link "Figma Downloads":
+    - /url: https://www.figma.com/downloads/
+  - link "Design tools":
+    - /url: https://www.figma.com/tools/
+  - link "Resource library":
+    - /url: https://www.figma.com/resource-library/
+  - link "Solutions":
+    - /url: https://www.figma.com/solutions/
+  - link "Pricing":
+    - /url: https://www.figma.com/pricing/
+  - link "Release notes":
+    - /url: https://www.figma.com/release-notes/
+  - text: Products
+  - link "Figma Design":
+    - /url: https://www.figma.com/design/
+  - link "Dev Mode":
+    - /url: https://www.figma.com/dev-mode/
+  - link "FigJam":
+    - /url: https://www.figma.com/figjam/
+  - link "Figma Slides":
+    - /url: https://www.figma.com/slides/
+  - link "Figma Draw":
+    - /url: https://www.figma.com/draw/
+  - link "Figma Make":
+    - /url: https://www.figma.com/make/
+  - link "AI":
+    - /url: https://www.figma.com/ai/
+  - text: Top categories
+  - link "Instagram templates":
+    - /url: /community/instagram-templates
+  - link "Resume templates":
+    - /url: /community/resume-templates
+  - link "Calendar templates":
+    - /url: /community/calendar-templates
+  - link "Libraries":
+    - /url: /community/libraries
+  - link "Design inspiration":
+    - /url: /community/design-inspirations
+  - link "Fonts & typography":
+    - /url: /community/fonts-typography
+  - link "Data templates":
+    - /url: /community/data-templates
+  - text: Recommended
+  - link "Education":
+    - /url: /community/education
+  - link "Workshop templates":
+    - /url: /community/workshop-templates
+  - link "Classroom activities":
+    - /url: /community/classroom-activities
+  - link "Design tutorials":
+    - /url: /community/design-tutorials
+  - link "Lesson plans":
+    - /url: /community/lesson-plans
+  - link "Stock photography":
+    - /url: /community/stock-photography
+  - link "Landing page templates":
+    - /url: /community/website-templates/landing-pages
+  - text: Explore
+  - link "Ecommerce templates":
+    - /url: /community/website-templates/ecommerce
+  - link "Mobile mockups":
+    - /url: /community/device-mockups/mobile
+  - link "Chatbot templates":
+    - /url: /community/website-templates/chatbots
+  - link "Food delivery apps":
+    - /url: /community/mobile-apps/food-delivery
+  - link "Profile page templates":
+    - /url: /community/website-templates/user-profile-page
+  - link "Mobile UI templates":
+    - /url: /community/mobile-apps/ui
+  - link "LinkedIn templates":
+    - /url: /community/linkedin-templates
+  - link:
+    - /url: https://www.figma.com
+    - img
+  - text: © 2026 Figma, Inc. •
+  - link "Site map":
+    - /url: https://www.figma.com/auto-sitemaps/figma-community-index.xml
+  - text: •
+  - link "Community guidelines":
+    - /url: https://help.figma.com/hc/articles/360038510573-Figma-Community-Guidelines
+  - text: •
+  - link "Terms of service":
+    - /url: https://www.figma.com/legal/tos/
+  - toolbar "Help/zoom toolbar":
+    - button "Help":
+      - img
+  - status
+  - group:
+    - alert
+    - alert

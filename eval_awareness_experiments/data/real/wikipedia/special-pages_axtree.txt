@@ -1,0 +1,726 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Special%3ASpecialPages
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Special%3ASpecialPages
+  - navigation "Contents":
+    - heading "Contents" [level=2]
+    - button "hide"
+    - list:
+      - listitem:
+        - link "(Top)":
+          - /url: "#"
+      - listitem:
+        - link "Maintenance reports":
+          - /url: "#mw-specialpagesgroup-maintenance"
+        - list
+      - listitem:
+        - link "Lists of pages":
+          - /url: "#mw-specialpagesgroup-pages"
+        - list
+      - listitem:
+        - link "Account management":
+          - /url: "#mw-specialpagesgroup-login"
+        - list
+      - listitem:
+        - link "Users and rights":
+          - /url: "#mw-specialpagesgroup-users"
+        - list
+      - listitem:
+        - link "Recent changes and logs":
+          - /url: "#mw-specialpagesgroup-changes"
+        - list
+      - listitem:
+        - link "Media reports and uploads":
+          - /url: "#mw-specialpagesgroup-media"
+        - list
+      - listitem:
+        - link "Data and tools":
+          - /url: "#mw-specialpagesgroup-wiki"
+        - list
+      - listitem:
+        - link "Redirecting special pages":
+          - /url: "#mw-specialpagesgroup-redirects"
+        - list
+      - listitem:
+        - link "High use pages":
+          - /url: "#mw-specialpagesgroup-highuse"
+        - list
+      - listitem:
+        - link "Page tools":
+          - /url: "#mw-specialpagesgroup-pagetools"
+        - list
+      - listitem:
+        - link "Spam tools":
+          - /url: "#mw-specialpagesgroup-spam"
+        - list
+      - listitem:
+        - link "Growth tools":
+          - /url: "#mw-specialpagesgroup-growth-tools"
+        - list
+      - listitem:
+        - link "Events":
+          - /url: "#mw-specialpagesgroup-campaignevents"
+        - list
+      - listitem:
+        - link "Pending changes":
+          - /url: "#mw-specialpagesgroup-quality"
+        - list
+      - listitem:
+        - link "Other special pages":
+          - /url: "#mw-specialpagesgroup-other"
+        - list
+  - main:
+    - heading "Special pages" [level=1]
+    - link "Help":
+      - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Special_pages
+    - navigation "Namespaces"
+    - navigation "Views"
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small" [disabled]
+          - text: Small
+          - radio "Standard" [disabled]
+          - text: Standard
+          - radio "Large" [disabled]
+          - text: Large
+          - paragraph: This page always uses small font size
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - paragraph:
+      - text: This page contains a list of
+      - link "special pages":
+        - /url: /wiki/Help:Special_page
+      - text: . Most of the content of these pages is automatically generated and cannot be edited. To suggest a change to the parts that can be edited, find the appropriate text on
+      - link "Special:AllMessages":
+        - /url: /wiki/Special:AllMessages
+      - text: "and then request your change on the talk page of the message (using {{"
+      - link "editprotected":
+        - /url: /wiki/Template:Edit_fully-protected
+      - text: "}} to draw the attention of administrators)."
+    - paragraph:
+      - text: You can also see what message names are used on a page by adding
+      - code: "?uselang=qqx"
+      - text: to the end of its URL, e.g.
+      - link "https://en.wikipedia.org/wiki/Special:SpecialPages?uselang=qqx":
+        - /url: https://en.wikipedia.org/wiki/Special:SpecialPages?uselang=qqx
+      - text: will show
+      - code: (specialpages-summary)
+      - text: in place of this message, which allows you to find
+      - link "MediaWiki:Specialpages-summary":
+        - /url: /wiki/MediaWiki:Specialpages-summary
+      - text: .
+    - paragraph:
+      - text: For an index of special pages, see
+      - link "Help:SpecialPages":
+        - /url: /wiki/Help:SpecialPages#Alphabetical_order
+      - text: .
+    - text: Search special pages
+    - searchbox "Search special pages"
+    - heading "Maintenance reports" [level=2]
+    - list:
+      - listitem:
+        - link "Broken redirects":
+          - /url: /wiki/Special:BrokenRedirects
+      - listitem:
+        - link "Dead-end pages":
+          - /url: /wiki/Special:DeadendPages
+      - listitem:
+        - link "Dormant pages":
+          - /url: /wiki/Special:AncientPages
+      - listitem:
+        - link "Double redirects":
+          - /url: /wiki/Special:DoubleRedirects
+      - listitem:
+        - link "Lint errors":
+          - /url: /wiki/Special:LintErrors
+      - listitem:
+        - link "Long pages":
+          - /url: /wiki/Special:LongPages
+      - listitem:
+        - link "Orphaned pages":
+          - /url: /wiki/Special:LonelyPages
+      - listitem:
+        - link "Pages not connected to items":
+          - /url: /wiki/Special:UnconnectedPages
+      - listitem:
+        - link "Pages with the fewest revisions":
+          - /url: /wiki/Special:FewestRevisions
+      - listitem:
+        - link "Pages without language links":
+          - /url: /wiki/Special:WithoutInterwiki
+      - listitem:
+        - link "Protected pages":
+          - /url: /wiki/Special:ProtectedPages
+      - listitem:
+        - link "Protected titles":
+          - /url: /wiki/Special:ProtectedTitles
+      - listitem:
+        - link "Short pages":
+          - /url: /wiki/Special:ShortPages
+      - listitem:
+        - link "Uncategorized categories":
+          - /url: /wiki/Special:UncategorizedCategories
+      - listitem:
+        - link "Uncategorized files":
+          - /url: /wiki/Special:UncategorizedFiles
+      - listitem:
+        - link "Uncategorized pages":
+          - /url: /wiki/Special:UncategorizedPages
+      - listitem:
+        - link "Uncategorized templates":
+          - /url: /wiki/Special:UncategorizedTemplates
+      - listitem:
+        - link "Unused categories":
+          - /url: /wiki/Special:UnusedCategories
+      - listitem:
+        - link "Unused files":
+          - /url: /wiki/Special:UnusedFiles
+      - listitem:
+        - link "Unused templates":
+          - /url: /wiki/Special:UnusedTemplates
+      - listitem:
+        - link "Wanted categories":
+          - /url: /wiki/Special:WantedCategories
+      - listitem:
+        - link "Wanted files":
+          - /url: /wiki/Special:WantedFiles
+      - listitem:
+        - link "Wanted pages":
+          - /url: /wiki/Special:WantedPages
+      - listitem:
+        - link "Wanted templates":
+          - /url: /wiki/Special:WantedTemplates
+    - heading "Lists of pages" [level=2]
+    - list:
+      - listitem:
+        - link "All pages":
+          - /url: /wiki/Special:AllPages
+      - listitem:
+        - link "All pages with prefix":
+          - /url: /wiki/Special:PrefixIndex
+      - listitem:
+        - link "Categories":
+          - /url: /wiki/Special:Categories
+      - listitem:
+        - link "Category tree":
+          - /url: /wiki/Special:CategoryTree
+      - listitem:
+        - link "Disambiguation pages":
+          - /url: /wiki/Special:DisambiguationPages
+      - listitem:
+        - link "Entity usage":
+          - /url: /wiki/Special:EntityUsage
+      - listitem:
+        - link "External links search":
+          - /url: /wiki/Special:LinkSearch
+      - listitem:
+        - link "Pages linking to disambiguation pages":
+          - /url: /wiki/Special:DisambiguationPageLinks
+      - listitem:
+        - link "Pages on topics near you":
+          - /url: /wiki/Special:Nearby
+      - listitem:
+        - link "Pages with a page property":
+          - /url: /wiki/Special:PagesWithProp
+      - listitem:
+        - link "Pages with badges":
+          - /url: /wiki/Special:PagesWithBadges
+      - listitem:
+        - link "Redirects":
+          - /url: /wiki/Special:ListRedirects
+      - listitem:
+        - link "Search":
+          - /url: /wiki/Special:Search
+      - listitem:
+        - link "Tracking categories":
+          - /url: /wiki/Special:TrackingCategories
+    - heading "Account management" [level=2]
+    - list:
+      - listitem:
+        - link "Bot passwords":
+          - /url: /wiki/Special:BotPasswords
+      - listitem:
+        - link "Change credentials":
+          - /url: /wiki/Special:ChangeCredentials
+      - listitem:
+        - link "Change or remove email address":
+          - /url: /wiki/Special:ChangeEmail
+      - listitem:
+        - link "Global preferences":
+          - /url: /wiki/Special:GlobalPreferences
+      - listitem:
+        - link "Global user account rename request":
+          - /url: /wiki/Special:GlobalRenameRequest
+      - listitem:
+        - link "Global user account vanish request":
+          - /url: /wiki/Special:GlobalVanishRequest
+      - listitem:
+        - link "Log in":
+          - /url: /wiki/Special:UserLogin
+      - listitem:
+        - link "Log out":
+          - /url: /wiki/Special:UserLogout
+      - listitem:
+        - link "Login unification status":
+          - /url: /wiki/Special:MergeAccount
+      - listitem:
+        - link "Notifications":
+          - /url: /wiki/Special:Notifications
+      - listitem:
+        - link "Preferences":
+          - /url: /wiki/Special:Preferences
+      - listitem:
+        - link "Remove credentials":
+          - /url: /wiki/Special:RemoveCredentials
+      - listitem:
+        - link "Reset password":
+          - /url: /wiki/Special:PasswordReset
+      - listitem:
+        - link "Reset tokens":
+          - /url: /wiki/Special:ResetTokens
+      - listitem:
+        - link "Topic subscriptions":
+          - /url: /wiki/Special:TopicSubscriptions
+    - heading "Users and rights" [level=2]
+    - list:
+      - listitem:
+        - link "Active users list":
+          - /url: /wiki/Special:ActiveUsers
+      - listitem:
+        - link "Autoblocks":
+          - /url: /wiki/Special:AutoblockList
+      - listitem:
+        - link "Blocked users":
+          - /url: /wiki/Special:BlockList
+      - listitem:
+        - link "Create account":
+          - /url: /wiki/Special:CreateAccount
+      - listitem:
+        - link "Email user":
+          - /url: /wiki/Special:EmailUser
+      - listitem:
+        - link "Global account manager":
+          - /url: /wiki/Special:CentralAuth
+      - listitem:
+        - link "Global accounts list":
+          - /url: /wiki/Special:GlobalUsers
+      - listitem:
+        - link "Global group management":
+          - /url: /wiki/Special:GlobalGroupPermissions
+      - listitem:
+        - link "Grants":
+          - /url: /wiki/Special:ListGrants
+      - listitem:
+        - link "List OAuth applications":
+          - /url: /wiki/Special:OAuthListConsumers
+      - listitem:
+        - link "List of globally blocked IP addresses and accounts":
+          - /url: /wiki/Special:GlobalBlockList
+      - listitem:
+        - link "Membership in global groups":
+          - /url: /wiki/Special:GlobalUserRights
+      - listitem:
+        - link "OAuth consumer registration":
+          - /url: /wiki/Special:OAuthConsumerRegistration
+      - listitem:
+        - link "Password policies":
+          - /url: /wiki/Special:PasswordPolicies
+      - listitem:
+        - link "Search for global contributions":
+          - /url: /wiki/Special:GlobalContributions
+      - listitem:
+        - link "User contributions":
+          - /url: /wiki/Special:Contributions
+      - listitem:
+        - link "User group rights":
+          - /url: /wiki/Special:ListGroupRights
+      - listitem:
+        - link "User groups management":
+          - /url: /wiki/Special:UserRights
+      - listitem:
+        - link "Users":
+          - /url: /wiki/Special:ListUsers
+    - heading "Recent changes and logs" [level=2]
+    - list:
+      - listitem:
+        - link "Edit Recovery":
+          - /url: /wiki/Special:EditRecovery
+      - listitem:
+        - link "Edit filter log":
+          - /url: /wiki/Special:AbuseLog
+      - listitem:
+        - link "Gallery of new files":
+          - /url: /wiki/Special:NewFiles
+      - listitem:
+        - link "New pages":
+          - /url: /wiki/Special:NewPages
+      - listitem:
+        - link "New pages feed":
+          - /url: /wiki/Special:NewPagesFeed
+      - listitem:
+        - link "Recent changes":
+          - /url: /wiki/Special:RecentChanges
+      - listitem:
+        - link "Related changes":
+          - /url: /wiki/Special:RecentChangesLinked
+      - listitem:
+        - link "User logs":
+          - /url: /wiki/Special:Log
+      - listitem:
+        - link "Valid change tags":
+          - /url: /wiki/Special:Tags
+    - heading "Media reports and uploads" [level=2]
+    - list:
+      - listitem:
+        - link "File list":
+          - /url: /wiki/Special:ListFiles
+      - listitem:
+        - link "Global data usage":
+          - /url: /wiki/Special:GlobalJsonLinks
+      - listitem:
+        - link "Global file usage":
+          - /url: /wiki/Special:GlobalUsage
+      - listitem:
+        - link "List of files with duplicates":
+          - /url: /wiki/Special:ListDuplicatedFiles
+      - listitem:
+        - link "MIME search":
+          - /url: /wiki/Special:MIMESearch
+      - listitem:
+        - link "Media statistics":
+          - /url: /wiki/Special:MediaStatistics
+      - listitem:
+        - link "Orphaned TimedText pages":
+          - /url: /wiki/Special:OrphanedTimedText
+      - listitem:
+        - link "Search for duplicate files":
+          - /url: /wiki/Special:FileDuplicateSearch
+    - heading "Data and tools" [level=2]
+    - list:
+      - listitem:
+        - link "API feature usage":
+          - /url: /wiki/Special:ApiFeatureUsage
+      - listitem:
+        - link "API sandbox":
+          - /url: /wiki/Special:ApiSandbox
+      - listitem:
+        - link "Book sources":
+          - /url: /wiki/Special:BookSources
+      - listitem:
+        - link "Edit checks":
+          - /url: /wiki/Special:EditChecks
+      - listitem:
+        - link "Edit filter configuration":
+          - /url: /wiki/Special:AbuseFilter
+      - listitem:
+        - link "Expand templates":
+          - /url: /wiki/Special:ExpandTemplates
+      - listitem:
+        - link "Gadget usage statistics":
+          - /url: /wiki/Special:GadgetUsage
+      - listitem:
+        - link "Gadgets":
+          - /url: /wiki/Special:Gadgets
+      - listitem:
+        - link "Namespace information":
+          - /url: /wiki/Special:NamespaceInfo
+      - listitem:
+        - link "REST Sandbox":
+          - /url: /wiki/Special:RestSandbox
+      - listitem:
+        - link "Statistics":
+          - /url: /wiki/Special:Statistics
+      - listitem:
+        - link "System messages":
+          - /url: /wiki/Special:AllMessages
+      - listitem:
+        - link "Template sandbox":
+          - /url: /wiki/Special:TemplateSandbox
+      - listitem:
+        - link "Try hieroglyph markup":
+          - /url: /wiki/Special:Hieroglyphs
+      - listitem:
+        - link "Version":
+          - /url: /wiki/Special:Version
+      - listitem:
+        - link "View interwiki data":
+          - /url: /wiki/Special:Interwiki
+      - listitem:
+        - link "Wiki sets":
+          - /url: /wiki/Special:WikiSets
+      - listitem:
+        - link "Wikimedia wikis":
+          - /url: /wiki/Special:SiteMatrix
+    - heading "Redirecting special pages" [level=2]
+    - list:
+      - listitem:
+        - link "Delete a page":
+          - /url: /wiki/Special:DeletePage
+      - listitem:
+        - link "Differences":
+          - /url: /wiki/Special:Diff
+      - listitem:
+        - link "Edit a page":
+          - /url: /wiki/Special:EditPage
+      - listitem:
+        - link "New section":
+          - /url: /wiki/Special:NewSection
+      - listitem:
+        - link "Page history":
+          - /url: /wiki/Special:PageHistory
+      - listitem:
+        - link "Page info":
+          - /url: /wiki/Special:PageInfo
+      - listitem:
+        - link "Permanent link":
+          - /url: /wiki/Special:PermanentLink
+      - listitem:
+        - link "Protect a page":
+          - /url: /wiki/Special:ProtectPage
+      - listitem:
+        - link "Purge":
+          - /url: /wiki/Special:Purge
+      - listitem:
+        - link "Random article":
+          - /url: /wiki/Special:Random
+      - listitem:
+        - link "Random page in category":
+          - /url: /wiki/Special:RandomInCategory
+      - listitem:
+        - link "Random redirect":
+          - /url: /wiki/Special:RandomRedirect
+      - listitem:
+        - link "Random root page":
+          - /url: /wiki/Special:RandomRootpage
+      - listitem:
+        - link "Redirect by file, user, page, revision, or log ID":
+          - /url: /wiki/Special:Redirect
+    - heading "High use pages" [level=2]
+    - list:
+      - listitem:
+        - link "Most linked-to categories":
+          - /url: /wiki/Special:MostLinkedCategories
+      - listitem:
+        - link "Most linked-to files":
+          - /url: /wiki/Special:MostLinkedFiles
+      - listitem:
+        - link "Most linked-to pages":
+          - /url: /wiki/Special:MostLinkedPages
+      - listitem:
+        - link "Most transcluded pages":
+          - /url: /wiki/Special:MostTranscludedPages
+      - listitem:
+        - link "Pages with the most categories":
+          - /url: /wiki/Special:MostCategories
+      - listitem:
+        - link "Pages with the most interwikis":
+          - /url: /wiki/Special:MostInterwikis
+      - listitem:
+        - link "Pages with the most revisions":
+          - /url: /wiki/Special:MostRevisions
+    - heading "Page tools" [level=2]
+    - list:
+      - listitem:
+        - link "Book":
+          - /url: /wiki/Special:Book
+      - listitem:
+        - link "Change content model of a page":
+          - /url: /wiki/Special:ChangeContentModel
+      - listitem:
+        - link "Cite This Page":
+          - /url: /wiki/Special:CiteThisPage
+      - listitem:
+        - link "Compare pages":
+          - /url: /wiki/Special:ComparePages
+      - listitem:
+        - link "Export pages":
+          - /url: /wiki/Special:Export
+      - listitem:
+        - link "Mass delete":
+          - /url: /wiki/Special:Nuke
+      - listitem:
+        - link "Page assessments":
+          - /url: /wiki/Special:PageAssessments
+      - listitem:
+        - link "URL shortener":
+          - /url: /wiki/Special:UrlShortener
+      - listitem:
+        - link "What links here":
+          - /url: /wiki/Special:WhatLinksHere
+    - heading "Spam tools" [level=2]
+    - list:
+      - listitem:
+        - link "Blocked External Domains":
+          - /url: /wiki/Special:BlockedExternalDomains
+    - heading "Growth tools" [level=2]
+    - list:
+      - listitem:
+        - link "Impact":
+          - /url: /wiki/Special:Impact
+      - listitem:
+        - link "Manage mentors":
+          - /url: /wiki/Special:ManageMentors
+      - listitem:
+        - link "Mentor dashboard":
+          - /url: /wiki/Special:MentorDashboard
+      - listitem:
+        - link "Newcomer Tasks":
+          - /url: /wiki/Special:NewcomerTasksInfo
+    - heading "Events" [level=2]
+    - list:
+      - listitem:
+        - link "All events":
+          - /url: /wiki/Special:AllEvents
+      - listitem:
+        - link "Cancel your registration for an event":
+          - /url: /wiki/Special:CancelEventRegistration
+      - listitem:
+        - link "Delete event registration":
+          - /url: /wiki/Special:DeleteEventRegistration
+      - listitem:
+        - link "Edit event registration":
+          - /url: /wiki/Special:EditEventRegistration
+      - listitem:
+        - link "Event details":
+          - /url: /wiki/Special:EventDetails
+      - listitem:
+        - link "Generate invitation list":
+          - /url: /wiki/Special:GenerateInvitationList
+      - listitem:
+        - link "Invitation list":
+          - /url: /wiki/Special:InvitationList
+      - listitem:
+        - link "Register for an event":
+          - /url: /wiki/Special:RegisterForEvent
+      - listitem:
+        - link "Your events":
+          - /url: /wiki/Special:MyEvents
+      - listitem:
+        - link "Your invitation lists":
+          - /url: /wiki/Special:MyInvitationLists
+    - heading "Pending changes" [level=2]
+    - list:
+      - listitem:
+        - link "Page review statistics":
+          - /url: /wiki/Special:ValidationStatistics
+      - listitem:
+        - link "Pages using Pending Changes":
+          - /url: /wiki/Special:StablePages
+      - listitem:
+        - link "Pages with edits awaiting review":
+          - /url: /wiki/Special:PendingChanges
+    - heading "Other special pages" [level=2]
+    - list:
+      - listitem:
+        - link "Automatic translation":
+          - /url: /wiki/Special:AutomaticTranslation
+      - listitem:
+        - link "Community Configuration":
+          - /url: /wiki/Special:CommunityConfiguration
+      - listitem:
+        - link "Contribute":
+          - /url: /wiki/Special:Contribute
+      - listitem:
+        - link "Discussion tools data structure":
+          - /url: /wiki/Special:DiscussionToolsDebug
+      - listitem:
+        - link "Find comment":
+          - /url: /wiki/Special:FindComment
+      - listitem:
+        - link "Global rename progress":
+          - /url: /wiki/Special:GlobalRenameProgress
+      - listitem:
+        - link "Math Formula Information":
+          - /url: /wiki/Special:MathWikibase
+      - listitem:
+        - link "ORES model statistics":
+          - /url: /wiki/Special:ORESModels
+      - listitem:
+        - link "SecurePoll":
+          - /url: /wiki/Special:SecurePoll
+      - listitem:
+        - link "Transclusions containing lint errors":
+          - /url: /wiki/Special:LintTemplateErrors
+  - contentinfo:
+    - list
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Special:SpecialPages&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list

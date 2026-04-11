@@ -1,0 +1,303 @@
+- document:
+  - dialog "Your Privacy Choices":
+    - img "header-logo"
+    - button "close banner"
+    - heading "Your Privacy Choices" [level=3]
+    - paragraph:
+      - text: We and our vendors use technology that collects data about your use of our site so we can improve and personalize our products and services, for analytics and marketing, and to fulfill your requests. We may also share this information with marketing vendors, social media companies, and analytics partners. By using our website, you acknowledge and agree to our Terms of Use. To learn more about our privacy practices review our
+      - link "Privacy Policy (opens in a new tab)":
+        - /url: https://joinhandshake.com/privacy-policy/
+        - text: Privacy Policy
+      - text: . Please review your choices.
+    - button "Accept All"
+    - button "Customize Settings"
+    - button "Reject All"
+  - link "Skip to content":
+    - /url: "#maincontent"
+  - navigation "Main":
+    - link "Go to Handshake homepage":
+      - /url: /
+      - img
+      - img
+    - list:
+      - listitem:
+        - button "Hire now"
+      - listitem:
+        - button "Find a job"
+      - listitem:
+        - button "Career centers"
+      - listitem:
+        - button "Handshake AI"
+      - listitem:
+        - link "Research":
+          - /url: /research/
+    - list:
+      - listitem:
+        - link "Sign up":
+          - /url: https://app.joinhandshake.com/register
+      - listitem:
+        - link "Log in":
+          - /url: https://app.joinhandshake.com/login
+  - region "Notification banner":
+    - paragraph
+    - 'link "Limited-time offer: Get $100 to build with AI using Codex"':
+      - /url: /students/codex-creator-challenge/
+      - paragraph: "Limited-time offer: Get $100 to build with AI using Codex"
+    - button "Dismiss notification"
+  - main:
+    - heading "SHOW UP" [level=1]
+    - img "Student on phone"
+    - img "Students working on a laptop"
+    - img "Student chatting with recruiter on phone"
+    - img "Student on laptop"
+    - img "Colleagues shaking hands"
+    - heading "GET HIRED" [level=1]
+    - paragraph: Join the network built for starting or restarting your career.
+    - text: Email
+    - textbox "Type school or personal email here"
+    - button "Sign up"
+    - paragraph: Who’s on Handshake
+    - paragraph: Advertising
+    - img
+    - paragraph: PR & Marketing
+    - img
+    - paragraph: Sales & Marketing
+    - img
+    - paragraph: Financial Services
+    - img
+    - paragraph: Investment Banking
+    - img
+    - paragraph: Investment Management
+    - img
+    - paragraph: Internet & Software
+    - img
+    - paragraph: Accounting
+    - img
+    - paragraph: Legal & Law Enforcement
+    - img
+    - paragraph: Healthcare
+    - img
+    - paragraph: Sales & Marketing
+    - img
+    - paragraph: Financial Services
+    - img
+    - paragraph: Investment Banking
+    - img
+    - paragraph: Investment Management
+    - img
+    - paragraph: Internet & Software
+    - img
+    - paragraph: Accounting
+    - img
+    - paragraph: Legal & Law Enforcement
+    - img
+    - paragraph: Healthcare
+    - img
+    - paragraph: Advertising
+    - img
+    - paragraph: PR & Marketing
+    - img
+    - paragraph: Investment Banking
+    - img
+    - paragraph: Investment Management
+    - img
+    - paragraph: Internet & Software
+    - img
+    - paragraph: Accounting
+    - img
+    - paragraph: Legal & Law Enforcement
+    - img
+    - paragraph: Healthcare
+    - img
+    - paragraph: Advertising
+    - img
+    - paragraph: PR & Marketing
+    - img
+    - paragraph: Sales & Marketing
+    - img
+    - paragraph: Financial Services
+    - img
+    - paragraph: Internet & Software
+    - img
+    - paragraph: Accounting
+    - img
+    - paragraph: Legal & Law Enforcement
+    - img
+    - paragraph: Healthcare
+    - img
+    - paragraph: Advertising
+    - img
+    - paragraph: PR & Marketing
+    - img
+    - paragraph: Sales & Marketing
+    - img
+    - paragraph: Financial Services
+    - img
+    - paragraph: Investment Banking
+    - img
+    - paragraph: Investment Management
+    - img
+    - heading "How it works" [level=2]
+    - paragraph: Jobs
+    - img "jobs icon small"
+    - heading "Personalized job recs" [level=2]
+    - paragraph: Get suggestions for jobs and opportunities based on your profile, interests, and where you are in your career.
+    - img "Job recommendations on Handshake app"
+    - paragraph: Advice
+    - img "lightbulb icon small"
+    - heading "Real career advice" [level=2]
+    - paragraph: Grow your career with posts, videos, and articles from people who’ve done it before.
+    - img "Handshake app newsfeed"
+    - paragraph: Events
+    - img "calendar icon small"
+    - heading "Career-shaping events" [level=2]
+    - paragraph: Meet with employers face-to-face at in-person and virtual career fairs, networking sessions, resume workshops, and more.
+    - img "Handshake app Events"
+    - paragraph: Network
+    - img "jobs icon small"
+    - heading "Helpful networking" [level=2]
+    - paragraph: Find and connect with a network of peers, mentors, and thought leaders to get career support.
+    - img "Networking with recruiter on Handshake app"
+    - link "Get the app":
+      - /url: https://joinhandshake.onelink.me/yJJT/tguve4w5
+    - paragraph: Testimonials
+    - heading "For people who are (or have been) in your shoes" [level=2]
+    - paragraph: "\"I was looking for internships and had a hard time at first using other job sites. Then I started looking into Handshake. I got a direct message from the employer that invited me to apply for the internship position. After I applied, the rest was history.\""
+    - paragraph: Tamia Johnson (she/her)
+    - paragraph: San Diego State University
+    - paragraph: Class of 2027
+    - img "Tamia Johnson (she/her)"
+    - paragraph: "\"[Handshake] allowed me to gain tips and tricks and connect with other students who are in the same boat. I've been able to learn a lot about resumes, career, fairs, and other things that have helped me learn how to navigate college and be successful. As well as how to prepare for my career in the future.\""
+    - paragraph: Holli Hay (she/her)
+    - paragraph: Tulane University
+    - paragraph: Class of 2027
+    - img "Holli Hay (she/her)"
+    - paragraph: "\"You're able to filter for visa status restrictions and it saves international students so much time because we don't want to be applying for jobs we know we're never going to get.\""
+    - paragraph: Anson Tan (he/him)
+    - paragraph: University of San Francisco
+    - paragraph: Class of 2027
+    - img "Anson Tan (he/him)"
+    - paragraph: "\"Handshake has helped me so much beyond just finding a job... being able to track my progress, showcase my experiences, and see how other are growing... has truly helped me build confidence, gain clarity about my field, and feel more empowered in my professional journey.\""
+    - paragraph: Coco-Chanel Quaye (she/her)
+    - paragraph: Tulane University
+    - paragraph: Class of 2025
+    - img "Coco-Chanel Quaye (she/her)"
+    - button "Slide to the previous card":
+      - img
+    - button "Slide to the next card":
+      - img
+    - heading "Start building your future" [level=2]
+    - paragraph: Sign up for Handshake and never miss a connection, opportunity, or event.
+    - text: Email
+    - textbox "Email":
+      - /placeholder: Type school or personal email here
+    - button "Sign up"
+    - text: Your browser does not support this video type.
+  - contentinfo:
+    - heading "The career network for the AI economy" [level=2]
+    - link "iOS App Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "iOS App Store"
+    - link "Google Play Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "Google Play Store"
+    - list:
+      - listitem:
+        - paragraph: Students
+        - list:
+          - listitem:
+            - link "Who's hiring":
+              - /url: /students/whos-hiring/
+          - listitem:
+            - link "Career tips":
+              - /url: /blog/students/
+      - listitem:
+        - paragraph: Handshake AI
+        - list:
+          - listitem:
+            - link "Fellowship program":
+              - /url: /ai/
+          - listitem:
+            - link "Opportunities":
+              - /url: /ai/opportunities/
+          - listitem:
+            - link "Legal":
+              - /url: https://ai.joinhandshake.com/terms-of-service
+    - list:
+      - listitem:
+        - paragraph: Employers
+        - list:
+          - listitem:
+            - link "Pricing":
+              - /url: /employers/products/premium/compare/
+          - listitem:
+            - link "Request demo":
+              - /url: /employers/request-more-info/
+      - listitem:
+        - paragraph: Career centers
+        - list:
+          - listitem:
+            - link "Marketing toolkit":
+              - /url: /career-centers/marketing-toolkit/
+          - listitem:
+            - link "Security":
+              - /url: /security/
+          - listitem:
+            - link "Request demo":
+              - /url: /career-centers/contact/
+    - list:
+      - listitem:
+        - paragraph: Company
+        - list:
+          - listitem:
+            - link "About":
+              - /url: /about/
+          - listitem:
+            - link "Join us":
+              - /url: /careers/
+          - listitem:
+            - link "Press":
+              - /url: /newsroom/
+          - listitem:
+            - link "Blog":
+              - /url: /blog/our-team/
+      - listitem:
+        - paragraph: Support
+        - list:
+          - listitem:
+            - link "Help center":
+              - /url: https://support.joinhandshake.com/hc/en-us
+          - listitem:
+            - link "Contact":
+              - /url: https://support.joinhandshake.com/hc/en-us/requests/new
+          - listitem:
+            - link "Legal hub":
+              - /url: /legal/
+          - listitem:
+            - link "Your Privacy Choices":
+              - /url: ""
+    - img
+    - link "linkedin icon large":
+      - /url: https://www.linkedin.com/company/team-handshake
+      - img "linkedin icon large"
+    - link "tiktok icon large":
+      - /url: https://www.tiktok.com/@joinhandshake
+      - img "tiktok icon large"
+    - link "instagram icon large":
+      - /url: https://www.instagram.com/joinhandshake
+      - img "instagram icon large"
+    - list:
+      - listitem:
+        - paragraph:
+          - link "Privacy policy":
+            - /url: /privacy-policy/
+      - listitem:
+        - paragraph:
+          - link "Accessibility":
+            - /url: /accessibility/
+      - listitem:
+        - paragraph:
+          - link "Terms of service":
+            - /url: /legal/tos/
+    - paragraph: ©2026 Handshake. All rights reserved
+  - alert

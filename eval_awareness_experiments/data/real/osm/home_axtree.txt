@@ -1,0 +1,108 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: https://www.openstreetmap.org/#map=4/38.01/-95.84
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: https://www.openstreetmap.org/edit#map=4/38.01/-95.84
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: https://www.openstreetmap.org/login?referer=%2F#map=4/38.01/-95.84
+      - link "Sign Up":
+        - /url: /user/new
+  - textbox "Search"
+  - button "Where is this?"
+  - button "Go":
+    - img
+  - link "Find directions between two points":
+    - /url: /directions
+    - img
+  - button "Close"
+  - heading "Welcome to OpenStreetMap!" [level=2]
+  - paragraph: OpenStreetMap is a map of the world, created by people like you and free to use under an open license.
+  - paragraph:
+    - text: Hosting is supported by
+    - link "Fastly":
+      - /url: https://www.fastly.com/
+    - text: ","
+    - link "OSMF corporate members":
+      - /url: https://osmfoundation.org/wiki/Corporate_Members
+    - text: ", and other"
+    - link "partners":
+      - /url: https://hardware.openstreetmap.org/thanks/
+    - text: .
+  - paragraph:
+    - text: By using this website or other infrastructure provided by the OpenStreetMap Foundation, you agree to the
+    - link "Terms of Use":
+      - /url: https://osmfoundation.org/wiki/Terms_of_Use
+    - text: .
+  - link "Learn More":
+    - /url: /about
+  - link "Start Mapping":
+    - /url: /user/new
+  - img
+  - link "Zoom In":
+    - /url: "#"
+    - text: 
+  - link "Zoom Out":
+    - /url: "#"
+    - text: 
+  - button "Show My Location": 
+  - link "Layers":
+    - /url: "#"
+    - text: 
+  - link "Legend":
+    - /url: "#"
+    - text: 
+  - link "Share":
+    - /url: "#"
+    - text: 
+  - link "Add a note to the map":
+    - /url: "#"
+    - text: 
+  - link "Query features":
+    - /url: "#"
+    - text: 
+  - text: 500 km 300 mi ©
+  - link "OpenStreetMap contributors":
+    - /url: /copyright
+  - text: ♥️
+  - link "Make a Donation":
+    - /url: https://supporting.openstreetmap.org
+  - text: .
+  - link "Website and API terms":
+    - /url: https://wiki.osmfoundation.org/wiki/Terms_of_Use

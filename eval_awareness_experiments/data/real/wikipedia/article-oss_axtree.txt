@@ -1,0 +1,3531 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Open-source+software
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Open-source+software
+  - navigation "Contents":
+    - heading "Contents" [level=2]
+    - button "hide"
+    - list:
+      - listitem:
+        - link "(Top)":
+          - /url: "#"
+      - listitem:
+        - link "Definitions":
+          - /url: "#Definitions"
+        - list
+      - listitem:
+        - link "Open-source software development":
+          - /url: "#Open-source_software_development"
+        - button "Toggle Open-source software development subsection"
+        - list
+      - listitem:
+        - link "Opportunities for participation":
+          - /url: "#Opportunities_for_participation"
+        - button "Toggle Opportunities for participation subsection"
+        - list
+      - listitem:
+        - link "Legal and economic issues":
+          - /url: "#Legal_and_economic_issues"
+        - button "Toggle Legal and economic issues subsection"
+        - list
+      - listitem:
+        - link "Open software movement":
+          - /url: "#Open_software_movement"
+        - button "Toggle Open software movement subsection"
+        - list
+      - listitem:
+        - link "Comparisons with other software licensing/development models":
+          - /url: "#Comparisons_with_other_software_licensing/development_models"
+        - button "Toggle Comparisons with other software licensing/development models subsection"
+        - list
+      - listitem:
+        - link "Society and culture":
+          - /url: "#Society_and_culture"
+        - button "Toggle Society and culture subsection"
+        - list
+      - listitem:
+        - link "Adoption and application":
+          - /url: "#Adoption_and_application"
+        - button "Toggle Adoption and application subsection"
+        - list
+      - listitem:
+        - link "Value":
+          - /url: "#Value"
+        - list
+      - listitem:
+        - link "See also":
+          - /url: "#See_also"
+        - list
+      - listitem:
+        - link "References":
+          - /url: "#References"
+        - list
+      - listitem:
+        - link "Further reading":
+          - /url: "#Further_reading"
+        - list
+      - listitem:
+        - link "External links":
+          - /url: "#External_links"
+        - list
+  - main:
+    - heading "Open-source software" [level=1]
+    - button "Go to an article in another language. Available in 67 languages"
+    - navigation "Namespaces":
+      - list:
+        - listitem:
+          - link "Article":
+            - /url: /wiki/Open-source_software
+        - listitem:
+          - link "Talk":
+            - /url: /wiki/Talk:Open-source_software
+    - navigation "Views":
+      - list:
+        - listitem:
+          - link "Read":
+            - /url: /wiki/Open-source_software
+        - listitem:
+          - link "Edit":
+            - /url: /w/index.php?title=Open-source_software&action=edit
+        - listitem:
+          - link "View history":
+            - /url: /w/index.php?title=Open-source_software&action=history
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small"
+          - text: Small
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Large"
+          - text: Large
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - text: Checked
+    - link "Page protected with pending changes":
+      - /url: /wiki/Wikipedia:Protection_policy#pending
+      - img "Page protected with pending changes"
+    - text: From Wikipedia, the free encyclopedia
+    - figure "A screenshot of Debian Linux running the Cinnamon desktop environment, featuring Firefox (accessing Wikipedia which uses MediaWiki), LibreOffice Writer, Vim, VLC and Nemo file manager, all of which are open-source software":
+      - link:
+        - /url: //en.wikipedia.org/wiki/File:Debian_13_with_FOSS_software_open.png
+        - img
+      - text: A
+      - link "screenshot":
+        - /url: //en.wikipedia.org/wiki/Screenshot
+      - text: of
+      - link "Debian Linux":
+        - /url: //en.wikipedia.org/wiki/Debian
+      - text: running the
+      - link "Cinnamon desktop environment":
+        - /url: //en.wikipedia.org/wiki/Cinnamon_(desktop_environment)
+      - text: ", featuring"
+      - link "Firefox":
+        - /url: //en.wikipedia.org/wiki/Firefox
+      - text: (accessing
+      - link "Wikipedia":
+        - /url: //en.wikipedia.org/wiki/Wikipedia
+      - text: which uses
+      - link "MediaWiki":
+        - /url: //en.wikipedia.org/wiki/MediaWiki
+      - text: ),
+      - link "LibreOffice Writer":
+        - /url: //en.wikipedia.org/wiki/LibreOffice_Writer
+      - text: ","
+      - link "Vim":
+        - /url: //en.wikipedia.org/wiki/Vim_(text_editor)
+      - text: ","
+      - link "VLC":
+        - /url: //en.wikipedia.org/wiki/VLC_media_player
+      - text: and
+      - link "Nemo":
+        - /url: //en.wikipedia.org/wiki/Nemo_(file_manager)
+      - text: file manager, all of which are open-source software
+    - paragraph:
+      - text: Open-source software (OSS) is
+      - link "computer software":
+        - /url: //en.wikipedia.org/wiki/Software
+      - text: that is released under a
+      - link "license":
+        - /url: //en.wikipedia.org/wiki/Open-source_license
+      - text: in which the
+      - link "copyright":
+        - /url: //en.wikipedia.org/wiki/Copyright
+      - text: holder grants users the rights to use, study, change, and
+      - link "distribute the software":
+        - /url: //en.wikipedia.org/wiki/Software_distribution
+      - text: and its
+      - link "source code":
+        - /url: //en.wikipedia.org/wiki/Source_code
+      - text: to anyone and for any purpose.
+      - superscript:
+        - link "[1]":
+          - /url: "#cite_note-1"
+      - superscript:
+        - link "[2]":
+          - /url: "#cite_note-2"
+      - text: Open-source software may be developed in a collaborative, public manner. Open-source software is a prominent example of
+      - link "open collaboration":
+        - /url: //en.wikipedia.org/wiki/Open_collaboration
+      - text: ", meaning any capable user is able to"
+      - link "participate online":
+        - /url: //en.wikipedia.org/wiki/Online_collaboration
+      - text: in development, making the number of possible contributors indefinite. The ability to examine the code facilitates public trust in the software.
+      - superscript:
+        - link "[3]":
+          - /url: "#cite_note-Open_Collaboration-3"
+    - paragraph:
+      - link "Open-source software development":
+        - /url: //en.wikipedia.org/wiki/Open-source_software_development
+      - text: can bring in diverse perspectives beyond those of a single company. A 2024 estimate of the value of open-source software to firms is $8.8 trillion, as firms would need to spend 3.5 times the amount they currently do without the use of open source software.
+      - superscript:
+        - link "[4]":
+          - /url: "#cite_note-4"
+    - paragraph:
+      - text: Open-source code can be used for
+      - link "studying":
+        - /url: //en.wikipedia.org/wiki/Studying
+      - text: and allows capable end users to adapt software to their personal needs in a similar way
+      - link "user scripts":
+        - /url: //en.wikipedia.org/wiki/User_scripts
+      - text: and custom
+      - link "style sheets":
+        - /url: //en.wikipedia.org/wiki/Style_sheet_(web_development)
+      - text: allow for web sites, and eventually publish the modification as a
+      - link "fork":
+        - /url: //en.wikipedia.org/wiki/Fork_(software_development)
+      - text: for users with similar preferences, and directly submit possible improvements as
+      - link "pull requests":
+        - /url: //en.wikipedia.org/wiki/Pull_request
+      - text: .
+    - heading "Definitions" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=1
+    - text: "]"
+    - figure "The logo of the Open Source Initiative":
+      - link:
+        - /url: //en.wikipedia.org/wiki/File:Open_Source_Initiative.svg
+        - img
+      - text: The logo of the
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+    - paragraph:
+      - text: The
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - text: "'s (OSI) definition is recognized by several governments internationally"
+      - superscript:
+        - link "[5]":
+          - /url: "#cite_note-5"
+      - text: as the standard or
+      - link "de facto":
+        - /url: //en.wikipedia.org/wiki/De_facto
+      - text: definition. OSI uses
+      - link "The Open Source Definition":
+        - /url: //en.wikipedia.org/wiki/The_Open_Source_Definition
+      - text: to determine whether it considers a software license open source. The definition was based on the
+      - link "Debian Free Software Guidelines":
+        - /url: //en.wikipedia.org/wiki/Debian_Free_Software_Guidelines
+      - text: ", written and adapted primarily by"
+      - link "Bruce Perens":
+        - /url: //en.wikipedia.org/wiki/Bruce_Perens
+      - text: .
+      - superscript:
+        - link "[6]":
+          - /url: "#cite_note-6"
+      - superscript:
+        - link "[7]":
+          - /url: "#cite_note-7"
+      - superscript:
+        - link "[8]":
+          - /url: "#cite_note-8"
+      - text: Perens did not base his writing on the "four freedoms" from the
+      - link "Free Software Foundation":
+        - /url: //en.wikipedia.org/wiki/Free_Software_Foundation
+      - text: (FSF), which were only widely available later.
+      - superscript:
+        - link "[9]":
+          - /url: "#cite_note-9"
+    - paragraph:
+      - text: Under Perens' definition, open source is a broad software license that makes source code available to the general public with relaxed or non-existent restrictions on the use and modification of the code. It is an explicit "feature" of open source that it puts very few restrictions on the use or distribution by any organization or user, in order to enable the rapid evolution of the software.
+      - superscript:
+        - link "[10]":
+          - /url: "#cite_note-OSD-annotated16-10"
+    - paragraph:
+      - text: According to Feller et al. (2005), the terms "free software" and "open-source software" should be applied to any "software products distributed under terms that allow users" to use, modify, and redistribute the software "in any manner they see fit, without requiring that they pay the author(s) of the software a royalty or fee for engaging in the listed activities."
+      - superscript:
+        - link "[11]":
+          - /url: "#cite_note-11"
+    - paragraph:
+      - text: Despite initially accepting it,
+      - superscript:
+        - link "[12]":
+          - /url: "#cite_note-osihist-12"
+      - link "Richard Stallman":
+        - /url: //en.wikipedia.org/wiki/Richard_Stallman
+      - text: of the FSF now flatly opposes the term "Open Source" being applied to what they refer to as "free software". Although he agrees that the two terms describe "almost the same category of software", Stallman considers equating the terms incorrect and misleading.
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-:19-13"
+      - text: Stallman also opposes the professed pragmatism of the
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - text: ", as he fears that the free software ideals of freedom and community are threatened by compromising on the FSF's idealistic standards for software freedom."
+      - superscript:
+        - link "[14]":
+          - /url: "#cite_note-Why-14"
+      - text: The FSF considers free software to be a
+      - link "subset":
+        - /url: //en.wikipedia.org/wiki/Subset
+      - text: of open-source software, and Richard Stallman explained that
+      - link "DRM":
+        - /url: //en.wikipedia.org/wiki/Digital_rights_management
+      - text: software, for example, can be developed as open source, despite that it does not give its users freedom (it restricts them), and thus does not qualify as free software.
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-:19-13"
+    - heading "Open-source software development" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=2
+    - text: "]"
+    - note:
+      - text: "Main article:"
+      - link "Open-source software development model":
+        - /url: //en.wikipedia.org/wiki/Open-source_software_development_model
+    - note:
+      - text: "See also:"
+      - link "GitHub":
+        - /url: //en.wikipedia.org/wiki/GitHub
+    - heading "Development model" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=3
+    - text: "]"
+    - paragraph:
+      - text: In his 1997 essay
+      - link "The Cathedral and the Bazaar":
+        - /url: //en.wikipedia.org/wiki/The_Cathedral_and_the_Bazaar
+      - text: ", open-source influential contributor"
+      - link "Eric S. Raymond":
+        - /url: //en.wikipedia.org/wiki/Eric_S._Raymond
+      - text: suggests a model for developing OSS known as the bazaar model. Raymond likens the development of software by traditional methodologies to building a cathedral, with careful isolated work by individuals or small groups. He suggests that all software should be developed using the bazaar style, with differing agendas and approaches.
+      - superscript:
+        - link "[15]":
+          - /url: "#cite_note-:9-15"
+    - paragraph:
+      - text: In the traditional model of development, which he called the cathedral model, development takes place in a centralized way. Roles are clearly defined. Roles include people dedicated to designing (the architects), people responsible for managing the project, and people responsible for implementation. Traditional software engineering follows the cathedral model.
+      - superscript:
+        - link "[15]":
+          - /url: "#cite_note-:9-15"
+    - paragraph:
+      - text: The bazaar model, however, is different. In this model, roles are not clearly defined.
+      - superscript:
+        - link "[15]":
+          - /url: "#cite_note-:9-15"
+      - text: "Some proposed characteristics of software developed using the bazaar model should exhibit the following patterns:"
+      - superscript:
+        - link "[16]":
+          - /url: "#cite_note-:11-16"
+    - list:
+      - listitem:
+        - link "Users should be treated as co-developers:":
+          - /url: //en.wikipedia.org/wiki/Crowdsourcing
+        - text: The users are treated like co-developers and so they should have access to the source code of the software. Furthermore, users are encouraged to submit additions to the software, code fixes for the software,
+        - link "bug reports":
+          - /url: //en.wikipedia.org/wiki/Bug_report
+        - text: ", documentation, etc. Having more co-developers increases the rate at which the software evolves."
+        - link "Linus's law":
+          - /url: //en.wikipedia.org/wiki/Linus%27s_law
+        - text: states that given enough eyeballs all bugs are shallow. This means that if many users view the source code, they will eventually find all bugs and suggest how to fix them. Some users have advanced programming skills, and furthermore, each user's machine provides an additional testing environment. This new testing environment offers the ability to find and fix a new bug.
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+      - listitem:
+        - link "Early releases":
+          - /url: //en.wikipedia.org/wiki/Release_early,_release_often
+        - text: ": The first version of the software should be released as early as possible so as to increase one's chances of finding co-developers early."
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+      - listitem:
+        - link "Frequent integration:":
+          - /url: //en.wikipedia.org/wiki/Continuous_integration
+        - text: Code changes should be integrated (merged into a shared code base) as often as possible so as to avoid the overhead of fixing a large number of bugs at the end of the project life cycle.
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+        - superscript:
+          - link "[17]":
+            - /url: "#cite_note-:24-17"
+        - text: Some open-source projects have nightly builds where
+        - link "integration is done automatically":
+          - /url: //en.wikipedia.org/wiki/Continuous_integration
+        - text: .
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+      - listitem:
+        - link "Several versions:":
+          - /url: //en.wikipedia.org/wiki/Software_versioning
+        - text: There should be at least two versions of the software. There should be a buggier version with more features and a more stable version with fewer features. The buggy version (also called the development version) is for users who want the immediate use of the latest features and are willing to accept the risk of using code that is not yet thoroughly tested.
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+        - text: The users can then act as co-developers, reporting bugs and providing bug fixes.
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+        - superscript:
+          - link "[18]":
+            - /url: "#cite_note-:10-18"
+      - listitem:
+        - link "High modularization:":
+          - /url: //en.wikipedia.org/wiki/Modular_programming
+        - text: The general structure of the software should be modular allowing for parallel development on independent components.
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+      - listitem:
+        - link "Dynamic decision-making structure:":
+          - /url: //en.wikipedia.org/wiki/Dynamic_decision-making
+        - text: There is a need for a decision-making structure, whether formal or informal, that makes strategic decisions depending on changing user requirements and other factors. This is in comparison with
+        - link "extreme programming":
+          - /url: //en.wikipedia.org/wiki/Extreme_programming
+        - text: .
+        - superscript:
+          - link "[16]":
+            - /url: "#cite_note-:11-16"
+    - paragraph:
+      - text: The process of Open source development begins with a
+      - link "requirements elicitation":
+        - /url: //en.wikipedia.org/wiki/Requirements_elicitation
+      - text: where developers consider if they should add new features or if a bug needs to be fixed in their project. This is established by communicating with the OSS community through avenues such as
+      - link "bug reporting and tracking":
+        - /url: //en.wikipedia.org/wiki/Bug_tracking_system
+      - text: or
+      - link "mailing lists":
+        - /url: //en.wikipedia.org/wiki/Mailing_list
+      - text: and project pages. Next, OSS developers select or are assigned to a task and identify a solution. Because there are often many different possible routes for solutions in OSS, the best solution must be chosen with careful consideration and sometimes even
+      - link "peer feedback":
+        - /url: //en.wikipedia.org/wiki/Peer_feedback
+      - text: . The developer then begins to develop and commit the code. The code is then tested and reviewed by peers. Developers can edit and evolve their code through feedback from
+      - link "continuous integration":
+        - /url: //en.wikipedia.org/wiki/Continuous_integration
+      - text: . Once the leadership and community are satisfied with the whole project, it can be partially released and user instruction can be documented. If the project is ready to be released, it is frozen, with only serious bug fixes or security repairs occurring. Finally, the project is fully released and only changed through minor bug fixes.
+      - superscript:
+        - link "[18]":
+          - /url: "#cite_note-:10-18"
+    - heading "Advantages" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=4
+    - text: "]"
+    - paragraph:
+      - text: Open source implementation of a standard can increase the adoption and long-term viability of that standard.
+      - superscript:
+        - link "[19]":
+          - /url: "#cite_note-dod16-19"
+      - text: It often fosters developer loyalty, as contributors feel a greater sense of participation and ownership in the development process and the end product.
+      - superscript:
+        - link "[20]":
+          - /url: "#cite_note-Sharma2002-20"
+    - paragraph:
+      - text: Moreover, lower costs of marketing and logistical services are needed for OSS.
+      - superscript:
+        - link "[21]":
+          - /url: "#cite_note-:21-21"
+      - text: OSS can be a tool to promote a company's image, including its commercial products.
+      - superscript:
+        - link "[22]":
+          - /url: "#cite_note-22"
+      - text: The OSS development approach has been known to some to help produce reliable, high quality software quickly and inexpensively.
+      - superscript:
+        - link "[21]":
+          - /url: "#cite_note-:21-21"
+    - paragraph:
+      - text: Open source development offers the potential to quicken innovation and create social value. In France for instance, a policy that incentivized government to favor free open-source software increased to nearly 600,000 OSS contributions per year, generating social value by increasing the quantity and quality of open-source software. This policy also led to an estimated increase of up to 18% of tech startups and a 14% increase in the number of people employed in the IT sector.
+      - superscript:
+        - link "[23]":
+          - /url: "#cite_note-:35-23"
+    - paragraph:
+      - text: OSS can be highly reliable when it has thousands of independent programmers testing and fixing bugs of the software.
+      - superscript:
+        - link "[16]":
+          - /url: "#cite_note-:11-16"
+      - text: Open source is not dependent on the company or author that originally created it. Even if the company fails, the code continues to exist and be developed by its users.
+      - superscript:
+        - link "[24]":
+          - /url: "#cite_note-:55-24"
+    - paragraph:
+      - text: OSS is flexible as modular systems allow programmers to build custom interfaces, or add new abilities to it. The mix of divergent perspectives, corporate objectives, and personal goals allows innovation.
+      - superscript:
+        - link "[25]":
+          - /url: "#cite_note-25"
+    - paragraph:
+      - text: Moreover, free software can be developed in accordance with purely technical requirements. It does not require thinking about commercial pressure that often degrades the quality of the software. Commercial pressures make traditional software developers pay more attention to customers' requirements than to security requirements, since such features are somewhat invisible to the customer.
+      - superscript:
+        - link "[26]":
+          - /url: "#cite_note-:36-26"
+    - heading "Development tools" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=5
+    - text: "]"
+    - paragraph:
+      - text: In open-source software development, tools are used to support the development of the product and the development process itself.
+      - superscript:
+        - link "[18]":
+          - /url: "#cite_note-:10-18"
+    - paragraph:
+      - link "Version control":
+        - /url: //en.wikipedia.org/wiki/Version_control
+      - text: systems such as Centralized Version control system (CVCS) and the
+      - link "distributed version control system":
+        - /url: //en.wikipedia.org/wiki/Distributed_version_control
+      - text: (DVCS) are examples of tools, often open source, that help manage the source code files and the changes to those files for a software project in order to foster collaboration. CVCS are centralized with a central repository while DVCS are decentralized and have a local repository for every user.
+      - link "Concurrent Versions System":
+        - /url: //en.wikipedia.org/wiki/Concurrent_Versions_System
+      - text: (CVS) and later
+      - link "Subversion":
+        - /url: //en.wikipedia.org/wiki/Subversion_(software)
+      - text: (SVN) are examples of CVCS, whereas
+      - link "Git":
+        - /url: //en.wikipedia.org/wiki/Git_(software)
+      - text: is a DVCS and the most widely used version control software.
+      - superscript:
+        - link "[27]":
+          - /url: "#cite_note-27"
+      - text: The
+      - link "repositories":
+        - /url: //en.wikipedia.org/wiki/Repository_(version_control)
+      - text: are hosted and published on
+      - link "source-code-hosting facilities":
+        - /url: //en.wikipedia.org/wiki/Comparison_of_source-code-hosting_facilities
+      - text: such as
+      - link "GitHub":
+        - /url: //en.wikipedia.org/wiki/GitHub
+      - text: or
+      - link "Gitlab":
+        - /url: //en.wikipedia.org/wiki/GitLab
+      - text: .
+      - superscript:
+        - link "[28]":
+          - /url: "#cite_note-:16-28"
+    - paragraph:
+      - text: Open-source projects use utilities such as issue trackers to organize open-source software development. Commonly used
+      - link "bug trackers":
+        - /url: //en.wikipedia.org/wiki/Bug_tracking_system
+      - text: include
+      - link "Bugzilla":
+        - /url: //en.wikipedia.org/wiki/Bugzilla
+      - text: and
+      - link "Redmine":
+        - /url: //en.wikipedia.org/wiki/Redmine
+      - text: .
+      - superscript:
+        - link "[18]":
+          - /url: "#cite_note-:10-18"
+    - paragraph:
+      - text: Tools such as
+      - link "mailing lists":
+        - /url: //en.wikipedia.org/wiki/Mailing_lists
+      - text: and
+      - link "IRC":
+        - /url: //en.wikipedia.org/wiki/Internet_Relay_Chat
+      - text: provide means of coordination and discussion of bugs among developers. Project web pages, wiki pages, roadmap lists and newsgroups allow for the distribution of project information that focuses on end users.
+      - superscript:
+        - link "[18]":
+          - /url: "#cite_note-:10-18"
+    - heading "Opportunities for participation" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=6
+    - text: "]"
+    - heading "Contributing" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=7
+    - text: "]"
+    - paragraph:
+      - text: The basic roles OSS participants can fall into multiple categories, beginning with leadership at the center of the project who have control over its execution. Next are the core contributors with a great deal of experience and authority in the project who may guide the other contributors. Non-core contributors have less experience and authority, but regularly contribute and are vital to the project's development. New contributors are the least experienced but with mentorship and guidance can become regular contributors.
+      - superscript:
+        - link "[29]":
+          - /url: "#cite_note-:4-29"
+    - paragraph:
+      - text: Some possible ways of contributing to open-source software include such roles as
+      - link "programming":
+        - /url: //en.wikipedia.org/wiki/Computer_programming
+      - text: ","
+      - link "maintaining":
+        - /url: //en.wikipedia.org/wiki/Software_maintainer
+      - text: ", user"
+      - link "interface design":
+        - /url: //en.wikipedia.org/wiki/User_interface_design
+      - text: and testing,
+      - link "web design":
+        - /url: //en.wikipedia.org/wiki/Web_design
+      - text: ","
+      - link "bug triage":
+        - /url: //en.wikipedia.org/wiki/Bug_triage
+      - text: ", accessibility design and testing,"
+      - link "UX design":
+        - /url: //en.wikipedia.org/wiki/UX_design
+      - text: ", code testing, and"
+      - link "security review":
+        - /url: //en.wikipedia.org/wiki/Application_security
+      - text: and testing. However, there are several ways of contributing to OSS projects even without coding skills. For example, some less technical ways of participating are
+      - link "documentation":
+        - /url: //en.wikipedia.org/wiki/Software_documentation
+      - text: writing and editing,
+      - link "translation":
+        - /url: //en.wikipedia.org/wiki/Translation
+      - text: ","
+      - link "project management":
+        - /url: //en.wikipedia.org/wiki/Project_management
+      - text: ", event organization and coordination, marketing, release management, community management, and public relations and outreach."
+      - superscript:
+        - link "[29]":
+          - /url: "#cite_note-:4-29"
+    - paragraph:
+      - text: Funding is another way that individuals and organizations choose to contribute to open source projects. Groups like
+      - link "Open Collective":
+        - /url: //en.wikipedia.org/wiki/Open_Collective
+      - text: provide a means for individuals to contribute monthly to supporting their favorite projects.
+      - superscript:
+        - link "[30]":
+          - /url: "#cite_note-30"
+      - text: Organizations like the
+      - link "Sovereign Tech Fund":
+        - /url: //en.wikipedia.org/wiki/Sovereign_Tech_Fund
+      - text: is able to contribute to millions to supporting the tools the
+      - link "German Government":
+        - /url: //en.wikipedia.org/wiki/German_Government
+      - text: uses.
+      - superscript:
+        - link "[31]":
+          - /url: "#cite_note-31"
+      - text: The
+      - link "National Science Foundation":
+        - /url: //en.wikipedia.org/wiki/National_Science_Foundation
+      - text: established a Pathways to Enable Open-Source Ecosystems (POSE) program to support open source innovation.
+      - superscript:
+        - link "[32]":
+          - /url: "#cite_note-32"
+    - heading "Industry participation" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=8
+    - text: "]"
+    - paragraph:
+      - text: The adoption of open-source software by industry is increasing over time.
+      - superscript:
+        - link "[33]":
+          - /url: "#cite_note-:6-33"
+      - text: OSS is popular in several industries such as
+      - link "telecommunications":
+        - /url: //en.wikipedia.org/wiki/Telecommunications
+      - text: ","
+      - link "aerospace":
+        - /url: //en.wikipedia.org/wiki/Aerospace
+      - text: ","
+      - link "healthcare":
+        - /url: //en.wikipedia.org/wiki/Health_care
+      - text: ", and"
+      - link "media & entertainment":
+        - /url: //en.wikipedia.org/wiki/Media_%26_Entertainment
+      - text: due to the benefits it provides.
+      - superscript:
+        - link "[34]":
+          - /url: "#cite_note-34"
+      - text: Adoption of OSS is more likely in larger organizations and is dependent on the company's IT usage, operating efficiencies, and the productivity of employees.
+      - superscript:
+        - link "[33]":
+          - /url: "#cite_note-:6-33"
+    - paragraph:
+      - text: Industries are likely to use OSS due to back-office functionality, sales support, research and development, software features, quick deployment, portability across platforms and avoidance of commercial license management. Additionally, lower cost for
+      - link "hardware":
+        - /url: //en.wikipedia.org/wiki/Computer_hardware
+      - text: and ownership are also important benefits.
+      - superscript:
+        - link "[33]":
+          - /url: "#cite_note-:6-33"
+    - heading "Prominent organizations" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=9
+    - text: "]"
+    - note:
+      - text: "See also:"
+      - link "List of open-source organizations":
+        - /url: //en.wikipedia.org/wiki/List_of_free_and_open-source_software_packages#Open-source_organizations
+    - paragraph:
+      - text: Organizations that contribute to the development and expansions of free and open-source software movements exist all over the world. These organizations are dedicated to goals such as teaching and spreading technology. As listed by a former vice president of the
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - text: ", some American organizations include the"
+      - link "Free Software Foundation":
+        - /url: //en.wikipedia.org/wiki/Free_Software_Foundation
+      - text: ","
+      - link "Software Freedom Conservancy":
+        - /url: //en.wikipedia.org/wiki/Software_Freedom_Conservancy
+      - text: ", the"
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - text: and
+      - link "Software in the Public Interest":
+        - /url: //en.wikipedia.org/wiki/Software_in_the_Public_Interest
+      - text: . Within Europe some notable organizations are
+      - link "Free Software Foundation Europe":
+        - /url: //en.wikipedia.org/wiki/Free_Software_Foundation_Europe
+      - text: ", open-source projects EU (OSP) and"
+      - link "OpenForum Europe":
+        - /url: //en.wikipedia.org/wiki/OpenForum_Europe
+      - text: (OFE). One Australian organization is
+      - link "Linux Australia":
+        - /url: //en.wikipedia.org/wiki/Linux_Australia
+      - text: while Asia has Open source Asia and FOSSAsia. Free and open source software for Africa (FOSSFA) and OpenAfrica are African organizations and Central and South Asia has such organizations as
+      - link "FLISOL":
+        - /url: //en.wikipedia.org/wiki/FLISOL
+      - text: and GRUP de usuarios de software libre Peru. Outside of these, many more organizations dedicated to the advancement of open-source software exist.
+      - superscript:
+        - link "[29]":
+          - /url: "#cite_note-:4-29"
+    - heading "Legal and economic issues" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=10
+    - text: "]"
+    - heading "Licensing" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=11
+    - text: "]"
+    - note:
+      - text: "Main article:"
+      - link "Open-source license":
+        - /url: //en.wikipedia.org/wiki/Open-source_license
+    - note:
+      - text: "Further information:"
+      - link "Free-software license":
+        - /url: //en.wikipedia.org/wiki/Free-software_license
+    - note:
+      - text: "See also:"
+      - link "Free and open-source software § Licensing":
+        - /url: //en.wikipedia.org/wiki/Free_and_open-source_software#Licensing
+      - text: ", and"
+      - link "Software license":
+        - /url: //en.wikipedia.org/wiki/Software_license
+    - paragraph:
+      - link "FOSS":
+        - /url: //en.wikipedia.org/wiki/FOSS
+      - text: "products are generally licensed under two types of licenses:"
+      - link "permissive licensing":
+        - /url: //en.wikipedia.org/wiki/Permissive_software_license
+      - text: and
+      - link "copyleft licensing":
+        - /url: //en.wikipedia.org/wiki/Copyleft
+      - text: . Both of these types of licenses are different than
+      - link "proprietary licensing":
+        - /url: //en.wikipedia.org/wiki/Proprietary_software
+      - text: in that they can allow more users access to the software and allow for the creation of
+      - link "derivative works":
+        - /url: //en.wikipedia.org/wiki/Derivative_work
+      - text: as specified by the terms of the specific license, as each license has its own rules. Permissive licenses allow recipients of the software to implement the author's
+      - link "copyright rights":
+        - /url: //en.wikipedia.org/wiki/Copyright
+      - text: without having to use the same license for distribution. Examples of this type of license include the
+      - link "BSD":
+        - /url: //en.wikipedia.org/wiki/BSD_licenses
+      - text: ","
+      - link "MIT":
+        - /url: //en.wikipedia.org/wiki/MIT_License
+      - text: ", and"
+      - link "Apache licenses":
+        - /url: //en.wikipedia.org/wiki/Apache_License
+      - text: . Copyleft licenses are different in that they require recipients to use the same license for at least some parts of the distribution of their works. Strong copyleft licenses require all derivative works to use the same license while weak copyleft licenses require the use of the same license only under certain conditions. Examples of this type of license include the
+      - link "GNU family of licenses":
+        - /url: //en.wikipedia.org/wiki/GNU_General_Public_License
+      - text: ", and the"
+      - link "MPL":
+        - /url: //en.wikipedia.org/wiki/Mozilla_Public_License
+      - text: and
+      - link "EPL":
+        - /url: //en.wikipedia.org/wiki/Eclipse_Public_License
+      - text: licenses. The similarities between these two categories of licensing include that they provide a broad grant of copyright rights, require that recipients preserve copyright notices, and that a copy of the license is provided to recipients with the code.
+      - superscript:
+        - link "[35]":
+          - /url: "#cite_note-:7-35"
+    - paragraph:
+      - text: One important legal precedent for open-source software was created in 2008, when the Jacobson v Katzer case enforced terms of the
+      - link "Artistic license":
+        - /url: //en.wikipedia.org/wiki/Artistic_License
+      - text: ", including attribution and identification of modifications. The ruling of this case cemented enforcement under copyright law when the conditions of the license were not followed. Because of the similarity of the"
+      - link "Artistic license":
+        - /url: //en.wikipedia.org/wiki/Artistic_License
+      - text: to other open-source software licenses, the ruling created a precedent that applied widely.
+      - superscript:
+        - link "[35]":
+          - /url: "#cite_note-:7-35"
+    - paragraph:
+      - text: Examples of
+      - link "free-software license":
+        - /url: //en.wikipedia.org/wiki/Free-software_license
+      - text: /
+      - link "open-source licenses":
+        - /url: //en.wikipedia.org/wiki/Open-source_license
+      - text: include
+      - link "Apache licenses":
+        - /url: //en.wikipedia.org/wiki/Apache_License
+      - text: ","
+      - link "BSD licenses":
+        - /url: //en.wikipedia.org/wiki/BSD_licenses
+      - text: ","
+      - link "GNU General Public Licenses":
+        - /url: //en.wikipedia.org/wiki/GNU_General_Public_License
+      - text: ","
+      - link "GNU Lesser General Public License":
+        - /url: //en.wikipedia.org/wiki/GNU_Lesser_General_Public_License
+      - text: ","
+      - link "MIT License":
+        - /url: //en.wikipedia.org/wiki/MIT_License
+      - text: ","
+      - link "Eclipse Public License":
+        - /url: //en.wikipedia.org/wiki/Eclipse_Public_License
+      - text: and
+      - link "Mozilla Public License":
+        - /url: //en.wikipedia.org/wiki/Mozilla_Public_License
+      - text: .
+      - superscript:
+        - link "[35]":
+          - /url: "#cite_note-:7-35"
+    - heading "Legal issues" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=12
+    - text: "]"
+    - paragraph:
+      - text: Several gray areas exist within software regulation that have great impact on open-source software, such as if software is a good or service, what can be considered a modification, governance through contract vs license, ownership and right of use. While there have been developments on these issues, they often lead to even more questions. The existence of these uncertainties in regulation has a negative impact on industries involved in technologies as a whole.
+      - superscript:
+        - link "[35]":
+          - /url: "#cite_note-:7-35"
+    - paragraph:
+      - text: Within the legal history of software as a whole, there was much debate on whether to protect it as
+      - link "intellectual property":
+        - /url: //en.wikipedia.org/wiki/Intellectual_property
+      - text: under
+      - link "patent law":
+        - /url: //en.wikipedia.org/wiki/Patent_law
+      - text: ","
+      - link "copyright law":
+        - /url: //en.wikipedia.org/wiki/Copyright_law
+      - text: or establishing a unique regulation. Ultimately,
+      - link "copyright law":
+        - /url: //en.wikipedia.org/wiki/Copyright
+      - text: became the standard with computer programs being considered a form of literary work, with some tweaks of unique regulation.
+      - superscript:
+        - link "[35]":
+          - /url: "#cite_note-:7-35"
+    - paragraph:
+      - text: Software is generally considered
+      - link "source code":
+        - /url: //en.wikipedia.org/wiki/Source_code
+      - text: and
+      - link "object code":
+        - /url: //en.wikipedia.org/wiki/Object_code
+      - text: ", with both being protectable, though there is legal variety in this definition. Some jurisdictions attempt to expand or reduce this conceptualization for their own purposes. For example, The"
+      - link "European Court of Justice":
+        - /url: //en.wikipedia.org/wiki/European_Court_of_Justice
+      - text: defines a computer program as not including the functionality of a program, the
+      - link "programing language":
+        - /url: //en.wikipedia.org/wiki/Programming_language
+      - text: ", or the format of data files. By limiting protections of the different aspects of software, the law favors an open-source approach to software use. The US especially has an open approach to software, with most"
+      - link "open-source licenses":
+        - /url: //en.wikipedia.org/wiki/Open_source_license
+      - text: originating there. However, this has increased the focus on
+      - link "patent rights":
+        - /url: //en.wikipedia.org/wiki/Patent
+      - text: within these licenses, which has seen backlash from the OSS community, who prefer other forms of
+      - link "IP":
+        - /url: //en.wikipedia.org/wiki/Intellectual_property
+      - text: protection.
+      - superscript:
+        - link "[35]":
+          - /url: "#cite_note-:7-35"
+    - paragraph:
+      - text: Another issue includes
+      - link "technological protection measures":
+        - /url: //en.wikipedia.org/wiki/Technological_protection_measures
+      - text: (TPM) and
+      - link "digital rights management":
+        - /url: //en.wikipedia.org/wiki/Digital_rights_management
+      - text: (DRM) techniques which were internationally legally recognized and protected in the
+      - link "1996 World Intellectual Property Organization (WIPO) Treaty":
+        - /url: //en.wikipedia.org/wiki/World_Intellectual_Property_Organization_Copyright_Treaty
+      - text: . Open source software proponents disliked these technologies as they constrained end-users potentially beyond copyright law. Europe responded to such complaints by putting TPM under legal controls, representing a victory for OSS supporters.
+      - superscript:
+        - link "[35]":
+          - /url: "#cite_note-:7-35"
+    - heading "Economic/business implications" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=13
+    - text: "]"
+    - figure "Participants in the Free Knowledge Game Jam 2015, an open source and open data oriented game jam":
+      - link:
+        - /url: //en.wikipedia.org/wiki/File:Game_Jammers_3.jpg
+        - img
+      - text: Participants in the
+      - link "Free Knowledge Game Jam":
+        - /url: //en.wikipedia.org/wiki/File:Free_Knowledge_Game_Jam_-_Presentation_at_FOSDEM_2016.pdf
+      - text: 2015, an open source and open data oriented
+      - link "game jam":
+        - /url: //en.wikipedia.org/wiki/Game_jam
+    - paragraph:
+      - text: In open-source communities, instead of owning the software produced, the producer owns the development of the evolving software. In this way, the future of the software is open, making ownership or
+      - link "intellectual property":
+        - /url: //en.wikipedia.org/wiki/Intellectual_property
+      - text: difficult within OSS.
+      - link "Licensing":
+        - /url: //en.wikipedia.org/wiki/Software_license
+      - text: and branding can prevent others from stealing it, preserving its status as a
+      - link "public good":
+        - /url: //en.wikipedia.org/wiki/Public_good_(economics)
+      - text: . Open source software can be considered a public good as it is available to everyone and does not decrease in value for others when downloaded by one person. Open source software is unique in that it becomes more valuable as it is used and contributed to, instead of diminishing the resource. This is explained by concepts such as investment in reputation and
+      - link "network effects":
+        - /url: //en.wikipedia.org/wiki/Network_effect
+      - text: .
+      - superscript:
+        - link "[36]":
+          - /url: "#cite_note-:14-36"
+    - paragraph:
+      - text: The economic model of open-source software can be explained as developers contribute work to projects, creating public benefits. Developers choose projects based on the perceived benefits or costs, such as improved reputation or value of the project. The motivations of developers can come from many different places and reasons, but the important takeaway is that money is not the only or even most important
+      - link "incentivization":
+        - /url: //en.wikipedia.org/wiki/Incentivisation
+      - text: .
+      - superscript:
+        - link "[36]":
+          - /url: "#cite_note-:14-36"
+    - paragraph:
+      - text: Because economic theory mainly focuses on the consumption of scarce resources, the OSS dynamic can be hard to understand. In OSS, producers become consumers by reaping the rewards of contributing to a project. For example, a developer becomes well regarded by their peers for a successful contribution to an OSS project. The social benefits and interactions of OSS are difficult to account for in economic models as well. Furthermore, the innovation of technology creates constantly changing value discussions and outlooks, making economic model unable to predict social behavior.
+      - superscript:
+        - link "[36]":
+          - /url: "#cite_note-:14-36"
+    - paragraph:
+      - text: Although OSS is theoretically challenging in economic models, it is explainable as a sustainable social activity that requires resources. These resources include time, money, technology and contributions. Many developers have used technology funded by organizations such as universities and governments, though these same organizations benefit from the work done by OSS. As OSS grows, hybrid systems containing OSS and proprietary systems are becoming more common.
+      - superscript:
+        - link "[36]":
+          - /url: "#cite_note-:14-36"
+    - paragraph:
+      - text: Throughout the mid 2000s, more and more tech companies have begun to use OSS. For example,
+      - link "Dell's":
+        - /url: //en.wikipedia.org/wiki/Dell
+      - text: move of selling computers with
+      - link "Linux":
+        - /url: //en.wikipedia.org/wiki/Linux
+      - text: already installed.
+      - link "Microsoft":
+        - /url: //en.wikipedia.org/wiki/Microsoft
+      - text: itself has launched a
+      - link "Linux-based operating system":
+        - /url: //en.wikipedia.org/wiki/Linux-based_operating_system
+      - text: despite previous animosity with the OSS movement. Despite these developments, these companies tend to only use OSS for certain purposes, leading to worries that OSS is being taken advantage of by corporations and not given anything in return.
+      - superscript:
+        - link "[24]":
+          - /url: "#cite_note-:55-24"
+    - heading "Government uses" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=14
+    - text: "]"
+    - paragraph:
+      - text: "Many governments are interested in implementing and promoting open-source software due to the many benefits provided: for example, the"
+      - link "UK government":
+        - /url: //en.wikipedia.org/wiki/UK_government
+      - text: "issued a policy promoting open source and open standards in 2004, restating the policy in 2009: \"the Government will actively and fairly consider open source solutions alongside"
+      - link "proprietary":
+        - /url: //en.wikipedia.org/wiki/Proprietary_software
+      - text: ones".
+      - superscript:
+        - link "[37]":
+          - /url: "#cite_note-37"
+      - text: However, an issue to be considered is
+      - link "cybersecurity":
+        - /url: //en.wikipedia.org/wiki/Cybersecurity
+      - text: . While accidental vulnerabilities are possible, so are attacks by outside agents. Because of these fears, governmental interest in contributing to the governance of software has become more prominent. However, these are the broad strokes of the issue, with each country having their own specific politicized interactions with open-source software and their goals for its implementation. For example, the United States has focused on
+      - link "national security":
+        - /url: //en.wikipedia.org/wiki/National_security
+      - text: in regard to open-source software implementation due to the perceived threat of the increase of open-source software activity in countries like China and Russia, with the Department of Defense considering multiple criteria for using OSS. These criteria include whether it comes from and is maintained by trusted sources, whether it will continue to be maintained, if there are dependencies on sub-components in the software, component security and integrity, and foreign governmental influence.
+      - superscript:
+        - link "[38]":
+          - /url: "#cite_note-:8-38"
+    - paragraph:
+      - text: Another issue for governments in regard to open source is their investments in technologies such as
+      - link "operating systems":
+        - /url: //en.wikipedia.org/wiki/Operating_system
+      - text: ","
+      - link "semiconductors":
+        - /url: //en.wikipedia.org/wiki/Semiconductor
+      - text: ","
+      - link "cloud":
+        - /url: //en.wikipedia.org/wiki/Cloud_computing
+      - text: ", and"
+      - link "artificial intelligence":
+        - /url: //en.wikipedia.org/wiki/Artificial_intelligence
+      - text: . These technologies all have implications for global cooperation, again opening up security issues and political consequences. Many countries have to balance technological innovation with technological dependence in these partnerships. For example, after China's open-source dependent company
+      - link "Huawei":
+        - /url: //en.wikipedia.org/wiki/Huawei
+      - text: was prevented from using
+      - link "Google's Android system":
+        - /url: //en.wikipedia.org/wiki/Android_(operating_system)
+      - text: "in 2019, they began to create their own alternative operating system:"
+      - link "Harmony OS":
+        - /url: //en.wikipedia.org/wiki/HarmonyOS
+      - text: .
+      - superscript:
+        - link "[38]":
+          - /url: "#cite_note-:8-38"
+    - paragraph:
+      - text: Germany recently
+      - superscript:
+        - text: "["
+        - link "when?":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Manual_of_Style/Dates_and_numbers#Chronological_items
+        - text: "]"
+      - text: established a
+      - link "Sovereign Tech Fund":
+        - /url: //en.wikipedia.org/wiki/Sovereign_Tech_Fund
+      - text: ", to help support the governance and maintenance of the software that they use."
+    - heading "Open software movement" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=15
+    - text: "]"
+    - heading "History" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=16
+    - text: "]"
+    - note:
+      - text: "Further information:"
+      - link "History of free and open-source software":
+        - /url: //en.wikipedia.org/wiki/History_of_free_and_open-source_software
+    - paragraph:
+      - text: In the early days of
+      - link "computing":
+        - /url: //en.wikipedia.org/wiki/Computing
+      - text: ", particularly during the 1950s and 1960s, programmers and developers commonly shared software to learn from one another and advance the field. Early systems such as"
+      - link "Unix":
+        - /url: //en.wikipedia.org/wiki/Unix
+      - text: even provided users with access to their
+      - link "source code":
+        - /url: //en.wikipedia.org/wiki/Source_code
+      - text: ", allowing collaboration and modification. However, with the rise of the"
+      - link "commercial software":
+        - /url: //en.wikipedia.org/wiki/Commercial_software
+      - text: industry in the 1970s and 1980s, this culture of open sharing began to decline as proprietary models became dominant. Despite this shift, academic and research institutions continued to promote collaborative software development practices.
+      - superscript:
+        - link "[39]":
+          - /url: "#cite_note-:13-39"
+    - paragraph:
+      - text: In response, the open-source movement was born out of the work of skilled programmer enthusiasts, widely referred to as
+      - link "hackers":
+        - /url: //en.wikipedia.org/wiki/Hacker
+      - text: or
+      - link "hacker culture":
+        - /url: //en.wikipedia.org/wiki/Hacker_culture
+      - text: .
+      - superscript:
+        - link "[40]":
+          - /url: "#cite_note-:3-40"
+      - text: One of these enthusiasts,
+      - link "Richard Stallman":
+        - /url: //en.wikipedia.org/wiki/Richard_Stallman
+      - text: ", was a driving force behind the"
+      - link "free software movement":
+        - /url: //en.wikipedia.org/wiki/Free_software_movement
+      - text: ", which would later allow for the"
+      - link "open-source movement":
+        - /url: //en.wikipedia.org/wiki/Open-source-software_movement
+      - text: . In 1984, he resigned from MIT to create a free operating system,
+      - link "GNU":
+        - /url: //en.wikipedia.org/wiki/GNU
+      - text: ", after the programmer culture in his lab was stifled by"
+      - link "proprietary software":
+        - /url: //en.wikipedia.org/wiki/Proprietary_software
+      - text: preventing source code from being shared and improved upon. GNU was UNIX compatible, meaning that the programmer enthusiasts would still be familiar with how it worked. However, it quickly became apparent that there was some confusion with the label Stallman had chosen of
+      - link "free software":
+        - /url: //en.wikipedia.org/wiki/Free_software
+      - text: ", which he described as free as in free speech, not free beer, referring to the meaning of free as freedom rather than price. He later expanded this concept of freedom to the four essential freedoms. Through GNU, open-source norms of incorporating others' source code, community bug fixes and suggestions of code for new features appeared. In 1985, Stallman founded the"
+      - link "Free Software Foundation":
+        - /url: //en.wikipedia.org/wiki/Free_Software_Foundation
+      - text: (FSF) to promote changes in software and to help write GNU. In order to prevent his work from being used in proprietary software, Stallman created the concept of
+      - link "copyleft":
+        - /url: //en.wikipedia.org/wiki/Copyleft
+      - text: ", which allowed the use of his work by anyone, but under specific terms. To do this, he created the"
+      - link "GNU General Public License":
+        - /url: //en.wikipedia.org/wiki/GNU_General_Public_License
+      - text: (GNU GPL) in 1989, which was updated in 1991.
+      - superscript:
+        - link "[17]":
+          - /url: "#cite_note-:24-17"
+      - text: In 1991, GNU was combined with the
+      - link "Linux kernel":
+        - /url: //en.wikipedia.org/wiki/Linux_kernel
+      - text: written by
+      - link "Linus Torvalds":
+        - /url: //en.wikipedia.org/wiki/Linus_Torvalds
+      - text: ", as a kernel was missing in GNU."
+      - superscript:
+        - link "[41]":
+          - /url: "#cite_note-:18-41"
+      - text: The operating system is now usually referred to as
+      - link "Linux":
+        - /url: //en.wikipedia.org/wiki/Linux
+      - text: .
+      - superscript:
+        - link "[17]":
+          - /url: "#cite_note-:24-17"
+      - text: Throughout this whole period, there were many other free software projects and licenses around at the time, all with different ideas of what the concept of free software was and should be, as well as the morality of proprietary software, such as
+      - link "Berkeley Software Distribution":
+        - /url: //en.wikipedia.org/wiki/Berkeley_Software_Distribution
+      - text: ","
+      - link "TeX":
+        - /url: //en.wikipedia.org/wiki/TeX
+      - text: ", and the"
+      - link "X Window System":
+        - /url: //en.wikipedia.org/wiki/X_Window_System
+      - text: .
+      - superscript:
+        - link "[42]":
+          - /url: "#cite_note-:28-42"
+    - paragraph:
+      - text: As free software developed, the
+      - link "Free Software Foundation":
+        - /url: //en.wikipedia.org/wiki/Free_Software_Foundation
+      - text: began to look how to bring free software ideas and perceived benefits to the
+      - link "commercial software industry":
+        - /url: //en.wikipedia.org/wiki/Commercial_software
+      - text: . It was concluded that FSF's
+      - link "social activism":
+        - /url: //en.wikipedia.org/wiki/Activism
+      - text: was not appealing to companies and they needed a way to rebrand the
+      - link "free software movement":
+        - /url: //en.wikipedia.org/wiki/Free_software_movement
+      - text: to emphasize the business potential of sharing and collaborating on software source code.
+      - superscript:
+        - link "[42]":
+          - /url: "#cite_note-:28-42"
+      - text: The term open source was suggested by
+      - link "Christine Peterson":
+        - /url: //en.wikipedia.org/wiki/Christine_Peterson
+      - text: in 1998 at a meeting of supporters of free software. Many in the group felt the name free software was confusing to newcomers and holding back industry interest and they readily accepted the new designation of open source, creating the
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - text: (OSI) and the OSI definition of what open source software is.
+      - superscript:
+        - link "[17]":
+          - /url: "#cite_note-:24-17"
+      - text: The
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - text: "'s (OSI) definition is now recognized by several governments internationally as the standard or de facto definition."
+      - superscript:
+        - link "[41]":
+          - /url: "#cite_note-:18-41"
+      - text: The definition was based on the
+      - link "Debian Free Software Guidelines":
+        - /url: //en.wikipedia.org/wiki/Debian_Free_Software_Guidelines
+      - text: ", written and adapted primarily by Bruce Perens."
+      - superscript:
+        - link "[43]":
+          - /url: "#cite_note-43"
+      - text: The OSI definition differed from the
+      - link "free software definition":
+        - /url: //en.wikipedia.org/wiki/The_Free_Software_Definition
+      - text: in that it allows the inclusion of proprietary software and allows more liberties in its licensing. Some, such as Stallman, agree more with the original concept of free software as a result because it takes a strong moral stance against proprietary software, though there is much overlap between the two movements in terms of the operation of the software.
+      - superscript:
+        - link "[17]":
+          - /url: "#cite_note-:24-17"
+    - paragraph:
+      - text: While the Open Source Initiative sought to encourage the use of the new term and evangelize the principles it adhered to, commercial software vendors found themselves increasingly threatened by the concept of freely distributed software and universal access to an application's
+      - link "source code":
+        - /url: //en.wikipedia.org/wiki/Source_code
+      - text: ", with an executive of Microsoft calling open source an"
+      - link "intellectual property":
+        - /url: //en.wikipedia.org/wiki/Intellectual_property
+      - text: destroyer in 2001. However, while
+      - link "free and open-source software":
+        - /url: //en.wikipedia.org/wiki/Free_and_open-source_software
+      - text: (FOSS) has historically played a role outside of mainstream private software development, companies as large as
+      - link "Microsoft":
+        - /url: //en.wikipedia.org/wiki/Microsoft
+      - text: have begun to develop official open source presences on the Internet. IBM, Oracle, and State Farm are just a few of the companies with a serious public stake in today's competitive open source market, marking a significant shift in the corporate philosophy concerning the development of FOSS.
+      - superscript:
+        - link "[44]":
+          - /url: "#cite_note-:27-44"
+    - heading "Future" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=17
+    - text: "]"
+    - paragraph:
+      - text: The future of the open source software community, and the free software community by extension, has become successful if not confused about what it stands for. For example,
+      - link "Android":
+        - /url: //en.wikipedia.org/wiki/Android_(operating_system)
+      - text: and
+      - link "Ubuntu":
+        - /url: //en.wikipedia.org/wiki/Ubuntu
+      - text: are examples milestones of success in the open source software rise to prominence from the sidelines of technological innovation as it existed in the early 2000s. However, some in the community consider them failures in their representation of OSS due to issues such as the downplaying of the OSS center of Android by Google and its partners, the use of an
+      - link "Apache license":
+        - /url: //en.wikipedia.org/wiki/Apache_License
+      - text: that allowed forking and resulted in a loss of opportunities for collaboration within Android, the prioritization of convenience over freedom in Ubuntu, and features within Ubuntu that track users for marketing purposes.
+      - superscript:
+        - link "[24]":
+          - /url: "#cite_note-:55-24"
+    - paragraph:
+      - text: The use of OSS has become more common in business with 78% of companies reporting that they run all or part of their operations on FOSS. The popularity of OSS has risen to the point that
+      - link "Microsoft":
+        - /url: //en.wikipedia.org/wiki/Microsoft
+      - text: ", a once detractor of OSS, has included its use in their systems. However, this success has raised concerns that will determine the future of OSS as the community must answer questions such as what OSS is, what should it be, and what should be done to protect it, if it even needs protecting. All in all, while the free and open source revolution has slowed to a perceived equilibrium in the market place, that does not mean it is over as many theoretical discussions must take place to determine its future."
+      - superscript:
+        - link "[24]":
+          - /url: "#cite_note-:55-24"
+    - heading "Comparisons with other software licensing/development models" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=18
+    - text: "]"
+    - heading "Closed source / proprietary software" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=19
+    - text: "]"
+    - note:
+      - text: "Main article:"
+      - link "Comparison of open-source and closed-source software":
+        - /url: //en.wikipedia.org/wiki/Comparison_of_open-source_and_closed-source_software
+    - paragraph:
+      - text: Open source software differs from proprietary software in that it is publicly available, the license requires no fees, modifications and distributions are allowed under license specifications. All of this works to prevent a monopoly on any OSS product, which is a goal of proprietary software. Proprietary software limits their customers' choices to either committing to using that software, upgrading it or switching to other software, forcing customers to have their software preferences impacted by their monetary cost. The ideal case scenario for the proprietary software vendor would be a
+      - link "lock-in":
+        - /url: //en.wikipedia.org/wiki/Vendor_lock-in
+      - text: ", where the customer does not or cannot switch software due to these costs and continues to buy products from that vendor."
+      - superscript:
+        - link "[45]":
+          - /url: "#cite_note-:22-45"
+    - paragraph:
+      - text: Within proprietary software, bug fixes can only be provided by the vendor, moving platforms requires another purchase and the existence of the product relies on the vendor, who can discontinue it at any point.
+      - superscript:
+        - link "[40]":
+          - /url: "#cite_note-:3-40"
+      - text: Additionally, proprietary software does not provide its source code and cannot be altered by users. For businesses, this can pose a security risk and source of frustration, as they cannot specialize the product to their needs, and there may be hidden threats or information leaks within the software that they cannot access or change.
+      - superscript:
+        - link "[17]":
+          - /url: "#cite_note-:24-17"
+    - heading "Free software" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=20
+    - text: "]"
+    - note:
+      - text: "Main article:"
+      - link "Alternative terms for free software":
+        - /url: //en.wikipedia.org/wiki/Alternative_terms_for_free_software
+    - note:
+      - text: "See also:"
+      - link "Comparison of free and open-source software licenses":
+        - /url: //en.wikipedia.org/wiki/Comparison_of_free_and_open-source_software_licenses
+    - paragraph:
+      - text: Under OSI's definition, open source is a broad software license that makes source code available to the general public with relaxed or non-existent restrictions on the use and modification of the code. It is an explicit feature of open source that it puts very few restrictions on the use or distribution by any organization or user, in order to enable the rapid evolution of the software.
+      - superscript:
+        - link "[46]":
+          - /url: "#cite_note-:17-46"
+    - paragraph:
+      - link "Richard Stallman":
+        - /url: //en.wikipedia.org/wiki/Richard_Stallman
+      - text: ", leader of the Free software movement and member of the free software foundation opposes the term open source being applied to what they refer to as free software. Although he agrees that the two terms describe almost the same category of software, Stallman considers equating the terms incorrect and misleading."
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-:19-13"
+      - text: "He believes that the main difference is that by choosing one term over the other lets others know about what one's goals are: development (open source) or a social stance (free software)."
+      - superscript:
+        - link "[47]":
+          - /url: "#cite_note-:20-47"
+      - text: Nevertheless, there is significant overlap between open source software and free software.
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-:19-13"
+      - text: Stallman also opposes the professed pragmatism of the
+      - link "Open Source Initiative":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - text: ", as he fears that the free software ideals of freedom and community are threatened by compromising on the FSF's idealistic standards for software freedom."
+      - superscript:
+        - link "[47]":
+          - /url: "#cite_note-:20-47"
+      - text: The FSF considers free software to be a
+      - link "subset":
+        - /url: //en.wikipedia.org/wiki/Subset
+      - text: of open-source software, and Richard Stallman explained that
+      - link "DRM":
+        - /url: //en.wikipedia.org/wiki/Digital_rights_management
+      - text: software, for example, can be developed as open source, despite how it restricts its users, and thus does not qualify as free software.
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-:19-13"
+    - paragraph:
+      - text: The FSF said that the term open source fosters an ambiguity of a different kind such that it confuses the mere availability of the source with the freedom to use, modify, and redistribute it.
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-:19-13"
+      - text: On the other hand, the term free software was criticized for the ambiguity of the word free, which was seen as discouraging for business adoption, and for the historical ambiguous usage of the term.
+      - superscript:
+        - link "[47]":
+          - /url: "#cite_note-:20-47"
+    - paragraph:
+      - text: Developers have used the
+      - link "alternative terms":
+        - /url: //en.wikipedia.org/wiki/Alternative_terms_for_free_software
+      - text: Free and Open Source Software (
+      - link "FOSS":
+        - /url: //en.wikipedia.org/wiki/FOSS
+      - text: ), or Free/Libre and Open Source Software (FLOSS), consequently, to describe open-source software that is also
+      - link "free software":
+        - /url: //en.wikipedia.org/wiki/Free_software
+      - text: .
+      - superscript:
+        - link "[29]":
+          - /url: "#cite_note-:4-29"
+    - heading "Source-available software" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=21
+    - text: "]"
+    - note:
+      - text: "Main article:"
+      - link "Source-available software":
+        - /url: //en.wikipedia.org/wiki/Source-available_software
+    - paragraph:
+      - text: Software can be distributed with
+      - link "source code":
+        - /url: //en.wikipedia.org/wiki/Source_code
+      - text: ", which is a code that is readable. Software is"
+      - link "source available":
+        - /url: //en.wikipedia.org/wiki/Source-available_software
+      - text: when this source code is available to be seen. However to be source available or
+      - link "FOSS":
+        - /url: //en.wikipedia.org/wiki/Free_and_open-source_software
+      - text: ", the source code does not need to be accessible to all, just the users of that software. While all FOSS software is source available because this is a requirement made by the"
+      - link "Open Source Definition":
+        - /url: //en.wikipedia.org/wiki/The_Open_Source_Definition
+      - text: ", not all source available software is FOSS. For example, if the software does not meet other aspects of the Open Source Definition such as permitted modification or redistribution, even if the source code is available, the software is not FOSS."
+      - superscript:
+        - link "[48]":
+          - /url: "#cite_note-Fortunato-2021-48"
+    - heading "Open-sourcing" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=22
+    - text: "]"
+    - paragraph:
+      - text: A recent trend within software companies is open-sourcing, or transitioning their previous
+      - link "proprietary software":
+        - /url: //en.wikipedia.org/wiki/Proprietary_software
+      - text: into open-source software through releasing it under an
+      - link "open-source license":
+        - /url: //en.wikipedia.org/wiki/Open-source_license
+      - text: .
+      - superscript:
+        - link "[49]":
+          - /url: "#cite_note-:23-49"
+      - superscript:
+        - link "[50]":
+          - /url: "#cite_note-:25-50"
+      - text: Examples of companies who have done this are Google, Microsoft and Apple.
+      - superscript:
+        - link "[49]":
+          - /url: "#cite_note-:23-49"
+      - text: Additionally, open-sourcing can refer to programming open-source software or installing open-source software.
+      - superscript:
+        - link "[50]":
+          - /url: "#cite_note-:25-50"
+      - text: Open-sourcing can be beneficial in multiple ways, such as attracting more external contributors who bring new perspectives and problem solving capabilities. The downsides of open-sourcing include the work that has to be done to maintaining the new community, such as making the base code easily understandable, setting up communication channels for new developers and creating documentation to allow new developers to easily join. However, a review of several open-sourced projects found that although a newly open-sourced project attracts many newcomers, a great amount are likely to soon leave the project and their forks are also likely to not be impactful.
+      - superscript:
+        - link "[49]":
+          - /url: "#cite_note-:23-49"
+    - heading "Other" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=23
+    - text: "]"
+    - paragraph:
+      - text: Other concepts that may share some similarities to open source are
+      - link "shareware":
+        - /url: //en.wikipedia.org/wiki/Shareware
+      - text: ","
+      - link "public domain software":
+        - /url: //en.wikipedia.org/wiki/Public-domain_software
+      - text: ","
+      - link "freeware":
+        - /url: //en.wikipedia.org/wiki/Freeware
+      - text: ", and software viewers/readers that are freely available but do not provide source code. However, these differ from open source software in access to"
+      - link "source code":
+        - /url: //en.wikipedia.org/wiki/Source_code
+      - text: ", licensing, copyright and fees."
+      - superscript:
+        - link "[17]":
+          - /url: "#cite_note-:24-17"
+    - heading "Society and culture" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=24
+    - text: "]"
+    - heading "Demographics" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=25
+    - text: "]"
+    - paragraph:
+      - text: Despite being able to collaborate internationally, open source software contributors were found to mostly be located in large clusters such as
+      - link "Silicon Valley":
+        - /url: //en.wikipedia.org/wiki/Silicon_Valley
+      - text: that largely collaborate within themselves. Possible reasons for this phenomenon may be that the OSS contributor demographic largely works in software, meaning that the OSS geographic location is closely related to that dispersion and collaborations could be encouraged through work and
+      - link "social networks":
+        - /url: //en.wikipedia.org/wiki/Social_network
+      - text: .
+      - superscript:
+        - link "[51]":
+          - /url: "#cite_note-:0-51"
+      - text: Code acceptance can be impacted by status within these social network clusters, creating unfair predispositions in code acceptance based on location.
+      - superscript:
+        - link "[52]":
+          - /url: "#cite_note-52"
+      - text: Barriers to international collaboration also include linguistic or cultural differences.
+      - superscript:
+        - link "[53]":
+          - /url: "#cite_note-:1-53"
+      - text: Furthermore, each country has been shown to have a higher acceptance rate for code from contributors within their country except India, indicating a bias for culturally similar collaborators.
+      - superscript:
+        - link "[53]":
+          - /url: "#cite_note-:1-53"
+    - paragraph:
+      - text: In 2021, the countries with the highest open source software contributions included the United States, China, Germany, India, and the UK, in that order.
+      - superscript:
+        - link "[51]":
+          - /url: "#cite_note-:0-51"
+      - text: The countries with the highest OSS developers per capita from a study in 2021 include, in order, Iceland, Switzerland, Norway, Sweden, and Finland, while in 2008 the countries with top amount of estimated contributors in SourceForge were the United States, Germany, United Kingdom, Canada and France.
+      - superscript:
+        - link "[51]":
+          - /url: "#cite_note-:0-51"
+      - superscript:
+        - link "[53]":
+          - /url: "#cite_note-:1-53"
+      - text: Though there have been several studies done on the distribution and contributions of OSS developers, this is still an open field that can be measured in several different ways. For instance, Information and communication technology participation, population, wealth and proportion of access to the internet have been shown to be correlated with OSS contributions.
+      - superscript:
+        - link "[53]":
+          - /url: "#cite_note-:1-53"
+    - paragraph:
+      - text: Although
+      - link "gender diversity":
+        - /url: //en.wikipedia.org/wiki/Gender_diversity
+      - text: has been found to enhance team productivity, women still face biases while contributing to open source software projects when their gender is identifiable.
+      - superscript:
+        - link "[54]":
+          - /url: "#cite_note-:2-54"
+      - text: In 2002, only 1.5% of international open-source software developers were women, while women made up 28% of tech industry roles, demonstrating their low representation in the software field.
+      - superscript:
+        - link "[55]":
+          - /url: "#cite_note-:62-55"
+      - text: Despite OSS contributions having no prerequisites, this
+      - link "gender bias":
+        - /url: //en.wikipedia.org/wiki/Gender_bias
+      - text: may continue to exist due to the common belief of contributors that gender should not matter, and the quality of code should be the only consideration for code acceptance, preventing the community from addressing the systemic disparities in female representation.
+      - superscript:
+        - link "[40]":
+          - /url: "#cite_note-:3-40"
+      - text: However, a more recent figure of female OSS participation internationally calculated across 2005 to 2021 is 9.8%, with most being recent contributors, indicating that female participation may be growing.
+      - superscript:
+        - link "[56]":
+          - /url: "#cite_note-56"
+    - heading "Motivations" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=26
+    - text: "]"
+    - paragraph: Contributors participate in open-source software (OSS) projects for a variety of reasons. Participation can provide practical experience in areas such as coding, issue tracking, version control, communication, and collaboration. In addition to technical skills, contributors may become familiar with industry practices and emerging technologies. Because most OSS projects are volunteer-based, participation does not involve formal employment arrangements, though contributors may develop professional reputations through their work.
+    - heading "Disparities" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=27
+    - text: "]"
+    - paragraph:
+      - text: Even though programming was originally seen as a female profession, there remains a large gap in computing.
+      - superscript:
+        - link "[57]":
+          - /url: "#cite_note-57"
+      - link "Social identity":
+        - /url: //en.wikipedia.org/wiki/Social_identity
+      - text: tends to be a large concern as women in the tech industry face insecurity about attracting unwanted male attention and harassment or being unfeminine in their technology knowledge, having a large impact on confidence.
+      - superscript:
+        - link "[40]":
+          - /url: "#cite_note-:3-40"
+      - text: Some male tech participants make clear that they believe women fitting in within the culture is impossible, furthering the insecurity for women and their place in the tech industry. Additionally, even in a voluntary contribution environment like open source software, women tend to end up doing the less technical aspects of projects, such as
+      - link "manual testing":
+        - /url: //en.wikipedia.org/wiki/Manual_testing
+      - text: or
+      - link "documentation":
+        - /url: //en.wikipedia.org/wiki/Software_documentation
+      - text: despite women and men showing the same productivity in OSS contributions. Explicit biases include longer feedback time, more scrutinization of code and lower acceptance rate of code.
+      - superscript:
+        - link "[54]":
+          - /url: "#cite_note-:2-54"
+      - text: Specifically in the open-source software community, women report that sexually offensive language is common and the women's identity as female is given more attention that as an OSS contributor. Bias is hard to address due to the belief that gender should not matter, with most contributors feeling that women getting special treatment is unfair and success should be dependent on skill, preventing any changes to be more inclusive.
+      - superscript:
+        - link "[40]":
+          - /url: "#cite_note-:3-40"
+    - heading "Adoption and application" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=28
+    - text: "]"
+    - heading "Key projects" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=29
+    - text: "]"
+    - paragraph:
+      - text: Open source software projects are built and maintained by a network of programmers, who may often be volunteers, and are widely used in free as well as commercial products.
+      - superscript:
+        - link "[58]":
+          - /url: "#cite_note-:12-58"
+    - list:
+      - listitem:
+        - link "Unix":
+          - /url: //en.wikipedia.org/wiki/Unix
+        - text: ": Unix is an"
+        - link "operating system":
+          - /url: //en.wikipedia.org/wiki/Operating_system
+        - text: created by AT&T that began as a precursor to open source software in that the
+        - link "free":
+          - /url: //en.wikipedia.org/wiki/Free_software_movement
+        - text: and
+        - link "open-source software revolution":
+          - /url: //en.wikipedia.org/wiki/Open-source-software_movement
+        - text: began when developers began trying to create operating systems without Unix code. Unix was created in the 1960s, before the
+        - link "commercialization":
+          - /url: //en.wikipedia.org/wiki/Commercialization
+        - text: of software and before the concept of open source software was necessary, therefore it was not considered a true open source software project. It started as a research project before being commercialized in the mid 1980s. Before its commercialization, it represented many of the ideals held by the Free and Open source software revolution, including the decentralized collaboration of global users,
+        - link "rolling releases":
+          - /url: //en.wikipedia.org/wiki/Rolling_release
+        - text: and a community culture of distaste towards
+        - link "proprietary software":
+          - /url: //en.wikipedia.org/wiki/Proprietary_software
+        - text: .
+        - superscript:
+          - link "[24]":
+            - /url: "#cite_note-:55-24"
+    - list:
+      - listitem:
+        - link "BSD:":
+          - /url: //en.wikipedia.org/wiki/Berkeley_Software_Distribution
+        - text: Berkeley Software Distribution (BSD) is an
+        - link "operating system":
+          - /url: //en.wikipedia.org/wiki/Operating_system
+        - text: that began as a variant of
+        - link "Unix":
+          - /url: //en.wikipedia.org/wiki/Unix
+        - text: in 1978 that mixed Unix code with code from Berkeley labs to increase functionality. As BSD was focused on increasing functionality, it would publicly share its greatest innovations with the main Unix operating system. This is an example of the free public code sharing that is a central characteristic of FOSS today. As Unix became commercialized in the 1980s, developers or members of the community who did not support
+        - link "proprietary software":
+          - /url: //en.wikipedia.org/wiki/Proprietary_software
+        - text: began to focus on BSD and turning it into an operating system that did not include any of Unix's code. The final version of BSD was released in 1995.
+        - superscript:
+          - link "[24]":
+            - /url: "#cite_note-:55-24"
+    - list:
+      - listitem:
+        - link "GNU":
+          - /url: //en.wikipedia.org/wiki/GNU
+        - text: ": GNU is a free operating system created by"
+        - link "Richard Stallman":
+          - /url: //en.wikipedia.org/wiki/Richard_Stallman
+        - text: in 1984 with its name meaning Gnu's Not Unix. The idea was to create a
+        - link "Unix":
+          - /url: //en.wikipedia.org/wiki/Unix
+        - text: alternative operating system that would be available for anyone to use and allow programmers to share code freely between them. However, the goal of GNU was not to only replace Unix, but to make a superior version that had more technological capabilities. It was released before the philosophical beliefs of the Free and Open source software revolution were truly defined. Because of its creation by prominent FOSS programmer Richard Stallman, GNU was heavily involved in FOSS activism, with one of the greatest achievements of GNU being the creation of the
+        - link "GNU General Public License":
+          - /url: //en.wikipedia.org/wiki/GNU_General_Public_License
+        - text: or GPL, which allowed developers to release software that could be legally shared and modified.
+        - superscript:
+          - link "[24]":
+            - /url: "#cite_note-:55-24"
+    - list:
+      - listitem:
+        - link "Linux":
+          - /url: //en.wikipedia.org/wiki/Linux
+        - text: ": Linux is an"
+        - link "operating system kernel":
+          - /url: //en.wikipedia.org/wiki/Kernel_(operating_system)
+        - text: that was introduced in 1991 by
+        - link "Linus Torvalds":
+          - /url: //en.wikipedia.org/wiki/Linus_Torvalds
+        - text: . Linux was inspired by making a better version of the for profit operating service
+        - link "Minix":
+          - /url: //en.wikipedia.org/wiki/Minix
+        - text: . It was radically different than what other hackers were producing at the time due to it being totally free of cost and being decentralized. Later, Linux was put under the
+        - link "GPL license":
+          - /url: //en.wikipedia.org/wiki/GNU_General_Public_License
+        - text: ", allowing people to make money with Linux and bringing Linux into the FOSS community."
+        - superscript:
+          - link "[24]":
+            - /url: "#cite_note-:55-24"
+    - list:
+      - listitem:
+        - link "Apache:":
+          - /url: //en.wikipedia.org/wiki/Apache_HTTP_Server
+        - text: Apache began in 1995 as a collaboration between a group of developers releasing their own web server due to their frustration with
+        - link "NCSA HTTPd":
+          - /url: //en.wikipedia.org/wiki/NCSA_HTTPd
+        - text: code base. The name Apache was used because of the several patches they applied to this code base. Within a year of its release, it became the worldwide leading
+        - link "web server":
+          - /url: //en.wikipedia.org/wiki/Web_server
+        - text: . Soon, Apache came out with
+        - link "its own license":
+          - /url: //en.wikipedia.org/wiki/Apache_License
+        - text: ", creating discord in the greater FOSS community, though ultimately proving successful. The Apache license allowed permitted members to directly access source code, a marked difference from GNU and Linux's approaches."
+        - superscript:
+          - link "[24]":
+            - /url: "#cite_note-:55-24"
+    - heading "Extensions for non-software use" [level=3]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=30
+    - text: "]"
+    - paragraph:
+      - text: While the term open source applied originally only to the source code of software, it is now being applied to many other areas such as
+      - link "open-source ecology":
+        - /url: //en.wikipedia.org/wiki/Open_Source_Ecology
+      - text: ", a movement to decentralize technologies so that any human can use them."
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-:19-13"
+      - superscript:
+        - link "[59]":
+          - /url: "#cite_note-59"
+      - text: However, it is often misapplied to other areas that have different and competing principles, which overlap only partially.
+      - superscript:
+        - link "[40]":
+          - /url: "#cite_note-:3-40"
+    - paragraph:
+      - text: The same principles that underlie open-source software can be found in many other ventures, such as open source,
+      - link "open content":
+        - /url: //en.wikipedia.org/wiki/Open_content
+      - text: ", and"
+      - link "open collaboration":
+        - /url: //en.wikipedia.org/wiki/Open_collaboration
+      - text: .
+      - superscript:
+        - link "[60]":
+          - /url: "#cite_note-60"
+      - superscript:
+        - link "[3]":
+          - /url: "#cite_note-Open_Collaboration-3"
+    - paragraph:
+      - text: This "culture" or ideology takes the view that the principles apply more generally to facilitate concurrent input of different agendas, approaches, and priorities, in contrast with more centralized models of development such as those typically used in commercial companies.
+      - superscript:
+        - link "[15]":
+          - /url: "#cite_note-:9-15"
+    - heading "Value" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=31
+    - text: "]"
+    - paragraph:
+      - text: More than 90 percent of companies use open-source software as a component of their proprietary software.
+      - superscript:
+        - link "[61]":
+          - /url: "#cite_note-FOOTNOTEButler_''et_al.''20221-61"
+      - text: The decision to use open-source software, or even engage with open-source projects to improve existing open-source software, is typically a pragmatic business decision.
+      - superscript:
+        - link "[62]":
+          - /url: "#cite_note-FOOTNOTEButler_''et_al.''202211152-62"
+      - superscript:
+        - link "[63]":
+          - /url: "#cite_note-FOOTNOTEDavila20157-63"
+      - text: When proprietary software is in direct competition with an open-source alternative, research has found conflicting results on the effect of the competition on the proprietary product's price and quality.
+      - superscript:
+        - link "[64]":
+          - /url: "#cite_note-FOOTNOTEZhouChoudhary2022731-64"
+    - paragraph:
+      - text: For decades, some companies have made servicing of an open-source software product for enterprise users their business model. These companies control an open-source software product, and instead of charging for licensing or use, charge for improvements, integration, and other servicing.
+      - superscript:
+        - link "[65]":
+          - /url: "#cite_note-FOOTNOTEAugust_''et_al.''20211–2-65"
+      - link "Software as a service":
+        - /url: //en.wikipedia.org/wiki/Software_as_a_service
+      - text: (SaaS) products based on open-source components are increasingly common.
+      - superscript:
+        - link "[66]":
+          - /url: "#cite_note-FOOTNOTEAugust_''et_al.''20211-66"
+    - paragraph:
+      - text: Open-source software is preferred for scientific applications, because it increases transparency and aids in the validation and acceptance of scientific results.
+      - superscript:
+        - link "[67]":
+          - /url: "#cite_note-FOOTNOTEMorin_''et_al.''2012Compatibility,_Proliferation,_Fragmentation,_and_Directionality-67"
+    - heading "See also" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=32
+    - text: "]"
+    - navigation "Portals":
+      - listitem:
+        - link "Free and open-source software portal":
+          - /url: //en.wikipedia.org/wiki/Portal:Free_and_open-source_software
+    - list:
+      - listitem:
+        - link "Comparison of free and open-source software licenses":
+          - /url: //en.wikipedia.org/wiki/Comparison_of_free_and_open-source_software_licenses
+      - listitem:
+        - link "Free software":
+          - /url: //en.wikipedia.org/wiki/Free_software
+      - listitem:
+        - link "Free-software license":
+          - /url: //en.wikipedia.org/wiki/Free-software_license
+      - listitem:
+        - link "Free software movement":
+          - /url: //en.wikipedia.org/wiki/Free_software_movement
+      - listitem:
+        - link "List of free and open-source software packages":
+          - /url: //en.wikipedia.org/wiki/List_of_free_and_open-source_software_packages
+      - listitem:
+        - link "Free content":
+          - /url: //en.wikipedia.org/wiki/Free_content
+      - listitem:
+        - link "Open-source hardware":
+          - /url: //en.wikipedia.org/wiki/Open-source_hardware
+      - listitem:
+        - link "Open Source Initiative":
+          - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+      - listitem:
+        - link "Open-source license":
+          - /url: //en.wikipedia.org/wiki/Open-source_license
+      - listitem:
+        - link "Open-source software advocacy":
+          - /url: //en.wikipedia.org/wiki/Open-source_software_advocacy
+      - listitem:
+        - link "Open Source Software Institute":
+          - /url: //en.wikipedia.org/wiki/Open_Source_Software_Institute
+      - listitem:
+        - link "Open-source software security":
+          - /url: //en.wikipedia.org/wiki/Open-source_software_security
+      - listitem:
+        - link "Open-source video game":
+          - /url: //en.wikipedia.org/wiki/Open-source_video_game
+      - listitem:
+        - link "All articles with titles containing \"Open source\"":
+          - /url: //en.wikipedia.org/wiki/Special:Search/intitle:%22Open_source%22
+      - listitem:
+        - link "Proprietary software":
+          - /url: //en.wikipedia.org/wiki/Proprietary_software
+      - listitem:
+        - link "Shared Source Initiative":
+          - /url: //en.wikipedia.org/wiki/Shared_Source_Initiative
+      - listitem:
+        - link "Timeline of free and open-source software":
+          - /url: //en.wikipedia.org/wiki/Timeline_of_free_and_open-source_software
+      - listitem:
+        - link "Software composition analysis":
+          - /url: //en.wikipedia.org/wiki/Software_composition_analysis
+      - listitem:
+        - link "Digital public goods":
+          - /url: //en.wikipedia.org/wiki/Digital_public_goods
+    - heading "References" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=33
+    - text: "]"
+    - list:
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-1"
+          - text: ^
+        - text: St. Laurent, Andrew M. (2008).
+        - link "Understanding Open Source and Free Software Licensing":
+          - /url: https://books.google.com/books?id=04jG7TTLujoC&pg=PT18
+        - text: . O'Reilly Media. p. 4.
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-0-596-55395-1":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-0-596-55395-1
+        - text: .
+        - link "Archived":
+          - /url: https://web.archive.org/web/20230422145617/https://books.google.com/books?id=04jG7TTLujoC&pg=PT18
+        - text: from the original on 22 April 2023. Retrieved 21 March 2023.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-2"
+          - text: ^
+        - text: Corbly, James Edward (25 September 2014).
+        - 'link "\"The Free Software Alternative: Freeware, Open Source Software, and Libraries\""':
+          - /url: http://ejournals.bc.edu/ojs/index.php/ital/article/view/5105
+        - text: ". Information Technology and Libraries. 33 (3): 65."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.6017/ital.v33i3.5105":
+          - /url: https://doi.org/10.6017%2Fital.v33i3.5105
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "2163-5226":
+          - /url: https://search.worldcat.org/issn/2163-5226
+        - text: .
+        - link "Archived":
+          - /url: https://web.archive.org/web/20210501023728/https://ejournals.bc.edu/index.php/ital/article/view/5105
+        - text: from the original on 1 May 2021. Retrieved 28 April 2021.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-Open_Collaboration_3-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-Open_Collaboration_3-1"
+          - superscript: b
+        - text: "Levine, Sheen S.; Prietula, Michael J. (30 December 2013). \"Open Collaboration for Innovation: Principles and Performance\". Organization Science. 25 (5): 1414–1433."
+        - link "arXiv":
+          - /url: //en.wikipedia.org/wiki/ArXiv_(identifier)
+        - text: ":"
+        - link "1406.7541":
+          - /url: https://arxiv.org/abs/1406.7541
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1287/orsc.2013.0872":
+          - /url: https://doi.org/10.1287%2Forsc.2013.0872
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1047-7039":
+          - /url: https://search.worldcat.org/issn/1047-7039
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "6583883":
+          - /url: https://api.semanticscholar.org/CorpusID:6583883
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-4"
+          - text: ^
+        - text: Hoffmann, Manuel; Nagle, Frank; Zhou, Yanuo (2024). "The Value of Open Source Software". SSRN Electronic Journal.
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.2139/ssrn.4693148":
+          - /url: https://doi.org/10.2139%2Fssrn.4693148
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1556-5068":
+          - /url: https://search.worldcat.org/issn/1556-5068
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-5"
+          - text: ^
+        - link "\"International Authority & Recognition\"":
+          - /url: https://opensource.org/authority
+        - text: . Opensource.org. 21 April 2015.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20190723150523/https://opensource.org/authority
+        - text: from the original on 23 July 2019. Retrieved 7 December 2017.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-6"
+          - text: ^
+        - text: Perens, Bruce.
+        - 'link "Open Sources: Voices from the Open Source Revolution"':
+          - /url: http://www.oreilly.com/catalog/opensources/book/perens.html
+        - link "Archived":
+          - /url: https://web.archive.org/web/20140915025222/http://oreilly.com/catalog/opensources/book/perens.html
+        - text: 15 September 2014 at the
+        - link "Wayback Machine":
+          - /url: //en.wikipedia.org/wiki/Wayback_Machine
+        - text: .
+        - link "O'Reilly Media":
+          - /url: //en.wikipedia.org/wiki/O%27Reilly_Media
+        - text: . 1999.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-7"
+          - text: ^
+        - text: Dibona, Chris; Ockman, Sam (January 1999).
+        - link "The Open Source Definition by Bruce Perens":
+          - /url: https://archive.org/details/isbn_9781565925823
+        - text: . O'Reilly.
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-56592-582-3":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-56592-582-3
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-8"
+          - text: ^
+        - link "\"The Open Source Definition\"":
+          - /url: http://opensource.org/docs/osd
+        - text: . 7 July 2006.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20131015144021/http://opensource.org/docs/osd
+        - text: from the original on 15 October 2013. Retrieved 24 August 2008., The Open Source Definition according to the Open Source Initiative
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-9"
+          - text: ^
+        - link "\"How Many Open Source Licenses Do You Need? – Slashdot\"":
+          - /url: http://news.slashdot.org/comments.pl?sid=1129863&cid=26875815
+        - text: . News.slashdot.org. 16 February 2009.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20130717074714/http://news.slashdot.org/comments.pl?sid=1129863&cid=26875815
+        - text: from the original on 17 July 2013. Retrieved 25 March 2012.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-OSD-annotated16_10-0"
+          - text: ^
+        - text: Open Source Initiative (24 July 2006).
+        - link "\"The Open Source Definition (Annotated)\"":
+          - /url: https://opensource.org/osd-annotated
+        - text: . opensource.org.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20210505064040/https://opensource.org/osd-annotated
+        - text: from the original on 5 May 2021. Retrieved 22 July 2016.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-11"
+          - text: ^
+        - text: "Feller, Joseph; Fitzgerald, Brian; Hissam, Scott; Lakhani, Karim R. (2005). \"Introduction\". Perspectives on Free and Open Source Software. Cambridge, MA: The MIT Press. p. xvii."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "0-262-06246-1":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/0-262-06246-1
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-osihist_12-0"
+          - text: ^
+        - text: Tiemann, Michael.
+        - link "\"History of the OSI\"":
+          - /url: https://web.archive.org/web/20060924132022/http://www.opensource.org/docs/history.php
+        - text: . Open Source Initiative. Archived from
+        - link "the original":
+          - /url: http://www.opensource.org/docs/history.php
+        - text: on 24 September 2006. Retrieved 13 May 2014.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:19_13-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:19_13-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:19_13-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:19_13-3"
+          - superscript: d
+        - link "e":
+          - /url: "#cite_ref-:19_13-4"
+          - superscript: e
+        - link "f":
+          - /url: "#cite_ref-:19_13-5"
+          - superscript: f
+        - link "g":
+          - /url: "#cite_ref-:19_13-6"
+          - superscript: g
+        - text: Stallman, Richard (2007).
+        - link "\"Why Open Source Misses the Point of Free Software\"":
+          - /url: https://www.gnu.org/philosophy/open-source-misses-the-point.html
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-Why_14-0"
+          - text: ^
+        - link "Stallman, Richard":
+          - /url: //en.wikipedia.org/wiki/Richard_Stallman
+        - text: (19 June 2007).
+        - link "\"Why \"Free Software\" is better than \"Open Source\"\"":
+          - /url: https://www.gnu.org/philosophy/free-software-for-freedom.html
+        - text: . Philosophy of the GNU Project. Free Software Foundation.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20210327080246/https://www.gnu.org/philosophy/free-software-for-freedom.html
+        - text: from the original on 27 March 2021. Retrieved 23 July 2007.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:9_15-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:9_15-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:9_15-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:9_15-3"
+          - superscript: d
+        - text: Raymond, Eric (2005).
+        - link "\"The Cathedral and the Bazaar (originally published in Volume 3, Number 3, March 1998)\"":
+          - /url: https://doi.org/10.5210%2Ffm.v0i0.1472
+        - text: . First Monday.
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.5210/fm.v0i0.1472":
+          - /url: https://doi.org/10.5210%2Ffm.v0i0.1472
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1396-0466":
+          - /url: https://search.worldcat.org/issn/1396-0466
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:11_16-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:11_16-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:11_16-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:11_16-3"
+          - superscript: d
+        - link "e":
+          - /url: "#cite_ref-:11_16-4"
+          - superscript: e
+        - link "f":
+          - /url: "#cite_ref-:11_16-5"
+          - superscript: f
+        - link "g":
+          - /url: "#cite_ref-:11_16-6"
+          - superscript: g
+        - link "h":
+          - /url: "#cite_ref-:11_16-7"
+          - superscript: h
+        - link "i":
+          - /url: "#cite_ref-:11_16-8"
+          - superscript: i
+        - link "j":
+          - /url: "#cite_ref-:11_16-9"
+          - superscript: j
+        - text: Robles, Gregorio (2006). "Empirical Software Engineering Research on Free/Libre/Open Source Software". 2006 22nd IEEE International Conference on Software Maintenance. pp. 347–350.
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1109/icsm.2006.25":
+          - /url: https://doi.org/10.1109%2Ficsm.2006.25
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "0-7695-2354-4":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/0-7695-2354-4
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "6589566":
+          - /url: https://api.semanticscholar.org/CorpusID:6589566
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:24_17-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:24_17-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:24_17-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:24_17-3"
+          - superscript: d
+        - link "e":
+          - /url: "#cite_ref-:24_17-4"
+          - superscript: e
+        - link "f":
+          - /url: "#cite_ref-:24_17-5"
+          - superscript: f
+        - link "g":
+          - /url: "#cite_ref-:24_17-6"
+          - superscript: g
+        - text: "Napoleao, Bianca M.; Petrillo, Fabio; Halle, Sylvain (2020). \"Open Source Software Development Process: A Systematic Review\". 2020 IEEE 24th International Enterprise Distributed Object Computing Conference (EDOC). IEEE. pp. 135–144."
+        - link "arXiv":
+          - /url: //en.wikipedia.org/wiki/ArXiv_(identifier)
+        - text: ":"
+        - link "2008.05015":
+          - /url: https://arxiv.org/abs/2008.05015
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1109/EDOC49727.2020.00025":
+          - /url: https://doi.org/10.1109%2FEDOC49727.2020.00025
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-7281-6473-1":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-7281-6473-1
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:10_18-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:10_18-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:10_18-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:10_18-3"
+          - superscript: d
+        - link "e":
+          - /url: "#cite_ref-:10_18-4"
+          - superscript: e
+        - text: "Napoleao, Bianca M.; Petrillo, Fabio; Halle, Sylvain (2020). \"Open Source Software Development Process: A Systematic Review\". 2020 IEEE 24th International Enterprise Distributed Object Computing Conference (EDOC). IEEE. pp. 135–144."
+        - link "arXiv":
+          - /url: //en.wikipedia.org/wiki/ArXiv_(identifier)
+        - text: ":"
+        - link "2008.05015":
+          - /url: https://arxiv.org/abs/2008.05015
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1109/EDOC49727.2020.00025":
+          - /url: https://doi.org/10.1109%2FEDOC49727.2020.00025
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-7281-6473-1":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-7281-6473-1
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-dod16_19-0"
+          - text: ^
+        - text: US Department of Defense.
+        - link "\"Open Source Software FAQ\"":
+          - /url: https://dodcio.defense.gov/Open-Source-Software-FAQ/
+        - text: . Chief Information Officer.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20160828150638/http://dodcio.defense.gov/Open-Source-Software-FAQ/
+        - text: from the original on 28 August 2016. Retrieved 22 July 2016.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-Sharma2002_20-0"
+          - text: ^
+        - text: Sharma, Srinarayan; Vijayan Sugumaran; Balaji Rajagopalan (2002).
+        - link "\"A framework for creating hybrid-open source software communities\"":
+          - /url: http://www.cin.ufpe.br/~in953/lectures/papers/ISJAFrameworkForCreatingHybrid-OpenSourceSoftwareCommunities.pdf
+        - text: "(PDF). Information Systems Journal. 12: 7–25."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1046/j.1365-2575.2002.00116.x":
+          - /url: https://doi.org/10.1046%2Fj.1365-2575.2002.00116.x
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "5815589":
+          - /url: https://api.semanticscholar.org/CorpusID:5815589
+        - text: .
+        - link "Archived":
+          - /url: https://web.archive.org/web/20081030014215/http://www.cin.ufpe.br/~in953/lectures/papers/ISJAFrameworkForCreatingHybrid-OpenSourceSoftwareCommunities.pdf
+        - text: (PDF) from the original on 30 October 2008. Retrieved 8 September 2008.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:21_21-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:21_21-1"
+          - superscript: b
+        - text: Reynolds, Carl; Jeremy Wyatt (February 2011).
+        - link "\"Open Source, Open Standards, and Health Care Information Systems\"":
+          - /url: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3221346
+        - text: .
+        - link "Journal of Medical Internet Research":
+          - /url: //en.wikipedia.org/wiki/Journal_of_Medical_Internet_Research
+        - text: ". 13 (1): e24."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.2196/jmir.1521":
+          - /url: https://doi.org/10.2196%2Fjmir.1521
+        - text: .
+        - link "PMC":
+          - /url: //en.wikipedia.org/wiki/PMC_(identifier)
+        - link "3221346":
+          - /url: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3221346
+        - text: .
+        - link "PMID":
+          - /url: //en.wikipedia.org/wiki/PMID_(identifier)
+        - link "21447469":
+          - /url: https://pubmed.ncbi.nlm.nih.gov/21447469
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-22"
+          - text: ^
+        - text: Landry, John; Rajiv Gupta (September 2000). "Profiting from Open Source".
+        - link "Harvard Business Review":
+          - /url: //en.wikipedia.org/wiki/Harvard_Business_Review
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1225/F00503":
+          - /url: https://doi.org/10.1225%2FF00503
+        - text: (inactive 12 July 2025).
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:35_23-0"
+          - text: ^
+        - text: Nagle, Frank (3 March 2019).
+        - link "\"Government Technology Policy, Social Value, and National Competitiveness\"":
+          - /url: https://www.cin.ufpe.br/~in953/lectures/papers/ISJAFrameworkForCreatingHybrid-OpenSourceSoftwareCommunities.pdf
+        - text: (PDF). Information Systems Journal. 12.
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.2139/ssrn.3355486":
+          - /url: https://doi.org/10.2139%2Fssrn.3355486
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "85509685":
+          - /url: https://api.semanticscholar.org/CorpusID:85509685
+        - text: .
+        - link "SSRN":
+          - /url: //en.wikipedia.org/wiki/SSRN_(identifier)
+        - link "3355486":
+          - /url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3355486
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:55_24-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:55_24-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:55_24-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:55_24-3"
+          - superscript: d
+        - link "e":
+          - /url: "#cite_ref-:55_24-4"
+          - superscript: e
+        - link "f":
+          - /url: "#cite_ref-:55_24-5"
+          - superscript: f
+        - link "g":
+          - /url: "#cite_ref-:55_24-6"
+          - superscript: g
+        - link "h":
+          - /url: "#cite_ref-:55_24-7"
+          - superscript: h
+        - link "i":
+          - /url: "#cite_ref-:55_24-8"
+          - superscript: i
+        - text: "Tozzi, Christopher (2017). For Fun and Profit: A History of the Free and Open Source Software Revolution. United States: MIT Press."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-0-262-34118-9":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-0-262-34118-9
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-25"
+          - text: ^
+        - text: "Plotkin, Hal (December 1998). \"What (and Why) you should know about open-source software\". Harvard Management Update: 8–9."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:36_26-0"
+          - text: ^
+        - text: "Payne, Christian (February 2002). \"On the Security of Open Source Software\". Information Systems Journal. 12 (1): 61–78."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1046/j.1365-2575.2002.00118.x":
+          - /url: https://doi.org/10.1046%2Fj.1365-2575.2002.00118.x
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "8123076":
+          - /url: https://api.semanticscholar.org/CorpusID:8123076
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-27"
+          - text: ^
+        - text: Shirey, Russell G. (1 March 2015).
+        - link "\"Git as an Encrypted Distributed Version Control System\"":
+          - /url: https://apps.dtic.mil/sti/pdfs/ADA619785.pdf
+        - text: (PDF).
+        - link "Defense Technical Information Center":
+          - /url: //en.wikipedia.org/wiki/Defense_Technical_Information_Center
+        - text: . p. 38. Retrieved 5 September 2025.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:16_28-0"
+          - text: ^
+        - text: Zolkifli, Nazatul Nurlisa; Ngah, Amir; Deraman, Aziz (2018).
+        - 'link "\"Version Control System: A Review\""':
+          - /url: https://doi.org/10.1016%2Fj.procs.2018.08.191
+        - text: ". Procedia Computer Science. 135: 408–415."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/j.procs.2018.08.191":
+          - /url: https://doi.org/10.1016%2Fj.procs.2018.08.191
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:4_29-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:4_29-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:4_29-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:4_29-3"
+          - superscript: d
+        - text: "Brasseur, V. M. (2018). Forge your future with open source: build your skills, build your network, build the future of technology. The pragmatic programmers. Raleigh, North Carolina: The Pragmatic Bookshelf."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-68050-301-2":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-68050-301-2
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-30"
+          - text: ^
+        - link "\"Open Source\"":
+          - /url: https://blog.opencollective.com/tag/open-source/
+        - text: . Open Collective. 20 October 2022. Retrieved 28 May 2024.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-31"
+          - text: ^
+        - link "\"Technologies\"":
+          - /url: https://www.sovereigntechfund.de/tech
+        - text: . Sovereign Tech Fund. Retrieved 28 May 2024.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-32"
+          - text: ^
+        - link "\"NSF invests over $26 million in open-source projects | NSF - National Science Foundation\"":
+          - /url: https://new.nsf.gov/tip/updates/nsf-invests-over-26m-open-source-projects
+        - text: . new.nsf.gov. 25 October 2023. Retrieved 28 May 2024.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:6_33-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:6_33-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:6_33-2"
+          - superscript: c
+        - text: Spinellis, Diomidis; Giannikas, Vaggelis (2012).
+        - link "\"Organizational adoption of open source software\"":
+          - /url: https://linkinghub.elsevier.com/retrieve/pii/S0164121211002512
+        - text: ". Journal of Systems and Software. 85 (3): 666–682."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/j.jss.2011.09.037":
+          - /url: https://doi.org/10.1016%2Fj.jss.2011.09.037
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-34"
+          - text: ^
+        - text: Zhang, Yiming; Malhotra, Baljeet; Chen, Cheng (2018). "Industry-Wide Analysis of Open Source Security". 2018 16th Annual Conference on Privacy, Security and Trust (PST). IEEE. pp. 1–10.
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1109/PST.2018.8514185":
+          - /url: https://doi.org/10.1109%2FPST.2018.8514185
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-5386-7493-2":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-5386-7493-2
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "53234981":
+          - /url: https://api.semanticscholar.org/CorpusID:53234981
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:7_35-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:7_35-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:7_35-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:7_35-3"
+          - superscript: d
+        - link "e":
+          - /url: "#cite_ref-:7_35-4"
+          - superscript: e
+        - link "f":
+          - /url: "#cite_ref-:7_35-5"
+          - superscript: f
+        - link "g":
+          - /url: "#cite_ref-:7_35-6"
+          - superscript: g
+        - text: "Brock, Amanda (2023). Open Source Law, Policy and Practice (2nd ed.). UK: Oxford University Press."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-0-19-886234-5":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-0-19-886234-5
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:14_36-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:14_36-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:14_36-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:14_36-3"
+          - superscript: d
+        - text: "Wynants, M., & Cornelis, J. (Eds.). (2005). How open is the future? : Economic, social and cultural scenarios inspired by free and open-source software. ASP."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-37"
+          - text: ^
+        - link "Cabinet Office":
+          - /url: //en.wikipedia.org/wiki/Cabinet_Office
+        - text: ","
+        - 'link "All about Open Source: An Introduction to Open Source Software for Government IT, Version 2.0"':
+          - /url: https://assets.publishing.service.gov.uk/media/5a78d824e5274a277e68fe98/All_About_Open_Source_v2_0.pdf
+        - text: ", page 8, published in April 2012, accessed on 1 October 2025"
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:8_38-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:8_38-1"
+          - superscript: b
+        - text: "Pannier, Alice (2022). Software Power: The Economic and Geopolitical Implications of Open Source Software. Études de l'Ifri."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "979-10-373-0641-8":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/979-10-373-0641-8
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:13_39-0"
+          - text: ^
+        - text: Maracke, Catharina (2019).
+        - 'link "\"Free and Open Source Software and FRAND-based patent licenses: How to mediate between Standard Essential Patent and Free and Open Source Software\""':
+          - /url: https://doi.org/10.1111%2Fjwip.12114
+        - text: ". The Journal of World Intellectual Property. 22 (3–4): 78–102."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1111/jwip.12114":
+          - /url: https://doi.org/10.1111%2Fjwip.12114
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1422-2213":
+          - /url: https://search.worldcat.org/issn/1422-2213
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:3_40-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:3_40-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:3_40-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:3_40-3"
+          - superscript: d
+        - link "e":
+          - /url: "#cite_ref-:3_40-4"
+          - superscript: e
+        - link "f":
+          - /url: "#cite_ref-:3_40-5"
+          - superscript: f
+        - text: Bretthauer, David (2001).
+        - 'link "\"Open Source Software: A History\""':
+          - /url: https://link.gale.com/apps/doc/A84594448/AONE?u=anon~ec73e203&sid=googleScholar&xid=c0f93b7e
+        - text: . Information Technology and Libraries. 21 (1).
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:18_41-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:18_41-1"
+          - superscript: b
+        - link "\"International Authority & Recognition\"":
+          - /url: https://opensource.org/authority/
+        - text: . Open Source Initiative. 21 April 2015. Retrieved 18 December 2023.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:28_42-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:28_42-1"
+          - superscript: b
+        - text: Fogel, Karl (2006).
+        - 'link "Producing open source software: how to run a successful free software project"':
+          - /url: https://archive.org/details/producingoss
+        - text: "(1. Aufl., [Nachdr.] ed.). Beijing Köln: O'Reilly."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-0-596-00759-1":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-0-596-00759-1
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-43"
+          - text: ^
+        - text: "Kelty, Christopher (2008). Two Bits: The Cultural Significance of Free Software. Duke University Press."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-0-8223-8900-2":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-0-8223-8900-2
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:27_44-0"
+          - text: ^
+        - text: "Miller, Keith W.; Voas, Jeffrey; Costello, Tom (2010). \"Free and Open Source Software\". IT Professional. 12 (6): 14–16."
+        - link "Bibcode":
+          - /url: //en.wikipedia.org/wiki/Bibcode_(identifier)
+        - text: ":"
+        - link "2010ITPro..12f..14M":
+          - /url: https://ui.adsabs.harvard.edu/abs/2010ITPro..12f..14M
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1109/mitp.2010.147":
+          - /url: https://doi.org/10.1109%2Fmitp.2010.147
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1520-9202":
+          - /url: https://search.worldcat.org/issn/1520-9202
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "265508713":
+          - /url: https://api.semanticscholar.org/CorpusID:265508713
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:22_45-0"
+          - text: ^
+        - text: Zhu, Kevin Xiaoguo; Zhou, Zach Zhizhong (2012).
+        - 'link "\"Research Note —Lock-In Strategy in Software Competition: Open-Source Software vs. Proprietary Software\""':
+          - /url: https://pubsonline.informs.org/doi/10.1287/isre.1110.0358
+        - text: ". Information Systems Research. 23 (2): 536–545."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1287/isre.1110.0358":
+          - /url: https://doi.org/10.1287%2Fisre.1110.0358
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1047-7047":
+          - /url: https://search.worldcat.org/issn/1047-7047
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:17_46-0"
+          - text: ^
+        - link "\"The Open Source Definition (Annotated)\"":
+          - /url: https://opensource.org/definition-annotated/
+        - text: . Open Source Initiative. 24 July 2006. Retrieved 18 December 2023.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:20_47-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:20_47-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:20_47-2"
+          - superscript: c
+        - text: "Stallman, Richard M.; Gay, Joshua (2002). Free software, free society. Boston (Mass.): Free software foundation."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-882114-98-6":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-882114-98-6
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-Fortunato-2021_48-0"
+          - text: ^
+        - link "Laura Fortunato":
+          - /url: //en.wikipedia.org/wiki/Laura_Fortunato_(academic)
+        - text: ;
+        - link "Mark Galassi":
+          - /url: //en.wikipedia.org/wiki/Mark_Galassi
+        - text: (29 March 2021).
+        - link "\"The case for free and open source software in research and scholarship\"":
+          - /url: https://www.osti.gov/biblio/1836982
+        - text: .
+        - link "Philosophical Transactions of the Royal Society A":
+          - /url: //en.wikipedia.org/wiki/Philosophical_Transactions_of_the_Royal_Society_A
+        - text: . 379 (2197).
+        - link "Bibcode":
+          - /url: //en.wikipedia.org/wiki/Bibcode_(identifier)
+        - text: ":"
+        - link "2021RSPTA.37900079F":
+          - /url: https://ui.adsabs.harvard.edu/abs/2021RSPTA.37900079F
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1098/RSTA.2020.0079":
+          - /url: https://doi.org/10.1098%2FRSTA.2020.0079
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1364-503X":
+          - /url: https://search.worldcat.org/issn/1364-503X
+        - text: .
+        - link "OSTI":
+          - /url: //en.wikipedia.org/wiki/OSTI_(identifier)
+        - link "1836982":
+          - /url: https://www.osti.gov/biblio/1836982
+        - text: .
+        - link "PMID":
+          - /url: //en.wikipedia.org/wiki/PMID_(identifier)
+        - link "33775148":
+          - /url: https://pubmed.ncbi.nlm.nih.gov/33775148
+        - text: .
+        - link "Wikidata":
+          - /url: //en.wikipedia.org/wiki/WDQ_(identifier)
+        - link "Q111919147":
+          - /url: https://www.wikidata.org/wiki/Q111919147
+        - text: . Retrieved 5 February 2026 – via
+        - link "OSTI":
+          - /url: //en.wikipedia.org/wiki/OSTI
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:23_49-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:23_49-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:23_49-2"
+          - superscript: c
+        - text: Pinto, Gustavo; Steinmacher, Igor; Dias, Luiz Felipe; Gerosa, Marco (2018).
+        - link "\"On the challenges of open-sourcing proprietary software projects\"":
+          - /url: http://link.springer.com/10.1007/s10664-018-9609-6
+        - text: ". Empirical Software Engineering. 23 (6): 3221–3247."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1007/s10664-018-9609-6":
+          - /url: https://doi.org/10.1007%2Fs10664-018-9609-6
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1382-3256":
+          - /url: https://search.worldcat.org/issn/1382-3256
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "254467440":
+          - /url: https://api.semanticscholar.org/CorpusID:254467440
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:25_50-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:25_50-1"
+          - superscript: b
+        - text: "Ågerfalk; Fitzgerald (2008). \"Outsourcing to an Unknown Workforce: Exploring Opensurcing as a Global Sourcing Strategy\". MIS Quarterly. 32 (2): 385."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.2307/25148845":
+          - /url: https://doi.org/10.2307%2F25148845
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "0276-7783":
+          - /url: https://search.worldcat.org/issn/0276-7783
+        - text: .
+        - link "JSTOR":
+          - /url: //en.wikipedia.org/wiki/JSTOR_(identifier)
+        - link "25148845":
+          - /url: https://www.jstor.org/stable/25148845
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:0_51-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:0_51-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:0_51-2"
+          - superscript: c
+        - text: Wachs, Johannes; Nitecki, Mariusz; Schueller, William; Polleres, Axel (March 2002).
+        - 'link "\"The Geography of Open Source Software: Evidence from GitHub\""':
+          - /url: https://linkinghub.elsevier.com/retrieve/pii/S0040162522000105
+        - text: . Technological Forecasting and Social Change. 176 121478.
+        - link "arXiv":
+          - /url: //en.wikipedia.org/wiki/ArXiv_(identifier)
+        - text: ":"
+        - link "2107.03200":
+          - /url: https://arxiv.org/abs/2107.03200
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/j.techfore.2022.121478":
+          - /url: https://doi.org/10.1016%2Fj.techfore.2022.121478
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-52"
+          - text: ^
+        - text: Rastogi, Ayushi; Nagappan, Nachiappan; Gousios, Georgios; van der Hoek, André (11 October 2018).
+        - link "\"Relationship between geographical location and evaluation of developer contributions in github\"":
+          - /url: https://dl.acm.org/doi/10.1145/3239235.3240504
+        - text: .
+        - link "Proceedings of the 12th ACM/IEEE International Symposium on Empirical Software Engineering and Measurement":
+          - /url: http://resolver.tudelft.nl/uuid:3b3ad2bd-d865-4a78-b5f0-cdb849d2ee50
+        - text: . ACM. pp. 1–8.
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1145/3239235.3240504":
+          - /url: https://doi.org/10.1145%2F3239235.3240504
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-4503-5823-1":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-4503-5823-1
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "215822439":
+          - /url: https://api.semanticscholar.org/CorpusID:215822439
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:1_53-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:1_53-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-:1_53-2"
+          - superscript: c
+        - link "d":
+          - /url: "#cite_ref-:1_53-3"
+          - superscript: d
+        - text: Gonzalez-Barahona, Jesus M.; Robles, Gregorio; Andradas-Izquierdo, Roberto; Ghosh, Rishab Aiyer (August 2008).
+        - link "\"Geographic origin of libre software developers\"":
+          - /url: https://linkinghub.elsevier.com/retrieve/pii/S0167624508000395
+        - text: ". Information Economics and Policy. 20 (4): 356–363."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/j.infoecopol.2008.07.001":
+          - /url: https://doi.org/10.1016%2Fj.infoecopol.2008.07.001
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-:2_54-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-:2_54-1"
+          - superscript: b
+        - text: "Bosu, Amiangshu; Sultana, Kazi Zakia (2019). \"Diversity and Inclusion in Open Source Software (OSS) Projects: Where do We Stand?\". 2019 ACM/IEEE International Symposium on Empirical Software Engineering and Measurement (ESEM). IEEE. pp. 1–11."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1109/ESEM.2019.8870179":
+          - /url: https://doi.org/10.1109%2FESEM.2019.8870179
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-7281-2968-6":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-7281-2968-6
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "197640269":
+          - /url: https://api.semanticscholar.org/CorpusID:197640269
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:62_55-0"
+          - text: ^
+        - text: Nafus, Dawn (June 2012).
+        - 'link "\"''Patches don''t have gender'': What is not open in open source software\""':
+          - /url: http://journals.sagepub.com/doi/10.1177/1461444811422887
+        - text: ". New Media & Society. 14 (4): 669–683."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1177/1461444811422887":
+          - /url: https://doi.org/10.1177%2F1461444811422887
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1461-4448":
+          - /url: https://search.worldcat.org/issn/1461-4448
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "206727320":
+          - /url: https://api.semanticscholar.org/CorpusID:206727320
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-56"
+          - text: ^
+        - text: Trinkenreich, Bianca; Wiese, Igor; Sarma, Anita; Gerosa, Marco; Steinmacher, Igor (31 October 2022).
+        - 'link "\"Women''s Participation in Open Source Software: A Survey of the Literature\""':
+          - /url: https://dl.acm.org/doi/10.1145/3510460
+        - text: ". ACM Transactions on Software Engineering and Methodology. 31 (4): 1–37."
+        - link "arXiv":
+          - /url: //en.wikipedia.org/wiki/ArXiv_(identifier)
+        - text: ":"
+        - link "2105.08777":
+          - /url: https://arxiv.org/abs/2105.08777
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1145/3510460":
+          - /url: https://doi.org/10.1145%2F3510460
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1049-331X":
+          - /url: https://search.worldcat.org/issn/1049-331X
+        - text: .
+        - link "S2CID":
+          - /url: //en.wikipedia.org/wiki/S2CID_(identifier)
+        - link "234778104":
+          - /url: https://api.semanticscholar.org/CorpusID:234778104
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-57"
+          - text: ^
+        - text: Albusays, Khaled; Bjorn, Pernille; Dabbish, Laura; Ford, Denae; Murphy-Hill, Emerson; Serebrenik, Alexander;
+        - link "Storey, Margaret-Anne":
+          - /url: //en.wikipedia.org/wiki/Margaret-Anne_Storey
+        - text: (April 2021).
+        - link "\"The Diversity Crisis in Software Development\"":
+          - /url: https://research.tue.nl/en/publications/2fd702ec-a51b-41a6-b235-a1e9a9bbe1f9
+        - text: ". IEEE Software. 38 (2): 19–25."
+        - link "Bibcode":
+          - /url: //en.wikipedia.org/wiki/Bibcode_(identifier)
+        - text: ":"
+        - link "2021ISoft..38b..19A":
+          - /url: https://ui.adsabs.harvard.edu/abs/2021ISoft..38b..19A
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1109/MS.2020.3045817":
+          - /url: https://doi.org/10.1109%2FMS.2020.3045817
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "0740-7459":
+          - /url: https://search.worldcat.org/issn/0740-7459
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-:12_58-0"
+          - text: ^
+        - text: "Popp, Karl Michael, ed. (2020). Best practices for commercial use of open source software: business models, processes and tools for managing open source software. Synomic Academy. Norderstedt: BoD – Books on Demand."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-3-7386-1909-6":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-3-7386-1909-6
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-59"
+          - text: ^
+        - text: Powers, Stephen M.; Hampton, Stephanie E. (2019).
+        - link "\"Open science, reproducibility, and transparency in ecology\"":
+          - /url: https://doi.org/10.1002%2Feap.1822
+        - text: ". Ecological Applications. 29 (1): e01822."
+        - link "Bibcode":
+          - /url: //en.wikipedia.org/wiki/Bibcode_(identifier)
+        - text: ":"
+        - link "2019EcoAp..29E1822P":
+          - /url: https://ui.adsabs.harvard.edu/abs/2019EcoAp..29E1822P
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1002/eap.1822":
+          - /url: https://doi.org/10.1002%2Feap.1822
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1051-0761":
+          - /url: https://search.worldcat.org/issn/1051-0761
+        - text: .
+        - link "PMID":
+          - /url: //en.wikipedia.org/wiki/PMID_(identifier)
+        - link "30362295":
+          - /url: https://pubmed.ncbi.nlm.nih.gov/30362295
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-60"
+          - text: ^
+        - text: Cheliotis, Giorgos (2009).
+        - 'link "\"From open source to open content: Organization, licensing and decision processes in open cultural production\""':
+          - /url: http://scholarbank.nus.edu.sg/handle/10635/23346
+        - text: ". Decision Support Systems. 47 (3): 229–244."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/j.dss.2009.02.006":
+          - /url: https://doi.org/10.1016%2Fj.dss.2009.02.006
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "0167-9236":
+          - /url: https://search.worldcat.org/issn/0167-9236
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-FOOTNOTEButler_''et_al.''20221_61-0"
+          - text: ^
+        - link "Butler et al. 2022":
+          - /url: "#CITEREFButler_et_al.2022"
+        - text: ", p. 1."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-FOOTNOTEButler_''et_al.''202211152_62-0"
+          - text: ^
+        - link "Butler et al. 2022":
+          - /url: "#CITEREFButler_et_al.2022"
+        - text: ", p. 11152."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-FOOTNOTEDavila20157_63-0"
+          - text: ^
+        - link "Davila 2015":
+          - /url: "#CITEREFDavila2015"
+        - text: ", p. 7."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-FOOTNOTEZhouChoudhary2022731_64-0"
+          - text: ^
+        - link "Zhou & Choudhary 2022":
+          - /url: "#CITEREFZhouChoudhary2022"
+        - text: ", p. 731."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-FOOTNOTEAugust_''et_al.''20211–2_65-0"
+          - text: ^
+        - link "August et al. 2021":
+          - /url: "#CITEREFAugust_et_al.2021"
+        - text: ", pp. 1–2."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-FOOTNOTEAugust_''et_al.''20211_66-0"
+          - text: ^
+        - link "August et al. 2021":
+          - /url: "#CITEREFAugust_et_al.2021"
+        - text: ", p. 1."
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-FOOTNOTEMorin_''et_al.''2012Compatibility,_Proliferation,_Fragmentation,_and_Directionality_67-0"
+          - text: ^
+        - link "Morin et al. 2012":
+          - /url: "#CITEREFMorin_et_al.2012"
+        - text: ", Compatibility, Proliferation, Fragmentation, and Directionality."
+    - heading "Further reading" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=34
+    - text: "]"
+    - list:
+      - listitem:
+        - text: Androutsellis-Theotokis, Stephanos;
+        - link "Spinellis, Diomidis":
+          - /url: //en.wikipedia.org/wiki/Diomidis_Spinellis
+        - text: ; Kechagia, Maria; Gousios, Georgios (2010).
+        - 'link "\"Open source software: A survey from 10,000 feet\""':
+          - /url: http://www.dmst.aueb.gr/dds/pubs/jrnl/2010-TOMS-OSS-Survey/html/ASKG10.pdf
+        - text: "(PDF). Foundations and Trends in Technology, Information and Operations Management. 4 (3–4): 187–347."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1561/0200000026":
+          - /url: https://doi.org/10.1561%2F0200000026
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-60198-484-5":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-60198-484-5
+        - text: .
+      - listitem:
+        - text: "August, Terrence; Chen, Wei; Zhu, Kevin (2021). \"Competition Among Proprietary and Open-Source Software Firms: The Role of Licensing in Strategic Contribution\". Management Science. 67 (5): 3041–3066."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1287/mnsc.2020.3674":
+          - /url: https://doi.org/10.1287%2Fmnsc.2020.3674
+        - text: .
+      - listitem:
+        - text: Birkinbine, Benjamin J. (2020).
+        - 'link "Incorporating the Digital Commons: Corporate Involvement in Free and Open Source Software"':
+          - /url: https://library.oapen.org/handle/20.500.12657/37226
+        - text: . University of Westminster Press.
+        - link "hdl":
+          - /url: //en.wikipedia.org/wiki/Hdl_(identifier)
+        - text: ":"
+        - link "20.500.12657/37226":
+          - /url: https://hdl.handle.net/20.500.12657%2F37226
+        - text: .
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-912656-43-1":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-912656-43-1
+        - text: .
+      - listitem:
+        - text: Butler, Simon; Gamalielsson, Jonas; Lundell, Björn; Brax, Christoffer; Mattsson, Anders; Gustavsson, Tomas; Feist, Jonas; Kvarnström, Bengt; Lönroth, Erik (2022). "Considerations and challenges for the adoption of open source components in software-intensive businesses". Journal of Systems and Software. 186 111152. Elsevier BV.
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/j.jss.2021.111152":
+          - /url: https://doi.org/10.1016%2Fj.jss.2021.111152
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "0164-1212":
+          - /url: https://search.worldcat.org/issn/0164-1212
+        - text: .
+      - listitem:
+        - link "Coleman, E. Gabriella":
+          - /url: //en.wikipedia.org/wiki/Gabriella_Coleman
+        - text: ". Coding Freedom: The Ethics and Aesthetics of Hacking (Princeton UP, 2012)"
+      - listitem:
+        - text: Davila, Jacinto (2015). "The Political Logic of Free, Libre, Open Source Software". Societal Benefits of Freely Accessible Technologies and Knowledge Resources. IGI Global. pp. 1–24.
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-4666-8337-2":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-4666-8337-2
+        - text: .
+      - listitem:
+        - text: Fadi P. Deek; James A. M. McHugh (2008).
+        - 'link "Open Source: Technology and Policy"':
+          - /url: https://archive.org/details/opensourcetechno0000deek
+        - text: ". Cambridge: Cambridge University Press."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-0-511-36775-5":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-0-511-36775-5
+        - text: .
+      - listitem:
+        - link "Chris DiBona":
+          - /url: //en.wikipedia.org/wiki/Chris_DiBona
+        - text: and Sam Ockman and Mark Stone, ed. (1999).
+        - 'link "Open Sources: Voices from the Open Source Revolution"':
+          - /url: https://archive.org/details/isbn_9781565925823
+        - text: . O'Reilly.
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-56592-582-3":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-56592-582-3
+        - text: .
+      - listitem:
+        - text: Joshua Gay, ed. (2002).
+        - 'link "Free Software, Free Society: Selected Essays of Richard M. Stallman"':
+          - /url: https://archive.org/details/freesoftwarefree00rich
+        - text: ". Boston: GNU Press, Free Software Foundation."
+        - link "ISBN":
+          - /url: //en.wikipedia.org/wiki/ISBN_(identifier)
+        - link "978-1-882114-98-6":
+          - /url: //en.wikipedia.org/wiki/Special:BookSources/978-1-882114-98-6
+        - text: .
+      - listitem:
+        - link "Understanding FOSS | editor = Sampathkumar Coimbatore India":
+          - /url: https://books.google.com/books?id=2JwU71HSkikC&q=k.s.sampathkumar
+      - listitem:
+        - 'link "Benkler, Yochai (2002), \"Coase''s Penguin, or, Linux and The Nature of the Firm.\" Yale Law Journal 112.3 (Dec 2002): p367(78)"':
+          - /url: http://www.benkler.org/CoasesPenguin.PDF
+        - text: (in Adobe
+        - link "pdf":
+          - /url: //en.wikipedia.org/wiki/Portable_Document_Format
+        - text: format)
+      - listitem:
+        - text: v. Engelhardt, Sebastian (2008).
+        - link "\"\"The Economic Properties of Software\", Jena Economic Research Papers, Volume 2 (2008), Number 2008-045\"":
+          - /url: https://ideas.repec.org/p/jrp/jrpwrp/2008-045.html
+        - text: (PDF). Jena Economics Research Papers.
+      - listitem: "Lerner, J. & Tirole, J. (2002): 'Some simple economics on open source', Journal of Industrial Economics 50(2), p 197–234"
+      - listitem:
+        - text: Välimäki, Mikko (2005).
+        - 'link "The Rise of Open Source Licensing: A Challenge to the Use of Intellectual Property in the Software Industry"':
+          - /url: https://web.archive.org/web/20090304002920/http://pub.turre.com/openbook_valimaki.pdf
+        - text: (PDF). Turre Publishing. Archived from
+        - link "the original":
+          - /url: http://pub.turre.com/openbook_valimaki.pdf
+        - text: (PDF) on 4 March 2009.
+      - listitem:
+        - text: Morin, Andrew; Urban, Jennifer; Sliz, Piotr (2012).
+        - link "\"A Quick Guide to Software Licensing for the Scientist-Programmer\"":
+          - /url: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3406002
+        - text: . PLOS Computational Biology. 8 (7) e1002598.
+        - link "Bibcode":
+          - /url: //en.wikipedia.org/wiki/Bibcode_(identifier)
+        - text: ":"
+        - link "2012PLSCB...8E2598M":
+          - /url: https://ui.adsabs.harvard.edu/abs/2012PLSCB...8E2598M
+        - text: .
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1371/journal.pcbi.1002598":
+          - /url: https://doi.org/10.1371%2Fjournal.pcbi.1002598
+        - text: .
+        - link "ISSN":
+          - /url: //en.wikipedia.org/wiki/ISSN_(identifier)
+        - link "1553-7358":
+          - /url: https://search.worldcat.org/issn/1553-7358
+        - text: .
+        - link "PMC":
+          - /url: //en.wikipedia.org/wiki/PMC_(identifier)
+        - link "3406002":
+          - /url: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3406002
+        - text: .
+        - link "PMID":
+          - /url: //en.wikipedia.org/wiki/PMID_(identifier)
+        - link "22844236":
+          - /url: https://pubmed.ncbi.nlm.nih.gov/22844236
+        - text: .
+      - listitem:
+        - text: Polley, Barry (11 December 2007).
+        - link "\"Open Source Discussion Paper – version 1.0\"":
+          - /url: https://web.archive.org/web/20180223161836/https://nzoss.org.nz/system/files/moj_oss_strategy_1.0.pdf
+        - text: (PDF). New Zealand Open Source Society. New Zealand Ministry of Justice. Archived from
+        - link "the original":
+          - /url: http://nzoss.org.nz/system/files/moj_oss_strategy_1.0.pdf
+        - text: (PDF) on 23 February 2018. Retrieved 12 December 2007.
+      - listitem: "Rossi, M. A. (2006): Decoding the free/open-source software puzzle: A survey of theoretical and empirical contributions, in J. Bitzer P. Schröder, eds, 'The Economics of Open Source Software Development', p 15–55."
+      - listitem:
+        - 'link "Open Sources: Voices from the Open Source Revolution"':
+          - /url: http://www.oreilly.com/catalog/opensources/book/toc.html
+        - text: — an online book containing essays from prominent members of the open-source community
+      - listitem:
+        - 'link "Berry, D M (2004). The Contestation of Code: A Preliminary Investigation into the Discourse of the Free Software and Open Software Movement, Critical Discourse Studies, Volume 1(1)."':
+          - /url: https://web.archive.org/web/20060912222653/http://opensource.mit.edu/papers/berry1.pdf
+      - listitem:
+        - text: Schrape, Jan-Felix (2017).
+        - link "\"Open Source Projects as Incubators of Innovation. From Niche Phenomenon to Integral Part of the Software Industry\"":
+          - /url: http://www.uni-stuttgart.de/soz/oi/publikationen/soi_2017_3_Schrape.Open.Source.Projects.Incubators.Innovation.pdf
+        - text: "(PDF). Stuttgart: Research Contributions to Organizational Sociology and Innovation Studies 2017-03."
+      - listitem:
+        - link "Sustainable Open Source":
+          - /url: https://wiki.evolveum.com/display/midPoint/Sustainable+Open+Source
+        - text: ", a Confluence article providing guidelines for fair participation in the open source ecosystem, by Radovan Semancik"
+      - listitem:
+        - text: "Zhou, Zach Zhizhong; Choudhary, Vidyanand (2022). \"Impact of Competition from Open Source Software on Proprietary Software\". Production and Operations Management. 31 (2): 731–742."
+        - link "doi":
+          - /url: //en.wikipedia.org/wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1111/poms.13575":
+          - /url: https://doi.org/10.1111%2Fpoms.13575
+        - text: .
+    - heading "External links" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&action=edit&section=35
+    - text: "]"
+    - link "Wikimedia Commons logo":
+      - /url: //en.wikipedia.org/wiki/File:Commons-logo.svg
+      - img "Wikimedia Commons logo"
+    - text: Wikimedia Commons has media related to
+    - link "Free software":
+      - /url: https://commons.wikimedia.org/wiki/Category:Free_software
+    - text: .
+    - link "Wikibooks logo":
+      - /url: //en.wikipedia.org/wiki/File:Wikibooks-logo.svg
+      - img "Wikibooks logo"
+    - text: "Wikibooks has a book on the topic of:"
+    - link "Open Source":
+      - /url: https://en.wikibooks.org/wiki/Open_Source
+    - link "Wikibooks logo":
+      - /url: //en.wikipedia.org/wiki/File:Wikibooks-logo.svg
+      - img "Wikibooks logo"
+    - text: "Wikibooks has a book on the topic of:"
+    - link "Use the Source":
+      - /url: https://en.wikibooks.org/wiki/Use_the_Source
+    - link "logo":
+      - /url: //en.wikipedia.org/wiki/File:Scholia_logo.svg
+      - img "logo"
+    - link "Scholia":
+      - /url: https://www.wikidata.org/wiki/Wikidata:Scholia
+    - text: has a topic profile for
+    - link "Open-source software":
+      - /url: https://iw.toolforge.org/scholia/topic/Q1130645
+    - text: .
+    - list:
+      - listitem:
+        - text: The
+        - link "Open Source Initiative":
+          - /url: //en.wikipedia.org/wiki/Open_Source_Initiative
+        - text: "'s"
+        - link "definition of open source":
+          - /url: https://opensource.org/docs/definition.php
+      - listitem:
+        - link "Free / Open Source Research Community":
+          - /url: https://web.archive.org/web/20050828004359/http://opensource.mit.edu/online_papers.php
+        - text: — Many online research papers about Open Source
+    - navigation "Software distribution":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Software distribution":
+            - columnheader "[show] v · t · e Software distribution":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: //en.wikipedia.org/wiki/Template:Software_distribution
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: //en.wikipedia.org/wiki/Template_talk:Software_distribution
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: //en.wikipedia.org/wiki/Special:EditPage/Template:Software_distribution
+              - link "Software distribution":
+                - /url: //en.wikipedia.org/wiki/Software_distribution
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+    - navigation "Free and open-source software":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Free and open-source software":
+            - columnheader "[show] v · t · e Free and open-source software":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: //en.wikipedia.org/wiki/Template:FOSS
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: //en.wikipedia.org/wiki/Template_talk:FOSS
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: //en.wikipedia.org/wiki/Special:EditPage/Template:FOSS
+              - link "Free and open-source software":
+                - /url: //en.wikipedia.org/wiki/Free_and_open-source_software
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+    - navigation "Intellectual property activism":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Intellectual property activism":
+            - columnheader "[show] v · t · e Intellectual property activism":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: //en.wikipedia.org/wiki/Template:Intellectual_property_activism
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: //en.wikipedia.org/wiki/Template_talk:Intellectual_property_activism
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: //en.wikipedia.org/wiki/Special:EditPage/Template:Intellectual_property_activism
+              - link "Intellectual property":
+                - /url: //en.wikipedia.org/wiki/Intellectual_property
+              - text: activism
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+    - navigation "Free culture and open content":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Free culture and open content":
+            - columnheader "[show] v · t · e Free culture and open content":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: //en.wikipedia.org/wiki/Template:Free_culture_and_open_content
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: //en.wikipedia.org/wiki/Template_talk:Free_culture_and_open_content
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: //en.wikipedia.org/wiki/Special:EditPage/Template:Free_culture_and_open_content
+              - link "Free culture":
+                - /url: //en.wikipedia.org/wiki/Free-culture_movement
+              - text: and
+              - link "open content":
+                - /url: //en.wikipedia.org/wiki/Free_content
+          - row
+          - row
+          - row
+          - row
+    - navigation "Independent production":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Independent production":
+            - columnheader "[show] v · t · e Independent production":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: //en.wikipedia.org/wiki/Template:Independent_production
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: //en.wikipedia.org/wiki/Template_talk:Independent_production
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: //en.wikipedia.org/wiki/Special:EditPage/Template:Independent_production
+              - text: Independent production
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+    - navigation "Navbox781":
+      - table:
+        - rowgroup:
+          - 'row "Authority control databases: National Edit this at Wikidata Japan · Czech Republic · Israel"':
+            - 'rowheader "Authority control databases: National Edit this at Wikidata"':
+              - link "Authority control databases":
+                - /url: //en.wikipedia.org/wiki/Help:Authority_control
+              - text: ": National"
+              - link "Edit this at Wikidata":
+                - /url: https://www.wikidata.org/wiki/Q1130645#identifiers
+                - img "Edit this at Wikidata"
+            - cell "Japan · Czech Republic · Israel":
+              - list:
+                - listitem:
+                  - link "Japan":
+                    - /url: https://id.ndl.go.jp/auth/ndlna/01148004
+                  - text: ·
+                - listitem:
+                  - link "Czech Republic":
+                    - /url: https://aleph.nkp.cz/F/?func=find-c&local_base=aut&ccl_term=ica=ph172860&CON_LNG=ENG
+                  - text: ·
+                - listitem:
+                  - link "Israel":
+                    - /url: https://www.nli.org.il/en/authorities/987007532636505171
+    - link "Categories":
+      - /url: /wiki/Help:Category
+    - text: ":"
+    - list:
+      - listitem:
+        - link "Free and open-source software":
+          - /url: /wiki/Category:Free_and_open-source_software
+      - listitem:
+        - link "Software licensing":
+          - /url: /wiki/Category:Software_licensing
+      - listitem:
+        - link "Transparency (behavior)":
+          - /url: /wiki/Category:Transparency_(behavior)
+  - contentinfo:
+    - list:
+      - listitem: This page was last edited on 10 March 2026, at 17:34 (UTC).
+      - listitem:
+        - text: Text is available under the
+        - link "Creative Commons Attribution-ShareAlike 4.0 License":
+          - /url: /wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License
+        - text: ; additional terms may apply. By using this site, you agree to the
+        - link "Terms of Use":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use
+        - text: and
+        - link "Privacy Policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+        - text: . Wikipedia® is a registered trademark of the
+        - link "Wikimedia Foundation, Inc.":
+          - /url: https://wikimediafoundation.org/
+        - text: ", a non-profit organization."
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Open-source_software&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list

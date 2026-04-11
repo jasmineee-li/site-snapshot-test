@@ -12,6 +12,8 @@ Usage:
     python -m eval_awareness_experiments.extract_tac --services gitlab,rocketchat
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import json

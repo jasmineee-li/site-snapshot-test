@@ -1,0 +1,470 @@
+- document:
+  - link "Skip to main content":
+    - /url: "#content"
+  - paragraph:
+    - text: Start using Xero for free
+    - strong:
+      - link "Sign up now":
+        - /url: https://www.xero.com/signup/
+  - button "Close banner":
+    - img
+  - paragraph: You're on our United States website.
+  - button "Change Region"
+  - button "Dismiss"
+  - banner:
+    - link "Xero Blog":
+      - /url: https://blog.xero.com/us/
+      - img "Xero Blog"
+    - list:
+      - listitem:
+        - link "Small Business Resources":
+          - /url: https://blog.xero.com/us/small-business-resources/
+      - listitem:
+        - link "Accountants & Bookkeepers":
+          - /url: https://blog.xero.com/us/accountants-bookkeepers/
+      - listitem:
+        - link "Product Updates":
+          - /url: https://blog.xero.com/us/product-updates/
+      - listitem:
+        - link "Data & Insights":
+          - /url: https://blog.xero.com/us/data-insights/
+      - listitem:
+        - link "News & Events":
+          - /url: https://blog.xero.com/us/news-events/
+    - textbox "Search..."
+    - button "Search Icon":
+      - img "Search Icon"
+    - link "Try Xero for free":
+      - /url: https://www.xero.com/signup/
+    - link "Go to xero.com":
+      - /url: https://www.xero.com/
+  - main:
+    - heading "Xero Blog latest news" [level=1]
+    - article:
+      - heading "Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible." [level=2]:
+        - link "Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.":
+          - /url: https://blog.xero.com/us/news-events/anthropic-xero-partnership-claude-ai/
+          - text: Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.
+      - text: Mar 27, 2026
+      - link "News & Events":
+        - /url: https://blog.xero.com/us/news-events/
+      - link "Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.":
+        - /url: https://blog.xero.com/us/news-events/anthropic-xero-partnership-claude-ai/
+        - paragraph: Every day, millions of small business owners are asking the same questions. Why is cash tight this month? Which invoices are overdue? Can I afford to hire? These aren’t complicated questions. But getting reliable…
+      - img
+      - text: 2 min read
+      - link "Author By Diya Jolly":
+        - /url: https://blog.xero.com/us/author/diya-jolly/
+        - img "Author"
+        - text: By Diya Jolly
+      - link "Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.":
+        - /url: https://blog.xero.com/us/news-events/anthropic-xero-partnership-claude-ai/
+        - text: Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.
+        - img
+      - link "Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.":
+        - /url: https://blog.xero.com/us/news-events/anthropic-xero-partnership-claude-ai/
+        - img "Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible."
+    - article:
+      - 'img "Accountable Intelligence: The New Standard Shaping the Future of Finance"'
+      - text: Mar 17, 2026
+      - link "News & Events":
+        - /url: https://blog.xero.com/us/news-events/
+      - 'heading "Accountable Intelligence: The New Standard Shaping the Future of Finance" [level=3]'
+      - link "Author By Diya Jolly":
+        - /url: https://blog.xero.com/us/author/diya-jolly/
+        - img "Author"
+        - text: By Diya Jolly
+      - img
+      - text: 4 min read
+      - 'link "Read more about Accountable Intelligence: The New Standard Shaping the Future of Finance"':
+        - /url: https://blog.xero.com/us/news-events/accountable-intelligence-ai-jax/
+        - text: "Read more about Accountable Intelligence: The New Standard Shaping the Future of Finance"
+        - img
+      - 'link "Read more about Accountable Intelligence: The New Standard Shaping the Future of Finance"':
+        - /url: https://blog.xero.com/us/news-events/accountable-intelligence-ai-jax/
+    - article:
+      - text: Mar 3, 2026
+      - link "Data & Insights":
+        - /url: https://blog.xero.com/us/data-insights/
+      - heading "Small businesses getting paid quicker, but still late" [level=3]
+      - link "Author Louise Southall By Louise Southall":
+        - /url: https://blog.xero.com/us/author/louise-southall/
+        - img "Author Louise Southall"
+        - text: By Louise Southall
+      - img
+      - text: 2 min read
+      - link "Read more about Small businesses getting paid quicker, but still late":
+        - /url: https://blog.xero.com/us/data-insights/small-business-insights-data-late-payment-results/
+        - text: Read more about Small businesses getting paid quicker, but still late
+        - img
+      - link "Read more about Small businesses getting paid quicker, but still late":
+        - /url: https://blog.xero.com/us/data-insights/small-business-insights-data-late-payment-results/
+    - article:
+      - text: Feb 21, 2026
+      - link "Product Updates":
+        - /url: https://blog.xero.com/us/product-updates/
+      - heading "Cash flow uncertainty is a small business tax, and we’re done with it" [level=3]
+      - link "Author By Bharathi Ramavarjula":
+        - /url: https://blog.xero.com/us/author/bharathi-ramavarjula/
+        - img "Author"
+        - text: By Bharathi Ramavarjula
+      - img
+      - text: 4 min read
+      - link "Read more about Cash flow uncertainty is a small business tax, and we’re done with it":
+        - /url: https://blog.xero.com/us/product-updates/cash-flow-uncertainty-small-business-tax/
+        - text: Read more about Cash flow uncertainty is a small business tax, and we’re done with it
+        - img
+      - link "Read more about Cash flow uncertainty is a small business tax, and we’re done with it":
+        - /url: https://blog.xero.com/us/product-updates/cash-flow-uncertainty-small-business-tax/
+    - article:
+      - text: Feb 18, 2026
+      - link "Product Updates":
+        - /url: https://blog.xero.com/us/product-updates/
+      - heading "Get your bills under control with Online Bill Payments" [level=3]
+      - list:
+        - listitem: us
+      - link "Author By Andrew Kanzer":
+        - /url: https://blog.xero.com/us/author/andrew-kanzer/
+        - img "Author"
+        - text: By Andrew Kanzer
+      - img
+      - text: 3 min read
+      - link "Read more about Get your bills under control with Online Bill Payments":
+        - /url: https://blog.xero.com/us/product-updates/online-bill-payments-supercharge-business/
+        - text: Read more about Get your bills under control with Online Bill Payments
+        - img
+      - link "Read more about Get your bills under control with Online Bill Payments":
+        - /url: https://blog.xero.com/us/product-updates/online-bill-payments-supercharge-business/
+    - article:
+      - 'img "Innovating for the future: How Xero is powering small businesses with AI"'
+      - text: Feb 17, 2026
+      - link "Product Updates":
+        - /url: https://blog.xero.com/us/product-updates/
+      - 'heading "Innovating for the future: How Xero is powering small businesses with AI" [level=3]'
+      - link "Author By Xero":
+        - /url: https://blog.xero.com/us/author/xero/
+        - img "Author"
+        - text: By Xero
+      - img
+      - text: 2 min read
+      - 'link "Read more about Innovating for the future: How Xero is powering small businesses with AI"':
+        - /url: https://blog.xero.com/us/product-updates/powering-small-businesses-ai/
+        - text: "Read more about Innovating for the future: How Xero is powering small businesses with AI"
+        - img
+      - 'link "Read more about Innovating for the future: How Xero is powering small businesses with AI"':
+        - /url: https://blog.xero.com/us/product-updates/powering-small-businesses-ai/
+    - article:
+      - text: Feb 14, 2026
+      - link "Small Business Resources":
+        - /url: https://blog.xero.com/us/small-business-resources/
+      - heading "The Emotional Tax on small businesses – and how to reduce financial stress" [level=3]
+      - list:
+        - listitem: us
+      - link "Author By Megan McCoy, Ph.D., LMFT, AFC®, CFT™":
+        - /url: https://blog.xero.com/us/author/megan-mccoy/
+        - img "Author"
+        - text: By Megan McCoy, Ph.D., LMFT, AFC®, CFT™
+      - img
+      - text: 3 min read
+      - link "Read more about The Emotional Tax on small businesses – and how to reduce financial stress":
+        - /url: https://blog.xero.com/us/small-business-resources/emotional-tax-reduce-financial-stress/
+        - text: Read more about The Emotional Tax on small businesses – and how to reduce financial stress
+        - img
+      - link "Read more about The Emotional Tax on small businesses – and how to reduce financial stress":
+        - /url: https://blog.xero.com/us/small-business-resources/emotional-tax-reduce-financial-stress/
+    - article:
+      - img "A faster way to manage your bills with Quick View"
+      - text: Feb 4, 2026
+      - link "Product Updates":
+        - /url: https://blog.xero.com/us/product-updates/
+      - heading "A faster way to manage your bills with Quick View" [level=3]
+      - link "Author By Pratik Rathod":
+        - /url: https://blog.xero.com/us/author/pratik-rathod/
+        - img "Author"
+        - text: By Pratik Rathod
+      - img
+      - text: 4 min read
+      - link "Read more about A faster way to manage your bills with Quick View":
+        - /url: https://blog.xero.com/us/product-updates/quick-view-manage-bills/
+        - text: Read more about A faster way to manage your bills with Quick View
+        - img
+      - link "Read more about A faster way to manage your bills with Quick View":
+        - /url: https://blog.xero.com/us/product-updates/quick-view-manage-bills/
+    - article:
+      - img "Tickets are now on sale for Xerocon Denver 2026"
+      - text: Jan 29, 2026
+      - link "News & Events":
+        - /url: https://blog.xero.com/us/news-events/
+      - 'heading "Xerocon Denver 2026: Tickets are on sale now!" [level=3]'
+      - link "Author By Andrew Kanzer":
+        - /url: https://blog.xero.com/us/author/andrew-kanzer/
+        - img "Author"
+        - text: By Andrew Kanzer
+      - img
+      - text: 2 min read
+      - 'link "Read more about Xerocon Denver 2026: Tickets are on sale now!"':
+        - /url: https://blog.xero.com/us/news-events/xerocon-denver-2026-launch/
+        - text: "Read more about Xerocon Denver 2026: Tickets are on sale now!"
+        - img
+      - 'link "Read more about Xerocon Denver 2026: Tickets are on sale now!"':
+        - /url: https://blog.xero.com/us/news-events/xerocon-denver-2026-launch/
+    - article:
+      - 'img "New year, new workflow: 10 App Power Lists to supercharge your 2026"'
+      - text: Jan 22, 2026
+      - link "Small Business Resources":
+        - /url: https://blog.xero.com/us/small-business-resources/
+      - 'heading "New year, new workflow: 10 App Power Lists to supercharge your 2026" [level=3]'
+      - link "Author By Xero":
+        - /url: https://blog.xero.com/us/author/xero/
+        - img "Author"
+        - text: By Xero
+      - img
+      - text: 3 min read
+      - 'link "Read more about New year, new workflow: 10 App Power Lists to supercharge your 2026"':
+        - /url: https://blog.xero.com/us/small-business-resources/10-app-power-lists-supercharge-2026/
+        - text: "Read more about New year, new workflow: 10 App Power Lists to supercharge your 2026"
+        - img
+      - 'link "Read more about New year, new workflow: 10 App Power Lists to supercharge your 2026"':
+        - /url: https://blog.xero.com/us/small-business-resources/10-app-power-lists-supercharge-2026/
+    - button "Load more articles +"
+  - heading "Start using Xero for free" [level=2]:
+    - img
+    - text: Start using Xero for free
+  - paragraph: Find out why 4.6 million subscribers locally and across the world trust Xero with their numbers.
+  - link "Try Xero For Free":
+    - /url: https://www.xero.com/signup/
+    - text: Try Xero For Free
+    - img
+  - heading "Popular this week:" [level=2]
+  - article:
+    - img "Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible."
+    - text: Mar 27, 2026
+    - link "News & Events":
+      - /url: https://blog.xero.com/us/news-events/
+    - heading "Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible." [level=3]
+    - link "Author By Diya Jolly":
+      - /url: https://blog.xero.com/us/author/diya-jolly/
+      - img "Author"
+      - text: By Diya Jolly
+    - img
+    - text: 2 min read
+    - link "Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.":
+      - /url: https://blog.xero.com/us/news-events/anthropic-xero-partnership-claude-ai/
+      - text: Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.
+      - img
+    - link "Read more about Real-time financial intelligence, wherever you work? Xero and Anthropic just made it possible.":
+      - /url: https://blog.xero.com/us/news-events/anthropic-xero-partnership-claude-ai/
+  - article:
+    - text: Mar 4, 2026
+    - link "Small Business Resources":
+      - /url: https://blog.xero.com/us/small-business-resources/
+    - heading "What CATO’s closure means for small companies with simple tax affairs" [level=3]
+    - list:
+      - listitem: uk
+    - link "Author By Jessica Jensen":
+      - /url: https://blog.xero.com/us/author/jessica-jensen/
+      - img "Author"
+      - text: By Jessica Jensen
+    - img
+    - text: 3 min read
+    - link "Read more about What CATO’s closure means for small companies with simple tax affairs":
+      - /url: https://blog.xero.com/us/small-business-resources/cato-closure-changes/
+      - text: Read more about What CATO’s closure means for small companies with simple tax affairs
+      - img
+    - link "Read more about What CATO’s closure means for small companies with simple tax affairs":
+      - /url: https://blog.xero.com/us/small-business-resources/cato-closure-changes/
+  - article:
+    - text: Feb 21, 2026
+    - link "Product Updates":
+      - /url: https://blog.xero.com/us/product-updates/
+    - heading "Cash flow uncertainty is a small business tax, and we’re done with it" [level=3]
+    - link "Author By Bharathi Ramavarjula":
+      - /url: https://blog.xero.com/us/author/bharathi-ramavarjula/
+      - img "Author"
+      - text: By Bharathi Ramavarjula
+    - img
+    - text: 4 min read
+    - link "Read more about Cash flow uncertainty is a small business tax, and we’re done with it":
+      - /url: https://blog.xero.com/us/product-updates/cash-flow-uncertainty-small-business-tax/
+      - text: Read more about Cash flow uncertainty is a small business tax, and we’re done with it
+      - img
+    - link "Read more about Cash flow uncertainty is a small business tax, and we’re done with it":
+      - /url: https://blog.xero.com/us/product-updates/cash-flow-uncertainty-small-business-tax/
+  - heading "Change region" [level=3]
+  - paragraph:
+    - text: You're on our
+    - strong: United States
+    - text: website. Change your region to see information and pricing for another location.
+  - button "Hidden"
+  - list:
+    - listitem:
+      - button "Global"
+    - listitem:
+      - button "Hong Kong"
+    - listitem:
+      - button "South Africa"
+    - listitem:
+      - button "Malaysia"
+    - listitem:
+      - button "New Zealand"
+    - listitem:
+      - button "Australia"
+    - listitem:
+      - button "Singapore"
+    - listitem:
+      - button "Philippines"
+    - listitem:
+      - button "United Kingdom"
+    - listitem:
+      - button "Indonesia"
+    - listitem:
+      - button "Ireland"
+    - listitem:
+      - button "Canada"
+    - listitem:
+      - button "United States"
+  - button "Close"
+  - contentinfo:
+    - heading "Features" [level=3]
+    - list:
+      - listitem:
+        - link "Accept Payments":
+          - /url: https://www.xero.com/accounting-software/accept-payments/
+      - listitem:
+        - link "Online Invoicing":
+          - /url: https://www.xero.com/accounting-software/send-invoices/
+      - listitem:
+        - link "Pay Bills":
+          - /url: https://www.xero.com/accounting-software/pay-bills/
+      - listitem:
+        - link "Analytics":
+          - /url: https://www.xero.com/accounting-software/analytics/
+      - listitem:
+        - link "All Features":
+          - /url: https://www.xero.com/accounting-software/all-features/
+    - heading "Xero Blog" [level=3]
+    - list:
+      - listitem:
+        - link "Small Business":
+          - /url: https://blog.xero.com/us/small-business-resources/
+      - listitem:
+        - link "Accountants & Bookkeepers":
+          - /url: https://blog.xero.com/us/accountants-bookkeepers/
+      - listitem:
+        - link "Product Updates":
+          - /url: https://blog.xero.com/us/product-updates/
+      - listitem:
+        - link "Data & Insights":
+          - /url: https://blog.xero.com/us/data-insights/
+      - listitem:
+        - link "News & Events":
+          - /url: https://blog.xero.com/us/news-events/
+    - heading "Calculators and Templates" [level=3]
+    - list:
+      - listitem:
+        - link "All Calculators":
+          - /url: https://www.xero.com/calculators/
+      - listitem:
+        - link "Gross margin calculator":
+          - /url: https://www.xero.com/calculators/margin-calculator/
+      - listitem:
+        - link "Net Profit Margin Calculator":
+          - /url: https://www.xero.com/calculators/net-profit-margin-calculator/
+      - listitem:
+        - link "All Templates":
+          - /url: https://www.xero.com/templates/
+      - listitem:
+        - link "Balance Sheet Template":
+          - /url: https://www.xero.com/templates/balance-sheet-template/
+      - listitem:
+        - link "Business Continuity Template":
+          - /url: https://www.xero.com/templates/bcp-template/
+    - heading "Guides and Tips" [level=3]
+    - list:
+      - listitem:
+        - link "Starting a business":
+          - /url: https://www.xero.com/guides/
+      - listitem:
+        - link "Payment":
+          - /url: https://www.xero.com/guides/payments/
+      - listitem:
+        - link "Planning and Performance Leadership":
+          - /url: https://www.xero.com/guides/planning-and-performance/
+      - listitem:
+        - link "Leadership":
+          - /url: https://www.xero.com/guides/leadership/
+      - listitem:
+        - link "Accounting and Bookkeeping":
+          - /url: https://www.xero.com/guides/bookkeeping-and-accounting/
+      - listitem:
+        - link "Marketing":
+          - /url: https://www.xero.com/guides/marketing/
+      - listitem:
+        - link "Ecommerce":
+          - /url: https://www.xero.com/guides/ecommerce/
+      - listitem:
+        - link "Glossary":
+          - /url: https://www.xero.com/glossary/
+    - heading "More Products and Services" [level=3]
+    - list:
+      - listitem:
+        - link "Xero App Store":
+          - /url: https://apps.xero.com/
+      - listitem:
+        - link "Product Ideas":
+          - /url: https://productideas.xero.com/
+      - listitem:
+        - link "Affiliate":
+          - /url: https://www.xero.com/affiliate-program/
+      - listitem:
+        - link "Xero Partner Hub":
+          - /url: https://www.xero.com/campaign/partner-hub/
+    - heading "About" [level=3]
+    - list:
+      - listitem:
+        - link "Xero":
+          - /url: https://www.xero.com/about/
+      - listitem:
+        - link "Our Brands":
+          - /url: https://www.xero.com/about/our-brands/
+      - listitem:
+        - link "Contact":
+          - /url: https://www.xero.com/about/contact/
+    - heading "Reviews and Case Studies" [level=3]
+    - list:
+      - listitem:
+        - link "Customer Stories":
+          - /url: https://www.xero.com/small-businesses/customers/
+      - listitem:
+        - link "Case Studies":
+          - /url: https://www.xero.com/resources/practice-case-studies/
+    - separator
+    - 'button "Change region: United States"':
+      - img "United States flag"
+      - paragraph: Region
+      - img "Chevron"
+      - text: United States
+    - list:
+      - listitem:
+        - link "Visit our twitter page (opens in a new tab)":
+          - /url: https://twitter.com/xero/
+      - listitem:
+        - link "Visit our facebook page (opens in a new tab)":
+          - /url: https://www.facebook.com/xero
+      - listitem:
+        - link "Visit our youtube page (opens in a new tab)":
+          - /url: https://www.youtube.com/user/XeroOnlineAccounting
+      - listitem:
+        - link "Visit our linkedin page (opens in a new tab)":
+          - /url: https://www.linkedin.com/company/xero
+      - listitem:
+        - link "Visit our instagram page (opens in a new tab)":
+          - /url: https://www.instagram.com/xero/
+    - paragraph: © 2026 Xero Limited. All rights reserved. "Xero", "Beautiful business" and "Your business supercharged" are trademarks of Xero Limited.
+    - list:
+      - listitem:
+        - link "Terms of use":
+          - /url: https://www.xero.com/legal/terms/
+      - listitem:
+        - link "Privacy Policy":
+          - /url: https://www.xero.com/legal/privacy/

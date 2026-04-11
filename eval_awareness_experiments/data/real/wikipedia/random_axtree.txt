@@ -1,0 +1,767 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=List+of+countries+with+organic+agriculture+regulation
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=List+of+countries+with+organic+agriculture+regulation
+  - navigation "Contents":
+    - heading "Contents" [level=2]
+    - button "hide"
+    - list:
+      - listitem:
+        - link "(Top)":
+          - /url: "#"
+      - listitem:
+        - link "List of countries with regulations on organic agriculture":
+          - /url: "#List_of_countries_with_regulations_on_organic_agriculture"
+        - list
+      - listitem:
+        - link "Countries with regulations in development":
+          - /url: "#Countries_with_regulations_in_development"
+        - list
+      - listitem:
+        - link "References":
+          - /url: "#References"
+        - list
+  - main:
+    - heading "List of countries with organic agriculture regulation" [level=1]
+    - button "Go to an article in another language. Available in 1 language"
+    - navigation "Namespaces":
+      - list:
+        - listitem:
+          - link "Article":
+            - /url: /wiki/List_of_countries_with_organic_agriculture_regulation
+        - listitem:
+          - link "Talk":
+            - /url: /wiki/Talk:List_of_countries_with_organic_agriculture_regulation
+    - navigation "Views":
+      - list:
+        - listitem:
+          - link "Read":
+            - /url: /wiki/List_of_countries_with_organic_agriculture_regulation
+        - listitem:
+          - link "Edit":
+            - /url: /w/index.php?title=List_of_countries_with_organic_agriculture_regulation&action=edit
+        - listitem:
+          - link "View history":
+            - /url: /w/index.php?title=List_of_countries_with_organic_agriculture_regulation&action=history
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small"
+          - text: Small
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Large"
+          - text: Large
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - text: From Wikipedia, the free encyclopedia
+    - paragraph:
+      - text: This list documents the status of formal government-standards, regulations, and
+      - link "certification":
+        - /url: /wiki/Organic_certification
+      - text: of
+      - link "organic farming":
+        - /url: /wiki/Organic_farming
+      - text: and
+      - link "organic food":
+        - /url: /wiki/Organic_food
+      - text: .
+    - heading "List of countries with regulations on organic agriculture" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: /w/index.php?title=List_of_countries_with_organic_agriculture_regulation&action=edit&section=1
+    - text: "]"
+    - table:
+      - rowgroup
+      - rowgroup:
+        - row "Region[1] Country Status Website (where available)":
+          - cell "Region[1]":
+            - text: Region
+            - superscript:
+              - link "[1]":
+                - /url: "#cite_note-Huber-1"
+          - cell "Country"
+          - cell "Status"
+          - cell "Website (where available)"
+        - row "European Union (28) Austria Fully implemented [1]":
+          - cell "European Union (28)":
+            - strong: European Union (28)
+          - cell "Austria"
+          - cell "Fully implemented"
+          - cell "[1]":
+            - link "[1]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Belgium Fully implemented [2]":
+          - cell
+          - cell "Belgium"
+          - cell "Fully implemented"
+          - cell "[2]":
+            - link "[2]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Bulgaria Fully implemented [3]":
+          - cell
+          - cell "Bulgaria"
+          - cell "Fully implemented"
+          - cell "[3]":
+            - link "[3]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Croatia Fully implemented [4]":
+          - cell
+          - cell "Croatia"
+          - cell "Fully implemented"
+          - cell "[4]":
+            - link "[4]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Cyprus Fully implemented [5]":
+          - cell
+          - cell "Cyprus"
+          - cell "Fully implemented"
+          - cell "[5]":
+            - link "[5]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Czech Republic Fully implemented [6]":
+          - cell
+          - cell "Czech Republic"
+          - cell "Fully implemented"
+          - cell "[6]":
+            - link "[6]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Denmark Fully implemented [7]":
+          - cell
+          - cell "Denmark"
+          - cell "Fully implemented"
+          - cell "[7]":
+            - link "[7]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Estonia Fully implemented [8]":
+          - cell
+          - cell "Estonia"
+          - cell "Fully implemented"
+          - cell "[8]":
+            - link "[8]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Finland Fully implemented [9]":
+          - cell
+          - cell "Finland"
+          - cell "Fully implemented"
+          - cell "[9]":
+            - link "[9]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "France Fully implemented [10]":
+          - cell
+          - cell "France"
+          - cell "Fully implemented"
+          - cell "[10]":
+            - link "[10]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Germany Fully implemented [11]":
+          - cell
+          - cell "Germany"
+          - cell "Fully implemented"
+          - cell "[11]":
+            - link "[11]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Greece Fully implemented [12]":
+          - cell
+          - cell "Greece"
+          - cell "Fully implemented"
+          - cell "[12]":
+            - link "[12]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Hungary Fully implemented [13]":
+          - cell
+          - cell "Hungary"
+          - cell "Fully implemented"
+          - cell "[13]":
+            - link "[13]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Ireland Fully implemented [14]":
+          - cell
+          - cell "Ireland"
+          - cell "Fully implemented"
+          - cell "[14]":
+            - link "[14]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Italy Fully implemented [15]":
+          - cell
+          - cell "Italy"
+          - cell "Fully implemented"
+          - cell "[15]":
+            - link "[15]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Latvia Fully implemented [16]":
+          - cell
+          - cell "Latvia"
+          - cell "Fully implemented"
+          - cell "[16]":
+            - link "[16]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Lithuania Fully implemented [17]":
+          - cell
+          - cell "Lithuania"
+          - cell "Fully implemented"
+          - cell "[17]":
+            - link "[17]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Luxembourg Fully implemented [18]":
+          - cell
+          - cell "Luxembourg"
+          - cell "Fully implemented"
+          - cell "[18]":
+            - link "[18]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Malta Fully implemented [19]":
+          - cell
+          - cell "Malta"
+          - cell "Fully implemented"
+          - cell "[19]":
+            - link "[19]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Poland Fully implemented [20]":
+          - cell
+          - cell "Poland"
+          - cell "Fully implemented"
+          - cell "[20]":
+            - link "[20]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Portugal Fully implemented [21]":
+          - cell
+          - cell "Portugal"
+          - cell "Fully implemented"
+          - cell "[21]":
+            - link "[21]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Romania Fully implemented [22]":
+          - cell
+          - cell "Romania"
+          - cell "Fully implemented"
+          - cell "[22]":
+            - link "[22]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Slovak Republic Fully implemented [23]":
+          - cell
+          - cell "Slovak Republic"
+          - cell "Fully implemented"
+          - cell "[23]":
+            - link "[23]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Slovenia Fully implemented [24]":
+          - cell
+          - cell "Slovenia"
+          - cell "Fully implemented"
+          - cell "[24]":
+            - link "[24]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Spain Fully implemented [25]":
+          - cell
+          - cell "Spain"
+          - cell "Fully implemented"
+          - cell "[25]":
+            - link "[25]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Sweden Fully implemented [26]":
+          - cell
+          - cell "Sweden"
+          - cell "Fully implemented"
+          - cell "[26]":
+            - link "[26]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "The Netherlands Fully implemented [27]":
+          - cell
+          - cell "The Netherlands"
+          - cell "Fully implemented"
+          - cell "[27]":
+            - link "[27]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Others Europe (9) Albania Not fully implemented":
+          - cell "Others Europe (9)"
+          - cell "Albania"
+          - cell "Not fully implemented"
+          - cell
+        - row "Iceland Fully implemented [28]":
+          - cell
+          - cell "Iceland"
+          - cell "Fully implemented"
+          - cell "[28]":
+            - link "[28]":
+              - /url: http://www.landbunadarraduneyti.is/log-og-reglugerdir/Reglugerdir/Allar_reglugerdir/nr/79
+        - row "Macedonia Fully implemented":
+          - cell
+          - cell "Macedonia"
+          - cell "Fully implemented"
+          - cell
+        - row "Moldova Fully implemented":
+          - cell
+          - cell "Moldova"
+          - cell "Fully implemented"
+          - cell
+        - row "Montenegro Fully implemented [29][permanent dead link]":
+          - cell
+          - cell "Montenegro"
+          - cell "Fully implemented"
+          - cell "[29][permanent dead link]":
+            - link "[29]":
+              - /url: http://www.skupstina.me/skupstinaweb/tekstovi_list.php?s_id_zakoda=110
+            - superscript:
+              - text: "["
+              - link "permanent dead link":
+                - /url: /wiki/Wikipedia:Link_rot
+              - text: "]"
+        - row "Norway Fully implemented [30]":
+          - cell
+          - cell "Norway"
+          - cell "Fully implemented"
+          - cell "[30]":
+            - link "[30]":
+              - /url: https://debio.no/english/
+        - row "Serbia Not fully implemented":
+          - cell
+          - cell "Serbia"
+          - cell "Not fully implemented"
+          - cell
+        - row "Switzerland Fully implemented [31]":
+          - cell
+          - cell "Switzerland"
+          - cell "Fully implemented"
+          - cell "[31]":
+            - link "[31]":
+              - /url: http://www.admin.ch/ch/d/sr/c910_18.html
+        - row "Turkey Fully implemented":
+          - cell
+          - cell "Turkey"
+          - cell "Fully implemented"
+          - cell
+        - row "Ukraine Fully implemented [46] [47]":
+          - cell
+          - cell "Ukraine"
+          - cell "Fully implemented"
+          - cell "[46] [47]":
+            - link "[46]":
+              - /url: https://zakon.rada.gov.ua/rada/show/en/2496-19#Text
+            - link "[47]":
+              - /url: https://minagro.gov.ua/en/napryamki/organic/organichne-virobnictvo-v-ukrayini
+        - row "United Kingdom Fully implemented [32]":
+          - cell
+          - cell "United Kingdom"
+          - cell "Fully implemented"
+          - cell "[32]":
+            - link "[32]":
+              - /url: http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32007R0834
+        - row "Asia and Pacific Region (12) Australia Only export regulations [33]":
+          - cell "Asia and Pacific Region (12)"
+          - cell "Australia"
+          - cell "Only export regulations"
+          - cell "[33]":
+            - link "[33]":
+              - /url: https://web.archive.org/web/20150318060249/http://agriculture.gov.au/SiteCollectionDocuments/aqis/exporting/food/organic/national-standard-edition-3-5.doc
+        - row "Bangladesh Not fully implemented":
+          - cell
+          - cell "Bangladesh"
+          - cell "Not fully implemented"
+          - cell
+        - row "Bhutan Not fully implemented":
+          - cell
+          - cell "Bhutan"
+          - cell "Not fully implemented"
+          - cell
+        - row "China Fully implemented":
+          - cell
+          - cell "China"
+          - cell "Fully implemented"
+          - cell
+        - row "India Fully implemented [34]":
+          - cell
+          - cell "India"
+          - cell "Fully implemented"
+          - cell "[34]":
+            - link "[34]":
+              - /url: http://www.apeda.gov.in/apedawebsite/organic/ORGANIC_CONTENTS/English_Organic_Sept05.pdf
+        - row "Israel Fully implemented":
+          - cell
+          - cell "Israel"
+          - cell "Fully implemented"
+          - cell
+        - row "Japan Fully implemented [35]":
+          - cell
+          - cell "Japan"
+          - cell "Fully implemented"
+          - cell "[35]":
+            - link "[35]":
+              - /url: https://web.archive.org/web/20071002223659/http://www.maff.go.jp/soshiki/syokuhin/hinshitu/e_label/index.htm
+        - row "New Zealand Only export regulations":
+          - cell
+          - cell "New Zealand"
+          - cell "Only export regulations"
+          - cell
+        - row "Philippines Not fully implemented":
+          - cell
+          - cell "Philippines"
+          - cell "Not fully implemented"
+          - cell
+        - row "South Korea Fully implemented":
+          - cell
+          - cell "South Korea"
+          - cell "Fully implemented"
+          - cell
+        - row "Taiwan Fully implemented":
+          - cell
+          - cell "Taiwan"
+          - cell "Fully implemented"
+          - cell
+        - row "Thailand Fully implemented [36]":
+          - cell
+          - cell "Thailand"
+          - cell "Fully implemented"
+          - cell "[36]":
+            - link "[36]":
+              - /url: http://www.acfs.go.th/
+        - row "Americas and Caribbean (14) Argentina Fully implemented":
+          - cell "Americas and Caribbean (14)"
+          - cell "Argentina"
+          - cell "Fully implemented"
+          - cell
+        - row "Bolivia Not fully implemented [37]":
+          - cell
+          - cell "Bolivia"
+          - cell "Not fully implemented"
+          - cell "[37]":
+            - link "[37]":
+              - /url: http://www.aopeb.org/
+        - row "Brazil Fully implemented [38]":
+          - cell
+          - cell "Brazil"
+          - cell "Fully implemented"
+          - cell "[38]":
+            - link "[38]":
+              - /url: http://www.planetaorganico.com.br/
+        - row "Canada Fully Implemented [39]":
+          - cell
+          - cell "Canada"
+          - cell "Fully Implemented"
+          - cell "[39]":
+            - link "[39]":
+              - /url: http://www.inspection.gc.ca/food/organic-products/certification-and-verification/eng/1300366596306/1300366657966
+        - row "Chile Fully implemented":
+          - cell
+          - cell "Chile"
+          - cell "Fully implemented"
+          - cell
+        - row "Costa Rica National regulations not fully implemented [40]":
+          - cell
+          - cell "Costa Rica"
+          - cell "National regulations not fully implemented"
+          - cell "[40]":
+            - link "[40]":
+              - /url: https://web.archive.org/web/20070912061206/http://www.mag.go.cr/doc_d/reg_ley_mag.html
+        - row "Dominican Republic Not fully implemented":
+          - cell
+          - cell "Dominican Republic"
+          - cell "Not fully implemented"
+          - cell
+        - row "Ecuador Fully implemented [41]":
+          - cell
+          - cell "Ecuador"
+          - cell "Fully implemented"
+          - cell "[41]":
+            - link "[41]":
+              - /url: https://web.archive.org/web/20070827135131/http://www.sica.gov.ec/agronegocios/productos%20para%20invertir/organicos/principal.htm
+        - row "El Salvador Not fully implemented [42]":
+          - cell
+          - cell "El Salvador"
+          - cell "Not fully implemented"
+          - cell "[42]":
+            - link "[42]":
+              - /url: https://web.archive.org/web/20070911043445/http://www.elsalvadororganico.com.sv/
+        - row "Honduras Fully implemented [43]":
+          - cell
+          - cell "Honduras"
+          - cell "Fully implemented"
+          - cell "[43]":
+            - link "[43]":
+              - /url: http://www.senasa.gob.hn/
+        - row "Mexico Fully implemented [44]":
+          - cell
+          - cell "Mexico"
+          - cell "Fully implemented"
+          - cell "[44]":
+            - link "[44]":
+              - /url: https://www.ccof.org/certification/international-programs/mexico
+        - row "Paraguay Not fully implemented":
+          - cell
+          - cell "Paraguay"
+          - cell "Not fully implemented"
+          - cell
+        - row "Peru Not fully implemented":
+          - cell
+          - cell "Peru"
+          - cell "Not fully implemented"
+          - cell
+        - row "US Fully implemented [45]":
+          - cell
+          - cell "US"
+          - cell "Fully implemented"
+          - cell "[45]":
+            - link "[45]":
+              - /url: https://www.ams.usda.gov/about-ams/programs-offices/national-organic-program
+        - row "Africa (2) Ghana Not fully implemented":
+          - cell "Africa (2)"
+          - cell "Ghana"
+          - cell "Not fully implemented"
+          - cell
+        - row "Tunisia Fully implemented":
+          - cell
+          - cell "Tunisia"
+          - cell "Fully implemented"
+          - cell
+      - rowgroup
+    - heading "Countries with regulations in development" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: /w/index.php?title=List_of_countries_with_organic_agriculture_regulation&action=edit&section=2
+    - text: "]"
+    - table:
+      - rowgroup
+      - rowgroup:
+        - row "Region[1] Country Website":
+          - cell "Region[1]":
+            - text: Region
+            - superscript:
+              - link "[1]":
+                - /url: "#cite_note-Huber-1"
+          - cell "Country"
+          - cell "Website"
+        - row "Europe (3) Bosnia Herzegovina":
+          - cell "Europe (3)"
+          - cell "Bosnia Herzegovina"
+          - cell
+        - row "Russia":
+          - cell
+          - cell "Russia"
+          - cell
+        - row "Asia and Pacific Region (8) Armenia":
+          - cell "Asia and Pacific Region (8)"
+          - cell "Armenia"
+          - cell
+        - row "Azerbaijan":
+          - cell
+          - cell "Azerbaijan"
+          - cell
+        - row "Georgia [2]":
+          - cell
+          - cell "Georgia"
+          - cell "[2]":
+            - superscript:
+              - link "[2]":
+                - /url: "#cite_note-2"
+        - row "Hong Kong":
+          - cell
+          - cell "Hong Kong"
+          - cell
+        - row "Indonesia":
+          - cell
+          - cell "Indonesia"
+          - cell
+        - row "Lebanon":
+          - cell
+          - cell "Lebanon"
+          - cell
+        - row "Saudi Arabia":
+          - cell
+          - cell "Saudi Arabia"
+          - cell
+        - row "Vietnam":
+          - cell
+          - cell "Vietnam"
+          - cell
+        - row "Americas and Caribbean (3) Cuba":
+          - cell "Americas and Caribbean (3)"
+          - cell "Cuba"
+          - cell
+        - row "Nicaragua":
+          - cell
+          - cell "Nicaragua"
+          - cell
+        - row "St. Lucia":
+          - cell
+          - cell "St. Lucia"
+          - cell
+        - row "Africa (2) Cameroon":
+          - cell "Africa (2)"
+          - cell "Cameroon"
+          - cell
+        - row "Egypt":
+          - cell
+          - cell "Egypt"
+          - cell
+        - row "Madagascar":
+          - cell
+          - cell "Madagascar"
+          - cell
+        - row "South Africa [3]":
+          - cell
+          - cell "South Africa"
+          - cell "[3]":
+            - superscript:
+              - link "[3]":
+                - /url: "#cite_note-3"
+      - rowgroup
+    - heading "References" [level=2]
+    - text: "["
+    - link "edit":
+      - /url: /w/index.php?title=List_of_countries_with_organic_agriculture_regulation&action=edit&section=3
+    - text: "]"
+    - list:
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-Huber_1-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-Huber_1-1"
+          - superscript: b
+        - text: Huber, Silva, Gelman, FiBL Switzerland, survey 2006
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-2"
+          - text: ^
+        - link "ELKANA - ბიოლოგოიურ მეურნეობათა ასოციაცია":
+          - /url: http://www.elkana.org.ge
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-3"
+          - text: ^
+        - link "In":
+          - /url: http://www.afrisco.net/Html/Product_Stardards.htm
+        - link "Archived":
+          - /url: https://web.archive.org/web/20070308102841/http://www.afrisco.net/Html/Product_Stardards.htm
+        - text: 2007-03-08 at the
+        - link "Wayback Machine":
+          - /url: /wiki/Wayback_Machine
+    - navigation "Portals":
+      - link "Portals":
+        - /url: /wiki/Wikipedia:Contents/Portals
+      - text: ":"
+      - list:
+        - listitem:
+          - link "grain":
+            - /url: /wiki/File:Noto_Emoji_Oreo_1f33e.svg
+            - img "grain"
+          - link "Agriculture and agronomy":
+            - /url: /wiki/Portal:Agriculture_and_agronomy
+        - listitem:
+          - link "icon":
+            - /url: /wiki/File:Balance,_by_David.svg
+            - img "icon"
+          - link "Law":
+            - /url: /wiki/Portal:Law
+    - link "Categories":
+      - /url: /wiki/Help:Category
+    - text: ":"
+    - list:
+      - listitem:
+        - link "Agriculture-related lists":
+          - /url: /wiki/Category:Agriculture-related_lists
+      - listitem:
+        - link "Organic farming by country":
+          - /url: /wiki/Category:Organic_farming_by_country
+      - listitem:
+        - link "Lists of countries":
+          - /url: /wiki/Category:Lists_of_countries
+  - contentinfo:
+    - list:
+      - listitem: This page was last edited on 28 June 2025, at 21:43 (UTC).
+      - listitem:
+        - text: Text is available under the
+        - link "Creative Commons Attribution-ShareAlike 4.0 License":
+          - /url: /wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License
+        - text: ; additional terms may apply. By using this site, you agree to the
+        - link "Terms of Use":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use
+        - text: and
+        - link "Privacy Policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+        - text: . Wikipedia® is a registered trademark of the
+        - link "Wikimedia Foundation, Inc.":
+          - /url: https://wikimediafoundation.org/
+        - text: ", a non-profit organization."
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=List_of_countries_with_organic_agriculture_regulation&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list
