@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from worldsim.browser_use_agent import AgentRunner
+from worldsim.config import BenchmarkInstance
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ STAGGER_DELAY = 5
 
 
 TaskRunner = Callable[
-    [dict[str, Any], AgentRunner, dict[str, Any], Path],
+    [dict[str, Any], AgentRunner, BenchmarkInstance, Path],
     Awaitable[dict[str, Any]],
 ]
 
@@ -40,7 +41,7 @@ async def staggered_worker(
     results: list[dict[str, Any]],
     results_lock: asyncio.Lock,
     agent_factory: Callable[[], AgentRunner],
-    instance: dict[str, Any],
+    instance: BenchmarkInstance,
     task_runner: TaskRunner,
     task_dir_root: Path,
 ) -> None:
@@ -55,7 +56,7 @@ async def staggered_worker(
         await asyncio.sleep(delay)
 
     agent = agent_factory()
-    await agent.setup(instance["site_url"])
+    await agent.setup(instance.site_url)
     try:
         while True:
             try:
@@ -90,7 +91,7 @@ async def staggered_worker(
 
 async def run_eval(
     tasks: list[dict[str, Any]],
-    instances: list[dict[str, Any]],
+    instances: list[BenchmarkInstance],
     agent_factory: Callable[[], AgentRunner],
     task_runner: TaskRunner,
     task_dir_root: Path,
@@ -99,7 +100,7 @@ async def run_eval(
 
     Args:
         tasks: List of task dicts. Each must include an ``id`` field.
-        instances: List of pre-running benchmark instance dicts.
+        instances: List of pre-running benchmark instances.
             ``len(instances)`` caps the worker count.
         agent_factory: Zero-arg callable returning a fresh ``AgentRunner``
             per worker. Called once per worker.

@@ -19,7 +19,37 @@ trajectories.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
+
+from worldsim.browser_use_agent import AgentResult
+
+
+def save_result(
+    task_dir: Path,
+    task: dict[str, Any],
+    result: AgentResult,
+    passed: bool,
+    message: str,
+) -> None:
+    """Write ``result.json`` to a task trajectory directory.
+
+    This is the trajectory artifact that diagnosis and judge sandboxes expect
+    to find at ``/workspace/trajectory/result.json``.
+    """
+    task_dir = Path(task_dir)
+    task_dir.mkdir(parents=True, exist_ok=True)
+    data = {
+        "task_id": task.get("id", "unknown"),
+        "passed": passed,
+        "message": message,
+        "elapsed": result.elapsed,
+        "steps": result.steps,
+        "is_done": result.is_done,
+        "final_result": result.final_result,
+    }
+    (task_dir / "result.json").write_text(json.dumps(data, indent=2))
 
 
 def load_trajectory_into_sandbox(

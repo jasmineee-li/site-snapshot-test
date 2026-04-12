@@ -41,18 +41,20 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
             execute_sql(stmt, instance["db_connection"])
     elif mechanism == "api":
         for call in seed["api_calls"]:
-            requests.request(
+            resp = requests.request(
                 call["method"],
                 f"{instance['site_url']}{call['path']}",
                 json=call.get("body"),
                 timeout=30,
             )
+            resp.raise_for_status()
     elif mechanism == "state_push":
-        requests.put(
+        resp = requests.put(
             f"{instance['site_url']}/api/state",
             json=seed["state"],
             timeout=30,
         )
+        resp.raise_for_status()
     else:
         raise ValueError(f"unknown data seed mechanism: {mechanism!r}")
 

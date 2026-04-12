@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import sys
 from pathlib import Path
 
@@ -26,6 +27,10 @@ from worldsim.state import load_state
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint. See module docstring for usage."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
     load_dotenv()  # .env fills gaps; shell exports take precedence
 
     parser = argparse.ArgumentParser(

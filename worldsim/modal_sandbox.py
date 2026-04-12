@@ -25,8 +25,6 @@ CLAUDE_ALLOWED_ENV_VARS: tuple[str, ...] = (
 
 NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
 
-app = modal.App(APP_NAME)
-
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "git", "jq")
@@ -95,11 +93,10 @@ async def run_claude_in_sandbox(
 
     Args:
         site_files: Mapping from sandbox-remote path (``/workspace/...``) to a
-            local source path. For each entry, the sandbox image is extended
-            with ``image.add_local_dir(local_path, remote_path=parent)``, where
-            ``parent`` is the parent directory of ``remote_path``. This is the
-            file-routing primitive that gives each phase true filesystem
-            isolation.
+            local source path. Each entry is added to the sandbox image via
+            ``add_local_file`` (for files) or ``add_local_dir`` (for
+            directories). This is the file-routing primitive that gives each
+            phase true filesystem isolation.
         prompt: Full Claude Code prompt text (typically the contents of a
             ``worldsim/prompts/*.md`` file).
         output_paths: Absolute paths inside the sandbox to read back after
@@ -112,26 +109,42 @@ async def run_claude_in_sandbox(
     """
     image = base_image
     for remote_path, local_path in site_files.items():
-        parent = str(Path(remote_path).parent)
-        image = image.add_local_dir(local_path, remote_path=parent)
+        local = Path(local_path)
+        if local.is_file():
+            image = image.add_local_file(local_path, remote_path=remote_path)
+        elif local.is_dir():
+            parent = str(Path(remote_path).parent)
+            image = image.add_local_dir(local_path, remote_path=parent)
+        else:
+            logger.warning("skipping %s -> %s: path does not exist", local_path, remote_path)
 
-    sandbox = modal.Sandbox.create(app=app, image=image, timeout=timeout)
+    app = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
+    sandbox = await modal.Sandbox.create.aio(app=app, image=image, timeout=timeout)
     try:
-        claude_ps = sandbox.exec(
+        claude_ps = await sandbox.exec.aio(
             "claude",
             "-p",
             prompt,
-            "--dangerously-skip-permissions",  # skip-permissions disables the interactive prompt; permission-mode plan restricts what Claude can do
-            "--permission-mode",
-            "plan",
+            "--dangerously-skip-permissions",
             "--verbose",
             "--effort",
             "high",
             pty=True,
-            secrets=_build_claude_secrets(),  # secrets are scoped to this exec, not to sandbox creation
+            secrets=_build_claude_secrets(),
             workdir="/workspace",
         )
-        claude_ps.wait()
+        await claude_ps.wait.aio()
+
+        # With pty=True, stderr is multiplexed into stdout (Modal SDK).
+        stdout = await claude_ps.stdout.read.aio()
+        if claude_ps.returncode != 0:
+            logger.warning(
+                "Claude Code exited with rc=%d. Output tail:\n%s",
+                claude_ps.returncode,
+                stdout[-2000:] if stdout else "(empty)",
+            )
+        else:
+            logger.info("Claude Code finished (rc=0, output=%d chars)", len(stdout))
 
         outputs: dict[str, str | None] = {}
         for path in output_paths:

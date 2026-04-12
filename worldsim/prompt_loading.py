@@ -14,11 +14,20 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 def load_prompt(name: str) -> str:
     """Load a prompt file by stem name, e.g. ``load_prompt('profile-site')``.
 
+    Some prompts contain template variables (e.g. ``{num_tasks}``). This
+    function returns raw text — callers are responsible for substitution::
+
+        load_prompt("generate-benign-tasks").format(num_tasks=30)
+
+    For templates containing ``|`` (e.g. ``{pass|fail}`` in
+    ``diagnose-benign-failure.md``), use ``str.replace()`` instead of
+    ``str.format()`` since ``|`` is invalid in format specs.
+
     Args:
         name: Stem of a file under ``worldsim/prompts/`` (no extension).
 
     Returns:
-        Full prompt text.
+        Full prompt text (unsubstituted).
 
     Raises:
         FileNotFoundError: If no matching prompt file exists, with a listing
