@@ -1,30 +1,57 @@
-snapshots/
-venv/
-.env
-.DS_Store
-.idea/
-.vscode/
-.pytest_cache/
-.ruff_cache/
-.ruff_cache/
-runs/
-BENCHMARK_SYSTEM.md
-CHANGES_SUMMARY.md
-EXECUTION_PLAN.md
-.github/
-cua-website-sim/client_secret_141965070429-ohl73qg1epfpb2me8i600e732he2kls9.apps.googleusercontent.com.json
-webarena/webarena-key.pem
-age
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
 
-nohup*.out
-.venv
-.cursor/
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Modal
+.modal/
+
+# WorldSim runtime
+logs/
+pipeline_outputs/
+*.sqlite
+*.sqlite3
+
+# Vendors — external benchmark clones (user runs `git clone` themselves)
 vendors/
 
-# Python bytecode
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-dist/
-build/
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+.cursor/
+.claude/
+.gradio/
+
+# Test / tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Backup files
+*.bak
+*.swp
+*.swo
+*~
+
+# Misc
+*.log
+nohup*.out
