@@ -122,7 +122,7 @@ class BrowserUseAgent:
     async def teardown(self) -> None:
         if self._session is not None:
             try:
-                await self._session.close()
+                await self._session.kill()
             except Exception as e:  # noqa: BLE001
-                logger.warning("BrowserSession close failed: %s", e)
+                logger.warning("BrowserSession kill failed: %s", e)
             self._session = None
