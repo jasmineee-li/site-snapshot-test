@@ -175,7 +175,7 @@ async def run_critique(
     prompt_text = PROMPTS[prompt_name].replace("{format_type}", format_type)
 
     if format_type == "screenshot":
-        result = await model.generate_with_image(prompt_text, content)
+        result = await model.generate_with_images(prompt_text, [content])
     else:
         full_prompt = content + "\n\n" + prompt_text
         result = await model.generate(full_prompt)

@@ -10,6 +10,7 @@ more like an evaluation environment. Counterbalanced two ways:
 import asyncio
 import json
 import logging
+import random
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
@@ -38,25 +39,77 @@ class ComparativeExperiment(BaseExperiment):
         # Not used directly — we override run() to handle pairs
         return []
 
+    @staticmethod
+    def _normalize_website_type(wtype: str) -> str:
+        """Normalize website_type for cross-source matching.
+
+        WAI uses subtypes like 'gmail-accounts-and-contacts' or
+        'gitlab-plan-and-track'; normalize to base product name so they
+        can be matched against real/TAC sources.
+        """
+        # Known base product names — order matters (longest prefix first)
+        BASE_PRODUCTS = [
+            "elation", "figma", "gitlab", "gmail", "handshake",
+            "linear", "paypal", "superhuman", "xero",
+        ]
+        lower = wtype.lower()
+        for base in BASE_PRODUCTS:
+            if lower == base or lower.startswith(base + "-"):
+                return base
+        return wtype
+
     async def run_pairs(
         self,
         samples: list[WebsiteSample],
         format_type: str,
+        max_per_side: int | None = None,
+        seed: int = 42,
+        cross_type: bool = False,
     ) -> list[WebsiteExperimentResult]:
         """Run pairwise comparisons between samples from different sources.
 
-        Groups samples by website_type, then creates all cross-source pairs.
-        Each pair is run in both AB and BA order for counterbalancing.
+        Groups samples by normalized website_type, then creates cross-source
+        pairs. Each pair is run in both AB and BA order for counterbalancing.
+
+        Args:
+            max_per_side: If set, sample at most this many pages per source
+                per website type to limit the cartesian product.
+            seed: Random seed for sampling.
+            cross_type: If True, ignore website_type entirely — pair any
+                sample with any other cross-source sample. Useful when
+                sources have no overlapping website types (e.g. worldsim).
         """
-        # Group by website_type
+        rng = random.Random(seed)
+
+        # Group by normalized website_type (or one bucket if cross_type)
         by_type: dict[str, list[WebsiteSample]] = {}
         for s in samples:
-            by_type.setdefault(s.website_type, []).append(s)
+            key = "__all__" if cross_type else self._normalize_website_type(s.website_type)
+            by_type.setdefault(key, []).append(s)
 
         all_results = []
         output_file = self.output_dir / f"{self.name}_results.jsonl"
 
-        for wtype, type_samples in by_type.items():
+        # Resume: load already-completed (sample_id, order) pairs for this format
+        done: set[tuple[str, str]] = set()
+        if output_file.exists():
+            for line in output_file.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if r.get("format_used") != format_type:
+                    continue
+                order = (r.get("metadata") or {}).get("order")
+                sid = r.get("sample_id")
+                if sid and order:
+                    done.add((sid, order))
+            if done:
+                logger.info(f"Resume: skipping {len(done)} already-completed entries for format={format_type}")
+
+        for wtype, type_samples in sorted(by_type.items()):
             # Group by source within this website type
             by_source: dict[str, list[WebsiteSample]] = {}
             for s in type_samples:
@@ -66,35 +119,55 @@ class ComparativeExperiment(BaseExperiment):
             if len(sources) < 2:
                 continue
 
+            # Optionally subsample per source
+            if max_per_side:
+                for src in by_source:
+                    if len(by_source[src]) > max_per_side:
+                        by_source[src] = rng.sample(by_source[src], max_per_side)
+
+            logger.info(f"Comparative group '{wtype}': {', '.join(f'{s}({len(v)})' for s, v in by_source.items())}")
+
             # Generate cross-source pairs
             for src_a, src_b in combinations(sources, 2):
                 for sample_a in by_source[src_a]:
                     for sample_b in by_source[src_b]:
-                        # Run AB order
-                        result_ab = await self._compare_pair(
-                            sample_a, sample_b, format_type, "AB"
-                        )
-                        all_results.append(result_ab)
+                        ab_id = f"{sample_a.id}_vs_{sample_b.id}"
+                        ba_id = f"{sample_b.id}_vs_{sample_a.id}"
 
-                        # Run BA order (counterbalanced)
-                        result_ba = await self._compare_pair(
-                            sample_b, sample_a, format_type, "BA"
-                        )
-                        all_results.append(result_ba)
+                        pair_results = []
+                        if (ab_id, "AB") not in done:
+                            try:
+                                result_ab = await self._compare_pair(
+                                    sample_a, sample_b, format_type, "AB"
+                                )
+                                pair_results.append(result_ab)
+                            except Exception as e:
+                                logger.error(f"Pair {ab_id} AB crashed: {e}")
+                        if (ba_id, "BA") not in done:
+                            try:
+                                result_ba = await self._compare_pair(
+                                    sample_b, sample_a, format_type, "BA"
+                                )
+                                pair_results.append(result_ba)
+                            except Exception as e:
+                                logger.error(f"Pair {ba_id} BA crashed: {e}")
+
+                        all_results.extend(pair_results)
 
                         # Incremental save
-                        with open(output_file, "a", encoding="utf-8") as f:
-                            for r in [result_ab, result_ba]:
-                                f.write(json.dumps({
-                                    "sample_id": r.sample_id,
-                                    "experiment_type": r.experiment_type,
-                                    "model": r.model,
-                                    "format_used": r.format_used,
-                                    "score": r.score,
-                                    "classification": r.classification,
-                                    "raw_response": r.raw_response,
-                                    "metadata": r.metadata,
-                                }) + "\n")
+                        if pair_results:
+                            with open(output_file, "a", encoding="utf-8") as f:
+                                for r in pair_results:
+                                    f.write(json.dumps({
+                                        "sample_id": r.sample_id,
+                                        "experiment_type": r.experiment_type,
+                                        "model": r.model,
+                                        "format_used": r.format_used,
+                                        "score": r.score,
+                                        "classification": r.classification,
+                                        "raw_response": r.raw_response,
+                                        "metadata": r.metadata,
+                                    }) + "\n")
 
         print(f"  {self.name}: {len(all_results)} results saved to {output_file}")
         return all_results
@@ -133,6 +206,25 @@ class ComparativeExperiment(BaseExperiment):
         }.get(format_type, format_type)
 
         async def _run_one(idx: int, prompt_tuple: tuple) -> dict:
+            label, json_key, preamble, question = prompt_tuple
+
+            try:
+                return await _run_one_inner(idx, prompt_tuple)
+            except Exception as e:
+                logger.warning(f"pair {sample_a.id} vs {sample_b.id} prompt {idx} failed: {e}")
+                return {
+                    "prompt_idx": idx,
+                    "label": label,
+                    "json_key": json_key,
+                    "choice": None,
+                    "confidence": None,
+                    "reasoning": "",
+                    "chosen_eval_source": None,
+                    "raw_response": None,
+                    "error": str(e),
+                }
+
+        async def _run_one_inner(idx: int, prompt_tuple: tuple) -> dict:
             label, json_key, preamble, question = prompt_tuple
 
             if format_type == "screenshot":

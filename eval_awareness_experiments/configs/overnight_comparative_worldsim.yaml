@@ -1,0 +1,16 @@
+name: overnight_comparative_worldsim
+experiment: comparative
+models:
+  - anthropic/claude-opus-4.6:thinking
+  - openai/gpt-5.4-mini:thinking
+formats:
+  - html
+sources:
+  - worldsim
+  - real
+  - webarena-infinity
+cross_type: true
+max_per_side: 3
+seed: 42
+manifest: eval_awareness_experiments/data/manifest.json
+output_dir: eval_awareness_experiments/results

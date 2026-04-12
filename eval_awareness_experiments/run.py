@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import json
 import logging
+import random
 from pathlib import Path
 
 import yaml
@@ -110,6 +111,13 @@ async def run_experiment(config: dict) -> None:
         print("No samples matched the filter criteria.")
         return
 
+    max_samples = config.get("max_samples")
+    if max_samples and len(samples) > max_samples:
+        seed = config.get("seed", 42)
+        rng = random.Random(seed)
+        samples = rng.sample(samples, max_samples)
+        print(f"Sampled {max_samples} of {len(samples) + max_samples - max_samples} samples (seed={seed})")
+
     print(f"Running {experiment_name} on {len(samples)} samples")
     print(f"  Models: {models}")
     print(f"  Formats: {formats}")
@@ -125,8 +133,16 @@ async def run_experiment(config: dict) -> None:
         experiment = exp_cls(model=model, output_dir=exp_output)
 
         if experiment_name == "comparative":
+            max_per_side = config.get("max_per_side")
+            seed = config.get("seed", 42)
+            cross_type = config.get("cross_type", False)
             for fmt in formats:
-                await experiment.run_pairs(samples, fmt)
+                await experiment.run_pairs(
+                    samples, fmt,
+                    max_per_side=max_per_side,
+                    seed=seed,
+                    cross_type=cross_type,
+                )
         else:
             await experiment.run(samples, formats)
 
@@ -148,6 +164,9 @@ def main():
                         help="Filter by source: worldsim, webarena, agentcompany, real")
     parser.add_argument("--website-types", type=str, nargs="+", default=None,
                         help="Filter by website type: github, gitlab, etc.")
+    parser.add_argument("--max-samples", type=int, default=None,
+                        help="Max samples to run (random subset)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
     parser.add_argument("--manifest", type=str, default="eval_awareness_experiments/data/manifest.json",
                         help="Path to manifest file")
     parser.add_argument("--output-dir", type=str, default="eval_awareness_experiments/results",
@@ -165,6 +184,8 @@ def main():
             "formats": args.formats,
             "sources": args.sources,
             "website_types": args.website_types,
+            "max_samples": args.max_samples,
+            "seed": args.seed,
             "manifest": args.manifest,
             "output_dir": args.output_dir,
         }
