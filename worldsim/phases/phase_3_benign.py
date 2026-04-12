@@ -130,6 +130,13 @@ async def run(args: argparse.Namespace) -> int:
         if t["id"] in validated_tasks_by_id
     ]
 
+    if not validated_tasks:
+        logger.warning(
+            "Phase 3: no tasks passed validation — 0/%d benign tasks validated. "
+            "This is a valid scientific result but worth investigating.",
+            len(benign_tasks),
+        )
+
     output_dir = STATE_DIR / "phase_3"
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "validated_tasks.json").write_text(json.dumps(validated_tasks, indent=2))
@@ -432,8 +439,11 @@ async def _run_tasks_by_site(
         )
 
     if batches:
-        grouped_results = await asyncio.gather(*batches)
+        grouped_results = await asyncio.gather(*batches, return_exceptions=True)
         for batch in grouped_results:
+            if isinstance(batch, BaseException):
+                logger.error("Phase 3: site batch failed: %s", batch)
+                continue
             results.extend(batch)
     return results
 
@@ -451,8 +461,10 @@ def _make_agent_factory():
             from langchain_openai import ChatOpenAI
             llm = ChatOpenAI(model="gpt-4o", temperature=0)
         except ImportError:
-            logger.warning("langchain_openai not installed — using None LLM (will fail on agent.run)")
-            llm = None
+            raise RuntimeError(
+                "langchain_openai is required for Phase 3 agent runs. "
+                "Install it with: uv pip install langchain-openai"
+            )
 
         return BrowserUseAgent(llm=llm, headless=True)
 

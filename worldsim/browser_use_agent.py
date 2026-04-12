@@ -486,7 +486,7 @@ class BrowserUseAgent:
                 "steps": len(history.history),
             }
             (task_dir / "final_response.json").write_text(
-                json.dumps(final_response, indent=2)
+                json.dumps(final_response, indent=2, default=str)
             )
         finally:
             network_trace = await network_recorder.stop()

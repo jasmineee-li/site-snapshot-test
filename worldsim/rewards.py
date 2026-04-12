@@ -333,8 +333,6 @@ def _db_query_match(
     Used for injection verification in Phase 4 where we need to check
     database state directly.
     """
-    from worldsim.seeding import execute_sql
-
     query = reward.get("query", "")
     expected = reward.get("expected")
     db_conn = instance.get("db_connection")

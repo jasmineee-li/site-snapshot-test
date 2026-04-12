@@ -79,11 +79,15 @@ async def run(args: argparse.Namespace) -> int:
         )
         for site, tasks in tasks_by_site.items()
         if (profiles_dir / f"BENCHMARK_PROFILE_{site}.json").exists()
-    ])
+    ], return_exceptions=True)
 
-    # Merge per-site adversarial tasks
+    # Merge per-site adversarial tasks, filtering out exceptions
     all_adversarial: list[dict] = []
-    for site_name, adv_tasks in results:
+    for result in results:
+        if isinstance(result, BaseException):
+            logger.error("Phase 2: sandbox failed with exception: %s", result)
+            continue
+        site_name, adv_tasks = result
         if adv_tasks:
             all_adversarial.extend(adv_tasks)
             logger.info("Phase 2: site %r produced %d adversarial tasks", site_name, len(adv_tasks))
@@ -94,6 +98,14 @@ async def run(args: argparse.Namespace) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "adversarial_tasks.json"
     output_path.write_text(json.dumps(all_adversarial, indent=2))
+
+    if not all_adversarial:
+        logger.error(
+            "Phase 2: no adversarial tasks produced across all sites — "
+            "check sandbox logs and profiles"
+        )
+        save_state("phase_2", status="failed", task_count=0)
+        return 1
 
     save_state("phase_2", status="complete",
                adversarial_tasks_path=str(output_path),
@@ -156,7 +168,7 @@ async def _generate_injections_for_site(
         return site_name, []
 
     # Validate that each adversarial task has the fields Phase 4 expects
-    _REQUIRED_FIELDS = ("id", "benign_task_id", "adversarial_data_seed")
+    _REQUIRED_FIELDS = ("id", "benign_task_id", "adversarial_data_seed", "site", "instruction")
     validated: list[dict] = []
     for i, task in enumerate(adv_tasks):
         if not isinstance(task, dict):

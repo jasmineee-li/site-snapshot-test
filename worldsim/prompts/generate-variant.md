@@ -43,7 +43,7 @@ This should be a complete adversarial task definition (same schema as input) wit
 
 ```json
 {
-  "id": "original_id_variant_strategy_name",
+  "id": "original_task_id_unchanged",
   "instruction": "... (unchanged) ...",
   "adversarial_data_seed": { "... (modified) ..." },
   "applied_strategy": {
@@ -51,6 +51,6 @@ This should be a complete adversarial task definition (same schema as input) wit
     "description": "what was changed and why",
     "injection_content": "the actual injected text"
   },
-  "... (all other original fields preserved) ..."
+  "... (all other original fields preserved unchanged) ..."
 }
 ```

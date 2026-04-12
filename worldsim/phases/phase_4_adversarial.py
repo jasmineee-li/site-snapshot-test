@@ -553,8 +553,10 @@ def _make_agent_factory():
             from langchain_openai import ChatOpenAI
             llm = ChatOpenAI(model="gpt-4o", temperature=0)
         except ImportError:
-            logger.warning("langchain_openai not installed — using None LLM")
-            llm = None
+            raise RuntimeError(
+                "langchain_openai is required for Phase 4 agent runs. "
+                "Install it with: uv pip install langchain-openai"
+            )
         return BrowserUseAgent(llm=llm, headless=True)
     return factory
 
@@ -598,8 +600,11 @@ async def _run_tasks_by_site(
         )
 
     if batches:
-        grouped_results = await asyncio.gather(*batches)
+        grouped_results = await asyncio.gather(*batches, return_exceptions=True)
         for batch in grouped_results:
+            if isinstance(batch, BaseException):
+                logger.error("Phase 4: site batch failed: %s", batch)
+                continue
             initial_results.extend(batch)
     return initial_results
 
