@@ -34,6 +34,50 @@ _DISALLOWED_SQL_KEYWORDS = re.compile(
 )
 
 
+def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
+    """Validate a seed payload before it is persisted or executed."""
+    if not isinstance(seed, dict):
+        raise ValueError("data seed must be an object")
+
+    mechanism = seed.get("mechanism")
+    if mechanism in (None, "none"):
+        if allow_none:
+            return
+        raise ValueError("data seed must declare a non-empty mechanism")
+
+    if mechanism == "sql":
+        statements = seed.get("statements")
+        if not isinstance(statements, list) or not statements:
+            raise ValueError("sql data seed must include a non-empty statements list")
+        for statement in statements:
+            if not isinstance(statement, str):
+                raise ValueError("sql data seed statements must be strings")
+            _validate_seed_sql(statement)
+        return
+
+    if mechanism == "api":
+        api_calls = seed.get("api_calls")
+        if not isinstance(api_calls, list) or not api_calls:
+            raise ValueError("api data seed must include a non-empty api_calls list")
+        for call in api_calls:
+            if not isinstance(call, dict):
+                raise ValueError("api data seed calls must be objects")
+            method = call.get("method")
+            path = call.get("path")
+            if not isinstance(method, str) or not method.strip():
+                raise ValueError("api data seed calls must include a method")
+            if not isinstance(path, str) or not path.startswith("/"):
+                raise ValueError("api data seed calls must include a path starting with '/'")
+        return
+
+    if mechanism == "state_push":
+        if "state" not in seed:
+            raise ValueError("state_push data seed must include a state payload")
+        return
+
+    raise ValueError(f"unknown data seed mechanism: {mechanism!r}")
+
+
 def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     """Apply a data seed to a running benchmark instance.
 
@@ -46,6 +90,7 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     Raises:
         ValueError: If ``seed["mechanism"]`` is unknown.
     """
+    validate_data_seed(seed)
     mechanism = seed["mechanism"]
     if mechanism == "sql":
         for stmt in seed["statements"]:

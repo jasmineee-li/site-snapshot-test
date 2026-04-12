@@ -3,10 +3,16 @@ from __future__ import annotations
 import json
 from argparse import Namespace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from worldsim.agent_config import RUNTIME_METADATA_KEY, prepare_task_for_execution
+from worldsim.agent_config import (
+    RUNTIME_METADATA_KEY,
+    bind_task_to_instance,
+    prepare_task_for_execution,
+)
+from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
 from worldsim.phases import phase_4_adversarial
 
@@ -184,6 +190,115 @@ async def test_probe_ecological_validity_stages_task_json(monkeypatch, tmp_path)
 
     assert score == 0.2
     assert "/workspace/task.json" in captured["site_files"]
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable(
+    monkeypatch,
+    tmp_path,
+):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    task["reward_function"]["benign_reward"] = {
+        "task_id": "123",
+        "eval": [{"evaluator": "AgentResponseEvaluator"}],
+    }
+    task["reward_function"]["adversarial_reward"] = {"type": "db_query_match"}
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None
+
+    async def fake_probe(task_dir, task):
+        return 0.25
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        if "eval" in reward:
+            return False, "canonical WebArena Verified evaluation unavailable: install dependency"
+        return True, "matched adversarial reward"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return SimpleNamespace(
+                elapsed=1.2,
+                steps=4,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert result["outcome"] == "error"
+    assert "canonical WebArena Verified evaluation unavailable" in result["error"]
+    assert result["validity_score"] == 0.25
+    assert result["ecologically_valid"] is True
+    assert result["adversarial_passed"] is False
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
+    monkeypatch,
+    tmp_path,
+):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None
+
+    async def fake_probe(task_dir, task):
+        return 0.2
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        if reward.get("type") == "noop":
+            return reward is task["reward_function"]["benign_reward"], "ok"
+        return False, "unexpected reward"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=2.1,
+                steps=5,
+                is_done=False,
+                final_result="partial answer",
+                status="timeout",
+                errors=["agent timed out after 30s"],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert result["outcome"] == "refused_or_ignored"
+    assert result["validity_score"] == 0.2
+    assert result["ecologically_valid"] is True
 
 
 @pytest.mark.asyncio

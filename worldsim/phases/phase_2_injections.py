@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from dataclasses import dataclass
 import json
 import logging
 import tempfile
@@ -25,10 +26,26 @@ from pathlib import Path
 
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox
+from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
+from worldsim.seeding import validate_data_seed
 from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
+_REQUIRED_ADVERSARIAL_FIELDS = (
+    "id",
+    "benign_task_id",
+    "adversarial_data_seed",
+    "site",
+    "instruction",
+)
+
+
+@dataclass(frozen=True)
+class SiteInjectionResult:
+    site_name: str
+    adversarial_tasks: list[dict]
+    errors: list[str]
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -63,17 +80,13 @@ async def run(args: argparse.Namespace) -> int:
         len(benign_tasks),
     )
 
-    missing_profiles = [
-        f"{site}: {profiles_dir / f'BENCHMARK_PROFILE_{site}.json'}"
-        for site in tasks_by_site
-        if not (profiles_dir / f"BENCHMARK_PROFILE_{site}.json").exists()
-    ]
-    if missing_profiles:
+    site_profiles, profile_errors = _collect_site_profiles(tasks_by_site, profiles_dir)
+    if profile_errors:
         logger.error(
-            "Phase 2 cannot proceed because expected site profiles are missing:\n%s",
-            "\n".join(f"  - {item}" for item in missing_profiles),
+            "Phase 2 cannot proceed because required site profiles are invalid:\n%s",
+            "\n".join(f"  - {item}" for item in profile_errors),
         )
-        save_state("phase_2", status="failed", reason="missing_site_profiles")
+        save_state("phase_2", status="failed", reason="invalid_site_profiles")
         return 1
 
     # Run one sandbox per site in parallel
@@ -81,24 +94,36 @@ async def run(args: argparse.Namespace) -> int:
         _generate_injections_for_site(
             site_name=site,
             site_tasks=tasks,
-            profile_path=profiles_dir / f"BENCHMARK_PROFILE_{site}.json",
+            profile_path=site_profiles[site],
         )
         for site, tasks in tasks_by_site.items()
-        if (profiles_dir / f"BENCHMARK_PROFILE_{site}.json").exists()
     ], return_exceptions=True)
 
-    # Merge per-site adversarial tasks, filtering out exceptions
+    # Merge per-site adversarial tasks, failing closed on any missing site output.
     all_adversarial: list[dict] = []
+    site_failures: list[str] = []
     for result in results:
         if isinstance(result, BaseException):
             logger.error("Phase 2: sandbox failed with exception: %s", result)
+            site_failures.append(str(result))
             continue
-        site_name, adv_tasks = result
-        if adv_tasks:
-            all_adversarial.extend(adv_tasks)
-            logger.info("Phase 2: site %r produced %d adversarial tasks", site_name, len(adv_tasks))
-        else:
-            logger.warning("Phase 2: site %r produced no adversarial tasks", site_name)
+        if result.errors:
+            site_failures.extend(f"{result.site_name}: {error}" for error in result.errors)
+            continue
+        all_adversarial.extend(result.adversarial_tasks)
+        logger.info(
+            "Phase 2: site %r produced %d adversarial tasks",
+            result.site_name,
+            len(result.adversarial_tasks),
+        )
+
+    if site_failures:
+        logger.error(
+            "Phase 2 failed because one or more sites did not produce valid adversarial tasks:\n%s",
+            "\n".join(f"  - {failure}" for failure in site_failures),
+        )
+        save_state("phase_2", status="failed", reason="site_generation_failed")
+        return 1
 
     # Write combined output
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -127,15 +152,15 @@ async def _generate_injections_for_site(
     site_name: str,
     site_tasks: list[dict],
     profile_path: Path,
-) -> tuple[str, list[dict]]:
+) -> SiteInjectionResult:
     """Generate adversarial injections for one site via Modal Sandbox.
 
     Returns:
-        Tuple of (site_name, list of adversarial task dicts).
+        Validated sandbox output for one site.
     """
     if not profile_path.exists():
         logger.warning("No profile for site %r at %s — skipping", site_name, profile_path)
-        return site_name, []
+        return SiteInjectionResult(site_name, [], [f"profile not found at {profile_path}"])
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
@@ -163,7 +188,11 @@ async def _generate_injections_for_site(
     adv_json = outputs.get("/workspace/output/adversarial_tasks.json")
     if not adv_json:
         logger.warning("Phase 2: sandbox for site %r did not produce output", site_name)
-        return site_name, []
+        return SiteInjectionResult(
+            site_name,
+            [],
+            ["sandbox did not produce adversarial_tasks.json"],
+        )
 
     try:
         adv_tasks = json.loads(adv_json)
@@ -171,73 +200,98 @@ async def _generate_injections_for_site(
             adv_tasks = [adv_tasks]
     except json.JSONDecodeError as e:
         logger.error("Phase 2: invalid JSON from site %r sandbox: %s", site_name, e)
-        return site_name, []
+        return SiteInjectionResult(site_name, [], [f"invalid sandbox JSON: {e}"])
 
+    validated, errors = _validate_generated_adversarial_tasks(adv_tasks, site_tasks)
+    return SiteInjectionResult(site_name, validated, errors)
+
+
+def _collect_site_profiles(
+    tasks_by_site: dict[str, list[dict]],
+    profiles_dir: Path,
+) -> tuple[dict[str, Path], list[str]]:
+    """Validate Phase 0c profiles once and return the reusable site-path map."""
+    site_profiles: dict[str, Path] = {}
+    errors: list[str] = []
+    for site in tasks_by_site:
+        profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
+        try:
+            load_and_validate_profile(site, profile_path)
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+        site_profiles[site] = profile_path
+    return site_profiles, errors
+
+
+def _validate_generated_adversarial_tasks(
+    adv_tasks: list[dict],
+    benign_tasks: list[dict],
+) -> tuple[list[dict], list[str]]:
+    """Validate sandbox-generated adversarial tasks against their benign parents."""
     benign_by_id = {
         str(task.get("id", "")): task
-        for task in site_tasks
+        for task in benign_tasks
     }
-
-    # Validate that each adversarial task has the fields Phase 4 expects
-    _REQUIRED_FIELDS = ("id", "benign_task_id", "adversarial_data_seed", "site", "instruction")
     validated: list[dict] = []
+    errors: list[str] = []
     for i, task in enumerate(adv_tasks):
-        if not isinstance(task, dict):
-            logger.warning(
-                "Phase 2 site %r: task %d is not a dict — skipping", site_name, i
-            )
-            continue
-        missing = [f for f in _REQUIRED_FIELDS if f not in task]
-        if missing:
-            logger.warning(
-                "Phase 2 site %r: task %d (%s) missing required fields %s",
-                site_name, i, task.get("id", "?"), missing,
-            )
-            continue
-        benign_parent = benign_by_id.get(str(task.get("benign_task_id", "")))
-        if benign_parent is None:
-            logger.warning(
-                "Phase 2 site %r: task %d (%s) references unknown benign_task_id %r",
-                site_name, i, task.get("id", "?"), task.get("benign_task_id"),
-            )
-            continue
-        # Check nested reward_function structure
-        rf = task.get("reward_function")
-        if isinstance(rf, dict):
-            if "benign_reward" not in rf:
-                logger.warning(
-                    "Phase 2 site %r: task %d (%s) reward_function missing 'benign_reward'",
-                    site_name, i, task.get("id", "?"),
-                )
-                continue
-            if "adversarial_reward" not in rf:
-                logger.warning(
-                    "Phase 2 site %r: task %d (%s) reward_function missing 'adversarial_reward'",
-                    site_name, i, task.get("id", "?"),
-                )
-                continue
-        elif rf is not None:
-            logger.warning(
-                "Phase 2 site %r: task %d (%s) reward_function is not a dict",
-                site_name, i, task.get("id", "?"),
-            )
-            continue
-        else:
-            logger.warning(
-                "Phase 2 site %r: task %d (%s) missing reward_function",
-                site_name, i, task.get("id", "?"),
-            )
-            continue
-        violation = _validate_adversarial_task_contract(task, benign_parent)
-        if violation is not None:
-            logger.warning(
-                "Phase 2 site %r: task %d (%s) violates benign-task invariants: %s",
-                site_name, i, task.get("id", "?"), violation,
-            )
+        problem = _validate_generated_adversarial_task(task, i, benign_by_id)
+        if problem is not None:
+            errors.append(problem)
             continue
         validated.append(task)
 
-    return site_name, validated
+    if not validated and not errors:
+        errors.append("sandbox produced no adversarial tasks")
+
+    return validated, errors
+
+
+def _validate_generated_adversarial_task(
+    task: object,
+    task_index: int,
+    benign_by_id: dict[str, dict],
+) -> str | None:
+    """Return a validation error for one sandbox-generated adversarial task."""
+    if not isinstance(task, dict):
+        return f"task {task_index} is not an object"
+
+    task_name = f"task {task_index} ({task.get('id', '?')})"
+    missing = [field for field in _REQUIRED_ADVERSARIAL_FIELDS if field not in task]
+    if missing:
+        return f"{task_name} missing required fields {missing}"
+
+    benign_parent = benign_by_id.get(str(task.get("benign_task_id", "")))
+    if benign_parent is None:
+        return (
+            f"{task_name} references unknown benign_task_id "
+            f"{task.get('benign_task_id')!r}"
+        )
+
+    reward_problem = _validate_reward_function_shape(task, task_name)
+    if reward_problem is not None:
+        return reward_problem
+
+    violation = _validate_adversarial_task_contract(task, benign_parent)
+    if violation is not None:
+        return f"{task_name} violates benign-task invariants: {violation}"
+
+    return None
+
+
+def _validate_reward_function_shape(task: dict, task_name: str) -> str | None:
+    """Return a validation error when reward_function is missing expected keys."""
+    reward_function = task.get("reward_function")
+    if reward_function is None:
+        return f"{task_name} missing reward_function"
+    if not isinstance(reward_function, dict):
+        return f"{task_name} reward_function is not an object"
+    if "benign_reward" not in reward_function:
+        return f"{task_name} reward_function missing benign_reward"
+    if "adversarial_reward" not in reward_function:
+        return f"{task_name} reward_function missing adversarial_reward"
+    return None
 
 
 def _validate_adversarial_task_contract(
@@ -258,5 +312,10 @@ def _validate_adversarial_task_contract(
     adv_reward = reward.get("adversarial_reward")
     if not isinstance(adv_reward, dict) or not adv_reward:
         return "adversarial_reward must be a non-empty object"
+
+    try:
+        validate_data_seed(adversarial_task.get("adversarial_data_seed"), allow_none=False)
+    except ValueError as exc:
+        return str(exc)
 
     return None

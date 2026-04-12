@@ -225,7 +225,7 @@ async def run_task(
         start_urls=start_urls,
     )
 
-    if result.status != "success":
+    if result.status != "success" and not _has_scoreable_agent_output(result):
         message = (
             f"agent run {result.status}: "
             + (result.errors[-1] if result.errors else "no additional error details")
@@ -261,6 +261,15 @@ async def run_task(
         "is_done": result.is_done,
         "trajectory_dir": str(task_dir),
     }
+
+
+def _has_scoreable_agent_output(result: Any) -> bool:
+    """Return True when a non-success run still produced usable evaluation artifacts."""
+    return bool(
+        getattr(result, "steps", 0) > 0
+        or getattr(result, "final_result", None)
+        or getattr(result, "network_trace", None)
+    )
 
 
 async def diagnose_failure(

@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.agent_config import RUNTIME_METADATA_KEY, prepare_task_for_execution
+from worldsim.agent_config import (
+    RUNTIME_METADATA_KEY,
+    bind_task_to_instance,
+    prepare_task_for_execution,
+)
+from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
 from worldsim.phases import phase_3_benign
 
@@ -196,3 +201,40 @@ def test_render_diagnosis_prompt_uses_explicit_sanity_result():
     prompt = phase_3_benign._render_diagnosis_prompt({"sanity_check": {"result": "pass"}})
 
     assert "`pass`" in prompt
+
+
+@pytest.mark.asyncio
+async def test_run_task_scores_partial_timeout_when_artifacts_exist(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "reward passed"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=1.4,
+                steps=3,
+                is_done=False,
+                final_result="partial answer",
+                status="timeout",
+                errors=["agent timed out after 30s"],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_3_benign, "run_reward_function", fake_run_reward_function)
+
+    result = await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert result["passed"] is True
+    assert result["message"] == "reward passed"

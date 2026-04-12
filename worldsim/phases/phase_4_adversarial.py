@@ -55,7 +55,7 @@ from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
-from worldsim.seeding import apply_data_seed_async
+from worldsim.seeding import apply_data_seed_async, validate_data_seed
 from worldsim.state import get_state_dir, save_state
 from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
@@ -253,7 +253,8 @@ async def run_adversarial_task(
 
     # Seed adversarial data
     adv_seed = task.get("adversarial_data_seed", {})
-    if adv_seed.get("mechanism") not in (None, "none"):
+    validate_data_seed(adv_seed, allow_none=False)
+    if adv_seed["mechanism"] not in (None, "none"):
         await apply_data_seed_async(adv_seed, instance_dict)
 
     # Run agent
@@ -265,7 +266,7 @@ async def run_adversarial_task(
         start_urls=start_urls,
     )
 
-    if result.status != "success":
+    if result.status != "success" and not _has_scoreable_agent_output(result):
         message = (
             f"agent run {result.status}: "
             + (result.errors[-1] if result.errors else "no additional error details")
@@ -290,12 +291,27 @@ async def run_adversarial_task(
     benign_reward = reward.get("benign_reward", reward)
     adv_reward = reward.get("adversarial_reward", {})
 
-    benign_passed, _ = run_reward_function(
+    benign_passed, benign_message = run_reward_function(
         benign_reward,
         instance_dict,
         result,
         network_trace=result.network_trace,
     )
+    if _is_non_interpretable_benign_eval(benign_reward, benign_passed, benign_message):
+        save_result(task_dir, task, result, False, benign_message)
+        validity_score = await probe_ecological_validity(task_dir, task)
+        return {
+            "task_id": task_id,
+            "outcome": "error",
+            "error": benign_message,
+            "ecologically_valid": validity_score < VALIDITY_THRESHOLD,
+            "validity_score": validity_score,
+            "benign_passed": False,
+            "adversarial_passed": False,
+            "trajectory_dir": str(task_dir),
+            "elapsed": result.elapsed,
+            "steps": result.steps,
+        }
     adv_passed, _ = (
         run_reward_function(
             adv_reward,
@@ -930,12 +946,16 @@ def _rebase_adversarial_task(
     if not isinstance(adversarial_reward, dict) or not adversarial_reward:
         raise ValueError("reward_function.adversarial_reward must be a non-empty object")
 
+    adversarial_data_seed = adversarial_task.get("adversarial_data_seed")
+    try:
+        validate_data_seed(adversarial_data_seed, allow_none=False)
+    except ValueError as exc:
+        raise ValueError(f"invalid adversarial_data_seed: {exc}") from exc
+
     rebuilt = json.loads(json.dumps(benign_task))
     rebuilt["id"] = adversarial_task.get("id", benign_task.get("id"))
     rebuilt["benign_task_id"] = adversarial_task.get("benign_task_id", benign_task.get("id"))
-    rebuilt["adversarial_data_seed"] = json.loads(
-        json.dumps(adversarial_task.get("adversarial_data_seed", {}))
-    )
+    rebuilt["adversarial_data_seed"] = json.loads(json.dumps(adversarial_data_seed))
     rebuilt["reward_function"] = {
         "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
         "adversarial_reward": json.loads(json.dumps(adversarial_reward)),
@@ -957,6 +977,37 @@ def _rebase_adversarial_task(
             continue
         rebuilt[key] = json.loads(json.dumps(value))
     return rebuilt
+
+
+def _has_scoreable_agent_output(result: Any) -> bool:
+    """Return True when a non-success run still produced usable evaluation artifacts."""
+    return bool(
+        getattr(result, "steps", 0) > 0
+        or getattr(result, "final_result", None)
+        or getattr(result, "network_trace", None)
+    )
+
+
+def _is_non_interpretable_benign_eval(
+    benign_reward: dict[str, Any],
+    benign_passed: bool,
+    benign_message: str,
+) -> bool:
+    """Return True when the benign reward could not be interpreted canonically."""
+    if benign_passed or "eval" not in benign_reward:
+        return False
+    normalized = benign_message.lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "canonical webarena verified evaluation unavailable",
+            "reward spec missing canonical webarena verified task_id",
+            "canonical webarena evaluator failed",
+            "canonical webarena evaluator process failed to start",
+            "canonical webarena evaluator returned invalid json",
+            "vendor evaluator failed",
+        )
+    )
 
 
 async def _revise_adversarial_task(

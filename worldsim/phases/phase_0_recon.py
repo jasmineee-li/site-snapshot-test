@@ -27,6 +27,7 @@ from typing import Any
 
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox, upload_to_volume
+from worldsim.profile_validation import validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import get_state_dir, save_state
 
@@ -474,13 +475,6 @@ async def run_phase_0c(
         finally:
             shutil.rmtree(staging_root, ignore_errors=True)
 
-        for remote_path, content in outputs.items():
-            if content and not remote_path.startswith("_"):
-                suffix = Path(remote_path).suffix
-                out_path = output_dir / f"BENCHMARK_PROFILE_{site_name}{suffix}"
-                out_path.write_text(content)
-                logger.info("Phase 0c: wrote %s", out_path)
-
         return site_name, outputs
 
     raw_results = await asyncio.gather(
@@ -516,10 +510,10 @@ async def run_phase_0c(
             failures.append(f"site {site_name} produced invalid profile JSON: {exc}")
             continue
         try:
-            _validate_profile(
+            validate_profile(
                 site_name,
                 profile,
-                manifest.get("evaluation", {}).get("eval_types", []),
+                manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
             )
         except ValueError as exc:
             failures.append(str(exc))
@@ -530,71 +524,13 @@ async def run_phase_0c(
             + "\n".join(f"  - {failure}" for failure in failures)
         )
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for site_name, outputs in results:
+        for remote_path, content in outputs.items():
+            if content and not remote_path.startswith("_"):
+                suffix = Path(remote_path).suffix
+                out_path = output_dir / f"BENCHMARK_PROFILE_{site_name}{suffix}"
+                out_path.write_text(content)
+                logger.info("Phase 0c: wrote %s", out_path)
+
     return dict(results)
-
-
-def _validate_profile(
-    site_name: str,
-    profile: dict,
-    manifest_eval_types: list[str],
-) -> None:
-    """Validate cross-references within a site profile.
-
-    Checks that injection surface source_fields reference data model fields,
-    and that eval_types appear in verification capabilities.
-    """
-    # Collect known field names from data model
-    known_fields: set[str] = set()
-    for entity in profile.get("data_model", []):
-        for field in entity.get("fields", []):
-            known_fields.add(field.get("name", ""))
-        # Also add entity-level identifiers
-        storage = entity.get("storage", "")
-        if storage:
-            known_fields.add(storage)
-
-    errors: list[str] = []
-
-    # Check injection surface source_fields
-    for surface in profile.get("injection_surface", []):
-        source = surface.get("source_field", "")
-        if source and "." in source:
-            # Format is "table.column" — check the column part
-            field_name = source.split(".")[-1]
-            if field_name not in known_fields and known_fields:
-                errors.append(
-                    f"injection surface {surface.get('id', '?')!r} references "
-                    f"unknown field {source!r}"
-                )
-
-    # Collect known eval types from verification capabilities
-    known_eval_types: set[str] = set()
-    for cap in profile.get("verification_capabilities", []):
-        eval_type = cap.get("eval_type", "")
-        if eval_type:
-            known_eval_types.add(eval_type)
-
-    missing_eval_types = sorted(
-        eval_type
-        for eval_type in known_eval_types
-        if eval_type not in set(manifest_eval_types)
-    )
-    if missing_eval_types:
-        errors.append(
-            "verification capabilities reference eval types absent from manifest: "
-            + ", ".join(missing_eval_types)
-        )
-
-    if errors:
-        raise ValueError(
-            f"Profile {site_name} failed validation:\n"
-            + "\n".join(f"  - {error}" for error in errors)
-        )
-
-    logger.info(
-        "Profile %s validated: %d data model entities, %d injection surfaces, %d eval types",
-        site_name,
-        len(profile.get("data_model", [])),
-        len(profile.get("injection_surface", [])),
-        len(known_eval_types),
-    )
