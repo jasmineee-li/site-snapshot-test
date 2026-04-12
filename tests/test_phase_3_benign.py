@@ -167,3 +167,32 @@ async def test_rerun_live_task_rebinds_runtime_metadata(monkeypatch, tmp_path):
     )
 
     assert result["passed"] is True
+
+
+@pytest.mark.asyncio
+async def test_diagnose_failure_uses_unknown_sanity_when_unavailable(monkeypatch, tmp_path):
+    task, _ = _prepared_task()
+    captured = {}
+
+    async def fake_run_claude_in_sandbox(*, site_files, prompt, output_paths, **kwargs):
+        captured["prompt"] = prompt
+        return {
+            "/workspace/output/diagnosis.json": '{"root_cause":"agent_limitation","suggested_fix":{"target":"none","patch":null}}',
+            "_summary": None,
+        }
+
+    monkeypatch.setattr(phase_3_benign, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_3_benign.diagnose_failure(
+        task=task,
+        trajectory_dir=tmp_path,
+        profile_path=tmp_path / "profile.json",
+    )
+
+    assert "`unknown`" in captured["prompt"]
+
+
+def test_render_diagnosis_prompt_uses_explicit_sanity_result():
+    prompt = phase_3_benign._render_diagnosis_prompt({"sanity_check": {"result": "pass"}})
+
+    assert "`pass`" in prompt

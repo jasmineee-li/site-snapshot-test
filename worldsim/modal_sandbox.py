@@ -6,6 +6,7 @@ the files that step needs (inclusion-based scoping, not ignore-based).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -234,14 +235,17 @@ async def run_claude_in_sandbox(
 
 async def upload_to_volume(
     local_dir: Path,
-    volume_name: str = "worldsim-benchmark",
+    volume_name: str | None = None,
     remote_prefix: str = "/",
 ) -> modal.Volume:
-    """Upload a local directory to a Modal Volume (one-time, content-addressed).
+    """Upload a local directory to a Modal Volume keyed by directory contents.
 
     If the volume already has files under ``remote_prefix``, the upload is
     skipped. Returns the Volume object ready for mounting.
     """
+    local_dir = Path(local_dir).resolve()
+    if volume_name is None:
+        volume_name = _content_addressed_volume_name(local_dir)
     vol = modal.Volume.from_name(volume_name, create_if_missing=True)
     try:
         entries = list(await vol.listdir.aio(remote_prefix))
@@ -259,6 +263,32 @@ async def upload_to_volume(
         batch.put_directory(str(local_dir), remote_prefix)
     logger.info("Upload complete")
     return vol
+
+
+def _content_addressed_volume_name(local_dir: Path) -> str:
+    """Build a stable Modal volume name from a directory content hash."""
+    stem = "".join(
+        char if char.isalnum() else "-"
+        for char in local_dir.name.lower()
+    ).strip("-") or "benchmark"
+    digest = _hash_directory(local_dir)[:12]
+    return f"worldsim-{stem[:24]}-{digest}"
+
+
+def _hash_directory(local_dir: Path) -> str:
+    """Hash relative paths and file contents for a directory tree."""
+    hasher = hashlib.sha256()
+    for path in sorted(local_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(local_dir).as_posix()
+        hasher.update(rel.encode("utf-8"))
+        hasher.update(b"\0")
+        with path.open("rb") as handle:
+            while chunk := handle.read(1024 * 1024):
+                hasher.update(chunk)
+        hasher.update(b"\0")
+    return hasher.hexdigest()
 
 
 def _log_summary(summary: dict) -> None:

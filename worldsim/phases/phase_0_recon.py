@@ -96,7 +96,17 @@ async def run(benchmark: Path, sub: str = "0") -> int:
                 return 1
             sandbox_map = json.loads(sandbox_map_path.read_text())
         save_state("phase_0c", status="running", benchmark_path=str(benchmark))
-        await run_phase_0c(manifest, sandbox_map, benchmark, output_base / "phase_0c")
+        try:
+            await run_phase_0c(manifest, sandbox_map, benchmark, output_base / "phase_0c")
+        except Exception as e:
+            save_state(
+                "phase_0c",
+                status="failed",
+                benchmark_path=str(benchmark),
+                error=str(e),
+            )
+            logger.error("Phase 0c failed: %s", e)
+            return 1
         save_state("phase_0c", status="complete",
                    profiles_dir=str(output_base / "phase_0c"),
                    benchmark_path=str(benchmark))
@@ -481,23 +491,44 @@ async def run_phase_0c(
         return_exceptions=True,
     )
 
-    # Filter out exceptions — one failed site should not kill all others.
     results: list[tuple[str, dict[str, str | None]]] = []
+    failures: list[str] = []
     for r in raw_results:
         if isinstance(r, Exception):
             logger.error("Phase 0c site profiling failed: %s", r)
+            failures.append(str(r))
         else:
             results.append(r)
 
-    # Validate cross-references in each profile
+    expected_sites = set(sites_to_profile)
+    completed_sites = {site_name for site_name, _ in results}
+    missing_sites = sorted(expected_sites - completed_sites)
+    failures.extend(f"missing profile result for site {site}" for site in missing_sites)
+
     for site_name, outputs in results:
         profile_json = outputs.get("/workspace/output/BENCHMARK_PROFILE.json")
-        if profile_json:
+        if not profile_json:
+            failures.append(f"site {site_name} did not produce BENCHMARK_PROFILE.json")
+            continue
+        try:
+            profile = json.loads(profile_json)
+        except json.JSONDecodeError as exc:
+            failures.append(f"site {site_name} produced invalid profile JSON: {exc}")
+            continue
+        try:
             _validate_profile(
                 site_name,
-                json.loads(profile_json),
+                profile,
                 manifest.get("evaluation", {}).get("eval_types", []),
             )
+        except ValueError as exc:
+            failures.append(str(exc))
+
+    if failures:
+        raise RuntimeError(
+            "Phase 0c did not complete all required site profiles:\n"
+            + "\n".join(f"  - {failure}" for failure in failures)
+        )
 
     return dict(results)
 

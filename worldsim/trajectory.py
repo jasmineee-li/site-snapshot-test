@@ -44,10 +44,12 @@ def save_result(
         "task_id": task.get("id", "unknown"),
         "passed": passed,
         "message": message,
+        "status": result.status,
         "elapsed": result.elapsed,
         "steps": result.steps,
         "is_done": result.is_done,
         "final_result": result.final_result,
+        "errors": result.errors,
     }
     (task_dir / "result.json").write_text(json.dumps(data, indent=2))
 

@@ -12,6 +12,23 @@ pip install -e .
 
 PostgreSQL support is included in the default install.
 
+### WebArena Verified evaluator
+
+Canonical WebArena Verified scoring is isolated behind a separate installable,
+similar to benchmark-specific packages in BrowserGym.
+
+Install the adapter in its own environment:
+
+```bash
+uv sync --directory packages/worldsim-webarena-verified
+export WORLDSIM_WEBARENA_EVAL_PYTHON="$PWD/packages/worldsim-webarena-verified/.venv/bin/python"
+```
+
+That keeps `worldsim`'s core environment compatible with `browser-use` while
+still allowing canonical `webarena_verified` evaluation. If
+`WORLDSIM_WEBARENA_EVAL_PYTHON` is unset, WorldSim will try an in-process
+`webarena-verified` install and otherwise fail closed.
+
 ## Prerequisites
 
 1. **Modal account.** Sign up at <https://modal.com>, then run `modal token new` to write `~/.modal.toml`, or set `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` in your environment.

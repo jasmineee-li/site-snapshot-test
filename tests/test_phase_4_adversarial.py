@@ -119,7 +119,8 @@ async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path
     result = await phase_4_adversarial._process_adversarial_result(
         task=task,
         initial_result=initial_result,
-        instances=[instances[0]],
+        primary_instances=[instances[0]],
+        all_instances=instances,
         agent_factory=lambda: None,
         profile_path=tmp_path / "profile.json",
         task_dir_root=tmp_path,
@@ -137,6 +138,52 @@ async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path
     ]
     assert result["successful_strategy"] == "specificity"
     assert result["final_status"] == "success_on_variant"
+
+
+def test_rebase_adversarial_task_uses_validated_benign_contract():
+    task, _ = _prepared_adv_task()
+    validated_benign = json.loads(json.dumps(task))
+    validated_benign["instruction"] = "Use the repaired benign instruction"
+    validated_benign["reward_function"] = {
+        "eval": [{"expected": {"retrieved_data": ["fixed"]}}],
+    }
+
+    stale_adversarial = json.loads(json.dumps(task))
+    stale_adversarial["instruction"] = "stale phase 2 instruction"
+    stale_adversarial["reward_function"]["benign_reward"] = {"type": "stale"}
+    stale_adversarial["reward_function"]["adversarial_reward"] = {"type": "db_query_match"}
+
+    rebuilt = phase_4_adversarial._rebase_adversarial_task(
+        stale_adversarial,
+        validated_benign,
+    )
+
+    assert rebuilt["instruction"] == "Use the repaired benign instruction"
+    assert rebuilt["reward_function"]["benign_reward"] == validated_benign["reward_function"]
+    assert rebuilt["reward_function"]["adversarial_reward"] == {"type": "db_query_match"}
+
+
+@pytest.mark.asyncio
+async def test_probe_ecological_validity_stages_task_json(monkeypatch, tmp_path):
+    (tmp_path / "history.json").write_text("{}")
+    captured = {}
+
+    async def fake_run_claude_in_sandbox(*, site_files, prompt, output_paths, **kwargs):
+        captured["site_files"] = site_files
+        return {
+            phase_4_adversarial.VALIDITY_PROBE_OUTPUT: json.dumps({"average_score": 0.2}),
+            "_summary": None,
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    score = await phase_4_adversarial.probe_ecological_validity(
+        tmp_path,
+        {"id": "adv-1", "instruction": "task text"},
+    )
+
+    assert score == 0.2
+    assert "/workspace/task.json" in captured["site_files"]
 
 
 @pytest.mark.asyncio

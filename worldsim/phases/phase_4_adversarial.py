@@ -86,17 +86,35 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Phase 3 validated_tasks.json not found at %s — run phase 3 first", validated_path)
         return 1
     validated = json.loads(validated_path.read_text())
-    validated_ids = {str(t["id"]) for t in validated}
-    tasks = [
-        t for t in adversarial_tasks
-        if str(t.get("benign_task_id", "")) in validated_ids
-        or str(t.get("id", "")) in validated_ids
-    ]
+    validated_by_id = {
+        str(task["id"]): task
+        for task in validated
+    }
+    tasks: list[dict[str, Any]] = []
+    rebase_errors: list[str] = []
+    for adversarial_task in adversarial_tasks:
+        benign_task = validated_by_id.get(str(adversarial_task.get("benign_task_id", "")))
+        if benign_task is None:
+            benign_task = validated_by_id.get(str(adversarial_task.get("id", "")))
+        if benign_task is None:
+            continue
+        try:
+            tasks.append(_rebase_adversarial_task(adversarial_task, benign_task))
+        except ValueError as exc:
+            rebase_errors.append(
+                f"{adversarial_task.get('id', '?')}: {exc}"
+            )
     logger.info(
         "Phase 4: %d/%d adversarial tasks have validated benign counterparts",
         len(tasks),
         len(adversarial_tasks),
     )
+    if rebase_errors:
+        logger.error(
+            "Phase 4 found malformed adversarial tasks after Phase 3 validation:\n%s",
+            "\n".join(f"  - {error}" for error in rebase_errors),
+        )
+        return 1
 
     if not tasks:
         logger.error("No tasks to evaluate")
@@ -174,7 +192,8 @@ async def run(args: argparse.Namespace) -> int:
             await _process_adversarial_result(
                 task=task,
                 initial_result=result,
-                instances=site_instances,
+                primary_instances=site_instances,
+                all_instances=config.instances,
                 agent_factory=agent_factory,
                 profile_path=profile_path,
                 task_dir_root=task_dir_root,
@@ -246,6 +265,25 @@ async def run_adversarial_task(
         start_urls=start_urls,
     )
 
+    if result.status != "success":
+        message = (
+            f"agent run {result.status}: "
+            + (result.errors[-1] if result.errors else "no additional error details")
+        )
+        save_result(task_dir, task, result, False, message)
+        return {
+            "task_id": task_id,
+            "outcome": "error",
+            "error": message,
+            "ecologically_valid": False,
+            "validity_score": 1.0,
+            "benign_passed": False,
+            "adversarial_passed": False,
+            "trajectory_dir": str(task_dir),
+            "elapsed": result.elapsed,
+            "steps": result.steps,
+        }
+
     # 1. Evaluate both benign and adversarial rewards (always, before validity)
     reward = task.get("reward_function", {})
 
@@ -281,7 +319,7 @@ async def run_adversarial_task(
     save_result(task_dir, task, result, benign_passed, f"outcome={outcome}")
 
     # 4. Probe ecological validity
-    validity_score = await probe_ecological_validity(task_dir)
+    validity_score = await probe_ecological_validity(task_dir, task)
     ecologically_valid = validity_score < VALIDITY_THRESHOLD
 
     return {
@@ -300,7 +338,8 @@ async def run_adversarial_task(
 async def _process_adversarial_result(
     task: dict[str, Any],
     initial_result: dict[str, Any],
-    instances: list[BenchmarkInstance],
+    primary_instances: list[BenchmarkInstance],
+    all_instances: list[BenchmarkInstance],
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
@@ -317,13 +356,13 @@ async def _process_adversarial_result(
     current_task = task
     current_result = initial_result
     annotations: dict[str, Any] = {}
-    primary_instance = instances[0]
+    primary_instance = primary_instances[0]
 
     ecological_fix = await _run_ecological_validity_fix_loop(
         task=current_task,
         initial_result=current_result,
         instance=primary_instance,
-        all_instances=instances,
+        all_instances=all_instances,
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
@@ -348,7 +387,7 @@ async def _process_adversarial_result(
         task=current_task,
         initial_result=current_result,
         instance=primary_instance,
-        all_instances=instances,
+        all_instances=all_instances,
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
@@ -404,7 +443,8 @@ async def _process_adversarial_result(
     variation = await run_strategy_variation(
         task=current_task,
         initial_result=current_result,
-        instances=instances,
+        primary_instances=primary_instances,
+        all_instances=all_instances,
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
@@ -588,7 +628,8 @@ def _post_reset(endpoint: str) -> None:
 
 
 async def probe_ecological_validity(
-    task_dir: Path
+    task_dir: Path,
+    task: dict[str, Any] | None = None,
 ) -> float:
     """Probe ecological validity of a trajectory.
 
@@ -604,12 +645,25 @@ async def probe_ecological_validity(
         return 1.0
 
     sandbox_files: dict[str, str] = {}
-    load_trajectory_into_sandbox(task_dir, sandbox_files)
-    outputs = await run_claude_in_sandbox(
-        site_files=sandbox_files,
-        prompt=load_prompt("probe-ecological-validity"),
-        output_paths=[VALIDITY_PROBE_OUTPUT],
-    )
+    if task is not None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
+            task_json_path = tmp / "task.json"
+            task_json_path.write_text(json.dumps(task, indent=2))
+            sandbox_files["/workspace/task.json"] = str(task_json_path)
+            load_trajectory_into_sandbox(task_dir, sandbox_files)
+            outputs = await run_claude_in_sandbox(
+                site_files=sandbox_files,
+                prompt=load_prompt("probe-ecological-validity"),
+                output_paths=[VALIDITY_PROBE_OUTPUT],
+            )
+    else:
+        load_trajectory_into_sandbox(task_dir, sandbox_files)
+        outputs = await run_claude_in_sandbox(
+            site_files=sandbox_files,
+            prompt=load_prompt("probe-ecological-validity"),
+            output_paths=[VALIDITY_PROBE_OUTPUT],
+        )
     cost_tracker.record("phase_4", outputs.get("_summary"))
 
     probe_json = outputs.get(VALIDITY_PROBE_OUTPUT)
@@ -725,7 +779,8 @@ async def generate_variant(
 async def run_strategy_variation(
     task: dict[str, Any],
     initial_result: dict[str, Any],
-    instances: list[BenchmarkInstance],
+    primary_instances: list[BenchmarkInstance],
+    all_instances: list[BenchmarkInstance],
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
@@ -754,7 +809,7 @@ async def run_strategy_variation(
         len(strategies),
     )
 
-    if not instances:
+    if not primary_instances:
         logger.warning("No instances available for variant evaluation of task %s",
                        task.get("id", "?"))
         return {
@@ -787,21 +842,21 @@ async def run_strategy_variation(
         }
 
     # 3. Evaluate variants in parallel, one per separate benchmark instance.
-    limited_variants = real_variants[: len(instances)]
+    limited_variants = real_variants[: len(primary_instances)]
     if len(limited_variants) < len(real_variants):
         logger.warning(
             "Only %d/%d strategy variants for task %s can be evaluated because only %d instances are available",
             len(limited_variants),
             len(real_variants),
             task.get("id", "?"),
-            len(instances),
+            len(primary_instances),
         )
     variant_results = await asyncio.gather(*[
         _evaluate_variant(
             task=task,
             variant=variant,
-            instance=instances[i],
-            all_instances=instances,
+            instance=primary_instances[i],
+            all_instances=all_instances,
             strategy=strategy,
             index=i,
             agent_factory=agent_factory,
@@ -860,6 +915,48 @@ def _merge_variant_task(
         if field in candidate:
             merged[field] = candidate[field]
     return merged
+
+
+def _rebase_adversarial_task(
+    adversarial_task: dict[str, Any],
+    benign_task: dict[str, Any],
+) -> dict[str, Any]:
+    """Rebuild an adversarial task from the Phase 3 validated benign contract."""
+    reward = adversarial_task.get("reward_function")
+    if not isinstance(reward, dict):
+        raise ValueError("reward_function must be an object")
+
+    adversarial_reward = reward.get("adversarial_reward")
+    if not isinstance(adversarial_reward, dict) or not adversarial_reward:
+        raise ValueError("reward_function.adversarial_reward must be a non-empty object")
+
+    rebuilt = json.loads(json.dumps(benign_task))
+    rebuilt["id"] = adversarial_task.get("id", benign_task.get("id"))
+    rebuilt["benign_task_id"] = adversarial_task.get("benign_task_id", benign_task.get("id"))
+    rebuilt["adversarial_data_seed"] = json.loads(
+        json.dumps(adversarial_task.get("adversarial_data_seed", {}))
+    )
+    rebuilt["reward_function"] = {
+        "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
+        "adversarial_reward": json.loads(json.dumps(adversarial_reward)),
+    }
+
+    immutable_fields = {
+        "id",
+        "benign_task_id",
+        "site",
+        "sites",
+        "instruction",
+        "start_urls",
+        "data_seed",
+        "reward_function",
+        "adversarial_data_seed",
+    }
+    for key, value in adversarial_task.items():
+        if key in immutable_fields:
+            continue
+        rebuilt[key] = json.loads(json.dumps(value))
+    return rebuilt
 
 
 async def _revise_adversarial_task(

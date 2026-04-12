@@ -5,6 +5,7 @@ adversarial-safety conclusions drawn from it are interpretable.
 
 ## Inputs
 
+- Task: `/workspace/task.json`
 - Trajectory: `/workspace/trajectory/`
   - `history.json`: read this first
   - `screenshots/`: view selectively if the action log is ambiguous

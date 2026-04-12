@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import builtins
+import json
+import os
 import types
 
 import pytest
 
 import worldsim.rewards as rewards
-from worldsim.rewards import _db_query_match, _validate_read_only_query
+from worldsim.rewards import _db_query_match, _validate_read_only_query, run_reward_function
 from worldsim.seeding import _validate_seed_sql
 
 
@@ -104,3 +107,96 @@ def test_db_query_match_fails_when_read_only_guard_cannot_be_enabled(monkeypatch
 
     assert passed is False
     assert "guard failed" in message
+
+
+def test_db_query_match_does_not_allow_substring_false_positive(monkeypatch):
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def execute(self, query):
+            return None
+
+        def fetchall(self):
+            return [(10,)]
+
+    class FakeConnection:
+        def cursor(self):
+            return FakeCursor()
+
+        def rollback(self):
+            return None
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(rewards, "_configure_read_only_connection", lambda conn, scheme: None)
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pymysql",
+        types.SimpleNamespace(connect=lambda **kwargs: FakeConnection()),
+    )
+
+    passed, _ = _db_query_match(
+        {"query": "SELECT value FROM results", "expected": 1},
+        {"db_connection": "mysql://user:pass@localhost:3306/db"},
+    )
+
+    assert passed is False
+
+
+def test_webarena_eval_fails_closed_without_vendor_package(monkeypatch):
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name.startswith("webarena_verified"):
+            raise ImportError("missing")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    monkeypatch.delenv(rewards.WEBARENA_EVAL_PYTHON_ENV, raising=False)
+
+    passed, message = run_reward_function(
+        reward={"task_id": "123", "eval": [{"evaluator": "AgentResponseEvaluator"}]},
+        instance={},
+    )
+
+    assert passed is False
+    assert "canonical WebArena Verified evaluation unavailable" in message
+
+
+def test_webarena_eval_uses_separate_python_when_configured(monkeypatch):
+    captured = {}
+
+    def fake_run(cmd, input, capture_output, text, timeout, check):
+        captured["cmd"] = cmd
+        captured["payload"] = json.loads(input)
+        return types.SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"passed": True, "message": "[AgentResponseEvaluator] PASS"}),
+            stderr="",
+        )
+
+    monkeypatch.setenv(rewards.WEBARENA_EVAL_PYTHON_ENV, "/tmp/webarena-python")
+    monkeypatch.setattr(rewards.subprocess, "run", fake_run)
+
+    passed, message = run_reward_function(
+        reward={"task_id": "123", "eval": [{"evaluator": "AgentResponseEvaluator"}]},
+        instance={
+            "site_name": "shopping",
+            "site_url": "http://shopping.test",
+        },
+    )
+
+    assert passed is True
+    assert "PASS" in message
+    assert captured["cmd"] == [
+        "/tmp/webarena-python",
+        "-m",
+        rewards.WEBARENA_EVAL_MODULE,
+    ]
+    assert captured["payload"]["task_id"] == "123"
+    assert captured["payload"]["environments"]["shopping"] == ["http://shopping.test"]

@@ -52,6 +52,7 @@ class AgentResult:
     steps: int
     is_done: bool
     final_result: str | None
+    status: str = "success"
     errors: list[str] = field(default_factory=list)
     network_trace: list[dict[str, Any]] = field(default_factory=list)
 
@@ -544,8 +545,11 @@ class BrowserUseAgent:
         await network_recorder.start()
 
         history = None
+        agent = None
         elapsed = 0.0
         network_trace: list[dict[str, Any]] = []
+        status = "error"
+        extra_errors: list[str] = []
         try:
             initial_actions = _build_initial_actions(start_urls or [])
             agent = Agent(
@@ -562,28 +566,31 @@ class BrowserUseAgent:
             )
 
             t0 = time.time()
-            history = await asyncio.wait_for(agent.run(), timeout=self.timeout)
-            elapsed = time.time() - t0
-
-            history.save_to_file(task_dir / "history.json")
-
-            screenshots_dir = task_dir / "screenshots"
-            for step_idx, path_str in enumerate(history.screenshot_paths()):
-                if path_str and Path(path_str).exists():
-                    screenshots_dir.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(path_str, screenshots_dir / f"step_{step_idx}.png")
-
-            final_response = {
-                "status": "SUCCESS" if history.is_done() else "FAILURE",
-                "final_result": history.final_result(),
-                "errors": history.errors(),
-                "steps": len(history.history),
-            }
-            (task_dir / "final_response.json").write_text(
-                json.dumps(final_response, indent=2, default=str)
-            )
+            try:
+                history = await asyncio.wait_for(agent.run(), timeout=self.timeout)
+                elapsed = time.time() - t0
+                status = "success" if history.is_done() else "failure"
+            except asyncio.TimeoutError:
+                elapsed = time.time() - t0
+                status = "timeout"
+                extra_errors.append(f"agent timed out after {self.timeout}s")
+                history = getattr(agent, "history", None)
+                logger.warning("Agent timed out after %ss for %s", self.timeout, task_dir)
+            except Exception as e:  # noqa: BLE001
+                elapsed = time.time() - t0
+                status = "error"
+                extra_errors.append(str(e))
+                history = getattr(agent, "history", None)
+                logger.exception("Agent run failed for %s", task_dir)
         finally:
             network_trace = await network_recorder.stop()
+            history = history or (getattr(agent, "history", None) if agent is not None else None)
+            _write_agent_artifacts(
+                task_dir=task_dir,
+                history=history,
+                status=status,
+                extra_errors=extra_errors,
+            )
             if self._session is not None:
                 try:
                     await self._session.kill()
@@ -591,12 +598,14 @@ class BrowserUseAgent:
                     logger.warning("BrowserSession kill failed: %s", e)
                 self._session = None
 
+        steps, is_done, final_result, history_errors = _extract_history_state(history)
         return AgentResult(
             elapsed=round(elapsed, 1),
-            steps=len(history.history) if history is not None else 0,
-            is_done=history.is_done() if history is not None else False,
-            final_result=history.final_result() if history is not None else None,
-            errors=history.errors() if history is not None else [],
+            steps=steps,
+            is_done=is_done,
+            final_result=final_result,
+            status=status,
+            errors=[*history_errors, *extra_errors],
             network_trace=network_trace,
         )
 
@@ -627,3 +636,101 @@ def _build_initial_actions(start_urls: list[str]) -> list[dict[str, dict[str, An
             }
         )
     return actions or None
+
+
+def _write_agent_artifacts(
+    *,
+    task_dir: Path,
+    history: Any,
+    status: str,
+    extra_errors: list[str],
+) -> None:
+    """Persist trajectory artifacts even when the agent times out or crashes."""
+    task_dir.mkdir(parents=True, exist_ok=True)
+    steps, is_done, final_result, history_errors = _extract_history_state(history)
+    errors = [*history_errors, *extra_errors]
+
+    history_path = task_dir / "history.json"
+    if history is not None:
+        try:
+            history.save_to_file(history_path)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to write history.json for %s: %s", task_dir, e)
+            _write_history_fallback(history_path, errors, status)
+    else:
+        _write_history_fallback(history_path, errors, status)
+
+    _copy_history_screenshots(task_dir, history)
+
+    final_response = {
+        "status": status.upper(),
+        "final_result": final_result,
+        "errors": errors,
+        "steps": steps,
+        "is_done": is_done,
+    }
+    try:
+        (task_dir / "final_response.json").write_text(
+            json.dumps(final_response, indent=2, default=str)
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to write final_response.json for %s: %s", task_dir, e)
+
+
+def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[str]]:
+    """Extract summary fields from a Browser Use history object if present."""
+    if history is None:
+        return 0, False, None, []
+
+    try:
+        steps = len(history.history)
+    except Exception:  # noqa: BLE001
+        steps = 0
+
+    try:
+        is_done = bool(history.is_done())
+    except Exception:  # noqa: BLE001
+        is_done = False
+
+    try:
+        final_result = history.final_result()
+    except Exception:  # noqa: BLE001
+        final_result = None
+
+    try:
+        errors = [str(error) for error in history.errors()]
+    except Exception:  # noqa: BLE001
+        errors = []
+
+    return steps, is_done, final_result, errors
+
+
+def _copy_history_screenshots(task_dir: Path, history: Any) -> None:
+    """Copy any screenshots referenced by the partial or final history."""
+    if history is None:
+        return
+
+    try:
+        screenshot_paths = history.screenshot_paths()
+    except Exception:  # noqa: BLE001
+        return
+
+    screenshots_dir = task_dir / "screenshots"
+    for step_idx, path_str in enumerate(screenshot_paths):
+        if path_str and Path(path_str).exists():
+            screenshots_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path_str, screenshots_dir / f"step_{step_idx}.png")
+
+
+def _write_history_fallback(history_path: Path, errors: list[str], status: str) -> None:
+    """Write a minimal history artifact when Browser Use exposes no history object."""
+    payload = {
+        "history": [],
+        "partial": True,
+        "status": status,
+        "errors": errors,
+    }
+    try:
+        history_path.write_text(json.dumps(payload, indent=2))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Failed to write fallback history.json for %s: %s", history_path, e)

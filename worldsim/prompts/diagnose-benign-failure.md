@@ -7,15 +7,16 @@ A browser-use agent failed a benign task. Determine the root cause.
   - `history.json`: read this first
   - `screenshots/`: view selectively if action log is ambiguous
 - Profile: `/workspace/profile/BENCHMARK_PROFILE.json`
-- Sanity check result: {pass|fail}
+- Sanity check result: `{sanity_result}` (`pass`, `fail`, or `unknown`)
 
 ## Procedure
 
-1. Sanity check failed? -> reward/solver bug, fix it.
-2. Agent actions look correct but reward rejected? -> reward edge case, fix.
-3. Agent referenced nonexistent data? -> seed issue, fix.
-4. Task impossible via UI? -> remove.
-5. Otherwise -> agent limitation, keep.
+1. If the sanity check result is `fail`, prioritize reward or solver bugs.
+2. If the sanity check result is `unknown`, do not assume failure; infer from the task, trajectory, and reward evidence.
+3. Agent actions look correct but reward rejected? -> reward edge case, fix.
+4. Agent referenced nonexistent data? -> seed issue, fix.
+5. Task impossible via UI? -> remove.
+6. Otherwise -> agent limitation, keep.
 
 ## Output
 

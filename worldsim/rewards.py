@@ -18,13 +18,18 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import subprocess
 from collections import Counter
 from typing import Any
 
 from worldsim.placeholders import apply_placeholders, placeholder_for_site
 
 logger = logging.getLogger(__name__)
+
+WEBARENA_EVAL_PYTHON_ENV = "WORLDSIM_WEBARENA_EVAL_PYTHON"
+WEBARENA_EVAL_MODULE = "worldsim_webarena_verified.evaluate"
 
 _MULTI_STATEMENT_PATTERN = re.compile(r";(?=(?:[^']|'[^']*')*$)")
 _READ_ONLY_QUERY_PREFIX = re.compile(r"^\s*(SELECT|WITH)\b", re.IGNORECASE)
@@ -96,29 +101,51 @@ def _run_webarena_verified_eval(
 
     Delegates to the ``webarena_verified`` package for full normalization
     (NFKC, unidecode, TM-stripping, type-dispatch across 17 data types, etc.).
-    Falls back to the homebrew evaluator if the vendor package is not installed
-    or the task has no ``task_id`` (required to look up the canonical eval config
-    in the vendor dataset).
+    Fail closed if the vendor package is unavailable or the reward spec lacks
+    the canonical ``task_id`` needed to locate the evaluator config.
     """
+    task_id = reward.get("task_id")
+    if task_id is None:
+        logger.error("Reward spec missing task_id; refusing non-canonical evaluation")
+        return False, "reward spec missing canonical WebArena Verified task_id"
+
+    eval_configs = reward["eval"]
+    agent_response = _build_agent_response(eval_configs, agent_result)
+    environments = _build_webarena_environment_payload(instance)
+
+    subprocess_python = os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip()
+    if subprocess_python:
+        return _run_webarena_verified_subprocess(
+            python_executable=subprocess_python,
+            task_id=task_id,
+            agent_response=agent_response,
+            network_trace=network_trace or [],
+            environments=environments,
+        )
+
     try:
         from webarena_verified.api import WebArenaVerified
         from webarena_verified.types.config import EnvironmentConfig, WebArenaVerifiedConfig
         from webarena_verified.types.task import WebArenaSite
     except ImportError:
-        logger.warning("webarena_verified package not installed; falling back to homebrew evaluator")
-        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
-
-    task_id = reward.get("task_id")
-    if task_id is None:
-        logger.debug("No task_id in reward spec; falling back to homebrew evaluator")
-        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
-
-    # Build the agent response dict in FinalAgentResponse format
-    eval_configs = reward["eval"]
-    agent_response = _build_agent_response(eval_configs, agent_result)
+        logger.error(
+            "webarena_verified package not installed and %s is unset; refusing non-canonical evaluation",
+            WEBARENA_EVAL_PYTHON_ENV,
+        )
+        return (
+            False,
+            "canonical WebArena Verified evaluation unavailable: configure a separate "
+            "worldsim-webarena-verified environment via "
+            f"{WEBARENA_EVAL_PYTHON_ENV} or install 'webarena-verified' in the current environment",
+        )
 
     # Build a WebArenaVerifiedConfig with environments from our instance dict
-    config = _build_webarena_config(instance, WebArenaVerifiedConfig, EnvironmentConfig, WebArenaSite)
+    config = _build_webarena_config(
+        environments,
+        WebArenaVerifiedConfig,
+        EnvironmentConfig,
+        WebArenaSite,
+    )
 
     try:
         wv = WebArenaVerified(config=config)
@@ -146,24 +173,34 @@ def _run_webarena_verified_eval(
 
 
 def _build_webarena_config(
-    instance: dict[str, Any],
+    environments: dict[str, list[str]],
     config_cls: type,
     env_config_cls: type,
     site_enum: type,
 ) -> Any:
-    """Build a WebArenaVerifiedConfig from our instance dict.
+    """Build a WebArenaVerifiedConfig from normalized site-name -> urls payload."""
+    config_environments: dict[Any, Any] = {}
+    for site_name, urls in environments.items():
+        if not urls:
+            continue
+        try:
+            site_key = site_enum(site_name)
+        except ValueError:
+            continue
+        config_environments[site_key] = env_config_cls(urls=urls)
 
-    Maps ``url_placeholders`` (e.g. ``{"__SHOPPING__": "http://..."}```) and
-    ``site_url`` into the vendor config's ``environments`` dict.
-    """
+    return config_cls(environments=config_environments if config_environments else None)
+
+
+def _build_webarena_environment_payload(instance: dict[str, Any]) -> dict[str, list[str]]:
+    """Normalize instance placeholder data into site-name -> urls payload."""
     site_url = instance.get("site_url", "")
     explicit = dict(instance.get("url_placeholders", {}))
     primary_placeholder = placeholder_for_site(instance.get("site_name", ""))
     if primary_placeholder and primary_placeholder not in explicit and site_url:
         explicit[primary_placeholder] = site_url
 
-    # Map placeholder tokens to WebArenaSite enum keys
-    _PLACEHOLDER_TO_SITE = {
+    placeholder_to_site = {
         "__SHOPPING__": "shopping",
         "__SHOPPING_ADMIN__": "shopping_admin",
         "__GITLAB__": "gitlab",
@@ -172,28 +209,60 @@ def _build_webarena_config(
         "__MAP__": "map",
     }
 
-    environments: dict = {}
-    for placeholder, site_value in _PLACEHOLDER_TO_SITE.items():
+    environments: dict[str, list[str]] = {}
+    for placeholder, site_name in placeholder_to_site.items():
         url = explicit.get(placeholder)
         if url:
-            try:
-                site_key = site_enum(site_value)
-                environments[site_key] = env_config_cls(urls=[url])
-            except ValueError:
-                pass
+            environments.setdefault(site_name, []).append(url)
 
-    # Also add any non-standard placeholders from the instance
     for key, val in explicit.items():
-        if key not in _PLACEHOLDER_TO_SITE and val:
-            stripped = key.strip("_").lower()
-            try:
-                site_key = site_enum(stripped)
-                if site_key not in environments:
-                    environments[site_key] = env_config_cls(urls=[val])
-            except ValueError:
-                pass
+        if key not in placeholder_to_site and val:
+            site_name = key.strip("_").lower()
+            environments.setdefault(site_name, []).append(val)
 
-    return config_cls(environments=environments if environments else None)
+    return environments
+
+
+def _run_webarena_verified_subprocess(
+    *,
+    python_executable: str,
+    task_id: Any,
+    agent_response: dict[str, Any],
+    network_trace: list[dict[str, Any]],
+    environments: dict[str, list[str]],
+) -> tuple[bool, str]:
+    """Run canonical WebArena evaluation in a separate Python environment."""
+    payload = {
+        "task_id": task_id,
+        "agent_response": agent_response,
+        "network_trace": network_trace,
+        "environments": environments,
+    }
+    try:
+        completed = subprocess.run(
+            [python_executable, "-m", WEBARENA_EVAL_MODULE],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except Exception as exc:
+        logger.exception("WebArena evaluator subprocess failed to start")
+        return False, f"canonical WebArena evaluator process failed to start: {exc}"
+
+    if completed.returncode != 0:
+        stderr = completed.stderr.strip() or completed.stdout.strip() or "unknown error"
+        return False, f"canonical WebArena evaluator failed: {stderr}"
+
+    try:
+        response = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        return False, f"canonical WebArena evaluator returned invalid JSON: {exc}"
+
+    passed = bool(response.get("passed", False))
+    message = str(response.get("message", "")).strip() or "canonical WebArena evaluator returned no message"
+    return passed, message
 
 
 def _run_homebrew_eval(
@@ -500,13 +569,60 @@ def _db_query_match(
             passed = len(rows) > 0
             return passed, f"got {len(rows)} rows"
 
-        actual_str = str(rows)
-        expected_str = str(expected)
-        passed = expected_str.lower() in actual_str.lower()
-        return passed, f"expected {expected_str!r} in {actual_str[:200]!r}"
+        passed = _rows_match_expected(rows, expected)
+        return passed, f"expected {expected!r}; got rows {rows[:5]!r}"
 
     except Exception as e:
         return False, f"db_query_match error: {e}"
+
+
+def _rows_match_expected(rows: Any, expected: Any) -> bool:
+    """Compare SQL rows against an expected value without substring matching."""
+    if expected is None:
+        return bool(rows)
+    if not isinstance(rows, (list, tuple)):
+        return _values_match(rows, expected)
+
+    if _values_match(rows, expected):
+        return True
+
+    for row in rows:
+        if _values_match(row, expected):
+            return True
+        if isinstance(row, (list, tuple)):
+            for cell in row:
+                if _values_match(cell, expected):
+                    return True
+    return False
+
+
+def _values_match(actual: Any, expected: Any) -> bool:
+    """Return True when two SQL result values are materially equal."""
+    if isinstance(actual, tuple):
+        actual = list(actual)
+    if isinstance(expected, tuple):
+        expected = list(expected)
+
+    if isinstance(actual, list) and isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _values_match(left, right) for left, right in zip(actual, expected, strict=True)
+        )
+
+    if isinstance(actual, dict) and isinstance(expected, dict):
+        if set(actual) != set(expected):
+            return False
+        return all(_values_match(actual[key], expected[key]) for key in actual)
+
+    if type(actual) is type(expected):
+        return actual == expected
+
+    if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
+        return actual == expected
+
+    if isinstance(actual, str) or isinstance(expected, str):
+        return str(actual).strip().casefold() == str(expected).strip().casefold()
+
+    return actual == expected
 
 
 _CHECKERS: dict[str, Any] = {

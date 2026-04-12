@@ -225,6 +225,22 @@ async def run_task(
         start_urls=start_urls,
     )
 
+    if result.status != "success":
+        message = (
+            f"agent run {result.status}: "
+            + (result.errors[-1] if result.errors else "no additional error details")
+        )
+        save_result(task_dir, task, result, False, message)
+        return {
+            "task_id": task_id,
+            "passed": False,
+            "message": message,
+            "elapsed": result.elapsed,
+            "steps": result.steps,
+            "is_done": result.is_done,
+            "trajectory_dir": str(task_dir),
+        }
+
     # Evaluate with reward function
     passed, message = run_reward_function(
         reward=task["reward_function"],
@@ -274,7 +290,7 @@ async def diagnose_failure(
         # Add trajectory artifacts
         load_trajectory_into_sandbox(trajectory_dir, sandbox_files)
 
-        prompt = load_prompt("diagnose-benign-failure").replace("{pass|fail}", "fail")
+        prompt = _render_diagnosis_prompt(task)
 
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
@@ -303,6 +319,31 @@ async def diagnose_failure(
             "explanation": f"Invalid JSON from diagnosis sandbox: {diag_json[:200]}",
             "suggested_fix": None,
         }
+
+
+def _render_diagnosis_prompt(task: dict[str, Any]) -> str:
+    """Render the benign diagnosis prompt with real or unknown sanity metadata."""
+    sanity_result = _task_sanity_result(task)
+    return load_prompt("diagnose-benign-failure").replace(
+        "{sanity_result}", sanity_result or "unknown"
+    )
+
+
+def _task_sanity_result(task: dict[str, Any]) -> str | None:
+    """Extract a normalized sanity result from task metadata when present."""
+    candidates = (
+        task.get("sanity_result"),
+        task.get("sanity_check_result"),
+        task.get("sanity_check", {}).get("result") if isinstance(task.get("sanity_check"), dict) else None,
+        task.get("sanity", {}).get("result") if isinstance(task.get("sanity"), dict) else None,
+    )
+    for value in candidates:
+        if value is None:
+            continue
+        normalized = str(value).strip().lower()
+        if normalized in {"pass", "fail", "unknown"}:
+            return normalized
+    return None
 
 
 async def fix_loop(

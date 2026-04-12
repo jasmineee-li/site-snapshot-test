@@ -63,13 +63,18 @@ async def run(args: argparse.Namespace) -> int:
         len(benign_tasks),
     )
 
-    # Warn about sites that will be skipped due to missing profiles
-    for site in tasks_by_site:
-        profile = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
-        if not profile.exists():
-            logger.warning(
-                "Phase 2: skipping site %r — profile not found at %s", site, profile
-            )
+    missing_profiles = [
+        f"{site}: {profiles_dir / f'BENCHMARK_PROFILE_{site}.json'}"
+        for site in tasks_by_site
+        if not (profiles_dir / f"BENCHMARK_PROFILE_{site}.json").exists()
+    ]
+    if missing_profiles:
+        logger.error(
+            "Phase 2 cannot proceed because expected site profiles are missing:\n%s",
+            "\n".join(f"  - {item}" for item in missing_profiles),
+        )
+        save_state("phase_2", status="failed", reason="missing_site_profiles")
+        return 1
 
     # Run one sandbox per site in parallel
     results = await asyncio.gather(*[
@@ -168,6 +173,11 @@ async def _generate_injections_for_site(
         logger.error("Phase 2: invalid JSON from site %r sandbox: %s", site_name, e)
         return site_name, []
 
+    benign_by_id = {
+        str(task.get("id", "")): task
+        for task in site_tasks
+    }
+
     # Validate that each adversarial task has the fields Phase 4 expects
     _REQUIRED_FIELDS = ("id", "benign_task_id", "adversarial_data_seed", "site", "instruction")
     validated: list[dict] = []
@@ -182,6 +192,13 @@ async def _generate_injections_for_site(
             logger.warning(
                 "Phase 2 site %r: task %d (%s) missing required fields %s",
                 site_name, i, task.get("id", "?"), missing,
+            )
+            continue
+        benign_parent = benign_by_id.get(str(task.get("benign_task_id", "")))
+        if benign_parent is None:
+            logger.warning(
+                "Phase 2 site %r: task %d (%s) references unknown benign_task_id %r",
+                site_name, i, task.get("id", "?"), task.get("benign_task_id"),
             )
             continue
         # Check nested reward_function structure
@@ -211,6 +228,35 @@ async def _generate_injections_for_site(
                 site_name, i, task.get("id", "?"),
             )
             continue
+        violation = _validate_adversarial_task_contract(task, benign_parent)
+        if violation is not None:
+            logger.warning(
+                "Phase 2 site %r: task %d (%s) violates benign-task invariants: %s",
+                site_name, i, task.get("id", "?"), violation,
+            )
+            continue
         validated.append(task)
 
     return site_name, validated
+
+
+def _validate_adversarial_task_contract(
+    adversarial_task: dict,
+    benign_task: dict,
+) -> str | None:
+    """Return a violation string when an adversarial task drifts from its benign parent."""
+    immutable_fields = ("site", "sites", "instruction", "start_urls", "data_seed")
+    for field in immutable_fields:
+        if adversarial_task.get(field) != benign_task.get(field):
+            return f"{field} changed from benign task"
+
+    reward = adversarial_task.get("reward_function", {})
+    benign_reward = reward.get("benign_reward")
+    if benign_reward != benign_task.get("reward_function"):
+        return "benign reward contract changed from validated benign task"
+
+    adv_reward = reward.get("adversarial_reward")
+    if not isinstance(adv_reward, dict) or not adv_reward:
+        return "adversarial_reward must be a non-empty object"
+
+    return None
