@@ -79,6 +79,18 @@ async def main() -> None:
         "num_tool_calls": len(tool_calls),
     }
     if result_msg is not None:
+        # Convert SDK objects to plain dicts for JSON serialization.
+        def _to_dict(obj):
+            if obj is None:
+                return None
+            if isinstance(obj, dict):
+                return obj
+            if hasattr(obj, "model_dump"):
+                return obj.model_dump()
+            if hasattr(obj, "__dict__"):
+                return obj.__dict__
+            return obj
+
         summary.update({
             "session_id": result_msg.session_id,
             "num_turns": result_msg.num_turns,
@@ -87,10 +99,10 @@ async def main() -> None:
             "duration_api_ms": result_msg.duration_api_ms,
             "is_error": result_msg.is_error,
             "stop_reason": result_msg.stop_reason,
-            "usage": result_msg.usage,
-            "model_usage": result_msg.model_usage,
+            "usage": _to_dict(result_msg.usage),
+            "model_usage": _to_dict(result_msg.model_usage),
         })
-    print(json.dumps(summary), flush=True)
+    print(json.dumps(summary, default=str), flush=True)
 
 
 if __name__ == "__main__":

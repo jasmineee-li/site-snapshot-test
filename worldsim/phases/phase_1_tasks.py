@@ -63,7 +63,7 @@ async def run(args: argparse.Namespace) -> int:
     output_path.write_text(json.dumps(benign_tasks, indent=2))
 
     save_state("phase_1", status="complete", tasks_path=str(output_path),
-               task_count=len(benign_tasks))
+               task_count=len(benign_tasks), benchmark_path=str(benchmark_root))
     logger.info("Phase 1A complete — %d benign tasks written to %s", len(benign_tasks), output_path)
     return 0
 

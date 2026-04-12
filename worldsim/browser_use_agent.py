@@ -75,7 +75,7 @@ class _NetworkTraceRecorder:
     def __init__(self, browser_session: Any, task_dir: Path) -> None:
         self._browser_session = browser_session
         self._task_dir = Path(task_dir)
-        self._client = browser_session.cdp_client
+        self._client = getattr(browser_session, "cdp_client", None)
         self._recording = False
         self._poll_task: asyncio.Task | None = None
         self._enabled_targets: set[str] = set()
@@ -88,6 +88,9 @@ class _NetworkTraceRecorder:
 
     async def start(self) -> None:
         """Register CDP event handlers and enable the Network domain."""
+        if self._client is None:
+            logger.warning("CDP client not available, network trace capture disabled")
+            return
         self._client.register.Network.requestWillBeSent(self._on_request_will_be_sent)
         self._client.register.Network.requestWillBeSentExtraInfo(
             self._on_request_will_be_sent_extra_info

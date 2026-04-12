@@ -178,6 +178,7 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
                 "/workspace/output/BENCHMARK_MANIFEST.json",
                 "/workspace/output/BENCHMARK_MANIFEST.md",
             ],
+            volumes={"/workspace/benchmark": vol},
         )
         cost_tracker.record("phase_0a", outputs.get("_summary"))
         manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")

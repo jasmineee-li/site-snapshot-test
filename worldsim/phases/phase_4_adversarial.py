@@ -512,9 +512,8 @@ async def run_strategy_variation(
 
     # 3. Evaluate variants in parallel
     evaluable = [
-        (i, variant, instances[i], selected_strategies[i])
+        (i, variant, instances[i % len(instances)], selected_strategies[i])
         for i, variant in enumerate(variants)
-        if i < len(instances)
     ]
     variant_results = await asyncio.gather(*[
         _evaluate_variant(
