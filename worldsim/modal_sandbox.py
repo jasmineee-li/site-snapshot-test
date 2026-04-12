@@ -103,15 +103,9 @@ def _build_claude_secrets() -> list[modal.Secret]:
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 
 # Cache the Modal App object to avoid repeated lookups (rate-limit risk at scale).
-_app_cache: modal.App | None = None
-
-
 async def _get_app() -> modal.App:
-    """Return a cached Modal App, creating on first call."""
-    global _app_cache
-    if _app_cache is None:
-        _app_cache = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
-    return _app_cache
+    """Look up (or create) the Modal App for this pipeline."""
+    return await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
 
 
 async def run_claude_in_sandbox(
@@ -177,7 +171,7 @@ async def run_claude_in_sandbox(
     try:
         # Write the prompt directly to the sandbox filesystem. This avoids
         # creating a mount object for a small, per-call file.
-        await sandbox.filesystem.write_text.aio(prompt, "/workspace/_prompt.txt")
+        await sandbox.filesystem.write_text(prompt, "/workspace/_prompt.txt")
 
         claude_ps = await sandbox.exec.aio(
             "python", "/workspace/_sdk_runner.py", model,
@@ -208,7 +202,7 @@ async def run_claude_in_sandbox(
                 summary_data = event
                 _log_summary(event)
 
-        await claude_ps.wait.aio()
+        await claude_ps.wait()
 
         if claude_ps.returncode != 0:
             logger.warning(
@@ -222,7 +216,7 @@ async def run_claude_in_sandbox(
         outputs: dict[str, str | None] = {}
         for path in output_paths:
             try:
-                outputs[path] = await sandbox.filesystem.read_text.aio(path)
+                outputs[path] = await sandbox.filesystem.read_text(path)
             except Exception as e:  # noqa: BLE001 -- tolerate missing files
                 outputs[path] = None
                 logger.warning("could not read %s from sandbox: %s", path, e)

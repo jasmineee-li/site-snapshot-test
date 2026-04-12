@@ -70,7 +70,8 @@ async def run(args: argparse.Namespace) -> int:
         validated = json.loads(validated_path.read_text())
         validated_ids = {t["id"] for t in validated}
         tasks = [t for t in adversarial_tasks
-                 if t.get("benign_task_id") in validated_ids or t.get("id") in validated_ids]
+                 if str(t.get("benign_task_id", "")) in validated_ids
+                 or str(t.get("id", "")) in validated_ids]
         logger.info("Phase 4: %d/%d adversarial tasks have validated benign counterparts",
                      len(tasks), len(adversarial_tasks))
     else:
@@ -142,7 +143,12 @@ async def run(args: argparse.Namespace) -> int:
 
             site = task.get("site", "")
             profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
-            trajectory_dir = Path(r.get("trajectory_dir", ""))
+            traj_path = r.get("trajectory_dir")
+            if not traj_path:
+                logger.warning("No trajectory_dir for task %s, skipping strategy variation", task_id)
+                final_results.append({**r, "final_status": "refused_or_ignored"})
+                continue
+            trajectory_dir = Path(traj_path)
 
             variation = await run_strategy_variation(
                 task=task,
