@@ -73,14 +73,122 @@ def _run_webarena_verified_eval(
     agent_result: Any | None,
     network_trace: list[dict] | None,
 ) -> tuple[bool, str]:
-    """Evaluate using WebArena Verified's evaluator API.
+    """Evaluate using the vendor WebArena Verified evaluator.
 
-    Each task has an ``eval`` array with one or more evaluator configs
-    (``AgentResponseEvaluator``, ``NetworkEventEvaluator``). All must pass
-    for the task to score 1.0.
+    Delegates to the ``webarena_verified`` package for full normalization
+    (NFKC, unidecode, TM-stripping, type-dispatch across 17 data types, etc.).
+    Falls back to the homebrew evaluator if the vendor package is not installed
+    or the task has no ``task_id`` (required to look up the canonical eval config
+    in the vendor dataset).
+    """
+    try:
+        from webarena_verified.api import WebArenaVerified
+        from webarena_verified.types.config import EnvironmentConfig, WebArenaVerifiedConfig
+        from webarena_verified.types.task import WebArenaSite
+    except ImportError:
+        logger.warning("webarena_verified package not installed; falling back to homebrew evaluator")
+        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
+
+    task_id = reward.get("task_id")
+    if task_id is None:
+        logger.debug("No task_id in reward spec; falling back to homebrew evaluator")
+        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
+
+    # Build the agent response dict in FinalAgentResponse format
+    eval_configs = reward["eval"]
+    agent_response = _build_agent_response(eval_configs, agent_result)
+
+    # Build a WebArenaVerifiedConfig with environments from our instance dict
+    config = _build_webarena_config(instance, WebArenaVerifiedConfig, EnvironmentConfig, WebArenaSite)
+
+    try:
+        wv = WebArenaVerified(config=config)
+        result = wv.evaluate_task(
+            task_id=task_id,
+            agent_response=agent_response,
+            network_trace=network_trace or [],
+        )
+
+        passed = result.score == 1.0
+        # Build a human-readable message from the evaluator results
+        parts = []
+        for er in result.evaluators_results:
+            status = er.status if isinstance(er.status, str) else er.status.value
+            part = f"[{er.evaluator_name}] {status.upper()}"
+            if er.error_msg:
+                part += f": {er.error_msg}"
+            parts.append(part)
+        message = "; ".join(parts) if parts else f"score={result.score}, status={result.status}"
+        return passed, message
+
+    except Exception as e:
+        logger.warning(
+            "Vendor evaluator failed for task %s: %s; falling back to homebrew",
+            task_id, e,
+        )
+        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
+
+
+def _build_webarena_config(
+    instance: dict[str, Any],
+    config_cls: type,
+    env_config_cls: type,
+    site_enum: type,
+) -> Any:
+    """Build a WebArenaVerifiedConfig from our instance dict.
+
+    Maps ``url_placeholders`` (e.g. ``{"__SHOPPING__": "http://..."}```) and
+    ``site_url`` into the vendor config's ``environments`` dict.
+    """
+    site_url = instance.get("site_url", "")
+    explicit = instance.get("url_placeholders", {})
+
+    # Map placeholder tokens to WebArenaSite enum keys
+    _PLACEHOLDER_TO_SITE = {
+        "__SHOPPING__": "shopping",
+        "__SHOPPING_ADMIN__": "shopping_admin",
+        "__GITLAB__": "gitlab",
+        "__REDDIT__": "reddit",
+        "__WIKIPEDIA__": "wikipedia",
+        "__MAP__": "map",
+    }
+
+    environments: dict = {}
+    for placeholder, site_value in _PLACEHOLDER_TO_SITE.items():
+        url = explicit.get(placeholder) or site_url
+        if url:
+            try:
+                site_key = site_enum(site_value)
+                environments[site_key] = env_config_cls(urls=[url])
+            except ValueError:
+                pass
+
+    # Also add any non-standard placeholders from the instance
+    for key, val in explicit.items():
+        if key not in _PLACEHOLDER_TO_SITE and val:
+            stripped = key.strip("_").lower()
+            try:
+                site_key = site_enum(stripped)
+                if site_key not in environments:
+                    environments[site_key] = env_config_cls(urls=[val])
+            except ValueError:
+                pass
+
+    return config_cls(environments=environments if environments else None)
+
+
+def _run_homebrew_eval(
+    reward: dict[str, Any],
+    instance: dict[str, Any],
+    agent_result: Any | None,
+    network_trace: list[dict] | None,
+) -> tuple[bool, str]:
+    """Homebrew evaluator — fallback when the vendor package is unavailable.
+
+    Iterates the ``eval`` array manually and applies simplified comparison
+    logic. Does NOT perform full Unicode normalization or type dispatch.
     """
     eval_configs = reward["eval"]
-    task_id = reward.get("task_id")
 
     # Build agent response in WebArena Verified format
     agent_response = _build_agent_response(eval_configs, agent_result)
@@ -88,7 +196,7 @@ def _run_webarena_verified_eval(
     all_passed = True
     messages: list[str] = []
 
-    for i, config in enumerate(eval_configs):
+    for config in eval_configs:
         evaluator_type = config.get("evaluator", "")
 
         if evaluator_type == "AgentResponseEvaluator":
