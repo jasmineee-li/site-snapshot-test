@@ -42,6 +42,7 @@ async def main() -> None:
         effort="high",
         cwd="/workspace",
         model=model,
+        max_turns=100,
     )
 
     start = time.monotonic()

@@ -102,6 +102,17 @@ def _build_claude_secrets() -> list[modal.Secret]:
 
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 
+# Cache the Modal App object to avoid repeated lookups (rate-limit risk at scale).
+_app_cache: modal.App | None = None
+
+
+async def _get_app() -> modal.App:
+    """Return a cached Modal App, creating on first call."""
+    global _app_cache
+    if _app_cache is None:
+        _app_cache = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
+    return _app_cache
+
 
 async def run_claude_in_sandbox(
     site_files: dict[str, str],
@@ -157,7 +168,7 @@ async def run_claude_in_sandbox(
     image = image.add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py")
 
     # -- Create sandbox --------------------------------------------------------
-    app = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
+    app = await _get_app()
     sandbox_kwargs: dict = {"app": app, "image": image, "timeout": timeout}
     if volumes:
         sandbox_kwargs["volumes"] = volumes
@@ -227,7 +238,7 @@ async def run_claude_in_sandbox(
 async def upload_to_volume(
     local_dir: Path,
     volume_name: str = "worldsim-benchmark",
-    remote_prefix: str = "/benchmark",
+    remote_prefix: str = "/",
 ) -> modal.Volume:
     """Upload a local directory to a Modal Volume (one-time, content-addressed).
 

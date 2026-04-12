@@ -15,12 +15,19 @@ Each benchmark's Phase 0a manifest declares which mechanism its sites use.
 from __future__ import annotations
 
 import logging
+import re
 import urllib.parse
 from typing import Any
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+# Defense-in-depth: block destructive SQL from LLM-generated data seeds.
+_BLOCKED_SQL_PATTERNS = re.compile(
+    r"\b(DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|DELETE\s+FROM\s+\w+\s*$)\b",
+    re.IGNORECASE,
+)
 
 
 def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
@@ -69,25 +76,51 @@ def execute_sql(statement: str, db_connection: str) -> None:
         statement: SQL statement to execute.
         db_connection: Connection string, e.g.
             ``mysql://user:pass@host:3306/dbname``.
+
+    Raises:
+        ValueError: If the statement matches the destructive SQL blocklist.
     """
+    if _BLOCKED_SQL_PATTERNS.search(statement):
+        raise ValueError(
+            f"SQL statement blocked by safety filter: {statement[:100]}... "
+            "Only SELECT, INSERT, and UPDATE statements are allowed for data seeding."
+        )
+
     parsed = urllib.parse.urlparse(db_connection)
-    if parsed.scheme != "mysql":
+
+    if parsed.scheme == "mysql":
+        import pymysql  # late import — only needed on the MySQL path
+
+        conn = pymysql.connect(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=parsed.password,
+            database=(parsed.path or "").lstrip("/"),
+        )
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(statement)
+            conn.commit()
+        finally:
+            conn.close()
+    elif parsed.scheme in ("postgresql", "postgres"):
+        import psycopg2  # late import — only needed on the PostgreSQL path
+
+        conn = psycopg2.connect(
+            host=parsed.hostname,
+            port=parsed.port or 5432,
+            user=parsed.username,
+            password=parsed.password,
+            dbname=(parsed.path or "").lstrip("/"),
+        )
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(statement)
+            conn.commit()
+        finally:
+            conn.close()
+    else:
         raise NotImplementedError(
             f"DB dialect {parsed.scheme!r} not yet supported by worldsim.seeding"
         )
-
-    import pymysql  # late import — only needed on the SQL path
-
-    conn = pymysql.connect(
-        host=parsed.hostname,
-        port=parsed.port or 3306,
-        user=parsed.username,
-        password=parsed.password,
-        database=(parsed.path or "").lstrip("/"),
-    )
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(statement)
-        conn.commit()
-    finally:
-        conn.close()

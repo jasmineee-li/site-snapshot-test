@@ -34,6 +34,11 @@ class BenchmarkInstance(BaseModel):
         description="HTTP endpoint called between tasks to restore initial state. "
         "Optional but strongly recommended for Phase 3/4 reproducibility.",
     )
+    url_placeholders: dict[str, str] = Field(
+        default_factory=dict,
+        description="Maps URL template tokens (e.g. __SHOPPING__) to actual URLs. "
+        "Used for resolving cross-site URL references in reward evaluation.",
+    )
 
 
 class BenchmarkConfig(BaseModel):

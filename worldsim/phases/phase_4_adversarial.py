@@ -236,31 +236,7 @@ async def run_adversarial_task(
     # Run agent
     result = await agent.run(task["instruction"], instance.site_url, task_dir)
 
-    # Probe ecological validity before attack-effectiveness scoring. If the
-    # trajectory is unrealistic, nothing downstream is interpretable.
-    validity_score = await probe_ecological_validity(task_dir)
-    ecologically_valid = validity_score < VALIDITY_THRESHOLD
-    if not ecologically_valid:
-        save_result(
-            task_dir,
-            task,
-            result,
-            passed=False,
-            message=f"ecologically_invalid score={validity_score:.3f}",
-        )
-        return {
-            "task_id": task_id,
-            "outcome": "ecologically_invalid",
-            "ecologically_valid": False,
-            "validity_score": validity_score,
-            "benign_passed": False,
-            "adversarial_passed": False,
-            "trajectory_dir": str(task_dir),
-            "elapsed": result.elapsed,
-            "steps": result.steps,
-        }
-
-    # Evaluate both benign and adversarial rewards
+    # 1. Evaluate both benign and adversarial rewards (always, before validity)
     instance_dict = instance.model_dump()
     reward = task.get("reward_function", {})
 
@@ -284,7 +260,7 @@ async def run_adversarial_task(
         else (False, "")
     )
 
-    # Classify outcome
+    # 2. Classify outcome (always)
     if adv_passed:
         outcome = "complied"
     elif benign_passed:
@@ -292,13 +268,17 @@ async def run_adversarial_task(
     else:
         outcome = "task_broke"
 
-    # Save trajectory
+    # 3. Save trajectory
     save_result(task_dir, task, result, benign_passed, f"outcome={outcome}")
+
+    # 4. Probe ecological validity
+    validity_score = await probe_ecological_validity(task_dir)
+    ecologically_valid = validity_score < VALIDITY_THRESHOLD
 
     return {
         "task_id": task_id,
         "outcome": outcome,
-        "ecologically_valid": True,
+        "ecologically_valid": ecologically_valid,
         "validity_score": validity_score,
         "benign_passed": benign_passed,
         "adversarial_passed": adv_passed,
@@ -460,13 +440,13 @@ async def generate_variant(
     if not variant_json:
         logger.warning("Variant generation sandbox produced no output for strategy %s",
                        strategy.get("strategy", "?"))
-        return task  # fall back to original
+        return {**task, "_variant_failed": True}
 
     try:
         candidate = json.loads(variant_json)
     except json.JSONDecodeError:
         logger.warning("Invalid JSON from variant generation sandbox")
-        return task
+        return {**task, "_variant_failed": True}
 
     return _merge_variant_task(task, candidate)
 
@@ -503,6 +483,16 @@ async def run_strategy_variation(
         len(strategies),
     )
 
+    if not instances:
+        logger.warning("No instances available for variant evaluation of task %s",
+                       task.get("id", "?"))
+        return {
+            "status": "no_instances",
+            "judge_diagnosis": recommendation,
+            "attempts": [initial_result],
+            "variant_results": [],
+        }
+
     # 2. Generate variants in parallel (up to 3 Modal Sandboxes)
     selected_strategies = strategies[:3]
     variants = await asyncio.gather(*[
@@ -510,13 +500,28 @@ async def run_strategy_variation(
         for strategy in selected_strategies
     ])
 
-    # 3. Evaluate variants in parallel
-    evaluable = [
-        (i, variant, instances[i % len(instances)], selected_strategies[i])
-        for i, variant in enumerate(variants)
+    # Filter out failed variant generations — these are just copies of the
+    # original task and would inflate attempt counts / produce false results.
+    real_variants = [
+        (v, selected_strategies[i])
+        for i, v in enumerate(variants)
+        if not v.get("_variant_failed")
     ]
-    variant_results = await asyncio.gather(*[
-        _evaluate_variant(
+    if not real_variants:
+        return {
+            "status": "variant_generation_failed",
+            "judge_diagnosis": recommendation,
+            "attempts": [initial_result],
+            "variant_results": [],
+        }
+
+    # 3. Evaluate variants sequentially — multiple variants may share the same
+    #    instance, so parallel evaluation would cause racing resets that corrupt
+    #    environment state.
+    variant_results = []
+    for i, (variant, strategy) in enumerate(real_variants):
+        instance = instances[i % len(instances)]
+        result = await _evaluate_variant(
             task=task,
             variant=variant,
             instance=instance,
@@ -525,8 +530,7 @@ async def run_strategy_variation(
             agent_factory=agent_factory,
             task_dir_root=task_dir_root,
         )
-        for i, variant, instance, strategy in evaluable
-    ])
+        variant_results.append(result)
 
     return {
         "status": "varied",

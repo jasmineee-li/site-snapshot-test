@@ -55,8 +55,13 @@ async def staggered_worker(
     if delay > 0:
         await asyncio.sleep(delay)
 
-    agent = agent_factory()
-    await agent.setup(instance.site_url)
+    try:
+        agent = agent_factory()
+        await agent.setup(instance.site_url)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("worker %d failed during setup: %s", worker_id, e)
+        return
+
     try:
         while True:
             try:
@@ -135,5 +140,8 @@ async def run_eval(
         )
         for i in range(num_workers)
     ]
-    await asyncio.gather(*workers)
+    gather_results = await asyncio.gather(*workers, return_exceptions=True)
+    for i, gr in enumerate(gather_results):
+        if isinstance(gr, Exception):
+            logger.error("worker %d raised an unhandled exception: %s", i, gr)
     return results

@@ -454,10 +454,21 @@ async def run_phase_0c(
 
         return site_name, outputs
 
-    results = await asyncio.gather(*[
-        profile_one_site(name, files)
-        for name, files in sandbox_map.items()
-    ])
+    raw_results = await asyncio.gather(
+        *[
+            profile_one_site(name, files)
+            for name, files in sandbox_map.items()
+        ],
+        return_exceptions=True,
+    )
+
+    # Filter out exceptions — one failed site should not kill all others.
+    results: list[tuple[str, dict[str, str | None]]] = []
+    for r in raw_results:
+        if isinstance(r, Exception):
+            logger.error("Phase 0c site profiling failed: %s", r)
+        else:
+            results.append(r)
 
     # Validate cross-references in each profile
     for site_name, outputs in results:

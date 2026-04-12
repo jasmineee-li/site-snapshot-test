@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -206,8 +207,8 @@ def _compare_data(expected: list, actual: list, ordered: bool = False) -> bool:
     if ordered:
         return expected_norm == actual_norm
 
-    # Unordered: every expected item must appear in actual
-    return set(expected_norm) <= set(actual_norm)
+    # Unordered: every expected item (including duplicates) must appear in actual
+    return Counter(expected_norm) <= Counter(actual_norm)
 
 
 def _eval_network_event(
@@ -220,13 +221,18 @@ def _eval_network_event(
     query params, post data, response content, etc. For complete evaluation,
     use the ``webarena_verified`` package directly.
     """
+    should_not_exist = config.get("should_not_exist", False)
+
+    # Check should_not_exist BEFORE the None trace check: if we expect an
+    # event NOT to exist and there's no trace at all, the event is absent.
     if network_trace is None:
+        if should_not_exist:
+            return True, "no network trace, event correctly absent"
         return False, "no network trace captured (required for NetworkEventEvaluator)"
 
     expected = config.get("expected", {})
     expected_url = expected.get("url", "")
     expected_method = expected.get("http_method", "GET").upper()
-    should_not_exist = config.get("should_not_exist", False)
 
     # Resolve URL placeholders using instance config
     resolved_url = _resolve_url_placeholders(expected_url, instance)
@@ -257,23 +263,36 @@ def _eval_network_event(
 
 
 def _resolve_url_placeholders(url: str, instance: dict) -> str:
-    """Replace __SITE__ placeholders in URLs with actual instance URLs."""
-    site_url = instance.get("site_url", "")
-    # Standard WebArena Verified placeholders
-    placeholders = {
-        "__SHOPPING__": site_url,
-        "__SHOPPING_ADMIN__": site_url,
-        "__GITLAB__": site_url,
-        "__REDDIT__": site_url,
-        "__WIKIPEDIA__": site_url,
-        "__MAP__": site_url,
-    }
-    # Also check for URL-specific overrides in instance
-    for key, val in instance.get("url_placeholders", {}).items():
-        placeholders[key] = val
+    """Replace __SITE__ placeholders in URLs with actual instance URLs.
 
-    for placeholder, replacement in placeholders.items():
+    For multi-site tasks, ``instance["url_placeholders"]`` provides the
+    authoritative mapping of all site tokens to their real URLs.  For the
+    common single-site case the instance's own ``site_url`` is used as a
+    fallback for any placeholder not in the explicit mapping.
+    """
+    site_url = instance.get("site_url", "")
+    # Explicit per-instance overrides first (handles multi-site tasks)
+    explicit = instance.get("url_placeholders", {})
+
+    # Standard WebArena placeholders — fallback to current site_url only
+    # when the explicit mapping does not provide a value.
+    all_placeholders = (
+        "__SHOPPING__",
+        "__SHOPPING_ADMIN__",
+        "__GITLAB__",
+        "__REDDIT__",
+        "__WIKIPEDIA__",
+        "__MAP__",
+    )
+    for placeholder in all_placeholders:
+        replacement = explicit.get(placeholder, site_url)
         url = url.replace(placeholder, replacement)
+
+    # Apply any non-standard explicit placeholders not in the list above
+    for key, val in explicit.items():
+        if key not in all_placeholders:
+            url = url.replace(key, val)
+
     return url
 
 
@@ -329,17 +348,28 @@ def _db_query_match(
         # execute_sql is for writes; for reads we need a cursor
         import urllib.parse
         parsed = urllib.parse.urlparse(db_conn)
-        if parsed.scheme != "mysql":
+
+        if parsed.scheme == "mysql":
+            import pymysql
+            conn = pymysql.connect(
+                host=parsed.hostname,
+                port=parsed.port or 3306,
+                user=parsed.username,
+                password=parsed.password,
+                database=(parsed.path or "").lstrip("/"),
+            )
+        elif parsed.scheme in ("postgresql", "postgres"):
+            import psycopg2  # late import — only needed on the PostgreSQL path
+            conn = psycopg2.connect(
+                host=parsed.hostname,
+                port=parsed.port or 5432,
+                user=parsed.username,
+                password=parsed.password,
+                dbname=(parsed.path or "").lstrip("/"),
+            )
+        else:
             return False, f"unsupported DB dialect: {parsed.scheme}"
 
-        import pymysql
-        conn = pymysql.connect(
-            host=parsed.hostname,
-            port=parsed.port or 3306,
-            user=parsed.username,
-            password=parsed.password,
-            database=(parsed.path or "").lstrip("/"),
-        )
         try:
             with conn.cursor() as cursor:
                 cursor.execute(query)

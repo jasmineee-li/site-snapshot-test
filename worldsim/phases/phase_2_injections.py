@@ -62,6 +62,14 @@ async def run(args: argparse.Namespace) -> int:
         len(benign_tasks),
     )
 
+    # Warn about sites that will be skipped due to missing profiles
+    for site in tasks_by_site:
+        profile = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
+        if not profile.exists():
+            logger.warning(
+                "Phase 2: skipping site %r — profile not found at %s", site, profile
+            )
+
     # Run one sandbox per site in parallel
     results = await asyncio.gather(*[
         _generate_injections_for_site(
@@ -143,7 +151,43 @@ async def _generate_injections_for_site(
         adv_tasks = json.loads(adv_json)
         if not isinstance(adv_tasks, list):
             adv_tasks = [adv_tasks]
-        return site_name, adv_tasks
     except json.JSONDecodeError as e:
         logger.error("Phase 2: invalid JSON from site %r sandbox: %s", site_name, e)
         return site_name, []
+
+    # Validate that each adversarial task has the fields Phase 4 expects
+    _REQUIRED_FIELDS = ("id", "benign_task_id", "adversarial_data_seed")
+    validated: list[dict] = []
+    for i, task in enumerate(adv_tasks):
+        if not isinstance(task, dict):
+            logger.warning(
+                "Phase 2 site %r: task %d is not a dict — skipping", site_name, i
+            )
+            continue
+        missing = [f for f in _REQUIRED_FIELDS if f not in task]
+        if missing:
+            logger.warning(
+                "Phase 2 site %r: task %d (%s) missing required fields %s",
+                site_name, i, task.get("id", "?"), missing,
+            )
+        # Check nested reward_function structure
+        rf = task.get("reward_function")
+        if isinstance(rf, dict):
+            if "benign_reward" not in rf:
+                logger.warning(
+                    "Phase 2 site %r: task %d (%s) reward_function missing 'benign_reward'",
+                    site_name, i, task.get("id", "?"),
+                )
+            if "adversarial_reward" not in rf:
+                logger.warning(
+                    "Phase 2 site %r: task %d (%s) reward_function missing 'adversarial_reward'",
+                    site_name, i, task.get("id", "?"),
+                )
+        elif rf is not None:
+            logger.warning(
+                "Phase 2 site %r: task %d (%s) reward_function is not a dict",
+                site_name, i, task.get("id", "?"),
+            )
+        validated.append(task)
+
+    return site_name, validated
