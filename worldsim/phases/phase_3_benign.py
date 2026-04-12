@@ -28,10 +28,10 @@ from typing import Any, Callable
 
 import requests
 
-from worldsim.browser_use_agent import AgentResult, AgentRunner, BrowserUseAgent
+from worldsim.agent_config import make_agent_factory, run_tasks_by_site
+from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.eval_worker_pool import run_eval
 from worldsim.modal_sandbox import run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
@@ -61,7 +61,9 @@ async def run(args: argparse.Namespace) -> int:
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     task_dir_root = STATE_DIR / "phase_3" / timestamp
-    agent_factory = _make_agent_factory()
+    agent_model = getattr(args, "agent_model", None) or "gemini-2.5-pro-preview"
+    agent_provider = getattr(args, "agent_provider", None)
+    agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
 
     logger.info(
         "Phase 3: validating %d benign tasks across %d instances",
@@ -70,7 +72,7 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     # Run evaluation via worker pool, routing tasks only to matching site instances.
-    results = await _run_tasks_by_site(
+    results = await run_tasks_by_site(
         tasks=benign_tasks,
         instances=config.instances,
         agent_factory=agent_factory,
@@ -398,74 +400,3 @@ async def _rerun_live_task(
         await agent.teardown()
 
 
-async def _run_tasks_by_site(
-    tasks: list[dict[str, Any]],
-    instances: list[BenchmarkInstance],
-    agent_factory: Callable[[], BrowserUseAgent],
-    task_runner: Callable[[dict[str, Any], AgentRunner, BenchmarkInstance, Path], Any],
-    task_dir_root: Path,
-) -> list[dict[str, Any]]:
-    """Run tasks only against instances for the same site."""
-    tasks_by_site: dict[str, list[dict[str, Any]]] = {}
-    for task in tasks:
-        tasks_by_site.setdefault(task.get("site", ""), []).append(task)
-
-    results: list[dict[str, Any]] = []
-    batches = []
-    for site_name, site_tasks in tasks_by_site.items():
-        site_instances = [
-            instance for instance in instances
-            if instance.site_name.lower() == str(site_name).lower()
-        ]
-        if not site_instances:
-            logger.error("No instances configured for site %r", site_name)
-            results.extend(
-                {
-                    "task_id": task.get("id", "unknown"),
-                    "passed": False,
-                    "message": f"no instances configured for site {site_name!r}",
-                }
-                for task in site_tasks
-            )
-            continue
-        batches.append(
-            run_eval(
-                tasks=site_tasks,
-                instances=site_instances,
-                agent_factory=agent_factory,
-                task_runner=task_runner,
-                task_dir_root=task_dir_root,
-            )
-        )
-
-    if batches:
-        grouped_results = await asyncio.gather(*batches, return_exceptions=True)
-        for batch in grouped_results:
-            if isinstance(batch, BaseException):
-                logger.error("Phase 3: site batch failed: %s", batch)
-                continue
-            results.extend(batch)
-    return results
-
-
-def _make_agent_factory():
-    """Create an agent factory for the worker pool.
-
-    Returns a zero-arg callable that produces a fresh BrowserUseAgent.
-    The LLM is configured based on environment variables.
-    """
-    def factory() -> BrowserUseAgent:
-        # LLM configuration deferred to runtime — callers configure
-        # via environment variables (OPENAI_API_KEY, etc.)
-        try:
-            from langchain_openai import ChatOpenAI
-            llm = ChatOpenAI(model="gpt-4o", temperature=0)
-        except ImportError:
-            raise RuntimeError(
-                "langchain_openai is required for Phase 3 agent runs. "
-                "Install it with: uv pip install langchain-openai"
-            )
-
-        return BrowserUseAgent(llm=llm, headless=True)
-
-    return factory

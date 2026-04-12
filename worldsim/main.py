@@ -64,6 +64,20 @@ def main(argv: list[str] | None = None) -> int:
         help="JSON file with BenchmarkConfig (site_url, db_connection, "
         "reset_endpoint). Required for Phases 3-4.",
     )
+    phase_cmd.add_argument(
+        "--agent-model",
+        default="gemini-2.5-pro-preview",
+        help="LLM model name for Browser Use agent (default: gemini-2.5-pro-preview). "
+        "Examples: gpt-4o, claude-sonnet-4-20250514, gemini-2.5-pro-preview.",
+    )
+    phase_cmd.add_argument(
+        "--agent-provider",
+        default=None,
+        choices=["google", "openai", "anthropic"],
+        help="LLM provider (default: auto-detect from model name). "
+        "Requires the corresponding env var: GOOGLE_API_KEY, OPENAI_API_KEY, "
+        "or ANTHROPIC_API_KEY.",
+    )
 
     resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
     resume_cmd.add_argument(
@@ -80,6 +94,17 @@ def main(argv: list[str] | None = None) -> int:
         "--instances",
         type=Path,
         help="JSON file with BenchmarkConfig (overrides path from state).",
+    )
+    resume_cmd.add_argument(
+        "--agent-model",
+        default="gemini-2.5-pro-preview",
+        help="LLM model name for Browser Use agent (default: gemini-2.5-pro-preview).",
+    )
+    resume_cmd.add_argument(
+        "--agent-provider",
+        default=None,
+        choices=["google", "openai", "anthropic"],
+        help="LLM provider (default: auto-detect from model name).",
     )
 
     args = parser.parse_args(argv)
@@ -158,6 +183,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         benchmark=benchmark,
         config=config,
         instances=instances,
+        agent_model=getattr(args, "agent_model", "gemini-2.5-pro-preview"),
+        agent_provider=getattr(args, "agent_provider", None),
     )
 
     return _dispatch_phase(synthetic)

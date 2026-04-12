@@ -38,10 +38,14 @@ from typing import Any, Callable
 
 import requests
 
-from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
+from worldsim.agent_config import (
+    instances_for_site,
+    make_agent_factory,
+    run_tasks_by_site,
+)
+from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.eval_worker_pool import run_eval
 from worldsim.modal_sandbox import run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
@@ -97,10 +101,12 @@ async def run(args: argparse.Namespace) -> int:
     logger.info("Phase 4: evaluating %d adversarial tasks across %d instances",
                 len(tasks), len(config.instances))
 
-    agent_factory = _make_agent_factory()
+    agent_model = getattr(args, "agent_model", None) or "gemini-2.5-pro-preview"
+    agent_provider = getattr(args, "agent_provider", None)
+    agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
 
     # Initial adversarial run
-    results = await _run_tasks_by_site(
+    results = await run_tasks_by_site(
         tasks=tasks,
         instances=config.instances,
         agent_factory=agent_factory,
@@ -153,7 +159,7 @@ async def run(args: argparse.Namespace) -> int:
             variation = await run_strategy_variation(
                 task=task,
                 initial_result=r,
-                instances=_instances_for_site(config.instances, site),
+                instances=instances_for_site(config.instances, site),
                 agent_factory=agent_factory,
                 profile_path=profile_path,
                 task_dir_root=task_dir_root,
@@ -545,80 +551,6 @@ async def run_strategy_variation(
         "variant_results": variant_results,
     }
 
-
-def _make_agent_factory():
-    """Create an agent factory for the worker pool."""
-    def factory() -> BrowserUseAgent:
-        try:
-            from langchain_openai import ChatOpenAI
-            llm = ChatOpenAI(model="gpt-4o", temperature=0)
-        except ImportError:
-            raise RuntimeError(
-                "langchain_openai is required for Phase 4 agent runs. "
-                "Install it with: uv pip install langchain-openai"
-            )
-        return BrowserUseAgent(llm=llm, headless=True)
-    return factory
-
-
-async def _run_tasks_by_site(
-    tasks: list[dict[str, Any]],
-    instances: list[BenchmarkInstance],
-    agent_factory: Callable[[], AgentRunner],
-    task_runner: Callable[[dict[str, Any], AgentRunner, BenchmarkInstance, Path], Any],
-    task_dir_root: Path,
-) -> list[dict[str, Any]]:
-    """Run tasks only against matching site instances."""
-    tasks_by_site: dict[str, list[dict[str, Any]]] = {}
-    for task in tasks:
-        tasks_by_site.setdefault(task.get("site", ""), []).append(task)
-
-    initial_results: list[dict[str, Any]] = []
-    batches = []
-    for site_name, site_tasks in tasks_by_site.items():
-        site_instances = _instances_for_site(instances, site_name)
-        if not site_instances:
-            logger.error("No instances configured for site %r", site_name)
-            initial_results.extend(
-                {
-                    "task_id": task.get("id", "unknown"),
-                    "passed": False,
-                    "outcome": "configuration_error",
-                    "error": f"no instances configured for site {site_name!r}",
-                }
-                for task in site_tasks
-            )
-            continue
-        batches.append(
-            run_eval(
-                tasks=site_tasks,
-                instances=site_instances,
-                agent_factory=agent_factory,
-                task_runner=task_runner,
-                task_dir_root=task_dir_root,
-            )
-        )
-
-    if batches:
-        grouped_results = await asyncio.gather(*batches, return_exceptions=True)
-        for batch in grouped_results:
-            if isinstance(batch, BaseException):
-                logger.error("Phase 4: site batch failed: %s", batch)
-                continue
-            initial_results.extend(batch)
-    return initial_results
-
-
-def _instances_for_site(
-    instances: list[BenchmarkInstance],
-    site_name: str,
-) -> list[BenchmarkInstance]:
-    normalized = str(site_name).lower()
-    return [
-        instance
-        for instance in instances
-        if instance.site_name.lower() == normalized
-    ]
 
 
 def _merge_variant_task(
