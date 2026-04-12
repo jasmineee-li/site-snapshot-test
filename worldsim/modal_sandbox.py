@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 from pathlib import Path
 
 import modal
@@ -28,8 +29,27 @@ NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "git", "jq")
-    .env({"PATH": "/root/.local/bin:$PATH"})  # Modal expands $PATH at container build time, not at Python parse time
-    .run_commands("curl -fsSL https://claude.ai/install.sh | bash")
+    # Create a non-root user — Claude Code refuses --dangerously-skip-permissions as root.
+    .run_commands(
+        "useradd -m -s /bin/bash claude",
+        "mkdir -p /workspace && chown claude:claude /workspace",
+    )
+    .env({
+        "PATH": "/home/claude/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "HOME": "/home/claude",
+        "USER": "claude",
+    })
+    .run_commands(
+        # Install Claude Code as the non-root user
+        "su claude -c 'curl -fsSL https://claude.ai/install.sh | bash'",
+        # Pre-accept trust dialog + dangerous-mode prompt for non-interactive
+        # operation (same pattern as webarena-infinity infra/setup/launch.sh:283-305).
+        'mkdir -p /home/claude/.claude',
+        """python3 -c "import json; from pathlib import Path; """
+        """Path('/home/claude/.claude.json').write_text(json.dumps({'projects': {'/workspace': {'hasTrustDialogAccepted': True}}})); """
+        """Path('/home/claude/.claude/settings.json').write_text(json.dumps({'skipDangerousModePermissionPrompt': True}))" """,
+        'chown -R claude:claude /home/claude/.claude /home/claude/.claude.json',
+    )
     .pip_install("requests", "browser-use>=0.12.6")
 )
 
@@ -83,6 +103,11 @@ def _build_claude_secrets() -> list[modal.Secret]:
     return [modal.Secret.from_dict(env)]
 
 
+def _shell_quote(s: str) -> str:
+    """Shell-quote a string for use inside `su -c '...'`."""
+    return shlex.quote(s)
+
+
 async def run_claude_in_sandbox(
     site_files: dict[str, str],
     prompt: str,
@@ -121,21 +146,21 @@ async def run_claude_in_sandbox(
     app = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
     sandbox = await modal.Sandbox.create.aio(app=app, image=image, timeout=timeout)
     try:
+        # Run as the non-root 'claude' user — Claude Code refuses
+        # --dangerously-skip-permissions when running as root.
+        claude_cmd = (
+            "claude -p " + _shell_quote(prompt)
+            + " --dangerously-skip-permissions"
+            + " --verbose"
+            + " --effort high"
+        )
         claude_ps = await sandbox.exec.aio(
-            "claude",
-            "-p",
-            prompt,
-            "--dangerously-skip-permissions",
-            "--verbose",
-            "--effort",
-            "high",
-            pty=True,
+            "su", "claude", "-c", claude_cmd,
             secrets=_build_claude_secrets(),
             workdir="/workspace",
         )
         await claude_ps.wait.aio()
 
-        # With pty=True, stderr is multiplexed into stdout (Modal SDK).
         stdout = await claude_ps.stdout.read.aio()
         if claude_ps.returncode != 0:
             logger.warning(
@@ -149,10 +174,10 @@ async def run_claude_in_sandbox(
         outputs: dict[str, str | None] = {}
         for path in output_paths:
             try:
-                outputs[path] = sandbox.filesystem.read_text(path)
-            except Exception as e:  # noqa: BLE001 — we want to tolerate any missing file
+                outputs[path] = await sandbox.filesystem.read_text.aio(path)
+            except Exception as e:  # noqa: BLE001 — tolerate missing files
                 outputs[path] = None
                 logger.warning("could not read %s from sandbox: %s", path, e)
         return outputs
     finally:
-        sandbox.terminate()
+        await sandbox.terminate.aio()
