@@ -18,11 +18,22 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections import Counter
-from pathlib import Path
 from typing import Any
 
+from worldsim.placeholders import apply_placeholders, placeholder_for_site
+
 logger = logging.getLogger(__name__)
+
+_READ_ONLY_QUERY_PREFIX = re.compile(r"^\s*(SELECT|WITH)\b", re.IGNORECASE)
+_UNSAFE_QUERY_KEYWORDS = re.compile(
+    r"\b("
+    r"INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|REPLACE|MERGE|CALL|"
+    r"DO|EXEC|EXECUTE|COPY|LOAD|ATTACH|DETACH|VACUUM|ANALYZE|REFRESH|SET"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 def run_reward_function(
@@ -141,7 +152,10 @@ def _build_webarena_config(
     ``site_url`` into the vendor config's ``environments`` dict.
     """
     site_url = instance.get("site_url", "")
-    explicit = instance.get("url_placeholders", {})
+    explicit = dict(instance.get("url_placeholders", {}))
+    primary_placeholder = placeholder_for_site(instance.get("site_name", ""))
+    if primary_placeholder and primary_placeholder not in explicit and site_url:
+        explicit[primary_placeholder] = site_url
 
     # Map placeholder tokens to WebArenaSite enum keys
     _PLACEHOLDER_TO_SITE = {
@@ -155,7 +169,7 @@ def _build_webarena_config(
 
     environments: dict = {}
     for placeholder, site_value in _PLACEHOLDER_TO_SITE.items():
-        url = explicit.get(placeholder) or site_url
+        url = explicit.get(placeholder)
         if url:
             try:
                 site_key = site_enum(site_value)
@@ -343,7 +357,10 @@ def _eval_network_event(
     expected_method = expected.get("http_method", "GET").upper()
 
     # Resolve URL placeholders using instance config
-    resolved_url = _resolve_url_placeholders(expected_url, instance)
+    try:
+        resolved_url = _resolve_url_placeholders(expected_url, instance)
+    except ValueError as exc:
+        return False, str(exc)
 
     # Search network trace for matching events
     last_only = config.get("last_event_only", True)
@@ -378,30 +395,12 @@ def _resolve_url_placeholders(url: str, instance: dict) -> str:
     common single-site case the instance's own ``site_url`` is used as a
     fallback for any placeholder not in the explicit mapping.
     """
+    explicit = dict(instance.get("url_placeholders", {}))
+    primary_placeholder = placeholder_for_site(instance.get("site_name", ""))
     site_url = instance.get("site_url", "")
-    # Explicit per-instance overrides first (handles multi-site tasks)
-    explicit = instance.get("url_placeholders", {})
-
-    # Standard WebArena placeholders — fallback to current site_url only
-    # when the explicit mapping does not provide a value.
-    all_placeholders = (
-        "__SHOPPING__",
-        "__SHOPPING_ADMIN__",
-        "__GITLAB__",
-        "__REDDIT__",
-        "__WIKIPEDIA__",
-        "__MAP__",
-    )
-    for placeholder in all_placeholders:
-        replacement = explicit.get(placeholder, site_url)
-        url = url.replace(placeholder, replacement)
-
-    # Apply any non-standard explicit placeholders not in the list above
-    for key, val in explicit.items():
-        if key not in all_placeholders:
-            url = url.replace(key, val)
-
-    return url
+    if primary_placeholder and primary_placeholder not in explicit and site_url:
+        explicit[primary_placeholder] = site_url
+    return apply_placeholders(url, explicit, strict=True)
 
 
 def _url_matches(expected: str, actual: str) -> bool:
@@ -449,9 +448,12 @@ def _db_query_match(
         return False, "no db_connection on instance"
     if not query:
         return False, "no query in reward spec"
+    try:
+        _validate_read_only_query(query)
+    except ValueError as exc:
+        return False, str(exc)
 
     try:
-        # execute_sql is for writes; for reads we need a cursor
         import urllib.parse
         parsed = urllib.parse.urlparse(db_conn)
 
@@ -477,6 +479,7 @@ def _db_query_match(
             return False, f"unsupported DB dialect: {parsed.scheme}"
 
         try:
+            _configure_read_only_connection(conn, parsed.scheme)
             with conn.cursor() as cursor:
                 cursor.execute(query)
                 rows = cursor.fetchall()
@@ -500,3 +503,28 @@ def _db_query_match(
 _CHECKERS: dict[str, Any] = {
     "db_query_match": _db_query_match,
 }
+
+
+def _validate_read_only_query(query: str) -> None:
+    """Restrict db_query_match to a single read-only query."""
+    normalized = query.strip()
+    if not normalized:
+        raise ValueError("db_query_match query is empty")
+    if ";" in normalized.rstrip(";"):
+        raise ValueError("db_query_match must be a single statement")
+    if not _READ_ONLY_QUERY_PREFIX.match(normalized):
+        raise ValueError("db_query_match only permits SELECT or WITH queries")
+    if _UNSAFE_QUERY_KEYWORDS.search(normalized):
+        raise ValueError("db_query_match query contains a write-capable SQL keyword")
+
+
+def _configure_read_only_connection(conn: Any, scheme: str) -> None:
+    """Best-effort read-only transaction guard for SQL reward checks."""
+    try:
+        with conn.cursor() as cursor:
+            if scheme == "mysql":
+                cursor.execute("SET SESSION TRANSACTION READ ONLY")
+            elif scheme in ("postgresql", "postgres"):
+                cursor.execute("SET TRANSACTION READ ONLY")
+    except Exception:
+        logger.debug("Could not enable read-only transaction guard", exc_info=True)

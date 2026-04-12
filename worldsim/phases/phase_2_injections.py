@@ -26,24 +26,25 @@ from pathlib import Path
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
-from worldsim.state import STATE_DIR, save_state
+from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
 
 
 async def run(args: argparse.Namespace) -> int:
     """Phase 2 entrypoint — generate adversarial injections for each site."""
-    output_dir = STATE_DIR / "phase_2"
+    state_dir = get_state_dir()
+    output_dir = state_dir / "phase_2"
 
     # Load benign tasks from Phase 1
-    tasks_path = STATE_DIR / "phase_1" / "benign_tasks.json"
+    tasks_path = state_dir / "phase_1" / "benign_tasks.json"
     if not tasks_path.exists():
         logger.error("Benign tasks not found at %s — run phase 1 first", tasks_path)
         return 1
     benign_tasks = json.loads(tasks_path.read_text())
 
     # Load profiles from Phase 0c
-    profiles_dir = STATE_DIR / "phase_0c"
+    profiles_dir = state_dir / "phase_0c"
     if not profiles_dir.exists():
         logger.error("Profiles directory not found at %s — run phase 0c first", profiles_dir)
         return 1
@@ -111,7 +112,7 @@ async def run(args: argparse.Namespace) -> int:
                adversarial_tasks_path=str(output_path),
                task_count=len(all_adversarial))
     cost_tracker.log_phase_summary("phase_2")
-    cost_tracker.save(STATE_DIR / "cost_report.json")
+    cost_tracker.save(state_dir / "cost_report.json")
     logger.info("Phase 2 complete — %d adversarial tasks written to %s",
                 len(all_adversarial), output_path)
     return 0
@@ -182,6 +183,7 @@ async def _generate_injections_for_site(
                 "Phase 2 site %r: task %d (%s) missing required fields %s",
                 site_name, i, task.get("id", "?"), missing,
             )
+            continue
         # Check nested reward_function structure
         rf = task.get("reward_function")
         if isinstance(rf, dict):
@@ -190,16 +192,25 @@ async def _generate_injections_for_site(
                     "Phase 2 site %r: task %d (%s) reward_function missing 'benign_reward'",
                     site_name, i, task.get("id", "?"),
                 )
+                continue
             if "adversarial_reward" not in rf:
                 logger.warning(
                     "Phase 2 site %r: task %d (%s) reward_function missing 'adversarial_reward'",
                     site_name, i, task.get("id", "?"),
                 )
+                continue
         elif rf is not None:
             logger.warning(
                 "Phase 2 site %r: task %d (%s) reward_function is not a dict",
                 site_name, i, task.get("id", "?"),
             )
+            continue
+        else:
+            logger.warning(
+                "Phase 2 site %r: task %d (%s) missing reward_function",
+                site_name, i, task.get("id", "?"),
+            )
+            continue
         validated.append(task)
 
     return site_name, validated

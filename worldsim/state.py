@@ -18,8 +18,21 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-STATE_DIR = Path(os.environ.get("WORLDSIM_STATE_DIR", "logs"))
-STATE_FILE = STATE_DIR / "pipeline_state.json"
+
+def get_state_dir() -> Path:
+    """Return the current pipeline state directory."""
+    return Path(os.environ.get("WORLDSIM_STATE_DIR", "logs"))
+
+
+def get_state_file() -> Path:
+    """Return the current pipeline state file path."""
+    return get_state_dir() / "pipeline_state.json"
+
+
+# Backwards-compatible aliases. Internal code should prefer ``get_state_dir()``
+# so .env-loaded overrides are honored even if this module was imported early.
+STATE_DIR = get_state_dir()
+STATE_FILE = get_state_file()
 
 
 def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
@@ -30,7 +43,9 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
         iteration: Loop iteration counter for retry logic. 0 means first attempt.
         **metadata: Arbitrary extra fields merged into the state blob.
     """
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    state_dir = get_state_dir()
+    state_file = get_state_file()
+    state_dir.mkdir(parents=True, exist_ok=True)
     state = {
         "step": step,
         "iteration": iteration,
@@ -39,11 +54,11 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     }
     # Atomic write: write to a temp file in the same directory, then rename.
     # os.replace is atomic on POSIX when src and dst are on the same filesystem.
-    fd, tmp_path = tempfile.mkstemp(dir=STATE_DIR, suffix=".tmp")
+    fd, tmp_path = tempfile.mkstemp(dir=state_dir, suffix=".tmp")
     try:
         with os.fdopen(fd, "w") as f:
             json.dump(state, f, indent=2)
-        os.replace(tmp_path, STATE_FILE)
+        os.replace(tmp_path, state_file)
     except BaseException:
         # Clean up the temp file on failure
         try:
@@ -55,10 +70,11 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
 
 def load_state() -> dict[str, Any] | None:
     """Return the last saved state, or ``None`` if no state file exists."""
-    if not STATE_FILE.exists():
+    state_file = get_state_file()
+    if not state_file.exists():
         return None
     try:
-        return json.loads(STATE_FILE.read_text())
+        return json.loads(state_file.read_text())
     except json.JSONDecodeError:
-        logger.warning("Corrupt pipeline state file at %s — ignoring", STATE_FILE)
+        logger.warning("Corrupt pipeline state file at %s — ignoring", state_file)
         return None

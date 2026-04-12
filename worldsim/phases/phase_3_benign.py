@@ -22,21 +22,28 @@ import asyncio
 import json
 import logging
 import tempfile
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import requests
 
-from worldsim.agent_config import make_agent_factory, run_tasks_by_site
+from worldsim.agent_config import (
+    execution_instance_dict,
+    make_agent_factory,
+    resolve_task_inputs,
+    run_tasks_by_site,
+    task_reset_endpoints,
+)
 from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
-from worldsim.seeding import apply_data_seed
-from worldsim.state import STATE_DIR, save_state
+from worldsim.seeding import apply_data_seed_async
+from worldsim.state import get_state_dir, save_state
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 
 logger = logging.getLogger(__name__)
@@ -44,8 +51,9 @@ logger = logging.getLogger(__name__)
 
 async def run(args: argparse.Namespace) -> int:
     """Phase 3 entrypoint — benign validation of wrapped tasks."""
+    state_dir = get_state_dir()
     # Load inputs
-    tasks_path = STATE_DIR / "phase_1" / "benign_tasks.json"
+    tasks_path = state_dir / "phase_1" / "benign_tasks.json"
     if not tasks_path.exists():
         logger.error("Benign tasks not found at %s — run phase 1 first", tasks_path)
         return 1
@@ -60,7 +68,7 @@ async def run(args: argparse.Namespace) -> int:
     save_state("phase_3", status="running", instances_path=str(instances_path))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    task_dir_root = STATE_DIR / "phase_3" / timestamp
+    task_dir_root = state_dir / "phase_3" / timestamp
     agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
@@ -78,6 +86,7 @@ async def run(args: argparse.Namespace) -> int:
         agent_factory=agent_factory,
         task_runner=run_task,
         task_dir_root=task_dir_root,
+        config_url_placeholders=config.url_placeholders,
     )
 
     # Summarize results
@@ -91,7 +100,7 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     # Diagnosis loop for failures
-    profiles_dir = STATE_DIR / "phase_0c"
+    profiles_dir = state_dir / "phase_0c"
     diagnosed: list[dict] = []
 
     for r in failed_tasks:
@@ -139,7 +148,7 @@ async def run(args: argparse.Namespace) -> int:
             len(benign_tasks),
         )
 
-    output_dir = STATE_DIR / "phase_3"
+    output_dir = state_dir / "phase_3"
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "validated_tasks.json").write_text(json.dumps(validated_tasks, indent=2))
     (output_dir / "results.json").write_text(json.dumps(results, indent=2))
@@ -154,7 +163,7 @@ async def run(args: argparse.Namespace) -> int:
         total=len(benign_tasks),
     )
     cost_tracker.log_phase_summary("phase_3")
-    cost_tracker.save(STATE_DIR / "cost_report.json")
+    cost_tracker.save(state_dir / "cost_report.json")
     logger.info(
         "Phase 3 complete — %d validated (%d passed + %d fixed) out of %d total",
         len(validated_tasks),
@@ -177,24 +186,26 @@ async def run_task(
     """
     task_id = task.get("id", "unknown")
 
-    # Reset environment
-    if instance.reset_endpoint:
-        try:
-            requests.post(instance.reset_endpoint, timeout=30)
-            await asyncio.sleep(2)
-        except requests.RequestException as e:
-            logger.warning("Reset failed for task %s: %s", task_id, e)
+    instance_dict = execution_instance_dict(instance, task)
+
+    # Reset all environments the task depends on.
+    await _reset_task_environment(task)
 
     # Seed data (Mode A tasks have mechanism "none" — skip)
     seed = task.get("data_seed", {})
     if seed.get("mechanism") not in (None, "none"):
-        apply_data_seed(seed, instance.model_dump())
+        await apply_data_seed_async(seed, instance_dict)
 
     # Run agent
-    result = await agent.run(task["instruction"], instance.site_url, task_dir)
+    instruction, start_urls = resolve_task_inputs(task, instance_dict)
+    result = await agent.run(
+        instruction,
+        instance.site_url,
+        task_dir,
+        start_urls=start_urls,
+    )
 
     # Evaluate with reward function
-    instance_dict = instance.model_dump()
     passed, message = run_reward_function(
         reward=task["reward_function"],
         instance=instance_dict,
@@ -400,3 +411,17 @@ async def _rerun_live_task(
         await agent.teardown()
 
 
+async def _reset_task_environment(task: dict[str, Any]) -> None:
+    """Reset every benchmark instance a task may touch."""
+    endpoints = task_reset_endpoints(task)
+    if not endpoints:
+        return
+    for endpoint in endpoints:
+        await asyncio.to_thread(_post_reset, endpoint)
+    await asyncio.sleep(2)
+
+
+def _post_reset(endpoint: str) -> None:
+    """Call a benchmark reset endpoint and treat non-2xx as failure."""
+    response = requests.post(endpoint, timeout=30)
+    response.raise_for_status()

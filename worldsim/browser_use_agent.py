@@ -23,6 +23,26 @@ from urllib.parse import parse_qs, urlparse
 
 logger = logging.getLogger(__name__)
 
+_SENSITIVE_HEADER_NAMES = {
+    "authorization",
+    "cookie",
+    "set-cookie",
+    "proxy-authorization",
+    "x-api-key",
+    "x-auth-token",
+    "x-csrf-token",
+    "x-csrftoken",
+}
+_SENSITIVE_HEADER_SUBSTRINGS = (
+    "token",
+    "secret",
+    "session",
+    "auth",
+    "cookie",
+    "csrf",
+    "key",
+)
+
 
 @dataclass
 class AgentResult:
@@ -42,7 +62,12 @@ class AgentRunner(Protocol):
     async def setup(self, server_url: str) -> None: ...
 
     async def run(
-        self, task: str, server_url: str, task_dir: Path
+        self,
+        task: str,
+        server_url: str,
+        task_dir: Path,
+        *,
+        start_urls: list[str] | None = None,
     ) -> AgentResult: ...
 
     async def teardown(self) -> None: ...
@@ -119,7 +144,7 @@ class _NetworkTraceRecorder:
             self._poll_task = None
 
         trace = self._finalize_trace()
-        self._write_trace(trace)
+        self._write_trace([self._redact_trace_entry(entry) for entry in trace])
         return trace
 
     # ------------------------------------------------------------------
@@ -403,6 +428,37 @@ class _NetworkTraceRecorder:
         except Exception as e:  # noqa: BLE001
             logger.warning("Failed to write network.har: %s", e)
 
+    @classmethod
+    def _redact_trace_entry(cls, entry: dict[str, Any]) -> dict[str, Any]:
+        """Redact sensitive wire data before persisting trajectory artifacts."""
+        redacted = dict(entry)
+        redacted["headers"] = cls._redact_headers(redacted.get("headers", {}))
+        redacted["response_headers"] = cls._redact_headers(
+            redacted.get("response_headers", {})
+        )
+        if redacted.get("post_data") is not None:
+            redacted["post_data"] = "<redacted>"
+        if redacted.get("response_cookies"):
+            redacted["response_cookies"] = {
+                key: "<redacted>"
+                for key in redacted["response_cookies"]
+            }
+        return redacted
+
+    @classmethod
+    def _redact_headers(cls, headers: dict[str, Any]) -> dict[str, Any]:
+        """Redact sensitive header values while preserving non-secret metadata."""
+        redacted: dict[str, Any] = {}
+        for key, value in headers.items():
+            lower = str(key).lower()
+            if lower in _SENSITIVE_HEADER_NAMES or any(
+                marker in lower for marker in _SENSITIVE_HEADER_SUBSTRINGS
+            ):
+                redacted[str(key)] = "<redacted>"
+            else:
+                redacted[str(key)] = value
+        return redacted
+
 
 class BrowserUseAgent:
     """Browser Use-backed :class:`AgentRunner` (spec canonical implementation)."""
@@ -431,7 +487,12 @@ class BrowserUseAgent:
         self._session = None
 
     async def run(
-        self, task: str, server_url: str, task_dir: Path
+        self,
+        task: str,
+        server_url: str,
+        task_dir: Path,
+        *,
+        start_urls: list[str] | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
 
@@ -455,6 +516,7 @@ class BrowserUseAgent:
         elapsed = 0.0
         network_trace: list[dict[str, Any]] = []
         try:
+            initial_actions = _build_initial_actions(start_urls or [])
             agent = Agent(
                 task=(
                     f"You are interacting with a web application at {server_url}. "
@@ -464,6 +526,7 @@ class BrowserUseAgent:
                 browser_session=self._session,
                 use_vision=self.use_vision,
                 save_conversation_path=str(task_dir / "conversations"),
+                initial_actions=initial_actions,
                 max_steps=self.max_steps,
             )
 
@@ -513,3 +576,23 @@ class BrowserUseAgent:
             except Exception as e:  # noqa: BLE001
                 logger.warning("BrowserSession kill failed: %s", e)
             self._session = None
+
+
+def _build_initial_actions(start_urls: list[str]) -> list[dict[str, dict[str, Any]]] | None:
+    """Convert resolved start URLs into Browser Use initial navigate actions."""
+    seen: set[str] = set()
+    actions: list[dict[str, dict[str, Any]]] = []
+    for index, url in enumerate(start_urls):
+        normalized = str(url).strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        actions.append(
+            {
+                "navigate": {
+                    "url": normalized,
+                    "new_tab": index > 0,
+                }
+            }
+        )
+    return actions or None

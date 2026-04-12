@@ -18,7 +18,7 @@ from pathlib import Path
 
 async def main() -> None:
     # Late imports -- these packages only exist inside the sandbox image.
-    from claude_agent_sdk import query, ClaudeAgentOptions  # type: ignore[import-untyped]
+    from claude_agent_sdk import ClaudeAgentOptions, query  # type: ignore[import-untyped]
     from claude_agent_sdk.types import (  # type: ignore[import-untyped]
         AssistantMessage,
         ResultMessage,

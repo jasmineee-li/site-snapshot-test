@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +73,7 @@ class CostTracker:
             duration_ms=parsed.get("duration_ms"),
             session_id=parsed.get("session_id"),
             model_usage=parsed.get("model_usage"),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         self.entries.append(entry)
 

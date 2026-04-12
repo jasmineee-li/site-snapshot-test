@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkInstance

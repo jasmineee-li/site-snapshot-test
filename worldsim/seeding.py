@@ -14,6 +14,7 @@ Each benchmark's Phase 0a manifest declares which mechanism its sites use.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import urllib.parse
@@ -23,9 +24,12 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Defense-in-depth: block destructive SQL from LLM-generated data seeds.
-_BLOCKED_SQL_PATTERNS = re.compile(
-    r"\b(DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|DELETE\s+FROM\s+\w+\s*$)\b",
+_MULTI_STATEMENT_PATTERN = re.compile(r";(?=(?:[^']|'[^']*')*$)")
+_DISALLOWED_SQL_KEYWORDS = re.compile(
+    r"\b("
+    r"DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|DELETE|REPLACE|MERGE|CALL|DO|EXEC|EXECUTE|"
+    r"BEGIN|COMMIT|ROLLBACK|SAVEPOINT|PREPARE|DEALLOCATE|COPY|LOAD|ATTACH|DETACH|VACUUM"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -66,6 +70,11 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
         raise ValueError(f"unknown data seed mechanism: {mechanism!r}")
 
 
+async def apply_data_seed_async(seed: dict[str, Any], instance: dict[str, Any]) -> None:
+    """Apply a data seed without blocking the event loop."""
+    await asyncio.to_thread(apply_data_seed, seed, instance)
+
+
 def execute_sql(statement: str, db_connection: str) -> None:
     """Execute one SQL statement against a benchmark database.
 
@@ -80,11 +89,7 @@ def execute_sql(statement: str, db_connection: str) -> None:
     Raises:
         ValueError: If the statement matches the destructive SQL blocklist.
     """
-    if _BLOCKED_SQL_PATTERNS.search(statement):
-        raise ValueError(
-            f"SQL statement blocked by safety filter: {statement[:100]}... "
-            "Only SELECT, INSERT, and UPDATE statements are allowed for data seeding."
-        )
+    _validate_seed_sql(statement)
 
     parsed = urllib.parse.urlparse(db_connection)
 
@@ -124,3 +129,24 @@ def execute_sql(statement: str, db_connection: str) -> None:
         raise NotImplementedError(
             f"DB dialect {parsed.scheme!r} not yet supported by worldsim.seeding"
         )
+
+
+def _validate_seed_sql(statement: str) -> None:
+    """Allow only single-statement INSERT/UPDATE seed mutations."""
+    normalized = statement.strip()
+    if not normalized:
+        raise ValueError("SQL seed statement is empty")
+    if _MULTI_STATEMENT_PATTERN.search(normalized.rstrip(";")):
+        raise ValueError("SQL seed must be a single statement")
+    if _DISALLOWED_SQL_KEYWORDS.search(normalized):
+        raise ValueError(
+            f"SQL seed contains a disallowed keyword: {normalized[:100]}..."
+        )
+
+    first_token = normalized.split(None, 1)[0].upper()
+    if first_token not in {"INSERT", "UPDATE"}:
+        raise ValueError(
+            f"SQL seed must start with INSERT or UPDATE, got {first_token!r}"
+        )
+    if first_token == "UPDATE" and " WHERE " not in f" {normalized.upper()} ":
+        raise ValueError("UPDATE seed statements must include a WHERE clause")

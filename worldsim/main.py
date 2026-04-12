@@ -22,8 +22,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.state import STATE_DIR, load_state
+load_dotenv()  # Load .env before importing stateful modules.
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,7 +31,6 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    load_dotenv()  # .env fills gaps; shell exports take precedence
 
     parser = argparse.ArgumentParser(
         prog="worldsim",
@@ -139,6 +137,8 @@ def _next_step(step: str) -> str | None:
 
 def _dispatch_resume(args: argparse.Namespace) -> int:
     """Read last checkpoint and dispatch to the appropriate phase."""
+    from worldsim.state import load_state
+
     state = load_state()
     if state is None:
         print("No pipeline state found; run a phase first.", file=sys.stderr)
@@ -192,6 +192,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
 
 def _dispatch_phase(args: argparse.Namespace) -> int:
     """Dispatch to the requested phase module."""
+    from worldsim.cost_tracker import tracker as cost_tracker
     from worldsim.phases import (
         phase_0_recon,
         phase_1_tasks,
@@ -199,9 +200,10 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         phase_3_benign,
         phase_4_adversarial,
     )
+    from worldsim.state import get_state_dir
 
     # Load any previously saved cost data so cross-phase totals accumulate.
-    cost_report_path = STATE_DIR / "cost_report.json"
+    cost_report_path = get_state_dir() / "cost_report.json"
     cost_tracker.load(cost_report_path)
 
     phase = args.phase

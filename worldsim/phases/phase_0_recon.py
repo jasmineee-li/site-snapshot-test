@@ -28,7 +28,7 @@ from typing import Any
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox, upload_to_volume
 from worldsim.prompt_loading import load_prompt
-from worldsim.state import STATE_DIR, save_state
+from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
     Returns:
         Process exit code.
     """
-    output_base = STATE_DIR
+    output_base = get_state_dir()
     manifest = None
     sandbox_map = None
 
@@ -58,7 +58,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
             benchmark_path=str(benchmark),
         )
         cost_tracker.log_phase_summary("phase_0a")
-        cost_tracker.save(STATE_DIR / "cost_report.json")
+        cost_tracker.save(get_state_dir() / "cost_report.json")
         logger.info("Phase 0a complete — manifest written")
         if sub == "0a":
             return 0
@@ -101,7 +101,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
                    profiles_dir=str(output_base / "phase_0c"),
                    benchmark_path=str(benchmark))
         cost_tracker.log_phase_summary("phase_0c")
-        cost_tracker.save(STATE_DIR / "cost_report.json")
+        cost_tracker.save(get_state_dir() / "cost_report.json")
         logger.info("Phase 0c complete — per-site profiles written")
 
     return 0
@@ -191,9 +191,9 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
                     + "\n".join(f"  - {error}" for error in unsafe_paths)
                 )
             if missing_paths:
-                logger.warning(
-                    "Phase 0a retry still has %d path errors — proceeding anyway",
-                    len(missing_paths),
+                raise RuntimeError(
+                    "Phase 0a retry still has invalid manifest paths:\n"
+                    + "\n".join(f"  - {error}" for error in missing_paths)
                 )
 
     # Write outputs
@@ -493,12 +493,20 @@ async def run_phase_0c(
     for site_name, outputs in results:
         profile_json = outputs.get("/workspace/output/BENCHMARK_PROFILE.json")
         if profile_json:
-            _validate_profile(site_name, json.loads(profile_json))
+            _validate_profile(
+                site_name,
+                json.loads(profile_json),
+                manifest.get("evaluation", {}).get("eval_types", []),
+            )
 
     return dict(results)
 
 
-def _validate_profile(site_name: str, profile: dict) -> None:
+def _validate_profile(
+    site_name: str,
+    profile: dict,
+    manifest_eval_types: list[str],
+) -> None:
     """Validate cross-references within a site profile.
 
     Checks that injection surface source_fields reference data model fields,
@@ -514,6 +522,8 @@ def _validate_profile(site_name: str, profile: dict) -> None:
         if storage:
             known_fields.add(storage)
 
+    errors: list[str] = []
+
     # Check injection surface source_fields
     for surface in profile.get("injection_surface", []):
         source = surface.get("source_field", "")
@@ -521,18 +531,34 @@ def _validate_profile(site_name: str, profile: dict) -> None:
             # Format is "table.column" — check the column part
             field_name = source.split(".")[-1]
             if field_name not in known_fields and known_fields:
-                logger.warning(
-                    "Profile %s: injection surface %r references field %r "
-                    "not found in data model",
-                    site_name,
-                    surface.get("id", "?"),
-                    source,
+                errors.append(
+                    f"injection surface {surface.get('id', '?')!r} references "
+                    f"unknown field {source!r}"
                 )
 
     # Collect known eval types from verification capabilities
     known_eval_types: set[str] = set()
     for cap in profile.get("verification_capabilities", []):
-        known_eval_types.add(cap.get("eval_type", ""))
+        eval_type = cap.get("eval_type", "")
+        if eval_type:
+            known_eval_types.add(eval_type)
+
+    missing_eval_types = sorted(
+        eval_type
+        for eval_type in known_eval_types
+        if eval_type not in set(manifest_eval_types)
+    )
+    if missing_eval_types:
+        errors.append(
+            "verification capabilities reference eval types absent from manifest: "
+            + ", ".join(missing_eval_types)
+        )
+
+    if errors:
+        raise ValueError(
+            f"Profile {site_name} failed validation:\n"
+            + "\n".join(f"  - {error}" for error in errors)
+        )
 
     logger.info(
         "Profile %s validated: %d data model entities, %d injection surfaces, %d eval types",

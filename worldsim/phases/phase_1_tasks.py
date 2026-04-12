@@ -16,7 +16,7 @@ import json
 import logging
 from pathlib import Path
 
-from worldsim.state import STATE_DIR, save_state
+from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,11 @@ async def run(args: argparse.Namespace) -> int:
     Expects ``args.benchmark`` (path to benchmark codebase) and
     ``args.config`` (path to BENCHMARK_MANIFEST.json from Phase 0a).
     """
-    output_dir = STATE_DIR / "phase_1"
+    state_dir = get_state_dir()
+    output_dir = state_dir / "phase_1"
 
     # Load manifest to find task definition paths
-    manifest_path = args.config or (STATE_DIR / "phase_0a" / "BENCHMARK_MANIFEST.json")
+    manifest_path = args.config or (state_dir / "phase_0a" / "BENCHMARK_MANIFEST.json")
     if not Path(manifest_path).exists():
         logger.error("Manifest not found at %s — run phase 0a first", manifest_path)
         return 1
