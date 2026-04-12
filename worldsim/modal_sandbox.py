@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import os
-import shlex
 from pathlib import Path
 
 import modal
@@ -28,27 +27,26 @@ NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
 
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
-    .apt_install("curl", "git", "jq")
-    # Create a non-root user — Claude Code refuses --dangerously-skip-permissions as root.
+    .apt_install("curl", "git", "jq", "nodejs", "npm")
     .run_commands(
-        "useradd -m -s /bin/bash claude",
-        "mkdir -p /workspace && chown claude:claude /workspace",
+        "npm install -g @anthropic-ai/claude-code",
+        "mkdir -p /workspace /root/.claude",
     )
     .env({
-        "PATH": "/home/claude/.local/bin:/usr/local/bin:/usr/bin:/bin",
-        "HOME": "/home/claude",
-        "USER": "claude",
+        # IS_SANDBOX=1 lets Claude Code accept --dangerously-skip-permissions
+        # as root (github.com/anthropics/claude-code/issues/3490). This is
+        # Modal's own recommended pattern for running Claude Code in sandboxes.
+        "IS_SANDBOX": "1",
     })
+    # Pre-accept trust dialog so Claude Code runs non-interactively.
     .run_commands(
-        # Install Claude Code as the non-root user
-        "su claude -c 'curl -fsSL https://claude.ai/install.sh | bash'",
-        # Pre-accept trust dialog + dangerous-mode prompt for non-interactive
-        # operation (same pattern as webarena-infinity infra/setup/launch.sh:283-305).
-        'mkdir -p /home/claude/.claude',
-        """python3 -c "import json; from pathlib import Path; """
-        """Path('/home/claude/.claude.json').write_text(json.dumps({'projects': {'/workspace': {'hasTrustDialogAccepted': True}}})); """
-        """Path('/home/claude/.claude/settings.json').write_text(json.dumps({'skipDangerousModePermissionPrompt': True}))" """,
-        'chown -R claude:claude /home/claude/.claude /home/claude/.claude.json',
+        'python3 -c "'
+        "import json; from pathlib import Path; "
+        "Path('/root/.claude.json').write_text("
+        "json.dumps({'projects': {'/workspace': {'hasTrustDialogAccepted': True}}})); "
+        "Path('/root/.claude/settings.json').write_text("
+        "json.dumps({'skipDangerousModePermissionPrompt': True}))"
+        '"',
     )
     .pip_install("requests", "browser-use>=0.12.6")
 )
@@ -103,11 +101,6 @@ def _build_claude_secrets() -> list[modal.Secret]:
     return [modal.Secret.from_dict(env)]
 
 
-def _shell_quote(s: str) -> str:
-    """Shell-quote a string for use inside `su -c '...'`."""
-    return shlex.quote(s)
-
-
 async def run_claude_in_sandbox(
     site_files: dict[str, str],
     prompt: str,
@@ -146,16 +139,13 @@ async def run_claude_in_sandbox(
     app = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
     sandbox = await modal.Sandbox.create.aio(app=app, image=image, timeout=timeout)
     try:
-        # Run as the non-root 'claude' user — Claude Code refuses
-        # --dangerously-skip-permissions when running as root.
-        claude_cmd = (
-            "claude -p " + _shell_quote(prompt)
-            + " --dangerously-skip-permissions"
-            + " --verbose"
-            + " --effort high"
-        )
         claude_ps = await sandbox.exec.aio(
-            "su", "claude", "-c", claude_cmd,
+            "claude", "-p", prompt,
+            "--output-format", "json",
+            "--dangerously-skip-permissions",
+            "--verbose",
+            "--effort", "high",
+            pty=True,
             secrets=_build_claude_secrets(),
             workdir="/workspace",
         )
