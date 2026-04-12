@@ -56,6 +56,8 @@ class BrowserUseAgent:
         timeout: int = 300,
         headless: bool = True,
     ) -> None:
+        # ``llm`` is configured by the caller (see worldsim/main.py).
+        # To use OpenRouter, pass an OpenRouter-configured ChatOpenAI instance.
         self.llm = llm
         self.use_vision = use_vision
         self.max_steps = max_steps

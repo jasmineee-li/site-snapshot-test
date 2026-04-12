@@ -2,35 +2,30 @@
 
 Adversarial evaluation pipeline for browser agents. Generates indirect prompt injection tasks against pre-running benchmark environments (WebArena), runs [Browser Use](https://github.com/browser-use/browser-use) agents, and scores them on two sequential gates: **ecological validity** and **attack effectiveness**.
 
-## Architecture
+## Install
 
-A local Python orchestrator coordinates three things:
-
-1. **Modal Sandboxes running Claude Code** — all code exploration, generation, and diagnosis steps. Each sandbox is scoped by *inclusion*: only the files that step needs are added to the image via `modal.Image.add_local_dir`.
-2. **Browser Use** — async Python library for running browser agents against benchmark instances. Each evaluation worker gets its own browser session and a dedicated pre-running benchmark instance.
-3. **Local orchestrator logic** — state management, validation, file routing between phases, and the iteration loops that connect everything.
-
-Five phases:
-
-| # | Phase | What it does |
-|---|-------|--------------|
-| 0 | Reconnaissance | 0a discovers benchmark structure, 0b computes per-site sandbox file maps, 0c profiles each site in parallel |
-| 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
-| 2 | Injection Generation | Produces adversarial data seeds per task |
-| 3 | Benign Validation | Runs the agent against benign seeds; diagnoses failures |
-| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused |
-
-The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). Every module in `worldsim/` implements a section of that spec.
+```bash
+uv sync
+# or, if you prefer pip:
+pip install -e .
+```
 
 ## Prerequisites
 
 1. **Modal account.** Sign up at <https://modal.com>, then run `modal token new` to write `~/.modal.toml`, or set `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` in your environment.
-2. **Claude Code authentication.** Claude Code runs *inside* the Modal sandbox and needs credentials injected via `modal.Secret.from_dict`. Two auth methods are supported in parallel — pick whichever you have:
+2. **Claude Code authentication.** Claude Code runs *inside* the Modal sandbox and needs credentials injected via `modal.Secret.from_dict`. Three auth methods are supported — pick whichever you have:
 
    - **`CLAUDE_CODE_OAUTH_TOKEN`** (preferred if you have a Claude Pro / Claude Max subscription):
 
      ```bash
      export CLAUDE_CODE_OAUTH_TOKEN=your-oauth-token
+     ```
+
+   - **`ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`** (OpenRouter or any proxy):
+
+     ```bash
+     export ANTHROPIC_AUTH_TOKEN=sk-or-v1-...
+     export ANTHROPIC_BASE_URL=https://openrouter.ai/api
      ```
 
    - **`ANTHROPIC_API_KEY`** (traditional API-credit billing):
@@ -58,21 +53,11 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
    ```
 
    `vendors/` is in `.gitignore` — you clone manually, not via submodules.
-4. **Benchmark instances running** — **required for Phases 3 and 4 only**. You stand up WebArena sites per the benchmark's own documentation and register them with the orchestrator by editing `worldsim/main.py`.
+4. **Benchmark instances running** — **required for Phases 3 and 4 only**. You stand up WebArena sites per the benchmark's own documentation and register them with the orchestrator via CLI flags (see Run below).
 
 Phases 0, 1, and 2 only need the benchmark **codebase** on disk, not running instances.
 
-## Install
-
-```bash
-uv sync
-# or, if you prefer pip:
-pip install -e .
-```
-
 ## Run
-
-`worldsim/main.py` is a *lazy-CLI*: you edit the file to configure a run, then execute it. This is a deliberate choice — simpler and more honest than an elaborate argparse for a research pipeline.
 
 ```bash
 # Phase 0 against WebArena (reads the codebase, no running services needed)
@@ -84,12 +69,32 @@ uv run python -m worldsim.main resume
 
 Pipeline state is written to `logs/pipeline_state.json` before each major operation.
 
+## Architecture
+
+A local Python orchestrator coordinates three things:
+
+1. **Modal Sandboxes running Claude Code** — all code exploration, generation, and diagnosis steps. Each sandbox is scoped by *inclusion*: only the files that step needs are added to the image via `modal.Image.add_local_dir`.
+2. **Browser Use** — async Python library for running browser agents against benchmark instances. Each evaluation worker gets its own browser session and a dedicated pre-running benchmark instance.
+3. **Local orchestrator logic** — state management, validation, file routing between phases, and the iteration loops that connect everything.
+
+Five phases:
+
+| # | Phase | What it does |
+|---|-------|--------------|
+| 0 | Reconnaissance | 0a discovers benchmark structure, 0b computes per-site sandbox file maps, 0c profiles each site in parallel |
+| 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
+| 2 | Injection Generation | Produces adversarial data seeds per task |
+| 3 | Benign Validation | Runs the agent against benign seeds; diagnoses failures |
+| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused |
+
+The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). Every module in `worldsim/` implements a section of that spec.
+
 ## Repository layout
 
 ```
 .
 ├── worldsim/                     # the package
-│   ├── main.py                   # lazy-CLI entrypoint
+│   ├── main.py                   # CLI entrypoint
 │   ├── config.py                 # benchmark instance schema
 │   ├── modal_sandbox.py          # run_claude_in_sandbox + base image
 │   ├── state.py                  # save_state / load_state

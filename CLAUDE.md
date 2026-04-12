@@ -10,7 +10,7 @@ Guidance for Claude Code sessions working in this repository.
 
 The authoritative technical spec is [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md) (typo intentional — do not "fix"). Every module in `worldsim/` implements a section of it. **When behavior diverges from the spec, the spec is right — fix the code.** If the spec gives you literal code (`run_claude_in_sandbox`, `BrowserUseAgent`, `apply_data_seed`, `save_state`, `run_eval`, `run_strategy_variation`), use it verbatim. If the spec is silent on a mechanical detail, use judgment and leave a short comment. For the full repo layout and module map, see `README.md`; the one primitive you almost always need is `worldsim/modal_sandbox.py`.
 
-`worldsim/main.py` is a **lazy CLI** — edit the file to configure a run, then execute it. Not argparse. This is a deliberate research-pipeline choice.
+`worldsim/main.py` is the CLI entrypoint — `uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-infinity`. See `--help` for flags.
 
 ## Non-negotiable principles
 

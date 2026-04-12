@@ -1,9 +1,7 @@
-"""WorldSim v5 lazy-CLI entrypoint.
+"""WorldSim v5 CLI entrypoint.
 
-Modify this file to configure a run, then execute it. This is the intended
-workflow — elaborate argparse is harmful for a research pipeline whose
-configuration shape changes frequently. See ``docs/worldsim-v5-technical-specifcation.md`` for
-the full pipeline and ``README.md`` for prerequisites.
+See ``docs/worldsim-v5-technical-specifcation.md`` for the full pipeline
+and ``README.md`` for prerequisites.
 
 Usage::
 
@@ -27,7 +25,7 @@ from worldsim.state import load_state
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Lazy-CLI entrypoint. See module docstring for usage."""
+    """CLI entrypoint. See module docstring for usage."""
     load_dotenv()  # .env fills gaps; shell exports take precedence
 
     parser = argparse.ArgumentParser(
@@ -65,8 +63,8 @@ def main(argv: list[str] | None = None) -> int:
             print("No pipeline state found; run a phase first.", file=sys.stderr)
             return 1
         print(f"Last checkpoint: {state}")
-        # TODO(commits 5+): implement phase-aware resume dispatch
-        return 0
+        print("resume is not yet implemented", file=sys.stderr)
+        return 1
 
     if args.command == "phase":
         return _dispatch_phase(args)

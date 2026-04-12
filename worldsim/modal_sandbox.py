@@ -18,6 +18,8 @@ APP_NAME = "worldsim-v5"
 
 CLAUDE_ALLOWED_ENV_VARS: tuple[str, ...] = (
     "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
     "CLAUDE_CODE_OAUTH_TOKEN",
 )
 
@@ -28,7 +30,7 @@ app = modal.App(APP_NAME)
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "git", "jq")
-    .env({"PATH": "/root/.local/bin:$PATH"})
+    .env({"PATH": "/root/.local/bin:$PATH"})  # Modal expands $PATH at container build time, not at Python parse time
     .run_commands("curl -fsSL https://claude.ai/install.sh | bash")
     .pip_install("requests", "browser-use>=0.12.6")
 )
@@ -50,11 +52,18 @@ def _build_claude_secrets() -> list[modal.Secret]:
         if value:
             env[key] = value
 
-    if not env:
+    has_creds = (
+        "ANTHROPIC_API_KEY" in env
+        or "ANTHROPIC_AUTH_TOKEN" in env
+        or "CLAUDE_CODE_OAUTH_TOKEN" in env
+    )
+    if not has_creds:
         raise RuntimeError(
             "No Claude Code auth available for the Modal sandbox. Either:\n"
-            "  export CLAUDE_CODE_OAUTH_TOKEN=...   # Claude Pro/Max subscription (preferred)\n"
-            "  export ANTHROPIC_API_KEY=sk-ant-...  # API credit billing\n"
+            "  export CLAUDE_CODE_OAUTH_TOKEN=...              # Pro/Max subscription (preferred)\n"
+            "  export ANTHROPIC_AUTH_TOKEN=sk-or-v1-...         # OpenRouter\n"
+            "         ANTHROPIC_BASE_URL=https://openrouter.ai/api\n"
+            "  export ANTHROPIC_API_KEY=sk-ant-...              # direct Anthropic API\n"
             "Or point at an existing named Modal secret:\n"
             f"  export {NAMED_SECRET_ENV_VAR}=<secret-name>"
         )
@@ -63,6 +72,15 @@ def _build_claude_secrets() -> list[modal.Secret]:
     # so forwarding both would silently bill API credits instead of the subscription.
     if "CLAUDE_CODE_OAUTH_TOKEN" in env:
         env.pop("ANTHROPIC_API_KEY", None)
+        env.pop("ANTHROPIC_AUTH_TOKEN", None)
+        env.pop("ANTHROPIC_BASE_URL", None)
+        return [modal.Secret.from_dict(env)]
+
+    # OpenRouter path: ANTHROPIC_API_KEY must be explicitly empty so Claude
+    # Code doesn't prefer it over the auth token (per openrouter.ai/docs).
+    if "ANTHROPIC_AUTH_TOKEN" in env:
+        env["ANTHROPIC_API_KEY"] = ""
+        return [modal.Secret.from_dict(env)]
 
     return [modal.Secret.from_dict(env)]
 
@@ -103,14 +121,14 @@ async def run_claude_in_sandbox(
             "claude",
             "-p",
             prompt,
-            "--dangerously-skip-permissions",
+            "--dangerously-skip-permissions",  # skip-permissions disables the interactive prompt; permission-mode plan restricts what Claude can do
             "--permission-mode",
             "plan",
             "--verbose",
             "--effort",
             "high",
             pty=True,
-            secrets=_build_claude_secrets(),
+            secrets=_build_claude_secrets(),  # secrets are scoped to this exec, not to sandbox creation
             workdir="/workspace",
         )
         claude_ps.wait()
