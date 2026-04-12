@@ -391,17 +391,35 @@ async def run_phase_0c(
     sandbox_map: dict[str, list[str]],
     benchmark_root: Path,
     output_dir: Path,
+    timeout: int = 14400,
 ) -> dict[str, Any]:
     """Profile each site in parallel via Modal Sandboxes.
 
     One sandbox per site, each receiving only that site's files from the
     sandbox map. Produces ``BENCHMARK_PROFILE_{site}.json`` and ``.md``.
+    Sites that already have a profile on disk are skipped.
+
+    Args:
+        timeout: Per-sandbox wall-clock timeout in seconds (default: 4 hours).
 
     Returns:
         Dict mapping site name to sandbox outputs dict.
     """
     benchmark_root = Path(benchmark_root).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Skip sites that already have profiles on disk (supports re-runs).
+    sites_to_profile = {}
+    for name, files in sandbox_map.items():
+        profile_path = output_dir / f"BENCHMARK_PROFILE_{name}.json"
+        if profile_path.exists():
+            logger.info("Phase 0c: skipping site %r (profile already exists at %s)", name, profile_path)
+        else:
+            sites_to_profile[name] = files
+
+    if not sites_to_profile:
+        logger.info("Phase 0c: all sites already profiled, nothing to do")
+        return {}
 
     async def profile_one_site(
         site_name: str, file_list: list[str]
@@ -440,6 +458,7 @@ async def run_phase_0c(
                     "/workspace/output/BENCHMARK_PROFILE.json",
                     "/workspace/output/BENCHMARK_PROFILE.md",
                 ],
+                timeout=timeout,
             )
             cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
         finally:
@@ -457,7 +476,7 @@ async def run_phase_0c(
     raw_results = await asyncio.gather(
         *[
             profile_one_site(name, files)
-            for name, files in sandbox_map.items()
+            for name, files in sites_to_profile.items()
         ],
         return_exceptions=True,
     )
