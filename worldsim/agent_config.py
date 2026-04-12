@@ -65,7 +65,7 @@ def make_llm(
 
     Args:
         model: Model name string (e.g. ``gemini-3.1-pro-preview``,
-            ``gpt-5.4``, ``claude-sonnet-4-20250514``).
+            ``gpt-5.4``, ``claude-sonnet-4-6``).
         provider: One of ``google``, ``openai``, ``anthropic``.  When
             ``None`` the provider is auto-detected from *model*.
         temperature: Sampling temperature.

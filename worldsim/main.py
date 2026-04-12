@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         "--agent-model",
         default="gemini-3.1-pro-preview",
         help="LLM model name for Browser Use agent (default: gemini-3.1-pro-preview). "
-        "Examples: gpt-5.4, claude-sonnet-4-20250514, gemini-3.1-pro-preview.",
+        "Examples: gpt-5.4, claude-sonnet-4-6, gemini-3.1-pro-preview, gemini-3-flash-preview.",
     )
     phase_cmd.add_argument(
         "--agent-provider",
