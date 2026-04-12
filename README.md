@@ -10,6 +10,8 @@ uv sync
 pip install -e .
 ```
 
+PostgreSQL support is included in the default install.
+
 ## Prerequisites
 
 1. **Modal account.** Sign up at <https://modal.com>, then run `modal token new` to write `~/.modal.toml`, or set `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` in your environment.
@@ -67,7 +69,7 @@ uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
 uv run python -m worldsim.main resume
 ```
 
-Pipeline state is written to `logs/pipeline_state.json` before each major operation.
+Pipeline state is written to `logs/pipeline_state.json` before each major operation. If you use a custom `WORLDSIM_STATE_DIR`, WorldSim also writes a pointer under `logs/` so `uv run python -m worldsim.main resume` can find the active run later without re-exporting the environment variable.
 
 ## Architecture
 

@@ -49,7 +49,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
     sandbox_map = None
 
     if sub in {"0", "0a"}:
-        save_state("phase_0a", status="running")
+        save_state("phase_0a", status="running", benchmark_path=str(benchmark))
         manifest = await run_phase_0a(benchmark, output_base / "phase_0a")
         save_state(
             "phase_0a",
@@ -70,7 +70,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
                 logger.error("Phase 0a output not found at %s — run phase 0a first", manifest_path)
                 return 1
             manifest = json.loads(manifest_path.read_text())
-        save_state("phase_0b", status="running")
+        save_state("phase_0b", status="running", benchmark_path=str(benchmark))
         sandbox_map = compute_sandbox_maps(manifest, benchmark)
         out_dir = output_base / "phase_0b"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -95,7 +95,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
                 logger.error("Phase 0b output not found at %s — run phase 0b first", sandbox_map_path)
                 return 1
             sandbox_map = json.loads(sandbox_map_path.read_text())
-        save_state("phase_0c", status="running")
+        save_state("phase_0c", status="running", benchmark_path=str(benchmark))
         await run_phase_0c(manifest, sandbox_map, benchmark, output_base / "phase_0c")
         save_state("phase_0c", status="complete",
                    profiles_dir=str(output_base / "phase_0c"),

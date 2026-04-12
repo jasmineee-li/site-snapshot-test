@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -146,6 +147,10 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
 
     last_step = state.get("step", "")
     status = state.get("status", "")
+    logs_dir = state.get("logs_dir")
+
+    if logs_dir and not os.environ.get("WORLDSIM_STATE_DIR"):
+        os.environ["WORLDSIM_STATE_DIR"] = str(logs_dir)
 
     if status == "complete":
         target = _next_step(last_step)

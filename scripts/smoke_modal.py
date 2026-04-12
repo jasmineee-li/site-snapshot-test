@@ -25,6 +25,8 @@ modal.enable_output()
 
 from worldsim.modal_sandbox import run_claude_in_sandbox
 
+SMOKE_MODEL = "claude-haiku-4-5-20251001"
+
 
 async def main() -> int:
     # Create a temp dir with one test file
@@ -34,6 +36,7 @@ async def main() -> int:
 
         print("Staging hello.txt into sandbox at /workspace/input/hello.txt ...")
         print("Running Claude Code with prompt: 'Read /workspace/input/hello.txt and write its contents to /workspace/output/result.txt'")
+        print(f"Smoke model: {SMOKE_MODEL}")
         print("This may take 30-90 seconds on first run (Modal builds the base image) ...")
         print()
 
@@ -46,6 +49,7 @@ async def main() -> int:
             ),
             output_paths=["/workspace/output/result.txt"],
             timeout=300,
+            model=SMOKE_MODEL,
         )
 
         result = outputs.get("/workspace/output/result.txt")

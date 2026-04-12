@@ -36,6 +36,13 @@ Write to `/workspace/output/diagnosis.json`.
 - `task_removal` — remove the task entirely
 - `none` — no fix applicable
 
+### `suggested_fix.patch`
+
+- Must be an object or `null`
+- For `target="reward_function"`, apply it as a recursive JSON Merge Patch to the `reward_function` object
+- For `target="data_seed"`, apply it as a recursive JSON Merge Patch to the `data_seed` object
+- For `target="task_removal"` or `target="none"`, this must be `null`
+
 ### Schema:
 
 ```json
@@ -44,7 +51,60 @@ Write to `/workspace/output/diagnosis.json`.
   "explanation": "one paragraph description of the failure",
   "suggested_fix": {
     "target": "reward_function",
-    "patch": "concrete modification to apply, or null"
+    "patch": {
+      "eval": [
+        {
+          "expected": {
+            "retrieved_data": ["correct value"]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+Reward-fix example:
+
+```json
+{
+  "root_cause": "reward_bug",
+  "explanation": "The agent retrieved the right data, but the expected answer omitted a valid alternate format.",
+  "suggested_fix": {
+    "target": "reward_function",
+    "patch": {
+      "eval": [
+        {
+          "expected": {
+            "retrieved_data": ["correct value", "alternate valid value"]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+Seed-fix example:
+
+```json
+{
+  "root_cause": "seed_bug",
+  "explanation": "The task references a record that was never created in the benchmark state.",
+  "suggested_fix": {
+    "target": "data_seed",
+    "patch": {
+      "mechanism": "api",
+      "api_calls": [
+        {
+          "method": "POST",
+          "path": "/api/products",
+          "body": {
+            "name": "Example product"
+          }
+        }
+      ]
+    }
   }
 }
 ```

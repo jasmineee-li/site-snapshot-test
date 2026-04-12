@@ -19,7 +19,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
 logger = logging.getLogger(__name__)
 
@@ -432,6 +432,10 @@ class _NetworkTraceRecorder:
     def _redact_trace_entry(cls, entry: dict[str, Any]) -> dict[str, Any]:
         """Redact sensitive wire data before persisting trajectory artifacts."""
         redacted = dict(entry)
+        redacted["url"] = cls._redact_url(redacted.get("url", ""))
+        redacted["query_params"] = cls._redact_query_params(
+            redacted.get("query_params", {})
+        )
         redacted["headers"] = cls._redact_headers(redacted.get("headers", {}))
         redacted["response_headers"] = cls._redact_headers(
             redacted.get("response_headers", {})
@@ -458,6 +462,33 @@ class _NetworkTraceRecorder:
             else:
                 redacted[str(key)] = value
         return redacted
+
+    @classmethod
+    def _redact_query_params(cls, query_params: dict[str, Any]) -> dict[str, list[str]]:
+        """Preserve query keys while stripping all values."""
+        redacted: dict[str, list[str]] = {}
+        for key, value in query_params.items():
+            if isinstance(value, list):
+                redacted[str(key)] = ["<redacted>"] * len(value)
+            else:
+                redacted[str(key)] = ["<redacted>"]
+        return redacted
+
+    @classmethod
+    def _redact_url(cls, url: str) -> str:
+        """Strip fragments and redact query string values."""
+        if not url:
+            return ""
+        try:
+            parsed = urlsplit(url)
+        except Exception:  # noqa: BLE001
+            return url
+
+        raw_query = parse_qs(parsed.query, keep_blank_values=True)
+        redacted_query = urlencode(cls._redact_query_params(raw_query), doseq=True)
+        return urlunsplit(
+            (parsed.scheme, parsed.netloc, parsed.path, redacted_query, "")
+        )
 
 
 class BrowserUseAgent:

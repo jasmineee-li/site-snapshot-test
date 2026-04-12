@@ -30,8 +30,10 @@ from typing import Any
 import requests
 
 from worldsim.agent_config import (
+    bind_task_to_instance,
     execution_instance_dict,
     make_agent_factory,
+    prepare_tasks_for_execution,
     resolve_task_inputs,
     run_tasks_by_site,
     task_reset_endpoints,
@@ -44,6 +46,7 @@ from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async
 from worldsim.state import get_state_dir, save_state
+from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 
 logger = logging.getLogger(__name__)
@@ -79,9 +82,19 @@ async def run(args: argparse.Namespace) -> int:
         len(config.instances),
     )
 
+    prepared_tasks, _ = prepare_tasks_for_execution(
+        benign_tasks,
+        config.instances,
+        config_url_placeholders=config.url_placeholders,
+    )
+    prepared_by_id = {
+        str(task.get("id", "unknown")): task
+        for task in prepared_tasks
+    }
+
     # Run evaluation via worker pool, routing tasks only to matching site instances.
     results = await run_tasks_by_site(
-        tasks=benign_tasks,
+        tasks=prepared_tasks,
         instances=config.instances,
         agent_factory=agent_factory,
         task_runner=run_task,
@@ -104,15 +117,17 @@ async def run(args: argparse.Namespace) -> int:
     diagnosed: list[dict] = []
 
     for r in failed_tasks:
-        task_id = r.get("task_id", "?")
-        task = next((t for t in benign_tasks if t["id"] == task_id), None)
+        task_id = str(r.get("task_id", "?"))
+        task = prepared_by_id.get(task_id)
         if not task:
             logger.warning("Could not find task %s for diagnosis", task_id)
             continue
 
         site = task["site"]
         profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
-        trajectory_dir = task_dir_root / task_id
+        trajectory_dir = Path(
+            r.get("trajectory_dir", task_dir_root / safe_task_path_component(task_id))
+        )
 
         if not trajectory_dir.exists():
             logger.warning("No trajectory dir for task %s — skipping diagnosis", task_id)
@@ -131,7 +146,11 @@ async def run(args: argparse.Namespace) -> int:
     # Write validated tasks (passed + fixed)
     passed_ids = {r["task_id"] for r in passed_tasks}
     fixed_ids = {d["task_id"] for d in diagnosed if d.get("action") == "fixed"}
-    validated_tasks_by_id = {t["id"]: t for t in benign_tasks if t["id"] in passed_ids}
+    validated_tasks_by_id = {
+        task_id: prepared_by_id[task_id]
+        for task_id in passed_ids
+        if task_id in prepared_by_id
+    }
     for diagnosis in diagnosed:
         if diagnosis.get("action") == "fixed" and diagnosis.get("fixed_task"):
             validated_tasks_by_id[diagnosis["task_id"]] = diagnosis["fixed_task"]
@@ -158,6 +177,7 @@ async def run(args: argparse.Namespace) -> int:
         "phase_3",
         status="complete",
         validated_tasks_path=str(output_dir / "validated_tasks.json"),
+        instances_path=str(instances_path),
         passed=len(passed_ids),
         fixed=len(fixed_ids),
         total=len(benign_tasks),
@@ -223,6 +243,7 @@ async def run_task(
         "elapsed": result.elapsed,
         "steps": result.steps,
         "is_done": result.is_done,
+        "trajectory_dir": str(task_dir),
     }
 
 
@@ -334,10 +355,13 @@ async def fix_loop(
                         },
                     }
 
-                rerun_dir = task_dir_root / f"{task.get('id', 'unknown')}__revalidation_{iteration + 1}"
+                rerun_dir = task_dir_root / safe_task_path_component(
+                    f"{task.get('id', 'unknown')}__revalidation_{iteration + 1}"
+                )
                 rerun_result = await _rerun_live_task(
                     task=current_task,
                     instance=live_instance,
+                    instances=instances,
                     agent_factory=agent_factory,
                     task_dir=rerun_dir,
                 )
@@ -365,12 +389,38 @@ def _apply_fix(task: dict, suggested_fix: dict) -> dict:
     target = suggested_fix.get("target", "")
     patch = suggested_fix.get("patch")
 
-    if target == "reward_function" and patch:
-        task["reward_function"].update(patch)
-    elif target == "data_seed" and patch:
-        task["data_seed"].update(patch)
+    if target in {"task_removal", "none"}:
+        if patch is not None:
+            raise ValueError(f"suggested_fix patch must be null for target {target!r}")
+        return task
+
+    if target not in {"reward_function", "data_seed"}:
+        raise ValueError(f"unsupported suggested_fix target {target!r}")
+    if patch is None:
+        return task
+    if not isinstance(patch, dict):
+        raise ValueError("suggested_fix patch must be an object or null")
+
+    subtree_key = "reward_function" if target == "reward_function" else "data_seed"
+    base_subtree = task.get(subtree_key, {})
+    if not isinstance(base_subtree, dict):
+        raise ValueError(f"task[{subtree_key!r}] must be an object")
+    task[subtree_key] = _apply_merge_patch(base_subtree, patch)
 
     return task
+
+
+def _apply_merge_patch(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    """Apply JSON Merge Patch semantics to a task subtree."""
+    merged = json.loads(json.dumps(base))
+    for key, value in patch.items():
+        if value is None:
+            merged.pop(key, None)
+        elif isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _apply_merge_patch(merged[key], value)
+        else:
+            merged[key] = json.loads(json.dumps(value))
+    return merged
 
 
 def _select_instance_for_task(
@@ -387,15 +437,17 @@ def _select_instance_for_task(
 async def _rerun_live_task(
     task: dict[str, Any],
     instance: BenchmarkInstance,
+    instances: list[BenchmarkInstance],
     agent_factory: Callable[[], BrowserUseAgent],
     task_dir: Path,
 ) -> dict[str, Any]:
     """Rerun a patched task against a live instance before validation."""
     agent = agent_factory()
+    bound_task = bind_task_to_instance(task, instance, instances)
     try:
         try:
             await agent.setup(instance.site_url)
-            result = await run_task(task, agent, instance, task_dir)
+            result = await run_task(bound_task, agent, instance, task_dir)
         except Exception as e:  # noqa: BLE001
             logger.warning("Live rerun failed for task %s: %s", task.get("id", "?"), e)
             return {
@@ -403,10 +455,10 @@ async def _rerun_live_task(
                 "passed": False,
                 "message": f"rerun failed: {e}",
                 "error": repr(e),
-                "task_dir": str(task_dir),
+                "trajectory_dir": str(task_dir),
             }
 
-        return {**result, "task_dir": str(task_dir)}
+        return {**result, "trajectory_dir": str(task_dir)}
     finally:
         await agent.teardown()
 

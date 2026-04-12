@@ -45,7 +45,12 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Benchmark root not found: %s — pass --benchmark", benchmark_root)
         return 1
 
-    save_state("phase_1", status="running")
+    save_state(
+        "phase_1",
+        status="running",
+        benchmark_path=str(benchmark_root),
+        manifest_path=str(manifest_path),
+    )
 
     # Find and load task definitions
     raw_tasks = _load_raw_tasks(manifest, benchmark_root)
@@ -64,7 +69,8 @@ async def run(args: argparse.Namespace) -> int:
     output_path.write_text(json.dumps(benign_tasks, indent=2))
 
     save_state("phase_1", status="complete", tasks_path=str(output_path),
-               task_count=len(benign_tasks), benchmark_path=str(benchmark_root))
+               task_count=len(benign_tasks), benchmark_path=str(benchmark_root),
+               manifest_path=str(manifest_path))
     logger.info("Phase 1A complete — %d benign tasks written to %s", len(benign_tasks), output_path)
     return 0
 

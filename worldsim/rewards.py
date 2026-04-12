@@ -26,6 +26,7 @@ from worldsim.placeholders import apply_placeholders, placeholder_for_site
 
 logger = logging.getLogger(__name__)
 
+_MULTI_STATEMENT_PATTERN = re.compile(r";(?=(?:[^']|'[^']*')*$)")
 _READ_ONLY_QUERY_PREFIX = re.compile(r"^\s*(SELECT|WITH)\b", re.IGNORECASE)
 _UNSAFE_QUERY_KEYWORDS = re.compile(
     r"\b("
@@ -33,6 +34,13 @@ _UNSAFE_QUERY_KEYWORDS = re.compile(
     r"DO|EXEC|EXECUTE|COPY|LOAD|ATTACH|DETACH|VACUUM|ANALYZE|REFRESH|SET"
     r")\b",
     re.IGNORECASE,
+)
+_UNSAFE_QUERY_PATTERNS = (
+    re.compile(r"\bINTO\b", re.IGNORECASE),
+    re.compile(r"\bOUTFILE\b", re.IGNORECASE),
+    re.compile(r"\bDUMPFILE\b", re.IGNORECASE),
+    re.compile(r"\bLOCK\b", re.IGNORECASE),
+    re.compile(r"\bFOR\s+(UPDATE|SHARE)\b", re.IGNORECASE),
 )
 
 
@@ -133,11 +141,8 @@ def _run_webarena_verified_eval(
         return passed, message
 
     except Exception as e:
-        logger.warning(
-            "Vendor evaluator failed for task %s: %s; falling back to homebrew",
-            task_id, e,
-        )
-        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
+        logger.exception("Vendor evaluator failed for task %s", task_id)
+        return False, f"vendor evaluator failed for task {task_id}: {e}"
 
 
 def _build_webarena_config(
@@ -484,6 +489,10 @@ def _db_query_match(
                 cursor.execute(query)
                 rows = cursor.fetchall()
         finally:
+            try:
+                conn.rollback()
+            except Exception:
+                logger.debug("Failed to rollback read-only query connection", exc_info=True)
             conn.close()
 
         # Compare result
@@ -510,21 +519,30 @@ def _validate_read_only_query(query: str) -> None:
     normalized = query.strip()
     if not normalized:
         raise ValueError("db_query_match query is empty")
-    if ";" in normalized.rstrip(";"):
+    if _MULTI_STATEMENT_PATTERN.search(normalized.rstrip(";")):
         raise ValueError("db_query_match must be a single statement")
     if not _READ_ONLY_QUERY_PREFIX.match(normalized):
         raise ValueError("db_query_match only permits SELECT or WITH queries")
     if _UNSAFE_QUERY_KEYWORDS.search(normalized):
         raise ValueError("db_query_match query contains a write-capable SQL keyword")
+    for pattern in _UNSAFE_QUERY_PATTERNS:
+        if pattern.search(normalized):
+            raise ValueError("db_query_match query contains a write-capable SQL clause")
 
 
 def _configure_read_only_connection(conn: Any, scheme: str) -> None:
-    """Best-effort read-only transaction guard for SQL reward checks."""
+    """Enable a required read-only transaction guard for SQL reward checks."""
     try:
+        if hasattr(conn, "autocommit"):
+            conn.autocommit = False
         with conn.cursor() as cursor:
             if scheme == "mysql":
                 cursor.execute("SET SESSION TRANSACTION READ ONLY")
+                cursor.execute("START TRANSACTION READ ONLY")
             elif scheme in ("postgresql", "postgres"):
+                cursor.execute("BEGIN")
                 cursor.execute("SET TRANSACTION READ ONLY")
-    except Exception:
-        logger.debug("Could not enable read-only transaction guard", exc_info=True)
+            else:
+                raise ValueError(f"unsupported DB dialect: {scheme}")
+    except Exception as exc:
+        raise RuntimeError("could not enable read-only transaction guard") from exc

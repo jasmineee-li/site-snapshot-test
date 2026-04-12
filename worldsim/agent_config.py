@@ -18,6 +18,7 @@ Auth is via the standard env vars: ``GOOGLE_API_KEY``, ``OPENAI_API_KEY``,
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -160,51 +161,20 @@ async def run_tasks_by_site(
     Shared between Phase 3 (benign) and Phase 4 (adversarial).
     """
     tasks_by_site: dict[str, list[dict[str, Any]]] = {}
-    all_placeholders = merge_placeholder_maps(
-        config_url_placeholders,
-        placeholders_for_site_urls(
-            (instance.site_name, instance.site_url)
-            for instance in instances
-        ),
+    prepared_tasks, preparation_errors = prepare_tasks_for_execution(
+        tasks,
+        instances,
+        config_url_placeholders=config_url_placeholders,
     )
 
-    for task in tasks:
-        prepared_task, missing_sites = prepare_task_for_execution(
-            task,
-            instances,
-            config_url_placeholders=all_placeholders,
-        )
-        if missing_sites:
-            missing = ", ".join(sorted(missing_sites))
-            logger.error(
-                "Task %s requires sites with no configured instances: %s",
-                task.get("id", "unknown"),
-                missing,
-            )
-            tasks_by_site.setdefault("", []).append(
-                {
-                    "id": task.get("id", "unknown"),
-                    "__worldsim_error__": f"missing configured instances for sites: {missing}",
-                }
-            )
-            continue
-
-        runtime = prepared_task[RUNTIME_METADATA_KEY]
-        tasks_by_site.setdefault(runtime["primary_site"], []).append(prepared_task)
+    for task in prepared_tasks:
+        runtime = task[RUNTIME_METADATA_KEY]
+        tasks_by_site.setdefault(runtime["primary_site"], []).append(task)
 
     results: list[dict[str, Any]] = []
+    results.extend(preparation_errors)
     batches = []
     for site_name, site_tasks in tasks_by_site.items():
-        if site_name == "":
-            results.extend(
-                {
-                    "task_id": task.get("id", "unknown"),
-                    "passed": False,
-                    "message": task["__worldsim_error__"],
-                }
-                for task in site_tasks
-            )
-            continue
         site_instances = instances_for_site(instances, site_name)
         if not site_instances:
             logger.error("No instances configured for site %r", site_name)
@@ -224,6 +194,11 @@ async def run_tasks_by_site(
                 agent_factory=agent_factory,
                 task_runner=task_runner,
                 task_dir_root=task_dir_root,
+                task_binder=lambda task, instance, *, _instances=instances: bind_task_to_instance(
+                    task,
+                    instance,
+                    _instances,
+                ),
             )
         )
 
@@ -235,6 +210,51 @@ async def run_tasks_by_site(
                 continue
             results.extend(batch)
     return results
+
+
+def prepare_tasks_for_execution(
+    tasks: list[dict[str, Any]],
+    instances: list[BenchmarkInstance],
+    *,
+    config_url_placeholders: dict[str, str] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Prepare tasks for routing and return any static configuration errors."""
+    all_placeholders = merge_placeholder_maps(
+        config_url_placeholders,
+        placeholders_for_site_urls(
+            (instance.site_name, instance.site_url)
+            for instance in instances
+        ),
+    )
+    prepared_tasks: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+
+    for task in tasks:
+        prepared_task, missing_sites = prepare_task_for_execution(
+            task,
+            instances,
+            config_url_placeholders=all_placeholders,
+        )
+        if missing_sites:
+            missing = ", ".join(sorted(missing_sites))
+            logger.error(
+                "Task %s requires sites with no configured instances: %s",
+                task.get("id", "unknown"),
+                missing,
+            )
+            errors.append(
+                {
+                    "task_id": str(task.get("id", "unknown")),
+                    "passed": False,
+                    "outcome": "error",
+                    "ecologically_valid": False,
+                    "message": f"missing configured instances for sites: {missing}",
+                }
+            )
+            continue
+        prepared_tasks.append(prepared_task)
+
+    return prepared_tasks, errors
 
 
 def instances_for_site(
@@ -264,16 +284,59 @@ def prepare_task_for_execution(
     primary_site = normalize_site_name(task.get("site", "")) or (
         task_sites[0] if task_sites else ""
     )
-    placeholders = merge_placeholder_maps(config_url_placeholders)
-    reset_endpoints: list[str] = []
     missing_sites: list[str] = []
 
     for site_name in task_sites:
         site_instances = instances_for_site(instances, site_name)
         if not site_instances:
             missing_sites.append(site_name)
-            continue
-        site_instance = site_instances[0]
+
+    prepared = json.loads(json.dumps(task))
+    prepared["site"] = primary_site
+    prepared["sites"] = task_sites
+    existing_runtime = prepared.get(RUNTIME_METADATA_KEY, {})
+    prepared[RUNTIME_METADATA_KEY] = {
+        "primary_site": primary_site,
+        "sites": task_sites,
+        "base_url_placeholders": merge_placeholder_maps(
+            existing_runtime.get("base_url_placeholders"),
+            config_url_placeholders,
+        ),
+        "reset_endpoints": [],
+        "url_placeholders": {},
+        "bound_instance": None,
+    }
+    return prepared, missing_sites
+
+
+def bind_task_to_instance(
+    task: dict[str, Any],
+    instance: BenchmarkInstance,
+    instances: list[BenchmarkInstance],
+) -> dict[str, Any]:
+    """Bind a prepared task to the concrete instance chosen for execution."""
+    prepared, missing_sites = prepare_task_for_execution(task, instances)
+    if missing_sites:
+        raise ValueError(
+            "missing configured instances for sites: " + ", ".join(sorted(missing_sites))
+        )
+
+    runtime = prepared[RUNTIME_METADATA_KEY]
+    primary_site = runtime["primary_site"]
+    instance_site = normalize_site_name(instance.site_name)
+    if primary_site and instance_site != primary_site:
+        raise ValueError(
+            f"cannot bind task for primary site {primary_site!r} to instance {instance.site_name!r}"
+        )
+
+    placeholders = merge_placeholder_maps(runtime.get("base_url_placeholders"))
+    reset_endpoints: list[str] = []
+    for site_name in runtime["sites"]:
+        site_instance = (
+            instance
+            if site_name == primary_site
+            else _select_binding_instance(site_name, instances)
+        )
         placeholders = merge_placeholder_maps(
             placeholders,
             site_instance.url_placeholders,
@@ -282,16 +345,24 @@ def prepare_task_for_execution(
         if site_instance.reset_endpoint and site_instance.reset_endpoint not in reset_endpoints:
             reset_endpoints.append(site_instance.reset_endpoint)
 
-    prepared = dict(task)
-    prepared["site"] = primary_site
-    prepared["sites"] = task_sites
-    prepared[RUNTIME_METADATA_KEY] = {
-        "primary_site": primary_site,
-        "sites": task_sites,
+    bound_task = json.loads(json.dumps(prepared))
+    bound_task[RUNTIME_METADATA_KEY] = {
+        **runtime,
         "reset_endpoints": reset_endpoints,
         "url_placeholders": placeholders,
+        "bound_instance": instance.model_dump(),
     }
-    return prepared, missing_sites
+    return bound_task
+
+
+def _select_binding_instance(
+    site_name: str,
+    instances: list[BenchmarkInstance],
+) -> BenchmarkInstance:
+    site_instances = instances_for_site(instances, site_name)
+    if not site_instances:
+        raise ValueError(f"no instances configured for site {site_name!r}")
+    return site_instances[0]
 
 
 def execution_instance_dict(
@@ -299,13 +370,14 @@ def execution_instance_dict(
     task: dict[str, Any],
 ) -> dict[str, Any]:
     """Merge execution-time task metadata into the primary instance dict."""
-    instance_dict = instance.model_dump()
     runtime = task.get(RUNTIME_METADATA_KEY, {})
+    bound_instance = runtime.get("bound_instance")
+    instance_dict = dict(bound_instance) if isinstance(bound_instance, dict) else instance.model_dump()
     instance_dict["url_placeholders"] = merge_placeholder_maps(
         instance_dict.get("url_placeholders"),
         runtime.get("url_placeholders"),
     )
-    instance_dict["site_name"] = normalize_site_name(instance.site_name)
+    instance_dict["site_name"] = normalize_site_name(instance_dict.get("site_name", instance.site_name))
     return instance_dict
 
 
