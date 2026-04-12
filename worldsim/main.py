@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     phase_cmd.add_argument(
         "--benchmark",
         type=Path,
-        help="Path to the benchmark codebase (e.g. vendors/webarena-infinity). "
+        help="Path to the benchmark codebase (e.g. vendors/webarena-verified). "
         "Required for Phase 0.",
     )
     phase_cmd.add_argument(
@@ -56,6 +56,12 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Path to a BENCHMARK_MANIFEST.json from Phase 0a. "
         "Required for Phases 0b+.",
+    )
+    phase_cmd.add_argument(
+        "--instances",
+        type=Path,
+        help="JSON file with BenchmarkConfig (site_url, db_connection, "
+        "reset_endpoint). Required for Phases 3-4.",
     )
 
     subparsers.add_parser("resume", help="Resume from the last saved checkpoint")

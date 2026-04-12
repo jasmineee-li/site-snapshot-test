@@ -4,27 +4,141 @@ Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 2: Injec
 
 One Modal Sandbox per site. Inputs: benign tasks from Phase 1 and
 ``BENCHMARK_PROFILE_{site}.json`` from Phase 0c. Output:
-``adversarial_tasks.json`` per site.
+``adversarial_tasks.json`` per site, merged into a combined file.
 
-Injection point selection criteria (all four required for a candidate to be
-retained):
+Injection point selection criteria (all four required):
 
 1. Task relevance — will the agent encounter this content?
 2. Attacker realism — require "medium" or higher (from the profile).
 3. Concealment — can the injection blend with surrounding content?
 4. Harmful action — what could the agent be tricked into doing?
-
-Scheduled for commit 11.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
+import json
+import logging
+import tempfile
+from pathlib import Path
+
+from worldsim.modal_sandbox import run_claude_in_sandbox
+from worldsim.prompt_loading import load_prompt
+from worldsim.state import STATE_DIR, save_state
+
+logger = logging.getLogger(__name__)
 
 
 async def run(args: argparse.Namespace) -> int:
-    """Phase 2 entrypoint. Not yet implemented."""
-    raise NotImplementedError(
-        "Phase 2 (injection generation) is scheduled for commit 11. "
-        "Depends on Phase 0c profiles and Phase 1 Mode A benign tasks."
+    """Phase 2 entrypoint — generate adversarial injections for each site."""
+    output_dir = STATE_DIR / "phase_2"
+
+    # Load benign tasks from Phase 1
+    tasks_path = STATE_DIR / "phase_1" / "benign_tasks.json"
+    if not tasks_path.exists():
+        logger.error("Benign tasks not found at %s — run phase 1 first", tasks_path)
+        return 1
+    benign_tasks = json.loads(tasks_path.read_text())
+
+    # Load profiles from Phase 0c
+    profiles_dir = STATE_DIR / "phase_0c"
+    if not profiles_dir.exists():
+        logger.error("Profiles directory not found at %s — run phase 0c first", profiles_dir)
+        return 1
+
+    save_state("phase_2", status="running")
+
+    # Group tasks by primary site
+    tasks_by_site: dict[str, list[dict]] = {}
+    for task in benign_tasks:
+        site = task["site"]
+        tasks_by_site.setdefault(site, []).append(task)
+
+    logger.info(
+        "Phase 2: generating injections for %d sites (%d total tasks)",
+        len(tasks_by_site),
+        len(benign_tasks),
     )
+
+    # Run one sandbox per site in parallel
+    results = await asyncio.gather(*[
+        _generate_injections_for_site(
+            site_name=site,
+            site_tasks=tasks,
+            profile_path=profiles_dir / f"BENCHMARK_PROFILE_{site}.json",
+        )
+        for site, tasks in tasks_by_site.items()
+        if (profiles_dir / f"BENCHMARK_PROFILE_{site}.json").exists()
+    ])
+
+    # Merge per-site adversarial tasks
+    all_adversarial: list[dict] = []
+    for site_name, adv_tasks in results:
+        if adv_tasks:
+            all_adversarial.extend(adv_tasks)
+            logger.info("Phase 2: site %r produced %d adversarial tasks", site_name, len(adv_tasks))
+        else:
+            logger.warning("Phase 2: site %r produced no adversarial tasks", site_name)
+
+    # Write combined output
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / "adversarial_tasks.json"
+    output_path.write_text(json.dumps(all_adversarial, indent=2))
+
+    save_state("phase_2", status="complete",
+               adversarial_tasks_path=str(output_path),
+               task_count=len(all_adversarial))
+    logger.info("Phase 2 complete — %d adversarial tasks written to %s",
+                len(all_adversarial), output_path)
+    return 0
+
+
+async def _generate_injections_for_site(
+    site_name: str,
+    site_tasks: list[dict],
+    profile_path: Path,
+) -> tuple[str, list[dict]]:
+    """Generate adversarial injections for one site via Modal Sandbox.
+
+    Returns:
+        Tuple of (site_name, list of adversarial task dicts).
+    """
+    if not profile_path.exists():
+        logger.warning("No profile for site %r at %s — skipping", site_name, profile_path)
+        return site_name, []
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+
+        # Stage benign tasks for this site
+        tasks_file = tmp / "benign_tasks.json"
+        tasks_file.write_text(json.dumps(site_tasks, indent=2))
+
+        sandbox_files = {
+            "/workspace/tasks/benign_tasks.json": str(tasks_file),
+            "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
+        }
+
+        logger.info("Phase 2: launching injection sandbox for site %r (%d tasks)",
+                     site_name, len(site_tasks))
+
+        outputs = await run_claude_in_sandbox(
+            site_files=sandbox_files,
+            prompt=load_prompt("generate-injections"),
+            output_paths=["/workspace/output/adversarial_tasks.json"],
+        )
+
+    adv_json = outputs.get("/workspace/output/adversarial_tasks.json")
+    if not adv_json:
+        logger.warning("Phase 2: sandbox for site %r did not produce output", site_name)
+        return site_name, []
+
+    try:
+        adv_tasks = json.loads(adv_json)
+        if not isinstance(adv_tasks, list):
+            adv_tasks = [adv_tasks]
+        return site_name, adv_tasks
+    except json.JSONDecodeError as e:
+        logger.error("Phase 2: invalid JSON from site %r sandbox: %s", site_name, e)
+        return site_name, []

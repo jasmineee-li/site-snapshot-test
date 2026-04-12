@@ -12,14 +12,22 @@ Phase 0 has three sub-steps:
 - **0c — Per-Site Profiling.** N parallel Modal Sandboxes, one per site,
   profiling verification capabilities, data model, injection surface, and
   existing task coverage.
-
-Not yet implemented. Scheduled for commits 5–7 after the modal sandbox
-primitive smoke test passes in commit 3.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
+import os
 from pathlib import Path
+from typing import Any
+
+from worldsim.modal_sandbox import run_claude_in_sandbox
+from worldsim.prompt_loading import load_prompt
+from worldsim.state import STATE_DIR, save_state
+
+logger = logging.getLogger(__name__)
 
 
 async def run(benchmark: Path, sub: str = "0") -> int:
@@ -27,18 +35,389 @@ async def run(benchmark: Path, sub: str = "0") -> int:
 
     Args:
         benchmark: Path to the benchmark codebase (e.g.
-            ``vendors/webarena-infinity``).
+            ``vendors/webarena-verified``).
         sub: One of ``"0"`` (full phase), ``"0a"``, ``"0b"``, or ``"0c"``.
 
     Returns:
         Process exit code.
     """
-    raise NotImplementedError(
-        f"Phase 0 sub={sub!r} is scheduled for commits 5-7 "
-        f"(see docs/worldsim-v5-technical-specifcation.md 'Phase 0: Benchmark Reconnaissance')"
+    output_base = STATE_DIR
+    manifest = None
+    sandbox_map = None
+
+    if sub in {"0", "0a"}:
+        save_state("phase_0a", status="running")
+        manifest = await run_phase_0a(benchmark, output_base / "phase_0a")
+        save_state(
+            "phase_0a",
+            status="complete",
+            manifest_path=str(output_base / "phase_0a" / "BENCHMARK_MANIFEST.json"),
+        )
+        logger.info("Phase 0a complete — manifest written")
+        if sub == "0a":
+            return 0
+
+    if sub in {"0", "0b"}:
+        if manifest is None:
+            manifest_path = output_base / "phase_0a" / "BENCHMARK_MANIFEST.json"
+            if not manifest_path.exists():
+                logger.error("Phase 0a output not found at %s — run phase 0a first", manifest_path)
+                return 1
+            manifest = json.loads(manifest_path.read_text())
+        save_state("phase_0b", status="running")
+        sandbox_map = compute_sandbox_maps(manifest, benchmark)
+        out_dir = output_base / "phase_0b"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "SANDBOX_MAP.json").write_text(json.dumps(sandbox_map, indent=2))
+        save_state("phase_0b", status="complete",
+                   sandbox_map_path=str(out_dir / "SANDBOX_MAP.json"))
+        logger.info("Phase 0b complete — sandbox maps written for %d sites", len(sandbox_map))
+        if sub == "0b":
+            return 0
+
+    if sub in {"0", "0c"}:
+        if manifest is None:
+            manifest_path = output_base / "phase_0a" / "BENCHMARK_MANIFEST.json"
+            if not manifest_path.exists():
+                logger.error("Phase 0a output not found at %s — run phase 0a first", manifest_path)
+                return 1
+            manifest = json.loads(manifest_path.read_text())
+        if sandbox_map is None:
+            sandbox_map_path = output_base / "phase_0b" / "SANDBOX_MAP.json"
+            if not sandbox_map_path.exists():
+                logger.error("Phase 0b output not found at %s — run phase 0b first", sandbox_map_path)
+                return 1
+            sandbox_map = json.loads(sandbox_map_path.read_text())
+        save_state("phase_0c", status="running")
+        await run_phase_0c(manifest, sandbox_map, benchmark, output_base / "phase_0c")
+        save_state("phase_0c", status="complete",
+                   profiles_dir=str(output_base / "phase_0c"))
+        logger.info("Phase 0c complete — per-site profiles written")
+
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 0a — Benchmark Discovery
+# ---------------------------------------------------------------------------
+
+
+async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
+    """Discover benchmark structure via a single Modal Sandbox.
+
+    Claude Code explores the full benchmark codebase and produces
+    ``BENCHMARK_MANIFEST.json`` (structured) and ``.md`` (human-readable).
+
+    Returns:
+        Parsed manifest dict.
+    """
+    benchmark_root = Path(benchmark_root).resolve()
+    if not benchmark_root.is_dir():
+        raise FileNotFoundError(f"Benchmark root does not exist: {benchmark_root}")
+
+    site_files = {"/workspace/benchmark": str(benchmark_root)}
+    prompt = load_prompt("discover-benchmark")
+
+    logger.info("Phase 0a: launching discovery sandbox for %s", benchmark_root)
+    outputs = await run_claude_in_sandbox(
+        site_files=site_files,
+        prompt=prompt,
+        output_paths=[
+            "/workspace/output/BENCHMARK_MANIFEST.json",
+            "/workspace/output/BENCHMARK_MANIFEST.md",
+        ],
     )
 
+    manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
+    if not manifest_json:
+        raise RuntimeError(
+            "Phase 0a sandbox did not produce BENCHMARK_MANIFEST.json. "
+            "Check sandbox logs for errors."
+        )
 
-# TODO(commit 5): async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict: ...
-# TODO(commit 6): def compute_sandbox_maps(manifest: dict, benchmark_root: Path) -> dict: ...
-# TODO(commit 7): async def run_phase_0c(manifest, sandbox_map, benchmark_root, output_dir) -> dict: ...
+    manifest = json.loads(manifest_json)
+    errors = _validate_manifest_paths(manifest, benchmark_root)
+
+    if errors:
+        logger.warning(
+            "Phase 0a manifest has %d path errors — re-running with corrections",
+            len(errors),
+        )
+        correction = (
+            "\n\n--- CORRECTION NEEDED ---\n"
+            "The previous attempt produced a manifest with invalid paths. "
+            "The following paths do NOT exist in the benchmark filesystem:\n"
+            + "\n".join(f"  - {e}" for e in errors)
+            + "\n\nPlease re-explore and produce corrected output files. "
+            "Only include paths you have verified exist."
+        )
+        outputs = await run_claude_in_sandbox(
+            site_files=site_files,
+            prompt=prompt + correction,
+            output_paths=[
+                "/workspace/output/BENCHMARK_MANIFEST.json",
+                "/workspace/output/BENCHMARK_MANIFEST.md",
+            ],
+        )
+        manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
+        if manifest_json:
+            manifest = json.loads(manifest_json)
+            errors = _validate_manifest_paths(manifest, benchmark_root)
+            if errors:
+                logger.warning("Phase 0a retry still has %d path errors — proceeding anyway", len(errors))
+
+    # Write outputs
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "BENCHMARK_MANIFEST.json").write_text(json.dumps(manifest, indent=2))
+    manifest_md = outputs.get("/workspace/output/BENCHMARK_MANIFEST.md")
+    if manifest_md:
+        (output_dir / "BENCHMARK_MANIFEST.md").write_text(manifest_md)
+
+    logger.info(
+        "Phase 0a: manifest has %d sites, %d eval types",
+        len(manifest.get("sites", [])),
+        len(manifest.get("evaluation", {}).get("eval_types", [])),
+    )
+    return manifest
+
+
+def _validate_manifest_paths(manifest: dict, benchmark_root: Path) -> list[str]:
+    """Check that every path referenced in the manifest exists on disk.
+
+    Returns list of error descriptions (empty = all valid).
+    """
+    errors: list[str] = []
+    root = Path(benchmark_root).resolve()
+
+    def check(path_str: str, context: str) -> None:
+        full = root / path_str
+        if not full.exists():
+            errors.append(f"{context}: {path_str}")
+
+    # Evaluation harness paths
+    for p in manifest.get("evaluation", {}).get("harness_paths", []):
+        check(p, "evaluation.harness_paths")
+
+    # Task definition paths
+    for p in manifest.get("evaluation", {}).get("task_definition_paths", []):
+        check(p, "evaluation.task_definition_paths")
+
+    # Per-site paths
+    for site in manifest.get("sites", []):
+        name = site.get("name", "?")
+        if "source_path" in site:
+            check(site["source_path"], f"sites[{name}].source_path")
+        for p in site.get("data_seeding", {}).get("paths", []):
+            check(p, f"sites[{name}].data_seeding.paths")
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Phase 0b — Sandbox Filesystem Mapping
+# ---------------------------------------------------------------------------
+
+
+def compute_sandbox_maps(
+    manifest: dict, benchmark_root: Path
+) -> dict[str, list[str]]:
+    """Compute the exact file list for each site's sandbox.
+
+    Pure Python, no LLM, deterministic. Each site gets: shared eval harness
+    files + site source + data seeding files + sampled task definitions.
+
+    Returns:
+        Dict mapping site name to sorted list of absolute file paths.
+    """
+    benchmark_root = Path(benchmark_root).resolve()
+    sandbox_maps: dict[str, list[str]] = {}
+
+    shared_files = _collect_files(
+        manifest.get("evaluation", {}).get("harness_paths", []),
+        benchmark_root,
+    )
+
+    for site in manifest.get("sites", []):
+        site_name = site["name"]
+        site_files = list(shared_files)
+
+        if "source_path" in site:
+            site_files.extend(_collect_files([site["source_path"]], benchmark_root))
+
+        seeding_paths = site.get("data_seeding", {}).get("paths", [])
+        site_files.extend(_collect_files(seeding_paths, benchmark_root))
+
+        site_files.extend(
+            _sample_tasks_for_site(manifest, site_name, benchmark_root, max_tasks=20)
+        )
+
+        sandbox_maps[site_name] = sorted(set(site_files))
+
+    return sandbox_maps
+
+
+def _collect_files(paths: list[str], root: Path) -> list[str]:
+    """Resolve relative paths under root, walk directories, return absolute file paths."""
+    result: list[str] = []
+    for p in paths:
+        full = root / p
+        if full.is_file():
+            result.append(str(full.resolve()))
+        elif full.is_dir():
+            for f in full.rglob("*"):
+                if f.is_file():
+                    result.append(str(f.resolve()))
+    return result
+
+
+def _sample_tasks_for_site(
+    manifest: dict, site_name: str, root: Path, max_tasks: int = 20
+) -> list[str]:
+    """Return file paths of task definitions relevant to a given site.
+
+    Reads task definition files from the paths declared in the manifest,
+    filters to tasks that reference this site, and returns up to max_tasks.
+
+    Handles two known formats:
+    - Single JSON array file (WebArena Verified: all tasks in one file)
+    - Directory of per-task JSON files (original WebArena: config_files/)
+    """
+    task_paths = manifest.get("evaluation", {}).get("task_definition_paths", [])
+    result: list[str] = []
+
+    for tp in task_paths:
+        full = root / tp
+        if full.is_file() and full.suffix == ".json":
+            # Single file containing all tasks — include the file itself
+            # (each sandbox gets the same file; filtering happens in-memory)
+            result.append(str(full.resolve()))
+        elif full.is_dir():
+            # Directory of task files — sample those referencing this site
+            count = 0
+            for f in sorted(full.rglob("*.json")):
+                if count >= max_tasks:
+                    break
+                try:
+                    data = json.loads(f.read_text())
+                    # Handle both single-task and array-of-tasks files
+                    tasks = data if isinstance(data, list) else [data]
+                    for t in tasks:
+                        sites = t.get("sites", [])
+                        if site_name in sites or any(site_name in s for s in sites):
+                            result.append(str(f.resolve()))
+                            count += 1
+                            break
+                except (json.JSONDecodeError, KeyError):
+                    continue
+
+    return result[:max_tasks]
+
+
+# ---------------------------------------------------------------------------
+# Phase 0c — Per-Site Profiling
+# ---------------------------------------------------------------------------
+
+
+async def run_phase_0c(
+    manifest: dict,
+    sandbox_map: dict[str, list[str]],
+    benchmark_root: Path,
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Profile each site in parallel via Modal Sandboxes.
+
+    One sandbox per site, each receiving only that site's files from the
+    sandbox map. Produces ``BENCHMARK_PROFILE_{site}.json`` and ``.md``.
+
+    Returns:
+        Dict mapping site name to sandbox outputs dict.
+    """
+    benchmark_root = Path(benchmark_root).resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    async def profile_one_site(
+        site_name: str, file_list: list[str]
+    ) -> tuple[str, dict[str, str | None]]:
+        site_files: dict[str, str] = {}
+        for local_path in file_list:
+            rel = os.path.relpath(local_path, benchmark_root)
+            site_files[f"/workspace/benchmark/{rel}"] = local_path
+
+        logger.info("Phase 0c: launching profiling sandbox for site %r (%d files)",
+                     site_name, len(file_list))
+
+        outputs = await run_claude_in_sandbox(
+            site_files=site_files,
+            prompt=load_prompt("profile-site"),
+            output_paths=[
+                "/workspace/output/BENCHMARK_PROFILE.json",
+                "/workspace/output/BENCHMARK_PROFILE.md",
+            ],
+        )
+
+        for remote_path, content in outputs.items():
+            if content:
+                suffix = Path(remote_path).suffix
+                out_path = output_dir / f"BENCHMARK_PROFILE_{site_name}{suffix}"
+                out_path.write_text(content)
+                logger.info("Phase 0c: wrote %s", out_path)
+
+        return site_name, outputs
+
+    results = await asyncio.gather(*[
+        profile_one_site(name, files)
+        for name, files in sandbox_map.items()
+    ])
+
+    # Validate cross-references in each profile
+    for site_name, outputs in results:
+        profile_json = outputs.get("/workspace/output/BENCHMARK_PROFILE.json")
+        if profile_json:
+            _validate_profile(site_name, json.loads(profile_json))
+
+    return dict(results)
+
+
+def _validate_profile(site_name: str, profile: dict) -> None:
+    """Validate cross-references within a site profile.
+
+    Checks that injection surface source_fields reference data model fields,
+    and that eval_types appear in verification capabilities.
+    """
+    # Collect known field names from data model
+    known_fields: set[str] = set()
+    for entity in profile.get("data_model", []):
+        for field in entity.get("fields", []):
+            known_fields.add(field.get("name", ""))
+        # Also add entity-level identifiers
+        storage = entity.get("storage", "")
+        if storage:
+            known_fields.add(storage)
+
+    # Check injection surface source_fields
+    for surface in profile.get("injection_surface", []):
+        source = surface.get("source_field", "")
+        if source and "." in source:
+            # Format is "table.column" — check the column part
+            field_name = source.split(".")[-1]
+            if field_name not in known_fields and known_fields:
+                logger.warning(
+                    "Profile %s: injection surface %r references field %r "
+                    "not found in data model",
+                    site_name,
+                    surface.get("id", "?"),
+                    source,
+                )
+
+    # Collect known eval types from verification capabilities
+    known_eval_types: set[str] = set()
+    for cap in profile.get("verification_capabilities", []):
+        known_eval_types.add(cap.get("eval_type", ""))
+
+    logger.info(
+        "Profile %s validated: %d data model entities, %d injection surfaces, %d eval types",
+        site_name,
+        len(profile.get("data_model", [])),
+        len(profile.get("injection_surface", [])),
+        len(known_eval_types),
+    )

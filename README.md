@@ -45,11 +45,11 @@ pip install -e .
 
    In that mode the priority fixup does not apply — manage the secret's contents yourself.
 
-3. **Benchmark codebase on disk** — e.g. clone WebArena into `vendors/webarena-infinity/`:
+3. **Benchmark codebase on disk** — clone WebArena Verified into `vendors/webarena-verified/`:
 
    ```bash
    mkdir -p vendors
-   git clone https://github.com/web-arena-x/webarena vendors/webarena-infinity
+   git clone https://github.com/ServiceNow/webarena-verified vendors/webarena-verified
    ```
 
    `vendors/` is in `.gitignore` — you clone manually, not via submodules.
@@ -60,8 +60,8 @@ Phases 0, 1, and 2 only need the benchmark **codebase** on disk, not running ins
 ## Run
 
 ```bash
-# Phase 0 against WebArena (reads the codebase, no running services needed)
-uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-infinity
+# Phase 0 against WebArena Verified (reads the codebase, no running services needed)
+uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
 
 # Resume from the last checkpoint after a crash
 uv run python -m worldsim.main resume

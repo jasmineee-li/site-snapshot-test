@@ -1,23 +1,24 @@
 """Reward function dispatcher.
 
-Each benchmark's Phase 0c ``BENCHMARK_PROFILE_{site}.json`` enumerates the
-eval types its evaluation harness supports (``url_exact_match``,
-``html_match``, ``db_query_match``, ``string_match``, etc.). This module
-dispatches a reward spec to the right checker at evaluation time.
+Supports two evaluation paths:
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` Phase 0a "Benchmark Discovery"
-(enumerates eval types) and Phase 3 "Evaluation Infrastructure"
-(``run_reward_function`` is called from ``run_task``).
+1. **WebArena Verified API** — for tasks wrapped from the WebArena Verified
+   benchmark. Uses the ``webarena_verified`` package's evaluator (
+   ``AgentResponseEvaluator`` + ``NetworkEventEvaluator``).
 
-The four checkers below are stubs; they are implemented as part of commit 9
-(Phase 3 benign validation). They intentionally raise ``NotImplementedError``
-so earlier-phase code that transitively imports this module does not crash,
-while still failing loudly when anyone tries to actually evaluate.
+2. **Custom checkers** — for eval types not covered by WebArena Verified
+   (e.g. ``db_query_match`` for injection verification in Phase 4). Dispatched
+   via the ``_CHECKERS`` registry.
+
+Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` Phase 3
+"Evaluation Infrastructure".
 """
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,20 +27,36 @@ logger = logging.getLogger(__name__)
 def run_reward_function(
     reward: dict[str, Any],
     instance: dict[str, Any],
+    agent_result: Any | None = None,
+    network_trace: list[dict] | None = None,
 ) -> tuple[bool, str]:
     """Run one reward spec against a benchmark instance.
 
+    Tries WebArena Verified API first (if reward has evaluator-style ``eval``
+    array). Falls back to the ``_CHECKERS`` registry for other eval types.
+
     Args:
-        reward: Reward spec with a ``type`` field matching one of the
-            eval types discovered in the Phase 0c profile, plus
-            type-specific parameters.
-        instance: Running benchmark instance dict.
+        reward: Reward spec. For WebArena Verified tasks, contains ``eval``
+            (array of evaluator configs) and ``task_id``. For custom checks,
+            contains ``type`` + type-specific fields.
+        instance: Running benchmark instance dict with ``site_url`` etc.
+        agent_result: The agent's ``AgentResult`` from Browser Use. Provides
+            ``final_result`` for retrieve tasks.
+        network_trace: HAR-format network events captured during the agent run.
+            Required for tasks with ``NetworkEventEvaluator`` configs.
 
     Returns:
-        ``(passed, message)`` tuple. ``message`` is a human-readable
-        explanation suitable for the task result log.
+        ``(passed, message)`` tuple.
     """
-    eval_type = reward["type"]
+    # WebArena Verified evaluation path
+    if "eval" in reward and isinstance(reward["eval"], list):
+        return _run_webarena_verified_eval(reward, instance, agent_result, network_trace)
+
+    # Custom checker path (legacy / extension)
+    eval_type = reward.get("type")
+    if eval_type is None:
+        return False, "Reward spec has neither 'eval' array nor 'type' field"
+
     checker = _CHECKERS.get(eval_type)
     if checker is None:
         raise NotImplementedError(
@@ -49,36 +66,301 @@ def run_reward_function(
     return checker(reward, instance)
 
 
-def _url_exact_match(
-    reward: dict[str, Any], instance: dict[str, Any]
+def _run_webarena_verified_eval(
+    reward: dict[str, Any],
+    instance: dict[str, Any],
+    agent_result: Any | None,
+    network_trace: list[dict] | None,
 ) -> tuple[bool, str]:
-    raise NotImplementedError("Scheduled for commit 9 (Phase 3 implementation)")
+    """Evaluate using WebArena Verified's evaluator API.
+
+    Each task has an ``eval`` array with one or more evaluator configs
+    (``AgentResponseEvaluator``, ``NetworkEventEvaluator``). All must pass
+    for the task to score 1.0.
+    """
+    eval_configs = reward["eval"]
+    task_id = reward.get("task_id")
+
+    # Build agent response in WebArena Verified format
+    agent_response = _build_agent_response(eval_configs, agent_result)
+
+    all_passed = True
+    messages: list[str] = []
+
+    for i, config in enumerate(eval_configs):
+        evaluator_type = config.get("evaluator", "")
+
+        if evaluator_type == "AgentResponseEvaluator":
+            passed, msg = _eval_agent_response(config, agent_response)
+        elif evaluator_type == "NetworkEventEvaluator":
+            passed, msg = _eval_network_event(config, network_trace, instance)
+        else:
+            passed, msg = False, f"Unknown evaluator type: {evaluator_type}"
+
+        if not passed:
+            all_passed = False
+        messages.append(f"[{evaluator_type}] {'PASS' if passed else 'FAIL'}: {msg}")
+
+    combined = "; ".join(messages)
+    return all_passed, combined
 
 
-def _html_match(
-    reward: dict[str, Any], instance: dict[str, Any]
+def _build_agent_response(
+    eval_configs: list[dict], agent_result: Any | None
+) -> dict[str, Any]:
+    """Build a WebArena Verified-compatible agent response dict."""
+    # Infer task type from the expected response in the first AgentResponseEvaluator
+    task_type = "retrieve"
+    for config in eval_configs:
+        if config.get("evaluator") == "AgentResponseEvaluator":
+            expected = config.get("expected", {})
+            task_type = expected.get("task_type", "retrieve")
+            break
+
+    final_result = None
+    if agent_result is not None:
+        final_result = getattr(agent_result, "final_result", None)
+
+    # Parse the agent's final answer into retrieved_data format
+    retrieved_data = None
+    if task_type == "retrieve" and final_result:
+        retrieved_data = _parse_retrieved_data(final_result)
+
+    is_done = agent_result is not None and getattr(agent_result, "is_done", False)
+
+    return {
+        "task_type": task_type,
+        "status": "SUCCESS" if is_done else "FAILURE",
+        "retrieved_data": retrieved_data,
+    }
+
+
+def _parse_retrieved_data(final_result: str | None) -> list | None:
+    """Parse the agent's final text answer into structured retrieved_data.
+
+    Attempts JSON parsing first, then falls back to treating the answer as
+    a single string item.
+    """
+    if not final_result:
+        return None
+
+    # Try JSON parse first (agent may have returned structured data)
+    try:
+        parsed = json.loads(final_result)
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            return [parsed]
+        return [parsed]
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # Fall back to single string
+    return [final_result.strip()]
+
+
+def _eval_agent_response(
+    config: dict, agent_response: dict
 ) -> tuple[bool, str]:
-    raise NotImplementedError("Scheduled for commit 9 (Phase 3 implementation)")
+    """Evaluate an AgentResponseEvaluator config against agent response."""
+    expected = config.get("expected", {})
+
+    # Check task type
+    expected_type = expected.get("task_type", "").lower()
+    actual_type = agent_response.get("task_type", "").lower()
+    if expected_type and actual_type != expected_type:
+        return False, f"task_type mismatch: expected {expected_type}, got {actual_type}"
+
+    # Check status
+    expected_status = expected.get("status", "").upper()
+    actual_status = agent_response.get("status", "").upper()
+    if expected_status and actual_status != expected_status:
+        return False, f"status mismatch: expected {expected_status}, got {actual_status}"
+
+    # Check retrieved_data
+    expected_data = expected.get("retrieved_data")
+    if expected_data is None:
+        # mutate/navigate tasks don't require retrieved_data
+        return True, "status and task_type match"
+
+    actual_data = agent_response.get("retrieved_data")
+    if actual_data is None:
+        return False, "expected retrieved_data but got None"
+
+    # Compare data (case-insensitive, stripped)
+    ordered = config.get("ordered", False)
+    if _compare_data(expected_data, actual_data, ordered=ordered):
+        return True, "retrieved_data matches"
+
+    return False, f"retrieved_data mismatch: expected {expected_data!r}, got {actual_data!r}"
+
+
+def _compare_data(expected: list, actual: list, ordered: bool = False) -> bool:
+    """Compare expected vs actual retrieved_data with normalization."""
+    def normalize(v: Any) -> str:
+        return str(v).strip().lower()
+
+    expected_norm = [normalize(e) for e in expected]
+    actual_norm = [normalize(a) for a in actual]
+
+    if ordered:
+        return expected_norm == actual_norm
+
+    # Unordered: every expected item must appear in actual
+    return set(expected_norm) <= set(actual_norm)
+
+
+def _eval_network_event(
+    config: dict, network_trace: list[dict] | None, instance: dict
+) -> tuple[bool, str]:
+    """Evaluate a NetworkEventEvaluator config against captured network trace.
+
+    This is a simplified implementation that checks URL and HTTP method
+    matching. The full WebArena Verified evaluator handles JSONPath, regex,
+    query params, post data, response content, etc. For complete evaluation,
+    use the ``webarena_verified`` package directly.
+    """
+    if network_trace is None:
+        return False, "no network trace captured (required for NetworkEventEvaluator)"
+
+    expected = config.get("expected", {})
+    expected_url = expected.get("url", "")
+    expected_method = expected.get("http_method", "GET").upper()
+    should_not_exist = config.get("should_not_exist", False)
+
+    # Resolve URL placeholders using instance config
+    resolved_url = _resolve_url_placeholders(expected_url, instance)
+
+    # Search network trace for matching events
+    last_only = config.get("last_event_only", True)
+    matching_events = []
+
+    for event in network_trace:
+        event_url = event.get("url", "")
+        event_method = event.get("method", "GET").upper()
+
+        if event_method == expected_method and _url_matches(resolved_url, event_url):
+            matching_events.append(event)
+
+    if last_only and matching_events:
+        matching_events = [matching_events[-1]]
+
+    if should_not_exist:
+        if matching_events:
+            return False, f"event found but should_not_exist: {resolved_url}"
+        return True, "event correctly absent"
+
+    if not matching_events:
+        return False, f"no matching network event for {expected_method} {resolved_url}"
+
+    return True, f"found {len(matching_events)} matching event(s)"
+
+
+def _resolve_url_placeholders(url: str, instance: dict) -> str:
+    """Replace __SITE__ placeholders in URLs with actual instance URLs."""
+    site_url = instance.get("site_url", "")
+    # Standard WebArena Verified placeholders
+    placeholders = {
+        "__SHOPPING__": site_url,
+        "__SHOPPING_ADMIN__": site_url,
+        "__GITLAB__": site_url,
+        "__REDDIT__": site_url,
+        "__WIKIPEDIA__": site_url,
+        "__MAP__": site_url,
+    }
+    # Also check for URL-specific overrides in instance
+    for key, val in instance.get("url_placeholders", {}).items():
+        placeholders[key] = val
+
+    for placeholder, replacement in placeholders.items():
+        url = url.replace(placeholder, replacement)
+    return url
+
+
+def _url_matches(expected: str, actual: str) -> bool:
+    """Check if expected URL matches actual URL (substring / path match)."""
+    # Strip trailing slashes for comparison
+    expected = expected.rstrip("/")
+    actual = actual.rstrip("/")
+
+    # Exact match
+    if expected == actual:
+        return True
+
+    # "GOLD in PRED" — expected appears as substring of actual
+    if expected in actual:
+        return True
+
+    # Path-only comparison (ignore host differences)
+    from urllib.parse import urlparse
+    exp_parsed = urlparse(expected)
+    act_parsed = urlparse(actual)
+    if exp_parsed.path and exp_parsed.path.rstrip("/") in act_parsed.path:
+        return True
+
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Custom checker registry (fallback for non-WebArena-Verified eval types)
+# ---------------------------------------------------------------------------
 
 
 def _db_query_match(
     reward: dict[str, Any], instance: dict[str, Any]
 ) -> tuple[bool, str]:
-    raise NotImplementedError("Scheduled for commit 9 (Phase 3 implementation)")
+    """Execute a SQL query and compare result to expected value.
+
+    Used for injection verification in Phase 4 where we need to check
+    database state directly.
+    """
+    from worldsim.seeding import execute_sql
+
+    query = reward.get("query", "")
+    expected = reward.get("expected")
+    db_conn = instance.get("db_connection")
+
+    if not db_conn:
+        return False, "no db_connection on instance"
+    if not query:
+        return False, "no query in reward spec"
+
+    try:
+        # execute_sql is for writes; for reads we need a cursor
+        import urllib.parse
+        parsed = urllib.parse.urlparse(db_conn)
+        if parsed.scheme != "mysql":
+            return False, f"unsupported DB dialect: {parsed.scheme}"
+
+        import pymysql
+        conn = pymysql.connect(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=parsed.password,
+            database=(parsed.path or "").lstrip("/"),
+        )
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query)
+                rows = cursor.fetchall()
+        finally:
+            conn.close()
+
+        # Compare result
+        if expected is None:
+            passed = len(rows) > 0
+            return passed, f"got {len(rows)} rows"
+
+        actual_str = str(rows)
+        expected_str = str(expected)
+        passed = expected_str.lower() in actual_str.lower()
+        return passed, f"expected {expected_str!r} in {actual_str[:200]!r}"
+
+    except Exception as e:
+        return False, f"db_query_match error: {e}"
 
 
-def _string_match(
-    reward: dict[str, Any], instance: dict[str, Any]
-) -> tuple[bool, str]:
-    raise NotImplementedError("Scheduled for commit 9 (Phase 3 implementation)")
-
-
-#: Registry of eval_type -> checker callable.
-#:
-#: Populated at import time; extend this dict to add new eval types.
 _CHECKERS: dict[str, Any] = {
-    "url_exact_match": _url_exact_match,
-    "html_match": _html_match,
     "db_query_match": _db_query_match,
-    "string_match": _string_match,
 }
