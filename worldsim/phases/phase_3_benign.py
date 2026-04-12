@@ -68,13 +68,18 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
 
-    save_state("phase_3", status="running", instances_path=str(instances_path))
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     task_dir_root = state_dir / "phase_3" / timestamp
     agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
+    save_state(
+        "phase_3",
+        status="running",
+        instances_path=str(instances_path),
+        agent_model=agent_model,
+        agent_provider=agent_provider,
+    )
 
     logger.info(
         "Phase 3: validating %d benign tasks across %d instances",
@@ -178,6 +183,8 @@ async def run(args: argparse.Namespace) -> int:
         status="complete",
         validated_tasks_path=str(output_dir / "validated_tasks.json"),
         instances_path=str(instances_path),
+        agent_model=agent_model,
+        agent_provider=agent_provider,
         passed=len(passed_ids),
         fixed=len(fixed_ids),
         total=len(benign_tasks),

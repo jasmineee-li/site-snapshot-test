@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
 from worldsim.agent_config import (
     RUNTIME_METADATA_KEY,
     bind_task_to_instance,
+    make_llm,
     execution_instance_dict,
     prepare_task_for_execution,
     resolve_task_inputs,
@@ -143,3 +146,8 @@ def test_benchmark_config_accepts_top_level_url_placeholders():
         "__SHOPPING__": "http://shopping.test",
         "__GITLAB__": "http://gitlab.test",
     }
+
+
+def test_make_llm_rejects_unknown_model_family_without_provider():
+    with pytest.raises(ValueError, match="Could not infer a provider"):
+        make_llm(model="mystery-model-1")

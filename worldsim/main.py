@@ -6,7 +6,7 @@ and ``README.md`` for prerequisites.
 Usage::
 
     # Phase 0 reconnaissance against a benchmark codebase on disk
-    uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-infinity
+    uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
 
     # Resume from the last saved checkpoint
     uv run python -m worldsim.main resume
@@ -25,14 +25,12 @@ from dotenv import load_dotenv
 
 load_dotenv()  # Load .env before importing stateful modules.
 
+DEFAULT_AGENT_MODEL = "gemini-3.1-pro-preview"
+AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic")
 
-def main(argv: list[str] | None = None) -> int:
-    """CLI entrypoint. See module docstring for usage."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
 
+def build_parser() -> argparse.ArgumentParser:
+    """Construct the CLI parser used by ``main()`` and tests."""
     parser = argparse.ArgumentParser(
         prog="worldsim",
         description="WorldSim v5 adversarial evaluation pipeline",
@@ -48,14 +46,15 @@ def main(argv: list[str] | None = None) -> int:
     phase_cmd.add_argument(
         "--benchmark",
         type=Path,
-        help="Path to the benchmark codebase (e.g. vendors/webarena-verified). "
-        "Required for Phase 0.",
+        help="Path to the benchmark codebase. Required for Phase 0. "
+        "Phase 1 can infer it from the manifest when BENCHMARK_MANIFEST.json "
+        "includes benchmark_codebase.",
     )
     phase_cmd.add_argument(
         "--config",
         type=Path,
-        help="Path to a BENCHMARK_MANIFEST.json from Phase 0a. "
-        "Required for Phases 0b+.",
+        help="Path to BENCHMARK_MANIFEST.json from Phase 0a. Used by Phase 1 to "
+        "override the default manifest path under logs/phase_0a/.",
     )
     phase_cmd.add_argument(
         "--instances",
@@ -65,14 +64,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     phase_cmd.add_argument(
         "--agent-model",
-        default="gemini-3.1-pro-preview",
-        help="LLM model name for Browser Use agent (default: gemini-3.1-pro-preview). "
+        default=DEFAULT_AGENT_MODEL,
+        help=f"LLM model name for Browser Use agent (default: {DEFAULT_AGENT_MODEL}). "
         "Examples: gpt-5.4, claude-sonnet-4-6, gemini-3.1-pro-preview, gemini-3-flash-preview.",
     )
     phase_cmd.add_argument(
         "--agent-provider",
         default=None,
-        choices=["google", "openai", "anthropic"],
+        choices=AGENT_PROVIDER_CHOICES,
         help="LLM provider (default: auto-detect from model name). "
         "Requires the corresponding env var: GOOGLE_API_KEY, OPENAI_API_KEY, "
         "or ANTHROPIC_API_KEY.",
@@ -82,31 +81,43 @@ def main(argv: list[str] | None = None) -> int:
     resume_cmd.add_argument(
         "--benchmark",
         type=Path,
-        help="Path to the benchmark codebase (overrides path from state).",
+        default=argparse.SUPPRESS,
+        help="Override the benchmark path saved in pipeline state.",
     )
     resume_cmd.add_argument(
         "--config",
         type=Path,
-        help="Path to a BENCHMARK_MANIFEST.json (overrides path from state).",
+        default=argparse.SUPPRESS,
+        help="Override the manifest path saved in pipeline state.",
     )
     resume_cmd.add_argument(
         "--instances",
         type=Path,
-        help="JSON file with BenchmarkConfig (overrides path from state).",
+        default=argparse.SUPPRESS,
+        help="Override the instances path saved in pipeline state.",
     )
     resume_cmd.add_argument(
         "--agent-model",
-        default="gemini-3.1-pro-preview",
-        help="LLM model name for Browser Use agent (default: gemini-3.1-pro-preview).",
+        default=argparse.SUPPRESS,
+        help="Override the saved Browser Use agent model for the resumed phase.",
     )
     resume_cmd.add_argument(
         "--agent-provider",
-        default=None,
-        choices=["google", "openai", "anthropic"],
-        help="LLM provider (default: auto-detect from model name).",
+        default=argparse.SUPPRESS,
+        choices=AGENT_PROVIDER_CHOICES,
+        help="Override the saved Browser Use agent provider for the resumed phase.",
     )
 
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint. See module docstring for usage."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+    args = build_parser().parse_args(argv)
 
     if args.command == "resume":
         return _dispatch_resume(args)
@@ -170,6 +181,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     benchmark = getattr(args, "benchmark", None)
     config = getattr(args, "config", None)
     instances = getattr(args, "instances", None)
+    agent_model = getattr(args, "agent_model", None)
+    agent_provider = getattr(args, "agent_provider", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -178,6 +191,10 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         config = Path(state["manifest_path"])
     if instances is None and "instances_path" in state:
         instances = Path(state["instances_path"])
+    if agent_model is None:
+        agent_model = state.get("agent_model")
+    if agent_provider is None:
+        agent_provider = state.get("agent_provider")
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -188,8 +205,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         benchmark=benchmark,
         config=config,
         instances=instances,
-        agent_model=getattr(args, "agent_model", "gemini-3.1-pro-preview"),
-        agent_provider=getattr(args, "agent_provider", None),
+        agent_model=agent_model,
+        agent_provider=agent_provider,
     )
 
     return _dispatch_phase(synthetic)
@@ -214,7 +231,12 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
     phase = args.phase
     if phase in {"0", "0a", "0b", "0c"}:
         if not args.benchmark:
-            print("--benchmark is required for Phase 0", file=sys.stderr)
+            print(
+                f"--benchmark is required for Phase {phase}. "
+                "--config overrides the Phase 1 manifest path; it is not a "
+                "substitute for the benchmark codebase during Phase 0.",
+                file=sys.stderr,
+            )
             return 1
         rc = asyncio.run(phase_0_recon.run(benchmark=args.benchmark, sub=phase))
     elif phase == "1":

@@ -27,8 +27,8 @@ async def run(args: argparse.Namespace) -> int:
     Reads the benchmark's task definitions and wraps each into a benign task
     bundle for downstream phases.
 
-    Expects ``args.benchmark`` (path to benchmark codebase) and
-    ``args.config`` (path to BENCHMARK_MANIFEST.json from Phase 0a).
+    ``args.config`` can override the manifest path from Phase 0a. ``args.benchmark``
+    is optional when the manifest already records ``benchmark_codebase``.
     """
     state_dir = get_state_dir()
     output_dir = state_dir / "phase_1"

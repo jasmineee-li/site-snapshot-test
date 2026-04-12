@@ -49,6 +49,8 @@ def test_dispatch_resume_restores_logs_dir_from_state(monkeypatch, tmp_path):
     def fake_dispatch_phase(args):
         captured["phase"] = args.phase
         captured["instances"] = args.instances
+        captured["agent_model"] = args.agent_model
+        captured["agent_provider"] = args.agent_provider
         captured["logs_dir"] = get_state_dir()
         return 0
 
@@ -66,4 +68,39 @@ def test_dispatch_resume_restores_logs_dir_from_state(monkeypatch, tmp_path):
 
     assert rc == 0
     assert captured["phase"] == "3"
+    assert captured["agent_model"] == "demo-model"
+    assert captured["agent_provider"] is None
     assert str(captured["logs_dir"]) == str(custom_logs)
+
+
+def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(
+    monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="running",
+        instances_path="/tmp/instances.json",
+        agent_model="claude-sonnet-4-6",
+        agent_provider="anthropic",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["agent_model"] = args.agent_model
+        captured["agent_provider"] = args.agent_provider
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["agent_model"] == "claude-sonnet-4-6"
+    assert captured["agent_provider"] == "anthropic"

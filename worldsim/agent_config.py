@@ -42,7 +42,7 @@ RUNTIME_METADATA_KEY = "_worldsim_runtime"
 # ── Defaults ──────────────────────────────────────────────────────────────
 
 DEFAULT_MODEL = "gemini-3.1-pro-preview"
-DEFAULT_PROVIDER = "google"
+SUPPORTED_PROVIDERS = ("google", "openai", "anthropic")
 
 # Provider auto-detection: prefix -> provider name.
 _PREFIX_MAP: list[tuple[str, str]] = [
@@ -55,13 +55,39 @@ _PREFIX_MAP: list[tuple[str, str]] = [
 ]
 
 
-def detect_provider(model: str) -> str:
+def detect_provider(model: str) -> str | None:
     """Best-effort provider detection from the model name."""
     lower = model.lower()
     for prefix, provider in _PREFIX_MAP:
         if lower.startswith(prefix):
             return provider
-    return DEFAULT_PROVIDER
+    return None
+
+
+def resolve_provider(model: str, provider: str | None) -> str:
+    """Return the explicit or inferred provider for ``model``.
+
+    Unknown model families should fail fast instead of silently defaulting to
+    a provider that may not match the user's credentials.
+    """
+    if provider is not None:
+        normalized = provider.lower()
+        if normalized not in SUPPORTED_PROVIDERS:
+            supported = ", ".join(SUPPORTED_PROVIDERS)
+            raise ValueError(
+                f"Unknown provider {provider!r}. Supported: {supported}"
+            )
+        return normalized
+
+    detected = detect_provider(model)
+    if detected is None:
+        supported = ", ".join(SUPPORTED_PROVIDERS)
+        raise ValueError(
+            f"Could not infer a provider for model {model!r}. "
+            f"Pass provider explicitly ({supported}) or use a model name with a "
+            "known prefix such as gemini, gpt-, o1/o3/o4, or claude."
+        )
+    return detected
 
 
 # ── LLM construction ─────────────────────────────────────────────────────
@@ -85,10 +111,7 @@ def make_llm(
         RuntimeError: If the required langchain partner package is missing.
         ValueError: If *provider* is not recognised.
     """
-    if provider is None:
-        provider = detect_provider(model)
-
-    provider = provider.lower()
+    provider = resolve_provider(model, provider)
 
     if provider == "google":
         try:
@@ -121,7 +144,7 @@ def make_llm(
         return ChatAnthropic(model=model, temperature=temperature)
 
     raise ValueError(
-        f"Unknown provider {provider!r}. Supported: google, openai, anthropic"
+        f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}"
     )
 
 

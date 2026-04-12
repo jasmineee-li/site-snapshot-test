@@ -92,9 +92,11 @@ Pipeline state is written to `logs/pipeline_state.json` before each major operat
 
 A local Python orchestrator coordinates three things:
 
-1. **Modal Sandboxes running Claude Code** — all code exploration, generation, and diagnosis steps. Each sandbox is scoped by *inclusion*: only the files that step needs are added to the image via `modal.Image.add_local_dir`.
+1. **Modal Sandboxes running Claude Code** — all code exploration, generation, and diagnosis steps. Each sandbox is scoped by *inclusion*: small inputs are staged with `add_local_file` / `add_local_dir`, while large stable benchmark trees can be mounted from Modal volumes.
 2. **Browser Use** — async Python library for running browser agents against benchmark instances. Each evaluation worker gets its own browser session and a dedicated pre-running benchmark instance.
 3. **Local orchestrator logic** — state management, validation, file routing between phases, and the iteration loops that connect everything.
+
+Phase 0 always needs `--benchmark`. Phase 1 reads `BENCHMARK_MANIFEST.json` from `logs/phase_0a/` by default, and `--config` only overrides that manifest path.
 
 Five phases:
 

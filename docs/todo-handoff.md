@@ -13,7 +13,7 @@ Launch up to 3 Explore subagents in parallel to read:
 **Subagent 2 — working primitives:**
 - `worldsim/modal_sandbox.py` (the one function every phase calls: `run_claude_in_sandbox`)
 - `scripts/smoke_modal.py` (working end-to-end example)
-- `worldsim/prompts/*.md` (ready-to-use prompts — 6 files, one per pipeline step)
+- `worldsim/prompts/*.md` (ready-to-use prompts for each Claude Code step)
 
 **Subagent 3 — current state + skeletons:**
 - `docs/current_progress.md` (what's proven, what's skeleton, what's blocked)
@@ -33,7 +33,7 @@ Do NOT start implementing until all three subagents report back.
 
 ```
 Phase 0a  →  0b  →  0c  →  1A  →  2  →  3  →  4
-  ↑ unblocked now (needs only vendors/webarena-infinity/ on disk)
+  ↑ unblocked now (needs only vendors/webarena-verified/ on disk)
                                     ↑ blocked on running WebArena
 ```
 
@@ -41,7 +41,7 @@ For each phase:
 1. Read the spec section (the stub tells you which one)
 2. Read the corresponding prompt in `worldsim/prompts/`
 3. Implement in the existing stub file — don't create new modules unless necessary
-4. Test it runs end-to-end (for 0-2: against `vendors/webarena-infinity/`; for 3-4: if no WebArena, implement with clear stubs and document what's needed to test)
+4. Test it runs end-to-end (for 0-2: against `vendors/webarena-verified/`; for 3-4: if no WebArena, implement with clear stubs and document what's needed to test)
 5. Commit, then move to the next phase
 
 ### Phase 0a — Benchmark Discovery
@@ -93,6 +93,6 @@ async def run_strategy_variation(task, initial_result, instances, agent_factory,
 ## Environment
 
 - Python 3.12, Modal `test` environment, OpenRouter auth via `.env`
-- `vendors/webarena-infinity/` is the benchmark codebase for Phase 0
+- `vendors/webarena-verified/` is the benchmark codebase for Phase 0
 - `vendors/` is gitignored — it's a local clone, not tracked
-- Run everything via `uv run python -m worldsim.main phase {0|1|2|3|4} --benchmark vendors/webarena-infinity`
+- Run everything via `uv run python -m worldsim.main phase {0|1|2|3|4} --benchmark vendors/webarena-verified`

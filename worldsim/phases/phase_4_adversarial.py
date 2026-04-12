@@ -127,8 +127,6 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
 
-    save_state("phase_4", status="running", instances_path=str(instances_path))
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     task_dir_root = state_dir / "phase_4" / timestamp
 
@@ -138,6 +136,13 @@ async def run(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
+    save_state(
+        "phase_4",
+        status="running",
+        instances_path=str(instances_path),
+        agent_model=agent_model,
+        agent_provider=agent_provider,
+    )
     prepared_tasks, _ = prepare_tasks_for_execution(
         tasks,
         config.instances,
@@ -214,6 +219,8 @@ async def run(args: argparse.Namespace) -> int:
 
     save_state("phase_4", status="complete",
                instances_path=str(instances_path),
+               agent_model=agent_model,
+               agent_provider=agent_provider,
                complied=complied, variant_success=variant_success,
                resistant=resistant, task_broke=broke, invalid=invalid,
                total=len(final_results))
