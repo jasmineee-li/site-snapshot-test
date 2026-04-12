@@ -25,11 +25,31 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 ## Prerequisites
 
 1. **Modal account.** Sign up at <https://modal.com>, then run `modal token new` to write `~/.modal.toml`, or set `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` in your environment.
-2. **Anthropic API key, provisioned as a Modal secret.** Claude Code runs *inside* the Modal sandbox and reads its API key from a Modal secret named `anthropic-secret` by default:
+2. **Claude Code authentication.** Claude Code runs *inside* the Modal sandbox and needs credentials injected via `modal.Secret.from_dict`. Two auth methods are supported in parallel — pick whichever you have:
+
+   - **`CLAUDE_CODE_OAUTH_TOKEN`** (preferred if you have a Claude Pro / Claude Max subscription):
+
+     ```bash
+     export CLAUDE_CODE_OAUTH_TOKEN=your-oauth-token
+     ```
+
+   - **`ANTHROPIC_API_KEY`** (traditional API-credit billing):
+
+     ```bash
+     export ANTHROPIC_API_KEY=sk-ant-...
+     ```
+
+   **If both are set, OAuth wins** — `worldsim/modal_sandbox.py:_build_claude_secrets` drops `ANTHROPIC_API_KEY` from the sandbox env because Claude Code's internal auth precedence would otherwise silently bill against API credits instead of your subscription.
+
+   For CI / shared workspaces, you can opt into a named Modal secret instead:
 
    ```bash
-   modal secret create anthropic-secret ANTHROPIC_API_KEY=sk-ant-...
+   modal secret create my-claude-secret CLAUDE_CODE_OAUTH_TOKEN=claude-...
+   export WORLDSIM_CLAUDE_MODAL_SECRET=my-claude-secret
    ```
+
+   In that mode the priority fixup does not apply — manage the secret's contents yourself.
+
 3. **Benchmark codebase on disk** — e.g. clone WebArena into `vendors/webarena-infinity/`:
 
    ```bash
