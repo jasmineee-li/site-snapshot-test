@@ -125,7 +125,7 @@ async def run_claude_in_sandbox(
 
 **File routing.** The orchestrator decides which files go into each sandbox. This is the key architectural primitive: instead of scoping via ignore files, we scope via inclusion. Each phase defines its file requirements, and the orchestrator builds the sandbox image from those requirements.
 
-**Sandbox runner.** `_sandbox_runner.py` is a small script staged into every sandbox at `/workspace/_sdk_runner.py`. It imports the Claude Agent SDK, reads the prompt from `/workspace/_prompt.txt`, invokes the SDK's `ClaudeCode.run()` with the specified model, and streams progress to stdout as NDJSON. Each line is one of four event types: `tool_call` (tool name and arguments), `text` (partial assistant text), `error` (exception message), or `summary` (final result). The `summary` event contains: `total_cost_usd`, `num_turns`, `session_id`, `duration_ms`, and a `model_token_breakdown` dict mapping model IDs to `{input_tokens, output_tokens, cache_read_tokens}`.
+**Sandbox runner.** `_sandbox_runner.py` is a small script staged into every sandbox at `/workspace/_sdk_runner.py`. It imports the Claude Agent SDK, reads the prompt from `/workspace/_prompt.txt`, invokes the SDK's `ClaudeCode.run()` with the specified model, and streams progress to stdout as NDJSON. Each line is one of four event types: `tool_call` (tool name and arguments), `text` (partial assistant text), `error` (exception message), or `summary` (final result). The `summary` event contains: `total_cost_usd`, `num_turns`, `session_id`, `duration_ms`, and a `model_usage` dict mapping model IDs to `{input_tokens, output_tokens, cache_read_tokens}`.
 
 **Structured event logging.** The SDK runner inside each sandbox streams NDJSON events to stdout as Claude Code executes. The orchestrator parses these in real time, logging tool calls and text previews. When the run completes, the SDK yields a ``ResultMessage`` with ``total_cost_usd``, ``num_turns``, ``session_id``, ``duration_ms``, and per-model token breakdowns. This metadata is attached to the return dict under the ``"_summary"`` key, giving callers access to cost and usage data without changing the file-based output contract.
 
@@ -137,14 +137,15 @@ A `CostTracker` singleton accumulates per-sandbox cost data across the entire pi
     class SandboxCostEntry:
         phase: str
         task_id: str | None
+        site: str | None
         total_cost_usd: float
         num_turns: int
-        session_id: str
         duration_ms: int
-        model_token_breakdown: dict[str, dict[str, int]]
+        session_id: str
+        model_usage: dict[str, dict[str, int]]
         timestamp: str
 
-The tracker exposes `add(entry)`, `total_usd() -> float`, and `save(path)` / `load(path)` methods. On each `save`, the full list is written to `logs/<run>/cost_report.json`. The `--resume` flag calls `load` so that cost data from prior phases is preserved across restarts.
+The tracker exposes `record(phase, summary_json, ...)`, `total_cost() -> float`, and `save(path)` / `load(path)` methods. On each `save`, the full list is written to `logs/<run>/cost_report.json`. The `--resume` flag calls `load` so that cost data from prior phases is preserved across restarts.
 
 ### State Persistence and Resume
 
@@ -167,7 +168,7 @@ On crash, `--resume` reads this file and applies two-branch logic:
 - **complete**: the phase finished successfully. Skip to the next phase in `_PHASE_ORDER`.
 - **running**: the phase started but did not finish. Re-run it from the beginning.
 
-`_PHASE_ORDER` is a fixed tuple: `("0a", "0b", "0c", "1", "2", "3", "4")`. The resume loader also checks for a `logs_dir` key in the state metadata; if present, it uses that path instead of the default, allowing runs that were started with a custom `WORLDSIM_STATE_DIR` to resume correctly.
+`_PHASE_ORDER` is a fixed list: `["phase_0a", "phase_0b", "phase_0c", "phase_1", "phase_2", "phase_3", "phase_4"]`. The resume loader also checks for a `logs_dir` key in the state metadata; if present, it uses that path instead of the default, allowing runs that were started with a custom `WORLDSIM_STATE_DIR` to resume correctly.
 
 ### Browser Use Integration
 
@@ -224,7 +225,7 @@ class BrowserUseAgent:
             if path_str and Path(path_str).exists():
                 screenshots_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(path_str, screenshots_dir / f"step_{step_idx}.png")
-        await session.stop()
+        await session.kill()
         return AgentResult(
             elapsed=round(elapsed, 1), steps=len(history.history),
             is_done=history.is_done(), final_result=history.final_result(),
