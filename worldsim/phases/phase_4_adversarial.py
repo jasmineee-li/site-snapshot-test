@@ -127,8 +127,24 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    task_dir_root = state_dir / "phase_4" / timestamp
+    # On resume, reuse the task_dir_root from the prior run so
+    # load_completed_results can find existing result.json files.
+    resume = getattr(args, "resume", False)
+    prior_state = None
+    if resume:
+        from worldsim.state import load_state
+        prior_state = load_state()
+
+    if (
+        prior_state
+        and prior_state.get("step") == "phase_4"
+        and prior_state.get("task_dir_root")
+    ):
+        task_dir_root = Path(prior_state["task_dir_root"])
+        logger.info("Resume: reusing task_dir_root %s", task_dir_root)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        task_dir_root = state_dir / "phase_4" / timestamp
 
     logger.info("Phase 4: evaluating %d adversarial tasks across %d instances",
                 len(tasks), len(config.instances))
@@ -139,6 +155,7 @@ async def run(args: argparse.Namespace) -> int:
     save_state(
         "phase_4",
         status="running",
+        task_dir_root=str(task_dir_root),
         instances_path=str(instances_path),
         agent_model=agent_model,
         agent_provider=agent_provider,
@@ -157,6 +174,7 @@ async def run(args: argparse.Namespace) -> int:
         task_runner=run_adversarial_task,
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
+        resume=resume,
     )
 
     profiles_dir = state_dir / "phase_0c"
@@ -166,7 +184,24 @@ async def run(args: argparse.Namespace) -> int:
     }
     final_results: list[dict] = []
     for result in results:
-        task = task_by_id.get(str(result.get("task_id", "")))
+        task_id = str(result.get("task_id", "unknown"))
+        task = task_by_id.get(task_id)
+
+        # On resume, skip tasks whose post-processing already completed.
+        # The processed result file is the Stage 2 checkpoint (Stage 1 is
+        # the per-task result.json written by run_adversarial_task).
+        processed_file = (
+            task_dir_root / safe_task_path_component(task_id) / "processed_result.json"
+        )
+        if resume and processed_file.exists():
+            try:
+                prior_processed = json.loads(processed_file.read_text())
+                final_results.append(prior_processed)
+                logger.info("Resume: reusing processed result for task %s", task_id)
+                continue
+            except (json.JSONDecodeError, OSError):
+                pass
+
         if not task:
             final_results.append(
                 _build_phase_4_result(
@@ -193,17 +228,20 @@ async def run(args: argparse.Namespace) -> int:
             continue
 
         profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
-        final_results.append(
-            await _process_adversarial_result(
-                task=task,
-                initial_result=result,
-                primary_instances=site_instances,
-                all_instances=config.instances,
-                agent_factory=agent_factory,
-                profile_path=profile_path,
-                task_dir_root=task_dir_root,
-            )
+        processed = await _process_adversarial_result(
+            task=task,
+            initial_result=result,
+            primary_instances=site_instances,
+            all_instances=config.instances,
+            agent_factory=agent_factory,
+            profile_path=profile_path,
+            task_dir_root=task_dir_root,
         )
+        final_results.append(processed)
+
+        # Persist processed result for resume (Stage 2 checkpoint).
+        processed_file.parent.mkdir(parents=True, exist_ok=True)
+        processed_file.write_text(json.dumps(processed, indent=2))
 
     # Write results
     output_dir = state_dir / "phase_4"
@@ -218,6 +256,7 @@ async def run(args: argparse.Namespace) -> int:
     invalid = sum(1 for r in final_results if r["final_status"] == "ecologically_invalid")
 
     save_state("phase_4", status="complete",
+               task_dir_root=str(task_dir_root),
                instances_path=str(instances_path),
                agent_model=agent_model,
                agent_provider=agent_provider,
@@ -278,7 +317,10 @@ async def run_adversarial_task(
             f"agent run {result.status}: "
             + (result.errors[-1] if result.errors else "no additional error details")
         )
-        save_result(task_dir, task, result, False, message)
+        save_result(
+            task_dir, task, result, False, message,
+            outcome="error", ecologically_valid=False, trajectory_dir=str(task_dir),
+        )
         return {
             "task_id": task_id,
             "outcome": "error",
@@ -305,7 +347,7 @@ async def run_adversarial_task(
         network_trace=result.network_trace,
     )
     if _is_non_interpretable_benign_eval(benign_reward, benign_passed, benign_message):
-        save_result(task_dir, task, result, False, benign_message)
+        save_result(task_dir, task, result, False, benign_message, outcome="error", trajectory_dir=str(task_dir))
         validity_score = await probe_ecological_validity(task_dir, task)
         return {
             "task_id": task_id,
@@ -338,8 +380,8 @@ async def run_adversarial_task(
     else:
         outcome = "task_broke"
 
-    # 3. Save trajectory
-    save_result(task_dir, task, result, benign_passed, f"outcome={outcome}")
+    # 3. Save trajectory (outcome + trajectory_dir persisted for per-task resume)
+    save_result(task_dir, task, result, benign_passed, f"outcome={outcome}", outcome=outcome, trajectory_dir=str(task_dir))
 
     # 4. Probe ecological validity
     validity_score = await probe_ecological_validity(task_dir, task)
@@ -532,7 +574,7 @@ async def _run_ecological_validity_fix_loop(
     for iteration in range(ECOLOGICAL_FIX_MAX_ITERATIONS):
         revised_task = await _revise_adversarial_task(
             task=current_task,
-            trajectory_dir=Path(current_result["trajectory_dir"]),
+            trajectory_dir=Path(current_result.get("trajectory_dir", "")),
             profile_path=profile_path,
             prompt_name="fix-ecological-validity",
             revision_kind="ecological_validity_fix",
@@ -593,7 +635,7 @@ async def _run_placement_fix_loop(
     for iteration in range(PLACEMENT_FIX_MAX_ITERATIONS):
         revised_task = await _revise_adversarial_task(
             task=current_task,
-            trajectory_dir=Path(current_result["trajectory_dir"]),
+            trajectory_dir=Path(current_result.get("trajectory_dir", "")),
             profile_path=profile_path,
             prompt_name="fix-injection-placement",
             revision_kind="placement_fix",

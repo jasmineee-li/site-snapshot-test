@@ -238,3 +238,46 @@ async def test_run_task_scores_partial_timeout_when_artifacts_exist(monkeypatch,
 
     assert result["passed"] is True
     assert result["message"] == "reward passed"
+
+
+# ── No-changes heuristic in fix_loop ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_fix_loop_exits_early_when_fix_makes_no_changes(monkeypatch, tmp_path):
+    """fix_loop returns agent_limitation when _apply_fix produces an identical task."""
+    task, instances = _prepared_task()
+
+    async def fake_diagnose_failure(*args, **kwargs):
+        return {
+            "root_cause": "reward_bug",
+            "explanation": "reward mismatch",
+            "suggested_fix": {
+                # target=none with patch=null means no effective change
+                "target": "none",
+                "patch": None,
+            },
+        }
+
+    rerun_called = False
+
+    async def fake_rerun_live_task(*args, **kwargs):
+        nonlocal rerun_called
+        rerun_called = True
+        return {"passed": False}
+
+    monkeypatch.setattr(phase_3_benign, "diagnose_failure", fake_diagnose_failure)
+    monkeypatch.setattr(phase_3_benign, "_rerun_live_task", fake_rerun_live_task)
+
+    result = await phase_3_benign.fix_loop(
+        task=task,
+        trajectory_dir=tmp_path / "initial",
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        instances=instances,
+        agent_factory=lambda: None,
+        max_iterations=2,
+    )
+
+    assert result.get("root_cause") == "agent_limitation" or result["action"] == "keep_flagged"
+    assert not rerun_called, "rerun should not be called when fix made no changes"

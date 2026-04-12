@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load .env before importing stateful modules.
 
 DEFAULT_AGENT_MODEL = "gemini-3.1-pro-preview"
-AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic")
+AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -202,6 +202,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     synthetic = argparse.Namespace(
         command="phase",
         phase=phase_id,
+        resume=True,
         benchmark=benchmark,
         config=config,
         instances=instances,

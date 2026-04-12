@@ -83,6 +83,7 @@ Key design decisions for anyone continuing this work:
 - **SQL safety validation.** Both `rewards.py` (read-only reward queries) and `seeding.py` (seed statements) validate SQL before execution. Multi-statement queries blocked, write-capable keywords rejected, read-only transaction guards set on connections.
 - **Cost tracking with resume persistence.** `CostTracker` singleton accumulates per-sandbox cost data. `load()` replaces in-memory entries (not appends) to prevent double-counting on re-run. `save()` writes the full report including per-model token breakdowns.
 - **File routing via inclusion.** Sandboxes are scoped by `add_local_file`/`add_local_dir` calls, not by ignore patterns. Phase 0b's `SANDBOX_MAP.json` drives which files each site's sandbox receives.
+- **Per-task resume in Phase 3/4.** `result.json` in each task directory serves as a completion sentinel (atomic writes via tmpfile + `os.replace`). On `--resume`, `load_completed_results` scans for existing results, skips completed tasks, and merges prior results with new ones. `task_dir_root` is persisted in `pipeline_state.json` so resume reuses the same output directory. Circuit breaker stops diagnosis if >30% of tasks error. No-changes heuristic exits the fix loop early when diagnosis makes no effective changes. Follows the filesystem sentinel pattern from SWE-bench, SWE-agent, and AgentLab.
 
 ## Known Issues and Lessons Learned
 

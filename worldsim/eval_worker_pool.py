@@ -15,6 +15,7 @@ its ``run_task`` for benign evaluation; Phase 4 passes ``run_adversarial_task``.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -34,6 +35,49 @@ TaskRunner = Callable[
     [dict[str, Any], AgentRunner, BenchmarkInstance, Path],
     Awaitable[dict[str, Any]],
 ]
+
+
+def load_completed_results(task_dir_root: Path) -> dict[str, dict[str, Any]]:
+    """Scan task_dir_root for existing result.json sentinel files.
+
+    Returns a dict mapping task_id -> result dict for tasks that completed
+    in a prior run. Tasks with history.json but no result.json are treated
+    as incomplete (crashed mid-execution) and are not included, so they
+    will re-run on resume.
+
+    Only loads results from directories whose name matches the task_id's
+    canonical path component. This filters out variant, ecological-fix,
+    and placement-fix result.json files (which use suffixed directory
+    names like ``<task_id>_variant_0``) to avoid dict-key collision
+    with the initial run's result for the same task_id.
+
+    Also reconstructs ``trajectory_dir`` from the subdirectory path so
+    downstream code can locate trajectory artifacts on resume.
+    """
+    completed: dict[str, dict[str, Any]] = {}
+    if not task_dir_root.exists():
+        return completed
+    for subdir in task_dir_root.iterdir():
+        if not subdir.is_dir():
+            continue
+        result_file = subdir / "result.json"
+        if not result_file.exists():
+            continue
+        try:
+            data = json.loads(result_file.read_text())
+            task_id = str(data.get("task_id") or "")
+            if not task_id:
+                continue
+            # Only load initial-run results. Variant/rerun directories
+            # have suffixed names (e.g., task_42_variant_0, task_42__ecoval_1)
+            # that won't match the canonical path for the bare task_id.
+            if subdir.name != safe_task_path_component(task_id):
+                continue
+            data["trajectory_dir"] = str(subdir)
+            completed[task_id] = data
+        except (json.JSONDecodeError, OSError):
+            logger.warning("Corrupt result file at %s, will re-run", result_file)
+    return completed
 
 
 async def staggered_worker(
@@ -118,6 +162,7 @@ async def run_eval(
     task_runner: TaskRunner,
     task_dir_root: Path,
     task_binder: Callable[[dict[str, Any], BenchmarkInstance], dict[str, Any]] | None = None,
+    resume: bool = False,
 ) -> list[dict[str, Any]]:
     """Distribute ``tasks`` across ``instances`` with staggered worker startup.
 
@@ -132,10 +177,28 @@ async def run_eval(
             ``run_task``; Phase 4 uses ``run_adversarial_task``.
         task_dir_root: Directory under which per-task subdirectories are
             created (e.g. ``logs/phase_3/<timestamp>/``).
+        resume: If True, scan task_dir_root for existing result.json files
+            and skip tasks that already completed in a prior run.
 
     Returns:
         List of result dicts in arbitrary order (workers race).
     """
+    # On resume, load prior results and filter out completed tasks.
+    prior_results: list[dict[str, Any]] = []
+    if resume:
+        completed = load_completed_results(task_dir_root)
+        if completed:
+            original_count = len(tasks)
+            tasks = [t for t in tasks if str(t.get("id", "")) not in completed]
+            prior_results = list(completed.values())
+            logger.info(
+                "Resume: %d/%d tasks already completed, %d remaining",
+                len(prior_results), original_count, len(tasks),
+            )
+    if not tasks:
+        logger.info("All tasks already completed in prior run")
+        return prior_results
+
     num_workers = min(len(instances), len(tasks))
     task_queue: asyncio.Queue = asyncio.Queue()
     for t in tasks:
@@ -191,7 +254,7 @@ async def run_eval(
                     }
                     for task in missing_tasks
                 )
-    return results
+    return prior_results + results
 
 
 async def _drain_queue_as_failures(

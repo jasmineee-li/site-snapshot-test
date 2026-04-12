@@ -20,6 +20,8 @@ trajectories.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -32,11 +34,16 @@ def save_result(
     result: AgentResult,
     passed: bool,
     message: str,
+    **extra: Any,
 ) -> None:
     """Write ``result.json`` to a task trajectory directory.
 
     This is the trajectory artifact that diagnosis and judge sandboxes expect
     to find at ``/workspace/trajectory/result.json``.
+
+    Extra keyword arguments (e.g. ``outcome``, ``ecologically_valid``) are
+    merged into the result dict so downstream resume can reconstruct the
+    full classification without re-running evaluation.
     """
     task_dir = Path(task_dir)
     task_dir.mkdir(parents=True, exist_ok=True)
@@ -50,8 +57,22 @@ def save_result(
         "is_done": result.is_done,
         "final_result": result.final_result,
         "errors": result.errors,
+        **extra,
     }
-    (task_dir / "result.json").write_text(json.dumps(data, indent=2))
+    # Atomic write: tmpfile + os.replace prevents truncated result.json on crash,
+    # which would cause load_completed_results to misidentify the task as complete.
+    target = task_dir / "result.json"
+    fd, tmp_path = tempfile.mkstemp(dir=task_dir, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp_path, target)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def load_trajectory_into_sandbox(

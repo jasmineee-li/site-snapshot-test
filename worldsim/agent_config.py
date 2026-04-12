@@ -7,12 +7,13 @@ and ``run_tasks_by_site``.
 
 Supported providers:
 
-- ``google``    -- ``langchain-google-genai``  (``ChatGoogleGenerativeAI``)
-- ``openai``    -- ``langchain-openai``        (``ChatOpenAI``)
-- ``anthropic`` -- ``langchain-anthropic``     (``ChatAnthropic``)
+- ``google``      -- ``langchain-google-genai``  (``ChatGoogleGenerativeAI``)
+- ``openai``      -- ``langchain-openai``        (``ChatOpenAI``)
+- ``anthropic``   -- ``langchain-anthropic``     (``ChatAnthropic``)
+- ``openrouter``  -- ``langchain-openrouter``    (``ChatOpenRouter``)
 
 Auth is via the standard env vars: ``GOOGLE_API_KEY``, ``OPENAI_API_KEY``,
-``ANTHROPIC_API_KEY``.
+``ANTHROPIC_API_KEY``, ``OPENROUTER_API_KEY``.
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ RUNTIME_METADATA_KEY = "_worldsim_runtime"
 # ── Defaults ──────────────────────────────────────────────────────────────
 
 DEFAULT_MODEL = "gemini-3.1-pro-preview"
-SUPPORTED_PROVIDERS = ("google", "openai", "anthropic")
+SUPPORTED_PROVIDERS = ("google", "openai", "anthropic", "openrouter")
 
 # Provider auto-detection: prefix -> provider name.
 _PREFIX_MAP: list[tuple[str, str]] = [
@@ -57,6 +58,8 @@ _PREFIX_MAP: list[tuple[str, str]] = [
 
 def detect_provider(model: str) -> str | None:
     """Best-effort provider detection from the model name."""
+    if "/" in model:
+        return "openrouter"
     lower = model.lower()
     for prefix, provider in _PREFIX_MAP:
         if lower.startswith(prefix):
@@ -143,6 +146,16 @@ def make_llm(
             ) from exc
         return ChatAnthropic(model=model, temperature=temperature)
 
+    if provider == "openrouter":
+        try:
+            from langchain_openrouter import ChatOpenRouter
+        except ImportError as exc:
+            raise RuntimeError(
+                "langchain-openrouter is required for the OpenRouter provider. "
+                "Install it with: uv pip install langchain-openrouter"
+            ) from exc
+        return ChatOpenRouter(model=model, temperature=temperature)
+
     raise ValueError(
         f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}"
     )
@@ -178,6 +191,7 @@ async def run_tasks_by_site(
     task_runner: Callable[[dict[str, Any], AgentRunner, BenchmarkInstance, Path], Any],
     task_dir_root: Path,
     config_url_placeholders: dict[str, str] | None = None,
+    resume: bool = False,
 ) -> list[dict[str, Any]]:
     """Run tasks only against instances for the same site.
 
@@ -222,6 +236,7 @@ async def run_tasks_by_site(
                     instance,
                     _instances,
                 ),
+                resume=resume,
             )
         )
 

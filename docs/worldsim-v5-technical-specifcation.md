@@ -170,6 +170,34 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 `_PHASE_ORDER` is a fixed list: `["phase_0a", "phase_0b", "phase_0c", "phase_1", "phase_2", "phase_3", "phase_4"]`. The resume loader also checks for a `logs_dir` key in the state metadata; if present, it uses that path instead of the default, allowing runs that were started with a custom `WORLDSIM_STATE_DIR` to resume correctly.
 
+### Per-Task Resume (Phase 3 and Phase 4)
+
+Phase-level resume re-runs the entire phase on crash. For Phase 3 and Phase 4, where each task costs $0.50-2.00 in agent evaluation, this is too expensive. These phases implement per-task resume using the existing trajectory artifact structure.
+
+**Completion sentinel.** Each task evaluation writes `result.json` to its task directory via `save_result`, using the same atomic tmpfile + `os.replace` pattern as `save_state`. The presence of a valid `result.json` is the completion marker. Tasks with `history.json` but no `result.json` are treated as crashed mid-execution and re-run.
+
+**Resume flow:**
+
+1. Phase saves `task_dir_root` in `save_state()` metadata alongside the phase step and status.
+2. On `--resume`, the phase reads the saved `task_dir_root` from `pipeline_state.json` instead of generating a new timestamped path.
+3. `run_eval` scans `task_dir_root` for existing `result.json` files via `load_completed_results`, loads them as prior results, and filters them out of the task queue.
+4. Only remaining tasks are distributed to workers.
+5. Prior results are merged with new results before downstream processing.
+
+save_state(
+    "phase_3",
+    status="running",
+    task_dir_root=str(task_dir_root),  # preserved for per-task resume
+    instances_path=str(instances_path),
+    agent_model=agent_model,
+)
+
+**Circuit breaker.** If more than 30% of tasks in a phase produce errors (not agent failures, but infrastructure errors like worker crashes or network timeouts), the diagnosis loop is skipped and the issue is surfaced to the operator. This follows the retry-loop circuit breaker pattern from AgentLab.
+
+**No-changes heuristic.** During the diagnosis-fix loop, if the diagnosis sandbox returns a fix that produces no effective changes to the task or reward function, the loop exits early and classifies the failure as an agent limitation. This avoids wasting Modal sandbox invocations on tasks where the problem is the agent, not the evaluation setup.
+
+This per-task sentinel pattern follows the convention used by SWE-bench (`report.json`), SWE-agent (`.traj` files), AgentLab (`summary_info.json`), and WebArena (HTML output files).
+
 ### Browser Use Integration
 
 We use Browser Use for running agents against benchmark environments:

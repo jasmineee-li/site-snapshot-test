@@ -68,14 +68,32 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    task_dir_root = state_dir / "phase_3" / timestamp
+    # On resume, reuse the task_dir_root from the prior run so
+    # load_completed_results can find existing result.json files.
+    resume = getattr(args, "resume", False)
+    prior_state = None
+    if resume:
+        from worldsim.state import load_state
+        prior_state = load_state()
+
+    if (
+        prior_state
+        and prior_state.get("step") == "phase_3"
+        and prior_state.get("task_dir_root")
+    ):
+        task_dir_root = Path(prior_state["task_dir_root"])
+        logger.info("Resume: reusing task_dir_root %s", task_dir_root)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        task_dir_root = state_dir / "phase_3" / timestamp
+
     agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
     save_state(
         "phase_3",
         status="running",
+        task_dir_root=str(task_dir_root),
         instances_path=str(instances_path),
         agent_model=agent_model,
         agent_provider=agent_provider,
@@ -105,6 +123,7 @@ async def run(args: argparse.Namespace) -> int:
         task_runner=run_task,
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
+        resume=resume,
     )
 
     # Summarize results
@@ -121,12 +140,37 @@ async def run(args: argparse.Namespace) -> int:
     profiles_dir = state_dir / "phase_0c"
     diagnosed: list[dict] = []
 
+    # Circuit breaker: if >30% of tasks errored (infrastructure problems,
+    # not agent failures), skip the expensive diagnosis loop and surface the
+    # issue to the operator. Follows AgentLab's retry-loop pattern.
+    error_tasks = [r for r in results if r.get("outcome") == "error"]
+    if error_tasks and len(error_tasks) > 0.3 * len(results):
+        logger.warning(
+            "Circuit breaker: %d/%d tasks errored (>30%%), skipping diagnosis. "
+            "This likely indicates an infrastructure problem, not task bugs.",
+            len(error_tasks), len(results),
+        )
+        failed_tasks = [r for r in failed_tasks if r.get("outcome") != "error"]
+
     for r in failed_tasks:
         task_id = str(r.get("task_id", "?"))
         task = prepared_by_id.get(task_id)
         if not task:
             logger.warning("Could not find task %s for diagnosis", task_id)
             continue
+
+        # On resume, skip tasks that were already diagnosed in a prior run.
+        diagnosis_file = (
+            task_dir_root / safe_task_path_component(task_id) / "diagnosis.json"
+        )
+        if resume and diagnosis_file.exists():
+            try:
+                prior_diagnosis = json.loads(diagnosis_file.read_text())
+                diagnosed.append({"task_id": task_id, **prior_diagnosis})
+                logger.info("Resume: reusing prior diagnosis for task %s", task_id)
+                continue
+            except (json.JSONDecodeError, OSError):
+                pass
 
         site = task["site"]
         profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
@@ -135,7 +179,7 @@ async def run(args: argparse.Namespace) -> int:
         )
 
         if not trajectory_dir.exists():
-            logger.warning("No trajectory dir for task %s — skipping diagnosis", task_id)
+            logger.warning("No trajectory dir for task %s, skipping diagnosis", task_id)
             continue
 
         fix_result = await fix_loop(
@@ -147,6 +191,11 @@ async def run(args: argparse.Namespace) -> int:
             agent_factory=agent_factory,
         )
         diagnosed.append({"task_id": task_id, **fix_result})
+
+        # Persist diagnosis for resume. Without this, all diagnoses would
+        # re-run on crash recovery (Modal sandbox invocations are expensive).
+        diagnosis_file.parent.mkdir(parents=True, exist_ok=True)
+        diagnosis_file.write_text(json.dumps(fix_result, indent=2))
 
     # Write validated tasks (passed + fixed)
     passed_ids = {r["task_id"] for r in passed_tasks}
@@ -181,6 +230,7 @@ async def run(args: argparse.Namespace) -> int:
     save_state(
         "phase_3",
         status="complete",
+        task_dir_root=str(task_dir_root),
         validated_tasks_path=str(output_dir / "validated_tasks.json"),
         instances_path=str(instances_path),
         agent_model=agent_model,
@@ -399,7 +449,16 @@ async def fix_loop(
         if root_cause in ("reward_bug", "seed_bug"):
             suggested_fix = diagnosis.get("suggested_fix")
             if suggested_fix:
-                current_task = _apply_fix(current_task, suggested_fix)
+                candidate_task = _apply_fix(current_task, suggested_fix)
+                # If the fix sandbox made no effective changes, the remaining
+                # failure is an agent limitation, not a task bug.
+                if candidate_task == current_task:
+                    logger.info(
+                        "Diagnosis made no changes to task %s, treating as agent limitation",
+                        task.get("id", "?"),
+                    )
+                    return {"action": "keep_flagged", "root_cause": "agent_limitation", "diagnosis": diagnosis}
+                current_task = candidate_task
                 live_instance = _select_instance_for_task(current_task, instances)
                 if live_instance is None:
                     return {
