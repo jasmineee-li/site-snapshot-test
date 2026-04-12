@@ -171,7 +171,7 @@ async def run_claude_in_sandbox(
     try:
         # Write the prompt directly to the sandbox filesystem. This avoids
         # creating a mount object for a small, per-call file.
-        await sandbox.filesystem.write_text(prompt, "/workspace/_prompt.txt")
+        await sandbox.filesystem.write_text.aio(prompt, "/workspace/_prompt.txt")
 
         claude_ps = await sandbox.exec.aio(
             "python", "/workspace/_sdk_runner.py", model,
@@ -202,7 +202,7 @@ async def run_claude_in_sandbox(
                 summary_data = event
                 _log_summary(event)
 
-        await claude_ps.wait()
+        await claude_ps.wait.aio()
 
         if claude_ps.returncode != 0:
             logger.warning(
@@ -216,7 +216,7 @@ async def run_claude_in_sandbox(
         outputs: dict[str, str | None] = {}
         for path in output_paths:
             try:
-                outputs[path] = await sandbox.filesystem.read_text(path)
+                outputs[path] = await sandbox.filesystem.read_text.aio(path)
             except Exception as e:  # noqa: BLE001 -- tolerate missing files
                 outputs[path] = None
                 logger.warning("could not read %s from sandbox: %s", path, e)
