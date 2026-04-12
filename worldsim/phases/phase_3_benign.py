@@ -24,12 +24,13 @@ import logging
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import requests
 
 from worldsim.browser_use_agent import AgentResult, AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
+from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.eval_worker_pool import run_eval
 from worldsim.modal_sandbox import run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
@@ -56,10 +57,11 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
 
-    save_state("phase_3", status="running")
+    save_state("phase_3", status="running", instances_path=str(instances_path))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     task_dir_root = STATE_DIR / "phase_3" / timestamp
+    agent_factory = _make_agent_factory()
 
     logger.info(
         "Phase 3: validating %d benign tasks across %d instances",
@@ -67,11 +69,11 @@ async def run(args: argparse.Namespace) -> int:
         len(config.instances),
     )
 
-    # Run evaluation via worker pool
-    results = await run_eval(
+    # Run evaluation via worker pool, routing tasks only to matching site instances.
+    results = await _run_tasks_by_site(
         tasks=benign_tasks,
         instances=config.instances,
-        agent_factory=_make_agent_factory(),
+        agent_factory=agent_factory,
         task_runner=run_task,
         task_dir_root=task_dir_root,
     )
@@ -110,14 +112,23 @@ async def run(args: argparse.Namespace) -> int:
             trajectory_dir=trajectory_dir,
             profile_path=profile_path,
             task_dir_root=task_dir_root,
+            instances=config.instances,
+            agent_factory=agent_factory,
         )
         diagnosed.append({"task_id": task_id, **fix_result})
 
     # Write validated tasks (passed + fixed)
     passed_ids = {r["task_id"] for r in passed_tasks}
     fixed_ids = {d["task_id"] for d in diagnosed if d.get("action") == "fixed"}
-    all_passing_ids = passed_ids | fixed_ids
-    validated_tasks = [t for t in benign_tasks if t["id"] in all_passing_ids]
+    validated_tasks_by_id = {t["id"]: t for t in benign_tasks if t["id"] in passed_ids}
+    for diagnosis in diagnosed:
+        if diagnosis.get("action") == "fixed" and diagnosis.get("fixed_task"):
+            validated_tasks_by_id[diagnosis["task_id"]] = diagnosis["fixed_task"]
+    validated_tasks = [
+        validated_tasks_by_id[t["id"]]
+        for t in benign_tasks
+        if t["id"] in validated_tasks_by_id
+    ]
 
     output_dir = STATE_DIR / "phase_3"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -133,6 +144,8 @@ async def run(args: argparse.Namespace) -> int:
         fixed=len(fixed_ids),
         total=len(benign_tasks),
     )
+    cost_tracker.log_phase_summary("phase_3")
+    cost_tracker.save(STATE_DIR / "cost_report.json")
     logger.info(
         "Phase 3 complete — %d validated (%d passed + %d fixed) out of %d total",
         len(validated_tasks),
@@ -177,7 +190,7 @@ async def run_task(
         reward=task["reward_function"],
         instance=instance_dict,
         agent_result=result,
-        network_trace=None,  # TODO: capture HAR trace from Browser Use
+        network_trace=result.network_trace,
     )
 
     # Save trajectory artifacts
@@ -228,6 +241,11 @@ async def diagnose_failure(
             output_paths=["/workspace/output/diagnosis.json"],
         )
 
+    cost_tracker.record(
+        "phase_3", outputs.get("_summary"),
+        task_id=task.get("id"), site=task.get("site"),
+    )
+
     diag_json = outputs.get("/workspace/output/diagnosis.json")
     if not diag_json:
         return {
@@ -251,6 +269,8 @@ async def fix_loop(
     trajectory_dir: Path,
     profile_path: Path,
     task_dir_root: Path,
+    instances: list[BenchmarkInstance],
+    agent_factory: Callable[[], BrowserUseAgent],
     max_iterations: int = 2,
 ) -> dict[str, Any]:
     """Iterative diagnosis-fix loop for failed tasks.
@@ -282,13 +302,36 @@ async def fix_loop(
             suggested_fix = diagnosis.get("suggested_fix")
             if suggested_fix:
                 current_task = _apply_fix(current_task, suggested_fix)
-                # Note: re-running requires a live instance — for now just
-                # record the fix and mark as needing re-validation
-                return {
-                    "action": "fixed",
-                    "diagnosis": diagnosis,
-                    "fixed_task": current_task,
-                }
+                live_instance = _select_instance_for_task(current_task, instances)
+                if live_instance is None:
+                    return {
+                        "action": "keep_flagged",
+                        "diagnosis": diagnosis,
+                        "fixed_task": current_task,
+                        "rerun": {
+                            "passed": False,
+                            "message": "No matching live instance available for rerun",
+                        },
+                    }
+
+                rerun_dir = task_dir_root / f"{task.get('id', 'unknown')}__revalidation_{iteration + 1}"
+                rerun_result = await _rerun_live_task(
+                    task=current_task,
+                    instance=live_instance,
+                    agent_factory=agent_factory,
+                    task_dir=rerun_dir,
+                )
+                if rerun_result.get("passed"):
+                    return {
+                        "action": "fixed",
+                        "diagnosis": diagnosis,
+                        "fixed_task": current_task,
+                        "rerun": rerun_result,
+                        "rerun_task_dir": str(rerun_dir),
+                    }
+
+                current_trajectory = rerun_dir
+                continue
 
         # Unknown root cause — flag and move on
         return {"action": "keep_flagged", "diagnosis": diagnosis}
@@ -308,6 +351,91 @@ def _apply_fix(task: dict, suggested_fix: dict) -> dict:
         task["data_seed"].update(patch)
 
     return task
+
+
+def _select_instance_for_task(
+    task: dict[str, Any], instances: list[BenchmarkInstance]
+) -> BenchmarkInstance | None:
+    """Pick a live benchmark instance that matches the task site."""
+    site = str(task.get("site", "")).lower()
+    for instance in instances:
+        if instance.site_name.lower() == site:
+            return instance
+    return None
+
+
+async def _rerun_live_task(
+    task: dict[str, Any],
+    instance: BenchmarkInstance,
+    agent_factory: Callable[[], BrowserUseAgent],
+    task_dir: Path,
+) -> dict[str, Any]:
+    """Rerun a patched task against a live instance before validation."""
+    agent = agent_factory()
+    try:
+        try:
+            await agent.setup(instance.site_url)
+            result = await run_task(task, agent, instance, task_dir)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Live rerun failed for task %s: %s", task.get("id", "?"), e)
+            return {
+                "task_id": task.get("id", "unknown"),
+                "passed": False,
+                "message": f"rerun failed: {e}",
+                "error": repr(e),
+                "task_dir": str(task_dir),
+            }
+
+        return {**result, "task_dir": str(task_dir)}
+    finally:
+        await agent.teardown()
+
+
+async def _run_tasks_by_site(
+    tasks: list[dict[str, Any]],
+    instances: list[BenchmarkInstance],
+    agent_factory: Callable[[], BrowserUseAgent],
+    task_runner: Callable[[dict[str, Any], AgentRunner, BenchmarkInstance, Path], Any],
+    task_dir_root: Path,
+) -> list[dict[str, Any]]:
+    """Run tasks only against instances for the same site."""
+    tasks_by_site: dict[str, list[dict[str, Any]]] = {}
+    for task in tasks:
+        tasks_by_site.setdefault(task.get("site", ""), []).append(task)
+
+    results: list[dict[str, Any]] = []
+    batches = []
+    for site_name, site_tasks in tasks_by_site.items():
+        site_instances = [
+            instance for instance in instances
+            if instance.site_name.lower() == str(site_name).lower()
+        ]
+        if not site_instances:
+            logger.error("No instances configured for site %r", site_name)
+            results.extend(
+                {
+                    "task_id": task.get("id", "unknown"),
+                    "passed": False,
+                    "message": f"no instances configured for site {site_name!r}",
+                }
+                for task in site_tasks
+            )
+            continue
+        batches.append(
+            run_eval(
+                tasks=site_tasks,
+                instances=site_instances,
+                agent_factory=agent_factory,
+                task_runner=task_runner,
+                task_dir_root=task_dir_root,
+            )
+        )
+
+    if batches:
+        grouped_results = await asyncio.gather(*batches)
+        for batch in grouped_results:
+            results.extend(batch)
+    return results
 
 
 def _make_agent_factory():

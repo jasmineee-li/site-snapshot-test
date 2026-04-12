@@ -22,7 +22,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from worldsim.state import load_state
+from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.state import STATE_DIR, load_state
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,23 +65,102 @@ def main(argv: list[str] | None = None) -> int:
         "reset_endpoint). Required for Phases 3-4.",
     )
 
-    subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
+    resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
+    resume_cmd.add_argument(
+        "--benchmark",
+        type=Path,
+        help="Path to the benchmark codebase (overrides path from state).",
+    )
+    resume_cmd.add_argument(
+        "--config",
+        type=Path,
+        help="Path to a BENCHMARK_MANIFEST.json (overrides path from state).",
+    )
+    resume_cmd.add_argument(
+        "--instances",
+        type=Path,
+        help="JSON file with BenchmarkConfig (overrides path from state).",
+    )
 
     args = parser.parse_args(argv)
 
     if args.command == "resume":
-        state = load_state()
-        if state is None:
-            print("No pipeline state found; run a phase first.", file=sys.stderr)
-            return 1
-        print(f"Last checkpoint: {state}")
-        print("resume is not yet implemented", file=sys.stderr)
-        return 1
+        return _dispatch_resume(args)
 
     if args.command == "phase":
         return _dispatch_phase(args)
 
     return 0
+
+
+# Ordered pipeline steps. Each entry maps step name -> (phase_id, sub) where
+# sub is the sub-step for Phase 0, or None for later phases.
+_PHASE_ORDER: list[str] = [
+    "phase_0a", "phase_0b", "phase_0c",
+    "phase_1", "phase_2", "phase_3", "phase_4",
+]
+
+
+def _next_step(step: str) -> str | None:
+    """Return the step after ``step``, or None if ``step`` is the last."""
+    try:
+        idx = _PHASE_ORDER.index(step)
+    except ValueError:
+        return None
+    if idx + 1 < len(_PHASE_ORDER):
+        return _PHASE_ORDER[idx + 1]
+    return None
+
+
+def _dispatch_resume(args: argparse.Namespace) -> int:
+    """Read last checkpoint and dispatch to the appropriate phase."""
+    state = load_state()
+    if state is None:
+        print("No pipeline state found; run a phase first.", file=sys.stderr)
+        return 1
+
+    last_step = state.get("step", "")
+    status = state.get("status", "")
+
+    if status == "complete":
+        target = _next_step(last_step)
+        if target is None:
+            print(f"Last checkpoint: {last_step} complete. Pipeline finished — nothing to resume.")
+            return 0
+        print(f"Last checkpoint: {last_step} complete. Resuming from {target}.")
+    elif status == "running":
+        target = last_step
+        print(f"Last checkpoint: {last_step} was running (likely crashed). Re-running {target}.")
+    else:
+        print(f"Last checkpoint: {last_step} has unknown status {status!r}.", file=sys.stderr)
+        return 1
+
+    # Build a synthetic argparse.Namespace that _dispatch_phase understands.
+    # CLI flags override state metadata; state metadata fills gaps.
+    benchmark = getattr(args, "benchmark", None)
+    config = getattr(args, "config", None)
+    instances = getattr(args, "instances", None)
+
+    # Fall back to paths stored in state metadata
+    if benchmark is None and "benchmark_path" in state:
+        benchmark = Path(state["benchmark_path"])
+    if config is None and "manifest_path" in state:
+        config = Path(state["manifest_path"])
+    if instances is None and "instances_path" in state:
+        instances = Path(state["instances_path"])
+
+    # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
+    phase_id = target.replace("phase_", "")
+
+    synthetic = argparse.Namespace(
+        command="phase",
+        phase=phase_id,
+        benchmark=benchmark,
+        config=config,
+        instances=instances,
+    )
+
+    return _dispatch_phase(synthetic)
 
 
 def _dispatch_phase(args: argparse.Namespace) -> int:
@@ -93,23 +173,34 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         phase_4_adversarial,
     )
 
+    # Load any previously saved cost data so cross-phase totals accumulate.
+    cost_report_path = STATE_DIR / "cost_report.json"
+    cost_tracker.load(cost_report_path)
+
     phase = args.phase
     if phase in {"0", "0a", "0b", "0c"}:
         if not args.benchmark:
             print("--benchmark is required for Phase 0", file=sys.stderr)
             return 1
-        return asyncio.run(phase_0_recon.run(benchmark=args.benchmark, sub=phase))
+        rc = asyncio.run(phase_0_recon.run(benchmark=args.benchmark, sub=phase))
     elif phase == "1":
-        return asyncio.run(phase_1_tasks.run(args))
+        rc = asyncio.run(phase_1_tasks.run(args))
     elif phase == "2":
-        return asyncio.run(phase_2_injections.run(args))
+        rc = asyncio.run(phase_2_injections.run(args))
     elif phase == "3":
-        return asyncio.run(phase_3_benign.run(args))
+        rc = asyncio.run(phase_3_benign.run(args))
     elif phase == "4":
-        return asyncio.run(phase_4_adversarial.run(args))
+        rc = asyncio.run(phase_4_adversarial.run(args))
     else:
         print(f"Unknown phase: {phase}", file=sys.stderr)
         return 1
+
+    # Log final pipeline cost summary if any sandbox calls were recorded.
+    if cost_tracker.entries:
+        logger = logging.getLogger(__name__)
+        logger.info("--- Cost Summary ---\n%s", cost_tracker.summary_report())
+
+    return rc
 
 
 if __name__ == "__main__":

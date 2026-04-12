@@ -28,19 +28,18 @@ NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
 
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
-    .apt_install("curl", "git", "jq", "nodejs", "npm")
-    .run_commands(
-        "npm install -g @anthropic-ai/claude-code",
-        "mkdir -p /workspace /root/.claude",
-    )
+    .apt_install("curl", "git", "jq")
     .env({
-        # IS_SANDBOX=1 lets Claude Code accept --dangerously-skip-permissions
-        # as root (github.com/anthropics/claude-code/issues/3490). This is
-        # Modal's own recommended pattern for running Claude Code in sandboxes.
+        # IS_SANDBOX=1 lets Claude Code accept bypassPermissions as root
+        # (github.com/anthropics/claude-code/issues/3490).
         "IS_SANDBOX": "1",
     })
-    # Pre-accept trust dialog so Claude Code runs non-interactively.
+    # claude-agent-sdk bundles the Claude Code CLI + Node.js runtime,
+    # so no separate nodejs/npm/npm-install needed.
+    .pip_install("requests", "browser-use>=0.12.6", "claude-agent-sdk")
     .run_commands(
+        "mkdir -p /workspace /root/.claude",
+        # Pre-accept trust dialog so Claude Code runs non-interactively.
         'python3 -c "'
         "import json; from pathlib import Path; "
         "Path('/root/.claude.json').write_text("
@@ -49,7 +48,6 @@ base_image = (
         "json.dumps({'skipDangerousModePermissionPrompt': True}))"
         '"',
     )
-    .pip_install("requests", "browser-use>=0.12.6", "claude-agent-sdk")
 )
 
 

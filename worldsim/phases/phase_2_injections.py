@@ -23,6 +23,7 @@ import logging
 import tempfile
 from pathlib import Path
 
+from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import STATE_DIR, save_state
@@ -89,6 +90,8 @@ async def run(args: argparse.Namespace) -> int:
     save_state("phase_2", status="complete",
                adversarial_tasks_path=str(output_path),
                task_count=len(all_adversarial))
+    cost_tracker.log_phase_summary("phase_2")
+    cost_tracker.save(STATE_DIR / "cost_report.json")
     logger.info("Phase 2 complete — %d adversarial tasks written to %s",
                 len(all_adversarial), output_path)
     return 0
@@ -128,6 +131,8 @@ async def _generate_injections_for_site(
             prompt=load_prompt("generate-injections"),
             output_paths=["/workspace/output/adversarial_tasks.json"],
         )
+
+    cost_tracker.record("phase_2", outputs.get("_summary"), site=site_name)
 
     adv_json = outputs.get("/workspace/output/adversarial_tasks.json")
     if not adv_json:

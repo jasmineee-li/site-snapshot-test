@@ -20,9 +20,12 @@ import asyncio
 import json
 import logging
 import os
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
+from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import run_claude_in_sandbox, upload_to_volume
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import STATE_DIR, save_state
@@ -52,7 +55,10 @@ async def run(benchmark: Path, sub: str = "0") -> int:
             "phase_0a",
             status="complete",
             manifest_path=str(output_base / "phase_0a" / "BENCHMARK_MANIFEST.json"),
+            benchmark_path=str(benchmark),
         )
+        cost_tracker.log_phase_summary("phase_0a")
+        cost_tracker.save(STATE_DIR / "cost_report.json")
         logger.info("Phase 0a complete — manifest written")
         if sub == "0a":
             return 0
@@ -70,7 +76,8 @@ async def run(benchmark: Path, sub: str = "0") -> int:
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "SANDBOX_MAP.json").write_text(json.dumps(sandbox_map, indent=2))
         save_state("phase_0b", status="complete",
-                   sandbox_map_path=str(out_dir / "SANDBOX_MAP.json"))
+                   sandbox_map_path=str(out_dir / "SANDBOX_MAP.json"),
+                   benchmark_path=str(benchmark))
         logger.info("Phase 0b complete — sandbox maps written for %d sites", len(sandbox_map))
         if sub == "0b":
             return 0
@@ -91,7 +98,10 @@ async def run(benchmark: Path, sub: str = "0") -> int:
         save_state("phase_0c", status="running")
         await run_phase_0c(manifest, sandbox_map, benchmark, output_base / "phase_0c")
         save_state("phase_0c", status="complete",
-                   profiles_dir=str(output_base / "phase_0c"))
+                   profiles_dir=str(output_base / "phase_0c"),
+                   benchmark_path=str(benchmark))
+        cost_tracker.log_phase_summary("phase_0c")
+        cost_tracker.save(STATE_DIR / "cost_report.json")
         logger.info("Phase 0c complete — per-site profiles written")
 
     return 0
@@ -131,6 +141,8 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
         volumes={"/workspace/benchmark": vol},
     )
 
+    cost_tracker.record("phase_0a", outputs.get("_summary"))
+
     manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
     if not manifest_json:
         raise RuntimeError(
@@ -160,13 +172,14 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
             "Only include paths you have verified exist."
         )
         outputs = await run_claude_in_sandbox(
-            site_files=site_files,
+            site_files={},
             prompt=prompt + correction,
             output_paths=[
                 "/workspace/output/BENCHMARK_MANIFEST.json",
                 "/workspace/output/BENCHMARK_MANIFEST.md",
             ],
         )
+        cost_tracker.record("phase_0a", outputs.get("_summary"))
         manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
         if manifest_json:
             manifest = json.loads(manifest_json)
@@ -392,22 +405,44 @@ async def run_phase_0c(
     async def profile_one_site(
         site_name: str, file_list: list[str]
     ) -> tuple[str, dict[str, str | None]]:
-        site_files: dict[str, str] = {}
-        for local_path in file_list:
-            rel = os.path.relpath(local_path, benchmark_root)
-            site_files[f"/workspace/benchmark/{rel}"] = local_path
+        # Stage all files into a single temp dir mirroring /workspace/benchmark/
+        # structure, then mount once via add_local_dir. This replaces N separate
+        # add_local_file calls (each SHA-256 hashed individually) with one
+        # add_local_dir call, significantly reducing sandbox build time.
+        #
+        # The inner dir must be named "benchmark" because modal_sandbox.py's
+        # add_local_dir logic takes parent of the remote_path and places the
+        # directory by name — so /workspace/benchmark -> parent=/workspace,
+        # and the dir named "benchmark" lands at /workspace/benchmark/.
+        staging_root = Path(tempfile.mkdtemp(prefix=f"worldsim_0c_{site_name}_"))
+        staging_dir = staging_root / "benchmark"
+        staging_dir.mkdir()
+        try:
+            for local_path in file_list:
+                rel = os.path.relpath(local_path, benchmark_root)
+                staged = staging_dir / rel
+                staged.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(local_path, staged)
 
-        logger.info("Phase 0c: launching profiling sandbox for site %r (%d files)",
-                     site_name, len(file_list))
+            site_files = {"/workspace/benchmark": str(staging_dir)}
 
-        outputs = await run_claude_in_sandbox(
-            site_files=site_files,
-            prompt=load_prompt("profile-site"),
-            output_paths=[
-                "/workspace/output/BENCHMARK_PROFILE.json",
-                "/workspace/output/BENCHMARK_PROFILE.md",
-            ],
-        )
+            logger.info(
+                "Phase 0c: launching profiling sandbox for site %r "
+                "(%d files staged into 1 mount)",
+                site_name, len(file_list),
+            )
+
+            outputs = await run_claude_in_sandbox(
+                site_files=site_files,
+                prompt=load_prompt("profile-site"),
+                output_paths=[
+                    "/workspace/output/BENCHMARK_PROFILE.json",
+                    "/workspace/output/BENCHMARK_PROFILE.md",
+                ],
+            )
+            cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
+        finally:
+            shutil.rmtree(staging_root, ignore_errors=True)
 
         for remote_path, content in outputs.items():
             if content and not remote_path.startswith("_"):
