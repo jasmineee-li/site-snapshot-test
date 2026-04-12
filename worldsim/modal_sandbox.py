@@ -102,9 +102,12 @@ def _build_claude_secrets() -> list[modal.Secret]:
 
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 
-# Cache the Modal App object to avoid repeated lookups (rate-limit risk at scale).
 async def _get_app() -> modal.App:
-    """Look up (or create) the Modal App for this pipeline."""
+    """Look up (or create) the Modal App for this pipeline.
+
+    Called per-sandbox. Modal handles server-side idempotency on
+    create_if_missing, so concurrent lookups are safe.
+    """
     return await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
 
 

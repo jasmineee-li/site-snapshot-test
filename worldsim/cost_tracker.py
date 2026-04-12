@@ -154,14 +154,20 @@ class CostTracker:
         logger.info("Cost report written to %s", path)
 
     def load(self, path: Path) -> None:
-        """Load previously saved entries (for --resume across phases)."""
+        """Load previously saved entries (for --resume across phases).
+
+        Replaces in-memory entries with the file contents to prevent
+        double-counting when a phase is re-run.
+        """
         if not path.exists():
             return
         try:
             data = json.loads(path.read_text())
+            loaded = []
             for raw in data.get("entries", []):
-                self.entries.append(SandboxCostEntry(**raw))
-            logger.info("Loaded %d cost entries from %s", len(data.get("entries", [])), path)
+                loaded.append(SandboxCostEntry(**raw))
+            self.entries = loaded
+            logger.info("Loaded %d cost entries from %s", len(loaded), path)
         except (json.JSONDecodeError, TypeError, KeyError) as exc:
             logger.warning("Could not load cost report from %s: %s", path, exc)
 
