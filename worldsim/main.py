@@ -21,11 +21,15 @@ import asyncio
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from worldsim.state import load_state
 
 
 def main(argv: list[str] | None = None) -> int:
     """Lazy-CLI entrypoint. See module docstring for usage."""
+    load_dotenv()  # .env fills gaps; shell exports take precedence
+
     parser = argparse.ArgumentParser(
         prog="worldsim",
         description="WorldSim v5 adversarial evaluation pipeline",
