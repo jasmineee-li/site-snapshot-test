@@ -66,9 +66,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     phase_cmd.add_argument(
         "--agent-model",
-        default="gemini-2.5-pro-preview",
-        help="LLM model name for Browser Use agent (default: gemini-2.5-pro-preview). "
-        "Examples: gpt-4o, claude-sonnet-4-20250514, gemini-2.5-pro-preview.",
+        default="gemini-3.1-pro-preview",
+        help="LLM model name for Browser Use agent (default: gemini-3.1-pro-preview). "
+        "Examples: gpt-5.4, claude-sonnet-4-20250514, gemini-3.1-pro-preview.",
     )
     phase_cmd.add_argument(
         "--agent-provider",
@@ -97,8 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     resume_cmd.add_argument(
         "--agent-model",
-        default="gemini-2.5-pro-preview",
-        help="LLM model name for Browser Use agent (default: gemini-2.5-pro-preview).",
+        default="gemini-3.1-pro-preview",
+        help="LLM model name for Browser Use agent (default: gemini-3.1-pro-preview).",
     )
     resume_cmd.add_argument(
         "--agent-provider",
@@ -183,7 +183,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         benchmark=benchmark,
         config=config,
         instances=instances,
-        agent_model=getattr(args, "agent_model", "gemini-2.5-pro-preview"),
+        agent_model=getattr(args, "agent_model", "gemini-3.1-pro-preview"),
         agent_provider=getattr(args, "agent_provider", None),
     )
 

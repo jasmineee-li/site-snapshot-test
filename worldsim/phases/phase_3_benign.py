@@ -61,7 +61,7 @@ async def run(args: argparse.Namespace) -> int:
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     task_dir_root = STATE_DIR / "phase_3" / timestamp
-    agent_model = getattr(args, "agent_model", None) or "gemini-2.5-pro-preview"
+    agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
 

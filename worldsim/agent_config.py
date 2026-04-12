@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # ── Defaults ──────────────────────────────────────────────────────────────
 
-DEFAULT_MODEL = "gemini-2.5-pro-preview"
+DEFAULT_MODEL = "gemini-3.1-pro-preview"
 DEFAULT_PROVIDER = "google"
 
 # Provider auto-detection: prefix -> provider name.
@@ -64,8 +64,8 @@ def make_llm(
     """Return a LangChain ``BaseChatModel`` for the requested provider.
 
     Args:
-        model: Model name string (e.g. ``gemini-2.5-pro-preview``,
-            ``gpt-4o``, ``claude-sonnet-4-20250514``).
+        model: Model name string (e.g. ``gemini-3.1-pro-preview``,
+            ``gpt-5.4``, ``claude-sonnet-4-20250514``).
         provider: One of ``google``, ``openai``, ``anthropic``.  When
             ``None`` the provider is auto-detected from *model*.
         temperature: Sampling temperature.
