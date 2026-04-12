@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from pathlib import Path
 
 import modal
@@ -112,6 +111,7 @@ async def run_claude_in_sandbox(
     output_paths: list[str],
     timeout: int = 3600,
     model: str = "claude-opus-4-6",
+    volumes: dict[str, modal.Volume] | None = None,
 ) -> dict[str, str | None]:
     """Run Claude Code in an isolated Modal Sandbox with only the specified files.
 
@@ -132,6 +132,10 @@ async def run_claude_in_sandbox(
         timeout: Wall-clock timeout for the sandbox in seconds.
         model: Model identifier passed to Claude Agent SDK (default:
             ``claude-opus-4-6``).
+        volumes: Optional dict mapping mount paths to ``modal.Volume`` objects.
+            Use for large, stable file sets (e.g., benchmark codebases) that
+            should be uploaded once and mounted read-only, instead of being
+            re-hashed and re-uploaded as mounts on every call.
 
     Returns:
         Dict mapping each entry in ``output_paths`` to the file's text
@@ -139,7 +143,7 @@ async def run_claude_in_sandbox(
         ``"_summary"`` key contains a JSON string with cost, token usage,
         session ID, and tool-call metadata from the SDK.
     """
-    # -- Build sandbox image with site files + prompt + runner ----------------
+    # -- Build sandbox image with site files + runner --------------------------
     image = base_image
     for remote_path, local_path in site_files.items():
         local = Path(local_path)
@@ -154,22 +158,18 @@ async def run_claude_in_sandbox(
     # Stage the SDK runner script into the sandbox.
     image = image.add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py")
 
-    # Stage the prompt as a file so it doesn't need shell escaping.
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".txt", prefix="worldsim_prompt_", delete=False,
-    ) as tmp:
-        tmp.write(prompt)
-        prompt_tmp_path = tmp.name
-    try:
-        image = image.add_local_file(prompt_tmp_path, remote_path="/workspace/_prompt.txt")
-    finally:
-        # Clean up promptly; Modal has already read the file into the image.
-        Path(prompt_tmp_path).unlink(missing_ok=True)
-
-    # -- Create sandbox and execute the runner --------------------------------
+    # -- Create sandbox --------------------------------------------------------
     app = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
-    sandbox = await modal.Sandbox.create.aio(app=app, image=image, timeout=timeout)
+    sandbox_kwargs: dict = {"app": app, "image": image, "timeout": timeout}
+    if volumes:
+        sandbox_kwargs["volumes"] = volumes
+    sandbox = await modal.Sandbox.create.aio(**sandbox_kwargs)
+
     try:
+        # Write the prompt directly to the sandbox filesystem. This avoids
+        # creating a mount object for a small, per-call file.
+        await sandbox.filesystem.write_text.aio(prompt, "/workspace/_prompt.txt")
+
         claude_ps = await sandbox.exec.aio(
             "python", "/workspace/_sdk_runner.py", model,
             secrets=_build_claude_secrets(),
@@ -209,7 +209,7 @@ async def run_claude_in_sandbox(
         else:
             logger.info("Sandbox runner finished (rc=0)")
 
-        # -- Read output files ------------------------------------------------
+        # -- Read output files -------------------------------------------------
         outputs: dict[str, str | None] = {}
         for path in output_paths:
             try:
@@ -224,6 +224,35 @@ async def run_claude_in_sandbox(
         return outputs
     finally:
         await sandbox.terminate.aio()
+
+
+async def upload_to_volume(
+    local_dir: Path,
+    volume_name: str = "worldsim-benchmark",
+    remote_prefix: str = "/benchmark",
+) -> modal.Volume:
+    """Upload a local directory to a Modal Volume (one-time, content-addressed).
+
+    If the volume already has files under ``remote_prefix``, the upload is
+    skipped. Returns the Volume object ready for mounting.
+    """
+    vol = modal.Volume.from_name(volume_name, create_if_missing=True)
+    try:
+        entries = list(await vol.listdir.aio(remote_prefix))
+        if entries:
+            logger.info(
+                "Volume %r already populated (%d entries at %s), skipping upload",
+                volume_name, len(entries), remote_prefix,
+            )
+            return vol
+    except Exception:
+        pass  # Volume empty or path doesn't exist
+
+    logger.info("Uploading %s to volume %r at %s ...", local_dir, volume_name, remote_prefix)
+    async with vol.batch_upload.aio(force=True) as batch:
+        batch.put_directory(str(local_dir), remote_prefix)
+    logger.info("Upload complete")
+    return vol
 
 
 def _log_summary(summary: dict) -> None:

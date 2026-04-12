@@ -23,7 +23,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from worldsim.modal_sandbox import run_claude_in_sandbox
+from worldsim.modal_sandbox import run_claude_in_sandbox, upload_to_volume
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import STATE_DIR, save_state
 
@@ -115,17 +115,20 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
     if not benchmark_root.is_dir():
         raise FileNotFoundError(f"Benchmark root does not exist: {benchmark_root}")
 
-    site_files = {"/workspace/benchmark": str(benchmark_root)}
+    # Upload benchmark to a Modal Volume once, then mount read-only.
+    # This avoids re-hashing and re-uploading ~100MB on every sandbox creation.
+    vol = await upload_to_volume(benchmark_root)
     prompt = load_prompt("discover-benchmark")
 
     logger.info("Phase 0a: launching discovery sandbox for %s", benchmark_root)
     outputs = await run_claude_in_sandbox(
-        site_files=site_files,
+        site_files={},
         prompt=prompt,
         output_paths=[
             "/workspace/output/BENCHMARK_MANIFEST.json",
             "/workspace/output/BENCHMARK_MANIFEST.md",
         ],
+        volumes={"/workspace/benchmark": vol},
     )
 
     manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
@@ -136,18 +139,23 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
         )
 
     manifest = json.loads(manifest_json)
-    errors = _validate_manifest_paths(manifest, benchmark_root)
+    missing_paths, unsafe_paths = _validate_manifest_paths(manifest, benchmark_root)
+    if unsafe_paths:
+        raise RuntimeError(
+            "Phase 0a manifest contains unsafe paths:\n"
+            + "\n".join(f"  - {error}" for error in unsafe_paths)
+        )
 
-    if errors:
+    if missing_paths:
         logger.warning(
             "Phase 0a manifest has %d path errors — re-running with corrections",
-            len(errors),
+            len(missing_paths),
         )
         correction = (
             "\n\n--- CORRECTION NEEDED ---\n"
             "The previous attempt produced a manifest with invalid paths. "
             "The following paths do NOT exist in the benchmark filesystem:\n"
-            + "\n".join(f"  - {e}" for e in errors)
+            + "\n".join(f"  - {e}" for e in missing_paths)
             + "\n\nPlease re-explore and produce corrected output files. "
             "Only include paths you have verified exist."
         )
@@ -162,9 +170,17 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
         manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
         if manifest_json:
             manifest = json.loads(manifest_json)
-            errors = _validate_manifest_paths(manifest, benchmark_root)
-            if errors:
-                logger.warning("Phase 0a retry still has %d path errors — proceeding anyway", len(errors))
+            missing_paths, unsafe_paths = _validate_manifest_paths(manifest, benchmark_root)
+            if unsafe_paths:
+                raise RuntimeError(
+                    "Phase 0a retry produced unsafe paths:\n"
+                    + "\n".join(f"  - {error}" for error in unsafe_paths)
+                )
+            if missing_paths:
+                logger.warning(
+                    "Phase 0a retry still has %d path errors — proceeding anyway",
+                    len(missing_paths),
+                )
 
     # Write outputs
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -181,18 +197,27 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
     return manifest
 
 
-def _validate_manifest_paths(manifest: dict, benchmark_root: Path) -> list[str]:
+def _validate_manifest_paths(
+    manifest: dict,
+    benchmark_root: Path,
+) -> tuple[list[str], list[str]]:
     """Check that every path referenced in the manifest exists on disk.
 
-    Returns list of error descriptions (empty = all valid).
+    Returns:
+        ``(missing_paths, unsafe_paths)``.
     """
-    errors: list[str] = []
+    missing: list[str] = []
+    unsafe: list[str] = []
     root = Path(benchmark_root).resolve()
 
     def check(path_str: str, context: str) -> None:
-        full = root / path_str
+        try:
+            full = _resolve_manifest_path(root, path_str)
+        except ValueError as exc:
+            unsafe.append(f"{context}: {exc}")
+            return
         if not full.exists():
-            errors.append(f"{context}: {path_str}")
+            missing.append(f"{context}: {path_str}")
 
     # Evaluation harness paths
     for p in manifest.get("evaluation", {}).get("harness_paths", []):
@@ -210,7 +235,7 @@ def _validate_manifest_paths(manifest: dict, benchmark_root: Path) -> list[str]:
         for p in site.get("data_seeding", {}).get("paths", []):
             check(p, f"sites[{name}].data_seeding.paths")
 
-    return errors
+    return missing, unsafe
 
 
 # ---------------------------------------------------------------------------
@@ -260,13 +285,13 @@ def _collect_files(paths: list[str], root: Path) -> list[str]:
     """Resolve relative paths under root, walk directories, return absolute file paths."""
     result: list[str] = []
     for p in paths:
-        full = root / p
+        full = _resolve_manifest_path(root, p)
         if full.is_file():
             result.append(str(full.resolve()))
         elif full.is_dir():
             for f in full.rglob("*"):
                 if f.is_file():
-                    result.append(str(f.resolve()))
+                    result.append(str(_resolve_path_within_root(root, f)))
     return result
 
 
@@ -286,7 +311,7 @@ def _sample_tasks_for_site(
     result: list[str] = []
 
     for tp in task_paths:
-        full = root / tp
+        full = _resolve_manifest_path(root, tp)
         if full.is_file() and full.suffix == ".json":
             # Single file containing all tasks — include the file itself
             # (each sandbox gets the same file; filtering happens in-memory)
@@ -298,19 +323,48 @@ def _sample_tasks_for_site(
                 if count >= max_tasks:
                     break
                 try:
-                    data = json.loads(f.read_text())
+                    safe_file = _resolve_path_within_root(root, f)
+                    data = json.loads(safe_file.read_text())
                     # Handle both single-task and array-of-tasks files
                     tasks = data if isinstance(data, list) else [data]
                     for t in tasks:
                         sites = t.get("sites", [])
                         if site_name in sites or any(site_name in s for s in sites):
-                            result.append(str(f.resolve()))
+                            result.append(str(safe_file))
                             count += 1
                             break
                 except (json.JSONDecodeError, KeyError):
                     continue
 
     return result[:max_tasks]
+
+
+def _resolve_manifest_path(root: Path, path_str: str) -> Path:
+    """Resolve a manifest path under ``root`` and reject escapes."""
+    manifest_path = Path(path_str)
+    if manifest_path.is_absolute():
+        raise ValueError(f"Manifest path must be relative: {path_str}")
+    if ".." in manifest_path.parts:
+        raise ValueError(f"Manifest path must not traverse out of root: {path_str}")
+
+    resolved_root = Path(root).resolve()
+    resolved_path = (resolved_root / manifest_path).resolve(strict=False)
+    try:
+        resolved_path.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError(f"Manifest path escapes benchmark root: {path_str}") from exc
+    return resolved_path
+
+
+def _resolve_path_within_root(root: Path, path: Path) -> Path:
+    """Resolve a discovered filesystem path and ensure it stays under ``root``."""
+    resolved_root = Path(root).resolve()
+    resolved_path = Path(path).resolve()
+    try:
+        resolved_path.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError(f"Discovered file escapes benchmark root: {path}") from exc
+    return resolved_path
 
 
 # ---------------------------------------------------------------------------
