@@ -24,7 +24,7 @@ Do NOT start implementing until all three subagents report back.
 
 ## What's proven (don't re-test, don't modify)
 
-- `run_claude_in_sandbox` works end-to-end (Modal `test` environment, `IS_SANDBOX=1`, `pty=True`, `--output-format json`)
+- `run_claude_in_sandbox` works end-to-end (Modal `test` environment, `IS_SANDBOX=1`, uses `claude-agent-sdk` via `_sdk_runner.py`, returns `_summary` with cost/token/session data)
 - Auth: `_build_claude_secrets()` handles OAuth > OpenRouter > API key. All 9 scenarios pass.
 - Browser Use: `BrowserSession` + `session.kill()` for teardown. Never `.close()`.
 - `.env` loaded at startup via `load_dotenv()`. Shell exports win.

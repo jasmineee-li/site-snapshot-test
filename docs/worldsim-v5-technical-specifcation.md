@@ -54,10 +54,11 @@ import modal
 app = modal.App("worldsim-v5")
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
-    .apt_install("curl", "git", "jq")
-    .env({"PATH": "/root/.local/bin:$PATH"})
-    .run_commands("curl -fsSL https://claude.ai/install.sh | bash")
-    .pip_install("requests", "browser-use>=0.12.6")
+    .apt_install("curl", "git", "jq", "nodejs", "npm")
+    .run_commands("npm install -g @anthropic-ai/claude-code",
+                  "mkdir -p /workspace /root/.claude")
+    .env({"IS_SANDBOX": "1"})
+    .pip_install("requests", "browser-use>=0.12.6", "claude-agent-sdk")
 )
 
 **Sandbox creation pattern** (used throughout the pipeline):
@@ -67,37 +68,49 @@ async def run_claude_in_sandbox(
     prompt: str,
     output_paths: list[str],      # files to collect after execution
     timeout: int = 3600,
-) -> dict[str, str]:
+    model: str = "claude-opus-4-6",
+) -> dict[str, str | None]:
     """Run Claude Code in an isolated Modal Sandbox with only the specified files.
-    Returns a dict mapping output_path -> file contents.
+    Returns a dict mapping output_path -> file contents, plus a "_summary" key
+    with cost, token usage, session ID, and tool-call metadata from the SDK.
     """
     image = base_image
     for remote_path, local_path in site_files.items():
-        parent = str(Path(remote_path).parent)
-        image = image.add_local_dir(local_path, remote_path=parent)
-    sandbox = modal.Sandbox.create(app=app, image=image, timeout=timeout)
-    claude_ps = sandbox.exec(
-        "claude", "-p", prompt,
-        "--dangerously-skip-permissions",
-        "--permission-mode", "plan",
-        "--verbose",
-        "--effort", "high",
-        pty=True,
-        secrets=[modal.Secret.from_name("anthropic-secret")],
+        local = Path(local_path)
+        if local.is_file():
+            image = image.add_local_file(local_path, remote_path=remote_path)
+        elif local.is_dir():
+            image = image.add_local_dir(local_path, remote_path=str(Path(remote_path).parent))
+    # Stage the prompt and SDK runner script into the sandbox.
+    image = image.add_local_file(prompt_tmp_path, remote_path="/workspace/_prompt.txt")
+    image = image.add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py")
+    sandbox = await modal.Sandbox.create.aio(app=app, image=image, timeout=timeout)
+    claude_ps = await sandbox.exec.aio(
+        "python", "/workspace/_sdk_runner.py", model,
+        secrets=_build_claude_secrets(),
         workdir="/workspace",
     )
-    claude_ps.wait()
+    # Stream NDJSON events from the SDK runner for live observability.
+    summary = None
+    async for line in claude_ps.stdout:
+        event = json.loads(line)
+        if event.get("type") == "tool_call":
+            logger.info("tool_call: %s", event.get("tool"))
+        elif event.get("type") == "summary":
+            summary = event
     outputs = {}
     for path in output_paths:
         try:
             outputs[path] = sandbox.filesystem.read_text(path)
-        except Exception as e:
+        except Exception:
             outputs[path] = None
-            print(f"Warning: could not read {path}: {e}")
+    outputs["_summary"] = json.dumps(summary) if summary else None
     sandbox.terminate()
     return outputs
 
 **File routing.** The orchestrator decides which files go into each sandbox. This is the key architectural primitive: instead of scoping via ignore files, we scope via inclusion. Each phase defines its file requirements, and the orchestrator builds the sandbox image from those requirements.
+
+**Structured event logging.** The SDK runner inside each sandbox streams NDJSON events to stdout as Claude Code executes. The orchestrator parses these in real time, logging tool calls and text previews. When the run completes, the SDK yields a ``ResultMessage`` with ``total_cost_usd``, ``num_turns``, ``session_id``, ``duration_ms``, and per-model token breakdowns. This metadata is attached to the return dict under the ``"_summary"`` key, giving callers access to cost and usage data without changing the file-based output contract.
 
 ### State Persistence and Resume
 
@@ -756,6 +769,7 @@ async def run_strategy_variation(task, initial_result, instances, agent_factory,
 - Resistant tasks: where all strategy variants failed under ecological validity  
 - Contaminated compliance data: ASR including scenario recognition compliance (reported separately)  
 - Capability metric: benign task failure rate per model
+- Pipeline cost and token usage: per-sandbox total_cost_usd, num_turns, session_id, and per-model token breakdowns (from ResultMessage on each Claude Agent SDK call)
 
 ---
 

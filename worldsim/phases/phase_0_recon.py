@@ -356,7 +356,7 @@ async def run_phase_0c(
         )
 
         for remote_path, content in outputs.items():
-            if content:
+            if content and not remote_path.startswith("_"):
                 suffix = Path(remote_path).suffix
                 out_path = output_dir / f"BENCHMARK_PROFILE_{site_name}{suffix}"
                 out_path.write_text(content)

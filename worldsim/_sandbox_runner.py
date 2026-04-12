@@ -1,0 +1,97 @@
+"""Sandbox runner -- invoked inside Modal sandbox to run Claude Code via the Agent SDK.
+
+This script is staged into the sandbox image at /workspace/_sdk_runner.py and
+executed by :func:`worldsim.modal_sandbox.run_claude_in_sandbox`.  It reads a
+prompt from /workspace/_prompt.txt, calls the Claude Agent SDK, streams NDJSON
+event lines to stdout, and prints a final summary with cost/token/session data.
+
+The orchestrator parses these lines to provide live tool-call logging and to
+capture the summary metadata without changing the file-based output contract.
+"""
+
+import asyncio
+import json
+import sys
+import time
+from pathlib import Path
+
+
+async def main() -> None:
+    # Late imports -- these packages only exist inside the sandbox image.
+    from claude_agent_sdk import query, ClaudeAgentOptions  # type: ignore[import-untyped]
+    from claude_agent_sdk.types import (  # type: ignore[import-untyped]
+        AssistantMessage,
+        ResultMessage,
+        TextBlock,
+        ToolUseBlock,
+    )
+
+    prompt_path = Path("/workspace/_prompt.txt")
+    if not prompt_path.exists():
+        print(
+            json.dumps({"type": "error", "message": "_prompt.txt not found in /workspace"}),
+            flush=True,
+        )
+        sys.exit(1)
+
+    prompt = prompt_path.read_text()
+    model = sys.argv[1] if len(sys.argv) > 1 else "claude-opus-4-6"
+
+    options = ClaudeAgentOptions(
+        permission_mode="bypassPermissions",
+        effort="high",
+        cwd="/workspace",
+        model=model,
+    )
+
+    start = time.monotonic()
+    tool_calls: list[str] = []
+    result_msg = None
+
+    try:
+        async for message in query(prompt=prompt, options=options):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, ToolUseBlock):
+                        event = {"type": "tool_call", "tool": block.name, "id": block.id}
+                        print(json.dumps(event), flush=True)
+                        tool_calls.append(block.name)
+                    elif isinstance(block, TextBlock):
+                        # Log first 200 chars of text blocks for observability
+                        event = {"type": "text", "preview": block.text[:200]}
+                        print(json.dumps(event), flush=True)
+            elif isinstance(message, ResultMessage):
+                result_msg = message
+    except Exception as exc:
+        print(
+            json.dumps({"type": "error", "message": f"SDK query failed: {exc!r}"}),
+            flush=True,
+        )
+        # Don't sys.exit -- let the summary still be emitted so the
+        # orchestrator can see partial data.
+
+    elapsed = time.monotonic() - start
+
+    summary: dict = {
+        "type": "summary",
+        "elapsed_s": round(elapsed, 1),
+        "tool_calls": tool_calls,
+        "num_tool_calls": len(tool_calls),
+    }
+    if result_msg is not None:
+        summary.update({
+            "session_id": result_msg.session_id,
+            "num_turns": result_msg.num_turns,
+            "total_cost_usd": result_msg.total_cost_usd,
+            "duration_ms": result_msg.duration_ms,
+            "duration_api_ms": result_msg.duration_api_ms,
+            "is_error": result_msg.is_error,
+            "stop_reason": result_msg.stop_reason,
+            "usage": result_msg.usage,
+            "model_usage": result_msg.model_usage,
+        })
+    print(json.dumps(summary), flush=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

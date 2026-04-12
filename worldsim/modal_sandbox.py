@@ -6,8 +6,10 @@ the files that step needs (inclusion-based scoping, not ignore-based).
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import tempfile
 from pathlib import Path
 
 import modal
@@ -48,7 +50,7 @@ base_image = (
         "json.dumps({'skipDangerousModePermissionPrompt': True}))"
         '"',
     )
-    .pip_install("requests", "browser-use>=0.12.6")
+    .pip_install("requests", "browser-use>=0.12.6", "claude-agent-sdk")
 )
 
 
@@ -101,13 +103,21 @@ def _build_claude_secrets() -> list[modal.Secret]:
     return [modal.Secret.from_dict(env)]
 
 
+_RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
+
+
 async def run_claude_in_sandbox(
     site_files: dict[str, str],
     prompt: str,
     output_paths: list[str],
     timeout: int = 3600,
+    model: str = "claude-opus-4-6",
 ) -> dict[str, str | None]:
     """Run Claude Code in an isolated Modal Sandbox with only the specified files.
+
+    Uses the ``claude-agent-sdk`` Python package for typed observability (cost
+    tracking, token usage, session IDs, tool-call logging) while preserving the
+    file-based output contract that all callers depend on.
 
     Args:
         site_files: Mapping from sandbox-remote path (``/workspace/...``) to a
@@ -120,11 +130,16 @@ async def run_claude_in_sandbox(
         output_paths: Absolute paths inside the sandbox to read back after
             Claude exits. Missing files are returned as ``None``.
         timeout: Wall-clock timeout for the sandbox in seconds.
+        model: Model identifier passed to Claude Agent SDK (default:
+            ``claude-opus-4-6``).
 
     Returns:
         Dict mapping each entry in ``output_paths`` to the file's text
-        contents, or ``None`` if the file could not be read.
+        contents, or ``None`` if the file could not be read. An additional
+        ``"_summary"`` key contains a JSON string with cost, token usage,
+        session ID, and tool-call metadata from the SDK.
     """
+    # -- Build sandbox image with site files + prompt + runner ----------------
     image = base_image
     for remote_path, local_path in site_files.items():
         local = Path(local_path)
@@ -136,38 +151,91 @@ async def run_claude_in_sandbox(
         else:
             logger.warning("skipping %s -> %s: path does not exist", local_path, remote_path)
 
+    # Stage the SDK runner script into the sandbox.
+    image = image.add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py")
+
+    # Stage the prompt as a file so it doesn't need shell escaping.
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", prefix="worldsim_prompt_", delete=False,
+    ) as tmp:
+        tmp.write(prompt)
+        prompt_tmp_path = tmp.name
+    try:
+        image = image.add_local_file(prompt_tmp_path, remote_path="/workspace/_prompt.txt")
+    finally:
+        # Clean up promptly; Modal has already read the file into the image.
+        Path(prompt_tmp_path).unlink(missing_ok=True)
+
+    # -- Create sandbox and execute the runner --------------------------------
     app = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
     sandbox = await modal.Sandbox.create.aio(app=app, image=image, timeout=timeout)
     try:
         claude_ps = await sandbox.exec.aio(
-            "claude", "-p", prompt,
-            "--output-format", "json",
-            "--dangerously-skip-permissions",
-            "--verbose",
-            "--effort", "high",
-            pty=True,
+            "python", "/workspace/_sdk_runner.py", model,
             secrets=_build_claude_secrets(),
             workdir="/workspace",
         )
+
+        # Stream NDJSON events from the runner for live observability.
+        summary_data: dict | None = None
+        async for line in claude_ps.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                logger.debug("non-JSON stdout line from sandbox runner: %s", line[:200])
+                continue
+
+            etype = event.get("type")
+            if etype == "tool_call":
+                logger.info("  [sandbox] tool_call: %s", event.get("tool"))
+            elif etype == "text":
+                logger.debug("  [sandbox] text: %s", event.get("preview", "")[:120])
+            elif etype == "error":
+                logger.warning("  [sandbox] SDK error: %s", event.get("message"))
+            elif etype == "summary":
+                summary_data = event
+                _log_summary(event)
+
         await claude_ps.wait.aio()
 
-        stdout = await claude_ps.stdout.read.aio()
         if claude_ps.returncode != 0:
             logger.warning(
-                "Claude Code exited with rc=%d. Output tail:\n%s",
+                "Sandbox runner exited with rc=%d",
                 claude_ps.returncode,
-                stdout[-2000:] if stdout else "(empty)",
             )
         else:
-            logger.info("Claude Code finished (rc=0, output=%d chars)", len(stdout))
+            logger.info("Sandbox runner finished (rc=0)")
 
+        # -- Read output files ------------------------------------------------
         outputs: dict[str, str | None] = {}
         for path in output_paths:
             try:
                 outputs[path] = await sandbox.filesystem.read_text.aio(path)
-            except Exception as e:  # noqa: BLE001 — tolerate missing files
+            except Exception as e:  # noqa: BLE001 -- tolerate missing files
                 outputs[path] = None
                 logger.warning("could not read %s from sandbox: %s", path, e)
+
+        # Attach summary metadata under a reserved key that callers can ignore.
+        outputs["_summary"] = json.dumps(summary_data) if summary_data else None
+
         return outputs
     finally:
         await sandbox.terminate.aio()
+
+
+def _log_summary(summary: dict) -> None:
+    """Log key metrics from the runner's summary event."""
+    parts = [f"elapsed={summary.get('elapsed_s')}s"]
+    if summary.get("total_cost_usd") is not None:
+        parts.append(f"cost=${summary['total_cost_usd']:.4f}")
+    if summary.get("num_turns") is not None:
+        parts.append(f"turns={summary['num_turns']}")
+    parts.append(f"tool_calls={summary.get('num_tool_calls', 0)}")
+    if summary.get("session_id"):
+        parts.append(f"session={summary['session_id']}")
+    if summary.get("is_error"):
+        parts.append("ERROR")
+    logger.info("  [sandbox] summary: %s", ", ".join(parts))

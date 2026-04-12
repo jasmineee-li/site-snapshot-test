@@ -8,7 +8,7 @@ Last updated: 2026-04-12
 
 ## What's proven (smoke-tested end-to-end)
 
-- **Modal Sandbox primitive** — `run_claude_in_sandbox` creates a sandbox, stages files via `add_local_file`/`add_local_dir`, runs Claude Code with `IS_SANDBOX=1` (runs as root without the `--dangerously-skip-permissions` root refusal), collects output files. Tested on Modal `test` environment with OpenRouter auth.
+- **Modal Sandbox primitive** — `run_claude_in_sandbox` creates a sandbox, stages files via `add_local_file`/`add_local_dir`, runs Claude Code through `claude-agent-sdk` via `_sdk_runner.py` with `IS_SANDBOX=1`. Returns file outputs plus a `_summary` key with cost, token usage, session ID, and per-model breakdowns from the SDK's `ResultMessage`. Model explicitly pinned (default: `claude-opus-4-6`). Tested on Modal `test` environment with OpenRouter auth.
 - **Three Claude Code auth paths** — OAuth (`CLAUDE_CODE_OAUTH_TOKEN`), OpenRouter (`ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`), and direct API key (`ANTHROPIC_API_KEY`). Priority: OAuth > OpenRouter > API key. Implemented in `_build_claude_secrets()` with 9 test scenarios passing.
 - **`.env` architecture** — `load_dotenv()` at CLI startup, shell exports take precedence, all auth keys in one file.
 - **Browser Use + Chromium** — `BrowserSession` starts, navigates, and tears down cleanly. Note: browser-use 0.12+ uses `session.kill()` for teardown, NOT `.close()` (which doesn't exist and causes a WebSocket hang). Playwright is installed but browser-use 0.12 uses `cdp-use` directly.
@@ -17,7 +17,7 @@ Last updated: 2026-04-12
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| `worldsim/modal_sandbox.py` | **Working** | `run_claude_in_sandbox` proven. `IS_SANDBOX=1`, `pty=True`, `--output-format json`. |
+| `worldsim/modal_sandbox.py` | **Working** | `run_claude_in_sandbox` proven via `claude-agent-sdk` + `_sdk_runner.py`. `IS_SANDBOX=1`, returns `_summary` with cost/token/session metadata. |
 | `worldsim/browser_use_agent.py` | **Skeleton** | `BrowserUseAgent` class with `setup/run/teardown`. Not yet called from any phase. `llm` param configured by caller. |
 | `worldsim/eval_worker_pool.py` | **Skeleton** | `run_eval` + `staggered_worker` with `STAGGER_DELAY=5`. Phase-agnostic (`task_runner` callable). Not tested. |
 | `worldsim/seeding.py` | **Skeleton** | `apply_data_seed` for sql/api/state_push. `execute_sql` supports MySQL. Not tested against a real DB. |
