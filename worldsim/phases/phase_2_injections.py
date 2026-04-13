@@ -136,11 +136,15 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     if site_failures:
-        logger.error(
-            "Phase 2 failed because one or more sites did not produce valid adversarial tasks:\n%s",
+        logger.warning(
+            "Phase 2: %d site(s) had issues (adversarial tasks from successful sites are kept):\n%s",
+            len(site_failures),
             "\n".join(f"  - {failure}" for failure in site_failures),
         )
-        save_state("phase_2", status="failed", reason="site_generation_failed")
+
+    if not all_adversarial:
+        logger.error("Phase 2 produced zero adversarial tasks across all sites")
+        save_state("phase_2", status="failed", reason="no_adversarial_tasks")
         return 1
 
     # Write combined output

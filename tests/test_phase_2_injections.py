@@ -145,7 +145,7 @@ def test_collect_site_profiles_returns_reusable_mapping(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_phase_2_run_fails_when_any_site_generation_fails(monkeypatch, tmp_path):
+async def test_phase_2_run_succeeds_with_partial_site_results(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_1").mkdir(parents=True)
     (tmp_path / "phase_1" / "benign_tasks.json").write_text(
@@ -186,5 +186,5 @@ async def test_phase_2_run_fails_when_any_site_generation_fails(monkeypatch, tmp
 
     rc = await phase_2_injections.run(Namespace())
 
-    assert rc == 1
-    assert not (tmp_path / "phase_2" / "adversarial_tasks.json").exists()
+    assert rc == 0
+    assert (tmp_path / "phase_2" / "adversarial_tasks.json").exists()
