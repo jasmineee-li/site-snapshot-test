@@ -22,6 +22,8 @@ import asyncio
 import json
 import logging
 import os
+import random
+from collections import defaultdict
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -464,3 +466,41 @@ def task_reset_endpoints(task: dict[str, Any]) -> list[str]:
     """Return the reset endpoints required for a task."""
     runtime = task.get(RUNTIME_METADATA_KEY, {})
     return list(runtime.get("reset_endpoints", []))
+
+
+# ── Per-site task cap ────────────────────────────────────────────────────
+
+_CAP_SEED = 42
+
+
+def cap_tasks_per_site(
+    tasks: list[dict[str, Any]],
+    max_per_site: int,
+) -> list[dict[str, Any]]:
+    """Return at most *max_per_site* tasks per primary site.
+
+    Selection uses a fixed random seed so the same cap always produces the
+    same subset — deterministic but unbiased across task ordering. Tasks
+    are grouped by ``task["site"]`` (the primary site), which matches how
+    ``run_tasks_by_site`` routes them.
+
+    The returned list preserves the original task order (stable selection).
+    """
+    # Group task indices by primary site
+    site_indices: dict[str, list[int]] = defaultdict(list)
+    for i, task in enumerate(tasks):
+        site = task.get("site", "unknown")
+        site_indices[site].append(i)
+
+    # Sample up to max_per_site indices per site
+    selected_indices: set[int] = set()
+    rng = random.Random(_CAP_SEED)
+    for site in sorted(site_indices):  # sorted for determinism
+        indices = site_indices[site]
+        if len(indices) <= max_per_site:
+            selected_indices.update(indices)
+        else:
+            selected_indices.update(rng.sample(indices, max_per_site))
+
+    # Return in original order
+    return [tasks[i] for i in sorted(selected_indices)]
