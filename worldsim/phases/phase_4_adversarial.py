@@ -32,6 +32,7 @@ import asyncio
 import json
 import logging
 import tempfile
+import time
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -780,10 +781,69 @@ async def _reset_task_environment(task: dict[str, Any]) -> None:
     await asyncio.sleep(2)
 
 
+# GitLab's POST /init runs `gitlab-ctl reconfigure` which takes 3-5 min.
+# Other sites (shopping, reddit) finish in ~5s. 300s covers the worst case.
+_RESET_TIMEOUT = 300
+_RESET_MAX_RETRIES = 2
+_RESET_RETRY_DELAY = 10  # seconds between retries
+
+
 def _post_reset(endpoint: str) -> None:
-    """Call a benchmark reset endpoint and fail on non-2xx responses."""
-    response = requests.post(endpoint, timeout=30)
-    response.raise_for_status()
+    """Call a benchmark reset endpoint with retries for transient failures.
+
+    Retries on connection errors, timeouts, and 5xx responses. The generous
+    timeout (300s) is needed because some WebArena sites (especially GitLab)
+    block for minutes while reconfiguring.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(1, _RESET_MAX_RETRIES + 1):
+        try:
+            response = requests.post(endpoint, timeout=_RESET_TIMEOUT)
+            if response.status_code >= 500:
+                logger.warning(
+                    "Reset endpoint %s returned %d on attempt %d/%d",
+                    endpoint,
+                    response.status_code,
+                    attempt,
+                    _RESET_MAX_RETRIES,
+                )
+                last_exc = requests.HTTPError(
+                    f"{response.status_code} Server Error for url: {endpoint}",
+                    response=response,
+                )
+                if attempt < _RESET_MAX_RETRIES:
+                    time.sleep(_RESET_RETRY_DELAY)
+                    continue
+                response.raise_for_status()
+            # 4xx errors are not retried — they indicate a client-side problem.
+            response.raise_for_status()
+            return
+        except requests.ConnectionError as exc:
+            logger.warning(
+                "Reset endpoint %s connection error on attempt %d/%d: %s",
+                endpoint,
+                attempt,
+                _RESET_MAX_RETRIES,
+                exc,
+            )
+            last_exc = exc
+            if attempt < _RESET_MAX_RETRIES:
+                time.sleep(_RESET_RETRY_DELAY)
+        except requests.Timeout as exc:
+            logger.warning(
+                "Reset endpoint %s timed out after %ds on attempt %d/%d",
+                endpoint,
+                _RESET_TIMEOUT,
+                attempt,
+                _RESET_MAX_RETRIES,
+            )
+            last_exc = exc
+            if attempt < _RESET_MAX_RETRIES:
+                time.sleep(_RESET_RETRY_DELAY)
+
+    raise RuntimeError(
+        f"Reset endpoint {endpoint} failed after {_RESET_MAX_RETRIES} attempts"
+    ) from last_exc
 
 
 async def probe_ecological_validity(
