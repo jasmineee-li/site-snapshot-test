@@ -52,9 +52,7 @@ def load_prompt(name: str, *, validation_command: str | None = None) -> str:
     path = PROMPTS_DIR / f"{name}.md"
     if not path.exists():
         available = sorted(p.stem for p in PROMPTS_DIR.glob("*.md"))
-        raise FileNotFoundError(
-            f"Prompt {name!r} not found at {path}. Available: {available}"
-        )
+        raise FileNotFoundError(f"Prompt {name!r} not found at {path}. Available: {available}")
     text = path.read_text(encoding="utf-8")
     if validation_command is not None:
         # Only .format() the footer template, not the full prompt text.

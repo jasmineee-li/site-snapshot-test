@@ -83,13 +83,12 @@ async def run(args: argparse.Namespace) -> int:
     # Load validated task IDs from Phase 3 (only evaluate tasks that passed benign validation)
     validated_path = state_dir / "phase_3" / "validated_tasks.json"
     if not validated_path.exists():
-        logger.error("Phase 3 validated_tasks.json not found at %s — run phase 3 first", validated_path)
+        logger.error(
+            "Phase 3 validated_tasks.json not found at %s — run phase 3 first", validated_path
+        )
         return 1
     validated = json.loads(validated_path.read_text())
-    validated_by_id = {
-        str(task["id"]): task
-        for task in validated
-    }
+    validated_by_id = {str(task["id"]): task for task in validated}
     tasks: list[dict[str, Any]] = []
     rebase_errors: list[str] = []
     for adversarial_task in adversarial_tasks:
@@ -101,9 +100,7 @@ async def run(args: argparse.Namespace) -> int:
         try:
             tasks.append(_rebase_adversarial_task(adversarial_task, benign_task))
         except ValueError as exc:
-            rebase_errors.append(
-                f"{adversarial_task.get('id', '?')}: {exc}"
-            )
+            rebase_errors.append(f"{adversarial_task.get('id', '?')}: {exc}")
     logger.info(
         "Phase 4: %d/%d adversarial tasks have validated benign counterparts",
         len(tasks),
@@ -133,13 +130,10 @@ async def run(args: argparse.Namespace) -> int:
     prior_state = None
     if resume:
         from worldsim.state import load_state
+
         prior_state = load_state()
 
-    if (
-        prior_state
-        and prior_state.get("step") == "phase_4"
-        and prior_state.get("task_dir_root")
-    ):
+    if prior_state and prior_state.get("step") == "phase_4" and prior_state.get("task_dir_root"):
         task_dir_root = Path(prior_state["task_dir_root"])
         logger.info("Resume: reusing task_dir_root %s", task_dir_root)
     else:
@@ -154,8 +148,11 @@ async def run(args: argparse.Namespace) -> int:
         save_state("phase_4", status="failed", reason="auth_preflight_failed")
         return 1
 
-    logger.info("Phase 4: evaluating %d adversarial tasks across %d instances",
-                len(tasks), len(config.instances))
+    logger.info(
+        "Phase 4: evaluating %d adversarial tasks across %d instances",
+        len(tasks),
+        len(config.instances),
+    )
 
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     agent_provider = getattr(args, "agent_provider", None)
@@ -181,10 +178,7 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     profiles_dir = state_dir / "phase_0c"
-    task_by_id = {
-        str(task.get("id", "unknown")): task
-        for task in tasks
-    }
+    task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
     final_results: list[dict] = []
     for result in results:
         task_id = str(result.get("task_id", "unknown"))
@@ -193,9 +187,7 @@ async def run(args: argparse.Namespace) -> int:
         # On resume, skip tasks whose post-processing already completed.
         # The processed result file is the Stage 2 checkpoint (Stage 1 is
         # the per-task result.json written by run_adversarial_task).
-        processed_file = (
-            task_dir_root / safe_task_path_component(task_id) / "processed_result.json"
-        )
+        processed_file = task_dir_root / safe_task_path_component(task_id) / "processed_result.json"
         if resume and processed_file.exists():
             try:
                 prior_processed = json.loads(processed_file.read_text())
@@ -219,15 +211,17 @@ async def run(args: argparse.Namespace) -> int:
         site = task.get("site", "")
         site_instances = instances_for_site(config.instances, site)
         if not site_instances:
-            final_results.append({
-                **_build_phase_4_result(
-                    task_id=task.get("id", "unknown"),
-                    initial_result=result,
-                    current_result=result,
-                    final_status="configuration_error",
-                ),
-                "message": f"no instances configured for site {site!r}",
-            })
+            final_results.append(
+                {
+                    **_build_phase_4_result(
+                        task_id=task.get("id", "unknown"),
+                        initial_result=result,
+                        current_result=result,
+                        final_status="configuration_error",
+                    ),
+                    "message": f"no instances configured for site {site!r}",
+                }
+            )
             continue
 
         profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
@@ -258,21 +252,32 @@ async def run(args: argparse.Namespace) -> int:
     broke = sum(1 for r in final_results if r["final_status"] == "task_broke")
     invalid = sum(1 for r in final_results if r["final_status"] == "ecologically_invalid")
 
-    save_state("phase_4", status="complete",
-               task_dir_root=str(task_dir_root),
-               instances_path=str(instances_path),
-               agent_model=agent_model,
-               agent_provider=agent_provider,
-               complied=complied, variant_success=variant_success,
-               resistant=resistant, task_broke=broke, invalid=invalid,
-               total=len(final_results))
+    save_state(
+        "phase_4",
+        status="complete",
+        task_dir_root=str(task_dir_root),
+        instances_path=str(instances_path),
+        agent_model=agent_model,
+        agent_provider=agent_provider,
+        complied=complied,
+        variant_success=variant_success,
+        resistant=resistant,
+        task_broke=broke,
+        invalid=invalid,
+        total=len(final_results),
+    )
     cost_tracker.log_phase_summary("phase_4")
     cost_tracker.save(state_dir / "cost_report.json")
 
     logger.info(
         "Phase 4 complete — %d tasks: %d complied, %d variant_success, "
         "%d resistant, %d broke, %d invalid",
-        len(final_results), complied, variant_success, resistant, broke, invalid,
+        len(final_results),
+        complied,
+        variant_success,
+        resistant,
+        broke,
+        invalid,
     )
     return 0
 
@@ -316,13 +321,18 @@ async def run_adversarial_task(
     )
 
     if result.status != "success" and not _has_scoreable_agent_output(result):
-        message = (
-            f"agent run {result.status}: "
-            + (result.errors[-1] if result.errors else "no additional error details")
+        message = f"agent run {result.status}: " + (
+            result.errors[-1] if result.errors else "no additional error details"
         )
         save_result(
-            task_dir, task, result, False, message,
-            outcome="error", ecologically_valid=False, trajectory_dir=str(task_dir),
+            task_dir,
+            task,
+            result,
+            False,
+            message,
+            outcome="error",
+            ecologically_valid=False,
+            trajectory_dir=str(task_dir),
         )
         return {
             "task_id": task_id,
@@ -350,7 +360,15 @@ async def run_adversarial_task(
         network_trace=result.network_trace,
     )
     if _is_non_interpretable_benign_eval(benign_reward, benign_passed, benign_message):
-        save_result(task_dir, task, result, False, benign_message, outcome="error", trajectory_dir=str(task_dir))
+        save_result(
+            task_dir,
+            task,
+            result,
+            False,
+            benign_message,
+            outcome="error",
+            trajectory_dir=str(task_dir),
+        )
         validity_score = await probe_ecological_validity(task_dir, task)
         return {
             "task_id": task_id,
@@ -384,7 +402,15 @@ async def run_adversarial_task(
         outcome = "task_broke"
 
     # 3. Save trajectory (outcome + trajectory_dir persisted for per-task resume)
-    save_result(task_dir, task, result, benign_passed, f"outcome={outcome}", outcome=outcome, trajectory_dir=str(task_dir))
+    save_result(
+        task_dir,
+        task,
+        result,
+        benign_passed,
+        f"outcome={outcome}",
+        outcome=outcome,
+        trajectory_dir=str(task_dir),
+    )
 
     # 4. Probe ecological validity
     validity_score = await probe_ecological_validity(task_dir, task)
@@ -547,9 +573,7 @@ async def _process_adversarial_result(
                 for variant in variation.get("variant_results", [])
             ],
             successful_strategy=(
-                successful_variant.get("strategy")
-                if successful_variant is not None
-                else None
+                successful_variant.get("strategy") if successful_variant is not None else None
             ),
         ),
         **annotations,
@@ -597,9 +621,8 @@ async def _run_ecological_validity_fix_loop(
             instance=instance,
             all_instances=all_instances,
             agent_factory=agent_factory,
-            task_dir=task_dir_root / safe_task_path_component(
-                f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"
-            ),
+            task_dir=task_dir_root
+            / safe_task_path_component(f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"),
         )
         attempts.append(current_result)
         if current_result.get("ecologically_valid"):
@@ -658,9 +681,8 @@ async def _run_placement_fix_loop(
             instance=instance,
             all_instances=all_instances,
             agent_factory=agent_factory,
-            task_dir=task_dir_root / safe_task_path_component(
-                f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
-            ),
+            task_dir=task_dir_root
+            / safe_task_path_component(f"{task.get('id', 'unknown')}__placement_{iteration + 1}"),
         )
         attempts.append(current_result)
         if current_result.get("outcome") != "task_broke":
@@ -810,8 +832,10 @@ async def run_judge(
         )
 
     cost_tracker.record(
-        "phase_4", outputs.get("_summary"),
-        task_id=task.get("id"), site=task.get("site"),
+        "phase_4",
+        outputs.get("_summary"),
+        task_id=task.get("id"),
+        site=task.get("site"),
     )
 
     rec_json = outputs.get("/workspace/output/judge_recommendation.json")
@@ -891,8 +915,9 @@ async def run_strategy_variation(
     )
 
     if not primary_instances:
-        logger.warning("No instances available for variant evaluation of task %s",
-                       task.get("id", "?"))
+        logger.warning(
+            "No instances available for variant evaluation of task %s", task.get("id", "?")
+        )
         return {
             "status": "no_instances",
             "judge_diagnosis": recommendation,
@@ -902,10 +927,9 @@ async def run_strategy_variation(
 
     # 2. Generate variants in parallel (up to 3 Modal Sandboxes)
     selected_strategies = strategies[:3]
-    variants = await asyncio.gather(*[
-        generate_variant(task, strategy, profile_path)
-        for strategy in selected_strategies
-    ])
+    variants = await asyncio.gather(
+        *[generate_variant(task, strategy, profile_path) for strategy in selected_strategies]
+    )
 
     # Filter out failed variant generations — these are just copies of the
     # original task and would inflate attempt counts / produce false results.
@@ -932,19 +956,21 @@ async def run_strategy_variation(
             task.get("id", "?"),
             len(primary_instances),
         )
-    variant_results = await asyncio.gather(*[
-        _evaluate_variant(
-            task=task,
-            variant=variant,
-            instance=primary_instances[i],
-            all_instances=all_instances,
-            strategy=strategy,
-            index=i,
-            agent_factory=agent_factory,
-            task_dir_root=task_dir_root,
-        )
-        for i, (variant, strategy) in enumerate(limited_variants)
-    ])
+    variant_results = await asyncio.gather(
+        *[
+            _evaluate_variant(
+                task=task,
+                variant=variant,
+                instance=primary_instances[i],
+                all_instances=all_instances,
+                strategy=strategy,
+                index=i,
+                agent_factory=agent_factory,
+                task_dir_root=task_dir_root,
+            )
+            for i, (variant, strategy) in enumerate(limited_variants)
+        ]
+    )
 
     return {
         "status": "varied",
@@ -952,7 +978,6 @@ async def run_strategy_variation(
         "attempts": [initial_result],
         "variant_results": variant_results,
     }
-
 
 
 def _merge_variant_task(
@@ -989,7 +1014,9 @@ def _merge_variant_task(
     )
     for field in immutable_fields:
         if field in candidate and candidate[field] != original_task.get(field):
-            logger.warning("Variant attempted to mutate immutable field %r; keeping original value", field)
+            logger.warning(
+                "Variant attempted to mutate immutable field %r; keeping original value", field
+            )
 
     merged["adversarial_data_seed"] = candidate_seed
     for field in ("applied_strategy", "placement_fix", "ecological_validity_fix"):
@@ -1187,7 +1214,7 @@ async def _evaluate_variant(
             **result,
             "strategy": strategy.get("strategy", f"strategy_{index}"),
         }
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.exception("Variant %d evaluation failed: %s", index, e)
         return {
             "task_id": task.get("id", "?"),

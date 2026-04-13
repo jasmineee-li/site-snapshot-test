@@ -155,8 +155,13 @@ def main(argv: list[str] | None = None) -> int:
 # Ordered pipeline steps. Each entry maps step name -> (phase_id, sub) where
 # sub is the sub-step for Phase 0, or None for later phases.
 _PHASE_ORDER: list[str] = [
-    "phase_0a", "phase_0b", "phase_0c",
-    "phase_1", "phase_2", "phase_3", "phase_4",
+    "phase_0a",
+    "phase_0b",
+    "phase_0c",
+    "phase_1",
+    "phase_2",
+    "phase_3",
+    "phase_4",
 ]
 
 

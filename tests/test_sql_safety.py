@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import builtins
 import json
-import os
 import types
 
 import pytest
@@ -98,7 +97,11 @@ def test_db_query_match_fails_when_read_only_guard_cannot_be_enabled(monkeypatch
         types.SimpleNamespace(connect=lambda **kwargs: FakeConnection()),
         raising=False,
     )
-    monkeypatch.setitem(__import__("sys").modules, "pymysql", types.SimpleNamespace(connect=lambda **kwargs: FakeConnection()))
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "pymysql",
+        types.SimpleNamespace(connect=lambda **kwargs: FakeConnection()),
+    )
 
     passed, message = _db_query_match(
         {"query": "SELECT 1", "expected": None},

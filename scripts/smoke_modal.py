@@ -8,7 +8,6 @@ Usage:
 """
 
 import asyncio
-import sys
 import tempfile
 from pathlib import Path
 
@@ -16,13 +15,16 @@ from pathlib import Path
 # override=True: .env values win over empty-string shell vars that Claude Code
 # sessions and other tools often pre-set.
 from dotenv import load_dotenv
+
 load_dotenv(override=True)
 
 import logging
+
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("worldsim").setLevel(logging.DEBUG)
 
 import modal
+
 modal.enable_output()
 
 from worldsim.modal_sandbox import run_claude_in_sandbox
@@ -37,7 +39,9 @@ async def main() -> int:
         test_file.write_text("WorldSim v5 smoke test")
 
         print("Staging hello.txt into sandbox at /workspace/input/hello.txt ...")
-        print("Running Claude Code with prompt: 'Read /workspace/input/hello.txt and write its contents to /workspace/output/result.txt'")
+        print(
+            "Running Claude Code with prompt: 'Read /workspace/input/hello.txt and write its contents to /workspace/output/result.txt'"
+        )
         print(f"Smoke model: {SMOKE_MODEL}")
         print("This may take 30-90 seconds on first run (Modal builds the base image) ...")
         print()
@@ -62,12 +66,12 @@ async def main() -> int:
 
         result = result.strip()
         if "WorldSim v5 smoke test" in result:
-            print(f"PASS: Claude Code read the file and wrote it back.")
+            print("PASS: Claude Code read the file and wrote it back.")
             print(f"Content: {result!r}")
             return 0
         else:
             print(f"FAIL: unexpected content: {result!r}")
-            print(f"Expected to contain: 'WorldSim v5 smoke test'")
+            print("Expected to contain: 'WorldSim v5 smoke test'")
             return 1
 
 

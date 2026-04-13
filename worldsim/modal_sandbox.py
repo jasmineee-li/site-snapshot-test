@@ -31,12 +31,14 @@ NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "git", "jq")
-    .env({
-        # IS_SANDBOX=1 lets Claude Code accept bypassPermissions as root
-        # (github.com/anthropics/claude-code/issues/3490).
-        "IS_SANDBOX": "1",
-        "PYTHONUNBUFFERED": "1",
-    })
+    .env(
+        {
+            # IS_SANDBOX=1 lets Claude Code accept bypassPermissions as root
+            # (github.com/anthropics/claude-code/issues/3490).
+            "IS_SANDBOX": "1",
+            "PYTHONUNBUFFERED": "1",
+        }
+    )
     # claude-agent-sdk bundles the Claude Code CLI + Node.js runtime,
     # so no separate nodejs/npm/npm-install needed.
     .pip_install("requests", "browser-use>=0.12.6", "claude-agent-sdk")
@@ -76,7 +78,8 @@ def _build_claude_secrets() -> list[modal.Secret]:
         elif os.environ.get(key) is not None:
             # Key is present but empty — log so the user knows.
             logger.debug(
-                "Env var %s is set but empty (treating as unset)", key,
+                "Env var %s is set but empty (treating as unset)",
+                key,
             )
 
     has_creds = (
@@ -133,6 +136,7 @@ def preflight_auth_check() -> None:
 
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 _VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
+
 
 async def _get_app() -> modal.App:
     """Look up (or create) the Modal App for this pipeline.
@@ -213,7 +217,9 @@ async def run_claude_in_sandbox(
         await sandbox.filesystem.write_text.aio(prompt, "/workspace/_prompt.txt")
 
         claude_ps = await sandbox.exec.aio(
-            "python", "/workspace/_sdk_runner.py", model,
+            "python",
+            "/workspace/_sdk_runner.py",
+            model,
             secrets=_build_claude_secrets(),
             workdir="/workspace",
         )
@@ -241,7 +247,9 @@ async def run_claude_in_sandbox(
                     elapsed = time.monotonic() - sandbox_start
                     logger.info(
                         "  %s[sandbox] progress: %d tool calls in %.1fs",
-                        tag, turn_count, elapsed,
+                        tag,
+                        turn_count,
+                        elapsed,
                     )
             elif etype == "text":
                 preview = (event.get("preview", "") or "")[:100]
@@ -257,7 +265,9 @@ async def run_claude_in_sandbox(
         if claude_ps.returncode != 0:
             logger.warning(
                 "%sSandbox runner exited with rc=%d (%d tool calls)",
-                tag, claude_ps.returncode, turn_count,
+                tag,
+                claude_ps.returncode,
+                turn_count,
             )
         else:
             logger.info("%sSandbox runner finished (rc=0, %d tool calls)", tag, turn_count)
@@ -267,7 +277,7 @@ async def run_claude_in_sandbox(
         for path in output_paths:
             try:
                 outputs[path] = await sandbox.filesystem.read_text.aio(path)
-            except Exception as e:  # noqa: BLE001 -- tolerate missing files
+            except Exception as e:
                 outputs[path] = None
                 logger.warning("could not read %s from sandbox: %s", path, e)
 
@@ -298,7 +308,9 @@ async def upload_to_volume(
         if entries:
             logger.info(
                 "Volume %r already populated (%d entries at %s), skipping upload",
-                volume_name, len(entries), remote_prefix,
+                volume_name,
+                len(entries),
+                remote_prefix,
             )
             return vol
     except Exception:
@@ -313,10 +325,10 @@ async def upload_to_volume(
 
 def _content_addressed_volume_name(local_dir: Path) -> str:
     """Build a stable Modal volume name from a directory content hash."""
-    stem = "".join(
-        char if char.isalnum() else "-"
-        for char in local_dir.name.lower()
-    ).strip("-") or "benchmark"
+    stem = (
+        "".join(char if char.isalnum() else "-" for char in local_dir.name.lower()).strip("-")
+        or "benchmark"
+    )
     digest = _hash_directory(local_dir)[:12]
     return f"worldsim-{stem[:24]}-{digest}"
 

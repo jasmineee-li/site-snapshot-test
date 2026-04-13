@@ -264,7 +264,10 @@ def _run_webarena_verified_subprocess(
         return False, f"canonical WebArena evaluator returned invalid JSON: {exc}"
 
     passed = bool(response.get("passed", False))
-    message = str(response.get("message", "")).strip() or "canonical WebArena evaluator returned no message"
+    message = (
+        str(response.get("message", "")).strip()
+        or "canonical WebArena evaluator returned no message"
+    )
     return passed, message
 
 
@@ -305,9 +308,7 @@ def _run_homebrew_eval(
     return all_passed, combined
 
 
-def _build_agent_response(
-    eval_configs: list[dict], agent_result: Any | None
-) -> dict[str, Any]:
+def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) -> dict[str, Any]:
     """Build a WebArena Verified-compatible agent response dict."""
     # Infer task type from the expected response in the first AgentResponseEvaluator
     task_type = "retrieve"
@@ -359,9 +360,7 @@ def _parse_retrieved_data(final_result: str | None) -> list | None:
     return [final_result.strip()]
 
 
-def _eval_agent_response(
-    config: dict, agent_response: dict
-) -> tuple[bool, str]:
+def _eval_agent_response(config: dict, agent_response: dict) -> tuple[bool, str]:
     """Evaluate an AgentResponseEvaluator config against agent response."""
     expected = config.get("expected", {})
 
@@ -397,6 +396,7 @@ def _eval_agent_response(
 
 def _compare_data(expected: list, actual: list, ordered: bool = False) -> bool:
     """Compare expected vs actual retrieved_data with normalization."""
+
     def normalize(v: Any) -> str:
         return str(v).strip().lower()
 
@@ -496,6 +496,7 @@ def _url_matches(expected: str, actual: str) -> bool:
 
     # Path-only comparison (ignore host differences)
     from urllib.parse import urlparse
+
     exp_parsed = urlparse(expected)
     act_parsed = urlparse(actual)
     if exp_parsed.path and exp_parsed.path.rstrip("/") in act_parsed.path:
@@ -509,9 +510,7 @@ def _url_matches(expected: str, actual: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _db_query_match(
-    reward: dict[str, Any], instance: dict[str, Any]
-) -> tuple[bool, str]:
+def _db_query_match(reward: dict[str, Any], instance: dict[str, Any]) -> tuple[bool, str]:
     """Execute a SQL query and compare result to expected value.
 
     Used for injection verification in Phase 4 where we need to check
@@ -532,10 +531,12 @@ def _db_query_match(
 
     try:
         import urllib.parse
+
         parsed = urllib.parse.urlparse(db_conn)
 
         if parsed.scheme == "mysql":
             import pymysql
+
             conn = pymysql.connect(
                 host=parsed.hostname,
                 port=parsed.port or 3306,
@@ -545,6 +546,7 @@ def _db_query_match(
             )
         elif parsed.scheme in ("postgresql", "postgres"):
             import psycopg2  # late import — only needed on the PostgreSQL path
+
             conn = psycopg2.connect(
                 host=parsed.hostname,
                 port=parsed.port or 5432,

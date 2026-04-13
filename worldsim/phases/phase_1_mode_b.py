@@ -3,24 +3,23 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from hashlib import sha256
 import json
 import logging
+from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
+from worldsim.phases.phase_1_mode_b_validation import (
+    site_is_mode_b_eligible,
+    sort_novel_tasks,
+    validate_generated_novel_tasks,
+)
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import get_state_dir
-
-from worldsim.phases.phase_1_mode_b_validation import (
-    sort_novel_tasks,
-    site_is_mode_b_eligible,
-    validate_generated_novel_tasks,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +54,9 @@ async def run_mode_b(
     state_dir = get_state_dir()
     profiles_dir = state_dir / "phase_0c"
     if not profiles_dir.exists():
-        raise FileNotFoundError(f"Profiles directory not found at {profiles_dir} — run phase 0c first")
+        raise FileNotFoundError(
+            f"Profiles directory not found at {profiles_dir} — run phase 0c first"
+        )
 
     manifest_eval_types = manifest.get("evaluation", {}).get("eval_types", [])
     eligible_sites = load_mode_b_eligible_sites(
@@ -91,18 +92,21 @@ async def run_mode_b(
     logger.info("Phase 1B: generating novel tasks for %d eligible sites", len(eligible_sites))
     benchmark_volume = await upload_to_volume(Path(benchmark_root).resolve())
 
-    results = await asyncio.gather(*[
-        generate_novel_tasks_for_site(
-            site=site,
-            benchmark_volume=benchmark_volume,
-            output_dir=output_dir,
-            cache_fingerprint=compute_site_cache_fingerprint(
-                shared_inputs_fingerprint=shared_inputs_fingerprint,
+    results = await asyncio.gather(
+        *[
+            generate_novel_tasks_for_site(
                 site=site,
-            ),
-        )
-        for site in eligible_sites
-    ], return_exceptions=True)
+                benchmark_volume=benchmark_volume,
+                output_dir=output_dir,
+                cache_fingerprint=compute_site_cache_fingerprint(
+                    shared_inputs_fingerprint=shared_inputs_fingerprint,
+                    site=site,
+                ),
+            )
+            for site in eligible_sites
+        ],
+        return_exceptions=True,
+    )
 
     all_novel_tasks: list[dict[str, Any]] = []
     failures: list[str] = []
@@ -391,11 +395,7 @@ def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> st
         "generate-benign-tasks",
         validation_command=f"benign-tasks --site-name {site_name}",
     )
-    return (
-        prompt
-        .replace("{site_name}", site_name)
-        .replace("{num_tasks}", str(num_tasks))
-    )
+    return prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
 
 
 def compute_mode_b_shared_inputs_fingerprint(

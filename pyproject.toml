@@ -22,7 +22,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
-    "ruff>=0.6",
+    "ruff>=0.11",
 ]
 
 [project.scripts]
@@ -38,10 +38,33 @@ packages = ["worldsim"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+exclude = ["AgentLab/"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes — undefined names, unused imports
+    "W",    # pycodestyle warnings
+    "B",    # flake8-bugbear — mutable defaults, bare except, etc.
+    "UP",   # pyupgrade — modernize syntax for py312
+    "I",    # isort — import sorting
+    "ISC",  # implicit string concat — catches accidental bugs
+    "RUF",  # ruff-native rules — additional opinionated checks
+]
+ignore = [
+    "E501",   # line length (formatter handles this)
+    "ISC001", # conflicts with ruff formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]  # scripts need dotenv/logging setup before imports
+
+[tool.ruff.lint.isort]
+known-first-party = ["worldsim"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

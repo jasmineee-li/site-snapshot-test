@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from worldsim.config import BenchmarkInstance
-from worldsim.eval_worker_pool import load_completed_results, run_eval
+from worldsim.eval_worker_pool import run_eval
 from worldsim.task_paths import safe_task_path_component
 
 

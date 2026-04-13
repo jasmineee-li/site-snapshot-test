@@ -84,9 +84,7 @@ def test_dispatch_resume_restores_logs_dir_from_state(monkeypatch, tmp_path):
     assert str(captured["logs_dir"]) == str(custom_logs)
 
 
-def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(
-    monkeypatch, tmp_path
-):
+def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
@@ -272,9 +270,7 @@ def test_load_completed_results_skips_result_without_task_id(tmp_path):
     # so it's skipped regardless of dir naming.
     task_dir = tmp_path / "some_dir"
     task_dir.mkdir()
-    (task_dir / "result.json").write_text(
-        json.dumps({"passed": True, "message": "ok"})
-    )
+    (task_dir / "result.json").write_text(json.dumps({"passed": True, "message": "ok"}))
 
     completed = load_completed_results(tmp_path)
     assert completed == {}
@@ -309,8 +305,13 @@ def test_load_completed_results_skips_result_with_null_task_id(tmp_path):
 
 def _make_agent_result(**overrides):
     defaults = dict(
-        elapsed=1.5, steps=3, is_done=True, final_result="done",
-        status="success", errors=[], network_trace=[],
+        elapsed=1.5,
+        steps=3,
+        is_done=True,
+        final_result="done",
+        status="success",
+        errors=[],
+        network_trace=[],
     )
     defaults.update(overrides)
     return AgentResult(**defaults)
@@ -350,8 +351,13 @@ def test_save_result_extra_fields_persisted(tmp_path):
     task_dir = tmp_path / "task_extra"
 
     save_result(
-        task_dir, {"id": "extra-1"}, _make_agent_result(), True, "ok",
-        outcome="complied", ecologically_valid=True,
+        task_dir,
+        {"id": "extra-1"},
+        _make_agent_result(),
+        True,
+        "ok",
+        outcome="complied",
+        ecologically_valid=True,
     )
 
     data = json.loads((task_dir / "result.json").read_text())

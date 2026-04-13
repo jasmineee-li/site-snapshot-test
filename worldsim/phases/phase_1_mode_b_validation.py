@@ -173,7 +173,9 @@ def _validate_eval_expected(
         if not isinstance(url, str) or not url.strip():
             return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.url must be a non-empty string"
         http_method = expected.get("http_method")
-        if http_method is not None and (not isinstance(http_method, str) or not http_method.strip()):
+        if http_method is not None and (
+            not isinstance(http_method, str) or not http_method.strip()
+        ):
             return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.http_method must be a non-empty string when provided"
         return None
 

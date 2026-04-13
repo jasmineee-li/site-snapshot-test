@@ -16,8 +16,7 @@ PLACEHOLDER_TO_SITE: dict[str, str] = {
 }
 
 SITE_TO_PLACEHOLDER: dict[str, str] = {
-    site_name: placeholder
-    for placeholder, site_name in PLACEHOLDER_TO_SITE.items()
+    site_name: placeholder for placeholder, site_name in PLACEHOLDER_TO_SITE.items()
 }
 
 PLACEHOLDER_PATTERN = re.compile(r"__[A-Z0-9_]+__")
@@ -76,9 +75,7 @@ def apply_placeholders(
 
     unresolved = extract_placeholders(resolved)
     if strict and unresolved:
-        raise ValueError(
-            "Unresolved URL placeholders: " + ", ".join(unresolved)
-        )
+        raise ValueError("Unresolved URL placeholders: " + ", ".join(unresolved))
     return resolved
 
 

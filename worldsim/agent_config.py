@@ -77,9 +77,7 @@ def resolve_provider(model: str, provider: str | None) -> str:
         normalized = provider.lower()
         if normalized not in SUPPORTED_PROVIDERS:
             supported = ", ".join(SUPPORTED_PROVIDERS)
-            raise ValueError(
-                f"Unknown provider {provider!r}. Supported: {supported}"
-            )
+            raise ValueError(f"Unknown provider {provider!r}. Supported: {supported}")
         return normalized
 
     detected = detect_provider(model)
@@ -156,9 +154,7 @@ def make_llm(
             ) from exc
         return ChatOpenRouter(model=model, temperature=temperature)
 
-    raise ValueError(
-        f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}"
-    )
+    raise ValueError(f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
 
 
 # ── Agent factory ─────────────────────────────────────────────────────────
@@ -260,8 +256,7 @@ def prepare_tasks_for_execution(
     all_placeholders = merge_placeholder_maps(
         config_url_placeholders,
         placeholders_for_site_urls(
-            (instance.site_name, instance.site_url)
-            for instance in instances
+            (instance.site_name, instance.site_url) for instance in instances
         ),
     )
     prepared_tasks: list[dict[str, Any]] = []
@@ -302,9 +297,7 @@ def instances_for_site(
     """Filter instances matching *site_name* (case-insensitive)."""
     normalized = normalize_site_name(site_name)
     return [
-        instance
-        for instance in instances
-        if normalize_site_name(instance.site_name) == normalized
+        instance for instance in instances if normalize_site_name(instance.site_name) == normalized
     ]
 
 
@@ -410,12 +403,16 @@ def execution_instance_dict(
     """Merge execution-time task metadata into the primary instance dict."""
     runtime = task.get(RUNTIME_METADATA_KEY, {})
     bound_instance = runtime.get("bound_instance")
-    instance_dict = dict(bound_instance) if isinstance(bound_instance, dict) else instance.model_dump()
+    instance_dict = (
+        dict(bound_instance) if isinstance(bound_instance, dict) else instance.model_dump()
+    )
     instance_dict["url_placeholders"] = merge_placeholder_maps(
         instance_dict.get("url_placeholders"),
         runtime.get("url_placeholders"),
     )
-    instance_dict["site_name"] = normalize_site_name(instance_dict.get("site_name", instance.site_name))
+    instance_dict["site_name"] = normalize_site_name(
+        instance_dict.get("site_name", instance.site_name)
+    )
     return instance_dict
 
 

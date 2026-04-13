@@ -131,9 +131,7 @@ class _NetworkTraceRecorder:
         await self._enable_current_page_sessions()
         self._recording = True
         # Poll for newly-opened tabs/popups so Network.enable is sent promptly.
-        self._poll_task = asyncio.create_task(
-            self._poll_sessions(), name="network-trace-poller"
-        )
+        self._poll_task = asyncio.create_task(self._poll_sessions(), name="network-trace-poller")
 
     async def stop(self) -> list[dict[str, Any]]:
         """Stop recording, finalize trace, write to disk, return entries."""
@@ -176,14 +174,10 @@ class _NetworkTraceRecorder:
                 session = await self._browser_session.get_or_create_cdp_session(
                     target_id, focus=False
                 )
-                await session.cdp_client.send.Network.enable(
-                    session_id=session.session_id
-                )
+                await session.cdp_client.send.Network.enable(session_id=session.session_id)
                 self._enabled_targets.add(target_id)
-            except Exception as e:  # noqa: BLE001
-                logger.debug(
-                    "Network trace enable failed for target %s: %s", target_id, e
-                )
+            except Exception as e:
+                logger.debug("Network trace enable failed for target %s: %s", target_id, e)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -261,9 +255,7 @@ class _NetworkTraceRecorder:
         # Cookies associated with this request (sent by browser).
         entry["associated_cookies"] = event.get("associatedCookies", [])
 
-    def _on_response_received(
-        self, event: dict[str, Any], session_id: str | None = None
-    ) -> None:
+    def _on_response_received(self, event: dict[str, Any], session_id: str | None = None) -> None:
         if not self._recording:
             return
 
@@ -299,9 +291,7 @@ class _NetworkTraceRecorder:
         entry["blocked_cookies"] = event.get("blockedCookies", [])
         entry["exempted_cookies"] = event.get("exemptedCookies", [])
 
-    def _on_loading_finished(
-        self, event: dict[str, Any], session_id: str | None = None
-    ) -> None:
+    def _on_loading_finished(self, event: dict[str, Any], session_id: str | None = None) -> None:
         if not self._recording:
             return
 
@@ -313,9 +303,7 @@ class _NetworkTraceRecorder:
         entry["loading_finished"] = True
         entry["encoded_data_length"] = event.get("encodedDataLength")
 
-    def _on_loading_failed(
-        self, event: dict[str, Any], session_id: str | None = None
-    ) -> None:
+    def _on_loading_failed(self, event: dict[str, Any], session_id: str | None = None) -> None:
         if not self._recording:
             return
 
@@ -367,7 +355,7 @@ class _NetworkTraceRecorder:
         try:
             parsed = urlparse(url)
             query_params = parse_qs(parsed.query, keep_blank_values=True)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
         # Merge request headers: prefer extra-info (wire-level) when available.
@@ -395,9 +383,7 @@ class _NetworkTraceRecorder:
     def _finalize_trace(self) -> list[dict[str, Any]]:
         """Return flat, evaluator-ready entries sorted by CDP timestamp."""
         raw_entries = list(self._requests.values())
-        raw_entries.sort(
-            key=lambda e: (e.get("timestamp") is None, e.get("timestamp", 0))
-        )
+        raw_entries.sort(key=lambda e: (e.get("timestamp") is None, e.get("timestamp", 0)))
         return [self._flatten_entry(e) for e in raw_entries]
 
     def _write_trace(self, trace: list[dict[str, Any]]) -> None:
@@ -408,7 +394,7 @@ class _NetworkTraceRecorder:
             (self._task_dir / "network_trace.json").write_text(
                 json.dumps(trace, indent=2, default=str)
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("Failed to write network_trace.json: %s", e)
 
         # HAR-envelope wrapping the same entries (tooling compatibility).
@@ -423,10 +409,8 @@ class _NetworkTraceRecorder:
             }
         }
         try:
-            (self._task_dir / "network.har").write_text(
-                json.dumps(payload, indent=2, default=str)
-            )
-        except Exception as e:  # noqa: BLE001
+            (self._task_dir / "network.har").write_text(json.dumps(payload, indent=2, default=str))
+        except Exception as e:
             logger.warning("Failed to write network.har: %s", e)
 
     @classmethod
@@ -434,19 +418,14 @@ class _NetworkTraceRecorder:
         """Redact sensitive wire data before persisting trajectory artifacts."""
         redacted = dict(entry)
         redacted["url"] = cls._redact_url(redacted.get("url", ""))
-        redacted["query_params"] = cls._redact_query_params(
-            redacted.get("query_params", {})
-        )
+        redacted["query_params"] = cls._redact_query_params(redacted.get("query_params", {}))
         redacted["headers"] = cls._redact_headers(redacted.get("headers", {}))
-        redacted["response_headers"] = cls._redact_headers(
-            redacted.get("response_headers", {})
-        )
+        redacted["response_headers"] = cls._redact_headers(redacted.get("response_headers", {}))
         if redacted.get("post_data") is not None:
             redacted["post_data"] = "<redacted>"
         if redacted.get("response_cookies"):
             redacted["response_cookies"] = {
-                key: "<redacted>"
-                for key in redacted["response_cookies"]
+                key: "<redacted>" for key in redacted["response_cookies"]
             }
         return redacted
 
@@ -482,14 +461,12 @@ class _NetworkTraceRecorder:
             return ""
         try:
             parsed = urlsplit(url)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return url
 
         raw_query = parse_qs(parsed.query, keep_blank_values=True)
         redacted_query = urlencode(cls._redact_query_params(raw_query), doseq=True)
-        return urlunsplit(
-            (parsed.scheme, parsed.netloc, parsed.path, redacted_query, "")
-        )
+        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, redacted_query, ""))
 
 
 class BrowserUseAgent:
@@ -554,8 +531,7 @@ class BrowserUseAgent:
             initial_actions = _build_initial_actions(start_urls or [])
             agent = Agent(
                 task=(
-                    f"You are interacting with a web application at {server_url}. "
-                    f"Your task: {task}"
+                    f"You are interacting with a web application at {server_url}. Your task: {task}"
                 ),
                 llm=self.llm,
                 browser_session=self._session,
@@ -570,13 +546,13 @@ class BrowserUseAgent:
                 history = await asyncio.wait_for(agent.run(), timeout=self.timeout)
                 elapsed = time.time() - t0
                 status = "success" if history.is_done() else "failure"
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 elapsed = time.time() - t0
                 status = "timeout"
                 extra_errors.append(f"agent timed out after {self.timeout}s")
                 history = getattr(agent, "history", None)
                 logger.warning("Agent timed out after %ss for %s", self.timeout, task_dir)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 elapsed = time.time() - t0
                 status = "error"
                 extra_errors.append(str(e))
@@ -594,7 +570,7 @@ class BrowserUseAgent:
             if self._session is not None:
                 try:
                     await self._session.kill()
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.warning("BrowserSession kill failed: %s", e)
                 self._session = None
 
@@ -613,7 +589,7 @@ class BrowserUseAgent:
         if self._session is not None:
             try:
                 await self._session.kill()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning("BrowserSession kill failed: %s", e)
             self._session = None
 
@@ -654,7 +630,7 @@ def _write_agent_artifacts(
     if history is not None:
         try:
             history.save_to_file(history_path)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("Failed to write history.json for %s: %s", task_dir, e)
             _write_history_fallback(history_path, errors, status)
     else:
@@ -673,7 +649,7 @@ def _write_agent_artifacts(
         (task_dir / "final_response.json").write_text(
             json.dumps(final_response, indent=2, default=str)
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning("Failed to write final_response.json for %s: %s", task_dir, e)
 
 
@@ -684,22 +660,22 @@ def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[st
 
     try:
         steps = len(history.history)
-    except Exception:  # noqa: BLE001
+    except Exception:
         steps = 0
 
     try:
         is_done = bool(history.is_done())
-    except Exception:  # noqa: BLE001
+    except Exception:
         is_done = False
 
     try:
         final_result = history.final_result()
-    except Exception:  # noqa: BLE001
+    except Exception:
         final_result = None
 
     try:
         errors = [str(error) for error in history.errors()]
-    except Exception:  # noqa: BLE001
+    except Exception:
         errors = []
 
     return steps, is_done, final_result, errors
@@ -712,7 +688,7 @@ def _copy_history_screenshots(task_dir: Path, history: Any) -> None:
 
     try:
         screenshot_paths = history.screenshot_paths()
-    except Exception:  # noqa: BLE001
+    except Exception:
         return
 
     screenshots_dir = task_dir / "screenshots"
@@ -732,5 +708,5 @@ def _write_history_fallback(history_path: Path, errors: list[str], status: str) 
     }
     try:
         history_path.write_text(json.dumps(payload, indent=2))
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.warning("Failed to write fallback history.json for %s: %s", history_path, e)

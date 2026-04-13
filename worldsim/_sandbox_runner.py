@@ -56,7 +56,12 @@ async def main() -> None:
                 turn_count += 1
                 for block in message.content:
                     if isinstance(block, ToolUseBlock):
-                        event = {"type": "tool_call", "tool": block.name, "id": block.id, "turn": turn_count}
+                        event = {
+                            "type": "tool_call",
+                            "tool": block.name,
+                            "id": block.id,
+                            "turn": turn_count,
+                        }
                         print(json.dumps(event), flush=True)
                         tool_calls.append(block.name)
                     elif isinstance(block, TextBlock):
@@ -94,17 +99,19 @@ async def main() -> None:
                 return obj.__dict__
             return obj
 
-        summary.update({
-            "session_id": result_msg.session_id,
-            "num_turns": result_msg.num_turns,
-            "total_cost_usd": result_msg.total_cost_usd,
-            "duration_ms": result_msg.duration_ms,
-            "duration_api_ms": result_msg.duration_api_ms,
-            "is_error": result_msg.is_error,
-            "stop_reason": result_msg.stop_reason,
-            "usage": _to_dict(result_msg.usage),
-            "model_usage": _to_dict(result_msg.model_usage),
-        })
+        summary.update(
+            {
+                "session_id": result_msg.session_id,
+                "num_turns": result_msg.num_turns,
+                "total_cost_usd": result_msg.total_cost_usd,
+                "duration_ms": result_msg.duration_ms,
+                "duration_api_ms": result_msg.duration_api_ms,
+                "is_error": result_msg.is_error,
+                "stop_reason": result_msg.stop_reason,
+                "usage": _to_dict(result_msg.usage),
+                "model_usage": _to_dict(result_msg.model_usage),
+            }
+        )
     print(json.dumps(summary, default=str), flush=True)
 
 

@@ -37,6 +37,8 @@ vendors/
 .idea/
 .cursor/
 .claude/
+!.claude/settings.json
+!.claude/hooks/
 .gradio/
 
 # Test / tooling caches

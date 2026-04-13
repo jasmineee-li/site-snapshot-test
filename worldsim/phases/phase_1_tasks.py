@@ -9,32 +9,32 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.state import get_state_dir, save_state
-
 from worldsim.phases.phase_1_mode_a import build_mode_a_tasks
 from worldsim.phases.phase_1_mode_b import (
+    MODE_B_RESUME_METADATA_PATH,
+    EligibleSiteProfile,
     compute_mode_b_resume_fingerprint,
     compute_mode_b_shared_inputs_fingerprint,
     compute_site_cache_fingerprint,
-    DEFAULT_NOVEL_TASKS_PER_SITE,
-    EligibleSiteProfile,
-    load_cached_novel_tasks as _load_cached_novel_tasks,
-    MODE_B_RESUME_METADATA_PATH,
-    NOVEL_TASK_OUTPUT_PATH,
-    SiteNovelTaskResult,
-    generate_novel_tasks_for_site as _generate_novel_tasks_for_site,
-    load_existing_novel_tasks as _load_existing_novel_tasks,
-    load_mode_b_eligible_sites as _load_mode_b_eligible_sites,
     run_mode_b,
     validate_existing_novel_tasks,
 )
+from worldsim.phases.phase_1_mode_b import (
+    load_cached_novel_tasks as _load_cached_novel_tasks,
+)
+from worldsim.phases.phase_1_mode_b import (
+    load_existing_novel_tasks as _load_existing_novel_tasks,
+)
+from worldsim.phases.phase_1_mode_b import (
+    load_mode_b_eligible_sites as _load_mode_b_eligible_sites,
+)
 from worldsim.phases.phase_1_mode_b_validation import (
     merge_benign_tasks as _merge_benign_tasks,
-    site_is_mode_b_eligible as _site_is_mode_b_eligible,
-    sort_novel_tasks as _sort_novel_tasks,
-    validate_generated_novel_task as _validate_generated_novel_task,
-    validate_generated_novel_tasks as _validate_generated_novel_tasks,
 )
+from worldsim.phases.phase_1_mode_b_validation import (
+    sort_novel_tasks as _sort_novel_tasks,
+)
+from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,9 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("%s", exc)
         _save_phase_1_failure_state(
             reason="invalid_manifest",
-            benchmark_root=Path(getattr(args, "benchmark", "")) if getattr(args, "benchmark", None) else None,
+            benchmark_root=Path(getattr(args, "benchmark", ""))
+            if getattr(args, "benchmark", None)
+            else None,
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
             error=str(exc),
@@ -67,7 +69,9 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Manifest not found at %s — run phase 0a first", manifest_path)
         _save_phase_1_failure_state(
             reason="missing_manifest",
-            benchmark_root=Path(getattr(args, "benchmark", "")) if getattr(args, "benchmark", None) else None,
+            benchmark_root=Path(getattr(args, "benchmark", ""))
+            if getattr(args, "benchmark", None)
+            else None,
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
         )
@@ -81,7 +85,9 @@ async def run(args: argparse.Namespace) -> int:
         )
         _save_phase_1_failure_state(
             reason="missing_benchmark_root",
-            benchmark_root=Path(getattr(args, "benchmark", "")) if getattr(args, "benchmark", None) else None,
+            benchmark_root=Path(getattr(args, "benchmark", ""))
+            if getattr(args, "benchmark", None)
+            else None,
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
         )

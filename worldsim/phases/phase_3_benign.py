@@ -70,14 +70,19 @@ async def run(args: argparse.Namespace) -> int:
         if adv_tasks_path.exists():
             adv_tasks = json.loads(adv_tasks_path.read_text())
             if not isinstance(adv_tasks, list):
-                logger.warning("Phase 3: adversarial_tasks.json is not an array, running all benign tasks")
+                logger.warning(
+                    "Phase 3: adversarial_tasks.json is not an array, running all benign tasks"
+                )
                 adv_tasks = []
-            paired_ids = {str(t.get("benign_task_id", "")) for t in adv_tasks if isinstance(t, dict)}
+            paired_ids = {
+                str(t.get("benign_task_id", "")) for t in adv_tasks if isinstance(t, dict)
+            }
             original_count = len(benign_tasks)
             benign_tasks = [t for t in benign_tasks if str(t.get("id", "")) in paired_ids]
             logger.info(
                 "Phase 3: filtered to %d/%d tasks with adversarial counterparts (use --full-baseline for all)",
-                len(benign_tasks), original_count,
+                len(benign_tasks),
+                original_count,
             )
         else:
             logger.warning("Phase 3: adversarial_tasks.json not found, running all benign tasks")
@@ -94,13 +99,10 @@ async def run(args: argparse.Namespace) -> int:
     prior_state = None
     if resume:
         from worldsim.state import load_state
+
         prior_state = load_state()
 
-    if (
-        prior_state
-        and prior_state.get("step") == "phase_3"
-        and prior_state.get("task_dir_root")
-    ):
+    if prior_state and prior_state.get("step") == "phase_3" and prior_state.get("task_dir_root"):
         task_dir_root = Path(prior_state["task_dir_root"])
         logger.info("Resume: reusing task_dir_root %s", task_dir_root)
     else:
@@ -135,10 +137,7 @@ async def run(args: argparse.Namespace) -> int:
 
     # Build lookup from raw tasks — run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
-    prepared_by_id = {
-        str(task.get("id", "unknown")): task
-        for task in benign_tasks
-    }
+    prepared_by_id = {str(task.get("id", "unknown")): task for task in benign_tasks}
 
     # Run evaluation via worker pool, routing tasks only to matching site instances.
     results = await run_tasks_by_site(
@@ -173,7 +172,8 @@ async def run(args: argparse.Namespace) -> int:
         logger.warning(
             "Circuit breaker: %d/%d tasks errored (>30%%), skipping diagnosis. "
             "This likely indicates an infrastructure problem, not task bugs.",
-            len(error_tasks), len(results),
+            len(error_tasks),
+            len(results),
         )
         failed_tasks = [r for r in failed_tasks if r.get("outcome") != "error"]
 
@@ -185,9 +185,7 @@ async def run(args: argparse.Namespace) -> int:
             continue
 
         # On resume, skip tasks that were already diagnosed in a prior run.
-        diagnosis_file = (
-            task_dir_root / safe_task_path_component(task_id) / "diagnosis.json"
-        )
+        diagnosis_file = task_dir_root / safe_task_path_component(task_id) / "diagnosis.json"
         if resume and diagnosis_file.exists():
             try:
                 prior_diagnosis = json.loads(diagnosis_file.read_text())
@@ -226,17 +224,13 @@ async def run(args: argparse.Namespace) -> int:
     passed_ids = {r["task_id"] for r in passed_tasks}
     fixed_ids = {d["task_id"] for d in diagnosed if d.get("action") == "fixed"}
     validated_tasks_by_id = {
-        task_id: prepared_by_id[task_id]
-        for task_id in passed_ids
-        if task_id in prepared_by_id
+        task_id: prepared_by_id[task_id] for task_id in passed_ids if task_id in prepared_by_id
     }
     for diagnosis in diagnosed:
         if diagnosis.get("action") == "fixed" and diagnosis.get("fixed_task"):
             validated_tasks_by_id[diagnosis["task_id"]] = diagnosis["fixed_task"]
     validated_tasks = [
-        validated_tasks_by_id[t["id"]]
-        for t in benign_tasks
-        if t["id"] in validated_tasks_by_id
+        validated_tasks_by_id[t["id"]] for t in benign_tasks if t["id"] in validated_tasks_by_id
     ]
 
     if not validated_tasks:
@@ -248,8 +242,7 @@ async def run(args: argparse.Namespace) -> int:
 
     # Strip internal runtime metadata before persisting to disk.
     clean_tasks = [
-        {k: v for k, v in t.items() if k != RUNTIME_METADATA_KEY}
-        for t in validated_tasks
+        {k: v for k, v in t.items() if k != RUNTIME_METADATA_KEY} for t in validated_tasks
     ]
 
     output_dir = state_dir / "phase_3"
@@ -314,9 +307,8 @@ async def run_task(
     )
 
     if result.status != "success" and not _has_scoreable_agent_output(result):
-        message = (
-            f"agent run {result.status}: "
-            + (result.errors[-1] if result.errors else "no additional error details")
+        message = f"agent run {result.status}: " + (
+            result.errors[-1] if result.errors else "no additional error details"
         )
         save_result(task_dir, task, result, False, message)
         return {
@@ -398,8 +390,10 @@ async def diagnose_failure(
         )
 
     cost_tracker.record(
-        "phase_3", outputs.get("_summary"),
-        task_id=task.get("id"), site=task.get("site"),
+        "phase_3",
+        outputs.get("_summary"),
+        task_id=task.get("id"),
+        site=task.get("site"),
     )
 
     diag_json = outputs.get("/workspace/output/diagnosis.json")
@@ -434,7 +428,9 @@ def _task_sanity_result(task: dict[str, Any]) -> str | None:
     candidates = (
         task.get("sanity_result"),
         task.get("sanity_check_result"),
-        task.get("sanity_check", {}).get("result") if isinstance(task.get("sanity_check"), dict) else None,
+        task.get("sanity_check", {}).get("result")
+        if isinstance(task.get("sanity_check"), dict)
+        else None,
         task.get("sanity", {}).get("result") if isinstance(task.get("sanity"), dict) else None,
     )
     for value in candidates:
@@ -491,7 +487,11 @@ async def fix_loop(
                         "Diagnosis made no changes to task %s, treating as agent limitation",
                         task.get("id", "?"),
                     )
-                    return {"action": "keep_flagged", "root_cause": "agent_limitation", "diagnosis": diagnosis}
+                    return {
+                        "action": "keep_flagged",
+                        "root_cause": "agent_limitation",
+                        "diagnosis": diagnosis,
+                    }
                 current_task = candidate_task
                 live_instance = _select_instance_for_task(current_task, instances)
                 if live_instance is None:
@@ -598,7 +598,7 @@ async def _rerun_live_task(
         try:
             await agent.setup(instance.site_url)
             result = await run_task(bound_task, agent, instance, task_dir)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("Live rerun failed for task %s: %s", task.get("id", "?"), e)
             return {
                 "task_id": task.get("id", "unknown"),

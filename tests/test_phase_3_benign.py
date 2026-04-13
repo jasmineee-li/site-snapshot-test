@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from worldsim.agent_config import (
@@ -113,9 +111,7 @@ async def test_fix_loop_applies_seed_patch_and_preserves_runtime(monkeypatch, tm
             "suggested_fix": {
                 "target": "data_seed",
                 "patch": {
-                    "api_calls": [
-                        {"method": "POST", "path": "/api/orders", "body": {"id": 2}}
-                    ]
+                    "api_calls": [{"method": "POST", "path": "/api/orders", "body": {"id": 2}}]
                 },
             },
         }

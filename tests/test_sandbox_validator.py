@@ -6,9 +6,7 @@ Imports the validator functions directly for unit testing.
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
-import textwrap
 from pathlib import Path
 from unittest import mock
 
@@ -16,12 +14,9 @@ import pytest
 
 # The validator module lives in worldsim/ but is designed to be standalone.
 # Import it by adding worldsim/ to the path.
-sys.path.insert(
-    0, str(Path(__file__).resolve().parent.parent / "worldsim")
-)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "worldsim"))
 
-import _sandbox_validator as validator  # noqa: E402
-
+import _sandbox_validator as validator
 
 # ---------------------------------------------------------------------------
 # Profile validation
@@ -463,7 +458,8 @@ class TestAdversarialTaskBenignIdTypeMismatch:
         (benign_path / "benign_tasks.json").write_text(json.dumps(benign_tasks))
 
         with mock.patch.object(
-            validator, "validate_adversarial_tasks",
+            validator,
+            "validate_adversarial_tasks",
             wraps=validator.validate_adversarial_tasks,
         ):
             # Patch the path constant used in the function
@@ -474,7 +470,7 @@ class TestAdversarialTaskBenignIdTypeMismatch:
                 side_effect=lambda p: patched_path if str(p) == str(original_path) else Path(p),
             ):
                 # Direct call with benign_by_id simulation
-                errors = validator.validate_adversarial_tasks([adv_task])
+                validator.validate_adversarial_tasks([adv_task])
         # Without the benign file at /workspace, it should still validate
         # the structural fields. The key point: str coercion means
         # benign_task_id="42" should not be flagged as unknown if the benign
@@ -706,7 +702,11 @@ class TestDiagnosisMissingExplanation:
     def test_all_valid_root_causes_accepted(self):
         """Ensure all valid root_cause values are accepted."""
         valid_causes = {
-            "reward_bug", "seed_bug", "impossible", "too_hard", "agent_limitation",
+            "reward_bug",
+            "seed_bug",
+            "impossible",
+            "too_hard",
+            "agent_limitation",
         }
         for cause in valid_causes:
             errors = validator.validate_diagnosis({"root_cause": cause})
@@ -885,30 +885,36 @@ class TestCLIInterface:
         # _OUTPUT_DIR / "adversarial_tasks.json" which is
         # /workspace/output/adversarial_tasks.json
         import argparse
+
         ns = argparse.Namespace(schema="adversarial-tasks")
 
         # Patch _OUTPUT_DIR to use tmp_path
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        valid_tasks = [{
-            "id": "adv_1",
-            "benign_task_id": "b_1",
-            "adversarial_data_seed": {
-                "mechanism": "sql",
-                "statements": ["INSERT INTO t (c) VALUES ('v')"],
-            },
-            "adversarial_reward": {"type": "exfil"},
-        }]
+        valid_tasks = [
+            {
+                "id": "adv_1",
+                "benign_task_id": "b_1",
+                "adversarial_data_seed": {
+                    "mechanism": "sql",
+                    "statements": ["INSERT INTO t (c) VALUES ('v')"],
+                },
+                "adversarial_reward": {"type": "exfil"},
+            }
+        ]
         (output_dir / "adversarial_tasks.json").write_text(json.dumps(valid_tasks))
 
         with mock.patch.object(validator, "_OUTPUT_DIR", output_dir):
-            with mock.patch.object(validator, "_VALIDATION_RESULT_PATH", output_dir / "_validation_result.json"):
+            with mock.patch.object(
+                validator, "_VALIDATION_RESULT_PATH", output_dir / "_validation_result.json"
+            ):
                 rc = validator.cmd_adversarial_tasks(ns)
         assert rc == 0
 
     def test_adversarial_tasks_missing_file(self, tmp_path):
         """cmd_adversarial_tasks returns 1 when the file doesn't exist."""
         import argparse
+
         ns = argparse.Namespace(schema="adversarial-tasks")
 
         output_dir = tmp_path / "output"
@@ -922,6 +928,7 @@ class TestCLIInterface:
     def test_profile_requires_site_name(self, tmp_path):
         """The profile subcommand requires --site-name."""
         import argparse
+
         ns = argparse.Namespace(schema="profile", site_name="shopping")
 
         output_dir = tmp_path / "output"
@@ -930,7 +937,9 @@ class TestCLIInterface:
         (output_dir / "BENCHMARK_PROFILE.json").write_text(json.dumps(profile))
 
         with mock.patch.object(validator, "_OUTPUT_DIR", output_dir):
-            with mock.patch.object(validator, "_VALIDATION_RESULT_PATH", output_dir / "_validation_result.json"):
+            with mock.patch.object(
+                validator, "_VALIDATION_RESULT_PATH", output_dir / "_validation_result.json"
+            ):
                 rc = validator.cmd_profile(ns)
         assert rc == 0
 
@@ -938,13 +947,20 @@ class TestCLIInterface:
         """Every subparser name has a matching dispatch entry."""
         # Build the parser and check that every subcommand has a handler
         import argparse
+
         parser = argparse.ArgumentParser()
-        subparsers = parser.add_subparsers(dest="schema", required=True)
+        parser.add_subparsers(dest="schema", required=True)
 
         expected_schemas = [
-            "manifest", "profile", "benign-tasks", "adversarial-tasks",
-            "diagnosis", "ecological-validity", "judge-recommendation",
-            "revised-task", "variant-task",
+            "manifest",
+            "profile",
+            "benign-tasks",
+            "adversarial-tasks",
+            "diagnosis",
+            "ecological-validity",
+            "judge-recommendation",
+            "revised-task",
+            "variant-task",
         ]
         dispatch = {
             "manifest": validator.cmd_manifest,
@@ -1135,6 +1151,7 @@ class TestProfileValidationParity:
 
         # Orchestrator
         from worldsim.profile_validation import validate_profile as orch_validate
+
         with pytest.raises(ValueError, match="mismatch"):
             orch_validate("gitlab", profile)
 
@@ -1152,6 +1169,7 @@ class TestProfileValidationParity:
         assert any("unknown entity" in e for e in sandbox_errors)
 
         from worldsim.profile_validation import validate_profile as orch_validate
+
         with pytest.raises(ValueError, match="unknown entity"):
             orch_validate("shopping", profile)
 
@@ -1169,6 +1187,7 @@ class TestProfileValidationParity:
         assert any("unknown field" in e for e in sandbox_errors)
 
         from worldsim.profile_validation import validate_profile as orch_validate
+
         with pytest.raises(ValueError, match="unknown field"):
             orch_validate("shopping", profile)
 
@@ -1193,9 +1212,11 @@ class TestProfileValidationParity:
 
         # Orchestrator: error when manifest doesn't have that eval type
         from worldsim.profile_validation import validate_profile as orch_validate
+
         with pytest.raises(ValueError, match="eval types absent"):
             orch_validate(
-                "shopping", profile,
+                "shopping",
+                profile,
                 manifest_eval_types=["AgentResponseEvaluator"],
             )
 
@@ -1215,6 +1236,7 @@ class TestDataSeedValidationParity:
 
         # Orchestrator raises ValueError
         from worldsim.seeding import validate_data_seed as orch_validate
+
         with pytest.raises(ValueError, match="object"):
             orch_validate("not a dict")
 
@@ -1224,6 +1246,7 @@ class TestDataSeedValidationParity:
         assert any("mechanism" in e for e in sandbox_errors)
 
         from worldsim.seeding import validate_data_seed as orch_validate
+
         with pytest.raises(ValueError, match="mechanism"):
             orch_validate(seed)
 
@@ -1233,6 +1256,7 @@ class TestDataSeedValidationParity:
         assert any("disallowed keyword" in e for e in sandbox_errors)
 
         from worldsim.seeding import validate_data_seed as orch_validate
+
         with pytest.raises(ValueError, match="disallowed keyword"):
             orch_validate(seed)
 
@@ -1240,12 +1264,14 @@ class TestDataSeedValidationParity:
         """Both use the same regex pattern for disallowed SQL keywords."""
         sandbox_pattern = validator._DISALLOWED_SQL_KEYWORDS.pattern
         from worldsim.seeding import _DISALLOWED_SQL_KEYWORDS as orch_pattern
+
         assert sandbox_pattern == orch_pattern.pattern
 
     def test_both_use_same_multi_statement_pattern(self):
         """Both use the same regex for multi-statement detection."""
         sandbox_pattern = validator._MULTI_STATEMENT_PATTERN.pattern
         from worldsim.seeding import _MULTI_STATEMENT_PATTERN as orch_pattern
+
         assert sandbox_pattern == orch_pattern.pattern
 
     def test_both_reject_unknown_mechanism(self):
@@ -1254,5 +1280,6 @@ class TestDataSeedValidationParity:
         assert any("unknown" in e for e in sandbox_errors)
 
         from worldsim.seeding import validate_data_seed as orch_validate
+
         with pytest.raises(ValueError, match="unknown"):
             orch_validate(seed)

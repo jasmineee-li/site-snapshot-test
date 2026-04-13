@@ -98,15 +98,14 @@ class CostTracker:
         return len(self._entries_for_phase(phase))
 
     def phase_total_turns(self, phase: str) -> int:
-        return sum(
-            e.num_turns for e in self._entries_for_phase(phase) if e.num_turns is not None
-        )
+        return sum(e.num_turns for e in self._entries_for_phase(phase) if e.num_turns is not None)
 
     def phase_total_duration_s(self, phase: str) -> float:
         """Total sandbox wall-clock time for a phase, in seconds."""
-        return sum(
-            e.duration_ms for e in self._entries_for_phase(phase) if e.duration_ms is not None
-        ) / 1000.0
+        return (
+            sum(e.duration_ms for e in self._entries_for_phase(phase) if e.duration_ms is not None)
+            / 1000.0
+        )
 
     # -- Reporting ------------------------------------------------------------
 
@@ -137,7 +136,12 @@ class CostTracker:
         dur = sum(e.duration_ms for e in entries if e.duration_ms is not None) / 1000.0
         logger.info(
             "%s cost: $%.2f (%d sandbox%s, %d turns, %.0fs)",
-            phase, cost, count, "es" if count != 1 else "", turns, dur,
+            phase,
+            cost,
+            count,
+            "es" if count != 1 else "",
+            turns,
+            dur,
         )
 
     # -- Persistence ----------------------------------------------------------

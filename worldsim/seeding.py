@@ -184,14 +184,10 @@ def _validate_seed_sql(statement: str) -> None:
     if _MULTI_STATEMENT_PATTERN.search(normalized.rstrip(";")):
         raise ValueError("SQL seed must be a single statement")
     if _DISALLOWED_SQL_KEYWORDS.search(normalized):
-        raise ValueError(
-            f"SQL seed contains a disallowed keyword: {normalized[:100]}..."
-        )
+        raise ValueError(f"SQL seed contains a disallowed keyword: {normalized[:100]}...")
 
     first_token = normalized.split(None, 1)[0].upper()
     if first_token not in {"INSERT", "UPDATE"}:
-        raise ValueError(
-            f"SQL seed must start with INSERT or UPDATE, got {first_token!r}"
-        )
+        raise ValueError(f"SQL seed must start with INSERT or UPDATE, got {first_token!r}")
     if first_token == "UPDATE" and " WHERE " not in f" {normalized.upper()} ":
         raise ValueError("UPDATE seed statements must include a WHERE clause")

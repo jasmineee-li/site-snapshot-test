@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +41,7 @@ def validate_profile(
     profile_site = profile.get("site_name")
     if profile_site and profile_site != site_name:
         raise ValueError(
-            f"Profile site_name mismatch: expected {site_name!r}, "
-            f"got {profile_site!r}"
+            f"Profile site_name mismatch: expected {site_name!r}, got {profile_site!r}"
         )
 
     known_fields: set[str] = set()

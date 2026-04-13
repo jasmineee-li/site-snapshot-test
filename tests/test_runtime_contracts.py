@@ -5,8 +5,8 @@ import pytest
 from worldsim.agent_config import (
     RUNTIME_METADATA_KEY,
     bind_task_to_instance,
-    make_llm,
     execution_instance_dict,
+    make_llm,
     prepare_task_for_execution,
     resolve_task_inputs,
 )
@@ -50,9 +50,7 @@ def test_prepare_task_for_execution_supports_multi_site_placeholders_and_resets(
     instance_dict = execution_instance_dict(instances[0], bound)
     instruction, start_urls = resolve_task_inputs(bound, instance_dict)
 
-    assert instruction == (
-        "Visit http://shopping.test and then open http://gitlab.test/issues."
-    )
+    assert instruction == ("Visit http://shopping.test and then open http://gitlab.test/issues.")
     assert start_urls == [
         "http://shopping.test/products",
         "http://gitlab.test/issues",
@@ -100,9 +98,7 @@ def test_bind_task_to_instance_uses_chosen_primary_instance_metadata():
     instance_dict = execution_instance_dict(instances[1], bound)
     instruction, start_urls = resolve_task_inputs(bound, instance_dict)
 
-    assert instruction == (
-        "Visit http://shopping-secondary.test then http://gitlab.test."
-    )
+    assert instruction == ("Visit http://shopping-secondary.test then http://gitlab.test.")
     assert start_urls == [
         "http://shopping-secondary.test/products",
         "http://gitlab.test/issues",
@@ -110,9 +106,7 @@ def test_bind_task_to_instance_uses_chosen_primary_instance_metadata():
 
 
 def test_prepare_task_for_execution_reports_missing_sites():
-    instances = [
-        BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")
-    ]
+    instances = [BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")]
     task = {
         "id": "task-2",
         "site": "shopping",

@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from dataclasses import dataclass
 import json
 import logging
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from worldsim.cost_tracker import tracker as cost_tracker
@@ -140,13 +140,12 @@ async def run(args: argparse.Namespace) -> int:
         )
 
     # Per-site summary after all sandboxes complete.
-    succeeded = sum(
-        1 for r in results
-        if not isinstance(r, BaseException) and not r.errors
-    )
+    succeeded = sum(1 for r in results if not isinstance(r, BaseException) and not r.errors)
     logger.info(
         "Phase 2: all sandboxes done — %d/%d sites succeeded, %d total adversarial tasks",
-        succeeded, len(results), len(all_adversarial),
+        succeeded,
+        len(results),
+        len(all_adversarial),
     )
 
     if site_failures:
@@ -174,19 +173,23 @@ async def run(args: argparse.Namespace) -> int:
         save_state("phase_2", status="failed", task_count=0)
         return 1
 
-    save_state("phase_2", status="complete",
-               adversarial_tasks_path=str(output_path),
-               task_count=len(all_adversarial))
+    save_state(
+        "phase_2",
+        status="complete",
+        adversarial_tasks_path=str(output_path),
+        task_count=len(all_adversarial),
+    )
     cost_tracker.log_phase_summary("phase_2")
     cost_tracker.save(state_dir / "cost_report.json")
-    logger.info("Phase 2 complete — %d adversarial tasks written to %s",
-                len(all_adversarial), output_path)
+    logger.info(
+        "Phase 2 complete — %d adversarial tasks written to %s", len(all_adversarial), output_path
+    )
     return 0
 
 
 def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
     """Split a task list into chunks of at most *shard_size*."""
-    return [tasks[i:i + shard_size] for i in range(0, len(tasks), shard_size)]
+    return [tasks[i : i + shard_size] for i in range(0, len(tasks), shard_size)]
 
 
 def _merge_shard_results(
@@ -208,11 +211,13 @@ def _merge_shard_results(
 
     merged: list[SiteInjectionResult] = []
     for site in tasks_by_site:
-        merged.append(SiteInjectionResult(
-            site_name=site,
-            adversarial_tasks=site_tasks_acc.get(site, []),
-            errors=site_errors_acc.get(site, []),
-        ))
+        merged.append(
+            SiteInjectionResult(
+                site_name=site,
+                adversarial_tasks=site_tasks_acc.get(site, []),
+                errors=site_errors_acc.get(site, []),
+            )
+        )
     # Surface any unattributed exceptions as a synthetic result.
     unknown_errors = site_errors_acc.get("_unknown_", [])
     if unknown_errors:
@@ -262,8 +267,7 @@ async def _generate_injections_for_site(
             "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
         }
 
-        logger.info("Phase 2: launching injection sandbox %r (%d tasks)",
-                     label, len(site_tasks))
+        logger.info("Phase 2: launching injection sandbox %r (%d tasks)", label, len(site_tasks))
 
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
@@ -365,10 +369,7 @@ def _validate_generated_adversarial_tasks(
     benign_tasks: list[dict],
 ) -> tuple[list[dict], list[str]]:
     """Validate sandbox-generated adversarial tasks against their benign parents."""
-    benign_by_id = {
-        str(task.get("id", "")): task
-        for task in benign_tasks
-    }
+    benign_by_id = {str(task.get("id", "")): task for task in benign_tasks}
     validated: list[dict] = []
     errors: list[str] = []
     for i, task in enumerate(adv_tasks):
@@ -400,10 +401,7 @@ def _validate_generated_adversarial_task(
 
     benign_parent = benign_by_id.get(str(task.get("benign_task_id", "")))
     if benign_parent is None:
-        return (
-            f"{task_name} references unknown benign_task_id "
-            f"{task.get('benign_task_id')!r}"
-        )
+        return f"{task_name} references unknown benign_task_id {task.get('benign_task_id')!r}"
 
     reward_problem = _validate_reward_function_shape(task, task_name)
     if reward_problem is not None:

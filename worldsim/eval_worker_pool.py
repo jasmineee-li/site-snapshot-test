@@ -108,7 +108,7 @@ async def staggered_worker(
     try:
         agent = agent_factory()
         await agent.setup(instance.site_url)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.exception("worker %d failed during setup: %s", worker_id, e)
         stop_event.set()
         return
@@ -127,15 +127,11 @@ async def staggered_worker(
             task_dir.mkdir(parents=True, exist_ok=True)
 
             try:
-                bound_task = (
-                    task_binder(task, instance)
-                    if task_binder is not None
-                    else task
-                )
+                bound_task = task_binder(task, instance) if task_binder is not None else task
                 result = await task_runner(bound_task, agent, instance, task_dir)
                 async with results_lock:
                     results.append(result)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.exception("worker %d failed task %s: %s", worker_id, task_id, e)
                 async with results_lock:
                     results.append(
@@ -193,7 +189,9 @@ async def run_eval(
             prior_results = list(completed.values())
             logger.info(
                 "Resume: %d/%d tasks already completed, %d remaining",
-                len(prior_results), original_count, len(tasks),
+                len(prior_results),
+                original_count,
+                len(tasks),
             )
     if not tasks:
         logger.info("All tasks already completed in prior run")

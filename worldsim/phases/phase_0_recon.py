@@ -88,9 +88,12 @@ async def run(benchmark: Path, sub: str = "0") -> int:
         out_dir = output_base / "phase_0b"
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "SANDBOX_MAP.json").write_text(json.dumps(sandbox_map, indent=2))
-        save_state("phase_0b", status="complete",
-                   sandbox_map_path=str(out_dir / "SANDBOX_MAP.json"),
-                   benchmark_path=str(benchmark))
+        save_state(
+            "phase_0b",
+            status="complete",
+            sandbox_map_path=str(out_dir / "SANDBOX_MAP.json"),
+            benchmark_path=str(benchmark),
+        )
         logger.info("Phase 0b complete — sandbox maps written for %d sites", len(sandbox_map))
         if sub == "0b":
             return 0
@@ -105,7 +108,9 @@ async def run(benchmark: Path, sub: str = "0") -> int:
         if sandbox_map is None:
             sandbox_map_path = output_base / "phase_0b" / "SANDBOX_MAP.json"
             if not sandbox_map_path.exists():
-                logger.error("Phase 0b output not found at %s — run phase 0b first", sandbox_map_path)
+                logger.error(
+                    "Phase 0b output not found at %s — run phase 0b first", sandbox_map_path
+                )
                 return 1
             sandbox_map = json.loads(sandbox_map_path.read_text())
         save_state("phase_0c", status="running", benchmark_path=str(benchmark))
@@ -120,9 +125,12 @@ async def run(benchmark: Path, sub: str = "0") -> int:
             )
             logger.error("Phase 0c failed: %s", e)
             return 1
-        save_state("phase_0c", status="complete",
-                   profiles_dir=str(output_base / "phase_0c"),
-                   benchmark_path=str(benchmark))
+        save_state(
+            "phase_0c",
+            status="complete",
+            profiles_dir=str(output_base / "phase_0c"),
+            benchmark_path=str(benchmark),
+        )
         cost_tracker.log_phase_summary("phase_0c")
         cost_tracker.save(get_state_dir() / "cost_report.json")
         logger.info("Phase 0c complete — per-site profiles written")
@@ -282,9 +290,7 @@ def _validate_manifest_paths(
 # ---------------------------------------------------------------------------
 
 
-def compute_sandbox_maps(
-    manifest: dict, benchmark_root: Path
-) -> dict[str, list[str]]:
+def compute_sandbox_maps(manifest: dict, benchmark_root: Path) -> dict[str, list[str]]:
     """Compute the exact file list for each site's sandbox.
 
     Pure Python, no LLM, deterministic. Each site gets: shared eval harness
@@ -311,9 +317,7 @@ def compute_sandbox_maps(
         seeding_paths = site.get("data_seeding", {}).get("paths", [])
         site_files.extend(_collect_files(seeding_paths, benchmark_root))
 
-        site_files.extend(
-            _sample_tasks_for_site(manifest, site_name, benchmark_root, max_tasks=20)
-        )
+        site_files.extend(_sample_tasks_for_site(manifest, site_name, benchmark_root, max_tasks=20))
 
         sandbox_maps[site_name] = sorted(set(site_files))
 
@@ -438,7 +442,9 @@ async def run_phase_0c(
     for name, files in sandbox_map.items():
         profile_path = output_dir / f"BENCHMARK_PROFILE_{name}.json"
         if profile_path.exists():
-            logger.info("Phase 0c: skipping site %r (profile already exists at %s)", name, profile_path)
+            logger.info(
+                "Phase 0c: skipping site %r (profile already exists at %s)", name, profile_path
+            )
         else:
             sites_to_profile[name] = files
 
@@ -471,9 +477,9 @@ async def run_phase_0c(
             site_files = {"/workspace/benchmark": str(staging_dir)}
 
             logger.info(
-                "Phase 0c: launching profiling sandbox for site %r "
-                "(%d files staged into 1 mount)",
-                site_name, len(file_list),
+                "Phase 0c: launching profiling sandbox for site %r (%d files staged into 1 mount)",
+                site_name,
+                len(file_list),
             )
 
             base_prompt = load_prompt(
@@ -524,8 +530,7 @@ async def run_phase_0c(
                     errors_msg = str(exc)
                     if attempt < PROFILE_FIX_MAX_ITERATIONS:
                         logger.warning(
-                            "Phase 0c: site %r profile has validation errors, "
-                            "retrying (%d/%d): %s",
+                            "Phase 0c: site %r profile has validation errors, retrying (%d/%d): %s",
                             site_name,
                             attempt + 1,
                             PROFILE_FIX_MAX_ITERATIONS,
@@ -549,10 +554,7 @@ async def run_phase_0c(
         return site_name, last_outputs
 
     raw_results = await asyncio.gather(
-        *[
-            profile_one_site(name, files)
-            for name, files in sites_to_profile.items()
-        ],
+        *[profile_one_site(name, files) for name, files in sites_to_profile.items()],
         return_exceptions=True,
     )
 

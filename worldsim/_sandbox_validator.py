@@ -152,9 +152,7 @@ def validate_profile(data: object, *, site_name: str) -> list[str]:
     # site_name mismatch
     profile_site = data.get("site_name")
     if profile_site and profile_site != site_name:
-        errors.append(
-            f"profile site_name mismatch: expected {site_name!r}, got {profile_site!r}"
-        )
+        errors.append(f"profile site_name mismatch: expected {site_name!r}, got {profile_site!r}")
 
     # Build known entities and fields from data_model
     known_entities: set[str] = set()
@@ -251,9 +249,7 @@ def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
                 continue
             evaluator = config.get("evaluator")
             if evaluator not in _ALLOWED_EVALUATORS:
-                errors.append(
-                    f"{prefix} eval[{ei}] uses unsupported evaluator {evaluator!r}"
-                )
+                errors.append(f"{prefix} eval[{ei}] uses unsupported evaluator {evaluator!r}")
 
     return errors
 
@@ -284,16 +280,16 @@ def validate_adversarial_tasks(data: object) -> list[str]:
             benign_tasks = json.loads(benign_path.read_text())
             if isinstance(benign_tasks, list):
                 benign_by_id = {
-                    str(t.get("id", "")): t
-                    for t in benign_tasks
-                    if isinstance(t, dict)
+                    str(t.get("id", "")): t for t in benign_tasks if isinstance(t, dict)
                 }
         except json.JSONDecodeError:
             errors.append("could not parse benign_tasks.json for cross-reference")
 
     # Minimal schema only requires these fields from Claude's output.
     _REQUIRED_FIELDS = (
-        "id", "benign_task_id", "adversarial_data_seed",
+        "id",
+        "benign_task_id",
+        "adversarial_data_seed",
     )
 
     for i, task in enumerate(data):
@@ -313,9 +309,7 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         # Cross-reference benign task
         benign_task_id = str(task.get("benign_task_id", ""))
         if benign_by_id and benign_task_id not in benign_by_id:
-            errors.append(
-                f"{prefix} references unknown benign_task_id {benign_task_id!r}"
-            )
+            errors.append(f"{prefix} references unknown benign_task_id {benign_task_id!r}")
             # Cannot simulate merge without a benign task — skip remaining checks.
             continue
 
@@ -335,16 +329,16 @@ def validate_adversarial_tasks(data: object) -> list[str]:
             adv_reward = reward_fn.get("adversarial_reward")
 
         if adv_reward is None:
-            errors.append(f"{prefix} missing adversarial_reward (neither top-level nor in reward_function)")
+            errors.append(
+                f"{prefix} missing adversarial_reward (neither top-level nor in reward_function)"
+            )
         elif not isinstance(adv_reward, dict) or not adv_reward:
             errors.append(f"{prefix} adversarial_reward must be a non-empty object")
         elif "type" not in adv_reward:
             errors.append(f"{prefix} adversarial_reward missing type field")
 
         # Validate adversarial_data_seed
-        seed_errors = validate_data_seed(
-            task.get("adversarial_data_seed"), allow_none=False
-        )
+        seed_errors = validate_data_seed(task.get("adversarial_data_seed"), allow_none=False)
         for se in seed_errors:
             errors.append(f"{prefix} adversarial_data_seed: {se}")
 
@@ -359,14 +353,15 @@ def validate_diagnosis(data: object) -> list[str]:
         return errors
 
     valid_root_causes = {
-        "reward_bug", "seed_bug", "impossible", "too_hard", "agent_limitation",
+        "reward_bug",
+        "seed_bug",
+        "impossible",
+        "too_hard",
+        "agent_limitation",
     }
     root_cause = data.get("root_cause")
     if root_cause not in valid_root_causes:
-        errors.append(
-            f"root_cause must be one of {sorted(valid_root_causes)}, "
-            f"got {root_cause!r}"
-        )
+        errors.append(f"root_cause must be one of {sorted(valid_root_causes)}, got {root_cause!r}")
 
     suggested_fix = data.get("suggested_fix")
     if suggested_fix is not None:
@@ -397,9 +392,7 @@ def validate_ecological_validity(data: object) -> list[str]:
             if not isinstance(score, (int, float)):
                 errors.append(f"probes[{i}] missing numeric 'score'")
             elif score < 0.0 or score > 1.0:
-                errors.append(
-                    f"probes[{i}] score must be 0.0-1.0, got {score}"
-                )
+                errors.append(f"probes[{i}] score must be 0.0-1.0, got {score}")
 
     average = data.get("average_score")
     if not isinstance(average, (int, float)):
@@ -423,8 +416,11 @@ def validate_judge_recommendation(data: object) -> list[str]:
         errors.append("judge recommendation missing 'refusal_trigger'")
 
     valid_strategies = {
-        "authority_framing", "semantic_coherence", "specificity",
-        "visual_concealment", "verbosity_adjustment",
+        "authority_framing",
+        "semantic_coherence",
+        "specificity",
+        "visual_concealment",
+        "verbosity_adjustment",
     }
 
     strategies = data.get("recommended_strategies")
@@ -503,9 +499,7 @@ def _emit_result(valid: bool, errors: list[str]) -> int:
 
     if valid:
         _VALIDATION_RESULT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _VALIDATION_RESULT_PATH.write_text(
-            json.dumps(result, indent=2), encoding="utf-8"
-        )
+        _VALIDATION_RESULT_PATH.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
     return 0 if valid else 1
 
