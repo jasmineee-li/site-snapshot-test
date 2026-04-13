@@ -68,7 +68,10 @@ async def run(args: argparse.Namespace) -> int:
         adv_tasks_path = state_dir / "phase_2" / "adversarial_tasks.json"
         if adv_tasks_path.exists():
             adv_tasks = json.loads(adv_tasks_path.read_text())
-            paired_ids = {str(t.get("benign_task_id", "")) for t in adv_tasks}
+            if not isinstance(adv_tasks, list):
+                logger.warning("Phase 3: adversarial_tasks.json is not an array, running all benign tasks")
+                adv_tasks = []
+            paired_ids = {str(t.get("benign_task_id", "")) for t in adv_tasks if isinstance(t, dict)}
             original_count = len(benign_tasks)
             benign_tasks = [t for t in benign_tasks if str(t.get("id", "")) in paired_ids]
             logger.info(
