@@ -4,14 +4,16 @@ Last updated: 2026-04-13
 
 ## Branch
 
-`feat/worldsim-v5`, 69 commits ahead of `main`. Latest committed change: `6a5b3cc fix: Chrome --no-sandbox flag, startup retries, temp profile cleanup`.
+`feat/worldsim-v5`, 73 commits ahead of `main`. Latest committed changes:
 
-The current working tree also contains uncommitted but implemented changes for:
+```
+40557d1 feat: tier Phase 0c profiling and emit agent context artifacts
+47985c3 feat: carry benchmark agent context into task generation and runtime prompts
+ede6432 fix: restore Claude Code semantics in Modal sandbox runs
+98f4576 docs: refresh the v5 spec and progress notes for the tiered rerun
+```
 
-- tiered Phase 0c profiling
-- benchmark-specific `agent_context` discovery and propagation
-- benchmark-specific runtime prompt construction in Phases 3-4
-- restoring Claude Code semantics in the Modal sandbox runner
+All four changes above are now committed.
 
 ## Current Live Run State
 
@@ -30,20 +32,15 @@ cp -r \
   logs/
 ```
 
-After the archive, `logs/` intentionally contains only:
+After the archive, `logs/` was initially seeded with `phase_0a/` and `phase_0b/` from the archived run. However, those outputs are also invalid (see below) and must be deleted before the rerun.
 
-- `phase_0a/`
-- `phase_0b/`
-- `last_run_state.json`
+Why a full rerun from Phase 0a is required:
 
-Why this reset happened:
+- **`ede6432` fixed a critical sandbox runner bug.** The archived run's Modal sandboxes were not passing the `claude_code` preset through the Agent SDK. This means Phase 0a (benchmark discovery) and Phase 0c (per-site profiling) ran under generic SDK semantics, not Claude Code semantics. The resulting manifest and profiles may be unreliable.
+- The archived run also predates the tiered Phase 0c implementation and the benchmark-specific `agent_context` fix.
+- No archived sandbox output can be trusted as canonical for the current codebase.
 
-- The archived run predates the current tiered Phase 0c implementation.
-- The archived run also predates the benchmark-specific task-template / `agent_context` fix, so later-phase outputs are no longer canonical for the current code.
-- `phase_0a` and `phase_0b` are still valid, unchanged inputs to Phase 0c, so keeping them avoids unnecessary reruns.
-- Everything from Phase 0c onward should now be regenerated against the current codebase.
-
-Canonical rerun boundary: start again at **Phase 0c**.
+Canonical rerun boundary: start again at **Phase 0a** (full pipeline from scratch).
 
 ## What's Proven (Archived Run 1)
 
@@ -51,9 +48,9 @@ All items below refer to the archived run at
 `logs_run1_no_tiered_site_discovery_and_missing_benchmark_specific_task_template/`.
 They ran against real Modal sandboxes and produced artifacts on disk.
 
-- **Phase 0a -- Benchmark Discovery.** Single Modal sandbox analyzed the full WebArena Verified codebase. Produced `BENCHMARK_MANIFEST.json` (6 sites, 813 tasks) and human-readable `.md` summary. Two sandbox runs, 90 total turns, $2.88 spend.
-- **Phase 0b -- Sandbox Filesystem Mapping.** Pure local Python, no LLM. Computed per-site file lists from the manifest. Output: `SANDBOX_MAP.json` with keys for all 6 sites (shopping, shopping_admin, gitlab, reddit, wikipedia, map).
-- **Legacy Phase 0c -- Per-Site Profiling.** The archived run used the older single-stage per-site profiling flow and produced `BENCHMARK_PROFILE_{site}.json` artifacts for all 6 sites. These artifacts are useful historical evidence, but they have been superseded by the current tiered Phase 0c design and should not be resumed from.
+- **Phase 0a -- Benchmark Discovery (invalidated).** Single Modal sandbox analyzed the full WebArena Verified codebase. Produced `BENCHMARK_MANIFEST.json` (6 sites, 813 tasks). However, this sandbox ran without the `claude_code` preset (`ede6432`), so the output is not trustworthy under the current contract. Must rerun.
+- **Phase 0b -- Sandbox Filesystem Mapping (invalidated).** Pure local Python, no LLM. Output is deterministic given the manifest, but since the manifest must be regenerated, 0b must rerun too.
+- **Legacy Phase 0c -- Per-Site Profiling (invalidated).** The archived run used both the older single-stage flow and the broken sandbox runner. Superseded by tiered Phase 0c and the Claude Code semantics fix.
 - **Phase 1 -- Task Wrapping (Mode A).** Loaded 813 tasks from the WebArena Verified dataset and wrapped them into benign task bundles for downstream phases. Output: `benign_tasks.json`. No LLM required.
 - **Phase 2 -- Injection Generation.** 43 Modal sandbox runs across 6 sites with per-site task sharding. Shopping (182 tasks) and gitlab (160 tasks) were the largest. Produced 671 adversarial tasks total. In-sandbox validation caught schema errors before sandbox exit. Total $82.99 spend across 624 turns.
 - **Phase 3 artifact production.** The archived run produced `validated_tasks.json`, `results.json`, and `diagnoses.json` under `phase_3/`, proving the Phase 3 path executed far enough to materialize downstream artifacts.
@@ -91,12 +88,9 @@ Current canonical live run:
 ```text
 logs/
   last_run_state.json        # Marker for the reset live run
-  phase_0a/
-    BENCHMARK_MANIFEST.json
-    BENCHMARK_MANIFEST.md
-  phase_0b/
-    SANDBOX_MAP.json
 ```
+
+The `phase_0a/` and `phase_0b/` directories that were initially copied back have been removed. The full pipeline must rerun from Phase 0a due to the sandbox runner fix (`ede6432`).
 
 Archived historical run:
 
@@ -131,8 +125,8 @@ logs_run1_no_tiered_site_discovery_and_missing_benchmark_specific_task_template/
 Golden path status:
 
 - **Historical proof:** the archived run reached Phase 3 artifact production and produced real 0a/0b/0c/1/2/3 outputs.
-- **Current canonical state:** `logs/` has been intentionally reset to `phase_0a` + `phase_0b` only.
-- **Required next step:** rerun Phase 0c and everything downstream on the current code before treating any Phase 0c+ output as canonical again.
+- **Current canonical state:** `logs/` is empty (aside from `last_run_state.json`). No phase outputs are canonical.
+- **Required next step:** rerun the full pipeline from Phase 0a. The sandbox runner fix (`ede6432`) invalidated all prior sandbox outputs.
 
 ## Architecture Highlights
 
@@ -147,7 +141,7 @@ Key design decisions for anyone continuing this work:
 - **Per-site instance locking.** `site_lock.py` provides asyncio locks keyed by site name. Diagnosis sandboxes run fully parallel. Agent reruns that mutate shared DB state serialize per site.
 - **File routing via inclusion.** Sandboxes are scoped by `add_local_file` / `add_local_dir` calls, not ignore patterns. Phase 0b's `SANDBOX_MAP.json` remains the driver for which files each site's profiling sandbox receives.
 - **Per-task resume in Phase 3/4.** `result.json` in each task directory serves as a completion sentinel. On `--resume`, existing completed results are merged with new ones.
-- **Run archival boundary.** Because the first run predates the current Phase 0c/task-template fixes, resume is intentionally cut at Phase 0b. This preserves valid reconnaissance outputs while forcing regeneration of semantically stale downstream artifacts.
+- **Run archival boundary.** The first run predates both the tiered Phase 0c/`agent_context` changes and the sandbox runner Claude Code semantics fix (`ede6432`). All sandbox outputs from that run are invalid. Resume is cut at Phase 0a (full pipeline from scratch).
 
 ## WebArena env-ctrl base_url Fix
 
@@ -184,13 +178,14 @@ From code review sweeps, the archived run, and the current refactor:
 
 Prioritized execution order from the current canonical state:
 
-1. **Rerun Phase 0c.** Start from the preserved `phase_0a` manifest and `phase_0b` sandbox map. Generate fresh tiered Phase 0c outputs (`BENCHMARK_PROFILE_{site}.json`, `AGENT_CONTEXT_{site}.json`, and tier debug artifacts).
-2. **Rerun Phase 1.** Rebuild benign task bundles so Mode A and Mode B outputs embed the new `agent_context` field and preserve per-task formatting metadata.
-3. **Rerun Phase 2.** Regenerate adversarial tasks so `agent_context` is preserved as an immutable field and injection prompts are conditioned on the benchmark-specific runtime contract.
-4. **Stand up / verify WebArena Docker containers.** Pull the 6 Docker images from `am1n3e/webarena-verified-*`, verify env-ctrl reset behavior, and confirm the override / patch script is in place.
-5. **Validate `instances.json`.** Verify site URLs, DB connections, reset endpoints, and URL placeholders for the running containers.
-6. **Run Phase 3 (benign validation).** `uv run python -m worldsim.main phase 3 --instances instances.json --agent-model gemini-3-flash-preview`
-7. **Run Phase 4 (adversarial evaluation).** `uv run python -m worldsim.main phase 4 --instances instances.json`
+1. **Rerun Phase 0a.** Full pipeline from scratch. The sandbox runner fix (`ede6432`) means all prior sandbox outputs were produced without Claude Code semantics and cannot be trusted. Run: `uv run python -m worldsim.main phase 0a --benchmark vendors/webarena-verified`
+2. **Rerun Phase 0b.** Pure Python, deterministic given the Phase 0a manifest. Run: `uv run python -m worldsim.main phase 0b --benchmark vendors/webarena-verified`
+3. **Rerun Phase 0c.** Tiered profiling (4 sandboxes/site). Produces `BENCHMARK_PROFILE_{site}.json`, `AGENT_CONTEXT_{site}.json`, and tier debug artifacts. Run: `uv run python -m worldsim.main phase 0c --benchmark vendors/webarena-verified`
+4. **Rerun Phase 1.** Rebuild benign task bundles with embedded `agent_context` and preserved `instantiation_dict`. Run: `uv run python -m worldsim.main phase 1 --benchmark vendors/webarena-verified`
+5. **Rerun Phase 2.** Regenerate adversarial tasks with `agent_context` as immutable field and injection prompts conditioned on the benchmark contract. Run: `uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified --instances instances.json`
+6. **Fix WebArena Docker containers.** Wikipedia container is crashing (`exec format error`, arm64 image on x86_64 host, needs rebuild for amd64). Map container does not exist. Shopping, shopping_admin, gitlab, reddit are healthy. Update `instances.json` once wikipedia and map are running.
+7. **Run Phase 3 (benign validation).** `uv run python -m worldsim.main phase 3 --instances instances.json --agent-model gemini-3-flash-preview`. Smoke test with `--max-tasks-per-site 2` first.
+8. **Run Phase 4 (adversarial evaluation).** `uv run python -m worldsim.main phase 4 --instances instances.json`
 
 ## Cost Summary
 
