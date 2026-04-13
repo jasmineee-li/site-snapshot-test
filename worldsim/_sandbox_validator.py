@@ -339,13 +339,16 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         for se in seed_errors:
             errors.append(f"{prefix} adversarial_data_seed: {se}")
 
-        # Instruction must match benign task
+        # Immutable fields must match benign task
         if benign_by_id and benign_task_id in benign_by_id:
             benign_task = benign_by_id[benign_task_id]
-            if task.get("instruction") != benign_task.get("instruction"):
-                errors.append(
-                    f"{prefix} instruction does not match benign task's instruction"
-                )
+            for field in ("instruction", "site", "sites", "start_urls", "data_seed"):
+                adv_val = task.get(field)
+                benign_val = benign_task.get(field)
+                if adv_val != benign_val:
+                    errors.append(
+                        f"{prefix} {field} changed from benign task"
+                    )
 
     return errors
 
