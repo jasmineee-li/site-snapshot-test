@@ -78,10 +78,14 @@ def load_state() -> dict[str, Any] | None:
     if not state_file.exists():
         return None
     try:
-        return json.loads(state_file.read_text())
+        payload = json.loads(state_file.read_text())
     except json.JSONDecodeError:
         logger.warning("Corrupt pipeline state file at %s — ignoring", state_file)
         return None
+    if not isinstance(payload, dict):
+        logger.warning("Invalid pipeline state file at %s — expected a JSON object", state_file)
+        return None
+    return payload
 
 
 def _resolve_state_file() -> Path:

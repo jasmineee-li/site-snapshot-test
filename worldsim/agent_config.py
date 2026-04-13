@@ -42,7 +42,7 @@ RUNTIME_METADATA_KEY = "_worldsim_runtime"
 
 # ── Defaults ──────────────────────────────────────────────────────────────
 
-DEFAULT_MODEL = "gemini-3.1-pro-preview"
+DEFAULT_MODEL = "gemini-3-flash-preview"
 SUPPORTED_PROVIDERS = ("google", "openai", "anthropic", "openrouter")
 
 # Provider auto-detection: prefix -> provider name.
@@ -104,7 +104,7 @@ def make_llm(
     """Return a LangChain ``BaseChatModel`` for the requested provider.
 
     Args:
-        model: Model name string (e.g. ``gemini-3.1-pro-preview``,
+        model: Model name string (e.g. ``gemini-3-flash-preview``,
             ``gpt-5.4``, ``claude-sonnet-4-6``).
         provider: One of ``google``, ``openai``, ``anthropic``.  When
             ``None`` the provider is auto-detected from *model*.

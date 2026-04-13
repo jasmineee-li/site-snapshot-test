@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from argparse import Namespace
-from hashlib import sha256
 from unittest.mock import AsyncMock
 
 import pytest
@@ -80,19 +79,32 @@ def _novel_task_list(
     return phase_1_mode_b_validation.sort_novel_tasks(tasks)
 
 
-def _mode_b_resume_metadata(*, benchmark_root, manifest_path) -> dict:
+def _mode_b_resume_metadata(*, benchmark_root, manifest, eligible_sites) -> dict:
+    shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+    )
     return {
-        "fingerprint": sha256(
-            json.dumps(
-                {
-                    "benchmark_path": str(benchmark_root.resolve()),
-                    "manifest_path": str(manifest_path.resolve()),
-                },
-                sort_keys=True,
-            ).encode("utf-8")
-        ).hexdigest(),
+        "fingerprint": phase_1_mode_b.compute_mode_b_resume_fingerprint(
+            shared_inputs_fingerprint=shared_inputs_fingerprint,
+            eligible_sites=eligible_sites,
+        ),
         "benchmark_path": str(benchmark_root),
-        "manifest_path": str(manifest_path),
+        "eligible_sites": [site.site_name for site in eligible_sites],
+    }
+
+
+def _site_cache_metadata(*, benchmark_root, manifest, site) -> dict:
+    shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+    )
+    return {
+        "fingerprint": phase_1_mode_b.compute_site_cache_fingerprint(
+            shared_inputs_fingerprint=shared_inputs_fingerprint,
+            site=site,
+        ),
+        "site_name": site.site_name,
     }
 
 
@@ -194,7 +206,24 @@ async def test_generate_novel_tasks_for_site_reuses_valid_cached_output(monkeypa
     output_dir = tmp_path / "phase_1"
     output_dir.mkdir()
     cached_tasks = _novel_task_list()
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = {"evaluation": {"eval_types": ["NetworkEventEvaluator", "AgentResponseEvaluator"]}}
+    site = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=tmp_path / "profile.json",
+        profile=_profile(uncovered=["surface-1"]),
+    )
     (output_dir / "novel_tasks_shopping.json").write_text(json.dumps(cached_tasks))
+    (output_dir / "novel_tasks_shopping.json.metadata.json").write_text(
+        json.dumps(
+            _site_cache_metadata(
+                benchmark_root=benchmark_root,
+                manifest=manifest,
+                site=site,
+            )
+        )
+    )
 
     async def fail_if_called(*args, **kwargs):
         raise AssertionError("sandbox should not run when cached tasks validate")
@@ -202,13 +231,14 @@ async def test_generate_novel_tasks_for_site_reuses_valid_cached_output(monkeypa
     monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", fail_if_called)
 
     result = await phase_1_mode_b.generate_novel_tasks_for_site(
-        site=phase_1_mode_b.EligibleSiteProfile(
-            site_name="shopping",
-            profile_path=tmp_path / "profile.json",
-            profile=_profile(uncovered=["surface-1"]),
-        ),
+        site=site,
         benchmark_volume=object(),
         output_dir=output_dir,
+        cache_fingerprint=_site_cache_metadata(
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+            site=site,
+        )["fingerprint"],
     )
 
     assert result.errors == []
@@ -459,6 +489,7 @@ async def test_generate_novel_tasks_for_site_retries_once_and_succeeds(monkeypat
         ),
         benchmark_volume=object(),
         output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
     )
 
     assert result.errors == []
@@ -491,6 +522,7 @@ async def test_generate_novel_tasks_for_site_fails_after_max_retries(monkeypatch
         ),
         benchmark_volume=object(),
         output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
     )
 
     assert result.benign_tasks == []
@@ -527,6 +559,7 @@ async def test_generate_novel_tasks_for_site_rejects_invalid_cached_output_and_r
         ),
         benchmark_volume=object(),
         output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
     )
 
     assert result.errors == []
@@ -559,6 +592,7 @@ async def test_generate_novel_tasks_for_site_rejects_underfilled_cached_output(m
         ),
         benchmark_volume=object(),
         output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
     )
 
     assert result.errors == []
@@ -586,6 +620,7 @@ async def test_generate_novel_tasks_for_site_handles_missing_and_invalid_sandbox
         ),
         benchmark_volume=object(),
         output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
     )
     assert missing_result.errors == ["sandbox did not produce benign_tasks.json"]
 
@@ -604,6 +639,7 @@ async def test_generate_novel_tasks_for_site_handles_missing_and_invalid_sandbox
         ),
         benchmark_volume=object(),
         output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
     )
     assert "invalid sandbox JSON" in invalid_result.errors[0]
 
@@ -661,7 +697,7 @@ async def test_run_mode_b_fails_closed_when_any_site_errors(monkeypatch, tmp_pat
 
     monkeypatch.setattr(phase_1_mode_b, "load_mode_b_eligible_sites", lambda **kwargs: [site_a, site_b])
 
-    async def fake_generate_novel_tasks_for_site(*, site, benchmark_volume, output_dir):
+    async def fake_generate_novel_tasks_for_site(*, site, benchmark_volume, output_dir, cache_fingerprint):
         if site.site_name == "gitlab":
             return phase_1_mode_b.SiteNovelTaskResult("gitlab", [_novel_task(task_id="novel_gitlab_1", site="gitlab", start_urls=["__GITLAB__/issues"])], [])
         return phase_1_mode_b.SiteNovelTaskResult("shopping", [], ["sandbox did not produce benign_tasks.json"])
@@ -710,6 +746,7 @@ async def test_run_mode_b_skips_benchmark_upload_when_all_sites_are_cached(monke
     (tmp_path / "phase_0c").mkdir()
     benchmark_root = tmp_path / "benchmark"
     benchmark_root.mkdir()
+    manifest = {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}}
 
     gitlab_profile = _profile(uncovered=["surface-1"])
     gitlab_profile["site_name"] = "gitlab"
@@ -731,6 +768,12 @@ async def test_run_mode_b_skips_benchmark_upload_when_all_sites_are_cached(monke
         json.dumps(_novel_task_list(site="gitlab", start_urls=["__GITLAB__/issues"]))
     )
     (output_dir / "novel_tasks_shopping.json").write_text(json.dumps(_novel_task_list()))
+    (output_dir / "novel_tasks_gitlab.json.metadata.json").write_text(
+        json.dumps(_site_cache_metadata(benchmark_root=benchmark_root, manifest=manifest, site=site_a))
+    )
+    (output_dir / "novel_tasks_shopping.json.metadata.json").write_text(
+        json.dumps(_site_cache_metadata(benchmark_root=benchmark_root, manifest=manifest, site=site_b))
+    )
 
     async def fail_if_called(*args, **kwargs):
         raise AssertionError("upload_to_volume should not run when all eligible-site caches are valid")
@@ -738,7 +781,7 @@ async def test_run_mode_b_skips_benchmark_upload_when_all_sites_are_cached(monke
     monkeypatch.setattr(phase_1_mode_b, "upload_to_volume", fail_if_called)
 
     tasks = await phase_1_mode_b.run_mode_b(
-        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        manifest=manifest,
         benchmark_root=benchmark_root,
         output_dir=output_dir,
     )
@@ -770,13 +813,26 @@ async def test_phase_1_run_skips_mode_b_when_merged_output_already_contains_nove
     phase_1_dir = tmp_path / "phase_1"
     phase_1_dir.mkdir()
     cached_novel_tasks = _novel_task_list()
+    eligible_sites = [
+        phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=phase_0c / "BENCHMARK_PROFILE_shopping.json",
+            profile=_profile(uncovered=["surface-1"]),
+        )
+    ]
     existing_output = [
         phase_1_mode_a._wrap_task(_raw_task()),
         *cached_novel_tasks,
     ]
     (phase_1_dir / "benign_tasks.json").write_text(json.dumps(existing_output))
     (phase_1_dir / phase_1_mode_b.MODE_B_RESUME_METADATA_PATH).write_text(
-        json.dumps(_mode_b_resume_metadata(benchmark_root=benchmark_root, manifest_path=manifest_path))
+        json.dumps(
+            _mode_b_resume_metadata(
+                benchmark_root=benchmark_root,
+                manifest=_manifest(benchmark_root),
+                eligible_sites=eligible_sites,
+            )
+        )
     )
 
     async def fail_if_called(*args, **kwargs):
@@ -811,11 +867,24 @@ async def test_phase_1_run_does_not_reuse_merged_output_on_fresh_run(monkeypatch
 
     phase_1_dir = tmp_path / "phase_1"
     phase_1_dir.mkdir()
+    eligible_sites = [
+        phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=tmp_path / "shopping.json",
+            profile=_profile(uncovered=["surface-1"]),
+        )
+    ]
     (phase_1_dir / "benign_tasks.json").write_text(
         json.dumps([phase_1_mode_a._wrap_task(_raw_task()), *_novel_task_list()])
     )
     (phase_1_dir / phase_1_mode_b.MODE_B_RESUME_METADATA_PATH).write_text(
-        json.dumps(_mode_b_resume_metadata(benchmark_root=benchmark_root, manifest_path=manifest_path))
+        json.dumps(
+            _mode_b_resume_metadata(
+                benchmark_root=benchmark_root,
+                manifest=_manifest(benchmark_root),
+                eligible_sites=eligible_sites,
+            )
+        )
     )
 
     fake_run_mode_b = AsyncMock(return_value=_novel_task_list())
@@ -836,9 +905,6 @@ async def test_phase_1_run_ignores_merged_output_when_resume_metadata_mismatches
     benchmark_root.mkdir()
     (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task()]))
 
-    other_benchmark_root = tmp_path / "other-benchmark"
-    other_benchmark_root.mkdir()
-
     phase_0a = tmp_path / "phase_0a"
     phase_0a.mkdir()
     manifest_path = phase_0a / "BENCHMARK_MANIFEST.json"
@@ -855,9 +921,23 @@ async def test_phase_1_run_ignores_merged_output_when_resume_metadata_mismatches
     (phase_1_dir / "benign_tasks.json").write_text(
         json.dumps([phase_1_mode_a._wrap_task(_raw_task()), *_novel_task_list()])
     )
+    eligible_sites = [
+        phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=phase_0c / "BENCHMARK_PROFILE_shopping.json",
+            profile=_profile(uncovered=["surface-1"]),
+        )
+    ]
     (phase_1_dir / phase_1_mode_b.MODE_B_RESUME_METADATA_PATH).write_text(
-        json.dumps(_mode_b_resume_metadata(benchmark_root=other_benchmark_root, manifest_path=manifest_path))
+        json.dumps(
+            _mode_b_resume_metadata(
+                benchmark_root=benchmark_root,
+                manifest=_manifest(benchmark_root),
+                eligible_sites=eligible_sites,
+            )
+        )
     )
+    (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task("2")]))
 
     fake_run_mode_b = AsyncMock(return_value=_novel_task_list())
     monkeypatch.setattr(phase_1_tasks, "run_mode_b", fake_run_mode_b)
@@ -868,6 +948,101 @@ async def test_phase_1_run_ignores_merged_output_when_resume_metadata_mismatches
 
     assert rc == 0
     assert fake_run_mode_b.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_run_mode_b_rejects_stale_cached_site_output_after_in_place_benchmark_change(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    (tmp_path / "phase_0c").mkdir()
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "seed.txt").write_text("before")
+    manifest = {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}}
+
+    site = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=tmp_path / "shopping.json",
+        profile=_profile(uncovered=["surface-1"]),
+    )
+    monkeypatch.setattr(phase_1_mode_b, "load_mode_b_eligible_sites", lambda **kwargs: [site])
+    (output_dir / "novel_tasks_shopping.json").write_text(json.dumps(_novel_task_list()))
+    (output_dir / "novel_tasks_shopping.json.metadata.json").write_text(
+        json.dumps(_site_cache_metadata(benchmark_root=benchmark_root, manifest=manifest, site=site))
+    )
+
+    (benchmark_root / "seed.txt").write_text("after")
+
+    fake_generate = AsyncMock(
+        return_value=phase_1_mode_b.SiteNovelTaskResult("shopping", _novel_task_list(), [])
+    )
+    monkeypatch.setattr(phase_1_mode_b, "generate_novel_tasks_for_site", fake_generate)
+    monkeypatch.setattr(phase_1_mode_b, "upload_to_volume", AsyncMock(return_value=object()))
+
+    tasks = await phase_1_mode_b.run_mode_b(
+        manifest=manifest,
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+    )
+
+    assert len(tasks) == 30
+    assert fake_generate.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_reuses_merged_output_when_resume_metadata_is_missing_but_site_caches_match(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task()]))
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    manifest = _manifest(benchmark_root)
+    manifest_path = phase_0a / "BENCHMARK_MANIFEST.json"
+    manifest_path.write_text(json.dumps(manifest))
+
+    phase_0c = tmp_path / "phase_0c"
+    phase_0c.mkdir()
+    profile_path = phase_0c / "BENCHMARK_PROFILE_shopping.json"
+    profile = _profile(uncovered=["surface-1"])
+    profile_path.write_text(json.dumps(profile))
+    site = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=profile_path,
+        profile=profile,
+    )
+
+    phase_1_dir = tmp_path / "phase_1"
+    phase_1_dir.mkdir()
+    cached_novel_tasks = _novel_task_list()
+    (phase_1_dir / "benign_tasks.json").write_text(
+        json.dumps([phase_1_mode_a._wrap_task(_raw_task()), *cached_novel_tasks])
+    )
+    (phase_1_dir / "novel_tasks_shopping.json").write_text(json.dumps(cached_novel_tasks))
+    (phase_1_dir / "novel_tasks_shopping.json.metadata.json").write_text(
+        json.dumps(_site_cache_metadata(benchmark_root=benchmark_root, manifest=manifest, site=site))
+    )
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("run_mode_b should not be called when merged output matches current site caches")
+
+    monkeypatch.setattr(phase_1_tasks, "run_mode_b", fail_if_called)
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=True, resume=True)
+    )
+
+    assert rc == 0
+    tasks = json.loads((phase_1_dir / "benign_tasks.json").read_text())
+    assert [task["id"] for task in tasks] == ["1", *[task["id"] for task in cached_novel_tasks]]
 
 
 @pytest.mark.asyncio

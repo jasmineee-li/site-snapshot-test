@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from hashlib import sha256
 import json
 import logging
 from pathlib import Path
@@ -14,8 +13,12 @@ from worldsim.state import get_state_dir, save_state
 
 from worldsim.phases.phase_1_mode_a import build_mode_a_tasks
 from worldsim.phases.phase_1_mode_b import (
+    compute_mode_b_resume_fingerprint,
+    compute_mode_b_shared_inputs_fingerprint,
+    compute_site_cache_fingerprint,
     DEFAULT_NOVEL_TASKS_PER_SITE,
     EligibleSiteProfile,
+    load_cached_novel_tasks as _load_cached_novel_tasks,
     MODE_B_RESUME_METADATA_PATH,
     NOVEL_TASK_OUTPUT_PATH,
     SiteNovelTaskResult,
@@ -123,11 +126,12 @@ async def run(args: argparse.Namespace) -> int:
 
     benign_tasks = _merge_benign_tasks(mode_a_tasks, novel_tasks)
     output_path.write_text(json.dumps(benign_tasks, indent=2))
-    _write_mode_b_resume_metadata(
-        resume_metadata_path,
-        benchmark_root=benchmark_root,
-        manifest_path=Path(manifest_path),
-    )
+    if generate_novel:
+        _write_mode_b_resume_metadata(
+            resume_metadata_path,
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+        )
 
     save_state(
         "phase_1",
@@ -238,7 +242,6 @@ async def _maybe_generate_mode_b_tasks(
         benchmark_root=benchmark_root,
         output_path=output_path,
         resume_metadata_path=benchmark_resume_metadata_path,
-        manifest_path=manifest_path,
         resume=resume,
     )
     if existing_novel_tasks is not None:
@@ -269,7 +272,6 @@ def _reuse_existing_novel_tasks_if_valid(
     benchmark_root: Path,
     output_path: Path,
     resume_metadata_path: Path,
-    manifest_path: Path,
     resume: bool,
 ) -> list[dict[str, Any]] | None:
     """Reuse merged Mode B output only on resume and only after provenance checks."""
@@ -278,17 +280,6 @@ def _reuse_existing_novel_tasks_if_valid(
 
     existing_novel_tasks = _load_existing_novel_tasks(output_path)
     if existing_novel_tasks is None:
-        return None
-
-    metadata = _load_mode_b_resume_metadata(resume_metadata_path)
-    current_fingerprint = _mode_b_resume_fingerprint(
-        benchmark_root=benchmark_root,
-        manifest_path=manifest_path,
-    )
-    if metadata.get("fingerprint") != current_fingerprint:
-        logger.warning(
-            "Phase 1B: ignoring merged novel-task output because resume metadata does not match current inputs"
-        )
         return None
 
     eligible_sites = _load_mode_b_eligible_sites(
@@ -306,28 +297,88 @@ def _reuse_existing_novel_tasks_if_valid(
         )
         return None
 
-    logger.info(
-        "Phase 1B: merged output already contains %d valid novel tasks, skipping generation on resume",
-        len(existing_novel_tasks),
+    shared_inputs_fingerprint = compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
     )
-    return existing_novel_tasks
+    current_fingerprint = compute_mode_b_resume_fingerprint(
+        shared_inputs_fingerprint=shared_inputs_fingerprint,
+        eligible_sites=eligible_sites,
+    )
+
+    metadata = _load_mode_b_resume_metadata(resume_metadata_path)
+    if metadata.get("fingerprint") == current_fingerprint:
+        logger.info(
+            "Phase 1B: merged output already contains %d valid novel tasks, skipping generation on resume",
+            len(existing_novel_tasks),
+        )
+        return existing_novel_tasks
+
+    if _merged_output_matches_current_site_caches(
+        output_dir=output_path.parent,
+        existing_novel_tasks=existing_novel_tasks,
+        eligible_sites=eligible_sites,
+        shared_inputs_fingerprint=shared_inputs_fingerprint,
+    ):
+        logger.info(
+            "Phase 1B: merged output already contains %d valid novel tasks and matches current per-site caches, skipping generation on resume",
+            len(existing_novel_tasks),
+        )
+        return existing_novel_tasks
+
+    logger.warning(
+        "Phase 1B: ignoring merged novel-task output because resume provenance does not match current inputs"
+    )
+    return None
 
 
 def _write_mode_b_resume_metadata(
     metadata_path: Path,
     *,
     benchmark_root: Path,
-    manifest_path: Path,
+    manifest: dict[str, Any],
 ) -> None:
+    eligible_sites = _load_mode_b_eligible_sites(
+        profiles_dir=get_state_dir() / "phase_0c",
+        manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
+    )
     payload = {
-        "fingerprint": _mode_b_resume_fingerprint(
-            benchmark_root=benchmark_root,
-            manifest_path=manifest_path,
+        "fingerprint": compute_mode_b_resume_fingerprint(
+            shared_inputs_fingerprint=compute_mode_b_shared_inputs_fingerprint(
+                benchmark_root=benchmark_root,
+                manifest=manifest,
+            ),
+            eligible_sites=eligible_sites,
         ),
         "benchmark_path": str(benchmark_root),
-        "manifest_path": str(manifest_path),
+        "eligible_sites": [site.site_name for site in eligible_sites],
     }
     metadata_path.write_text(json.dumps(payload, indent=2))
+
+
+def _merged_output_matches_current_site_caches(
+    *,
+    output_dir: Path,
+    existing_novel_tasks: list[dict[str, Any]],
+    eligible_sites: list[EligibleSiteProfile],
+    shared_inputs_fingerprint: str,
+) -> bool:
+    cached_tasks: list[dict[str, Any]] = []
+    for site in eligible_sites:
+        cached_result = _load_cached_novel_tasks(
+            intermediate_path=output_dir / f"novel_tasks_{site.site_name}.json",
+            site_name=site.site_name,
+            profile=site.profile,
+            cache_fingerprint=compute_site_cache_fingerprint(
+                shared_inputs_fingerprint=shared_inputs_fingerprint,
+                site=site,
+            ),
+        )
+        if cached_result is None:
+            return False
+        cached_tasks.extend(cached_result.benign_tasks)
+
+    return _sort_novel_tasks(cached_tasks) == _sort_novel_tasks(existing_novel_tasks)
 
 
 def _load_mode_b_resume_metadata(metadata_path: Path) -> dict[str, Any]:
@@ -339,15 +390,3 @@ def _load_mode_b_resume_metadata(metadata_path: Path) -> dict[str, Any]:
         logger.warning("Phase 1B: ignoring invalid resume metadata at %s", metadata_path)
         return {}
     return payload if isinstance(payload, dict) else {}
-
-
-def _mode_b_resume_fingerprint(*, benchmark_root: Path, manifest_path: Path) -> str:
-    return sha256(
-        json.dumps(
-            {
-                "benchmark_path": str(benchmark_root.resolve()),
-                "manifest_path": str(manifest_path.resolve()),
-            },
-            sort_keys=True,
-        ).encode("utf-8")
-    ).hexdigest()

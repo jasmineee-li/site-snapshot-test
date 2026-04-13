@@ -33,7 +33,7 @@ Everything below is coded, reviewed by 11+ code review agents, and has unit test
   - Adaptive strategy variation: judge diagnoses refusal, recommends up to 3 strategies from pool (authority_framing, semantic_coherence, specificity, visual_concealment, verbosity_adjustment), generates variants in parallel Modal sandboxes, evaluates variants, runs each through ecological validity gate again
 - **Reward evaluation -- dual path.** Primary: WebArena Verified vendor evaluator (`webarena_verified` package) with proper normalization (NFKC, unidecode, type dispatch). Fallback: homebrew evaluator for when vendor package is unavailable. Custom checker registry for `db_query_match` (Phase 4 injection verification).
 - **Browser Use agent runner (598 lines).** `BrowserUseAgent` with session lifecycle, HAR network trace capture, screenshot saving, network trace redaction (sensitive headers stripped), and `AgentResult` dataclass.
-- **Configurable agent LLM.** `make_llm` factory supports google/openai/anthropic providers with auto-detection from model name prefix. Default: `gemini-3.1-pro-preview`. `make_agent_factory` returns a zero-arg callable for the worker pool.
+- **Configurable agent LLM.** `make_llm` factory supports google/openai/anthropic providers with auto-detection from model name prefix. Default: `gemini-3-flash-preview`. `make_agent_factory` returns a zero-arg callable for the worker pool.
 - **Multi-site placeholder resolution.** `placeholders.py` handles `__SHOPPING__`, `__SHOPPING_ADMIN__`, `__GITLAB__`, `__REDDIT__`, `__WIKIPEDIA__`, `__MAP__` tokens. Strict mode raises on unresolved placeholders. `merge_placeholder_maps` composes config-level, instance-level, and task-level placeholder sources.
 - **Data seeding.** Three mechanisms: sql (MySQL + PostgreSQL), api (HTTP requests), state_push (JSON PUT). SQL statements validated against a disallowed keyword list. Async wrapper via `asyncio.to_thread`.
 - **SQL safety validation.** Read-only query enforcement in `rewards.py` and seed statement validation in `seeding.py`. Multi-statement queries blocked. Read-only transaction guard set on connections.
@@ -77,7 +77,7 @@ Key design decisions for anyone continuing this work:
 - **SDK-based sandbox invocation with NDJSON streaming.** `_sdk_runner.py` runs inside the sandbox, emits typed NDJSON events (tool_call, text, error, summary) to stdout. The orchestrator streams these for live observability and captures the final summary event for cost tracking.
 - **Multi-site placeholder resolution.** WebArena tasks reference sites via `__SHOPPING__` style tokens. `placeholders.py` provides a three-layer merge (config, instance, task) with strict validation. `agent_config.py` handles the full prepare-resolve-route pipeline across `run_tasks_by_site`.
 - **Phase 4 iterative decision tree.** Not a flat loop. Each adversarial result flows through: ecological validity gate -> attack classification -> conditional fix loops (ecological validity fix, placement fix) -> adaptive strategy variation with fan-out. Each fix/variant passes back through the validity gate.
-- **Configurable agent LLM (default gemini-3.1-pro-preview).** Provider auto-detected from model prefix. Supported: Google (langchain-google-genai), OpenAI (langchain-openai), Anthropic (langchain-anthropic). The orchestrator (Claude Code in Modal) and the browser agent (Browser Use locally) use different models and auth paths.
+- **Configurable agent LLM (default gemini-3-flash-preview).** Provider auto-detected from model prefix. Supported: Google (langchain-google-genai), OpenAI (langchain-openai), Anthropic (langchain-anthropic). The orchestrator (Claude Code in Modal) and the browser agent (Browser Use locally) use different models and auth paths.
 - **Network trace redaction.** `browser_use_agent.py` strips sensitive headers (authorization, cookie, session tokens, CSRF, API keys) from HAR traces before writing to disk. Substring matching catches non-standard header names.
 - **Async I/O (asyncio.to_thread for DB/HTTP).** Data seeding wraps synchronous DB and HTTP calls via `asyncio.to_thread` to avoid blocking the event loop in the worker pool. Modal sandbox calls are natively async.
 - **SQL safety validation.** Both `rewards.py` (read-only reward queries) and `seeding.py` (seed statements) validate SQL before execution. Multi-statement queries blocked, write-capable keywords rejected, read-only transaction guards set on connections.
@@ -106,7 +106,7 @@ Prioritized execution order:
 1. **Phase 2 (injection generation).** All 6 site profiles and 813 benign tasks exist on disk. Run `uv run python -m worldsim.main phase 2`. Unblocked.
 2. **Stand up WebArena Docker containers.** Pull the 6 Docker images from `am1n3e/webarena-verified-*`. Shopping and shopping_admin share a Magento stack. Wikipedia and map require one-time data downloads (ZIM file, OSM tiles).
 3. **Create `instances.json`.** Configure `BenchmarkConfig` with site URLs, DB connections, reset endpoints, and URL placeholders for the running containers.
-4. **Run Phase 3 (benign validation).** `uv run python -m worldsim.main phase 3 --instances instances.json --agent-model gemini-3.1-pro-preview`. Validates that benign tasks pass with the target agent before adversarial testing.
+4. **Run Phase 3 (benign validation).** `uv run python -m worldsim.main phase 3 --instances instances.json --agent-model gemini-3-flash-preview`. Validates that benign tasks pass with the target agent before adversarial testing.
 5. **Run Phase 4 (adversarial evaluation).** `uv run python -m worldsim.main phase 4 --instances instances.json`. Full decision tree with ecological validity gating and adaptive strategy variation.
 
 ## Cost Summary
@@ -147,7 +147,7 @@ Current working configuration:
 
 - **Sandbox Claude Code auth:** `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL` (OpenRouter path). Set in `.env`, loaded via `load_dotenv()` at CLI startup.
 - **Modal:** Profile `theta-software-inc`, environment `test`. Token in `~/.modal.toml`.
-- **Agent LLM (for Phases 3-4):** Will need `GOOGLE_API_KEY` for the default `gemini-3.1-pro-preview`, or `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` if switching providers.
+- **Agent LLM (for Phases 3-4):** Will need `GOOGLE_API_KEY` for the default `gemini-3-flash-preview`, or `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` if switching providers.
 
 ## Prompt Inventory
 

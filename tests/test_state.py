@@ -40,6 +40,14 @@ def test_load_state_follows_resume_pointer_without_env_override(monkeypatch, tmp
     assert state["logs_dir"] == str(custom_logs)
 
 
+def test_load_state_rejects_valid_non_object_json(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "pipeline_state.json").write_text('["not", "a", "state"]')
+
+    assert load_state() is None
+
+
 def test_dispatch_resume_restores_logs_dir_from_state(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
@@ -136,6 +144,17 @@ def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, 
     assert rc == 0
     assert captured["phase"] == "1"
     assert captured["generate_novel"] is True
+
+
+def test_dispatch_resume_handles_non_object_state_json(monkeypatch, tmp_path, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "pipeline_state.json").write_text('"bad-state"')
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 1
+    assert "No pipeline state found" in capsys.readouterr().err
 
 
 # ── Per-task resume (load_completed_results) ────────────────────────────

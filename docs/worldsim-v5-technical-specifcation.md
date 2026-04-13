@@ -629,6 +629,12 @@ Write to `/workspace/output/adversarial_tasks.json`.
 
 For each task, seed the environment with benign data and run the target agent. This phase runs locally.
 
+### Task Filtering
+
+By default, Phase 3 loads `adversarial_tasks.json` from Phase 2, extracts the `benign_task_id` values, and filters `benign_tasks.json` to only include tasks with adversarial counterparts. This reduces run time from ~6-7 hours (all 812 tasks) to ~30 minutes (~40-60 tasks). When `adversarial_tasks.json` is not found, all benign tasks are validated (graceful fallback).
+
+The `--full-baseline` flag overrides this filtering and validates all benign tasks. Use this to produce the baseline capability metric reported in the paper.
+
 ### Evaluation Infrastructure
 
 async def run_task(task, agent, instance, task_dir):

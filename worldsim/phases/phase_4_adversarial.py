@@ -157,7 +157,7 @@ async def run(args: argparse.Namespace) -> int:
     logger.info("Phase 4: evaluating %d adversarial tasks across %d instances",
                 len(tasks), len(config.instances))
 
-    agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
+    agent_model = getattr(args, "agent_model", None) or "gemini-3-flash-preview"
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
     save_state(

@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
-DEFAULT_AGENT_MODEL = "gemini-3.1-pro-preview"
+DEFAULT_AGENT_MODEL = "gemini-3-flash-preview"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
 
 
@@ -71,7 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--agent-model",
         default=DEFAULT_AGENT_MODEL,
         help=f"LLM model name for Browser Use agent (default: {DEFAULT_AGENT_MODEL}). "
-        "Examples: gpt-5.4, claude-sonnet-4-6, gemini-3.1-pro-preview, gemini-3-flash-preview.",
+        "Examples: gpt-5.4, claude-sonnet-4-6, gemini-3-flash-preview, gemini-3.1-pro-preview.",
     )
     phase_cmd.add_argument(
         "--agent-provider",
@@ -80,6 +80,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="LLM provider (default: auto-detect from model name). "
         "Requires the corresponding env var: GOOGLE_API_KEY, OPENAI_API_KEY, "
         "or ANTHROPIC_API_KEY.",
+    )
+    phase_cmd.add_argument(
+        "--full-baseline",
+        action="store_true",
+        help="Phase 3: validate all benign tasks, not just adversarial-paired ones. "
+        "Produces baseline capability metric.",
     )
 
     resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
@@ -117,6 +123,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=argparse.SUPPRESS,
         help="Override saved Phase 1 state to enable Mode B novel task generation.",
+    )
+    resume_cmd.add_argument(
+        "--full-baseline",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Phase 3: validate all benign tasks, not just adversarial-paired ones. "
+        "Produces baseline capability metric.",
     )
 
     return parser
@@ -195,6 +208,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None)
     agent_provider = getattr(args, "agent_provider", None)
     generate_novel = getattr(args, "generate_novel", None)
+    full_baseline = getattr(args, "full_baseline", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -209,6 +223,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_provider = state.get("agent_provider")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
+    if full_baseline is None:
+        full_baseline = state.get("full_baseline", False)
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -223,6 +239,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_model=agent_model,
         agent_provider=agent_provider,
         generate_novel=generate_novel,
+        full_baseline=full_baseline,
     )
 
     return _dispatch_phase(synthetic)

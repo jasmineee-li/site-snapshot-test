@@ -62,6 +62,22 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     benign_tasks = json.loads(tasks_path.read_text())
 
+    # Default: filter to only tasks with adversarial counterparts
+    full_baseline = getattr(args, "full_baseline", False)
+    if not full_baseline:
+        adv_tasks_path = state_dir / "phase_2" / "adversarial_tasks.json"
+        if adv_tasks_path.exists():
+            adv_tasks = json.loads(adv_tasks_path.read_text())
+            paired_ids = {str(t.get("benign_task_id", "")) for t in adv_tasks}
+            original_count = len(benign_tasks)
+            benign_tasks = [t for t in benign_tasks if str(t.get("id", "")) in paired_ids]
+            logger.info(
+                "Phase 3: filtered to %d/%d tasks with adversarial counterparts (use --full-baseline for all)",
+                len(benign_tasks), original_count,
+            )
+        else:
+            logger.warning("Phase 3: adversarial_tasks.json not found, running all benign tasks")
+
     instances_path = getattr(args, "instances", None)
     if not instances_path or not Path(instances_path).exists():
         logger.error("--instances JSON file required for Phase 3 (running benchmark instances)")
@@ -87,7 +103,7 @@ async def run(args: argparse.Namespace) -> int:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         task_dir_root = state_dir / "phase_3" / timestamp
 
-    agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
+    agent_model = getattr(args, "agent_model", None) or "gemini-3-flash-preview"
     agent_provider = getattr(args, "agent_provider", None)
     # Fail fast if Claude Code auth is missing — diagnosis sandboxes need it.
     try:

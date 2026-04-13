@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from hashlib import sha256
 import json
 import logging
 from pathlib import Path
@@ -27,6 +28,7 @@ DEFAULT_NOVEL_TASKS_PER_SITE = 30
 MODE_B_FIX_MAX_ITERATIONS = 1
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 MODE_B_RESUME_METADATA_PATH = "mode_b_resume_metadata.json"
+SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
 
 
 @dataclass(frozen=True)
@@ -64,9 +66,14 @@ async def run_mode_b(
         logger.info("Phase 1B: no eligible sites found, nothing to generate")
         return []
 
+    shared_inputs_fingerprint = compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+    )
     cached_results = _load_all_cached_site_results(
         eligible_sites=eligible_sites,
         output_dir=output_dir,
+        shared_inputs_fingerprint=shared_inputs_fingerprint,
     )
     if cached_results is not None:
         logger.info(
@@ -89,6 +96,10 @@ async def run_mode_b(
             site=site,
             benchmark_volume=benchmark_volume,
             output_dir=output_dir,
+            cache_fingerprint=compute_site_cache_fingerprint(
+                shared_inputs_fingerprint=shared_inputs_fingerprint,
+                site=site,
+            ),
         )
         for site in eligible_sites
     ], return_exceptions=True)
@@ -152,6 +163,7 @@ async def generate_novel_tasks_for_site(
     site: EligibleSiteProfile,
     benchmark_volume: Any,
     output_dir: Path,
+    cache_fingerprint: str,
 ) -> SiteNovelTaskResult:
     """Generate and validate novel tasks for one site."""
     intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
@@ -159,6 +171,7 @@ async def generate_novel_tasks_for_site(
         intermediate_path=intermediate_path,
         site_name=site.site_name,
         profile=site.profile,
+        cache_fingerprint=cache_fingerprint,
     )
     if cached_result is not None:
         return cached_result
@@ -202,6 +215,11 @@ async def generate_novel_tasks_for_site(
         if not errors:
             sorted_tasks = sort_novel_tasks(validated_tasks)
             intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
+            _write_site_cache_metadata(
+                _site_cache_metadata_path(intermediate_path),
+                fingerprint=cache_fingerprint,
+                site_name=site.site_name,
+            )
             logger.info("Phase 1B: site %r sandbox finished", site.site_name)
             return SiteNovelTaskResult(site.site_name, sorted_tasks, [])
 
@@ -235,9 +253,18 @@ def load_cached_novel_tasks(
     intermediate_path: Path,
     site_name: str,
     profile: dict[str, Any],
+    cache_fingerprint: str,
 ) -> SiteNovelTaskResult | None:
     """Return a validated cached per-site result when available."""
     if not intermediate_path.exists():
+        return None
+
+    metadata = _load_site_cache_metadata(_site_cache_metadata_path(intermediate_path))
+    if metadata.get("fingerprint") != cache_fingerprint:
+        logger.warning(
+            "Phase 1B: ignoring cached tasks for site %r because cache metadata does not match current inputs",
+            site_name,
+        )
         return None
 
     try:
@@ -338,6 +365,7 @@ def _load_all_cached_site_results(
     *,
     eligible_sites: list[EligibleSiteProfile],
     output_dir: Path,
+    shared_inputs_fingerprint: str,
 ) -> list[SiteNovelTaskResult] | None:
     """Return cached per-site results when every eligible site cache validates."""
     cached_results: list[SiteNovelTaskResult] = []
@@ -346,6 +374,10 @@ def _load_all_cached_site_results(
             intermediate_path=output_dir / f"novel_tasks_{site.site_name}.json",
             site_name=site.site_name,
             profile=site.profile,
+            cache_fingerprint=compute_site_cache_fingerprint(
+                shared_inputs_fingerprint=shared_inputs_fingerprint,
+                site=site,
+            ),
         )
         if cached_result is None:
             return None
@@ -364,3 +396,102 @@ def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> st
         .replace("{site_name}", site_name)
         .replace("{num_tasks}", str(num_tasks))
     )
+
+
+def compute_mode_b_shared_inputs_fingerprint(
+    *,
+    benchmark_root: Path,
+    manifest: dict[str, Any],
+) -> str:
+    """Return a content-based digest for shared Mode B generation inputs."""
+    payload = {
+        "benchmark_tree_digest": _directory_tree_digest(benchmark_root),
+        "manifest": manifest,
+    }
+    return _stable_json_digest(payload)
+
+
+def compute_site_cache_fingerprint(
+    *,
+    shared_inputs_fingerprint: str,
+    site: EligibleSiteProfile,
+) -> str:
+    """Return a content-based digest for one site's cached novel-task output."""
+    payload = {
+        "shared_inputs_fingerprint": shared_inputs_fingerprint,
+        "site_name": site.site_name,
+        "profile": site.profile,
+        "task_count": DEFAULT_NOVEL_TASKS_PER_SITE,
+    }
+    return _stable_json_digest(payload)
+
+
+def compute_mode_b_resume_fingerprint(
+    *,
+    shared_inputs_fingerprint: str,
+    eligible_sites: list[EligibleSiteProfile],
+) -> str:
+    """Return a deterministic digest for merged-output resume reuse."""
+    payload = {
+        "shared_inputs_fingerprint": shared_inputs_fingerprint,
+        "site_cache_fingerprints": [
+            {
+                "site_name": site.site_name,
+                "fingerprint": compute_site_cache_fingerprint(
+                    shared_inputs_fingerprint=shared_inputs_fingerprint,
+                    site=site,
+                ),
+            }
+            for site in sorted(eligible_sites, key=lambda item: item.site_name)
+        ],
+    }
+    return _stable_json_digest(payload)
+
+
+def _site_cache_metadata_path(intermediate_path: Path) -> Path:
+    return intermediate_path.with_suffix(intermediate_path.suffix + SITE_CACHE_METADATA_SUFFIX)
+
+
+def _write_site_cache_metadata(metadata_path: Path, *, fingerprint: str, site_name: str) -> None:
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "fingerprint": fingerprint,
+                "site_name": site_name,
+            },
+            indent=2,
+        )
+    )
+
+
+def _load_site_cache_metadata(metadata_path: Path) -> dict[str, Any]:
+    if not metadata_path.exists():
+        return {}
+    try:
+        payload = json.loads(metadata_path.read_text())
+    except json.JSONDecodeError:
+        logger.warning("Phase 1B: ignoring invalid site-cache metadata at %s", metadata_path)
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _stable_json_digest(value: Any) -> str:
+    return sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _directory_tree_digest(root: Path) -> str:
+    hasher = sha256()
+    for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
+        rel_path = path.relative_to(root).as_posix().encode("utf-8")
+        hasher.update(rel_path)
+        hasher.update(b"\0")
+        with path.open("rb") as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        hasher.update(b"\0")
+    return hasher.hexdigest()
