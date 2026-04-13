@@ -17,11 +17,12 @@ import sys
 import tarfile
 import tempfile
 import threading
-from uuid import uuid4
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping, Sequence
+from typing import Any
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ class SandboxCommandResult:
 
 
 _AUTHORING_SESSION_LOCK = threading.Lock()
-_AUTHORING_SESSIONS: dict[str, "ModalAuthoringSession"] = {}
+_AUTHORING_SESSIONS: dict[str, ModalAuthoringSession] = {}
 
 
 def _is_ignored_workspace_path(relative_path: PurePosixPath, ignore_patterns: Sequence[str]) -> bool:
@@ -712,7 +713,7 @@ class _ModalWorkspaceRuntime:
         )
         record = {
             "operation_id": str(uuid4()),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "backend": "modal",
             "operation_class": self.profile.name,
             "image_family": self.profile.image_family,
@@ -853,7 +854,7 @@ class ModalAuthoringSession(_ModalWorkspaceRuntime):
         self.workspace_identity = workspace_identity
         self.behavior_id = behavior_id
         self.command_count = 0
-        self.last_used_at = datetime.now(timezone.utc)
+        self.last_used_at = datetime.now(UTC)
         self.resource_key = _trusted_authoring_resource_key(
             profile=self.profile,
             workspace_identity=self.workspace_identity,
@@ -919,7 +920,7 @@ class ModalAuthoringSession(_ModalWorkspaceRuntime):
 
             reserved_runtime_mutations = self._detect_reserved_runtime_mutations()
             self.command_count += 1
-            self.last_used_at = datetime.now(timezone.utc)
+            self.last_used_at = datetime.now(UTC)
 
             if returncode == 0 and not reserved_runtime_mutations:
                 self._refresh_resource_identity(
@@ -999,7 +1000,7 @@ class ModalAuthoringSession(_ModalWorkspaceRuntime):
         self._sandbox_timeout = session_timeout
         self._idle_timeout = min(AUTHORING_SESSION_IDLE_TIMEOUT, session_timeout)
         self._workspace_fingerprint = current_fingerprint
-        self.last_used_at = datetime.now(timezone.utc)
+        self.last_used_at = datetime.now(UTC)
         _register_authoring_session(self)
 
     def _detect_reserved_runtime_mutations(self) -> list[str]:
@@ -1032,7 +1033,7 @@ class ModalAuthoringSession(_ModalWorkspaceRuntime):
     def is_stale(self, now: datetime | None = None) -> bool:
         if self._sandbox is None:
             return True
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         idle_limit = self._idle_timeout or AUTHORING_SESSION_IDLE_TIMEOUT
         return (now - self.last_used_at).total_seconds() > idle_limit
 
@@ -1561,7 +1562,7 @@ def _reindex_authoring_session(session: ModalAuthoringSession, *, previous_key: 
 
 
 def _cleanup_stale_authoring_sessions(owner_scope: str) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with _AUTHORING_SESSION_LOCK:
         stale_sessions = []
         for key, session in list(_AUTHORING_SESSIONS.items()):
