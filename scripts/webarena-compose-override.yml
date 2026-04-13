@@ -1,0 +1,34 @@
+# docker-compose.override.yml for WebArena Verified environments.
+#
+# Deployed by scripts/patch_webarena_containers.sh into
+# vendors/webarena-verified/docker-compose.override.yml.
+#
+# Sets WA_ENV_CTRL_EXTERNAL_SITE_URL for each site so that POST /init
+# on the env-ctrl HTTP server can resolve the base_url without it being
+# passed in the request body.
+#
+# The HOST_IP and ports below must match your instances.json config.
+# Default: EC2 instance at 18.117.99.179 with standard WebArena ports.
+#
+# Override HOST_IP at compose time:
+#   HOST_IP=1.2.3.4 docker compose up -d
+
+services:
+  shopping:
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_SHOPPING_PORT:-7770}
+
+  shopping_admin:
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_SHOPPING_ADMIN_PORT:-7780}
+
+  gitlab:
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_GITLAB_PORT:-8023}
+      # Skip reconfigure on init — the image is pre-configured with the correct
+      # external_url. Reconfigure takes 3-5 minutes and can cause 502 errors.
+      - WA_ENV_CTRL_SKIP_RECONFIGURE=true
+
+  reddit:
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_REDDIT_PORT:-9999}

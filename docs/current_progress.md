@@ -88,6 +88,19 @@ Key design decisions for anyone continuing this work:
 - **Per-task resume in Phase 3/4.** `result.json` in each task directory serves as a completion sentinel (atomic writes via tmpfile + `os.replace`). On `--resume`, `load_completed_results` scans for existing results, skips completed tasks, and merges prior results with new ones. Circuit breaker stops diagnosis if >30% of tasks error.
 - **Ruff linting + formatting.** Pre-commit hook runs ruff with auto-fix on staged Python files.
 
+## WebArena env-ctrl base_url Fix
+
+The original Docker images (`am1n3e/webarena-verified-*`) ship env-ctrl code where `_init()` requires a `base_url` argument, but the HTTP server (`POST /init`) calls `ops.init()` with no args. Some sites lacked an env-var fallback, causing `ValueError("base_url is required")` on every reset.
+
+**Fix (two layers, both required for robustness):**
+
+1. `scripts/webarena-compose-override.yml` -- sets `WA_ENV_CTRL_EXTERNAL_SITE_URL` for shopping, shopping_admin, gitlab, and reddit. Deployed into `vendors/webarena-verified/docker-compose.override.yml` by the patch script. Docker Compose auto-merges it. Survives container recreation.
+2. `scripts/patch_webarena_containers.sh` -- patches running containers to add the env-var fallback in the Python `_init()` code (for images that lack it). Also deploys the override file. Idempotent.
+
+Run after `docker compose up`: `./scripts/patch_webarena_containers.sh [HOST_IP]`.
+
+For fresh container starts, only the override file is needed (the env var is sufficient when the Python code has the fallback; the patch script ensures it does).
+
 ## Known Issues and Lessons Learned
 
 From code review sweeps and real Phase 2 execution:
@@ -163,6 +176,8 @@ Models used: `claude-opus-4-6` (primary, ~$96.59), `claude-haiku-4-5-20251001` (
 | `tests/` | 15 test files, 212 tests. |
 | `CLAUDE.md` | Non-negotiable principles, what NOT to do, reference file pointers. |
 | `scripts/smoke_modal.py` | Working example of `run_claude_in_sandbox` end-to-end. |
+| `scripts/patch_webarena_containers.sh` | Fixes env-ctrl base_url bug in WebArena containers. |
+| `scripts/webarena-compose-override.yml` | Docker Compose override setting WA_ENV_CTRL_EXTERNAL_SITE_URL. |
 
 ## Auth Setup
 
