@@ -254,6 +254,12 @@ async def run_claude_in_sandbox(
             elif etype == "text":
                 preview = (event.get("preview", "") or "")[:100]
                 logger.info("  %s[sandbox] text: %s", tag, preview)
+            elif etype == "rate_limit":
+                logger.warning(
+                    "  %s[sandbox] rate limited, retry after %ss",
+                    tag,
+                    event.get("retry_after_seconds"),
+                )
             elif etype == "error":
                 logger.warning("  %s[sandbox] SDK error: %s", tag, event.get("message"))
             elif etype == "summary":
@@ -261,6 +267,21 @@ async def run_claude_in_sandbox(
                 _log_summary(event, label=label)
 
         await claude_ps.wait.aio()
+
+        # Surface stderr so import failures, SDK errors, and tracebacks
+        # are visible instead of silently lost.
+        stderr_lines: list[str] = []
+        async for line in claude_ps.stderr:
+            line = line.strip()
+            if line:
+                stderr_lines.append(line)
+        if stderr_lines:
+            logger.warning(
+                "%sSandbox stderr (%d lines):\n%s",
+                tag,
+                len(stderr_lines),
+                "\n".join(stderr_lines[:20]),
+            )
 
         if claude_ps.returncode != 0:
             logger.warning(

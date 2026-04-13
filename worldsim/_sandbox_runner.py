@@ -21,6 +21,7 @@ async def main() -> None:
     from claude_agent_sdk import ClaudeAgentOptions, query  # type: ignore[import-untyped]
     from claude_agent_sdk.types import (  # type: ignore[import-untyped]
         AssistantMessage,
+        RateLimitEvent,
         ResultMessage,
         TextBlock,
         ToolUseBlock,
@@ -39,10 +40,15 @@ async def main() -> None:
 
     options = ClaudeAgentOptions(
         permission_mode="bypassPermissions",
+        system_prompt={
+            "type": "preset",
+            "preset": "claude_code",
+        },
         effort="high",
         cwd="/workspace",
         model=model,
         max_turns=300,
+        max_budget_usd=250.0,
     )
 
     start = time.monotonic()
@@ -68,6 +74,12 @@ async def main() -> None:
                         # Log first 200 chars of text blocks for observability
                         event = {"type": "text", "preview": block.text[:200], "turn": turn_count}
                         print(json.dumps(event), flush=True)
+            elif isinstance(message, RateLimitEvent):
+                event = {
+                    "type": "rate_limit",
+                    "retry_after_seconds": getattr(message, "retry_after_seconds", None),
+                }
+                print(json.dumps(event), flush=True)
             elif isinstance(message, ResultMessage):
                 result_msg = message
     except Exception as exc:
@@ -107,6 +119,7 @@ async def main() -> None:
                 "duration_ms": result_msg.duration_ms,
                 "duration_api_ms": result_msg.duration_api_ms,
                 "is_error": result_msg.is_error,
+                "subtype": result_msg.subtype,
                 "stop_reason": result_msg.stop_reason,
                 "usage": _to_dict(result_msg.usage),
                 "model_usage": _to_dict(result_msg.model_usage),
