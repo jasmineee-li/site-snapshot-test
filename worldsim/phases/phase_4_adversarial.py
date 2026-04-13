@@ -56,6 +56,7 @@ from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async, validate_data_seed
+from worldsim.site_lock import site_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
@@ -179,66 +180,38 @@ async def run(args: argparse.Namespace) -> int:
 
     profiles_dir = state_dir / "phase_0c"
     task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
+
+    raw_postprocessed = await asyncio.gather(
+        *[
+            _postprocess_one_task(
+                result=result,
+                task_by_id=task_by_id,
+                config=config,
+                profiles_dir=profiles_dir,
+                agent_factory=agent_factory,
+                task_dir_root=task_dir_root,
+                resume=resume,
+            )
+            for result in results
+        ],
+        return_exceptions=True,
+    )
+
     final_results: list[dict] = []
-    for result in results:
-        task_id = str(result.get("task_id", "unknown"))
-        task = task_by_id.get(task_id)
-
-        # On resume, skip tasks whose post-processing already completed.
-        # The processed result file is the Stage 2 checkpoint (Stage 1 is
-        # the per-task result.json written by run_adversarial_task).
-        processed_file = task_dir_root / safe_task_path_component(task_id) / "processed_result.json"
-        if resume and processed_file.exists():
-            try:
-                prior_processed = json.loads(processed_file.read_text())
-                final_results.append(prior_processed)
-                logger.info("Resume: reusing processed result for task %s", task_id)
-                continue
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        if not task:
+    for i, processed in enumerate(raw_postprocessed):
+        if isinstance(processed, BaseException):
+            task_id = str(results[i].get("task_id", "unknown"))
+            logger.error("Post-processing failed for task %s: %s", task_id, processed)
             final_results.append(
                 _build_phase_4_result(
-                    task_id=result.get("task_id", "unknown"),
-                    initial_result=result,
-                    current_result=result,
-                    final_status="unknown_task",
+                    task_id=task_id,
+                    initial_result=results[i],
+                    current_result=results[i],
+                    final_status="error",
                 )
             )
             continue
-
-        site = task.get("site", "")
-        site_instances = instances_for_site(config.instances, site)
-        if not site_instances:
-            final_results.append(
-                {
-                    **_build_phase_4_result(
-                        task_id=task.get("id", "unknown"),
-                        initial_result=result,
-                        current_result=result,
-                        final_status="configuration_error",
-                    ),
-                    "message": f"no instances configured for site {site!r}",
-                }
-            )
-            continue
-
-        profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
-        processed = await _process_adversarial_result(
-            task=task,
-            initial_result=result,
-            primary_instances=site_instances,
-            all_instances=config.instances,
-            agent_factory=agent_factory,
-            profile_path=profile_path,
-            task_dir_root=task_dir_root,
-        )
         final_results.append(processed)
-
-        # Persist processed result for resume (Stage 2 checkpoint).
-        processed_file.parent.mkdir(parents=True, exist_ok=True)
-        processed_file.write_text(json.dumps(processed, indent=2))
 
     # Write results
     output_dir = state_dir / "phase_4"
@@ -285,6 +258,70 @@ async def run(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 # Core evaluation functions
 # ---------------------------------------------------------------------------
+
+
+async def _postprocess_one_task(
+    result: dict[str, Any],
+    task_by_id: dict[str, dict[str, Any]],
+    config: BenchmarkConfig,
+    profiles_dir: Path,
+    agent_factory: Callable[[], AgentRunner],
+    task_dir_root: Path,
+    resume: bool,
+) -> dict[str, Any]:
+    """Post-process a single adversarial task result through the Phase 4 decision tree."""
+    task_id = str(result.get("task_id", "unknown"))
+    task = task_by_id.get(task_id)
+
+    # On resume, skip tasks whose post-processing already completed.
+    # The processed result file is the Stage 2 checkpoint (Stage 1 is
+    # the per-task result.json written by run_adversarial_task).
+    processed_file = task_dir_root / safe_task_path_component(task_id) / "processed_result.json"
+    if resume and processed_file.exists():
+        try:
+            prior_processed = json.loads(processed_file.read_text())
+            logger.info("Resume: reusing processed result for task %s", task_id)
+            return prior_processed
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    if not task:
+        return _build_phase_4_result(
+            task_id=result.get("task_id", "unknown"),
+            initial_result=result,
+            current_result=result,
+            final_status="unknown_task",
+        )
+
+    site = task.get("site", "")
+    site_instances = instances_for_site(config.instances, site)
+    if not site_instances:
+        return {
+            **_build_phase_4_result(
+                task_id=task.get("id", "unknown"),
+                initial_result=result,
+                current_result=result,
+                final_status="configuration_error",
+            ),
+            "message": f"no instances configured for site {site!r}",
+        }
+
+    profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
+    processed = await _process_adversarial_result(
+        task=task,
+        initial_result=result,
+        primary_instances=site_instances,
+        all_instances=config.instances,
+        agent_factory=agent_factory,
+        profile_path=profile_path,
+        task_dir_root=task_dir_root,
+    )
+
+    # Persist processed result for resume (Stage 2 checkpoint).
+    processed_file.parent.mkdir(parents=True, exist_ok=True)
+    processed_file.write_text(json.dumps(processed, indent=2))
+
+    return processed
 
 
 async def run_adversarial_task(
@@ -616,14 +653,17 @@ async def _run_ecological_validity_fix_loop(
             }
 
         current_task = revised_task
-        current_result = await _rerun_adversarial_task(
-            task=current_task,
-            instance=instance,
-            all_instances=all_instances,
-            agent_factory=agent_factory,
-            task_dir=task_dir_root
-            / safe_task_path_component(f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"),
-        )
+        async with site_lock(str(task.get("site", ""))):
+            current_result = await _rerun_adversarial_task(
+                task=current_task,
+                instance=instance,
+                all_instances=all_instances,
+                agent_factory=agent_factory,
+                task_dir=task_dir_root
+                / safe_task_path_component(
+                    f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"
+                ),
+            )
         attempts.append(current_result)
         if current_result.get("ecologically_valid"):
             return {
@@ -676,14 +716,17 @@ async def _run_placement_fix_loop(
             }
 
         current_task = revised_task
-        current_result = await _rerun_adversarial_task(
-            task=current_task,
-            instance=instance,
-            all_instances=all_instances,
-            agent_factory=agent_factory,
-            task_dir=task_dir_root
-            / safe_task_path_component(f"{task.get('id', 'unknown')}__placement_{iteration + 1}"),
-        )
+        async with site_lock(str(task.get("site", ""))):
+            current_result = await _rerun_adversarial_task(
+                task=current_task,
+                instance=instance,
+                all_instances=all_instances,
+                agent_factory=agent_factory,
+                task_dir=task_dir_root
+                / safe_task_path_component(
+                    f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
+                ),
+            )
         attempts.append(current_result)
         if current_result.get("outcome") != "task_broke":
             return {
@@ -1209,7 +1252,8 @@ async def _evaluate_variant(
     try:
         await agent.setup(instance.site_url)
         bound_variant = bind_task_to_instance(variant, instance, all_instances)
-        result = await run_adversarial_task(bound_variant, agent, instance, variant_dir)
+        async with site_lock(str(task.get("site", ""))):
+            result = await run_adversarial_task(bound_variant, agent, instance, variant_dir)
         return {
             **result,
             "strategy": strategy.get("strategy", f"strategy_{index}"),

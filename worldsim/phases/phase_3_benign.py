@@ -46,6 +46,7 @@ from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async
+from worldsim.site_lock import site_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
@@ -177,48 +178,32 @@ async def run(args: argparse.Namespace) -> int:
         )
         failed_tasks = [r for r in failed_tasks if r.get("outcome") != "error"]
 
-    for r in failed_tasks:
-        task_id = str(r.get("task_id", "?"))
-        task = prepared_by_id.get(task_id)
-        if not task:
-            logger.warning("Could not find task %s for diagnosis", task_id)
+    raw_diagnoses = await asyncio.gather(
+        *[
+            _diagnose_one_task(
+                r=r,
+                prepared_by_id=prepared_by_id,
+                profiles_dir=profiles_dir,
+                task_dir_root=task_dir_root,
+                instances=config.instances,
+                agent_factory=agent_factory,
+                resume=resume,
+            )
+            for r in failed_tasks
+        ],
+        return_exceptions=True,
+    )
+
+    for i, result in enumerate(raw_diagnoses):
+        if isinstance(result, BaseException):
+            logger.error(
+                "Diagnosis failed for task %s: %s",
+                failed_tasks[i].get("task_id", "?"),
+                result,
+            )
             continue
-
-        # On resume, skip tasks that were already diagnosed in a prior run.
-        diagnosis_file = task_dir_root / safe_task_path_component(task_id) / "diagnosis.json"
-        if resume and diagnosis_file.exists():
-            try:
-                prior_diagnosis = json.loads(diagnosis_file.read_text())
-                diagnosed.append({"task_id": task_id, **prior_diagnosis})
-                logger.info("Resume: reusing prior diagnosis for task %s", task_id)
-                continue
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        site = task["site"]
-        profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
-        trajectory_dir = Path(
-            r.get("trajectory_dir", task_dir_root / safe_task_path_component(task_id))
-        )
-
-        if not trajectory_dir.exists():
-            logger.warning("No trajectory dir for task %s, skipping diagnosis", task_id)
-            continue
-
-        fix_result = await fix_loop(
-            task=task,
-            trajectory_dir=trajectory_dir,
-            profile_path=profile_path,
-            task_dir_root=task_dir_root,
-            instances=config.instances,
-            agent_factory=agent_factory,
-        )
-        diagnosed.append({"task_id": task_id, **fix_result})
-
-        # Persist diagnosis for resume. Without this, all diagnoses would
-        # re-run on crash recovery (Modal sandbox invocations are expensive).
-        diagnosis_file.parent.mkdir(parents=True, exist_ok=True)
-        diagnosis_file.write_text(json.dumps(fix_result, indent=2))
+        if result is not None:
+            diagnosed.append(result)
 
     # Write validated tasks (passed + fixed)
     passed_ids = {r["task_id"] for r in passed_tasks}
@@ -273,6 +258,59 @@ async def run(args: argparse.Namespace) -> int:
         len(benign_tasks),
     )
     return 0
+
+
+async def _diagnose_one_task(
+    r: dict[str, Any],
+    prepared_by_id: dict[str, dict[str, Any]],
+    profiles_dir: Path,
+    task_dir_root: Path,
+    instances: list[BenchmarkInstance],
+    agent_factory: Callable[[], BrowserUseAgent],
+    resume: bool,
+) -> dict[str, Any] | None:
+    """Run diagnosis-fix loop for a single failed task. Returns diagnosis dict or None."""
+    task_id = str(r.get("task_id", "?"))
+    task = prepared_by_id.get(task_id)
+    if not task:
+        logger.warning("Could not find task %s for diagnosis", task_id)
+        return None
+
+    # On resume, skip tasks that were already diagnosed in a prior run.
+    diagnosis_file = task_dir_root / safe_task_path_component(task_id) / "diagnosis.json"
+    if resume and diagnosis_file.exists():
+        try:
+            prior_diagnosis = json.loads(diagnosis_file.read_text())
+            logger.info("Resume: reusing prior diagnosis for task %s", task_id)
+            return {"task_id": task_id, **prior_diagnosis}
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    site = task["site"]
+    profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
+    trajectory_dir = Path(
+        r.get("trajectory_dir", task_dir_root / safe_task_path_component(task_id))
+    )
+
+    if not trajectory_dir.exists():
+        logger.warning("No trajectory dir for task %s, skipping diagnosis", task_id)
+        return None
+
+    fix_result = await fix_loop(
+        task=task,
+        trajectory_dir=trajectory_dir,
+        profile_path=profile_path,
+        task_dir_root=task_dir_root,
+        instances=instances,
+        agent_factory=agent_factory,
+    )
+
+    # Persist diagnosis for resume. Without this, all diagnoses would
+    # re-run on crash recovery (Modal sandbox invocations are expensive).
+    diagnosis_file.parent.mkdir(parents=True, exist_ok=True)
+    diagnosis_file.write_text(json.dumps(fix_result, indent=2))
+
+    return {"task_id": task_id, **fix_result}
 
 
 async def run_task(
@@ -508,13 +546,14 @@ async def fix_loop(
                 rerun_dir = task_dir_root / safe_task_path_component(
                     f"{task.get('id', 'unknown')}__revalidation_{iteration + 1}"
                 )
-                rerun_result = await _rerun_live_task(
-                    task=current_task,
-                    instance=live_instance,
-                    instances=instances,
-                    agent_factory=agent_factory,
-                    task_dir=rerun_dir,
-                )
+                async with site_lock(str(current_task.get("site", ""))):
+                    rerun_result = await _rerun_live_task(
+                        task=current_task,
+                        instance=live_instance,
+                        instances=instances,
+                        agent_factory=agent_factory,
+                        task_dir=rerun_dir,
+                    )
                 if rerun_result.get("passed"):
                     return {
                         "action": "fixed",
