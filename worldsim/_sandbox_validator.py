@@ -154,39 +154,47 @@ def validate_profile(data: object, *, site_name: str) -> list[str]:
     if profile_site and profile_site != site_name:
         errors.append(f"profile site_name mismatch: expected {site_name!r}, got {profile_site!r}")
 
-    # Build known entities and fields from data_model
-    known_entities: set[str] = set()
-    known_fields: set[str] = set()
-    for entity in data.get("data_model", []):
-        entity_name = entity.get("entity", "")
-        if entity_name:
-            known_entities.add(entity_name)
-        for field in entity.get("fields", []):
-            field_name = field.get("name", "")
-            if field_name:
-                known_fields.add(field_name)
-        storage = entity.get("storage", "")
-        if storage:
-            known_fields.add(storage)
+    entity_fields = _entity_field_index(data.get("data_model"))
 
     # Cross-ref injection surfaces against data_model
     for surface in data.get("injection_surface", []):
         source = surface.get("source_field", "")
         if source and "." in source:
-            entity_name = source.split(".")[0]
-            if entity_name not in known_entities and known_entities:
+            entity_name, _, field_name = source.partition(".")
+            if entity_name not in entity_fields and entity_fields:
                 errors.append(
                     f"injection surface {surface.get('id', '?')!r} references "
                     f"unknown entity {entity_name!r} in {source!r}"
                 )
-            field_name = source.split(".")[-1]
-            if field_name not in known_fields and known_fields:
+            elif entity_fields and field_name not in entity_fields.get(entity_name, set()):
                 errors.append(
                     f"injection surface {surface.get('id', '?')!r} references "
                     f"unknown field {source!r}"
                 )
 
     return errors
+
+
+def _entity_field_index(data_model: object) -> dict[str, set[str]]:
+    """Return {entity_name: {field_name}} for a data model payload."""
+    index: dict[str, set[str]] = {}
+    if not isinstance(data_model, list):
+        return index
+
+    for entity in data_model:
+        if not isinstance(entity, dict):
+            continue
+        entity_name = entity.get("entity")
+        if not isinstance(entity_name, str) or not entity_name:
+            continue
+        fields = index.setdefault(entity_name, set())
+        for field in entity.get("fields", []):
+            if not isinstance(field, dict):
+                continue
+            field_name = field.get("name")
+            if isinstance(field_name, str) and field_name:
+                fields.add(field_name)
+    return index
 
 
 def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
@@ -473,11 +481,190 @@ def validate_variant_task(data: object) -> list[str]:
     return errors
 
 
+def validate_verification_capabilities(data: object, *, site_name: str) -> list[str]:
+    """Validate VERIFICATION_CAPABILITIES.json structure."""
+    errors: list[str] = []
+    if not isinstance(data, list):
+        errors.append("verification capabilities must be a JSON array")
+        return errors
+    if not data:
+        errors.append("verification capabilities array is empty")
+        return errors
+    for i, cap in enumerate(data):
+        prefix = f"capabilities[{i}]"
+        if not isinstance(cap, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        if "eval_type" not in cap or not isinstance(cap.get("eval_type"), str):
+            errors.append(f"{prefix} missing 'eval_type' string")
+        if "description" not in cap or not isinstance(cap.get("description"), str):
+            errors.append(f"{prefix} missing 'description' string")
+    return errors
+
+
+def validate_data_model_profile(data: object, *, site_name: str) -> list[str]:
+    """Validate DATA_MODEL.json structure."""
+    errors: list[str] = []
+    if not isinstance(data, list):
+        errors.append("data model must be a JSON array")
+        return errors
+    if not data:
+        errors.append("data model array is empty")
+        return errors
+    for i, entity in enumerate(data):
+        prefix = f"entity[{i}]"
+        if not isinstance(entity, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        if "entity" not in entity or not isinstance(entity.get("entity"), str):
+            errors.append(f"{prefix} missing 'entity' string")
+        fields = entity.get("fields")
+        if not isinstance(fields, list) or not fields:
+            errors.append(f"{prefix} must have a non-empty 'fields' array")
+    return errors
+
+
+def validate_injection_surface(
+    data: object,
+    *,
+    site_name: str,
+    data_model: object | None = None,
+) -> list[str]:
+    """Validate INJECTION_SURFACE.json structure."""
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        errors.append("injection surface must be a JSON object")
+        return errors
+
+    surfaces = data.get("injection_surface")
+    if not isinstance(surfaces, list):
+        errors.append("missing 'injection_surface' array")
+        return errors
+
+    surface_ids: set[str] = set()
+    for i, surface in enumerate(surfaces):
+        prefix = f"injection_surface[{i}]"
+        if not isinstance(surface, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+        sid = surface.get("id")
+        if not isinstance(sid, str) or not sid:
+            errors.append(f"{prefix} missing 'id' string")
+        else:
+            surface_ids.add(sid)
+        if "source_field" not in surface:
+            errors.append(f"{prefix} missing 'source_field'")
+        elif isinstance(surface.get("source_field"), str) and data_model is not None:
+            source_field = surface["source_field"]
+            if "." not in source_field:
+                errors.append(f"{prefix} source_field must use entity.field format")
+            else:
+                entity_name, _, field_name = source_field.partition(".")
+                entity_fields = _entity_field_index(data_model)
+                if entity_name not in entity_fields and entity_fields:
+                    errors.append(
+                        f"{prefix} references unknown entity {entity_name!r} in {source_field!r}"
+                    )
+                elif entity_fields and field_name not in entity_fields.get(entity_name, set()):
+                    errors.append(f"{prefix} references unknown field {source_field!r}")
+        realism = surface.get("attacker_realism")
+        if realism not in ("low", "medium", "high"):
+            errors.append(f"{prefix} attacker_realism must be low/medium/high, got {realism!r}")
+
+    coverage = data.get("existing_task_coverage")
+    if not isinstance(coverage, dict):
+        errors.append("missing 'existing_task_coverage' object")
+    else:
+        for key in ("injection_surfaces_with_task_coverage", "injection_surfaces_without_task_coverage"):
+            items = coverage.get(key)
+            if not isinstance(items, list):
+                errors.append(f"existing_task_coverage missing '{key}' array")
+            elif surface_ids:
+                for item in items:
+                    if item not in surface_ids:
+                        errors.append(
+                            f"existing_task_coverage.{key} references unknown surface {item!r}"
+                        )
+
+    return errors
+
+
+def validate_agent_context(data: object, *, site_name: str) -> list[str]:
+    """Validate AGENT_CONTEXT.json structure."""
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        errors.append("agent context must be a JSON object")
+        return errors
+
+    # response_format (required)
+    rf = data.get("response_format")
+    if not isinstance(rf, dict):
+        errors.append("missing or invalid 'response_format' object")
+    else:
+        if "requires_structured_output" not in rf:
+            errors.append("response_format missing 'requires_structured_output'")
+        elif not isinstance(rf["requires_structured_output"], bool):
+            errors.append("response_format.requires_structured_output must be a boolean")
+        if "description" not in rf or not isinstance(rf.get("description"), str):
+            errors.append("response_format missing 'description' string")
+
+        requires = rf.get("requires_structured_output", False)
+        schema = rf.get("output_schema")
+        if requires and schema is None:
+            errors.append(
+                "response_format.output_schema should be provided when "
+                "requires_structured_output is true"
+            )
+        elif requires and not isinstance(schema, dict):
+            errors.append("response_format.output_schema must be an object when structured output is required")
+        if not requires and schema is not None:
+            errors.append(
+                "response_format.output_schema should be null when "
+                "requires_structured_output is false"
+            )
+
+    # authentication (required)
+    auth = data.get("authentication")
+    if not isinstance(auth, dict):
+        errors.append("missing or invalid 'authentication' object")
+    else:
+        if "pre_authenticated" not in auth:
+            errors.append("authentication missing 'pre_authenticated'")
+        elif not isinstance(auth["pre_authenticated"], bool):
+            errors.append("authentication.pre_authenticated must be a boolean")
+        if "description" not in auth or not isinstance(auth.get("description"), str):
+            errors.append("authentication missing 'description' string")
+
+    # agent_prompt_template (nullable)
+    template = data.get("agent_prompt_template")
+    if template is not None:
+        if not isinstance(template, str):
+            errors.append("agent_prompt_template must be a string or null")
+        else:
+            if "{{INSTRUCTION}}" not in template:
+                errors.append("agent_prompt_template missing {{INSTRUCTION}} placeholder")
+            if "{{START_URLS}}" not in template:
+                errors.append("agent_prompt_template missing {{START_URLS}} placeholder")
+
+    # site_context (required)
+    sc = data.get("site_context")
+    if not isinstance(sc, dict):
+        errors.append("missing or invalid 'site_context' object")
+    else:
+        if "platform_name" not in sc or not isinstance(sc.get("platform_name"), str):
+            errors.append("site_context missing 'platform_name' string")
+        if "description" not in sc or not isinstance(sc.get("description"), str):
+            errors.append("site_context missing 'description' string")
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
 _OUTPUT_DIR = Path("/workspace/output")
+_INPUTS_DIR = Path("/workspace/inputs")
 _VALIDATION_RESULT_PATH = _OUTPUT_DIR / "_validation_result.json"
 
 
@@ -585,6 +772,49 @@ def cmd_variant_task(args: argparse.Namespace) -> int:
     return _emit_result(not errors, errors)
 
 
+def cmd_verification_capabilities(args: argparse.Namespace) -> int:
+    path = _OUTPUT_DIR / "VERIFICATION_CAPABILITIES.json"
+    data, err = _load_json(path)
+    if err:
+        return _emit_result(False, [err])
+    errors = validate_verification_capabilities(data, site_name=args.site_name)
+    return _emit_result(not errors, errors)
+
+
+def cmd_data_model(args: argparse.Namespace) -> int:
+    path = _OUTPUT_DIR / "DATA_MODEL.json"
+    data, err = _load_json(path)
+    if err:
+        return _emit_result(False, [err])
+    errors = validate_data_model_profile(data, site_name=args.site_name)
+    return _emit_result(not errors, errors)
+
+
+def cmd_injection_surface(args: argparse.Namespace) -> int:
+    path = _OUTPUT_DIR / "INJECTION_SURFACE.json"
+    data, err = _load_json(path)
+    if err:
+        return _emit_result(False, [err])
+    input_data_model, input_err = _load_json(_INPUTS_DIR / "DATA_MODEL.json")
+    if input_err:
+        return _emit_result(False, [input_err])
+    errors = validate_injection_surface(
+        data,
+        site_name=args.site_name,
+        data_model=input_data_model,
+    )
+    return _emit_result(not errors, errors)
+
+
+def cmd_agent_context(args: argparse.Namespace) -> int:
+    path = _OUTPUT_DIR / "AGENT_CONTEXT.json"
+    data, err = _load_json(path)
+    if err:
+        return _emit_result(False, [err])
+    errors = validate_agent_context(data, site_name=args.site_name)
+    return _emit_result(not errors, errors)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Validate WorldSim v5 sandbox output files.",
@@ -611,6 +841,22 @@ def main() -> int:
 
     subparsers.add_parser("variant-task", help="Validate variant_task.json")
 
+    vc_parser = subparsers.add_parser(
+        "verification-capabilities", help="Validate VERIFICATION_CAPABILITIES.json"
+    )
+    vc_parser.add_argument("--site-name", required=True, help="Expected site_name")
+
+    dm_parser = subparsers.add_parser("data-model", help="Validate DATA_MODEL.json")
+    dm_parser.add_argument("--site-name", required=True, help="Expected site_name")
+
+    is_parser = subparsers.add_parser(
+        "injection-surface", help="Validate INJECTION_SURFACE.json"
+    )
+    is_parser.add_argument("--site-name", required=True, help="Expected site_name")
+
+    ac_parser = subparsers.add_parser("agent-context", help="Validate AGENT_CONTEXT.json")
+    ac_parser.add_argument("--site-name", required=True, help="Expected site_name")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -623,6 +869,10 @@ def main() -> int:
         "judge-recommendation": cmd_judge_recommendation,
         "revised-task": cmd_revised_task,
         "variant-task": cmd_variant_task,
+        "agent-context": cmd_agent_context,
+        "verification-capabilities": cmd_verification_capabilities,
+        "data-model": cmd_data_model,
+        "injection-surface": cmd_injection_surface,
     }
     handler = dispatch.get(args.schema)
     if handler is None:

@@ -25,3 +25,23 @@ def test_validate_profile_rejects_eval_types_absent_from_manifest():
         match="verification capabilities reference eval types absent from manifest",
     ):
         validate_profile("shopping", profile, manifest_eval_types=["string_match"])
+
+
+def test_validate_profile_rejects_field_from_wrong_entity():
+    profile = {
+        "site_name": "shopping",
+        "data_model": [
+            {"entity": "Product", "fields": [{"name": "title"}]},
+            {"entity": "Review", "fields": [{"name": "body"}]},
+        ],
+        "injection_surface": [
+            {
+                "id": "surface-1",
+                "source_field": "Product.body",
+            }
+        ],
+        "verification_capabilities": [],
+    }
+
+    with pytest.raises(ValueError, match="unknown field 'Product.body'"):
+        validate_profile("shopping", profile)

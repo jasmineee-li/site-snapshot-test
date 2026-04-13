@@ -44,28 +44,19 @@ def validate_profile(
             f"Profile site_name mismatch: expected {site_name!r}, got {profile_site!r}"
         )
 
-    known_fields: set[str] = set()
-    for entity in profile.get("data_model", []):
-        for field in entity.get("fields", []):
-            known_fields.add(field.get("name", ""))
-        storage = entity.get("storage", "")
-        if storage:
-            known_fields.add(storage)
-
-    known_entities = {entity.get("entity", "") for entity in profile.get("data_model", [])}
+    entity_fields = _entity_field_index(profile.get("data_model"))
 
     errors: list[str] = []
     for surface in profile.get("injection_surface", []):
         source = surface.get("source_field", "")
         if source and "." in source:
-            entity_name = source.split(".")[0]
-            if entity_name not in known_entities and known_entities:
+            entity_name, _, field_name = source.partition(".")
+            if entity_name not in entity_fields and entity_fields:
                 errors.append(
                     f"injection surface {surface.get('id', '?')!r} references "
                     f"unknown entity {entity_name!r} in {source!r}"
                 )
-            field_name = source.split(".")[-1]
-            if field_name not in known_fields and known_fields:
+            elif entity_fields and field_name not in entity_fields.get(entity_name, set()):
                 errors.append(
                     f"injection surface {surface.get('id', '?')!r} references "
                     f"unknown field {source!r}"
@@ -98,3 +89,25 @@ def validate_profile(
         len(profile.get("injection_surface", [])),
         len(known_eval_types),
     )
+
+
+def _entity_field_index(data_model: object) -> dict[str, set[str]]:
+    """Return {entity_name: {field_name}} for a data model payload."""
+    index: dict[str, set[str]] = {}
+    if not isinstance(data_model, list):
+        return index
+
+    for entity in data_model:
+        if not isinstance(entity, dict):
+            continue
+        entity_name = entity.get("entity")
+        if not isinstance(entity_name, str) or not entity_name:
+            continue
+        fields = index.setdefault(entity_name, set())
+        for field in entity.get("fields", []):
+            if not isinstance(field, dict):
+                continue
+            field_name = field.get("name")
+            if isinstance(field_name, str) and field_name:
+                fields.add(field_name)
+    return index

@@ -71,6 +71,29 @@ class TestValidateProfile:
         errors = validator.validate_profile(profile, site_name="shopping")
         assert any("unknown field" in e for e in errors)
 
+    def test_rejects_field_from_wrong_entity(self):
+        profile = {
+            "site_name": "shopping",
+            "data_model": [
+                {
+                    "entity": "Product",
+                    "fields": [{"name": "title"}],
+                },
+                {
+                    "entity": "Review",
+                    "fields": [{"name": "body"}],
+                },
+            ],
+            "injection_surface": [
+                {
+                    "id": "surf-1",
+                    "source_field": "Product.body",
+                }
+            ],
+        }
+        errors = validator.validate_profile(profile, site_name="shopping")
+        assert any("unknown field" in e for e in errors)
+
     def test_accepts_valid_profile(self):
         profile = {
             "site_name": "shopping",
@@ -255,6 +278,32 @@ class TestValidateDiagnosis:
         }
         errors = validator.validate_diagnosis(data)
         assert any("target" in e for e in errors)
+
+
+class TestValidateAgentContext:
+    def test_rejects_non_object_output_schema_when_structured_output_required(self):
+        data = {
+            "response_format": {
+                "requires_structured_output": True,
+                "output_schema": ["task_type", "status"],
+                "per_task_format_field": None,
+                "description": "The evaluator parses JSON output.",
+            },
+            "authentication": {
+                "pre_authenticated": False,
+                "credentials": {"username": "demo", "password": "secret"},
+                "description": "Use the seeded test account.",
+            },
+            "agent_prompt_template": None,
+            "site_context": {
+                "platform_name": "Shopping",
+                "description": "Ecommerce storefront.",
+            },
+        }
+
+        errors = validator.validate_agent_context(data, site_name="shopping")
+
+        assert any("output_schema must be an object" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -942,6 +991,38 @@ class TestCLIInterface:
             ):
                 rc = validator.cmd_profile(ns)
         assert rc == 0
+
+    def test_injection_surface_requires_data_model_input(self, tmp_path):
+        import argparse
+
+        ns = argparse.Namespace(schema="injection-surface", site_name="shopping")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        inputs_dir = tmp_path / "inputs"
+        inputs_dir.mkdir()
+        (output_dir / "INJECTION_SURFACE.json").write_text(
+            json.dumps(
+                {
+                    "injection_surface": [
+                        {
+                            "id": "surface-1",
+                            "source_field": "products.description",
+                            "attacker_realism": "medium",
+                        }
+                    ],
+                    "existing_task_coverage": {
+                        "injection_surfaces_with_task_coverage": [],
+                        "injection_surfaces_without_task_coverage": [],
+                    },
+                }
+            )
+        )
+
+        with mock.patch.object(validator, "_OUTPUT_DIR", output_dir):
+            with mock.patch.object(validator, "_INPUTS_DIR", inputs_dir):
+                rc = validator.cmd_injection_surface(ns)
+
+        assert rc == 1
 
     def test_dispatch_all_schemas_recognized(self):
         """Every subparser name has a matching dispatch entry."""

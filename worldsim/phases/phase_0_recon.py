@@ -22,9 +22,16 @@ import logging
 import os
 import shutil
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from worldsim._sandbox_validator import (
+    validate_agent_context,
+    validate_data_model_profile,
+    validate_injection_surface,
+    validate_verification_capabilities,
+)
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
 from worldsim.profile_validation import validate_profile
@@ -422,28 +429,35 @@ async def run_phase_0c(
     output_dir: Path,
     timeout: int = 14400,
 ) -> dict[str, Any]:
-    """Profile each site in parallel via Modal Sandboxes.
+    """Profile each site via tiered parallel Modal Sandboxes.
 
-    One sandbox per site, each receiving only that site's files from the
-    sandbox map. Produces ``BENCHMARK_PROFILE_{site}.json`` and ``.md``.
-    Sites that already have a profile on disk are skipped.
+    Two-tier structure per site:
+
+    - **Tier 1** (parallel): Verification Capabilities (A), Data Model (B),
+      Agent Context (C).
+    - **Tier 2** (sequential, receives validated Tier 1 outputs): Injection
+      Surface + Task Coverage (D+E).
+
+    All sites are profiled in parallel. Sites that already have a complete
+    profile on disk are skipped.
 
     Args:
         timeout: Per-sandbox wall-clock timeout in seconds (default: 4 hours).
 
     Returns:
-        Dict mapping site name to sandbox outputs dict.
+        Dict mapping site name to merged profile outputs.
     """
     benchmark_root = Path(benchmark_root).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Skip sites that already have profiles on disk (supports re-runs).
+    # Skip sites that already have all outputs on disk (supports re-runs).
     sites_to_profile = {}
     for name, files in sandbox_map.items():
         profile_path = output_dir / f"BENCHMARK_PROFILE_{name}.json"
-        if profile_path.exists():
+        context_path = output_dir / f"AGENT_CONTEXT_{name}.json"
+        if profile_path.exists() and context_path.exists():
             logger.info(
-                "Phase 0c: skipping site %r (profile already exists at %s)", name, profile_path
+                "Phase 0c: skipping site %r (profile + agent context already exist)", name
             )
         else:
             sites_to_profile[name] = files
@@ -452,144 +466,34 @@ async def run_phase_0c(
         logger.info("Phase 0c: all sites already profiled, nothing to do")
         return {}
 
-    async def profile_one_site(
-        site_name: str, file_list: list[str]
-    ) -> tuple[str, dict[str, str | None]]:
-        # Stage all files into a single temp dir mirroring /workspace/benchmark/
-        # structure, then mount once via add_local_dir. This replaces N separate
-        # add_local_file calls (each SHA-256 hashed individually) with one
-        # add_local_dir call, significantly reducing sandbox build time.
-        #
-        # The inner dir must be named "benchmark" because modal_sandbox.py's
-        # add_local_dir logic takes parent of the remote_path and places the
-        # directory by name — so /workspace/benchmark -> parent=/workspace,
-        # and the dir named "benchmark" lands at /workspace/benchmark/.
-        staging_root = Path(tempfile.mkdtemp(prefix=f"worldsim_0c_{site_name}_"))
-        staging_dir = staging_root / "benchmark"
-        staging_dir.mkdir()
-        try:
-            for local_path in file_list:
-                rel = os.path.relpath(local_path, benchmark_root)
-                staged = staging_dir / rel
-                staged.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(local_path, staged)
-
-            site_files = {"/workspace/benchmark": str(staging_dir)}
-
-            logger.info(
-                "Phase 0c: launching profiling sandbox for site %r (%d files staged into 1 mount)",
-                site_name,
-                len(file_list),
-            )
-
-            base_prompt = load_prompt(
-                "profile-site",
-                validation_command=f"profile --site-name {site_name}",
-            ).replace("{site_name}", site_name)
-            prompt = base_prompt
-
-            manifest_eval_types = manifest.get("evaluation", {}).get("eval_types", [])
-
-            # Initial attempt + up to PROFILE_FIX_MAX_ITERATIONS correction retries
-            last_outputs: dict[str, str | None] = {}
-            for attempt in range(1 + PROFILE_FIX_MAX_ITERATIONS):
-                outputs = await run_claude_in_sandbox(
-                    site_files=site_files,
-                    prompt=prompt,
-                    output_paths=[
-                        "/workspace/output/BENCHMARK_PROFILE.json",
-                        "/workspace/output/BENCHMARK_PROFILE.md",
-                    ],
-                    timeout=timeout,
-                    label=f"0c-{site_name}",
-                )
-                cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
-                last_outputs = outputs
-
-                # Try to parse and validate the profile
-                profile_json = outputs.get("/workspace/output/BENCHMARK_PROFILE.json")
-                if not profile_json:
-                    # No JSON produced — nothing to validate/fix, let post-loop handle it
-                    break
-
-                try:
-                    profile = json.loads(profile_json)
-                except json.JSONDecodeError:
-                    # Unparseable JSON — let post-loop handle it
-                    break
-
-                try:
-                    validate_profile(
-                        site_name,
-                        profile,
-                        manifest_eval_types=manifest_eval_types,
-                    )
-                    # Validation passed — done
-                    break
-                except ValueError as exc:
-                    errors_msg = str(exc)
-                    if attempt < PROFILE_FIX_MAX_ITERATIONS:
-                        logger.warning(
-                            "Phase 0c: site %r profile has validation errors, retrying (%d/%d): %s",
-                            site_name,
-                            attempt + 1,
-                            PROFILE_FIX_MAX_ITERATIONS,
-                            errors_msg,
-                        )
-                        correction = (
-                            "\n\n--- CORRECTION NEEDED ---\n"
-                            "The previous attempt produced a profile with validation errors:\n"
-                            f"{errors_msg}\n\n"
-                            "Every source_field must use format entity.field where both "
-                            "entity and field exist in your data_model. If you reference "
-                            "an entity in injection_surface, include it in data_model "
-                            f"with its fields.\n\nSite: {site_name}"
-                        )
-                        prompt = base_prompt + correction
-                    # else: exhausted retries, fall through with last_outputs
-
-        finally:
-            shutil.rmtree(staging_root, ignore_errors=True)
-
-        return site_name, last_outputs
-
     raw_results = await asyncio.gather(
-        *[profile_one_site(name, files) for name, files in sites_to_profile.items()],
+        *[
+            _profile_one_site_tiered(
+                site_name=name,
+                file_list=files,
+                benchmark_root=benchmark_root,
+                output_dir=output_dir,
+                manifest=manifest,
+                timeout=timeout,
+            )
+            for name, files in sites_to_profile.items()
+        ],
         return_exceptions=True,
     )
 
-    results: list[tuple[str, dict[str, str | None]]] = []
+    results: dict[str, Any] = {}
     failures: list[str] = []
     for r in raw_results:
         if isinstance(r, Exception):
             logger.error("Phase 0c site profiling failed: %s", r)
             failures.append(str(r))
-        else:
-            results.append(r)
+        elif isinstance(r, tuple) and len(r) == 2:
+            site_name, site_outputs = r
+            results[site_name] = site_outputs
 
     expected_sites = set(sites_to_profile)
-    completed_sites = {site_name for site_name, _ in results}
-    missing_sites = sorted(expected_sites - completed_sites)
+    missing_sites = sorted(expected_sites - set(results))
     failures.extend(f"missing profile result for site {site}" for site in missing_sites)
-
-    for site_name, outputs in results:
-        profile_json = outputs.get("/workspace/output/BENCHMARK_PROFILE.json")
-        if not profile_json:
-            failures.append(f"site {site_name} did not produce BENCHMARK_PROFILE.json")
-            continue
-        try:
-            profile = json.loads(profile_json)
-        except json.JSONDecodeError as exc:
-            failures.append(f"site {site_name} produced invalid profile JSON: {exc}")
-            continue
-        try:
-            validate_profile(
-                site_name,
-                profile,
-                manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
-            )
-        except ValueError as exc:
-            failures.append(str(exc))
 
     if failures:
         raise RuntimeError(
@@ -597,13 +501,365 @@ async def run_phase_0c(
             + "\n".join(f"  - {failure}" for failure in failures)
         )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for site_name, outputs in results:
-        for remote_path, content in outputs.items():
-            if content and not remote_path.startswith("_"):
-                suffix = Path(remote_path).suffix
-                out_path = output_dir / f"BENCHMARK_PROFILE_{site_name}{suffix}"
-                out_path.write_text(content)
-                logger.info("Phase 0c: wrote %s", out_path)
+    return results
 
-    return dict(results)
+
+def _stage_benchmark_files(
+    file_list: list[str],
+    benchmark_root: Path,
+    site_name: str,
+) -> tuple[Path, Path]:
+    """Stage benchmark files into a temp dir for sandbox mounting.
+
+    Returns ``(staging_root, staging_dir)`` where staging_dir is the inner
+    "benchmark" directory suitable for mounting at ``/workspace/benchmark``.
+    Caller is responsible for cleanup via ``shutil.rmtree(staging_root)``.
+    """
+    staging_root = Path(tempfile.mkdtemp(prefix=f"worldsim_0c_{site_name}_"))
+    staging_dir = staging_root / "benchmark"
+    staging_dir.mkdir()
+    for local_path in file_list:
+        rel = os.path.relpath(local_path, benchmark_root)
+        staged = staging_dir / rel
+        staged.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(local_path, staged)
+    return staging_root, staging_dir
+
+
+async def _run_tier_sandbox(
+    *,
+    site_name: str,
+    site_files: dict[str, str],
+    prompt: str,
+    output_paths: list[str],
+    timeout: int,
+    label: str,
+    extra_inputs: dict[str, str] | None = None,
+) -> dict[str, str | None]:
+    """Run a single profiling tier sandbox with the standard pattern.
+
+    Loads the prompt, appends validation footer, runs the sandbox, records
+    cost, and returns raw outputs.
+    """
+    all_files = dict(site_files)
+    if extra_inputs:
+        all_files.update(extra_inputs)
+
+    outputs = await run_claude_in_sandbox(
+        site_files=all_files,
+        prompt=prompt,
+        output_paths=output_paths,
+        timeout=timeout,
+        label=label,
+    )
+    cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
+    return outputs
+
+
+def _render_tier_prompt(*, prompt_name: str, validation_command: str, site_name: str) -> str:
+    """Load a profiling prompt and substitute the site name placeholder."""
+    return load_prompt(
+        prompt_name,
+        validation_command=validation_command,
+    ).replace("{site_name}", site_name)
+
+
+def _render_correction_block(
+    *,
+    site_name: str,
+    artifact_name: str,
+    errors: list[str],
+    extra_guidance: str | None = None,
+) -> str:
+    """Return a reusable prompt suffix for retrying a failed tier output."""
+    guidance = (
+        "\n\nAdditional guidance:\n" + extra_guidance.strip()
+        if extra_guidance and extra_guidance.strip()
+        else ""
+    )
+    return (
+        "\n\n--- CORRECTION NEEDED ---\n"
+        f"The previous attempt for site {site_name} produced an invalid {artifact_name}.\n"
+        "Rewrite the output file completely so it satisfies the schema and all cross-reference checks.\n"
+        "Validation errors:\n"
+        + "\n".join(f"  - {error}" for error in errors)
+        + guidance
+    )
+
+
+async def _run_tier_json_with_retries(
+    *,
+    site_name: str,
+    site_files: dict[str, str],
+    prompt_name: str,
+    validation_command: str,
+    output_path: str,
+    timeout: int,
+    label: str,
+    validate_parsed: Callable[[object], list[str]],
+    extra_inputs: dict[str, str] | None = None,
+    correction_guidance: str | None = None,
+) -> Any:
+    """Run one profiling tier, retrying semantic validation failures in-place."""
+    artifact_name = Path(output_path).name
+    base_prompt = _render_tier_prompt(
+        prompt_name=prompt_name,
+        validation_command=validation_command,
+        site_name=site_name,
+    )
+    prompt = base_prompt
+    last_errors: list[str] = []
+
+    for attempt in range(1 + PROFILE_FIX_MAX_ITERATIONS):
+        attempt_label = label if attempt == 0 else f"{label}-retry{attempt}"
+        outputs = await _run_tier_sandbox(
+            site_name=site_name,
+            site_files=site_files,
+            prompt=prompt,
+            output_paths=[output_path],
+            timeout=timeout,
+            label=attempt_label,
+            extra_inputs=extra_inputs,
+        )
+
+        raw = outputs.get(output_path)
+        parsed: object | None = None
+        errors: list[str] = []
+        if not raw:
+            errors.append(f"{artifact_name} was not produced")
+        else:
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                errors.append(f"{artifact_name} contained invalid JSON: {exc}")
+
+        if not errors and parsed is not None:
+            errors.extend(validate_parsed(parsed))
+
+        if not errors:
+            return parsed
+
+        last_errors = errors
+        if attempt < PROFILE_FIX_MAX_ITERATIONS:
+            logger.warning(
+                "Phase 0c: site %r %s failed validation, retrying (%d/%d): %s",
+                site_name,
+                artifact_name,
+                attempt + 1,
+                PROFILE_FIX_MAX_ITERATIONS,
+                "; ".join(errors),
+            )
+            prompt = base_prompt + _render_correction_block(
+                site_name=site_name,
+                artifact_name=artifact_name,
+                errors=errors,
+                extra_guidance=correction_guidance,
+            )
+
+    raise RuntimeError(
+        f"{artifact_name} for site {site_name} failed validation:\n"
+        + "\n".join(f"  - {error}" for error in last_errors)
+    )
+
+
+async def _profile_one_site_tiered(
+    *,
+    site_name: str,
+    file_list: list[str],
+    benchmark_root: Path,
+    output_dir: Path,
+    manifest: dict,
+    timeout: int,
+) -> tuple[str, dict[str, Any]]:
+    """Profile one site using two-tier sandbox execution.
+
+    Tier 1 runs three sandboxes in parallel (A: verification capabilities,
+    B: data model, C: agent context). Tier 2 runs one sandbox (D+E: injection
+    surface + task coverage) with validated Tier 1 outputs as inputs.
+    """
+    staging_root, staging_dir = _stage_benchmark_files(file_list, benchmark_root, site_name)
+    try:
+        site_files = {"/workspace/benchmark": str(staging_dir)}
+        manifest_eval_type_set = {
+            str(eval_type)
+            for eval_type in manifest.get("evaluation", {}).get("eval_types", [])
+            if eval_type
+        }
+        logger.info(
+            "Phase 0c: profiling site %r (%d files staged), tier 1 starting",
+            site_name,
+            len(file_list),
+        )
+
+        # ── Tier 1: parallel ────────────────────────────────────────────
+        tier1_results = await asyncio.gather(
+            _run_tier_json_with_retries(
+                site_name=site_name,
+                site_files=site_files,
+                prompt_name="profile-verification-capabilities",
+                validation_command=f"verification-capabilities --site-name {site_name}",
+                output_path="/workspace/output/VERIFICATION_CAPABILITIES.json",
+                timeout=timeout,
+                label=f"0c-{site_name}-A-verify",
+                validate_parsed=lambda data: (
+                    validate_verification_capabilities(data, site_name=site_name)
+                    + _validate_manifest_eval_types(data, manifest_eval_type_set)
+                ),
+                correction_guidance=(
+                    "Only include evaluation methods that actually exist in the benchmark harness. "
+                    "Each entry needs a string eval_type and description."
+                ),
+            ),
+            _run_tier_json_with_retries(
+                site_name=site_name,
+                site_files=site_files,
+                prompt_name="profile-data-model",
+                validation_command=f"data-model --site-name {site_name}",
+                output_path="/workspace/output/DATA_MODEL.json",
+                timeout=timeout,
+                label=f"0c-{site_name}-B-data",
+                validate_parsed=lambda data: validate_data_model_profile(data, site_name=site_name),
+                correction_guidance=(
+                    "Every entity must declare a non-empty fields array, and every field name should "
+                    "match the entity it belongs to."
+                ),
+            ),
+            _run_tier_json_with_retries(
+                site_name=site_name,
+                site_files=site_files,
+                prompt_name="profile-agent-context",
+                validation_command=f"agent-context --site-name {site_name}",
+                output_path="/workspace/output/AGENT_CONTEXT.json",
+                timeout=timeout,
+                label=f"0c-{site_name}-C-context",
+                validate_parsed=lambda data: validate_agent_context(data, site_name=site_name),
+                correction_guidance=(
+                    "When structured output is required, output_schema must be a JSON object. "
+                    "If agent_prompt_template is present, it must contain both {{INSTRUCTION}} "
+                    "and {{START_URLS}} placeholders."
+                ),
+            ),
+            return_exceptions=True,
+        )
+
+        # Extract validated Tier 1 outputs
+        tier1_names = ["verification-capabilities", "data-model", "agent-context"]
+        tier1_parsed: list[Any] = []
+        for result, name in zip(tier1_results, tier1_names):
+            if isinstance(result, Exception):
+                raise RuntimeError(
+                    f"Tier 1 sandbox {name} for site {site_name} failed: {result}"
+                ) from result
+            tier1_parsed.append(result)
+
+        verify_caps, data_model, agent_context = tier1_parsed
+        logger.info("Phase 0c: site %r tier 1 complete, starting tier 2", site_name)
+
+        # ── Tier 2: receives Tier 1 outputs ─────────────────────────────
+        # Stage Tier 1 outputs as input files for the D+E sandbox.
+        inputs_dir = staging_root / "tier1_inputs"
+        inputs_dir.mkdir()
+        (inputs_dir / "VERIFICATION_CAPABILITIES.json").write_text(
+            json.dumps(verify_caps, indent=2)
+        )
+        (inputs_dir / "DATA_MODEL.json").write_text(
+            json.dumps(data_model, indent=2)
+        )
+
+        tier2_extra_inputs = {
+            "/workspace/inputs/VERIFICATION_CAPABILITIES.json": str(
+                inputs_dir / "VERIFICATION_CAPABILITIES.json"
+            ),
+            "/workspace/inputs/DATA_MODEL.json": str(
+                inputs_dir / "DATA_MODEL.json"
+            ),
+        }
+
+        injection_surface = await _run_tier_json_with_retries(
+            site_name=site_name,
+            site_files=site_files,
+            prompt_name="profile-injection-surface",
+            validation_command=f"injection-surface --site-name {site_name}",
+            output_path="/workspace/output/INJECTION_SURFACE.json",
+            timeout=timeout,
+            label=f"0c-{site_name}-DE-inject",
+            extra_inputs=tier2_extra_inputs,
+            validate_parsed=lambda data: validate_injection_surface(
+                data,
+                site_name=site_name,
+                data_model=data_model,
+            ),
+            correction_guidance=(
+                "Every source_field must use entity.field format and reference a real field on the "
+                "matching entity in DATA_MODEL.json. existing_task_coverage may only reference ids "
+                "declared in injection_surface."
+            ),
+        )
+
+        logger.info("Phase 0c: site %r tier 2 complete, merging profile", site_name)
+
+        # ── Merge into BENCHMARK_PROFILE ────────────────────────────────
+        profile = {
+            "site_name": site_name,
+            "verification_capabilities": verify_caps,
+            "data_model": data_model,
+            "injection_surface": injection_surface.get("injection_surface", []),
+            "existing_task_coverage": injection_surface.get("existing_task_coverage", {}),
+        }
+
+        # Validate the merged profile before publishing anything to disk.
+        validate_profile(
+            site_name,
+            profile,
+            manifest_eval_types=manifest_eval_type_set,
+        )
+
+        # ── Write outputs ───────────────────────────────────────────────
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        profile_path = output_dir / f"BENCHMARK_PROFILE_{site_name}.json"
+        profile_path.write_text(json.dumps(profile, indent=2))
+        logger.info("Phase 0c: wrote %s", profile_path)
+
+        context_path = output_dir / f"AGENT_CONTEXT_{site_name}.json"
+        context_path.write_text(json.dumps(agent_context, indent=2))
+        logger.info("Phase 0c: wrote %s", context_path)
+
+        # Write individual tier outputs for debugging/inspection
+        for tier_name, tier_data in [
+            ("VERIFICATION_CAPABILITIES", verify_caps),
+            ("DATA_MODEL", data_model),
+            ("INJECTION_SURFACE", injection_surface),
+        ]:
+            tier_path = output_dir / f"{tier_name}_{site_name}.json"
+            tier_path.write_text(json.dumps(tier_data, indent=2))
+
+        return site_name, {
+            "profile": profile,
+            "agent_context": agent_context,
+        }
+
+    finally:
+        shutil.rmtree(staging_root, ignore_errors=True)
+
+
+def _validate_manifest_eval_types(
+    verification_capabilities: object,
+    manifest_eval_type_set: set[str],
+) -> list[str]:
+    """Reject verification capabilities that name eval types absent from the manifest."""
+    if not manifest_eval_type_set or not isinstance(verification_capabilities, list):
+        return []
+
+    discovered = {
+        str(item.get("eval_type"))
+        for item in verification_capabilities
+        if isinstance(item, dict) and item.get("eval_type")
+    }
+    unknown = sorted(discovered - manifest_eval_type_set)
+    if not unknown:
+        return []
+    return [
+        "verification capabilities reference eval types absent from manifest: "
+        + ", ".join(unknown)
+    ]

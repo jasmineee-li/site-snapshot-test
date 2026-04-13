@@ -1,151 +1,234 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+import json
 
 import pytest
 
 from worldsim.phases import phase_0_recon
 
+VERIFICATION_OUTPUT = "/workspace/output/VERIFICATION_CAPABILITIES.json"
+DATA_MODEL_OUTPUT = "/workspace/output/DATA_MODEL.json"
+AGENT_CONTEXT_OUTPUT = "/workspace/output/AGENT_CONTEXT.json"
+INJECTION_OUTPUT = "/workspace/output/INJECTION_SURFACE.json"
 
-@pytest.mark.asyncio
-async def test_run_phase_0c_fails_when_any_profile_is_missing(monkeypatch, tmp_path):
+
+def _valid_verification_capabilities() -> list[dict]:
+    return [
+        {
+            "eval_type": "NetworkEventEvaluator",
+            "description": "Checks the outbound network request.",
+            "interface": {"params": {"expected": "object"}, "returns": "boolean"},
+            "constraints": "",
+            "examples": [],
+        }
+    ]
+
+
+def _valid_data_model() -> list[dict]:
+    return [
+        {
+            "entity": "products",
+            "storage": "products",
+            "fields": [
+                {"name": "title", "type": "string", "mutable_via_ui": False},
+                {"name": "description", "type": "string", "mutable_via_ui": True},
+            ],
+            "relationships": [],
+            "sample_values": [{"title": "Desk lamp"}],
+        }
+    ]
+
+
+def _valid_agent_context() -> dict:
+    return {
+        "response_format": {
+            "requires_structured_output": False,
+            "output_schema": None,
+            "per_task_format_field": None,
+            "description": "Evaluation inspects browser state directly.",
+        },
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "demo", "password": "secret"},
+            "description": "Log in with the seeded shopping test account.",
+        },
+        "agent_prompt_template": None,
+        "site_context": {
+            "platform_name": "Shopping",
+            "description": "An ecommerce storefront with order history and product pages.",
+        },
+    }
+
+
+def _valid_injection_surface(*, source_field: str = "products.description") -> dict:
+    return {
+        "injection_surface": [
+            {
+                "id": "surface-1",
+                "location_page": "/orders/1",
+                "source_field": source_field,
+                "format": "plaintext",
+                "visibility": "always_shown",
+                "seeding_mechanism": "sql",
+                "rendering_context": "Order detail page body copy.",
+                "attacker_realism": "medium",
+                "realism_justification": "Customer-visible free-form text field.",
+            }
+        ],
+        "existing_task_coverage": {
+            "injection_surfaces_with_task_coverage": ["surface-1"],
+            "injection_surfaces_without_task_coverage": [],
+        },
+    }
+
+
+def _sandbox_json(output_path: str, payload: object) -> dict[str, str | None]:
+    return {
+        output_path: json.dumps(payload),
+        "_summary": None,
+    }
+
+
+def _benchmark_setup(tmp_path):
     benchmark_root = tmp_path / "benchmark"
     benchmark_root.mkdir()
     source_file = benchmark_root / "shopping.txt"
     source_file.write_text("demo")
+    return benchmark_root, source_file
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_fails_when_any_tier_output_is_missing(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
 
     async def fake_run_claude_in_sandbox(*args, **kwargs):
-        return {
-            "/workspace/output/BENCHMARK_PROFILE.md": "# profile",
-            "_summary": None,
-        }
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return {"_summary": None}
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
 
     monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     with pytest.raises(RuntimeError, match="did not complete all required site profiles"):
         await phase_0_recon.run_phase_0c(
-            manifest={"evaluation": {"eval_types": []}},
-            sandbox_map={"shopping": [str(source_file)]},
-            benchmark_root=benchmark_root,
-            output_dir=tmp_path / "out",
-        )
-
-
-@pytest.mark.asyncio
-async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_path):
-    benchmark_root = tmp_path / "benchmark"
-    benchmark_root.mkdir()
-    source_file = benchmark_root / "shopping.txt"
-    source_file.write_text("demo")
-
-    async def fake_run_claude_in_sandbox(*args, **kwargs):
-        return {
-            "/workspace/output/BENCHMARK_PROFILE.json": (
-                '{"data_model":[{"fields":[{"name":"title"}]}],'
-                '"injection_surface":[{"id":"surface-1","source_field":"posts.body"}],'
-                '"verification_capabilities":[]}'
-            ),
-            "/workspace/output/BENCHMARK_PROFILE.md": "# invalid profile",
-            "_summary": None,
-        }
-
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
-
-    with pytest.raises(RuntimeError, match="failed validation"):
-        await phase_0_recon.run_phase_0c(
-            manifest={"evaluation": {"eval_types": []}},
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
             sandbox_map={"shopping": [str(source_file)]},
             benchmark_root=benchmark_root,
             output_dir=tmp_path / "out",
         )
 
     assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
-    assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.md").exists()
+    assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
 
 
 @pytest.mark.asyncio
-async def test_correction_loop_fixes_invalid_profile(monkeypatch, tmp_path):
-    """Sandbox returns invalid profile first, valid profile on retry -- should succeed."""
-    benchmark_root = tmp_path / "benchmark"
-    benchmark_root.mkdir()
-    source_file = benchmark_root / "shopping.txt"
-    source_file.write_text("demo")
+async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    de_attempts = 0
 
-    # First call: entity "posts" not in data_model (triggers entity-level validation error)
-    invalid_profile = (
-        '{"site_name":"shopping",'
-        '"data_model":[{"entity":"products","fields":[{"name":"title"}]}],'
-        '"injection_surface":[{"id":"surface-1","source_field":"posts.body"}],'
-        '"verification_capabilities":[]}'
-    )
-    # Second call: corrected -- entity "products" matches source_field
-    valid_profile = (
-        '{"site_name":"shopping",'
-        '"data_model":[{"entity":"products","fields":[{"name":"title"},{"name":"description"}]}],'
-        '"injection_surface":[{"id":"surface-1","source_field":"products.description"}],'
-        '"verification_capabilities":[]}'
-    )
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal de_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            de_attempts += 1
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body"))
+        raise AssertionError(f"unexpected sandbox label: {label}")
 
-    mock_sandbox = AsyncMock(
-        side_effect=[
-            {
-                "/workspace/output/BENCHMARK_PROFILE.json": invalid_profile,
-                "/workspace/output/BENCHMARK_PROFILE.md": "# invalid",
-                "_summary": None,
-            },
-            {
-                "/workspace/output/BENCHMARK_PROFILE.json": valid_profile,
-                "/workspace/output/BENCHMARK_PROFILE.md": "# valid",
-                "_summary": None,
-            },
-        ]
-    )
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", mock_sandbox)
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    with pytest.raises(RuntimeError, match="failed validation"):
+        await phase_0_recon.run_phase_0c(
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+            sandbox_map={"shopping": [str(source_file)]},
+            benchmark_root=benchmark_root,
+            output_dir=tmp_path / "out",
+        )
+
+    assert de_attempts == 1 + phase_0_recon.PROFILE_FIX_MAX_ITERATIONS
+    assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
+    assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_correction_loop_fixes_invalid_tier_output(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    de_attempts = 0
+    de_prompts: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal de_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            de_attempts += 1
+            de_prompts.append(kwargs["prompt"])
+            source_field = "posts.body" if de_attempts == 1 else "products.description"
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface(source_field=source_field))
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     result = await phase_0_recon.run_phase_0c(
-        manifest={"evaluation": {"eval_types": []}},
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
         sandbox_map={"shopping": [str(source_file)]},
         benchmark_root=benchmark_root,
         output_dir=tmp_path / "out",
     )
 
     assert "shopping" in result
-    assert mock_sandbox.call_count == 2  # initial + 1 retry
+    assert de_attempts == 2
+    assert "CORRECTION NEEDED" in de_prompts[1]
+    assert "entity.field format" in de_prompts[1]
     assert (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
+    assert (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
 
 
 @pytest.mark.asyncio
 async def test_correction_loop_hard_fails_after_max_retries(monkeypatch, tmp_path):
-    """Sandbox always returns invalid profile -- should fail after 3 attempts."""
-    benchmark_root = tmp_path / "benchmark"
-    benchmark_root.mkdir()
-    source_file = benchmark_root / "shopping.txt"
-    source_file.write_text("demo")
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    de_attempts = 0
 
-    # Always invalid: entity "posts" not in data_model
-    invalid_profile = (
-        '{"site_name":"shopping",'
-        '"data_model":[{"entity":"products","fields":[{"name":"title"}]}],'
-        '"injection_surface":[{"id":"surface-1","source_field":"posts.body"}],'
-        '"verification_capabilities":[]}'
-    )
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal de_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            de_attempts += 1
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body"))
+        raise AssertionError(f"unexpected sandbox label: {label}")
 
-    mock_sandbox = AsyncMock(
-        return_value={
-            "/workspace/output/BENCHMARK_PROFILE.json": invalid_profile,
-            "/workspace/output/BENCHMARK_PROFILE.md": "# invalid",
-            "_summary": None,
-        }
-    )
-    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", mock_sandbox)
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
 
     with pytest.raises(RuntimeError, match="failed validation"):
         await phase_0_recon.run_phase_0c(
-            manifest={"evaluation": {"eval_types": []}},
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
             sandbox_map={"shopping": [str(source_file)]},
             benchmark_root=benchmark_root,
             output_dir=tmp_path / "out",
         )
 
-    # initial + PROFILE_FIX_MAX_ITERATIONS retries = 3 total
-    assert mock_sandbox.call_count == 3
+    assert de_attempts == 1 + phase_0_recon.PROFILE_FIX_MAX_ITERATIONS
+    assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
+    assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
