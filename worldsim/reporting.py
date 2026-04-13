@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import json
 import logging
-from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from worldsim.task_paths import safe_task_path_component
 
 logger = logging.getLogger(__name__)
 
@@ -107,14 +108,47 @@ class ComparisonTable:
 
 
 def load_phase_results(results_dir: Path) -> list[dict[str, Any]]:
-    """Load all result.json files from a Phase 3 or 4 results directory."""
-    results = []
-    for result_file in sorted(results_dir.rglob("result.json")):
+    """Load canonical Phase 3/4 results without counting nested reruns.
+
+    Preferred input is the phase summary file or directory containing
+    ``results.json``. As a fallback, read only top-level per-task
+    ``result.json`` sentinels whose directory name matches the task id's
+    canonical path component.
+    """
+    results_dir = Path(results_dir)
+
+    summary_path = results_dir if results_dir.is_file() else results_dir / "results.json"
+    if summary_path.exists():
+        try:
+            data = json.loads(summary_path.read_text())
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Skipping malformed summary file %s: %s", summary_path, exc)
+        else:
+            if isinstance(data, list):
+                return data
+            logger.warning("Summary file %s did not contain a JSON array", summary_path)
+
+    results: list[dict[str, Any]] = []
+    if not results_dir.exists() or not results_dir.is_dir():
+        return results
+
+    for subdir in sorted(results_dir.iterdir()):
+        if not subdir.is_dir():
+            continue
+        result_file = subdir / "result.json"
+        if not result_file.exists():
+            continue
         try:
             data = json.loads(result_file.read_text())
-            results.append(data)
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Skipping malformed result file %s: %s", result_file, exc)
+            continue
+        task_id = str(data.get("task_id") or "")
+        if not task_id:
+            continue
+        if subdir.name != safe_task_path_component(task_id):
+            continue
+        results.append(data)
     return results
 
 

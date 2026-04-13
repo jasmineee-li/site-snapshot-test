@@ -46,7 +46,6 @@ from worldsim.agent_config import (
     cap_tasks_per_site,
     execution_instance_dict,
     instances_for_site,
-    make_agent_factory,
     resolve_task_inputs,
     run_tasks_by_site,
     task_reset_endpoints,
@@ -157,12 +156,58 @@ async def run(args: argparse.Namespace) -> int:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         task_dir_root = state_dir / "phase_4" / timestamp
 
+    runner_name = getattr(args, "runner", "browser_use")
+    attack_mode = getattr(args, "attack_mode", "worldsim")
+    benchmark_adapter_name = getattr(args, "benchmark_adapter", None) or config.benchmark_name
+
+    if runner_name != "browser_use":
+        logger.error(
+            "Phase 4 currently supports only runner=browser_use; got runner=%s",
+            runner_name,
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="unsupported_runner",
+            task_dir_root=str(task_dir_root),
+            instances_path=str(instances_path),
+            runner=runner_name,
+            attack_mode=attack_mode,
+            benchmark_adapter=benchmark_adapter_name,
+        )
+        return 1
+    if attack_mode != "worldsim":
+        logger.error(
+            "Phase 4 currently supports only attack-mode=worldsim; got attack-mode=%s",
+            attack_mode,
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="unsupported_attack_mode",
+            task_dir_root=str(task_dir_root),
+            instances_path=str(instances_path),
+            runner=runner_name,
+            attack_mode=attack_mode,
+            benchmark_adapter=benchmark_adapter_name,
+        )
+        return 1
+
     # Fail fast if Claude Code auth is missing — judge/variant sandboxes need it.
     try:
         preflight_auth_check()
     except RuntimeError as exc:
         logger.error("Phase 4 auth pre-flight failed:\n%s", exc)
-        save_state("phase_4", status="failed", reason="auth_preflight_failed")
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="auth_preflight_failed",
+            task_dir_root=str(task_dir_root),
+            instances_path=str(instances_path),
+            runner=runner_name,
+            attack_mode=attack_mode,
+            benchmark_adapter=benchmark_adapter_name,
+        )
         return 1
 
     logger.info(
@@ -176,7 +221,10 @@ async def run(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
-    agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
+    from worldsim.runners import get_runner_module
+
+    runner_mod = get_runner_module(runner_name)
+    agent_factory = runner_mod.make_agent_factory(model=agent_model, provider=agent_provider)
     save_state(
         "phase_4",
         status="running",
@@ -185,6 +233,9 @@ async def run(args: argparse.Namespace) -> int:
         agent_model=agent_model,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
+        runner=runner_name,
+        attack_mode=attack_mode,
+        benchmark_adapter=benchmark_adapter_name,
         max_tasks_per_site=max_tasks_per_site,
     )
     # Thread the benchmark codebase root through so BrowserUseAgent can resolve
@@ -255,6 +306,9 @@ async def run(args: argparse.Namespace) -> int:
             agent_model=agent_model,
             sandbox_model=sandbox_model,
             agent_provider=agent_provider,
+            runner=runner_name,
+            attack_mode=attack_mode,
+            benchmark_adapter=benchmark_adapter_name,
             max_tasks_per_site=max_tasks_per_site,
         )
         return 1
@@ -279,6 +333,9 @@ async def run(args: argparse.Namespace) -> int:
         agent_model=agent_model,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
+        runner=runner_name,
+        attack_mode=attack_mode,
+        benchmark_adapter=benchmark_adapter_name,
         max_tasks_per_site=max_tasks_per_site,
         complied=complied,
         variant_success=variant_success,

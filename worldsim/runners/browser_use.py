@@ -23,7 +23,7 @@ from worldsim.config import BenchmarkInstance
 from worldsim.phases.phase_3_benign import run_task as _run_task
 
 
-def make_task_runner() -> Callable[
+def make_task_runner(**_: Any) -> Callable[
     [dict[str, Any], AgentRunner, BenchmarkInstance, Path],
     Any,
 ]:

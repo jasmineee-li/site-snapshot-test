@@ -102,6 +102,12 @@ class AgentLabAgentWrapper:
     agent_args: Any  # GenericAgentArgs when agentlab is installed
     model: str = _DEFAULT_MODEL
 
+    async def setup(self, server_url: str) -> None:
+        """Satisfy the worker-pool lifecycle contract."""
+
+    async def teardown(self) -> None:
+        """Satisfy the worker-pool lifecycle contract."""
+
 
 # ---------------------------------------------------------------------------
 # Environment reset helper

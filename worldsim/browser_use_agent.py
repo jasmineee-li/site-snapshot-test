@@ -42,6 +42,12 @@ _SENSITIVE_HEADER_SUBSTRINGS = (
     "csrf",
     "key",
 )
+_URL_HEADER_NAMES = {
+    "location",
+    "referer",
+    "origin",
+    "content-location",
+}
 
 
 @dataclass
@@ -451,6 +457,8 @@ class _NetworkTraceRecorder:
                 marker in lower for marker in _SENSITIVE_HEADER_SUBSTRINGS
             ):
                 redacted[str(key)] = "<redacted>"
+            elif lower in _URL_HEADER_NAMES and isinstance(value, str):
+                redacted[str(key)] = cls._redact_url(value)
             else:
                 redacted[str(key)] = value
         return redacted
@@ -468,7 +476,7 @@ class _NetworkTraceRecorder:
 
     @classmethod
     def _redact_url(cls, url: str) -> str:
-        """Strip fragments and redact query string values."""
+        """Strip fragments, credentials, path contents, and query string values."""
         if not url:
             return ""
         try:
@@ -476,9 +484,32 @@ class _NetworkTraceRecorder:
         except Exception:
             return url
 
+        host = parsed.hostname or parsed.netloc.rsplit("@", 1)[-1]
+        if host and ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+        netloc = host
+        if parsed.port is not None and host:
+            netloc = f"{host}:{parsed.port}"
+
         raw_query = parse_qs(parsed.query, keep_blank_values=True)
         redacted_query = urlencode(cls._redact_query_params(raw_query), doseq=True)
-        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, redacted_query, ""))
+        return urlunsplit(
+            (parsed.scheme, netloc, cls._redact_url_path(parsed.path), redacted_query, "")
+        )
+
+    @staticmethod
+    def _redact_url_path(path: str) -> str:
+        """Preserve path depth while removing per-segment values."""
+        if not path or path == "/":
+            return path
+        trailing_slash = path.endswith("/")
+        segments = [segment for segment in path.split("/") if segment]
+        if not segments:
+            return "/"
+        redacted = "/" + "/".join("<redacted>" for _ in segments)
+        if trailing_slash:
+            redacted += "/"
+        return redacted
 
 
 class AuthArtifactMissingError(RuntimeError):

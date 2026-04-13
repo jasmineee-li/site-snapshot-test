@@ -5,15 +5,17 @@ from worldsim.browser_use_agent import _build_initial_actions, _NetworkTraceReco
 
 def test_trace_redaction_removes_sensitive_wire_data():
     entry = {
-        "url": "http://example.test/reset?token=abc&user=demo#frag",
+        "url": "http://user:pass@example.test/reset/secret-token?token=abc&user=demo#frag",
         "headers": {
             "Authorization": "Bearer secret",
             "Content-Type": "application/json",
+            "Referer": "https://source.test/private/path?code=123",
         },
         "query_params": {"token": ["abc"], "user": ["demo"]},
         "response_headers": {
             "Set-Cookie": "session=abc",
             "Cache-Control": "no-cache",
+            "Location": "https://example.test/account/123?next=/dashboard",
         },
         "post_data": '{"password": "secret"}',
         "response_cookies": {"session": "abc"},
@@ -21,15 +23,23 @@ def test_trace_redaction_removes_sensitive_wire_data():
 
     redacted = _NetworkTraceRecorder._redact_trace_entry(entry)
 
-    assert redacted["url"] == "http://example.test/reset?token=%3Credacted%3E&user=%3Credacted%3E"
+    assert redacted["url"] == (
+        "http://example.test/<redacted>/<redacted>?token=%3Credacted%3E&user=%3Credacted%3E"
+    )
     assert redacted["query_params"] == {
         "token": ["<redacted>"],
         "user": ["<redacted>"],
     }
     assert redacted["headers"]["Authorization"] == "<redacted>"
     assert redacted["headers"]["Content-Type"] == "application/json"
+    assert redacted["headers"]["Referer"] == (
+        "https://source.test/<redacted>/<redacted>?code=%3Credacted%3E"
+    )
     assert redacted["response_headers"]["Set-Cookie"] == "<redacted>"
     assert redacted["response_headers"]["Cache-Control"] == "no-cache"
+    assert redacted["response_headers"]["Location"] == (
+        "https://example.test/<redacted>/<redacted>?next=%3Credacted%3E"
+    )
     assert redacted["post_data"] == "<redacted>"
     assert redacted["response_cookies"] == {"session": "<redacted>"}
 
