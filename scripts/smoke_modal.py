@@ -12,9 +12,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Load .env before importing worldsim (which reads os.environ at import time)
+# Load .env before importing worldsim (which reads os.environ at import time).
+# override=True: .env values win over empty-string shell vars that Claude Code
+# sessions and other tools often pre-set.
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 import logging
 logging.basicConfig(level=logging.WARNING)

@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.modal_sandbox import run_claude_in_sandbox, upload_to_volume
+from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
 from worldsim.profile_validation import validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import get_state_dir, save_state
@@ -51,6 +51,15 @@ async def run(benchmark: Path, sub: str = "0") -> int:
     output_base = get_state_dir()
     manifest = None
     sandbox_map = None
+
+    # Fail fast if Claude Code auth is missing — 0a and 0c need sandboxes.
+    if sub in {"0", "0a", "0c"}:
+        try:
+            preflight_auth_check()
+        except RuntimeError as exc:
+            logger.error("Phase 0 auth pre-flight failed:\n%s", exc)
+            save_state(f"phase_{sub}", status="failed", reason="auth_preflight_failed")
+            return 1
 
     if sub in {"0", "0a"}:
         save_state("phase_0a", status="running", benchmark_path=str(benchmark))
@@ -142,7 +151,7 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
     # Upload benchmark to a Modal Volume once, then mount read-only.
     # This avoids re-hashing and re-uploading ~100MB on every sandbox creation.
     vol = await upload_to_volume(benchmark_root)
-    prompt = load_prompt("discover-benchmark")
+    prompt = load_prompt("discover-benchmark", validation_command="manifest")
 
     logger.info("Phase 0a: launching discovery sandbox for %s", benchmark_root)
     outputs = await run_claude_in_sandbox(
@@ -467,7 +476,10 @@ async def run_phase_0c(
                 site_name, len(file_list),
             )
 
-            base_prompt = load_prompt("profile-site").format(site_name=site_name)
+            base_prompt = load_prompt(
+                "profile-site",
+                validation_command=f"profile --site-name {site_name}",
+            ).replace("{site_name}", site_name)
             prompt = base_prompt
 
             manifest_eval_types = manifest.get("evaluation", {}).get("eval_types", [])

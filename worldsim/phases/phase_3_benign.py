@@ -41,7 +41,7 @@ from worldsim.agent_config import (
 from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.modal_sandbox import run_claude_in_sandbox
+from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async
@@ -89,6 +89,14 @@ async def run(args: argparse.Namespace) -> int:
 
     agent_model = getattr(args, "agent_model", None) or "gemini-3.1-pro-preview"
     agent_provider = getattr(args, "agent_provider", None)
+    # Fail fast if Claude Code auth is missing — diagnosis sandboxes need it.
+    try:
+        preflight_auth_check()
+    except RuntimeError as exc:
+        logger.error("Phase 3 auth pre-flight failed:\n%s", exc)
+        save_state("phase_3", status="failed", reason="auth_preflight_failed")
+        return 1
+
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
     save_state(
         "phase_3",
@@ -392,9 +400,10 @@ async def diagnose_failure(
 def _render_diagnosis_prompt(task: dict[str, Any]) -> str:
     """Render the benign diagnosis prompt with real or unknown sanity metadata."""
     sanity_result = _task_sanity_result(task)
-    return load_prompt("diagnose-benign-failure").replace(
-        "{sanity_result}", sanity_result or "unknown"
-    )
+    return load_prompt(
+        "diagnose-benign-failure",
+        validation_command="diagnosis",
+    ).replace("{sanity_result}", sanity_result or "unknown")
 
 
 def _task_sanity_result(task: dict[str, Any]) -> str | None:

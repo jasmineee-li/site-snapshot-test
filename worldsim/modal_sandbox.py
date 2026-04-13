@@ -58,6 +58,10 @@ def _build_claude_secrets() -> list[modal.Secret]:
     """Build Modal secrets for Claude Code auth.
 
     Raises RuntimeError if no credentials are available.
+
+    Note: empty-string env vars are treated as unset. Shell environments
+    (especially Claude Code sessions) often pre-set auth vars to ``""``
+    which would otherwise pass ``os.environ.get(key)`` truthiness checks.
     """
     named = os.environ.get(NAMED_SECRET_ENV_VAR, "").strip()
     if named:
@@ -66,9 +70,14 @@ def _build_claude_secrets() -> list[modal.Secret]:
 
     env: dict[str, str] = {}
     for key in CLAUDE_ALLOWED_ENV_VARS:
-        value = os.environ.get(key)
+        value = os.environ.get(key, "").strip()
         if value:
             env[key] = value
+        elif os.environ.get(key) is not None:
+            # Key is present but empty — log so the user knows.
+            logger.debug(
+                "Env var %s is set but empty (treating as unset)", key,
+            )
 
     has_creds = (
         "ANTHROPIC_API_KEY" in env
@@ -76,14 +85,22 @@ def _build_claude_secrets() -> list[modal.Secret]:
         or "CLAUDE_CODE_OAUTH_TOKEN" in env
     )
     if not has_creds:
+        # Build a diagnostic showing what was actually in the environment.
+        present = {
+            k: ("set" if os.environ.get(k, "").strip() else "empty")
+            for k in CLAUDE_ALLOWED_ENV_VARS
+            if os.environ.get(k) is not None
+        }
         raise RuntimeError(
-            "No Claude Code auth available for the Modal sandbox. Either:\n"
-            "  export CLAUDE_CODE_OAUTH_TOKEN=...              # Pro/Max subscription (preferred)\n"
-            "  export ANTHROPIC_AUTH_TOKEN=sk-or-v1-...         # OpenRouter\n"
-            "         ANTHROPIC_BASE_URL=https://openrouter.ai/api\n"
-            "  export ANTHROPIC_API_KEY=sk-ant-...              # direct Anthropic API\n"
-            "Or point at an existing named Modal secret:\n"
-            f"  export {NAMED_SECRET_ENV_VAR}=<secret-name>"
+            "No Claude Code auth available for the Modal sandbox.\n"
+            f"  Environment check: {present or '(none of the auth vars are set)'}\n"
+            "  Ensure load_dotenv(override=True) ran, or export one of:\n"
+            "    CLAUDE_CODE_OAUTH_TOKEN=...              # Pro/Max subscription (preferred)\n"
+            "    ANTHROPIC_AUTH_TOKEN=sk-or-v1-...         # OpenRouter\n"
+            "      ANTHROPIC_BASE_URL=https://openrouter.ai/api\n"
+            "    ANTHROPIC_API_KEY=sk-ant-...              # direct Anthropic API\n"
+            "  Or point at an existing named Modal secret:\n"
+            f"    {NAMED_SECRET_ENV_VAR}=<secret-name>"
         )
 
     # OAuth wins: Claude Code's own precedence puts API key above OAuth,
@@ -103,7 +120,19 @@ def _build_claude_secrets() -> list[modal.Secret]:
     return [modal.Secret.from_dict(env)]
 
 
+def preflight_auth_check() -> None:
+    """Verify Claude Code auth is available before launching sandboxes.
+
+    Call this early in any phase that uses ``run_claude_in_sandbox`` so
+    failures surface immediately instead of after minutes of sandbox setup.
+    Raises RuntimeError with diagnostics if auth is missing.
+    """
+    _build_claude_secrets()
+    logger.info("Pre-flight auth check passed")
+
+
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
+_VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
 
 async def _get_app() -> modal.App:
     """Look up (or create) the Modal App for this pipeline.
@@ -167,8 +196,9 @@ async def run_claude_in_sandbox(
         else:
             logger.warning("skipping %s -> %s: path does not exist", local_path, remote_path)
 
-    # Stage the SDK runner script into the sandbox.
+    # Stage the SDK runner script and output validator into the sandbox.
     image = image.add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py")
+    image = image.add_local_file(_VALIDATOR_PATH, remote_path="/workspace/_validate.py")
 
     # -- Create sandbox --------------------------------------------------------
     app = await _get_app()

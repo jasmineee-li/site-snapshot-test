@@ -25,7 +25,7 @@ import tempfile
 from pathlib import Path
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.modal_sandbox import run_claude_in_sandbox
+from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import validate_data_seed
@@ -64,6 +64,14 @@ async def run(args: argparse.Namespace) -> int:
     profiles_dir = state_dir / "phase_0c"
     if not profiles_dir.exists():
         logger.error("Profiles directory not found at %s — run phase 0c first", profiles_dir)
+        return 1
+
+    # Fail fast if Claude Code auth is missing — before launching any sandboxes.
+    try:
+        preflight_auth_check()
+    except RuntimeError as exc:
+        logger.error("Phase 2 auth pre-flight failed:\n%s", exc)
+        save_state("phase_2", status="failed", reason="auth_preflight_failed")
         return 1
 
     save_state("phase_2", status="running")
@@ -189,7 +197,10 @@ async def _generate_injections_for_site(
 
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
-            prompt=load_prompt("generate-injections"),
+            prompt=load_prompt(
+                "generate-injections",
+                validation_command="adversarial-tasks",
+            ),
             output_paths=["/workspace/output/adversarial_tasks.json"],
             label=site_name,
         )

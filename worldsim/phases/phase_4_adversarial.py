@@ -52,7 +52,7 @@ from worldsim.agent_config import (
 from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.modal_sandbox import run_claude_in_sandbox
+from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async, validate_data_seed
@@ -145,6 +145,14 @@ async def run(args: argparse.Namespace) -> int:
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         task_dir_root = state_dir / "phase_4" / timestamp
+
+    # Fail fast if Claude Code auth is missing — judge/variant sandboxes need it.
+    try:
+        preflight_auth_check()
+    except RuntimeError as exc:
+        logger.error("Phase 4 auth pre-flight failed:\n%s", exc)
+        save_state("phase_4", status="failed", reason="auth_preflight_failed")
+        return 1
 
     logger.info("Phase 4: evaluating %d adversarial tasks across %d instances",
                 len(tasks), len(config.instances))
@@ -720,7 +728,10 @@ async def probe_ecological_validity(
             load_trajectory_into_sandbox(task_dir, sandbox_files)
             outputs = await run_claude_in_sandbox(
                 site_files=sandbox_files,
-                prompt=load_prompt("probe-ecological-validity"),
+                prompt=load_prompt(
+                    "probe-ecological-validity",
+                    validation_command="ecological-validity",
+                ),
                 output_paths=[VALIDITY_PROBE_OUTPUT],
                 label=f"4-validity-{task_id}",
             )
@@ -728,7 +739,10 @@ async def probe_ecological_validity(
         load_trajectory_into_sandbox(task_dir, sandbox_files)
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
-            prompt=load_prompt("probe-ecological-validity"),
+            prompt=load_prompt(
+                "probe-ecological-validity",
+                validation_command="ecological-validity",
+            ),
             output_paths=[VALIDITY_PROBE_OUTPUT],
             label=f"4-validity-{task_id}",
         )
@@ -792,7 +806,10 @@ async def run_judge(
 
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
-            prompt=load_prompt("judge-adversarial-failure"),
+            prompt=load_prompt(
+                "judge-adversarial-failure",
+                validation_command="judge-recommendation",
+            ),
             output_paths=["/workspace/output/judge_recommendation.json"],
             label=f"4-judge-{task.get('id', 'unknown')}",
         )
@@ -1086,9 +1103,16 @@ async def _revise_adversarial_task(
         if profile_path.exists():
             sandbox_files["/workspace/profile/BENCHMARK_PROFILE.json"] = str(profile_path)
 
+        # Map output path to the matching validator subcommand.
+        _output_to_validator = {
+            REVISED_TASK_OUTPUT: "revised-task",
+            VARIANT_TASK_OUTPUT: "variant-task",
+        }
+        validation_cmd = _output_to_validator.get(output_path)
+
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
-            prompt=load_prompt(prompt_name),
+            prompt=load_prompt(prompt_name, validation_command=validation_cmd),
             output_paths=[output_path],
             label=f"4-{revision_kind}-{task.get('id', 'unknown')}",
         )

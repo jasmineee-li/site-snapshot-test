@@ -23,7 +23,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()  # Load .env before importing stateful modules.
+load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
 DEFAULT_AGENT_MODEL = "gemini-3.1-pro-preview"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
@@ -55,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Path to BENCHMARK_MANIFEST.json from Phase 0a. Used by Phase 1 to "
         "override the default manifest path under logs/phase_0a/.",
+    )
+    phase_cmd.add_argument(
+        "--generate-novel",
+        action="store_true",
+        help="For Phase 1, also generate Mode B novel tasks for eligible sites.",
     )
     phase_cmd.add_argument(
         "--instances",
@@ -106,6 +111,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         choices=AGENT_PROVIDER_CHOICES,
         help="Override the saved Browser Use agent provider for the resumed phase.",
+    )
+    resume_cmd.add_argument(
+        "--generate-novel",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Override saved Phase 1 state to enable Mode B novel task generation.",
     )
 
     return parser
@@ -183,6 +194,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     instances = getattr(args, "instances", None)
     agent_model = getattr(args, "agent_model", None)
     agent_provider = getattr(args, "agent_provider", None)
+    generate_novel = getattr(args, "generate_novel", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -195,6 +207,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_model = state.get("agent_model")
     if agent_provider is None:
         agent_provider = state.get("agent_provider")
+    if generate_novel is None:
+        generate_novel = state.get("generate_novel", False)
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -208,6 +222,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         instances=instances,
         agent_model=agent_model,
         agent_provider=agent_provider,
+        generate_novel=generate_novel,
     )
 
     return _dispatch_phase(synthetic)
