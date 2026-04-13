@@ -514,9 +514,29 @@ class BrowserUseAgent:
             args=[
                 "--disable-gpu",
                 "--disable-extensions",
+                "--no-sandbox",  # required for Chrome on EC2/Docker/root
+                "--disable-software-rasterizer",  # reduce CPU when GPU unavailable
             ],
         )
-        await self._session.start()
+
+        # Retry browser startup with linear backoff for transient failures
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                await self._session.start()
+                last_exc = None
+                break
+            except (TimeoutError, ConnectionError, OSError, RuntimeError) as exc:
+                last_exc = exc
+                if attempt < 3:
+                    delay = 3 * attempt
+                    logger.warning(
+                        "Browser startup failed (attempt %d/3), retrying in %ds: %s",
+                        attempt, delay, exc,
+                    )
+                    await asyncio.sleep(delay)
+        if last_exc is not None:
+            raise last_exc
 
         network_recorder = _NetworkTraceRecorder(self._session, task_dir)
         await network_recorder.start()
@@ -567,6 +587,8 @@ class BrowserUseAgent:
                 extra_errors=extra_errors,
             )
             if self._session is not None:
+                # Clean up temp profile dir before killing to avoid /tmp accumulation
+                self._cleanup_temp_profile(self._session)
                 try:
                     await self._session.kill()
                 except Exception as e:
@@ -586,11 +608,36 @@ class BrowserUseAgent:
 
     async def teardown(self) -> None:
         if self._session is not None:
+            # Clean up temp profile dir before killing to avoid /tmp accumulation
+            self._cleanup_temp_profile(self._session)
             try:
                 await self._session.kill()
             except Exception as e:
                 logger.warning("BrowserSession kill failed: %s", e)
             self._session = None
+
+    @staticmethod
+    def _cleanup_temp_profile(session: Any) -> None:
+        """Remove the browser-use temp user data dir if it lives under /tmp/.
+
+        Browser Use creates ``/tmp/browser-use-user-data-dir-*`` dirs via
+        ``BrowserProfile.validate_user_data_dir`` and never cleans them up.
+        Over hundreds of tasks these accumulate significantly.
+        """
+        try:
+            user_data_dir = getattr(
+                getattr(session, "browser_profile", None),
+                "user_data_dir",
+                None,
+            )
+            if (
+                user_data_dir
+                and Path(user_data_dir).exists()
+                and "/tmp/" in str(user_data_dir)
+            ):
+                shutil.rmtree(user_data_dir, ignore_errors=True)
+        except Exception:
+            pass
 
 
 def _build_initial_actions(start_urls: list[str]) -> list[dict[str, dict[str, Any]]] | None:
