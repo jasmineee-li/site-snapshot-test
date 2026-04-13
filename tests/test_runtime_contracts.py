@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -203,18 +204,41 @@ def _env_without(*keys: str) -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if k not in keys}
 
 
-def test_make_llm_falls_back_to_openrouter_when_google_key_missing():
-    """gemini model + no GOOGLE_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
+def _mock_browser_use_module(parent_path: str, class_name: str):
+    """Create mock modules for browser_use.llm.*.chat imports.
+
+    Returns ``(mock_chat_cls, modules_dict)`` where *modules_dict* is suitable
+    for ``patch.dict("sys.modules", ...)``.  The mock hierarchy must include
+    every intermediate package so the ``from browser_use.llm.X.chat import Y``
+    import resolves correctly.
+    """
     from unittest.mock import MagicMock
 
+    mock_chat_cls = MagicMock()
+    # Build the chain: browser_use → browser_use.llm → browser_use.llm.<provider>
+    #                   → browser_use.llm.<provider>.chat
+    parts = parent_path.split(".")
+    modules: dict[str, Any] = {}
+    current = MagicMock()
+    for i in range(len(parts)):
+        modules[".".join(parts[: i + 1])] = current
+
+    chat_module = MagicMock()
+    setattr(chat_module, class_name, mock_chat_cls)
+    modules[parent_path + ".chat"] = chat_module
+    return mock_chat_cls, modules
+
+
+def test_make_llm_falls_back_to_openrouter_when_google_key_missing():
+    """gemini model + no GOOGLE_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
     env = _env_without("GOOGLE_API_KEY")
     env["OPENROUTER_API_KEY"] = "or-test-key"
-    mock_module = MagicMock()
-    mock_chat_cls = MagicMock()
-    mock_module.ChatOpenRouter = mock_chat_cls
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.openrouter", "ChatOpenRouter"
+    )
     with (
         patch.dict(os.environ, env, clear=True),
-        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+        patch.dict("sys.modules", modules),
     ):
         llm = make_llm(model="gemini-3-flash-preview")
         mock_chat_cls.assert_called_once_with(
@@ -224,16 +248,14 @@ def test_make_llm_falls_back_to_openrouter_when_google_key_missing():
 
 def test_make_llm_no_fallback_when_google_key_present():
     """gemini model + GOOGLE_API_KEY set → uses Google directly (no fallback)."""
-    from unittest.mock import MagicMock
-
     env = _env_without("OPENROUTER_API_KEY")
     env["GOOGLE_API_KEY"] = "google-test-key"
-    mock_module = MagicMock()
-    mock_chat_cls = MagicMock()
-    mock_module.ChatGoogleGenerativeAI = mock_chat_cls
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.google", "ChatGoogle"
+    )
     with (
         patch.dict(os.environ, env, clear=True),
-        patch.dict("sys.modules", {"langchain_google_genai": mock_module}),
+        patch.dict("sys.modules", modules),
     ):
         llm = make_llm(model="gemini-3-flash-preview")
         mock_chat_cls.assert_called_once_with(
@@ -243,16 +265,14 @@ def test_make_llm_no_fallback_when_google_key_present():
 
 def test_make_llm_openrouter_model_no_fallback_needed():
     """Model with '/' already detects as OpenRouter — no fallback logic needed."""
-    from unittest.mock import MagicMock
-
     env = _env_without("GOOGLE_API_KEY")
     env["OPENROUTER_API_KEY"] = "or-test-key"
-    mock_module = MagicMock()
-    mock_chat_cls = MagicMock()
-    mock_module.ChatOpenRouter = mock_chat_cls
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.openrouter", "ChatOpenRouter"
+    )
     with (
         patch.dict(os.environ, env, clear=True),
-        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+        patch.dict("sys.modules", modules),
     ):
         llm = make_llm(model="google/gemini-3-flash-preview")
         # Model name should be passed as-is (already has prefix)
@@ -263,16 +283,14 @@ def test_make_llm_openrouter_model_no_fallback_needed():
 
 def test_make_llm_falls_back_to_openrouter_for_openai_model():
     """OpenAI model + no OPENAI_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
-    from unittest.mock import MagicMock
-
     env = _env_without("OPENAI_API_KEY")
     env["OPENROUTER_API_KEY"] = "or-test-key"
-    mock_module = MagicMock()
-    mock_chat_cls = MagicMock()
-    mock_module.ChatOpenRouter = mock_chat_cls
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.openrouter", "ChatOpenRouter"
+    )
     with (
         patch.dict(os.environ, env, clear=True),
-        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+        patch.dict("sys.modules", modules),
     ):
         llm = make_llm(model="gpt-4o")
         mock_chat_cls.assert_called_once_with(
@@ -282,16 +300,14 @@ def test_make_llm_falls_back_to_openrouter_for_openai_model():
 
 def test_make_llm_falls_back_to_openrouter_for_anthropic_model():
     """Anthropic model + no ANTHROPIC_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
-    from unittest.mock import MagicMock
-
     env = _env_without("ANTHROPIC_API_KEY")
     env["OPENROUTER_API_KEY"] = "or-test-key"
-    mock_module = MagicMock()
-    mock_chat_cls = MagicMock()
-    mock_module.ChatOpenRouter = mock_chat_cls
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.openrouter", "ChatOpenRouter"
+    )
     with (
         patch.dict(os.environ, env, clear=True),
-        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+        patch.dict("sys.modules", modules),
     ):
         llm = make_llm(model="claude-sonnet-4-6")
         mock_chat_cls.assert_called_once_with(
@@ -303,13 +319,10 @@ def test_make_llm_no_fallback_when_no_openrouter_key():
     """No provider key AND no OPENROUTER_API_KEY → normal error (no silent fallback)."""
     env = _env_without("GOOGLE_API_KEY", "OPENROUTER_API_KEY")
     with patch.dict(os.environ, env, clear=True):
-        # Should attempt Google provider and fail at import/auth, not at fallback
-        from unittest.mock import MagicMock
-
-        mock_module = MagicMock()
-        mock_chat_cls = MagicMock()
-        mock_module.ChatGoogleGenerativeAI = mock_chat_cls
-        with patch.dict("sys.modules", {"langchain_google_genai": mock_module}):
+        mock_chat_cls, modules = _mock_browser_use_module(
+            "browser_use.llm.google", "ChatGoogle"
+        )
+        with patch.dict("sys.modules", modules):
             # No fallback — calls Google directly even without the key
             llm = make_llm(model="gemini-3-flash-preview")
             mock_chat_cls.assert_called_once_with(

@@ -1,16 +1,16 @@
 """Shared agent LLM configuration and factory utilities.
 
-Provides a single ``make_llm`` function that returns the correct LangChain
+Provides a single ``make_llm`` function that returns the correct Browser Use
 chat model for a given provider/model pair, plus shared helpers that were
 previously duplicated between Phase 3 and Phase 4: ``make_agent_factory``
 and ``run_tasks_by_site``.
 
 Supported providers:
 
-- ``google``      -- ``langchain-google-genai``  (``ChatGoogleGenerativeAI``)
-- ``openai``      -- ``langchain-openai``        (``ChatOpenAI``)
-- ``anthropic``   -- ``langchain-anthropic``     (``ChatAnthropic``)
-- ``openrouter``  -- ``langchain-openrouter``    (``ChatOpenRouter``)
+- ``google``      -- ``browser_use.llm.google``      (``ChatGoogle``)
+- ``openai``      -- ``browser_use.llm.openai``      (``ChatOpenAI``)
+- ``anthropic``   -- ``browser_use.llm.anthropic``   (``ChatAnthropic``)
+- ``openrouter``  -- ``browser_use.llm.openrouter``  (``ChatOpenRouter``)
 
 Auth is via the standard env vars: ``GOOGLE_API_KEY``, ``OPENAI_API_KEY``,
 ``ANTHROPIC_API_KEY``, ``OPENROUTER_API_KEY``.
@@ -102,17 +102,18 @@ def make_llm(
     provider: str | None = None,
     temperature: float = 0,
 ) -> Any:
-    """Return a LangChain ``BaseChatModel`` for the requested provider.
+    """Return a Browser Use ``BaseChatModel`` for the requested provider.
 
     Args:
         model: Model name string (e.g. ``gemini-3-flash-preview``,
             ``gpt-5.4``, ``claude-sonnet-4-6``).
-        provider: One of ``google``, ``openai``, ``anthropic``.  When
-            ``None`` the provider is auto-detected from *model*.
+        provider: One of ``google``, ``openai``, ``anthropic``,
+            ``openrouter``.  When ``None`` the provider is auto-detected
+            from *model*.
         temperature: Sampling temperature.
 
     Raises:
-        RuntimeError: If the required langchain partner package is missing.
+        RuntimeError: If the required browser-use LLM module is missing.
         ValueError: If *provider* is not recognised.
     """
     provider = resolve_provider(model, provider)
@@ -142,43 +143,46 @@ def make_llm(
         if prefix and not model.startswith(prefix):
             model = prefix + model
 
+    # Browser Use >= 0.12.6 uses its own BaseChatModel protocol (not LangChain).
+    # Each provider's chat class implements the required `provider` property.
+
     if provider == "google":
         try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
+            from browser_use.llm.google.chat import ChatGoogle
         except ImportError as exc:
             raise RuntimeError(
-                "langchain-google-genai is required for the Google provider. "
-                "Install it with: uv pip install langchain-google-genai"
+                "browser-use[google] is required for the Google provider. "
+                "Install it with: uv pip install browser-use"
             ) from exc
-        return ChatGoogleGenerativeAI(model=model, temperature=temperature)
+        return ChatGoogle(model=model, temperature=temperature)
 
     if provider == "openai":
         try:
-            from langchain_openai import ChatOpenAI
+            from browser_use.llm.openai.chat import ChatOpenAI
         except ImportError as exc:
             raise RuntimeError(
-                "langchain-openai is required for the OpenAI provider. "
-                "Install it with: uv pip install langchain-openai"
+                "browser-use is required for the OpenAI provider. "
+                "Install it with: uv pip install browser-use"
             ) from exc
         return ChatOpenAI(model=model, temperature=temperature)
 
     if provider == "anthropic":
         try:
-            from langchain_anthropic import ChatAnthropic
+            from browser_use.llm.anthropic.chat import ChatAnthropic
         except ImportError as exc:
             raise RuntimeError(
-                "langchain-anthropic is required for the Anthropic provider. "
-                "Install it with: uv pip install langchain-anthropic"
+                "browser-use is required for the Anthropic provider. "
+                "Install it with: uv pip install browser-use"
             ) from exc
         return ChatAnthropic(model=model, temperature=temperature)
 
     if provider == "openrouter":
         try:
-            from langchain_openrouter import ChatOpenRouter
+            from browser_use.llm.openrouter.chat import ChatOpenRouter
         except ImportError as exc:
             raise RuntimeError(
-                "langchain-openrouter is required for the OpenRouter provider. "
-                "Install it with: uv pip install langchain-openrouter"
+                "browser-use is required for the OpenRouter provider. "
+                "Install it with: uv pip install browser-use"
             ) from exc
         return ChatOpenRouter(model=model, temperature=temperature)
 
