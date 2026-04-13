@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -113,6 +114,31 @@ def make_llm(
         ValueError: If *provider* is not recognised.
     """
     provider = resolve_provider(model, provider)
+
+    # If the resolved provider's API key is missing but OpenRouter is available,
+    # fall back to OpenRouter transparently.
+    _PROVIDER_ENV_VARS = {
+        "google": "GOOGLE_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+    }
+    provider_key_var = _PROVIDER_ENV_VARS.get(provider)
+    if (
+        provider != "openrouter"
+        and provider_key_var
+        and not os.environ.get(provider_key_var, "").strip()
+        and os.environ.get("OPENROUTER_API_KEY", "").strip()
+    ):
+        logger.info(
+            "Provider %r requires %s (not set), falling back to OpenRouter",
+            provider, provider_key_var,
+        )
+        provider = "openrouter"
+        # Prefix model name for OpenRouter format if needed
+        prefix_map = {"google": "google/", "openai": "openai/", "anthropic": "anthropic/"}
+        prefix = prefix_map.get(resolve_provider(model, None) or "", "")
+        if prefix and not model.startswith(prefix):
+            model = prefix + model
 
     if provider == "google":
         try:

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+from unittest.mock import patch
+
 import pytest
 
 from worldsim.agent_config import (
@@ -8,6 +11,7 @@ from worldsim.agent_config import (
     execution_instance_dict,
     make_llm,
     prepare_task_for_execution,
+    resolve_provider,
     resolve_task_inputs,
 )
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
@@ -145,3 +149,125 @@ def test_benchmark_config_accepts_top_level_url_placeholders():
 def test_make_llm_rejects_unknown_model_family_without_provider():
     with pytest.raises(ValueError, match="Could not infer a provider"):
         make_llm(model="mystery-model-1")
+
+
+# ── OpenRouter fallback tests ────────────────────────────────────────────
+
+
+def _env_without(*keys: str) -> dict[str, str]:
+    """Return a copy of os.environ with *keys* removed."""
+    return {k: v for k, v in os.environ.items() if k not in keys}
+
+
+def test_make_llm_falls_back_to_openrouter_when_google_key_missing():
+    """gemini model + no GOOGLE_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
+    from unittest.mock import MagicMock
+
+    env = _env_without("GOOGLE_API_KEY")
+    env["OPENROUTER_API_KEY"] = "or-test-key"
+    mock_module = MagicMock()
+    mock_chat_cls = MagicMock()
+    mock_module.ChatOpenRouter = mock_chat_cls
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+    ):
+        llm = make_llm(model="gemini-3-flash-preview")
+        mock_chat_cls.assert_called_once_with(
+            model="google/gemini-3-flash-preview", temperature=0
+        )
+
+
+def test_make_llm_no_fallback_when_google_key_present():
+    """gemini model + GOOGLE_API_KEY set → uses Google directly (no fallback)."""
+    from unittest.mock import MagicMock
+
+    env = _env_without("OPENROUTER_API_KEY")
+    env["GOOGLE_API_KEY"] = "google-test-key"
+    mock_module = MagicMock()
+    mock_chat_cls = MagicMock()
+    mock_module.ChatGoogleGenerativeAI = mock_chat_cls
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", {"langchain_google_genai": mock_module}),
+    ):
+        llm = make_llm(model="gemini-3-flash-preview")
+        mock_chat_cls.assert_called_once_with(
+            model="gemini-3-flash-preview", temperature=0
+        )
+
+
+def test_make_llm_openrouter_model_no_fallback_needed():
+    """Model with '/' already detects as OpenRouter — no fallback logic needed."""
+    from unittest.mock import MagicMock
+
+    env = _env_without("GOOGLE_API_KEY")
+    env["OPENROUTER_API_KEY"] = "or-test-key"
+    mock_module = MagicMock()
+    mock_chat_cls = MagicMock()
+    mock_module.ChatOpenRouter = mock_chat_cls
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+    ):
+        llm = make_llm(model="google/gemini-3-flash-preview")
+        # Model name should be passed as-is (already has prefix)
+        mock_chat_cls.assert_called_once_with(
+            model="google/gemini-3-flash-preview", temperature=0
+        )
+
+
+def test_make_llm_falls_back_to_openrouter_for_openai_model():
+    """OpenAI model + no OPENAI_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
+    from unittest.mock import MagicMock
+
+    env = _env_without("OPENAI_API_KEY")
+    env["OPENROUTER_API_KEY"] = "or-test-key"
+    mock_module = MagicMock()
+    mock_chat_cls = MagicMock()
+    mock_module.ChatOpenRouter = mock_chat_cls
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+    ):
+        llm = make_llm(model="gpt-4o")
+        mock_chat_cls.assert_called_once_with(
+            model="openai/gpt-4o", temperature=0
+        )
+
+
+def test_make_llm_falls_back_to_openrouter_for_anthropic_model():
+    """Anthropic model + no ANTHROPIC_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
+    from unittest.mock import MagicMock
+
+    env = _env_without("ANTHROPIC_API_KEY")
+    env["OPENROUTER_API_KEY"] = "or-test-key"
+    mock_module = MagicMock()
+    mock_chat_cls = MagicMock()
+    mock_module.ChatOpenRouter = mock_chat_cls
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", {"langchain_openrouter": mock_module}),
+    ):
+        llm = make_llm(model="claude-sonnet-4-6")
+        mock_chat_cls.assert_called_once_with(
+            model="anthropic/claude-sonnet-4-6", temperature=0
+        )
+
+
+def test_make_llm_no_fallback_when_no_openrouter_key():
+    """No provider key AND no OPENROUTER_API_KEY → normal error (no silent fallback)."""
+    env = _env_without("GOOGLE_API_KEY", "OPENROUTER_API_KEY")
+    with patch.dict(os.environ, env, clear=True):
+        # Should attempt Google provider and fail at import/auth, not at fallback
+        from unittest.mock import MagicMock
+
+        mock_module = MagicMock()
+        mock_chat_cls = MagicMock()
+        mock_module.ChatGoogleGenerativeAI = mock_chat_cls
+        with patch.dict("sys.modules", {"langchain_google_genai": mock_module}):
+            # No fallback — calls Google directly even without the key
+            llm = make_llm(model="gemini-3-flash-preview")
+            mock_chat_cls.assert_called_once_with(
+                model="gemini-3-flash-preview", temperature=0
+            )
