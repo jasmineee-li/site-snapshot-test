@@ -13,12 +13,14 @@ dependencies = [
     "pydantic>=2.9",
     "pymysql>=1.1",
     "psycopg2-binary>=2.9",
-    # LLM providers are supplied by browser-use's native chat classes
-    # (browser_use.llm.{google,openai,anthropic,openrouter}.chat).
-    # No separate langchain-* packages needed.
+    # Browser Use itself lives behind the optional "browser" extra because
+    # its OpenAI pin conflicts with the AgentLab comparison stack.
 ]
 
 [project.optional-dependencies]
+browser = [
+    "browser-use>=0.12.6",
+]
 dev = [
     # AgentLab currently pins pytest==7.3.2, so keep dev tooling compatible
     # with the comparison extra instead of making the extras mutually exclusive.
@@ -43,6 +45,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "browser" },
+        { extra = "comparison" },
+    ],
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["worldsim"]

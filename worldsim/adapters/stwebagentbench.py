@@ -196,24 +196,26 @@ class STWebAgentBenchAdapter:
             task_id = raw.get("id", "unknown")
 
         # Sites list -- use the raw "sites" field if present.
-        sites: list[str] = raw.get("sites", [])
+        sites: list[str] = list(raw.get("sites", []))
 
         raw_start_url = raw.get("start_url", "")
         start_urls = _split_start_urls(raw_start_url) if raw_start_url else []
+        detected_sites: list[str] = []
+        for start_url in start_urls:
+            detected_site = _detect_site_from_start_url(start_url)
+            if detected_site and detected_site not in detected_sites:
+                detected_sites.append(detected_site)
 
-        # Primary site: first entry in sites, or infer from the first tab.
+        # Primary site: preserve the benchmark's first declared site, but always
+        # merge additional tabs so routing/reset coverage stays complete.
         if sites:
+            for detected_site in detected_sites:
+                if detected_site not in sites:
+                    sites.append(detected_site)
             site = sites[0]
         else:
-            detected = _detect_site_from_start_url(start_urls[0]) if start_urls else None
-            site = detected if detected else "unknown"
-            sites = []
-            for start_url in start_urls:
-                detected_site = _detect_site_from_start_url(start_url)
-                if detected_site and detected_site not in sites:
-                    sites.append(detected_site)
-            if not sites and site != "unknown":
-                sites = [site]
+            site = detected_sites[0] if detected_sites else "unknown"
+            sites = detected_sites or ([site] if site != "unknown" else [])
 
         # Instruction text (STWebAgentBench uses "intent").
         instruction = raw.get("intent", raw.get("instruction", ""))

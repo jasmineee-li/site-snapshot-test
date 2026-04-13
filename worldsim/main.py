@@ -135,6 +135,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="browser_use",
         choices=RUNNER_CHOICES,
         help="Agent execution backend for Phase 3 (default: browser_use). "
+        "Packaged installs need the 'browser' extra for browser_use or the "
+        "'comparison' extra for agentlab. "
         "Phase 4 currently runs through the browser_use pipeline because its "
         "ecological-validity and strategy-variation loops still depend on "
         "Browser Use trajectory artifacts.",

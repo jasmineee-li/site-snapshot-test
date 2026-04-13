@@ -137,7 +137,18 @@ async def run(args: argparse.Namespace) -> int:
         preflight_auth_check()
     except RuntimeError as exc:
         logger.error("Phase 3 auth pre-flight failed:\n%s", exc)
-        save_state("phase_3", status="failed", reason="auth_preflight_failed")
+        save_state(
+            "phase_3",
+            status="failed",
+            reason="auth_preflight_failed",
+            instances_path=str(instances_path),
+            agent_model=agent_model,
+            agent_provider=agent_provider,
+            runner=runner_name,
+            benchmark_adapter=benchmark_adapter_name,
+            full_baseline=full_baseline,
+            max_tasks_per_site=max_tasks_per_site,
+        )
         return 1
 
     # Resolve the runner backend (browser_use or agentlab).

@@ -158,7 +158,7 @@ def make_llm(
         except ImportError as exc:
             raise RuntimeError(
                 "Browser Use dependencies are required for the Google provider. "
-                "Install them with: uv pip install browser-use"
+                "Install them with: uv sync --extra browser"
             ) from exc
         return ChatGoogle(model=model, temperature=temperature)
 
@@ -168,7 +168,7 @@ def make_llm(
         except ImportError as exc:
             raise RuntimeError(
                 "Browser Use dependencies are required for the OpenAI provider. "
-                "Install them with: uv pip install browser-use"
+                "Install them with: uv sync --extra browser"
             ) from exc
         return ChatOpenAI(model=model, temperature=temperature)
 
@@ -178,7 +178,7 @@ def make_llm(
         except ImportError as exc:
             raise RuntimeError(
                 "Browser Use dependencies are required for the Anthropic provider. "
-                "Install them with: uv pip install browser-use"
+                "Install them with: uv sync --extra browser"
             ) from exc
         kwargs: dict[str, Any] = {"model": model, "temperature": temperature}
         proxy = _anthropic_proxy_env()
@@ -197,7 +197,7 @@ def make_llm(
         except ImportError as exc:
             raise RuntimeError(
                 "Browser Use dependencies are required for the OpenRouter provider. "
-                "Install them with: uv pip install browser-use"
+                "Install them with: uv sync --extra browser"
             ) from exc
         return ChatOpenRouter(
             model=model,

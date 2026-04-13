@@ -112,8 +112,8 @@ def load_phase_results(results_dir: Path) -> list[dict[str, Any]]:
 
     Preferred input is the phase summary file or directory containing
     ``results.json``. As a fallback, read only top-level per-task
-    ``result.json`` sentinels whose directory name matches the task id's
-    canonical path component.
+    ``processed_result.json`` / ``result.json`` sentinels whose directory
+    name matches the task id's canonical path component.
     """
     results_dir = Path(results_dir)
 
@@ -135,7 +135,8 @@ def load_phase_results(results_dir: Path) -> list[dict[str, Any]]:
     for subdir in sorted(results_dir.iterdir()):
         if not subdir.is_dir():
             continue
-        result_file = subdir / "result.json"
+        processed_file = subdir / "processed_result.json"
+        result_file = processed_file if processed_file.exists() else subdir / "result.json"
         if not result_file.exists():
             continue
         try:

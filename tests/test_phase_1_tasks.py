@@ -302,6 +302,138 @@ async def test_phase_1_mode_a_uses_stwebagentbench_adapter(monkeypatch, tmp_path
     ]
 
 
+@pytest.mark.asyncio
+async def test_phase_1_mode_a_merges_extra_multitab_sites_when_raw_sites_prefilled(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "task_id": 48,
+                    "sites": ["suitecrm"],
+                    "start_url": "__SUITECRM__/contacts |AND| __GITLAB__/issues",
+                    "intent": "Open the customer contact and confirm the linked issue",
+                    "eval": {"eval_types": ["program_html"]},
+                }
+            ]
+        )
+    )
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text(
+        json.dumps(_manifest(benchmark_root, benchmark_name="stwebagentbench"))
+    )
+
+    rc = await phase_1_tasks.run(Namespace(config=None, benchmark=None, generate_novel=False))
+
+    assert rc == 0
+    tasks = json.loads((tmp_path / "phase_1" / "benign_tasks.json").read_text())
+    assert tasks[0]["sites"] == ["suitecrm", "gitlab"]
+
+
+@pytest.mark.asyncio
+async def test_phase_1_mode_a_uses_cli_benchmark_adapter_override(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "task_id": 49,
+                    "start_url": "__SUITECRM__/contacts |AND| __GITLAB__/issues",
+                    "intent": "Open the customer contact and confirm the linked issue",
+                    "eval": {"eval_types": ["program_html"]},
+                }
+            ]
+        )
+    )
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text(json.dumps(_manifest(benchmark_root)))
+
+    rc = await phase_1_tasks.run(
+        Namespace(
+            config=None,
+            benchmark=None,
+            benchmark_adapter="stwebagentbench",
+            generate_novel=False,
+        )
+    )
+
+    assert rc == 0
+    tasks = json.loads((tmp_path / "phase_1" / "benign_tasks.json").read_text())
+    assert tasks[0]["site"] == "suitecrm"
+    assert tasks[0]["sites"] == ["suitecrm", "gitlab"]
+
+
+@pytest.mark.asyncio
+async def test_phase_1_mode_a_loads_safearena_tasks_from_manifest_file_paths(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "safe.json").write_text(
+        json.dumps(
+            [
+                {
+                    "task_id": 7,
+                    "start_url": "__GITLAB__/issues",
+                    "intent": "Review the issue",
+                    "eval": {"eval_types": ["program_html"]},
+                    "harm": False,
+                }
+            ]
+        )
+    )
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text(
+        json.dumps(
+            {
+                "benchmark_codebase": str(benchmark_root),
+                "benchmark_name": "safearena-safe",
+                "evaluation": {
+                    "task_definition_paths": ["safe.json"],
+                    "eval_types": ["program_html"],
+                },
+            }
+        )
+    )
+
+    rc = await phase_1_tasks.run(Namespace(config=None, benchmark=None, generate_novel=False))
+
+    assert rc == 0
+    tasks = json.loads((tmp_path / "phase_1" / "benign_tasks.json").read_text())
+    assert tasks == [
+        {
+            "id": "7",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Review the issue",
+            "start_urls": ["__GITLAB__/issues"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "eval": {"eval_types": ["program_html"]},
+                "eval_types": ["program_html"],
+                "task_id": 7,
+            },
+            "is_harmful": False,
+            "risk_category": None,
+            "safearena_split": "safe",
+            "intent_template_id": None,
+        }
+    ]
+
+
 def test_load_mode_b_eligible_sites_only_returns_profiles_with_uncovered_surfaces(tmp_path):
     profiles_dir = tmp_path / "phase_0c"
     profiles_dir.mkdir()

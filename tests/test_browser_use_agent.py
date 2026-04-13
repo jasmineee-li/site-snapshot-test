@@ -100,3 +100,41 @@ async def test_browser_use_agent_retries_startup_and_cleans_temp_profile(monkeyp
     assert "--disable-software-rasterizer" in created_args["args"]
     assert result.status == "failure"
     assert not Path(profile_dir).exists()
+
+
+@pytest.mark.asyncio
+async def test_browser_use_agent_cleans_temp_profile_when_startup_never_succeeds(
+    monkeypatch, tmp_path
+):
+    profile_dir = Path("/tmp") / f"browser-use-user-data-dir-fail-{tmp_path.name}"
+    profile_dir.mkdir()
+    kill_calls = {"count": 0}
+
+    class FakeSession:
+        def __init__(self, *, headless, keep_alive, args):
+            self.browser_profile = SimpleNamespace(user_data_dir=str(profile_dir))
+            self.cdp_client = None
+
+        async def start(self):
+            raise RuntimeError("startup failed")
+
+        async def kill(self):
+            kill_calls["count"] += 1
+
+    fake_module = types.ModuleType("browser_use")
+    fake_module.Agent = object
+    fake_module.BrowserSession = FakeSession
+    monkeypatch.setitem(sys.modules, "browser_use", fake_module)
+
+    async def fake_sleep(delay):
+        return None
+
+    monkeypatch.setattr(browser_use_agent.asyncio, "sleep", fake_sleep)
+
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+
+    with pytest.raises(RuntimeError, match="startup failed"):
+        await agent.run("Check the order", "http://shopping.test", tmp_path / "task")
+
+    assert kill_calls["count"] == 1
+    assert not profile_dir.exists()

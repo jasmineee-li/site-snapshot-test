@@ -51,6 +51,22 @@ def test_load_phase_results_ignores_nested_rerun_artifacts(tmp_path):
     assert loaded == [{"task_id": "task-a", "outcome": "complied"}]
 
 
+def test_load_phase_results_prefers_processed_result_in_fallback_mode(tmp_path):
+    results_dir = tmp_path / "phase_4_runs"
+    results_dir.mkdir()
+
+    task_dir = results_dir / "task-a"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(json.dumps({"task_id": "task-a", "outcome": "complied"}))
+    (task_dir / "processed_result.json").write_text(
+        json.dumps({"task_id": "task-a", "final_status": "resistant"})
+    )
+
+    loaded = load_phase_results(results_dir)
+
+    assert loaded == [{"task_id": "task-a", "final_status": "resistant"}]
+
+
 def test_compute_metrics_counts_variant_success_as_attack_success():
     metrics = compute_metrics(
         [

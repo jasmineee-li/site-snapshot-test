@@ -178,6 +178,21 @@ class SafeArenaAdapter:
         list[dict]
             Raw task config dicts as stored in the JSON files.
         """
+        data_path = Path(data_dir)
+        if data_path.is_file():
+            with open(data_path) as fp:
+                data = json.load(fp)
+            if not isinstance(data, list):
+                raise ValueError(
+                    f"Expected a JSON array in {data_path}, got {type(data).__name__}"
+                )
+            logger.info(
+                "SafeArena loaded %d tasks from file %s",
+                len(data),
+                data_path,
+            )
+            return data
+
         # Use the adapter's default split if the caller passes "all" and
         # the benchmark name implies a specific split.
         if split == "all":
@@ -196,7 +211,7 @@ class SafeArenaAdapter:
             )
 
         for s in splits_to_load:
-            path = Path(data_dir) / f"{s}.json"
+            path = data_path / f"{s}.json"
             if not path.exists():
                 logger.warning(
                     "SafeArena data file not found: %s -- skipping split %r",
