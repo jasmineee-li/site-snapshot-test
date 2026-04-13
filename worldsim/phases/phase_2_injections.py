@@ -225,6 +225,23 @@ async def _generate_injections_for_site(
         logger.error("Phase 2: invalid JSON from site %r sandbox: %s", site_name, e)
         return SiteInjectionResult(site_name, [], [f"invalid sandbox JSON: {e}"])
 
+    # Programmatically copy immutable fields from benign tasks instead of
+    # relying on the LLM to reproduce them byte-for-byte. The LLM only needs
+    # to produce adversarial_data_seed and adversarial_reward.
+    benign_by_id = {str(t.get("id", "")): t for t in site_tasks}
+    for adv_task in adv_tasks:
+        benign_id = str(adv_task.get("benign_task_id", ""))
+        benign_task = benign_by_id.get(benign_id)
+        if benign_task is None:
+            continue
+        for field in ("instruction", "site", "sites", "start_urls", "data_seed"):
+            if field in benign_task:
+                adv_task[field] = json.loads(json.dumps(benign_task[field]))
+        reward = adv_task.get("reward_function", {})
+        if isinstance(reward, dict):
+            reward["benign_reward"] = json.loads(json.dumps(benign_task.get("reward_function", {})))
+            adv_task["reward_function"] = reward
+
     validated, errors = _validate_generated_adversarial_tasks(adv_tasks, site_tasks)
     return SiteInjectionResult(site_name, validated, errors)
 
