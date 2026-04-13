@@ -32,3 +32,15 @@ services:
   reddit:
     environment:
       - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_REDDIT_PORT:-9999}
+
+  # Wikipedia: upstream am1n3e/webarena-verified-wikipedia:latest is published
+  # arm64-only on Docker Hub, which crash-loops on our x86_64 EC2 host with
+  # "exec format error". We build an amd64 variant locally via
+  # scripts/build-wikipedia-amd64.sh and pin the compose service to it.
+  # platform: linux/amd64 also blocks Docker from ever pulling the arm64
+  # manifest if the local image is missing.
+  wikipedia:
+    image: worldsim/webarena-verified-wikipedia:amd64
+    platform: linux/amd64
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_WIKIPEDIA_PORT:-8888}
