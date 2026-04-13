@@ -358,10 +358,12 @@ async def diagnose_failure(
 
         prompt = _render_diagnosis_prompt(task)
 
+        task_id = task.get("id", "unknown")
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
             prompt=prompt,
             output_paths=["/workspace/output/diagnosis.json"],
+            label=f"3-diagnose-{task_id}",
         )
 
     cost_tracker.record(

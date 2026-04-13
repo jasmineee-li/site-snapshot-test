@@ -709,6 +709,7 @@ async def probe_ecological_validity(
         logger.warning("No history.json for ecological validity probe — treating as invalid")
         return 1.0
 
+    task_id = task.get("id", "unknown") if task is not None else "unknown"
     sandbox_files: dict[str, str] = {}
     if task is not None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -721,6 +722,7 @@ async def probe_ecological_validity(
                 site_files=sandbox_files,
                 prompt=load_prompt("probe-ecological-validity"),
                 output_paths=[VALIDITY_PROBE_OUTPUT],
+                label=f"4-validity-{task_id}",
             )
     else:
         load_trajectory_into_sandbox(task_dir, sandbox_files)
@@ -728,6 +730,7 @@ async def probe_ecological_validity(
             site_files=sandbox_files,
             prompt=load_prompt("probe-ecological-validity"),
             output_paths=[VALIDITY_PROBE_OUTPUT],
+            label=f"4-validity-{task_id}",
         )
     cost_tracker.record("phase_4", outputs.get("_summary"))
 
@@ -791,6 +794,7 @@ async def run_judge(
             site_files=sandbox_files,
             prompt=load_prompt("judge-adversarial-failure"),
             output_paths=["/workspace/output/judge_recommendation.json"],
+            label=f"4-judge-{task.get('id', 'unknown')}",
         )
 
     cost_tracker.record(
@@ -1086,6 +1090,7 @@ async def _revise_adversarial_task(
             site_files=sandbox_files,
             prompt=load_prompt(prompt_name),
             output_paths=[output_path],
+            label=f"4-{revision_kind}-{task.get('id', 'unknown')}",
         )
 
     cost_tracker.record(

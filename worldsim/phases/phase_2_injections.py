@@ -117,6 +117,16 @@ async def run(args: argparse.Namespace) -> int:
             len(result.adversarial_tasks),
         )
 
+    # Per-site summary after all sandboxes complete.
+    succeeded = sum(
+        1 for r in results
+        if not isinstance(r, BaseException) and not r.errors
+    )
+    logger.info(
+        "Phase 2: all sandboxes done — %d/%d sites succeeded, %d total adversarial tasks",
+        succeeded, len(results), len(all_adversarial),
+    )
+
     if site_failures:
         logger.error(
             "Phase 2 failed because one or more sites did not produce valid adversarial tasks:\n%s",
@@ -181,8 +191,10 @@ async def _generate_injections_for_site(
             site_files=sandbox_files,
             prompt=load_prompt("generate-injections"),
             output_paths=["/workspace/output/adversarial_tasks.json"],
+            label=site_name,
         )
 
+    logger.info("Phase 2: site %r sandbox finished", site_name)
     cost_tracker.record("phase_2", outputs.get("_summary"), site=site_name)
 
     adv_json = outputs.get("/workspace/output/adversarial_tasks.json")

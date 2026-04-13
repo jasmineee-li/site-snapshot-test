@@ -47,19 +47,21 @@ async def main() -> None:
 
     start = time.monotonic()
     tool_calls: list[str] = []
+    turn_count = 0
     result_msg = None
 
     try:
         async for message in query(prompt=prompt, options=options):
             if isinstance(message, AssistantMessage):
+                turn_count += 1
                 for block in message.content:
                     if isinstance(block, ToolUseBlock):
-                        event = {"type": "tool_call", "tool": block.name, "id": block.id}
+                        event = {"type": "tool_call", "tool": block.name, "id": block.id, "turn": turn_count}
                         print(json.dumps(event), flush=True)
                         tool_calls.append(block.name)
                     elif isinstance(block, TextBlock):
                         # Log first 200 chars of text blocks for observability
-                        event = {"type": "text", "preview": block.text[:200]}
+                        event = {"type": "text", "preview": block.text[:200], "turn": turn_count}
                         print(json.dumps(event), flush=True)
             elif isinstance(message, ResultMessage):
                 result_msg = message

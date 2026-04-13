@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import os
+import time
 from pathlib import Path
 
 import modal
@@ -34,6 +35,7 @@ base_image = (
         # IS_SANDBOX=1 lets Claude Code accept bypassPermissions as root
         # (github.com/anthropics/claude-code/issues/3490).
         "IS_SANDBOX": "1",
+        "PYTHONUNBUFFERED": "1",
     })
     # claude-agent-sdk bundles the Claude Code CLI + Node.js runtime,
     # so no separate nodejs/npm/npm-install needed.
@@ -119,6 +121,7 @@ async def run_claude_in_sandbox(
     timeout: int = 3600,
     model: str = "claude-opus-4-6",
     volumes: dict[str, modal.Volume] | None = None,
+    label: str = "",
 ) -> dict[str, str | None]:
     """Run Claude Code in an isolated Modal Sandbox with only the specified files.
 
@@ -143,6 +146,8 @@ async def run_claude_in_sandbox(
             Use for large, stable file sets (e.g., benchmark codebases) that
             should be uploaded once and mounted read-only, instead of being
             re-hashed and re-uploaded as mounts on every call.
+        label: Optional human-readable label for log lines (e.g. phase name
+            or site name). Prefixed to all sandbox log output.
 
     Returns:
         Dict mapping each entry in ``output_paths`` to the file's text
@@ -184,7 +189,10 @@ async def run_claude_in_sandbox(
         )
 
         # Stream NDJSON events from the runner for live observability.
+        tag = f"[{label}] " if label else ""
         summary_data: dict | None = None
+        turn_count = 0
+        sandbox_start = time.monotonic()
         async for line in claude_ps.stdout:
             line = line.strip()
             if not line:
@@ -192,29 +200,37 @@ async def run_claude_in_sandbox(
             try:
                 event = json.loads(line)
             except json.JSONDecodeError:
-                logger.debug("non-JSON stdout line from sandbox runner: %s", line[:200])
+                logger.debug("%snon-JSON stdout line from sandbox runner: %s", tag, line[:200])
                 continue
 
             etype = event.get("type")
             if etype == "tool_call":
-                logger.info("  [sandbox] tool_call: %s", event.get("tool"))
+                turn_count += 1
+                logger.info("  %s[sandbox] tool_call #%d: %s", tag, turn_count, event.get("tool"))
+                if turn_count % 10 == 0:
+                    elapsed = time.monotonic() - sandbox_start
+                    logger.info(
+                        "  %s[sandbox] progress: %d tool calls in %.1fs",
+                        tag, turn_count, elapsed,
+                    )
             elif etype == "text":
-                logger.debug("  [sandbox] text: %s", event.get("preview", "")[:120])
+                preview = (event.get("preview", "") or "")[:100]
+                logger.info("  %s[sandbox] text: %s", tag, preview)
             elif etype == "error":
-                logger.warning("  [sandbox] SDK error: %s", event.get("message"))
+                logger.warning("  %s[sandbox] SDK error: %s", tag, event.get("message"))
             elif etype == "summary":
                 summary_data = event
-                _log_summary(event)
+                _log_summary(event, label=label)
 
         await claude_ps.wait.aio()
 
         if claude_ps.returncode != 0:
             logger.warning(
-                "Sandbox runner exited with rc=%d",
-                claude_ps.returncode,
+                "%sSandbox runner exited with rc=%d (%d tool calls)",
+                tag, claude_ps.returncode, turn_count,
             )
         else:
-            logger.info("Sandbox runner finished (rc=0)")
+            logger.info("%sSandbox runner finished (rc=0, %d tool calls)", tag, turn_count)
 
         # -- Read output files -------------------------------------------------
         outputs: dict[str, str | None] = {}
@@ -291,8 +307,9 @@ def _hash_directory(local_dir: Path) -> str:
     return hasher.hexdigest()
 
 
-def _log_summary(summary: dict) -> None:
+def _log_summary(summary: dict, *, label: str = "") -> None:
     """Log key metrics from the runner's summary event."""
+    tag = f"[{label}] " if label else ""
     parts = [f"elapsed={summary.get('elapsed_s')}s"]
     if summary.get("total_cost_usd") is not None:
         parts.append(f"cost=${summary['total_cost_usd']:.4f}")
@@ -303,4 +320,4 @@ def _log_summary(summary: dict) -> None:
         parts.append(f"session={summary['session_id']}")
     if summary.get("is_error"):
         parts.append("ERROR")
-    logger.info("  [sandbox] summary: %s", ", ".join(parts))
+    logger.info("  %s[sandbox] summary: %s", tag, ", ".join(parts))
