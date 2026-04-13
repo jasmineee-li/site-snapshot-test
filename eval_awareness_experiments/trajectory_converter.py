@@ -407,7 +407,9 @@ def trajectory_to_transcript(traj: StandardizedTrajectory) -> Transcript:
             ))
 
     if traj.final_answer and (
-        not traj.steps or traj.final_answer != traj.steps[-1].thought
+        not traj.steps
+        or (traj.final_answer != traj.steps[-1].thought
+            and traj.final_answer != traj.steps[-1].action)
     ):
         messages.append(Message(
             role="assistant",

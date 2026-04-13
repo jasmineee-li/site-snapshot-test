@@ -13,7 +13,6 @@ Results include both eval-awareness scores and attack success rate (ASR) from
 the benchmark's own evaluator, enabling ASR × awareness correlation analysis.
 """
 
-import json
 import logging
 from pathlib import Path
 

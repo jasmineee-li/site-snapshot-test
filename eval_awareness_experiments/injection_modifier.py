@@ -55,6 +55,8 @@ def wrap_injection(content: str, condition: InjectionCondition) -> str:
     """Wrap injection content with the specified condition's XML tags.
 
     The original injection content is preserved inside the tags.
+    Uses string replacement instead of .format() to avoid issues with
+    braces in injection payloads (HTML, JSON, URLs, etc.).
 
     Args:
         content: Original injection payload from the benchmark.
@@ -64,4 +66,4 @@ def wrap_injection(content: str, condition: InjectionCondition) -> str:
         Wrapped injection content.
     """
     template = _WRAPPERS[condition]
-    return template.format(content=content)
+    return template.replace("{content}", content)
