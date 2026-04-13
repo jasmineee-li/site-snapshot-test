@@ -129,6 +129,10 @@ async def run_claude_in_sandbox(
 
 **Structured event logging.** The SDK runner inside each sandbox streams NDJSON events to stdout as Claude Code executes. The orchestrator parses these in real time, logging tool calls and text previews. When the run completes, the SDK yields a ``ResultMessage`` with ``total_cost_usd``, ``num_turns``, ``session_id``, ``duration_ms``, and per-model token breakdowns. This metadata is attached to the return dict under the ``"_summary"`` key, giving callers access to cost and usage data without changing the file-based output contract.
 
+### In-Sandbox Output Validation
+
+A standalone validator script (`worldsim/_sandbox_validator.py`) is staged into every sandbox at `/workspace/_validate.py`. Each prompt footer instructs Claude Code to run the validator before finishing, catching schema errors within the same session at zero extra cost. The validator uses only Python stdlib (no `worldsim` imports, no pip dependencies) and exits with code 0 (valid) or 1 (invalid), printing a JSON result to stdout. Subcommands match output schemas: `manifest`, `profile --site-name NAME`, `benign-tasks --site-name NAME`, `adversarial-tasks`, `diagnosis`, `ecological-validity`, `judge-recommendation`, `revised-task`, `variant-task`. The orchestrator-side validation code remains unchanged (defense in depth).
+
 ### Cost Tracking
 
 A `CostTracker` singleton accumulates per-sandbox cost data across the entire pipeline run. Each sandbox invocation appends a `SandboxCostEntry`:

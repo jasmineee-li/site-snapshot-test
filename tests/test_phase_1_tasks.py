@@ -1,0 +1,931 @@
+from __future__ import annotations
+
+import json
+from argparse import Namespace
+from hashlib import sha256
+from unittest.mock import AsyncMock
+
+import pytest
+
+from worldsim import main as worldsim_main
+from worldsim.phases import phase_1_mode_a, phase_1_mode_b, phase_1_mode_b_validation
+from worldsim.phases import phase_1_tasks
+from worldsim.state import load_state
+
+
+def _manifest(benchmark_root) -> dict:
+    return {
+        "benchmark_codebase": str(benchmark_root),
+        "evaluation": {
+            "task_definition_paths": ["tasks.json"],
+            "eval_types": ["NetworkEventEvaluator", "AgentResponseEvaluator"],
+        },
+    }
+
+
+def _raw_task(task_id: str = "1", site: str = "shopping") -> dict:
+    return {
+        "task_id": task_id,
+        "sites": [site],
+        "start_urls": [f"__{site.upper()}__/home"],
+        "intent": f"Do task {task_id}",
+        "eval": [
+            {
+                "evaluator": "NetworkEventEvaluator",
+                "expected": {"url": f"__{site.upper()}__/api/item", "http_method": "GET"},
+            }
+        ],
+    }
+
+
+def _profile(*, uncovered: list[str], eval_types: list[str] | None = None) -> dict:
+    eval_types = eval_types or ["NetworkEventEvaluator", "AgentResponseEvaluator"]
+    return {
+        "site_name": "shopping",
+        "verification_capabilities": [
+            {
+                "eval_type": eval_type,
+                "description": "demo",
+                "interface": {"params": {}, "returns": "boolean"},
+                "constraints": "",
+                "examples": [],
+            }
+            for eval_type in eval_types
+        ],
+        "data_model": [],
+        "injection_surface": [],
+        "existing_task_coverage": {
+            "injection_surfaces_with_task_coverage": [],
+            "injection_surfaces_without_task_coverage": uncovered,
+        },
+    }
+
+
+def _novel_task_list(
+    start: int = 1,
+    end: int = 30,
+    *,
+    site: str = "shopping",
+    start_urls: list[str] | None = None,
+) -> list[dict]:
+    tasks = [
+        _novel_task(
+            task_id=f"novel_{site}_{idx}",
+            site=site,
+            sites=[site],
+            start_urls=start_urls,
+        )
+        for idx in range(start, end + 1)
+    ]
+    return phase_1_mode_b_validation.sort_novel_tasks(tasks)
+
+
+def _mode_b_resume_metadata(*, benchmark_root, manifest_path) -> dict:
+    return {
+        "fingerprint": sha256(
+            json.dumps(
+                {
+                    "benchmark_path": str(benchmark_root.resolve()),
+                    "manifest_path": str(manifest_path.resolve()),
+                },
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest(),
+        "benchmark_path": str(benchmark_root),
+        "manifest_path": str(manifest_path),
+    }
+
+
+def _novel_task(
+    *,
+    task_id: str = "novel_shopping_1",
+    site: str = "shopping",
+    sites: list[str] | None = None,
+    start_urls: list[str] | None = None,
+    mechanism: str = "none",
+    evaluator: str = "NetworkEventEvaluator",
+    include_task_id: bool = False,
+) -> dict:
+    expected = {"url": "__SHOPPING__/api/orders", "http_method": "GET"}
+    if evaluator == "AgentResponseEvaluator":
+        expected = {"status": "SUCCESS", "task_type": "retrieve"}
+
+    reward_function = {
+        "eval": [
+            {
+                "evaluator": evaluator,
+                "expected": expected,
+            }
+        ]
+    }
+    if include_task_id:
+        reward_function["task_id"] = 17
+
+    data_seed = {"mechanism": mechanism}
+    if mechanism == "sql":
+        data_seed["statements"] = ["INSERT INTO items (id) VALUES (1)"]
+    elif mechanism == "api":
+        data_seed["api_calls"] = [{"method": "POST", "path": "/api/items"}]
+
+    return {
+        "id": task_id,
+        "site": site,
+        "sites": sites or [site],
+        "instruction": "Check the order status.",
+        "start_urls": start_urls or ["__SHOPPING__/orders"],
+        "data_seed": data_seed,
+        "reward_function": reward_function,
+    }
+
+
+def test_build_parser_accepts_generate_novel_flag():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(["phase", "1", "--generate-novel"])
+
+    assert args.generate_novel is True
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_mode_a_only_preserves_existing_behavior(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task()]))
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text(json.dumps(_manifest(benchmark_root)))
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=False)
+    )
+
+    assert rc == 0
+    tasks = json.loads((tmp_path / "phase_1" / "benign_tasks.json").read_text())
+    assert [task["id"] for task in tasks] == ["1"]
+    assert not any(task["id"].startswith("novel_") for task in tasks)
+    state = load_state()
+    assert state["generate_novel"] is False
+    assert state["mode_a_task_count"] == 1
+    assert state["novel_task_count"] == 0
+
+
+def test_load_mode_b_eligible_sites_only_returns_profiles_with_uncovered_surfaces(tmp_path):
+    profiles_dir = tmp_path / "phase_0c"
+    profiles_dir.mkdir()
+    (profiles_dir / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(_profile(uncovered=["surface-1"]))
+    )
+    covered_profile = _profile(uncovered=[])
+    covered_profile["site_name"] = "gitlab"
+    (profiles_dir / "BENCHMARK_PROFILE_gitlab.json").write_text(json.dumps(covered_profile))
+
+    eligible = phase_1_mode_b.load_mode_b_eligible_sites(
+        profiles_dir=profiles_dir,
+        manifest_eval_types=["NetworkEventEvaluator", "AgentResponseEvaluator"],
+    )
+
+    assert [site.site_name for site in eligible] == ["shopping"]
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_reuses_valid_cached_output(monkeypatch, tmp_path):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    cached_tasks = _novel_task_list()
+    (output_dir / "novel_tasks_shopping.json").write_text(json.dumps(cached_tasks))
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("sandbox should not run when cached tasks validate")
+
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", fail_if_called)
+
+    result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=tmp_path / "profile.json",
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+    )
+
+    assert result.errors == []
+    assert result.benign_tasks == cached_tasks
+
+
+@pytest.mark.parametrize(
+    ("task", "expected"),
+    [
+        (
+            _novel_task(sites=["shopping", "gitlab"]),
+            "sites must equal ['shopping']",
+        ),
+        (
+            _novel_task(start_urls=["__GITLAB__/orders"]),
+            "start_urls must use __SHOPPING__",
+        ),
+        (
+            _novel_task(evaluator="db_query_match"),
+            "uses unsupported evaluator 'db_query_match'",
+        ),
+        (
+            _novel_task(include_task_id=True),
+            "reward_function must not include task_id",
+        ),
+        (
+            _novel_task(mechanism="api"),
+            None,
+        ),
+    ],
+)
+def test_validate_generated_novel_task_contract(task, expected):
+    profile = _profile(uncovered=["surface-1"], eval_types=["NetworkEventEvaluator"])
+    if task["data_seed"]["mechanism"] == "api":
+        task["data_seed"]["api_calls"] = []
+        expected = "invalid data_seed: api data seed must include a non-empty api_calls list"
+
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator"},
+    )
+
+    assert expected in problem
+
+
+def test_validate_generated_novel_task_rejects_profile_undeclared_evaluator():
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        _novel_task(evaluator="AgentResponseEvaluator"),
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator"},
+    )
+
+    assert "not declared in the site profile" in problem
+
+
+@pytest.mark.parametrize(
+    ("start_urls", "expected"),
+    [
+        (["/orders"], "start_urls must use __SHOPPING__"),
+        (["__SHOPPING__/orders", "__GITLAB__/issues"], "start_urls must use __SHOPPING__"),
+        (["__SHOPPING__/orders", "__SHOPPING__/x?next=__GITLAB__/issues"], "start_urls must only use __SHOPPING__"),
+    ],
+)
+def test_validate_generated_novel_task_catches_placeholder_edge_cases(start_urls, expected):
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        _novel_task(start_urls=start_urls),
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator"},
+    )
+
+    assert expected in problem
+
+
+@pytest.mark.parametrize(
+    ("task", "expected"),
+    [
+        (
+            {"id": "novel_shopping_1", "site": "shopping", "sites": ["shopping"], "instruction": "x", "start_urls": ["__SHOPPING__/orders"], "data_seed": {"mechanism": "none"}, "reward_function": "bad"},
+            "reward_function must be an object",
+        ),
+        (
+            {"id": "novel_shopping_1", "site": "shopping", "sites": ["shopping"], "instruction": "x", "start_urls": ["__SHOPPING__/orders"], "data_seed": {"mechanism": "none"}, "reward_function": {}},
+            "reward_function.eval must be a non-empty list",
+        ),
+        (
+            {"id": "novel_shopping_1", "site": "shopping", "sites": ["shopping"], "instruction": "x", "start_urls": ["__SHOPPING__/orders"], "data_seed": {"mechanism": "none"}, "reward_function": {"eval": []}},
+            "reward_function.eval must be a non-empty list",
+        ),
+        (
+            {"id": "novel_shopping_1", "site": "shopping", "sites": ["shopping"], "instruction": "x", "start_urls": ["__SHOPPING__/orders"], "data_seed": {"mechanism": "none"}, "reward_function": {"eval": ["bad"]}},
+            "eval[0] must be an object",
+        ),
+    ],
+)
+def test_validate_generated_novel_task_rejects_malformed_reward_contracts(task, expected):
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator", "AgentResponseEvaluator"},
+    )
+
+    assert expected in problem
+
+
+@pytest.mark.parametrize(
+    ("data_seed", "expected"),
+    [
+        (None, "invalid data_seed: data seed must be an object"),
+        ("bad", "invalid data_seed: data seed must be an object"),
+        ({"mechanism": "mystery"}, "invalid data_seed: unknown data seed mechanism"),
+        ({"mechanism": "state_push"}, "invalid data_seed: state_push data seed must include a state payload"),
+    ],
+)
+def test_validate_generated_novel_task_rejects_invalid_data_seed_shapes(data_seed, expected):
+    task = _novel_task()
+    task["data_seed"] = data_seed
+
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator"},
+    )
+
+    assert expected in problem
+
+
+def test_validate_generated_novel_task_accepts_agent_response_evaluator_when_profile_allows_it():
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        _novel_task(evaluator="AgentResponseEvaluator"),
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"AgentResponseEvaluator"},
+    )
+
+    assert problem is None
+
+
+@pytest.mark.parametrize(
+    ("reward_function", "expected"),
+    [
+        (
+            {"eval": [{"evaluator": "NetworkEventEvaluator"}]},
+            "must include a non-empty expected object",
+        ),
+        (
+            {"eval": [{"evaluator": "NetworkEventEvaluator", "expected": {"url": ""}}]},
+            "expected.url must be a non-empty string",
+        ),
+        (
+            {"eval": [{"evaluator": "AgentResponseEvaluator", "expected": {}}]},
+            "must include a non-empty expected object",
+        ),
+        (
+            {"eval": [{"evaluator": "AgentResponseEvaluator", "expected": {"foo": "bar"}}]},
+            "must include at least one of task_type, status, or retrieved_data",
+        ),
+    ],
+)
+def test_validate_generated_novel_task_rejects_vacuous_expected_payloads(reward_function, expected):
+    task = _novel_task()
+    task["reward_function"] = reward_function
+
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator", "AgentResponseEvaluator"},
+    )
+
+    assert expected in problem
+
+
+def test_validate_generated_novel_tasks_rejects_non_list_and_duplicate_ids():
+    validated, errors = phase_1_mode_b_validation.validate_generated_novel_tasks(
+        {"id": "novel_shopping_1"},
+        site_name="shopping",
+        profile=_profile(uncovered=["surface-1"]),
+    )
+    assert validated == []
+    assert errors == ["sandbox output must be a JSON array"]
+
+    validated, errors = phase_1_mode_b_validation.validate_generated_novel_tasks(
+        [_novel_task(), _novel_task()],
+        site_name="shopping",
+        profile=_profile(uncovered=["surface-1"]),
+    )
+    assert len(validated) == 1
+    assert "duplicates a prior id" in errors[0]
+
+
+def test_validate_generated_novel_tasks_rejects_non_object_task_entry():
+    validated, errors = phase_1_mode_b_validation.validate_generated_novel_tasks(
+        ["bad"],
+        site_name="shopping",
+        profile=_profile(uncovered=["surface-1"]),
+    )
+
+    assert validated == []
+    assert errors == ["task 0 is not an object"]
+
+
+def test_validate_generated_novel_tasks_rejects_underfilled_output():
+    validated, errors = phase_1_mode_b_validation.validate_generated_novel_tasks(
+        [_novel_task()],
+        site_name="shopping",
+        profile=_profile(uncovered=["surface-1"]),
+    )
+
+    assert validated == [_novel_task()]
+    assert errors == ["sandbox produced 1 novel tasks; expected 30"]
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_retries_once_and_succeeds(monkeypatch, tmp_path):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "profile.json"
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+
+    invalid_task = _novel_task(start_urls=["__GITLAB__/orders"])
+    valid_tasks = _novel_task_list()
+
+    mock_sandbox = AsyncMock(
+        side_effect=[
+            {
+                phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps([invalid_task]),
+                "_summary": None,
+            },
+            {
+                phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps(valid_tasks),
+                "_summary": None,
+            },
+        ]
+    )
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", mock_sandbox)
+
+    result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+    )
+
+    assert result.errors == []
+    assert result.benign_tasks == valid_tasks
+    assert mock_sandbox.call_count == 2
+    assert (output_dir / "novel_tasks_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_fails_after_max_retries(monkeypatch, tmp_path):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "profile.json"
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+
+    invalid_task = _novel_task(start_urls=["__GITLAB__/orders"])
+    mock_sandbox = AsyncMock(
+        return_value={
+            phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps([invalid_task]),
+            "_summary": None,
+        }
+    )
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", mock_sandbox)
+
+    result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+    )
+
+    assert result.benign_tasks == []
+    assert "start_urls must use __SHOPPING__" in result.errors[0]
+    assert mock_sandbox.call_count == 2
+    assert not (output_dir / "novel_tasks_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_rejects_invalid_cached_output_and_regenerates(
+    monkeypatch,
+    tmp_path,
+):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "profile.json"
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+    (output_dir / "novel_tasks_shopping.json").write_text(json.dumps([_novel_task(site="gitlab", task_id="novel_gitlab_1")]))
+
+    regenerated_tasks = _novel_task_list()
+    mock_sandbox = AsyncMock(
+        return_value={
+            phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps(regenerated_tasks),
+            "_summary": None,
+        }
+    )
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", mock_sandbox)
+
+    result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+    )
+
+    assert result.errors == []
+    assert result.benign_tasks == regenerated_tasks
+    assert mock_sandbox.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_rejects_underfilled_cached_output(monkeypatch, tmp_path):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "profile.json"
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+    (output_dir / "novel_tasks_shopping.json").write_text(json.dumps([_novel_task()]))
+
+    regenerated_tasks = _novel_task_list()
+    mock_sandbox = AsyncMock(
+        return_value={
+            phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps(regenerated_tasks),
+            "_summary": None,
+        }
+    )
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", mock_sandbox)
+
+    result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+    )
+
+    assert result.errors == []
+    assert result.benign_tasks == regenerated_tasks
+    assert mock_sandbox.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_handles_missing_and_invalid_sandbox_outputs(
+    monkeypatch,
+    tmp_path,
+):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "profile.json"
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+
+    missing_output = AsyncMock(return_value={"_summary": None})
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", missing_output)
+    missing_result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+    )
+    assert missing_result.errors == ["sandbox did not produce benign_tasks.json"]
+
+    invalid_json = AsyncMock(
+        return_value={
+            phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: "{broken",
+            "_summary": None,
+        }
+    )
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", invalid_json)
+    invalid_result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+    )
+    assert "invalid sandbox JSON" in invalid_result.errors[0]
+
+
+def test_merge_benign_tasks_is_deterministic():
+    mode_a = [{"id": "1", "site": "shopping"}, {"id": "2", "site": "gitlab"}]
+    novel = [
+        {"id": "novel_shopping_2", "site": "shopping"},
+        {"id": "novel_gitlab_1", "site": "gitlab"},
+        {"id": "novel_shopping_1", "site": "shopping"},
+    ]
+
+    merged = phase_1_mode_b_validation.merge_benign_tasks(mode_a, novel)
+
+    assert [task["id"] for task in merged] == [
+        "1",
+        "2",
+        "novel_gitlab_1",
+        "novel_shopping_1",
+        "novel_shopping_2",
+    ]
+
+
+def test_render_generate_benign_tasks_prompt_preserves_literal_example_braces():
+    prompt = phase_1_mode_b.render_generate_benign_tasks_prompt(
+        site_name="shopping",
+        num_tasks=17,
+    )
+
+    assert "{site_name}" not in prompt
+    assert "{num_tasks}" not in prompt
+    assert '"id": "novel_shopping_1"' in prompt
+    assert "{{" in prompt and "}}" in prompt
+
+
+@pytest.mark.asyncio
+async def test_run_mode_b_fails_closed_when_any_site_errors(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    (tmp_path / "phase_0c").mkdir()
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+
+    site_a = phase_1_mode_b.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "gitlab.json",
+        profile={"existing_task_coverage": {"injection_surfaces_without_task_coverage": ["x"]}},
+    )
+    site_b = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=tmp_path / "shopping.json",
+        profile={"existing_task_coverage": {"injection_surfaces_without_task_coverage": ["y"]}},
+    )
+
+    monkeypatch.setattr(phase_1_mode_b, "load_mode_b_eligible_sites", lambda **kwargs: [site_a, site_b])
+
+    async def fake_generate_novel_tasks_for_site(*, site, benchmark_volume, output_dir):
+        if site.site_name == "gitlab":
+            return phase_1_mode_b.SiteNovelTaskResult("gitlab", [_novel_task(task_id="novel_gitlab_1", site="gitlab", start_urls=["__GITLAB__/issues"])], [])
+        return phase_1_mode_b.SiteNovelTaskResult("shopping", [], ["sandbox did not produce benign_tasks.json"])
+
+    monkeypatch.setattr(phase_1_mode_b, "generate_novel_tasks_for_site", fake_generate_novel_tasks_for_site)
+    monkeypatch.setattr(phase_1_mode_b, "upload_to_volume", AsyncMock(return_value=object()))
+
+    with pytest.raises(RuntimeError, match="did not produce valid novel tasks"):
+        await phase_1_mode_b.run_mode_b(
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+            benchmark_root=benchmark_root,
+            output_dir=output_dir,
+        )
+
+
+@pytest.mark.asyncio
+async def test_run_mode_b_returns_empty_when_no_sites_are_eligible(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    (tmp_path / "phase_0c").mkdir()
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+
+    monkeypatch.setattr(phase_1_mode_b, "load_mode_b_eligible_sites", lambda **kwargs: [])
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("upload_to_volume should not run when no sites are eligible")
+
+    monkeypatch.setattr(phase_1_mode_b, "upload_to_volume", fail_if_called)
+
+    tasks = await phase_1_mode_b.run_mode_b(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+    )
+
+    assert tasks == []
+
+
+@pytest.mark.asyncio
+async def test_run_mode_b_skips_benchmark_upload_when_all_sites_are_cached(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    (tmp_path / "phase_0c").mkdir()
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+
+    gitlab_profile = _profile(uncovered=["surface-1"])
+    gitlab_profile["site_name"] = "gitlab"
+    shopping_profile = _profile(uncovered=["surface-1"])
+
+    site_a = phase_1_mode_b.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "gitlab.json",
+        profile=gitlab_profile,
+    )
+    site_b = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=tmp_path / "shopping.json",
+        profile=shopping_profile,
+    )
+
+    monkeypatch.setattr(phase_1_mode_b, "load_mode_b_eligible_sites", lambda **kwargs: [site_a, site_b])
+    (output_dir / "novel_tasks_gitlab.json").write_text(
+        json.dumps(_novel_task_list(site="gitlab", start_urls=["__GITLAB__/issues"]))
+    )
+    (output_dir / "novel_tasks_shopping.json").write_text(json.dumps(_novel_task_list()))
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("upload_to_volume should not run when all eligible-site caches are valid")
+
+    monkeypatch.setattr(phase_1_mode_b, "upload_to_volume", fail_if_called)
+
+    tasks = await phase_1_mode_b.run_mode_b(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+    )
+
+    assert len(tasks) == 60
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_skips_mode_b_when_merged_output_already_contains_novel_tasks(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task()]))
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    manifest_path = phase_0a / "BENCHMARK_MANIFEST.json"
+    manifest_path.write_text(json.dumps(_manifest(benchmark_root)))
+
+    phase_0c = tmp_path / "phase_0c"
+    phase_0c.mkdir()
+    (phase_0c / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(_profile(uncovered=["surface-1"]))
+    )
+
+    phase_1_dir = tmp_path / "phase_1"
+    phase_1_dir.mkdir()
+    cached_novel_tasks = _novel_task_list()
+    existing_output = [
+        phase_1_mode_a._wrap_task(_raw_task()),
+        *cached_novel_tasks,
+    ]
+    (phase_1_dir / "benign_tasks.json").write_text(json.dumps(existing_output))
+    (phase_1_dir / phase_1_mode_b.MODE_B_RESUME_METADATA_PATH).write_text(
+        json.dumps(_mode_b_resume_metadata(benchmark_root=benchmark_root, manifest_path=manifest_path))
+    )
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("run_mode_b should not be called when merged output already has novel tasks")
+
+    monkeypatch.setattr(phase_1_tasks, "run_mode_b", fail_if_called)
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=True, resume=True)
+    )
+
+    assert rc == 0
+    tasks = json.loads((phase_1_dir / "benign_tasks.json").read_text())
+    assert [task["id"] for task in tasks] == ["1", *[task["id"] for task in cached_novel_tasks]]
+    state = load_state()
+    assert state["generate_novel"] is True
+    assert state["mode_a_task_count"] == 1
+    assert state["novel_task_count"] == 30
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_does_not_reuse_merged_output_on_fresh_run(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task()]))
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    manifest_path = phase_0a / "BENCHMARK_MANIFEST.json"
+    manifest_path.write_text(json.dumps(_manifest(benchmark_root)))
+
+    phase_1_dir = tmp_path / "phase_1"
+    phase_1_dir.mkdir()
+    (phase_1_dir / "benign_tasks.json").write_text(
+        json.dumps([phase_1_mode_a._wrap_task(_raw_task()), *_novel_task_list()])
+    )
+    (phase_1_dir / phase_1_mode_b.MODE_B_RESUME_METADATA_PATH).write_text(
+        json.dumps(_mode_b_resume_metadata(benchmark_root=benchmark_root, manifest_path=manifest_path))
+    )
+
+    fake_run_mode_b = AsyncMock(return_value=_novel_task_list())
+    monkeypatch.setattr(phase_1_tasks, "run_mode_b", fake_run_mode_b)
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=True, resume=False)
+    )
+
+    assert rc == 0
+    assert fake_run_mode_b.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_ignores_merged_output_when_resume_metadata_mismatches(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task()]))
+
+    other_benchmark_root = tmp_path / "other-benchmark"
+    other_benchmark_root.mkdir()
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    manifest_path = phase_0a / "BENCHMARK_MANIFEST.json"
+    manifest_path.write_text(json.dumps(_manifest(benchmark_root)))
+
+    phase_0c = tmp_path / "phase_0c"
+    phase_0c.mkdir()
+    (phase_0c / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(_profile(uncovered=["surface-1"]))
+    )
+
+    phase_1_dir = tmp_path / "phase_1"
+    phase_1_dir.mkdir()
+    (phase_1_dir / "benign_tasks.json").write_text(
+        json.dumps([phase_1_mode_a._wrap_task(_raw_task()), *_novel_task_list()])
+    )
+    (phase_1_dir / phase_1_mode_b.MODE_B_RESUME_METADATA_PATH).write_text(
+        json.dumps(_mode_b_resume_metadata(benchmark_root=other_benchmark_root, manifest_path=manifest_path))
+    )
+
+    fake_run_mode_b = AsyncMock(return_value=_novel_task_list())
+    monkeypatch.setattr(phase_1_tasks, "run_mode_b", fake_run_mode_b)
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=True, resume=True)
+    )
+
+    assert rc == 0
+    assert fake_run_mode_b.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_marks_failed_state_when_mode_b_raises(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    (benchmark_root / "tasks.json").write_text(json.dumps([_raw_task()]))
+
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text(json.dumps(_manifest(benchmark_root)))
+
+    async def fail_mode_b(**kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(phase_1_tasks, "run_mode_b", fail_mode_b)
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=True)
+    )
+
+    assert rc == 1
+    assert not (tmp_path / "phase_1" / "benign_tasks.json").exists()
+    state = load_state()
+    assert state["status"] == "failed"
+    assert state["reason"] == "mode_b_generation_failed"
+    assert state["generate_novel"] is True
+    assert state["mode_a_task_count"] == 1
+    assert state["error"] == "boom"
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_marks_failed_state_when_manifest_is_missing(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=True, resume=False)
+    )
+
+    assert rc == 1
+    state = load_state()
+    assert state["status"] == "failed"
+    assert state["reason"] == "missing_manifest"
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_marks_failed_state_when_manifest_is_invalid_json(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text("{broken")
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=False, resume=False)
+    )
+
+    assert rc == 1
+    state = load_state()
+    assert state["status"] == "failed"
+    assert state["reason"] == "invalid_manifest"

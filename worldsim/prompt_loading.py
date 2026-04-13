@@ -11,7 +11,18 @@ from pathlib import Path
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 
-def load_prompt(name: str) -> str:
+_VALIDATION_FOOTER_TEMPLATE = (
+    "\n\n## Pre-submission validation\n\n"
+    "Before you finish, validate your output:\n\n"
+    "```bash\n"
+    "python /workspace/_validate.py {command}\n"
+    "```\n\n"
+    "If it reports errors, fix your output and re-run until it prints "
+    '`{{"valid": true}}`. Do not finish until validation passes.'
+)
+
+
+def load_prompt(name: str, *, validation_command: str | None = None) -> str:
     """Load a prompt file by stem name, e.g. ``load_prompt('profile-site')``.
 
     Some prompts contain template variables (e.g. ``{num_tasks}``). This
@@ -25,9 +36,14 @@ def load_prompt(name: str) -> str:
 
     Args:
         name: Stem of a file under ``worldsim/prompts/`` (no extension).
+        validation_command: When provided, a validation footer is appended
+            instructing Claude Code to run ``_validate.py`` with this
+            subcommand before finishing. Only the footer is ``.format()``-ed,
+            not the full prompt text (which may contain literal ``{{ }}``
+            for JSON examples).
 
     Returns:
-        Full prompt text (unsubstituted).
+        Full prompt text (unsubstituted), optionally with a validation footer.
 
     Raises:
         FileNotFoundError: If no matching prompt file exists, with a listing
@@ -39,4 +55,11 @@ def load_prompt(name: str) -> str:
         raise FileNotFoundError(
             f"Prompt {name!r} not found at {path}. Available: {available}"
         )
-    return path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
+    if validation_command is not None:
+        # Only .format() the footer template, not the full prompt text.
+        # Prompt files may contain literal {{ }} for JSON examples that
+        # would break str.format().
+        footer = _VALIDATION_FOOTER_TEMPLATE.format(command=validation_command)
+        text += footer
+    return text

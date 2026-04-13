@@ -109,6 +109,35 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(
     assert captured["agent_provider"] == "anthropic"
 
 
+def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_1",
+        status="running",
+        benchmark_path="/tmp/benchmark",
+        manifest_path="/tmp/manifest.json",
+        generate_novel=True,
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["generate_novel"] = args.generate_novel
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "1"
+    assert captured["generate_novel"] is True
+
+
 # ── Per-task resume (load_completed_results) ────────────────────────────
 
 

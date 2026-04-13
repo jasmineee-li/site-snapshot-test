@@ -1,0 +1,366 @@
+"""Phase 1 Mode B helpers: eligible-site discovery and novel-task generation."""
+
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass
+import json
+import logging
+from pathlib import Path
+from typing import Any
+
+from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
+from worldsim.profile_validation import load_and_validate_profile
+from worldsim.prompt_loading import load_prompt
+from worldsim.state import get_state_dir
+
+from worldsim.phases.phase_1_mode_b_validation import (
+    sort_novel_tasks,
+    site_is_mode_b_eligible,
+    validate_generated_novel_tasks,
+)
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_NOVEL_TASKS_PER_SITE = 30
+MODE_B_FIX_MAX_ITERATIONS = 1
+NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
+MODE_B_RESUME_METADATA_PATH = "mode_b_resume_metadata.json"
+
+
+@dataclass(frozen=True)
+class EligibleSiteProfile:
+    site_name: str
+    profile_path: Path
+    profile: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class SiteNovelTaskResult:
+    site_name: str
+    benign_tasks: list[dict[str, Any]]
+    errors: list[str]
+
+
+async def run_mode_b(
+    *,
+    manifest: dict[str, Any],
+    benchmark_root: Path,
+    output_dir: Path,
+) -> list[dict[str, Any]]:
+    """Generate Mode B novel tasks for eligible sites."""
+    state_dir = get_state_dir()
+    profiles_dir = state_dir / "phase_0c"
+    if not profiles_dir.exists():
+        raise FileNotFoundError(f"Profiles directory not found at {profiles_dir} — run phase 0c first")
+
+    manifest_eval_types = manifest.get("evaluation", {}).get("eval_types", [])
+    eligible_sites = load_mode_b_eligible_sites(
+        profiles_dir=profiles_dir,
+        manifest_eval_types=manifest_eval_types,
+    )
+    if not eligible_sites:
+        logger.info("Phase 1B: no eligible sites found, nothing to generate")
+        return []
+
+    cached_results = _load_all_cached_site_results(
+        eligible_sites=eligible_sites,
+        output_dir=output_dir,
+    )
+    if cached_results is not None:
+        logger.info(
+            "Phase 1B: reusing cached per-site novel tasks for %d eligible sites",
+            len(cached_results),
+        )
+        all_cached_tasks: list[dict[str, Any]] = []
+        for result in cached_results:
+            all_cached_tasks.extend(result.benign_tasks)
+        return sort_novel_tasks(all_cached_tasks)
+
+    # Fail fast if Claude Code auth is missing before we pay for volume upload.
+    preflight_auth_check()
+
+    logger.info("Phase 1B: generating novel tasks for %d eligible sites", len(eligible_sites))
+    benchmark_volume = await upload_to_volume(Path(benchmark_root).resolve())
+
+    results = await asyncio.gather(*[
+        generate_novel_tasks_for_site(
+            site=site,
+            benchmark_volume=benchmark_volume,
+            output_dir=output_dir,
+        )
+        for site in eligible_sites
+    ], return_exceptions=True)
+
+    all_novel_tasks: list[dict[str, Any]] = []
+    failures: list[str] = []
+    for result in results:
+        if isinstance(result, BaseException):
+            failures.append(str(result))
+            continue
+        if result.errors:
+            failures.extend(f"{result.site_name}: {error}" for error in result.errors)
+            continue
+        logger.info(
+            "Phase 1B: site %r produced %d novel tasks",
+            result.site_name,
+            len(result.benign_tasks),
+        )
+        all_novel_tasks.extend(result.benign_tasks)
+
+    if failures:
+        raise RuntimeError(
+            "Phase 1B failed because one or more sites did not produce valid novel tasks:\n"
+            + "\n".join(f"  - {failure}" for failure in failures)
+        )
+
+    return sort_novel_tasks(all_novel_tasks)
+
+
+def load_mode_b_eligible_sites(
+    *,
+    profiles_dir: Path,
+    manifest_eval_types: list[str],
+) -> list[EligibleSiteProfile]:
+    """Return validated site profiles that still have uncovered surfaces."""
+    eligible: list[EligibleSiteProfile] = []
+
+    for profile_path in sorted(profiles_dir.glob("BENCHMARK_PROFILE_*.json")):
+        site_name = profile_path.stem.removeprefix("BENCHMARK_PROFILE_")
+        profile = load_and_validate_profile(
+            site_name,
+            profile_path,
+            manifest_eval_types=manifest_eval_types,
+        )
+        if site_is_mode_b_eligible(profile):
+            eligible.append(
+                EligibleSiteProfile(
+                    site_name=site_name,
+                    profile_path=profile_path,
+                    profile=profile,
+                )
+            )
+        else:
+            logger.info("Phase 1B: skipping site %r (no uncovered injection surfaces)", site_name)
+
+    return eligible
+
+
+async def generate_novel_tasks_for_site(
+    *,
+    site: EligibleSiteProfile,
+    benchmark_volume: Any,
+    output_dir: Path,
+) -> SiteNovelTaskResult:
+    """Generate and validate novel tasks for one site."""
+    intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
+    cached_result = load_cached_novel_tasks(
+        intermediate_path=intermediate_path,
+        site_name=site.site_name,
+        profile=site.profile,
+    )
+    if cached_result is not None:
+        return cached_result
+
+    logger.info("Phase 1B: launching novel-task sandbox for site %r", site.site_name)
+    base_prompt = render_generate_benign_tasks_prompt(
+        site_name=site.site_name,
+        num_tasks=DEFAULT_NOVEL_TASKS_PER_SITE,
+    )
+    prompt = base_prompt
+    last_errors: list[str] = []
+
+    for attempt in range(1 + MODE_B_FIX_MAX_ITERATIONS):
+        outputs = await run_claude_in_sandbox(
+            site_files={"/workspace/profile/BENCHMARK_PROFILE.json": str(site.profile_path)},
+            prompt=prompt,
+            output_paths=[NOVEL_TASK_OUTPUT_PATH],
+            volumes={"/workspace/benchmark": benchmark_volume},
+            label=f"1b-{site.site_name}",
+        )
+        cost_tracker.record("phase_1", outputs.get("_summary"), site=site.site_name)
+
+        payload = outputs.get(NOVEL_TASK_OUTPUT_PATH)
+        if not payload:
+            return SiteNovelTaskResult(
+                site.site_name,
+                [],
+                ["sandbox did not produce benign_tasks.json"],
+            )
+
+        try:
+            raw_tasks = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            return SiteNovelTaskResult(site.site_name, [], [f"invalid sandbox JSON: {exc}"])
+
+        validated_tasks, errors = validate_generated_novel_tasks(
+            raw_tasks,
+            site_name=site.site_name,
+            profile=site.profile,
+        )
+        if not errors:
+            sorted_tasks = sort_novel_tasks(validated_tasks)
+            intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
+            logger.info("Phase 1B: site %r sandbox finished", site.site_name)
+            return SiteNovelTaskResult(site.site_name, sorted_tasks, [])
+
+        last_errors = errors
+        if attempt < MODE_B_FIX_MAX_ITERATIONS:
+            logger.warning(
+                "Phase 1B: site %r output failed validation, retrying (%d/%d): %s",
+                site.site_name,
+                attempt + 1,
+                MODE_B_FIX_MAX_ITERATIONS,
+                "; ".join(errors),
+            )
+            correction = (
+                "\n\n--- CORRECTION NEEDED ---\n"
+                "The previous attempt produced novel tasks with validation errors:\n"
+                + "\n".join(f"  - {error}" for error in errors)
+                + "\n\nPlease regenerate the entire output JSON array and satisfy every requirement."
+            )
+            prompt = base_prompt + correction
+
+    logger.info("Phase 1B: site %r sandbox finished", site.site_name)
+    return SiteNovelTaskResult(
+        site.site_name,
+        [],
+        last_errors or ["sandbox produced no novel tasks"],
+    )
+
+
+def load_cached_novel_tasks(
+    *,
+    intermediate_path: Path,
+    site_name: str,
+    profile: dict[str, Any],
+) -> SiteNovelTaskResult | None:
+    """Return a validated cached per-site result when available."""
+    if not intermediate_path.exists():
+        return None
+
+    try:
+        cached_tasks = json.loads(intermediate_path.read_text())
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "Phase 1B: ignoring invalid cached tasks for site %r at %s: %s",
+            site_name,
+            intermediate_path,
+            exc,
+        )
+        return None
+
+    validated_cached, errors = validate_generated_novel_tasks(
+        cached_tasks,
+        site_name=site_name,
+        profile=profile,
+        expected_task_count=DEFAULT_NOVEL_TASKS_PER_SITE,
+    )
+    if errors:
+        logger.warning(
+            "Phase 1B: ignoring invalid cached tasks for site %r: %s",
+            site_name,
+            "; ".join(errors),
+        )
+        return None
+
+    logger.info(
+        "Phase 1B: reusing %d cached novel tasks for site %r",
+        len(validated_cached),
+        site_name,
+    )
+    return SiteNovelTaskResult(site_name, validated_cached, [])
+
+
+def load_existing_novel_tasks(output_path: Path) -> list[dict[str, Any]] | None:
+    """Return existing novel tasks from a merged output file, if present."""
+    if not output_path.exists():
+        return None
+
+    try:
+        merged = json.loads(output_path.read_text())
+    except json.JSONDecodeError:
+        logger.warning("Phase 1B: ignoring invalid merged output at %s", output_path)
+        return None
+
+    if not isinstance(merged, list):
+        return None
+
+    novel_tasks = [
+        task
+        for task in merged
+        if isinstance(task, dict) and str(task.get("id", "")).startswith("novel_")
+    ]
+    if not novel_tasks:
+        return None
+    return sort_novel_tasks(novel_tasks)
+
+
+def validate_existing_novel_tasks(
+    novel_tasks: list[dict[str, Any]],
+    *,
+    eligible_sites: list[EligibleSiteProfile],
+) -> list[str]:
+    """Validate merged-output novel tasks against the current eligible-site set."""
+    tasks_by_site: dict[str, list[dict[str, Any]]] = {}
+    for task in novel_tasks:
+        site_name = str(task.get("site", ""))
+        tasks_by_site.setdefault(site_name, []).append(task)
+
+    eligible_by_site = {site.site_name: site for site in eligible_sites}
+    errors: list[str] = []
+
+    unexpected_sites = sorted(set(tasks_by_site) - set(eligible_by_site))
+    if unexpected_sites:
+        errors.append(
+            "merged output contains novel tasks for unexpected sites: "
+            + ", ".join(unexpected_sites)
+        )
+
+    for site_name, site in eligible_by_site.items():
+        site_tasks = tasks_by_site.get(site_name)
+        if site_tasks is None:
+            errors.append(f"merged output is missing novel tasks for eligible site {site_name!r}")
+            continue
+        _, site_errors = validate_generated_novel_tasks(
+            site_tasks,
+            site_name=site_name,
+            profile=site.profile,
+            expected_task_count=DEFAULT_NOVEL_TASKS_PER_SITE,
+        )
+        errors.extend(site_errors)
+
+    return errors
+
+
+def _load_all_cached_site_results(
+    *,
+    eligible_sites: list[EligibleSiteProfile],
+    output_dir: Path,
+) -> list[SiteNovelTaskResult] | None:
+    """Return cached per-site results when every eligible site cache validates."""
+    cached_results: list[SiteNovelTaskResult] = []
+    for site in eligible_sites:
+        cached_result = load_cached_novel_tasks(
+            intermediate_path=output_dir / f"novel_tasks_{site.site_name}.json",
+            site_name=site.site_name,
+            profile=site.profile,
+        )
+        if cached_result is None:
+            return None
+        cached_results.append(cached_result)
+    return cached_results
+
+
+def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> str:
+    """Render the Mode B prompt without interpreting literal example braces."""
+    prompt = load_prompt(
+        "generate-benign-tasks",
+        validation_command=f"benign-tasks --site-name {site_name}",
+    )
+    return (
+        prompt
+        .replace("{site_name}", site_name)
+        .replace("{num_tasks}", str(num_tasks))
+    )
