@@ -73,9 +73,12 @@ def run_reward_function(
     Returns:
         ``(passed, message)`` tuple.
     """
-    # WebArena Verified evaluation path
+    # WebArena Verified evaluation path (canonical tasks with task_id)
     if "eval" in reward and isinstance(reward["eval"], list):
-        return _run_webarena_verified_eval(reward, instance, agent_result, network_trace)
+        if reward.get("task_id") is not None:
+            return _run_webarena_verified_eval(reward, instance, agent_result, network_trace)
+        # Novel tasks (Mode B) omit task_id, use homebrew evaluator directly
+        return _run_homebrew_eval(reward, instance, agent_result, network_trace)
 
     # Custom checker path (legacy / extension)
     eval_type = reward.get("type")
