@@ -173,7 +173,7 @@ def test_dispatch_resume_restores_failed_phase_3_full_baseline(monkeypatch, tmp_
     assert captured["full_baseline"] is True
 
 
-def test_dispatch_resume_restores_failed_task_cap(monkeypatch, tmp_path):
+def test_dispatch_resume_does_not_restore_saved_task_cap_by_default(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
@@ -199,7 +199,36 @@ def test_dispatch_resume_restores_failed_task_cap(monkeypatch, tmp_path):
 
     assert rc == 0
     assert captured["phase"] == "4"
-    assert captured["max_tasks_per_site"] == 2
+    assert captured["max_tasks_per_site"] is None
+
+
+def test_dispatch_resume_allows_explicit_task_cap_override(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="failed",
+        reason="postprocess_exception",
+        instances_path="/tmp/instances.json",
+        max_tasks_per_site=2,
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["max_tasks_per_site"] = args.max_tasks_per_site
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace(max_tasks_per_site=5))
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["max_tasks_per_site"] == 5
 
 
 def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, tmp_path):

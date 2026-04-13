@@ -8,6 +8,7 @@ import pytest
 from worldsim.agent_config import (
     RUNTIME_METADATA_KEY,
     bind_task_to_instance,
+    cap_tasks_per_site,
     execution_instance_dict,
     make_llm,
     prepare_task_for_execution,
@@ -149,6 +150,49 @@ def test_benchmark_config_accepts_top_level_url_placeholders():
 def test_make_llm_rejects_unknown_model_family_without_provider():
     with pytest.raises(ValueError, match="Could not infer a provider"):
         make_llm(model="mystery-model-1")
+
+
+def test_cap_tasks_per_site_rejects_non_positive_values():
+    with pytest.raises(ValueError, match="positive integer"):
+        cap_tasks_per_site([], 0)
+
+
+def test_cap_tasks_per_site_normalizes_primary_site_keys():
+    tasks = [
+        {"id": "a", "site": "Shopping"},
+        {"id": "b", "site": "shopping"},
+        {"id": "c", "site": "SHOPPING"},
+    ]
+
+    capped = cap_tasks_per_site(tasks, 2)
+
+    assert len(capped) == 2
+
+
+def test_cap_tasks_per_site_is_order_and_site_independent():
+    tasks = [
+        {"id": "shopping-3", "site": "shopping"},
+        {"id": "gitlab-1", "site": "gitlab"},
+        {"id": "shopping-1", "site": "shopping"},
+        {"id": "shopping-2", "site": "shopping"},
+        {"id": "gitlab-2", "site": "gitlab"},
+    ]
+    reordered = [
+        {"id": "reddit-1", "site": "reddit"},
+        {"id": "reddit-2", "site": "reddit"},
+        {"id": "shopping-2", "site": "shopping"},
+        {"id": "shopping-3", "site": "shopping"},
+        {"id": "gitlab-2", "site": "gitlab"},
+        {"id": "shopping-1", "site": "shopping"},
+        {"id": "gitlab-1", "site": "gitlab"},
+    ]
+
+    capped = cap_tasks_per_site(tasks, 2)
+    capped_reordered = cap_tasks_per_site(reordered, 2)
+
+    assert {task["id"] for task in capped if task["site"] == "shopping"} == {
+        task["id"] for task in capped_reordered if task["site"] == "shopping"
+    }
 
 
 # ── OpenRouter fallback tests ────────────────────────────────────────────

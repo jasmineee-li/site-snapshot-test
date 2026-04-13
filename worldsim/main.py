@@ -29,6 +29,14 @@ DEFAULT_AGENT_MODEL = "gemini-3-flash-preview"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
 
 
+def _positive_int(value: str) -> int:
+    """Argparse type for positive integer CLI flags."""
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct the CLI parser used by ``main()`` and tests."""
     parser = argparse.ArgumentParser(
@@ -89,12 +97,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase_cmd.add_argument(
         "--max-tasks-per-site",
-        type=int,
+        type=_positive_int,
         default=None,
         metavar="N",
         help="Phases 3-4: cap tasks to at most N per site for smoke testing. "
         "Selection is deterministic (fixed seed). Omit for full runs. "
-        "Use --resume later without this flag to complete remaining tasks.",
+        "Use `resume --max-tasks-per-site N` to keep the cap, or omit it on "
+        "resume to process all remaining tasks.",
     )
 
     resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
@@ -142,7 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     resume_cmd.add_argument(
         "--max-tasks-per-site",
-        type=int,
+        type=_positive_int,
         default=argparse.SUPPRESS,
         metavar="N",
         help="Override per-site task cap for the resumed phase. "
@@ -253,8 +262,6 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel = state.get("generate_novel", False)
     if full_baseline is None:
         full_baseline = state.get("full_baseline", False)
-    if max_tasks_per_site is None:
-        max_tasks_per_site = state.get("max_tasks_per_site")
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")

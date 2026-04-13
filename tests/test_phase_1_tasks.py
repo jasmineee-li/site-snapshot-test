@@ -157,6 +157,21 @@ def test_build_parser_accepts_generate_novel_flag():
     assert args.generate_novel is True
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["phase", "3", "--max-tasks-per-site", "0"],
+        ["phase", "4", "--max-tasks-per-site", "-1"],
+        ["resume", "--max-tasks-per-site", "0"],
+    ],
+)
+def test_build_parser_rejects_non_positive_max_tasks_per_site(argv):
+    parser = worldsim_main.build_parser()
+
+    with pytest.raises(SystemExit, match="2"):
+        parser.parse_args(argv)
+
+
 @pytest.mark.asyncio
 async def test_phase_1_run_mode_a_only_preserves_existing_behavior(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))

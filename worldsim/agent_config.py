@@ -473,6 +473,19 @@ def task_reset_endpoints(task: dict[str, Any]) -> list[str]:
 _CAP_SEED = 42
 
 
+def _cap_primary_site(task: dict[str, Any]) -> str:
+    """Return the normalized primary site used for per-site capping."""
+    return normalize_site_name(str(task.get("site", ""))) or "unknown"
+
+
+def _cap_task_identity(task: dict[str, Any]) -> str:
+    """Return a stable identity string for deterministic capped sampling."""
+    task_id = task.get("id")
+    if task_id not in (None, ""):
+        return str(task_id)
+    return json.dumps(task, sort_keys=True, separators=(",", ":"))
+
+
 def cap_tasks_per_site(
     tasks: list[dict[str, Any]],
     max_per_site: int,
@@ -480,27 +493,31 @@ def cap_tasks_per_site(
     """Return at most *max_per_site* tasks per primary site.
 
     Selection uses a fixed random seed so the same cap always produces the
-    same subset — deterministic but unbiased across task ordering. Tasks
-    are grouped by ``task["site"]`` (the primary site), which matches how
-    ``run_tasks_by_site`` routes them.
+    same subset for a given site — deterministic, normalized, and independent
+    of input ordering or unrelated sites. Tasks are grouped by normalized
+    primary site, which matches how ``run_tasks_by_site`` routes them.
 
     The returned list preserves the original task order (stable selection).
     """
-    # Group task indices by primary site
-    site_indices: dict[str, list[int]] = defaultdict(list)
-    for i, task in enumerate(tasks):
-        site = task.get("site", "unknown")
-        site_indices[site].append(i)
+    if max_per_site <= 0:
+        raise ValueError("max_per_site must be a positive integer")
 
-    # Sample up to max_per_site indices per site
+    # Group task indices by primary site.
+    site_indices: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for i, task in enumerate(tasks):
+        site_indices[_cap_primary_site(task)].append((_cap_task_identity(task), i))
+
+    # Sample up to max_per_site indices per site. Use a site-local RNG and
+    # identity-sorted candidates so each site's selection stays stable even if
+    # other sites or task ordering change.
     selected_indices: set[int] = set()
-    rng = random.Random(_CAP_SEED)
     for site in sorted(site_indices):  # sorted for determinism
-        indices = site_indices[site]
-        if len(indices) <= max_per_site:
-            selected_indices.update(indices)
+        entries = sorted(site_indices[site])
+        if len(entries) <= max_per_site:
+            selected_indices.update(index for _, index in entries)
         else:
-            selected_indices.update(rng.sample(indices, max_per_site))
+            rng = random.Random(f"{_CAP_SEED}:{site}")
+            selected_indices.update(index for _, index in rng.sample(entries, max_per_site))
 
     # Return in original order
     return [tasks[i] for i in sorted(selected_indices)]
