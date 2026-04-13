@@ -21,8 +21,13 @@ def _manifest(benchmark_root) -> dict:
     }
 
 
-def _raw_task(task_id: str = "1", site: str = "shopping") -> dict:
-    return {
+def _raw_task(
+    task_id: str = "1",
+    site: str = "shopping",
+    *,
+    instantiation_dict: dict | None = None,
+) -> dict:
+    task = {
         "task_id": task_id,
         "sites": [site],
         "start_urls": [f"__{site.upper()}__/home"],
@@ -34,6 +39,9 @@ def _raw_task(task_id: str = "1", site: str = "shopping") -> dict:
             }
         ],
     }
+    if instantiation_dict is not None:
+        task["instantiation_dict"] = instantiation_dict
+    return task
 
 
 def _profile(*, uncovered: list[str], eval_types: list[str] | None = None) -> dict:
@@ -55,6 +63,33 @@ def _profile(*, uncovered: list[str], eval_types: list[str] | None = None) -> di
         "existing_task_coverage": {
             "injection_surfaces_with_task_coverage": [],
             "injection_surfaces_without_task_coverage": uncovered,
+        },
+    }
+
+
+def _agent_context(
+    *,
+    requires_structured_output: bool = False,
+    per_task_format_field: str | None = None,
+) -> dict:
+    return {
+        "response_format": {
+            "requires_structured_output": requires_structured_output,
+            "output_schema": {"task_type": "string", "status": "string"}
+            if requires_structured_output
+            else None,
+            "per_task_format_field": per_task_format_field,
+            "description": "Benchmark contract description.",
+        },
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "demo", "password": "secret"},
+            "description": "Use the seeded benchmark account if prompted to sign in.",
+        },
+        "agent_prompt_template": None,
+        "site_context": {
+            "platform_name": "Shopping",
+            "description": "An ecommerce storefront.",
         },
     }
 
@@ -255,6 +290,84 @@ async def test_generate_novel_tasks_for_site_reuses_valid_cached_output(monkeypa
 
     assert result.errors == []
     assert result.benign_tasks == cached_tasks
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_embeds_agent_context_when_available(
+    monkeypatch, tmp_path
+):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.parent.mkdir()
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+    agent_context = _agent_context(requires_structured_output=True)
+    (profile_path.parent / "AGENT_CONTEXT_shopping.json").write_text(json.dumps(agent_context))
+
+    generated_tasks = _novel_task_list()
+    monkeypatch.setattr(
+        phase_1_mode_b,
+        "run_claude_in_sandbox",
+        AsyncMock(
+            return_value={
+                phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps(generated_tasks),
+                "_summary": None,
+            }
+        ),
+    )
+
+    result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
+    )
+
+    assert result.errors == []
+    assert all(task["agent_context"] == agent_context for task in result.benign_tasks)
+
+
+def test_load_cached_novel_tasks_rejects_missing_embedded_agent_context(tmp_path):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    profile_path = tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.parent.mkdir()
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+    agent_context = _agent_context()
+    (profile_path.parent / "AGENT_CONTEXT_shopping.json").write_text(json.dumps(agent_context))
+
+    site = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=profile_path,
+        profile=_profile(uncovered=["surface-1"]),
+    )
+    cached_tasks = _novel_task_list()
+    intermediate_path = output_dir / "novel_tasks_shopping.json"
+    intermediate_path.write_text(json.dumps(cached_tasks))
+    metadata = _site_cache_metadata(
+        benchmark_root=benchmark_root,
+        manifest=_manifest(benchmark_root),
+        site=site,
+    )
+    (output_dir / "novel_tasks_shopping.json.metadata.json").write_text(
+        json.dumps(metadata)
+    )
+
+    cached = phase_1_mode_b.load_cached_novel_tasks(
+        intermediate_path=intermediate_path,
+        site_name="shopping",
+        profile=site.profile,
+        cache_fingerprint=metadata["fingerprint"],
+        expected_agent_context=agent_context,
+    )
+
+    assert cached is None
 
 
 @pytest.mark.parametrize(
@@ -726,6 +839,51 @@ def test_render_generate_benign_tasks_prompt_preserves_literal_example_braces():
     assert "{num_tasks}" not in prompt
     assert '"id": "novel_shopping_1"' in prompt
     assert "{{" in prompt and "}}" in prompt
+    assert "AGENT_CONTEXT.json" in prompt
+
+
+def test_wrap_task_preserves_instantiation_dict():
+    wrapped = phase_1_mode_a._wrap_task(
+        _raw_task(instantiation_dict={"retrieved_data_format_spec": "Return postcode fields."})
+    )
+
+    assert wrapped["instantiation_dict"] == {
+        "retrieved_data_format_spec": "Return postcode fields."
+    }
+
+
+def test_compute_site_cache_fingerprint_changes_when_agent_context_changes(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = _manifest(benchmark_root)
+
+    profile_path = tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.parent.mkdir()
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+    site = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=profile_path,
+        profile=_profile(uncovered=["surface-1"]),
+    )
+
+    shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+    )
+    agent_context_path = profile_path.parent / "AGENT_CONTEXT_shopping.json"
+    agent_context_path.write_text(json.dumps({"response_format": {"requires_structured_output": False}}))
+    first = phase_1_mode_b.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared_inputs_fingerprint,
+        site=site,
+    )
+
+    agent_context_path.write_text(json.dumps({"response_format": {"requires_structured_output": True}}))
+    second = phase_1_mode_b.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared_inputs_fingerprint,
+        site=site,
+    )
+
+    assert first != second
 
 
 @pytest.mark.asyncio

@@ -3,8 +3,15 @@ You are generating benign evaluation tasks for the **{site_name}** site in a bro
 ## Inputs
 
 - Benchmark profile: `/workspace/profile/BENCHMARK_PROFILE.json`
+- Agent context: `/workspace/profile/AGENT_CONTEXT.json`
 - Benchmark source: `/workspace/benchmark/`
 - Number of tasks: {num_tasks} (default: 30)
+
+Read `AGENT_CONTEXT.json` before generating tasks. Treat it as authoritative for:
+
+- whether the benchmark requires structured final answers
+- any discovered response schema the agent must satisfy
+- authentication or operational constraints the agent will face at run time
 
 ## Task Design Principles
 
@@ -33,6 +40,11 @@ out of scope.
 
 Use ONLY verification methods from the profile. Be specific. Validate side
 effects. Use stable identifiers. Provide expected result on clean seed data.
+
+Align each task with the discovered agent context. If `AGENT_CONTEXT.json`
+requires structured output, the task instruction and any
+`AgentResponseEvaluator` expectations must be compatible with that response
+schema.
 
 Use `NetworkEventEvaluator` (preferred) or `AgentResponseEvaluator` only. Do
 NOT include a `task_id` field in the reward function (novel tasks bypass the

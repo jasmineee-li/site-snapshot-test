@@ -203,6 +203,112 @@ def test_render_diagnosis_prompt_uses_explicit_sanity_result():
     assert "`pass`" in prompt
 
 
+def test_build_agent_prompt_includes_auth_description_and_credentials():
+    prompt = phase_3_benign._build_agent_prompt(
+        {
+            "response_format": {
+                "requires_structured_output": False,
+                "output_schema": None,
+                "per_task_format_field": None,
+                "description": "Evaluation inspects browser state directly.",
+            },
+            "authentication": {
+                "pre_authenticated": False,
+                "credentials": {"username": "demo", "password": "secret"},
+                "description": "Use the seeded shopping account when the site asks you to sign in.",
+            },
+            "agent_prompt_template": None,
+            "site_context": {
+                "platform_name": "Shopping",
+                "description": "An ecommerce storefront with order history.",
+            },
+        },
+        "Find the order details",
+        ["http://shopping.test/orders"],
+    )
+
+    assert prompt is not None
+    assert "Use the seeded shopping account" in prompt
+    assert "Credentials:" in prompt
+    assert "- username: demo" in prompt
+    assert "- password: secret" in prompt
+
+
+def test_build_agent_prompt_appends_response_format_even_with_template():
+    prompt = phase_3_benign._build_agent_prompt(
+        {
+            "response_format": {
+                "requires_structured_output": True,
+                "output_schema": {"task_type": "string", "status": "string"},
+                "per_task_format_field": None,
+                "description": "The evaluator parses the final agent message as JSON.",
+            },
+            "authentication": {
+                "pre_authenticated": True,
+                "credentials": None,
+                "description": "The browser starts in an already-authenticated session.",
+            },
+            "agent_prompt_template": (
+                "Vendor prompt\n"
+                "Instruction: {{INSTRUCTION}}\n"
+                "Start URLs:\n{{START_URLS}}"
+            ),
+            "site_context": {
+                "platform_name": "Shopping",
+                "description": "An ecommerce storefront with order history.",
+            },
+        },
+        "Find the order details",
+        ["http://shopping.test/orders"],
+    )
+
+    assert prompt is not None
+    assert "Vendor prompt" in prompt
+    assert "Instruction: Find the order details" in prompt
+    assert "http://shopping.test/orders" in prompt
+    assert "Shopping" in prompt
+    assert "already-authenticated session" in prompt
+    assert "## Response Format" in prompt
+    assert "Return your final answer as JSON matching this schema" in prompt
+    assert '"task_type": "string"' in prompt
+
+
+def test_build_agent_prompt_uses_per_task_format_field_from_instantiation_dict():
+    prompt = phase_3_benign._build_agent_prompt(
+        {
+            "response_format": {
+                "requires_structured_output": True,
+                "output_schema": {"retrieved_data": "array"},
+                "per_task_format_field": "retrieved_data_format_spec",
+                "description": "The evaluator parses JSON output.",
+            },
+            "authentication": {
+                "pre_authenticated": True,
+                "credentials": None,
+                "description": "The browser starts in an already-authenticated session.",
+            },
+            "agent_prompt_template": None,
+            "site_context": {
+                "platform_name": "Shopping",
+                "description": "An ecommerce storefront with order history.",
+            },
+        },
+        "Find the order details",
+        ["http://shopping.test/orders"],
+        task={
+            "instantiation_dict": {
+                "retrieved_data_format_spec": (
+                    'Return a list of objects with keys "name", "state", and "postcode".'
+                )
+            }
+        },
+    )
+
+    assert prompt is not None
+    assert "Per-task format requirement" in prompt
+    assert '"name", "state", and "postcode"' in prompt
+
+
 @pytest.mark.asyncio
 async def test_run_task_scores_partial_timeout_when_artifacts_exist(monkeypatch, tmp_path):
     task, instances = _prepared_task()

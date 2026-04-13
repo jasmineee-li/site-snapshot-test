@@ -30,6 +30,7 @@ from typing import Any
 
 import requests
 
+from worldsim.agent_prompt import build_agent_prompt
 from worldsim.agent_config import (
     DEFAULT_MODEL,
     RUNTIME_METADATA_KEY,
@@ -373,11 +374,15 @@ async def run_task(
 
     # Run agent
     instruction, start_urls = resolve_task_inputs(task, instance_dict)
+    site_prompt = _build_agent_prompt(task.get("agent_context"), instruction, start_urls, task=task)
+    run_kwargs: dict[str, Any] = {"start_urls": start_urls}
+    if site_prompt is not None:
+        run_kwargs["site_prompt"] = site_prompt
     result = await agent.run(
         instruction,
         instance.site_url,
         task_dir,
-        start_urls=start_urls,
+        **run_kwargs,
     )
 
     if result.status != "success" and not _has_scoreable_agent_output(result):
@@ -689,6 +694,17 @@ async def _rerun_live_task(
         return {**result, "trajectory_dir": str(task_dir)}
     finally:
         await agent.teardown()
+
+
+def _build_agent_prompt(
+    agent_context: dict[str, Any] | None,
+    instruction: str,
+    start_urls: list[str],
+    *,
+    task: dict[str, Any] | None = None,
+) -> str | None:
+    """Compatibility wrapper for the shared agent-prompt builder."""
+    return build_agent_prompt(agent_context, instruction, start_urls, task=task)
 
 
 async def _reset_task_environment(task: dict[str, Any]) -> None:

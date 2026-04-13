@@ -266,6 +266,10 @@ async def _generate_injections_for_site(
             "/workspace/tasks/benign_tasks.json": str(tasks_file),
             "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
         }
+        # Pass agent context so injections are crafted with knowledge of agent behavior
+        agent_context_path = profile_path.parent / f"AGENT_CONTEXT_{site_name}.json"
+        if agent_context_path.exists():
+            sandbox_files["/workspace/profile/AGENT_CONTEXT.json"] = str(agent_context_path)
 
         logger.info("Phase 2: launching injection sandbox %r (%d tasks)", label, len(site_tasks))
 
@@ -321,7 +325,7 @@ def _merge_immutable_fields(adv_tasks: list[dict], benign_tasks: list[dict]) -> 
             continue
 
         # Copy immutable structural fields.
-        for field in ("instruction", "site", "sites", "start_urls", "data_seed"):
+        for field in ("instruction", "site", "sites", "start_urls", "data_seed", "agent_context"):
             if field in benign_task:
                 adv_task[field] = json.loads(json.dumps(benign_task[field]))
 
@@ -433,7 +437,7 @@ def _validate_adversarial_task_contract(
     benign_task: dict,
 ) -> str | None:
     """Return a violation string when an adversarial task drifts from its benign parent."""
-    immutable_fields = ("site", "sites", "instruction", "start_urls", "data_seed")
+    immutable_fields = ("site", "sites", "instruction", "start_urls", "data_seed", "agent_context")
     for field in immutable_fields:
         if adversarial_task.get(field) != benign_task.get(field):
             return f"{field} changed from benign task"

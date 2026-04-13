@@ -69,6 +69,7 @@ class AgentRunner(Protocol):
         task_dir: Path,
         *,
         start_urls: list[str] | None = None,
+        site_prompt: str | None = None,
     ) -> AgentResult: ...
 
     async def teardown(self) -> None: ...
@@ -502,6 +503,7 @@ class BrowserUseAgent:
         task_dir: Path,
         *,
         start_urls: list[str] | None = None,
+        site_prompt: str | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
 
@@ -549,10 +551,9 @@ class BrowserUseAgent:
         extra_errors: list[str] = []
         try:
             initial_actions = _build_initial_actions(start_urls or [])
+            task_text = site_prompt if site_prompt else task
             agent = Agent(
-                task=(
-                    f"You are interacting with a web application at {server_url}. Your task: {task}"
-                ),
+                task=task_text,
                 llm=self.llm,
                 browser_session=self._session,
                 use_vision=self.use_vision,

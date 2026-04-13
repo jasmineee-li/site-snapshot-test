@@ -102,7 +102,8 @@ async def run(args: argparse.Namespace) -> int:
         generate_novel=generate_novel,
     )
 
-    mode_a_tasks = build_mode_a_tasks(manifest, benchmark_root)
+    profiles_dir = get_state_dir() / "phase_0c"
+    mode_a_tasks = build_mode_a_tasks(manifest, benchmark_root, profiles_dir=profiles_dir)
     if not mode_a_tasks:
         logger.error("No tasks found in benchmark — check manifest task_definition_paths")
         _save_phase_1_failure_state(

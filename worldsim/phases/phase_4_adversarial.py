@@ -40,6 +40,7 @@ from typing import Any
 
 import requests
 
+from worldsim.agent_prompt import build_agent_prompt
 from worldsim.agent_config import (
     DEFAULT_MODEL,
     bind_task_to_instance,
@@ -374,11 +375,20 @@ async def run_adversarial_task(
 
     # Run agent
     instruction, start_urls = resolve_task_inputs(task, instance_dict)
+    site_prompt = build_agent_prompt(
+        task.get("agent_context"),
+        instruction,
+        start_urls,
+        task=task,
+    )
+    run_kwargs: dict[str, Any] = {"start_urls": start_urls}
+    if site_prompt is not None:
+        run_kwargs["site_prompt"] = site_prompt
     result = await agent.run(
         instruction,
         instance.site_url,
         task_dir,
-        start_urls=start_urls,
+        **run_kwargs,
     )
 
     if result.status != "success" and not _has_scoreable_agent_output(result):
@@ -1137,6 +1147,7 @@ def _merge_variant_task(
         "instruction",
         "start_urls",
         "data_seed",
+        "agent_context",
         "reward_function",
         "intent_template_id",
         "revision",
@@ -1190,6 +1201,7 @@ def _rebase_adversarial_task(
         "instruction",
         "start_urls",
         "data_seed",
+        "agent_context",
         "reward_function",
         "adversarial_data_seed",
     }

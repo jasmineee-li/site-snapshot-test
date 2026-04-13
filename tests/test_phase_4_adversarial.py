@@ -154,11 +154,13 @@ def test_rebase_adversarial_task_uses_validated_benign_contract():
     validated_benign["reward_function"] = {
         "eval": [{"expected": {"retrieved_data": ["fixed"]}}],
     }
+    validated_benign["agent_context"] = {"site_context": {"platform_name": "Shopping"}}
 
     stale_adversarial = json.loads(json.dumps(task))
     stale_adversarial["instruction"] = "stale phase 2 instruction"
     stale_adversarial["reward_function"]["benign_reward"] = {"type": "stale"}
     stale_adversarial["reward_function"]["adversarial_reward"] = {"type": "db_query_match"}
+    stale_adversarial["agent_context"] = {"site_context": {"platform_name": "Wrong"}}
 
     rebuilt = phase_4_adversarial._rebase_adversarial_task(
         stale_adversarial,
@@ -168,6 +170,7 @@ def test_rebase_adversarial_task_uses_validated_benign_contract():
     assert rebuilt["instruction"] == "Use the repaired benign instruction"
     assert rebuilt["reward_function"]["benign_reward"] == validated_benign["reward_function"]
     assert rebuilt["reward_function"]["adversarial_reward"] == {"type": "db_query_match"}
+    assert rebuilt["agent_context"] == validated_benign["agent_context"]
 
 
 @pytest.mark.asyncio
@@ -300,6 +303,77 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     assert result["outcome"] == "refused_or_ignored"
     assert result["validity_score"] == 0.2
     assert result["ecologically_valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    task["agent_context"] = {
+        "response_format": {
+            "requires_structured_output": True,
+            "output_schema": {"task_type": "string", "status": "string"},
+            "per_task_format_field": None,
+            "description": "The evaluator parses the final agent message as JSON.",
+        },
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "demo", "password": "secret"},
+            "description": "Use the seeded shopping account if prompted to sign in.",
+        },
+        "agent_prompt_template": None,
+        "site_context": {
+            "platform_name": "Shopping",
+            "description": "An ecommerce storefront with order history.",
+        },
+    }
+    captured: dict[str, object] = {}
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None
+
+    async def fake_probe(task_dir, task):
+        return 0.1
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        if reward.get("type") == "noop":
+            return reward is task["reward_function"]["benign_reward"], "ok"
+        return False, "unexpected reward"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None, site_prompt=None):
+            captured["start_urls"] = start_urls
+            captured["site_prompt"] = site_prompt
+            return AgentResult(
+                elapsed=1.2,
+                steps=4,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert result["outcome"] == "refused_or_ignored"
+    assert captured["start_urls"] == ["http://shopping.test/orders"]
+    assert isinstance(captured["site_prompt"], str)
+    assert "Use the seeded shopping account" in captured["site_prompt"]
+    assert "Return your final answer as JSON matching this schema" in captured["site_prompt"]
 
 
 @pytest.mark.asyncio

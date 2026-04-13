@@ -28,6 +28,7 @@ MODE_B_FIX_MAX_ITERATIONS = 1
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 MODE_B_RESUME_METADATA_PATH = "mode_b_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
+MODE_B_CACHE_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -171,11 +172,15 @@ async def generate_novel_tasks_for_site(
 ) -> SiteNovelTaskResult:
     """Generate and validate novel tasks for one site."""
     intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
+    agent_context, agent_context_errors = _load_site_agent_context(site)
+    if agent_context_errors:
+        return SiteNovelTaskResult(site.site_name, [], agent_context_errors)
     cached_result = load_cached_novel_tasks(
         intermediate_path=intermediate_path,
         site_name=site.site_name,
         profile=site.profile,
         cache_fingerprint=cache_fingerprint,
+        expected_agent_context=agent_context,
     )
     if cached_result is not None:
         return cached_result
@@ -189,8 +194,16 @@ async def generate_novel_tasks_for_site(
     last_errors: list[str] = []
 
     for attempt in range(1 + MODE_B_FIX_MAX_ITERATIONS):
+        site_files: dict[str, str] = {
+            "/workspace/profile/BENCHMARK_PROFILE.json": str(site.profile_path),
+        }
+        # Pass agent context to sandbox so generated tasks align with response format
+        agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
+        if agent_context_path.exists():
+            site_files["/workspace/profile/AGENT_CONTEXT.json"] = str(agent_context_path)
+
         outputs = await run_claude_in_sandbox(
-            site_files={"/workspace/profile/BENCHMARK_PROFILE.json": str(site.profile_path)},
+            site_files=site_files,
             prompt=prompt,
             output_paths=[NOVEL_TASK_OUTPUT_PATH],
             volumes={"/workspace/benchmark": benchmark_volume},
@@ -217,7 +230,9 @@ async def generate_novel_tasks_for_site(
             profile=site.profile,
         )
         if not errors:
-            sorted_tasks = sort_novel_tasks(validated_tasks)
+            sorted_tasks = sort_novel_tasks(
+                _attach_agent_context_to_tasks(validated_tasks, agent_context)
+            )
             intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
             _write_site_cache_metadata(
                 _site_cache_metadata_path(intermediate_path),
@@ -258,6 +273,7 @@ def load_cached_novel_tasks(
     site_name: str,
     profile: dict[str, Any],
     cache_fingerprint: str,
+    expected_agent_context: dict[str, Any] | None = None,
 ) -> SiteNovelTaskResult | None:
     """Return a validated cached per-site result when available."""
     if not intermediate_path.exists():
@@ -293,6 +309,14 @@ def load_cached_novel_tasks(
             "Phase 1B: ignoring invalid cached tasks for site %r: %s",
             site_name,
             "; ".join(errors),
+        )
+        return None
+    if expected_agent_context is not None and any(
+        task.get("agent_context") != expected_agent_context for task in validated_cached
+    ):
+        logger.warning(
+            "Phase 1B: ignoring cached tasks for site %r because embedded agent context is missing or stale",
+            site_name,
         )
         return None
 
@@ -374,6 +398,9 @@ def _load_all_cached_site_results(
     """Return cached per-site results when every eligible site cache validates."""
     cached_results: list[SiteNovelTaskResult] = []
     for site in eligible_sites:
+        agent_context, agent_context_errors = _load_site_agent_context(site)
+        if agent_context_errors:
+            return None
         cached_result = load_cached_novel_tasks(
             intermediate_path=output_dir / f"novel_tasks_{site.site_name}.json",
             site_name=site.site_name,
@@ -382,6 +409,7 @@ def _load_all_cached_site_results(
                 shared_inputs_fingerprint=shared_inputs_fingerprint,
                 site=site,
             ),
+            expected_agent_context=agent_context,
         )
         if cached_result is None:
             return None
@@ -417,13 +445,58 @@ def compute_site_cache_fingerprint(
     site: EligibleSiteProfile,
 ) -> str:
     """Return a content-based digest for one site's cached novel-task output."""
+    agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
+    agent_context_digest = None
+    if agent_context_path.exists():
+        agent_context_digest = sha256(agent_context_path.read_bytes()).hexdigest()
+
     payload = {
+        "cache_schema_version": MODE_B_CACHE_SCHEMA_VERSION,
         "shared_inputs_fingerprint": shared_inputs_fingerprint,
         "site_name": site.site_name,
         "profile": site.profile,
+        "agent_context_digest": agent_context_digest,
         "task_count": DEFAULT_NOVEL_TASKS_PER_SITE,
     }
     return _stable_json_digest(payload)
+
+
+def _load_site_agent_context(
+    site: EligibleSiteProfile,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Load the sibling AGENT_CONTEXT file when present."""
+    agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
+    if not agent_context_path.exists():
+        return None, []
+    try:
+        data = json.loads(agent_context_path.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        return None, [f"invalid agent context for site {site.site_name!r}: {exc}"]
+    if not isinstance(data, dict):
+        return None, [f"invalid agent context for site {site.site_name!r}: payload must be an object"]
+    return data, []
+
+
+def _attach_agent_context_to_tasks(
+    tasks: list[dict[str, Any]],
+    agent_context: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Attach site agent context so later phases replay the same prompt contract.
+
+    The embedded context can include benchmark-issued test credentials. Keeping
+    it on the task artifact is intentional because later phases may run without
+    direct access to the original Phase 0c files and still need the same login
+    and response-format contract.
+    """
+    if agent_context is None:
+        return tasks
+
+    attached: list[dict[str, Any]] = []
+    for task in tasks:
+        hydrated = json.loads(json.dumps(task))
+        hydrated["agent_context"] = json.loads(json.dumps(agent_context))
+        attached.append(hydrated)
+    return attached
 
 
 def compute_mode_b_resume_fingerprint(
