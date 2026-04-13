@@ -128,7 +128,7 @@ def test_collect_site_profiles_returns_reusable_mapping(tmp_path):
     profile_path.write_text(
         json.dumps(
             {
-                "data_model": [{"fields": [{"name": "body"}], "storage": "posts"}],
+                "data_model": [{"entity": "posts", "fields": [{"name": "body"}], "storage": "posts"}],
                 "injection_surface": [{"id": "surface-1", "source_field": "posts.body"}],
                 "verification_capabilities": [],
             }

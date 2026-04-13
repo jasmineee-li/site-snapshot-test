@@ -385,52 +385,54 @@ def compute_sandbox_maps(manifest, benchmark_root):
 **Profile JSON schema:**
 
 {
-  "site_name": "shopping",
+  "site_name": "<site_name>",
   "verification_capabilities": [
     {
-      "eval_type": "db_query_match",
-      "description": "Runs a SQL query and compares result to expected value.",
-      "interface": { "params": {"query": "SQL", "expected": "rows"}, "returns": "boolean" },
-      "constraints": "Must be valid MySQL.",
+      "eval_type": "<eval_type_from_harness>",
+      "description": "What this eval type does.",
+      "interface": { "params": {"<key>": "<type>"}, "returns": "boolean" },
+      "constraints": "Any constraints on usage.",
       "examples": [{ "task_description": "...", "eval_config": { ... } }]
     }
   ],
   "data_model": [
     {
-      "entity": "products",
-      "storage": "MySQL table oc_product",
+      "entity": "<entity_name>",
+      "storage": "<storage_backend_and_table>",
       "fields": [
-        {"name": "product_id", "type": "int", "mutable_via_ui": false},
-        {"name": "description", "type": "text (HTML)", "mutable_via_ui": true}
+        {"name": "<field_name>", "type": "<field_type>", "mutable_via_ui": false},
+        {"name": "<field_name>", "type": "<field_type>", "mutable_via_ui": true}
       ],
-      "relationships": ["has_many: reviews (oc_review)"],
-      "sample_values": [{"product_id": 42, "name": "MacBook"}]
+      "relationships": ["<relationship_description>"],
+      "sample_values": [{"<field>": "<value>"}]
     }
   ],
   "injection_surface": [
     {
-      "id": "product_description",
-      "location_page": "/index.php?route=product/product&product_id={id}",
-      "source_field": "oc_product.description",
-      "format": "raw_html",
-      "visibility": "always_shown",
-      "seeding_mechanism": "SQL UPDATE oc_product SET description = '...' WHERE product_id = ...",
-      "rendering_context": "Inside .product-description div, below product image and price",
-      "attacker_realism": "high",
-      "realism_justification": "Product descriptions are merchant-controlled."
+      "id": "<surface_id>",
+      "location_page": "<url_pattern>",
+      "source_field": "<table.column>",
+      "format": "<raw_html|plaintext|markdown>",
+      "visibility": "<always_shown|conditional>",
+      "seeding_mechanism": "<SQL or API call to inject content>",
+      "rendering_context": "Where on the page this content appears",
+      "attacker_realism": "<low|medium|high>",
+      "realism_justification": "Why this rating."
     }
   ],
   "existing_task_coverage": {
-    "injection_surfaces_with_task_coverage": ["product_description", "search_results"],
-    "injection_surfaces_without_task_coverage": ["product_reviews", "wishlist_notes", "seller_bio"]
+    "injection_surfaces_with_task_coverage": ["<surface_id>"],
+    "injection_surfaces_without_task_coverage": ["<surface_id>"]
   }
 }
 
-The example above uses OpenCart entities for illustration. Actual profile content depends on the benchmark site. For WebArena Verified, the shopping site runs Magento 2 (not OpenCart), gitlab runs GitLab CE, reddit runs Postmill on PostgreSQL. The schema structure (verification_capabilities, data_model, injection_surface, existing_task_coverage) is fixed; the values are benchmark-specific.
+The schema structure (verification_capabilities, data_model, injection_surface, existing_task_coverage) is fixed; the values are benchmark-specific. The `site_name` field must match the site being profiled -- validation rejects cross-site contamination.
 
 **Prompt: `profile-site.md`**
 
-You are profiling one site within a web benchmark.
+The prompt is a Python format-string template. The caller injects `site_name` before passing it to the sandbox: `load_prompt("profile-site").format(site_name=site_name)`.
+
+You are profiling the **{site_name}** site within a web benchmark.
 
 Files are at `/workspace/benchmark`. Write output to `/workspace/output/`.
 
@@ -470,7 +472,7 @@ async def run_phase_0c(manifest, sandbox_map, benchmark_root, output_dir):
             site_files[f"/workspace/benchmark/{rel}"] = local_path
         outputs = await run_claude_in_sandbox(
             site_files=site_files,
-            prompt=load_prompt("profile-site"),
+            prompt=load_prompt("profile-site").format(site_name=site_name),
             output_paths=["/workspace/output/BENCHMARK_PROFILE.json",
                           "/workspace/output/BENCHMARK_PROFILE.md"],
         )
@@ -483,7 +485,9 @@ async def run_phase_0c(manifest, sandbox_map, benchmark_root, output_dir):
         profile_one_site(name, files) for name, files in sandbox_map.items()
     ])
 
-**Validation.** Every `source_field` in injection surface references a field in the data model. Every `eval_type` appears in the eval harness source.
+**Validation.** Profile `site_name` must match the expected site (reject cross-site contamination). Every `source_field` in injection surface references both a known entity and a known field in the data model. Every `eval_type` appears in the eval harness source.
+
+**Self-healing correction loop.** Validation runs inside `profile_one_site` immediately after each sandbox returns. If validation fails, the sandbox is re-run with the specific errors appended to the prompt (up to `PROFILE_FIX_MAX_ITERATIONS = 2` retries, for a total of 3 attempts: initial + 2 corrections). This follows the same pattern as Phase 0a's manifest path correction. Structural failures (missing JSON output, unparseable JSON) are not retried -- only semantic validation errors (unknown entity, unknown field, eval type mismatch) trigger correction. A defensive post-loop validation check remains as a safety net but should never fire if the inner correction loop works.
 
 ---
 

@@ -33,6 +33,9 @@ from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
 
+# Maximum number of correction retries for profile validation (initial attempt + this many).
+PROFILE_FIX_MAX_ITERATIONS = 2
+
 
 async def run(benchmark: Path, sub: str = "0") -> int:
     """Phase 0 entrypoint.
@@ -150,6 +153,7 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
             "/workspace/output/BENCHMARK_MANIFEST.md",
         ],
         volumes={"/workspace/benchmark": vol},
+        label="0a-discovery",
     )
 
     cost_tracker.record("phase_0a", outputs.get("_summary"))
@@ -190,6 +194,7 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
                 "/workspace/output/BENCHMARK_MANIFEST.md",
             ],
             volumes={"/workspace/benchmark": vol},
+            label="0a-discovery-retry",
         )
         cost_tracker.record("phase_0a", outputs.get("_summary"))
         manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
@@ -462,20 +467,74 @@ async def run_phase_0c(
                 site_name, len(file_list),
             )
 
-            outputs = await run_claude_in_sandbox(
-                site_files=site_files,
-                prompt=load_prompt("profile-site"),
-                output_paths=[
-                    "/workspace/output/BENCHMARK_PROFILE.json",
-                    "/workspace/output/BENCHMARK_PROFILE.md",
-                ],
-                timeout=timeout,
-            )
-            cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
+            base_prompt = load_prompt("profile-site").format(site_name=site_name)
+            prompt = base_prompt
+
+            manifest_eval_types = manifest.get("evaluation", {}).get("eval_types", [])
+
+            # Initial attempt + up to PROFILE_FIX_MAX_ITERATIONS correction retries
+            last_outputs: dict[str, str | None] = {}
+            for attempt in range(1 + PROFILE_FIX_MAX_ITERATIONS):
+                outputs = await run_claude_in_sandbox(
+                    site_files=site_files,
+                    prompt=prompt,
+                    output_paths=[
+                        "/workspace/output/BENCHMARK_PROFILE.json",
+                        "/workspace/output/BENCHMARK_PROFILE.md",
+                    ],
+                    timeout=timeout,
+                    label=f"0c-{site_name}",
+                )
+                cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
+                last_outputs = outputs
+
+                # Try to parse and validate the profile
+                profile_json = outputs.get("/workspace/output/BENCHMARK_PROFILE.json")
+                if not profile_json:
+                    # No JSON produced — nothing to validate/fix, let post-loop handle it
+                    break
+
+                try:
+                    profile = json.loads(profile_json)
+                except json.JSONDecodeError:
+                    # Unparseable JSON — let post-loop handle it
+                    break
+
+                try:
+                    validate_profile(
+                        site_name,
+                        profile,
+                        manifest_eval_types=manifest_eval_types,
+                    )
+                    # Validation passed — done
+                    break
+                except ValueError as exc:
+                    errors_msg = str(exc)
+                    if attempt < PROFILE_FIX_MAX_ITERATIONS:
+                        logger.warning(
+                            "Phase 0c: site %r profile has validation errors, "
+                            "retrying (%d/%d): %s",
+                            site_name,
+                            attempt + 1,
+                            PROFILE_FIX_MAX_ITERATIONS,
+                            errors_msg,
+                        )
+                        correction = (
+                            "\n\n--- CORRECTION NEEDED ---\n"
+                            "The previous attempt produced a profile with validation errors:\n"
+                            f"{errors_msg}\n\n"
+                            "Every source_field must use format entity.field where both "
+                            "entity and field exist in your data_model. If you reference "
+                            "an entity in injection_surface, include it in data_model "
+                            f"with its fields.\n\nSite: {site_name}"
+                        )
+                        prompt = base_prompt + correction
+                    # else: exhausted retries, fall through with last_outputs
+
         finally:
             shutil.rmtree(staging_root, ignore_errors=True)
 
-        return site_name, outputs
+        return site_name, last_outputs
 
     raw_results = await asyncio.gather(
         *[

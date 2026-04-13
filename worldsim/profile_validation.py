@@ -36,6 +36,14 @@ def validate_profile(
     manifest_eval_types: Iterable[str] = (),
 ) -> None:
     """Validate cross-references within a site profile."""
+    # site_name mismatch: catch profiles that claim to be a different site
+    profile_site = profile.get("site_name")
+    if profile_site and profile_site != site_name:
+        raise ValueError(
+            f"Profile site_name mismatch: expected {site_name!r}, "
+            f"got {profile_site!r}"
+        )
+
     known_fields: set[str] = set()
     for entity in profile.get("data_model", []):
         for field in entity.get("fields", []):
@@ -44,10 +52,18 @@ def validate_profile(
         if storage:
             known_fields.add(storage)
 
+    known_entities = {entity.get("entity", "") for entity in profile.get("data_model", [])}
+
     errors: list[str] = []
     for surface in profile.get("injection_surface", []):
         source = surface.get("source_field", "")
         if source and "." in source:
+            entity_name = source.split(".")[0]
+            if entity_name not in known_entities and known_entities:
+                errors.append(
+                    f"injection surface {surface.get('id', '?')!r} references "
+                    f"unknown entity {entity_name!r} in {source!r}"
+                )
             field_name = source.split(".")[-1]
             if field_name not in known_fields and known_fields:
                 errors.append(
