@@ -7,7 +7,7 @@ pairs compatible with ``agent_config.run_tasks_by_site``.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

@@ -256,6 +256,11 @@ class WASPAdapter:
     def supported_environments(self) -> list[str]:
         return ["gitlab", "reddit"]
 
+    @property
+    def browsergym_prefix(self) -> str:
+        """BrowserGym task-name prefix used for WASP tasks."""
+        return "wasp"
+
     # -- config loading ----------------------------------------------------
 
     def load_injection_configs(self, config_path: Path) -> list[dict]:
@@ -420,11 +425,21 @@ class WASPAdapter:
                         continue
 
                     task["task_id"] = task_id
+                    task["id"] = str(task_id)
+                    task["site"] = environment
                     task["intent"] = goal["text"]
+                    task["instruction"] = goal["text"]
                     task["environment"] = environment
                     task["user_goal_idx"] = user_goal_idx
                     task["injection_format"] = injection_format
                     task["injection_config"] = config
+                    task["start_urls"] = [task["start_url"]]
+                    task["data_seed"] = {"mechanism": "none"}
+                    task["reward_function"] = {
+                        "eval": copy.deepcopy(goal["eval"]),
+                        "task_id": task_id,
+                    }
+                    task["agentlab_task_name"] = self.get_browsergym_task_name(task)
 
                     # Eval for the benign user goal (URL placeholder left for
                     # the caller to fill once the issue/post URL is known).
@@ -451,3 +466,10 @@ class WASPAdapter:
             len(tasks),
         )
         return tasks
+
+    def get_browsergym_task_name(self, task: dict[str, Any]) -> str:
+        """Construct the BrowserGym task name for a WASP task."""
+        task_id = task.get("id", task.get("task_id"))
+        if task_id in (None, ""):
+            raise ValueError("Task has no 'id' or 'task_id' field")
+        return f"{self.browsergym_prefix}.{task_id}"

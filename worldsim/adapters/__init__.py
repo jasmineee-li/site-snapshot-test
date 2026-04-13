@@ -46,3 +46,29 @@ def get_adapter(benchmark_name: str) -> Any:
 def available_benchmarks() -> list[str]:
     """Return deduplicated list of registered benchmark names."""
     return sorted(set(_ADAPTER_REGISTRY))
+
+
+def browsergym_task_name_for(adapter: Any, task: dict[str, Any]) -> str:
+    """Resolve the BrowserGym task name for a wrapped task.
+
+    Adapters can implement ``get_browsergym_task_name(task)`` directly or
+    expose a simple ``browsergym_prefix`` property plus a stable task id.
+    """
+    explicit = task.get("agentlab_task_name")
+    if explicit:
+        return str(explicit)
+
+    resolver = getattr(adapter, "get_browsergym_task_name", None)
+    if callable(resolver):
+        return str(resolver(task))
+
+    prefix = getattr(adapter, "browsergym_prefix", None)
+    task_id = task.get("id", task.get("task_id"))
+    if prefix and task_id not in (None, ""):
+        return f"{prefix}.{task_id}"
+
+    adapter_name = type(adapter).__name__
+    raise ValueError(
+        f"{adapter_name} does not define BrowserGym task-name resolution and "
+        "task does not provide agentlab_task_name"
+    )

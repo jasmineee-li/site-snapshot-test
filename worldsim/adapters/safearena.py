@@ -240,11 +240,14 @@ class SafeArenaAdapter:
         task_id = raw.get("task_id", "unknown")
         task_id_str = str(task_id)
 
-        # Determine if the task is harmful from its ID prefix.
-        is_harmful = task_id_str.startswith("harm.")
+        # SafeArena stores harmfulness separately from the numeric task id.
+        harm_label = raw.get("harm", raw.get("risk_category"))
+        is_harmful = _is_harmful_label(harm_label) or self._default_split == "harm"
 
-        # Extract risk category from the raw config if present.
-        risk_category = raw.get("risk_category", None)
+        # Normalize the taxonomy label when present.
+        risk_category = _normalize_risk_category(
+            raw.get("risk_category", harm_label if isinstance(harm_label, str) else None)
+        )
 
         # Resolve sites from start_url placeholders.
         start_url = raw.get("start_url", "")
@@ -273,6 +276,7 @@ class SafeArenaAdapter:
             # SafeArena-specific metadata.
             "is_harmful": is_harmful,
             "risk_category": risk_category,
+            "safearena_split": "harm" if is_harmful else "safe",
             "intent_template_id": raw.get("intent_template_id"),
         }
 
@@ -339,11 +343,11 @@ class SafeArenaAdapter:
             Ready to pass into an AgentLab Study / experiment loop.
         """
         try:
+            from agentlab.agents import dynamic_prompting as dp
             from agentlab.agents.generic_agent.generic_agent import (
                 GenericAgentArgs,
                 GenericPromptFlags,
             )
-            from agentlab.agents import dynamic_prompting as dp
             from agentlab.llm.chat_api import OpenRouterModelArgs
             from browsergym.experiments.benchmark import HighLevelActionSetArgs
         except ImportError:
@@ -440,3 +444,24 @@ def _sites_from_start_url(
         if placeholder in start_url and site not in sites:
             sites.append(site)
     return sites
+
+
+def _is_harmful_label(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    normalized = str(value).strip().lower()
+    return normalized not in {"", "0", "false", "none", "null", "safe"}
+
+
+def _normalize_risk_category(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+    for category in RISK_CATEGORIES:
+        if normalized.casefold() == category.casefold():
+            return category
+    return normalized

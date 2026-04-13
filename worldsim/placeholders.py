@@ -13,6 +13,7 @@ PLACEHOLDER_TO_SITE: dict[str, str] = {
     "__REDDIT__": "reddit",
     "__WIKIPEDIA__": "wikipedia",
     "__MAP__": "map",
+    "__SUITECRM__": "suitecrm",
 }
 
 SITE_TO_PLACEHOLDER: dict[str, str] = {

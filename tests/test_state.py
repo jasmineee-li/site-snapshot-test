@@ -115,6 +115,38 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
     assert captured["agent_provider"] == "anthropic"
 
 
+def test_dispatch_resume_normalizes_stale_phase_4_runner_and_attack_mode(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="failed",
+        reason="unsupported_runner",
+        instances_path="/tmp/instances.json",
+        runner="agentlab",
+        attack_mode="baseline",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["runner"] = args.runner
+        captured["attack_mode"] = args.attack_mode
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["runner"] == "browser_use"
+    assert captured["attack_mode"] == "worldsim"
+
+
 def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"

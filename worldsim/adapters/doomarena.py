@@ -82,8 +82,10 @@ def _import_popup_attack():
 def _import_banner_attack():
     try:
         from doomarena.browsergym.attacks.banner_attacks import (
-            get_svg_banner_attack,
             banner_configs as default_banner_configs,
+        )
+        from doomarena.browsergym.attacks.banner_attacks import (
+            get_svg_banner_attack,
         )
         return get_svg_banner_attack, default_banner_configs
     except ImportError:
@@ -93,8 +95,8 @@ def _import_banner_attack():
 def _import_div_attacks():
     try:
         from doomarena.browsergym.attacks.div_injection import (
-            GoalRevealAttack,
             AdditionalFormFieldAttack,
+            GoalRevealAttack,
         )
         return GoalRevealAttack, AdditionalFormFieldAttack
     except ImportError:
@@ -187,6 +189,18 @@ class DoomArenaAdapter:
         E.g. ``{"__REDDIT__": "reddit", "__SHOPPING__": "shopping", ...}``.
         """
         return dict(_WEBARENA_PLACEHOLDER_TO_SITE)
+
+    @property
+    def browsergym_prefix(self) -> str:
+        """DoomArena attacks run against BrowserGym's native WebArena tasks."""
+        return "webarena"
+
+    def get_browsergym_task_name(self, task: dict[str, Any]) -> str:
+        """Return the BrowserGym task name for a wrapped WebArena task."""
+        task_id = task.get("id", task.get("task_id"))
+        if task_id in (None, ""):
+            raise ValueError("Task has no 'id' or 'task_id' field")
+        return f"{self.browsergym_prefix}.{task_id}"
 
     # -- attack configs ----------------------------------------------------
 

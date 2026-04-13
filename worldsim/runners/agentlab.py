@@ -26,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -39,6 +40,7 @@ from worldsim.agent_config import (
     task_reset_endpoints,
 )
 from worldsim.seeding import apply_data_seed_async
+from worldsim.trajectory import save_result_payload
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +171,7 @@ def _resolve_browsergym_task_name(
     if explicit:
         return str(explicit)
 
-    task_id = task.get("id")
+    task_id = task.get("id", task.get("task_id"))
     if task_id is None:
         raise ValueError(
             "Task has no 'id' field and no 'agentlab_task_name'; "
@@ -203,6 +205,9 @@ def _parse_exp_result(
             "elapsed": elapsed,
             "steps": 0,
             "is_done": False,
+            "status": "error",
+            "errors": ["AgentLab did not write summary_info.json"],
+            "outcome": "error",
             "trajectory_dir": str(exp_dir),
         }
 
@@ -218,6 +223,8 @@ def _parse_exp_result(
     # episode finished without an uncaught error.
     passed = cum_reward > 0 and err_msg is None
     is_done = bool(terminated or truncated)
+    errors = [str(err_msg)] if err_msg else []
+    status = "error" if err_msg else ("success" if passed else "failure")
 
     if err_msg:
         message = f"AgentLab error: {err_msg}"
@@ -233,8 +240,39 @@ def _parse_exp_result(
         "elapsed": elapsed,
         "steps": n_steps,
         "is_done": is_done,
+        "status": status,
+        "errors": errors,
+        "outcome": "error" if status == "error" else None,
         "trajectory_dir": str(exp_dir),
     }
+
+
+def _persist_result_sentinel(
+    task: dict[str, Any],
+    task_dir: Path,
+    parsed_result: dict[str, Any],
+) -> None:
+    """Write the canonical result.json sentinel used by resume/reporting."""
+    save_result_payload(
+        task_dir,
+        {
+            "task_id": task.get("id", task.get("task_id", "unknown")),
+            "passed": parsed_result.get("passed", False),
+            "message": parsed_result.get("message", ""),
+            "status": parsed_result.get("status", "error"),
+            "elapsed": parsed_result.get("elapsed", 0.0),
+            "steps": parsed_result.get("steps", 0),
+            "is_done": parsed_result.get("is_done", False),
+            "final_result": parsed_result.get("message"),
+            "errors": list(parsed_result.get("errors", [])),
+            "trajectory_dir": str(task_dir),
+            **(
+                {"outcome": "error"}
+                if parsed_result.get("outcome") == "error"
+                else {}
+            ),
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -246,23 +284,38 @@ def _run_experiment_sync(
     agent_args: Any,
     env_args: Any,
     exp_dir: Path,
+    env_overrides: dict[str, str] | None = None,
 ) -> None:
     """Prepare and run an AgentLab experiment synchronously.
 
     This is the function passed to ``asyncio.to_thread`` so the event loop
     is not blocked.
     """
-    exp_args = ExpArgs(
-        agent_args=agent_args,
-        env_args=env_args,
-    )
-    exp_args.prepare(exp_root=exp_dir.parent)
-    # ExpArgs.prepare creates its own subdirectory. Override to use the
-    # caller-provided task_dir so trajectories land where WorldSim expects.
-    exp_args.exp_dir = exp_dir
-    exp_dir.mkdir(parents=True, exist_ok=True)
+    original_env = {
+        key: os.environ.get(key)
+        for key in (env_overrides or {})
+    }
+    try:
+        if env_overrides:
+            os.environ.update(env_overrides)
 
-    exp_args.run()
+        exp_args = ExpArgs(
+            agent_args=agent_args,
+            env_args=env_args,
+        )
+        exp_args.prepare(exp_root=exp_dir.parent)
+        # ExpArgs.prepare creates its own subdirectory. Override to use the
+        # caller-provided task_dir so trajectories land where WorldSim expects.
+        exp_args.exp_dir = exp_dir
+        exp_dir.mkdir(parents=True, exist_ok=True)
+
+        exp_args.run()
+    finally:
+        for key, value in original_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +354,7 @@ def make_task_runner(
         instance: Any,
         task_dir: Path,
     ) -> dict[str, Any]:
-        task_id = task.get("id", "unknown")
+        task_id = task.get("id", task.get("task_id", "unknown"))
         t0 = time.monotonic()
 
         instance_dict = execution_instance_dict(instance, task)
@@ -311,7 +364,7 @@ def make_task_runner(
 
         # 2. Seed adversarial data when in worldsim attack mode
         if attack_mode == "worldsim":
-            seed = task.get("data_seed", {})
+            seed = task.get("adversarial_data_seed", task.get("data_seed", {}))
             if seed.get("mechanism") not in (None, "none"):
                 await apply_data_seed_async(seed, instance_dict)
 
@@ -330,6 +383,10 @@ def make_task_runner(
             # Caller passed raw GenericAgentArgs directly
             agent_args = agent
 
+        env_overrides: dict[str, str] | None = None
+        if task.get("safearena_split") in {"safe", "harm"}:
+            env_overrides = {"SAFEARENA_TASK": str(task["safearena_split"])}
+
         # 5. Run the experiment (synchronous) in a thread
         try:
             await asyncio.to_thread(
@@ -337,13 +394,17 @@ def make_task_runner(
                 agent_args,
                 env_args,
                 task_dir,
+                env_overrides,
             )
         except Exception:
             logger.exception("AgentLab experiment failed for task %s", task_id)
+            raise
 
         # 6. Parse results
         elapsed = time.monotonic() - t0
-        return _parse_exp_result(task_id, task_dir, elapsed)
+        parsed_result = _parse_exp_result(task_id, task_dir, elapsed)
+        _persist_result_sentinel(task, task_dir, parsed_result)
+        return parsed_result
 
     return run_task
 

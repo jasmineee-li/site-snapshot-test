@@ -198,18 +198,22 @@ class STWebAgentBenchAdapter:
         # Sites list -- use the raw "sites" field if present.
         sites: list[str] = raw.get("sites", [])
 
-        # Primary site: first entry in sites, or infer from start_url.
+        raw_start_url = raw.get("start_url", "")
+        start_urls = _split_start_urls(raw_start_url) if raw_start_url else []
+
+        # Primary site: first entry in sites, or infer from the first tab.
         if sites:
             site = sites[0]
         else:
-            start_url = raw.get("start_url", "")
-            detected = _detect_site_from_start_url(start_url)
+            detected = _detect_site_from_start_url(start_urls[0]) if start_urls else None
             site = detected if detected else "unknown"
-            sites = [site] if site != "unknown" else []
-
-        # start_urls: split on |AND| separator for multi-tab tasks.
-        raw_start_url = raw.get("start_url", "")
-        start_urls = _split_start_urls(raw_start_url) if raw_start_url else []
+            sites = []
+            for start_url in start_urls:
+                detected_site = _detect_site_from_start_url(start_url)
+                if detected_site and detected_site not in sites:
+                    sites.append(detected_site)
+            if not sites and site != "unknown":
+                sites = [site]
 
         # Instruction text (STWebAgentBench uses "intent").
         instruction = raw.get("intent", raw.get("instruction", ""))

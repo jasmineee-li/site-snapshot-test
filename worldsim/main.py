@@ -29,7 +29,7 @@ DEFAULT_AGENT_MODEL = "gemini-3-flash-preview"
 DEFAULT_SANDBOX_MODEL = "claude-sonnet-4-6"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
 RUNNER_CHOICES = ("browser_use", "agentlab")
-ATTACK_MODE_CHOICES = ("worldsim", "baseline", "both")
+ATTACK_MODE_CHOICES = ("worldsim",)
 
 
 def _positive_int(value: str) -> int:
@@ -134,24 +134,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--runner",
         default="browser_use",
         choices=RUNNER_CHOICES,
-        help="Agent execution backend for Phases 3-4 (default: browser_use). "
-        "Use 'agentlab' for standardized multi-benchmark research comparisons "
-        "via BrowserGym's GenericAgent.",
+        help="Agent execution backend for Phase 3 (default: browser_use). "
+        "Phase 4 currently runs through the browser_use pipeline because its "
+        "ecological-validity and strategy-variation loops still depend on "
+        "Browser Use trajectory artifacts.",
     )
     phase_cmd.add_argument(
         "--attack-mode",
         default="worldsim",
         choices=ATTACK_MODE_CHOICES,
         help="Phase 4 attack mode (default: worldsim). "
-        "'baseline' runs the benchmark's native attack methodology, "
-        "'both' runs baseline and worldsim for paired comparison.",
+        "Only the WorldSim seeded-attack path is currently wired into the "
+        "Phase 4 post-processing loop.",
     )
     phase_cmd.add_argument(
         "--benchmark-adapter",
         default=None,
         help="Benchmark adapter name for the AgentLab runner (e.g., 'doomarena', "
-        "'stwebagentbench', 'wasp', 'safearena'). Required when --runner=agentlab "
-        "and the benchmark is not WebArena Verified.",
+        "'stwebagentbench', 'wasp', 'safearena'). Used by the benchmark-aware "
+        "Phase 1/3 adapter path when --runner=agentlab.",
     )
 
     resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
@@ -370,6 +371,19 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     benchmark_adapter = getattr(args, "benchmark_adapter", None) or state.get(
         "benchmark_adapter"
     )
+    if target == "phase_4":
+        if runner != "browser_use":
+            print(
+                "Resume note: Phase 4 currently supports only runner=browser_use; "
+                f"ignoring saved runner={runner!r}."
+            )
+            runner = "browser_use"
+        if attack_mode not in ATTACK_MODE_CHOICES:
+            print(
+                "Resume note: Phase 4 currently supports only attack_mode='worldsim'; "
+                f"ignoring saved attack_mode={attack_mode!r}."
+            )
+            attack_mode = "worldsim"
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
