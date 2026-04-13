@@ -270,7 +270,7 @@ async def run_claude_in_sandbox(
                 turn_count,
             )
         else:
-            logger.info("%sSandbox runner finished (rc=0, %d tool calls)", tag, turn_count)
+            logger.info("%sSandbox runner exited (rc=0, %d tool calls)", tag, turn_count)
 
         # -- Read output files -------------------------------------------------
         outputs: dict[str, str | None] = {}

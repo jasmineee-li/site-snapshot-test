@@ -279,7 +279,7 @@ async def _generate_injections_for_site(
             label=label,
         )
 
-    logger.info("Phase 2: sandbox %r finished", label)
+    logger.info("Phase 2: sandbox %r completed", label)
     cost_tracker.record("phase_2", outputs.get("_summary"), site=site_name)
 
     adv_json = outputs.get("/workspace/output/adversarial_tasks.json")

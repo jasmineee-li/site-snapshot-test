@@ -224,7 +224,7 @@ async def generate_novel_tasks_for_site(
                 fingerprint=cache_fingerprint,
                 site_name=site.site_name,
             )
-            logger.info("Phase 1B: site %r sandbox finished", site.site_name)
+            logger.info("Phase 1B: site %r sandbox completed", site.site_name)
             return SiteNovelTaskResult(site.site_name, sorted_tasks, [])
 
         last_errors = errors
@@ -244,7 +244,7 @@ async def generate_novel_tasks_for_site(
             )
             prompt = base_prompt + correction
 
-    logger.info("Phase 1B: site %r sandbox finished", site.site_name)
+    logger.info("Phase 1B: site %r sandbox completed", site.site_name)
     return SiteNovelTaskResult(
         site.site_name,
         [],
