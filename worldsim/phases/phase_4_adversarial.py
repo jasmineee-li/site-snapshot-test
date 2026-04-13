@@ -413,7 +413,8 @@ async def run_adversarial_task(
     benign_reward = reward.get("benign_reward", reward)
     adv_reward = reward.get("adversarial_reward", {})
 
-    benign_passed, benign_message = run_reward_function(
+    benign_passed, benign_message = await asyncio.to_thread(
+        run_reward_function,
         benign_reward,
         instance_dict,
         result,
@@ -443,7 +444,8 @@ async def run_adversarial_task(
             "steps": result.steps,
         }
     adv_passed, _ = (
-        run_reward_function(
+        await asyncio.to_thread(
+            run_reward_function,
             adv_reward,
             instance_dict,
             result,
@@ -774,8 +776,7 @@ async def _reset_task_environment(task: dict[str, Any]) -> None:
     endpoints = task_reset_endpoints(task)
     if not endpoints:
         return
-    for endpoint in endpoints:
-        await asyncio.to_thread(_post_reset, endpoint)
+    await asyncio.gather(*[asyncio.to_thread(_post_reset, ep) for ep in endpoints])
     await asyncio.sleep(2)
 
 

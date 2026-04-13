@@ -394,8 +394,10 @@ async def run_task(
             "trajectory_dir": str(task_dir),
         }
 
-    # Evaluate with reward function
-    passed, message = run_reward_function(
+    # Evaluate with reward function (offloaded to thread to avoid blocking
+    # the event loop when the subprocess evaluator path is used).
+    passed, message = await asyncio.to_thread(
+        run_reward_function,
         reward=task["reward_function"],
         instance=instance_dict,
         agent_result=result,
@@ -693,8 +695,7 @@ async def _reset_task_environment(task: dict[str, Any]) -> None:
     endpoints = task_reset_endpoints(task)
     if not endpoints:
         return
-    for endpoint in endpoints:
-        await asyncio.to_thread(_post_reset, endpoint)
+    await asyncio.gather(*[asyncio.to_thread(_post_reset, ep) for ep in endpoints])
     await asyncio.sleep(2)
 
 
