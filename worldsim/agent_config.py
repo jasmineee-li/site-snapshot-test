@@ -184,7 +184,11 @@ def make_llm(
                 "browser-use is required for the OpenRouter provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        return ChatOpenRouter(model=model, temperature=temperature)
+        return ChatOpenRouter(
+            model=model,
+            temperature=temperature,
+            api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+        )
 
     raise ValueError(f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
 

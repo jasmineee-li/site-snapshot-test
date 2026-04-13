@@ -242,7 +242,7 @@ def test_make_llm_falls_back_to_openrouter_when_google_key_missing():
     ):
         llm = make_llm(model="gemini-3-flash-preview")
         mock_chat_cls.assert_called_once_with(
-            model="google/gemini-3-flash-preview", temperature=0
+            model="google/gemini-3-flash-preview", temperature=0, api_key="or-test-key"
         )
 
 
@@ -277,7 +277,7 @@ def test_make_llm_openrouter_model_no_fallback_needed():
         llm = make_llm(model="google/gemini-3-flash-preview")
         # Model name should be passed as-is (already has prefix)
         mock_chat_cls.assert_called_once_with(
-            model="google/gemini-3-flash-preview", temperature=0
+            model="google/gemini-3-flash-preview", temperature=0, api_key="or-test-key"
         )
 
 
@@ -294,7 +294,7 @@ def test_make_llm_falls_back_to_openrouter_for_openai_model():
     ):
         llm = make_llm(model="gpt-4o")
         mock_chat_cls.assert_called_once_with(
-            model="openai/gpt-4o", temperature=0
+            model="openai/gpt-4o", temperature=0, api_key="or-test-key"
         )
 
 
@@ -311,7 +311,7 @@ def test_make_llm_falls_back_to_openrouter_for_anthropic_model():
     ):
         llm = make_llm(model="claude-sonnet-4-6")
         mock_chat_cls.assert_called_once_with(
-            model="anthropic/claude-sonnet-4-6", temperature=0
+            model="anthropic/claude-sonnet-4-6", temperature=0, api_key="or-test-key"
         )
 
 
