@@ -259,7 +259,14 @@ def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
 
 
 def validate_adversarial_tasks(data: object) -> list[str]:
-    """Validate adversarial_tasks.json structure and cross-reference benign tasks."""
+    """Validate adversarial_tasks.json structure and cross-reference benign tasks.
+
+    Supports the **minimal output schema** where Claude only produces
+    ``id``, ``benign_task_id``, ``adversarial_data_seed``, and
+    ``adversarial_reward``.  The validator simulates the merge that the
+    orchestrator will perform (copying immutable fields from the benign
+    task) and validates the *merged* result.
+    """
     errors: list[str] = []
     if not isinstance(data, list):
         errors.append("adversarial tasks must be a JSON array")
@@ -269,7 +276,7 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         errors.append("adversarial tasks array is empty")
         return errors
 
-    # Load benign tasks for cross-reference
+    # Load benign tasks for cross-reference and merge simulation
     benign_path = Path("/workspace/tasks/benign_tasks.json")
     benign_by_id: dict[str, dict] = {}
     if benign_path.exists():
@@ -284,9 +291,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         except json.JSONDecodeError:
             errors.append("could not parse benign_tasks.json for cross-reference")
 
+    # Minimal schema only requires these fields from Claude's output.
     _REQUIRED_FIELDS = (
-        "id", "benign_task_id", "site", "instruction",
-        "adversarial_data_seed", "reward_function",
+        "id", "benign_task_id", "adversarial_data_seed",
     )
 
     for i, task in enumerate(data):
@@ -309,28 +316,30 @@ def validate_adversarial_tasks(data: object) -> list[str]:
             errors.append(
                 f"{prefix} references unknown benign_task_id {benign_task_id!r}"
             )
-
-        # Validate reward_function shape
-        reward = task.get("reward_function")
-        if not isinstance(reward, dict):
-            errors.append(f"{prefix} reward_function is not an object")
+            # Cannot simulate merge without a benign task — skip remaining checks.
             continue
-        if "benign_reward" not in reward:
-            errors.append(f"{prefix} reward_function missing benign_reward")
-        else:
-            benign_reward = reward["benign_reward"]
-            if not isinstance(benign_reward, dict):
-                errors.append(f"{prefix} reward_function.benign_reward must be an object")
-            elif "eval" not in benign_reward:
-                errors.append(f"{prefix} reward_function.benign_reward missing eval array")
-        if "adversarial_reward" not in reward:
-            errors.append(f"{prefix} reward_function missing adversarial_reward")
-        else:
-            adv_reward = reward["adversarial_reward"]
-            if not isinstance(adv_reward, dict) or not adv_reward:
-                errors.append(f"{prefix} adversarial_reward must be a non-empty object")
-            elif "type" not in adv_reward:
-                errors.append(f"{prefix} adversarial_reward missing type field")
+
+        # Simulate the orchestrator merge: copy immutable fields from the
+        # benign task so we can validate the merged result.
+        benign_task = benign_by_id.get(benign_task_id) if benign_by_id else None
+        merged = dict(task)
+        if benign_task is not None:
+            for field in ("instruction", "site", "sites", "start_urls", "data_seed"):
+                if field in benign_task:
+                    merged[field] = benign_task[field]
+
+        # Validate adversarial_reward — accept either top-level or nested.
+        adv_reward = task.get("adversarial_reward")
+        reward_fn = task.get("reward_function")
+        if adv_reward is None and isinstance(reward_fn, dict):
+            adv_reward = reward_fn.get("adversarial_reward")
+
+        if adv_reward is None:
+            errors.append(f"{prefix} missing adversarial_reward (neither top-level nor in reward_function)")
+        elif not isinstance(adv_reward, dict) or not adv_reward:
+            errors.append(f"{prefix} adversarial_reward must be a non-empty object")
+        elif "type" not in adv_reward:
+            errors.append(f"{prefix} adversarial_reward missing type field")
 
         # Validate adversarial_data_seed
         seed_errors = validate_data_seed(
@@ -338,17 +347,6 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         )
         for se in seed_errors:
             errors.append(f"{prefix} adversarial_data_seed: {se}")
-
-        # Immutable fields must match benign task
-        if benign_by_id and benign_task_id in benign_by_id:
-            benign_task = benign_by_id[benign_task_id]
-            for field in ("instruction", "site", "sites", "start_urls", "data_seed"):
-                adv_val = task.get(field)
-                benign_val = benign_task.get(field)
-                if adv_val != benign_val:
-                    errors.append(
-                        f"{prefix} {field} changed from benign task"
-                    )
 
     return errors
 

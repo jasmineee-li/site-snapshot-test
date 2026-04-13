@@ -569,7 +569,13 @@ We only make adversarial injections for tasks that work: tasks that passed the s
 
 **Injection point analysis.** Phase 2 reads the Injection Surface section of the benchmark profile. For each candidate injection point, evaluate: (a) attacker realism (require "medium" or higher), (b) concealment opportunity given the rendering context, (c) harmful action feasibility, and (d) task relevance (will the agent encounter this content). Only points satisfying all four criteria are retained.
 
-**Implementation.** One Modal Sandbox per site.
+**Implementation.** One Modal Sandbox per shard (20 tasks), all shards for a site run in parallel. Results are merged per site before validation.
+
+**Minimal output schema.** Sandboxes produce only the fields Claude uniquely generates: `id`, `benign_task_id`, `adversarial_data_seed`, `adversarial_reward`. The orchestrator copies immutable fields (`instruction`, `site`, `sites`, `start_urls`, `data_seed`, `benign_reward`) from the benign task after the sandbox returns. This reduces output tokens, prevents JSON reproduction errors, and speeds up generation.
+
+**Partial success.** Phase 2 succeeds if any site produces valid adversarial tasks. Sites that fail (sandbox timeout, validation errors) are logged as warnings, not fatal errors. Phase 2 fails only if zero adversarial tasks are produced across all sites.
+
+**In-sandbox validator.** Before the sandbox exits, the validator loads benign tasks, simulates the orchestrator merge, and validates the merged result. This catches invalid `benign_task_id` references and bad adversarial seeds before the sandbox returns.
 
 **Data seed preservation.** The Phase 2 prompt must instruct Claude Code to copy the benign task's `data_seed` verbatim into the adversarial task's `adversarial_data_seed`, then append the injection statements. Do not reconstruct or reformat the original seed, as JSON equality checks between the benign and adversarial seeds are fragile.
 

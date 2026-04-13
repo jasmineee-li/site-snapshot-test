@@ -32,12 +32,13 @@ from worldsim.seeding import validate_data_seed
 from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
+
+TASKS_PER_SHARD = 20
+
 _REQUIRED_ADVERSARIAL_FIELDS = (
     "id",
     "benign_task_id",
     "adversarial_data_seed",
-    "site",
-    "instruction",
 )
 
 
@@ -97,15 +98,28 @@ async def run(args: argparse.Namespace) -> int:
         save_state("phase_2", status="failed", reason="invalid_site_profiles")
         return 1
 
-    # Run one sandbox per site in parallel
-    results = await asyncio.gather(*[
-        _generate_injections_for_site(
-            site_name=site,
-            site_tasks=tasks,
-            profile_path=site_profiles[site],
-        )
-        for site, tasks in tasks_by_site.items()
-    ], return_exceptions=True)
+    # Shard each site's tasks into chunks of TASKS_PER_SHARD and run all
+    # shards in parallel.  Shopping (192 tasks) becomes ~8 shards instead of
+    # one 54-minute sandbox.
+    shard_coros = []
+    for site, tasks in tasks_by_site.items():
+        shards = _shard_tasks(tasks, TASKS_PER_SHARD)
+        for shard_idx, shard in enumerate(shards):
+            label = f"{site}-shard-{shard_idx}" if len(shards) > 1 else site
+            shard_coros.append(
+                _generate_injections_for_site(
+                    site_name=site,
+                    site_tasks=shard,
+                    all_site_tasks=tasks,
+                    profile_path=site_profiles[site],
+                    label=label,
+                )
+            )
+
+    shard_results = await asyncio.gather(*shard_coros, return_exceptions=True)
+
+    # Merge per-shard results back into per-site results.
+    results = _merge_shard_results(shard_results, tasks_by_site)
 
     # Merge per-site adversarial tasks, failing closed on any missing site output.
     all_adversarial: list[dict] = []
@@ -170,24 +184,76 @@ async def run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
+    """Split a task list into chunks of at most *shard_size*."""
+    return [tasks[i:i + shard_size] for i in range(0, len(tasks), shard_size)]
+
+
+def _merge_shard_results(
+    shard_results: list[SiteInjectionResult | BaseException],
+    tasks_by_site: dict[str, list[dict]],
+) -> list[SiteInjectionResult]:
+    """Collapse per-shard results into one SiteInjectionResult per site."""
+    site_tasks_acc: dict[str, list[dict]] = {}
+    site_errors_acc: dict[str, list[str]] = {}
+    # Track exceptions as site-level errors.
+    for result in shard_results:
+        if isinstance(result, BaseException):
+            # Cannot attribute to a specific site, surface as-is.
+            site_errors_acc.setdefault("_unknown_", []).append(str(result))
+            continue
+        site = result.site_name
+        site_tasks_acc.setdefault(site, []).extend(result.adversarial_tasks)
+        site_errors_acc.setdefault(site, []).extend(result.errors)
+
+    merged: list[SiteInjectionResult] = []
+    for site in tasks_by_site:
+        merged.append(SiteInjectionResult(
+            site_name=site,
+            adversarial_tasks=site_tasks_acc.get(site, []),
+            errors=site_errors_acc.get(site, []),
+        ))
+    # Surface any unattributed exceptions as a synthetic result.
+    unknown_errors = site_errors_acc.get("_unknown_", [])
+    if unknown_errors:
+        merged.append(SiteInjectionResult("_unknown_", [], unknown_errors))
+    return merged
+
+
 async def _generate_injections_for_site(
     site_name: str,
     site_tasks: list[dict],
-    profile_path: Path,
+    all_site_tasks: list[dict] | None = None,
+    profile_path: Path | None = None,
+    label: str | None = None,
 ) -> SiteInjectionResult:
-    """Generate adversarial injections for one site via Modal Sandbox.
+    """Generate adversarial injections for a shard (or full set) of tasks via Modal Sandbox.
+
+    Args:
+        site_name: Canonical site name (e.g. "shopping").
+        site_tasks: The subset of benign tasks staged into this sandbox.
+        all_site_tasks: The full set of benign tasks for the site, used for
+            post-processing validation. Defaults to *site_tasks* when None
+            (single-shard case).
+        profile_path: Path to the site's benchmark profile.
+        label: Sandbox label for logging / Modal UI.
 
     Returns:
-        Validated sandbox output for one site.
+        Validated sandbox output for the shard.
     """
-    if not profile_path.exists():
+    if all_site_tasks is None:
+        all_site_tasks = site_tasks
+    if label is None:
+        label = site_name
+
+    if profile_path is None or not profile_path.exists():
         logger.warning("No profile for site %r at %s — skipping", site_name, profile_path)
         return SiteInjectionResult(site_name, [], [f"profile not found at {profile_path}"])
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
 
-        # Stage benign tasks for this site
+        # Stage only this shard's benign tasks into the sandbox
         tasks_file = tmp / "benign_tasks.json"
         tasks_file.write_text(json.dumps(site_tasks, indent=2))
 
@@ -196,8 +262,8 @@ async def _generate_injections_for_site(
             "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
         }
 
-        logger.info("Phase 2: launching injection sandbox for site %r (%d tasks)",
-                     site_name, len(site_tasks))
+        logger.info("Phase 2: launching injection sandbox %r (%d tasks)",
+                     label, len(site_tasks))
 
         outputs = await run_claude_in_sandbox(
             site_files=sandbox_files,
@@ -206,15 +272,15 @@ async def _generate_injections_for_site(
                 validation_command="adversarial-tasks",
             ),
             output_paths=["/workspace/output/adversarial_tasks.json"],
-            label=site_name,
+            label=label,
         )
 
-    logger.info("Phase 2: site %r sandbox finished", site_name)
+    logger.info("Phase 2: sandbox %r finished", label)
     cost_tracker.record("phase_2", outputs.get("_summary"), site=site_name)
 
     adv_json = outputs.get("/workspace/output/adversarial_tasks.json")
     if not adv_json:
-        logger.warning("Phase 2: sandbox for site %r did not produce output", site_name)
+        logger.warning("Phase 2: sandbox %r did not produce output", label)
         return SiteInjectionResult(
             site_name,
             [],
@@ -226,28 +292,54 @@ async def _generate_injections_for_site(
         if not isinstance(adv_tasks, list):
             adv_tasks = [adv_tasks]
     except json.JSONDecodeError as e:
-        logger.error("Phase 2: invalid JSON from site %r sandbox: %s", site_name, e)
+        logger.error("Phase 2: invalid JSON from sandbox %r: %s", label, e)
         return SiteInjectionResult(site_name, [], [f"invalid sandbox JSON: {e}"])
 
     # Programmatically copy immutable fields from benign tasks instead of
-    # relying on the LLM to reproduce them byte-for-byte. The LLM only needs
-    # to produce adversarial_data_seed and adversarial_reward.
-    benign_by_id = {str(t.get("id", "")): t for t in site_tasks}
+    # relying on the LLM to reproduce them byte-for-byte.
+    _merge_immutable_fields(adv_tasks, all_site_tasks)
+
+    validated, errors = _validate_generated_adversarial_tasks(adv_tasks, all_site_tasks)
+    return SiteInjectionResult(site_name, validated, errors)
+
+
+def _merge_immutable_fields(adv_tasks: list[dict], benign_tasks: list[dict]) -> None:
+    """Copy immutable fields from benign tasks into adversarial task dicts.
+
+    Handles both the full schema (where ``reward_function`` already exists)
+    and the minimal schema (where only ``adversarial_reward`` is present).
+    """
+    benign_by_id = {str(t.get("id", "")): t for t in benign_tasks}
     for adv_task in adv_tasks:
         benign_id = str(adv_task.get("benign_task_id", ""))
         benign_task = benign_by_id.get(benign_id)
         if benign_task is None:
             continue
+
+        # Copy immutable structural fields.
         for field in ("instruction", "site", "sites", "start_urls", "data_seed"):
             if field in benign_task:
                 adv_task[field] = json.loads(json.dumps(benign_task[field]))
-        reward = adv_task.get("reward_function", {})
-        if isinstance(reward, dict):
-            reward["benign_reward"] = json.loads(json.dumps(benign_task.get("reward_function", {})))
-            adv_task["reward_function"] = reward
 
-    validated, errors = _validate_generated_adversarial_tasks(adv_tasks, site_tasks)
-    return SiteInjectionResult(site_name, validated, errors)
+        # Handle reward_function construction.
+        # Minimal schema: adversarial_reward is a top-level field, no reward_function.
+        # Full schema: reward_function already has benign_reward + adversarial_reward.
+        adv_reward_top = adv_task.pop("adversarial_reward", None)
+        reward = adv_task.get("reward_function")
+
+        if reward is None and adv_reward_top is not None:
+            # Minimal schema — construct reward_function from scratch.
+            adv_task["reward_function"] = {
+                "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
+                "adversarial_reward": adv_reward_top,
+            }
+        elif isinstance(reward, dict):
+            # Full schema — overwrite benign_reward to guarantee correctness,
+            # and lift top-level adversarial_reward if present.
+            reward["benign_reward"] = json.loads(json.dumps(benign_task.get("reward_function", {})))
+            if adv_reward_top is not None and "adversarial_reward" not in reward:
+                reward["adversarial_reward"] = adv_reward_top
+            adv_task["reward_function"] = reward
 
 
 def _collect_site_profiles(

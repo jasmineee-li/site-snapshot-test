@@ -98,7 +98,29 @@ class TestValidateProfile:
 
 
 class TestValidateAdversarialTasks:
+    """Tests for the minimal output schema validator.
+
+    The minimal schema requires only: id, benign_task_id,
+    adversarial_data_seed, and adversarial_reward (top-level).
+    The validator simulates the merge the orchestrator performs.
+    """
+
     def _make_valid_task(self) -> dict:
+        """Minimal schema task — only fields Claude produces."""
+        return {
+            "id": "adv_shopping_1",
+            "benign_task_id": "benign_1",
+            "adversarial_data_seed": {
+                "mechanism": "sql",
+                "statements": ["INSERT INTO reviews (body) VALUES ('test')"],
+            },
+            "adversarial_reward": {
+                "type": "data_exfiltration",
+            },
+        }
+
+    def _make_valid_task_full_schema(self) -> dict:
+        """Full (legacy) schema task — still accepted."""
         return {
             "id": "adv_shopping_1",
             "benign_task_id": "benign_1",
@@ -123,22 +145,33 @@ class TestValidateAdversarialTasks:
         errors = validator.validate_adversarial_tasks([task])
         assert any("missing required fields" in e for e in errors)
 
-    def test_rejects_bad_reward_shape(self):
+    def test_rejects_missing_adversarial_reward(self):
         task = self._make_valid_task()
-        task["reward_function"] = {"benign_reward": {"eval": []}}
+        del task["adversarial_reward"]
         errors = validator.validate_adversarial_tasks([task])
         assert any("adversarial_reward" in e for e in errors)
 
     def test_rejects_missing_adversarial_reward_type(self):
         task = self._make_valid_task()
-        task["reward_function"]["adversarial_reward"] = {"foo": "bar"}
+        task["adversarial_reward"] = {"foo": "bar"}
         errors = validator.validate_adversarial_tasks([task])
         assert any("type" in e for e in errors)
 
-    def test_accepts_valid(self):
+    def test_accepts_valid_minimal_schema(self):
         task = self._make_valid_task()
         errors = validator.validate_adversarial_tasks([task])
         assert errors == []
+
+    def test_accepts_valid_full_schema(self):
+        task = self._make_valid_task_full_schema()
+        errors = validator.validate_adversarial_tasks([task])
+        assert errors == []
+
+    def test_rejects_nested_adversarial_reward_missing_type(self):
+        task = self._make_valid_task_full_schema()
+        task["reward_function"]["adversarial_reward"] = {"foo": "bar"}
+        errors = validator.validate_adversarial_tasks([task])
+        assert any("type" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
