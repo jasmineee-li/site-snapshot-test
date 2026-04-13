@@ -40,11 +40,11 @@ from typing import Any
 import requests
 
 from worldsim.agent_config import (
+    DEFAULT_MODEL,
     bind_task_to_instance,
     execution_instance_dict,
     instances_for_site,
     make_agent_factory,
-    prepare_tasks_for_execution,
     resolve_task_inputs,
     run_tasks_by_site,
     task_reset_endpoints,
@@ -157,7 +157,7 @@ async def run(args: argparse.Namespace) -> int:
     logger.info("Phase 4: evaluating %d adversarial tasks across %d instances",
                 len(tasks), len(config.instances))
 
-    agent_model = getattr(args, "agent_model", None) or "gemini-3-flash-preview"
+    agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
     save_state(
@@ -168,15 +168,10 @@ async def run(args: argparse.Namespace) -> int:
         agent_model=agent_model,
         agent_provider=agent_provider,
     )
-    prepared_tasks, _ = prepare_tasks_for_execution(
-        tasks,
-        config.instances,
-        config_url_placeholders=config.url_placeholders,
-    )
-
-    # Initial adversarial run
+    # Initial adversarial run — run_tasks_by_site calls
+    # prepare_tasks_for_execution internally, so no need to call it here.
     results = await run_tasks_by_site(
-        tasks=prepared_tasks,
+        tasks=tasks,
         instances=config.instances,
         agent_factory=agent_factory,
         task_runner=run_adversarial_task,
@@ -188,7 +183,7 @@ async def run(args: argparse.Namespace) -> int:
     profiles_dir = state_dir / "phase_0c"
     task_by_id = {
         str(task.get("id", "unknown")): task
-        for task in prepared_tasks
+        for task in tasks
     }
     final_results: list[dict] = []
     for result in results:

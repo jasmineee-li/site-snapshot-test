@@ -30,10 +30,11 @@ from typing import Any
 import requests
 
 from worldsim.agent_config import (
+    DEFAULT_MODEL,
+    RUNTIME_METADATA_KEY,
     bind_task_to_instance,
     execution_instance_dict,
     make_agent_factory,
-    prepare_tasks_for_execution,
     resolve_task_inputs,
     run_tasks_by_site,
     task_reset_endpoints,
@@ -106,7 +107,7 @@ async def run(args: argparse.Namespace) -> int:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         task_dir_root = state_dir / "phase_3" / timestamp
 
-    agent_model = getattr(args, "agent_model", None) or "gemini-3-flash-preview"
+    agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     agent_provider = getattr(args, "agent_provider", None)
     # Fail fast if Claude Code auth is missing — diagnosis sandboxes need it.
     try:
@@ -132,19 +133,16 @@ async def run(args: argparse.Namespace) -> int:
         len(config.instances),
     )
 
-    prepared_tasks, _ = prepare_tasks_for_execution(
-        benign_tasks,
-        config.instances,
-        config_url_placeholders=config.url_placeholders,
-    )
+    # Build lookup from raw tasks — run_tasks_by_site calls
+    # prepare_tasks_for_execution internally, so no need to call it here.
     prepared_by_id = {
         str(task.get("id", "unknown")): task
-        for task in prepared_tasks
+        for task in benign_tasks
     }
 
     # Run evaluation via worker pool, routing tasks only to matching site instances.
     results = await run_tasks_by_site(
-        tasks=prepared_tasks,
+        tasks=benign_tasks,
         instances=config.instances,
         agent_factory=agent_factory,
         task_runner=run_task,
@@ -248,9 +246,15 @@ async def run(args: argparse.Namespace) -> int:
             len(benign_tasks),
         )
 
+    # Strip internal runtime metadata before persisting to disk.
+    clean_tasks = [
+        {k: v for k, v in t.items() if k != RUNTIME_METADATA_KEY}
+        for t in validated_tasks
+    ]
+
     output_dir = state_dir / "phase_3"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "validated_tasks.json").write_text(json.dumps(validated_tasks, indent=2))
+    (output_dir / "validated_tasks.json").write_text(json.dumps(clean_tasks, indent=2))
     (output_dir / "results.json").write_text(json.dumps(results, indent=2))
     (output_dir / "diagnoses.json").write_text(json.dumps(diagnosed, indent=2))
 
