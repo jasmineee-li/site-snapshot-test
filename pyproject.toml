@@ -25,6 +25,13 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.11",
 ]
+comparison = [
+    "agentlab @ git+https://github.com/ServiceNow/AgentLab@71ec578c",
+    "browsergym>=0.13",
+    "doomarena-core @ git+https://github.com/ServiceNow/DoomArena#subdirectory=doomarena/core",
+    "doomarena-browsergym @ git+https://github.com/ServiceNow/DoomArena#subdirectory=doomarena/browsergym",
+    "litellm>=1.40",
+]
 
 [project.scripts]
 worldsim = "worldsim.main:main"

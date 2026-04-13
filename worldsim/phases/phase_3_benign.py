@@ -130,7 +130,9 @@ async def run(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
-    # Fail fast if Claude Code auth is missing — diagnosis sandboxes need it.
+    runner_name = getattr(args, "runner", "browser_use")
+
+    # Fail fast if Claude Code auth is missing, diagnosis sandboxes need it.
     try:
         preflight_auth_check()
     except RuntimeError as exc:
@@ -138,7 +140,13 @@ async def run(args: argparse.Namespace) -> int:
         save_state("phase_3", status="failed", reason="auth_preflight_failed")
         return 1
 
-    agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
+    # Resolve the runner backend (browser_use or agentlab).
+    from worldsim.runners import get_runner_module
+
+    runner_mod = get_runner_module(runner_name)
+    agent_factory = runner_mod.make_agent_factory(model=agent_model, provider=agent_provider)
+    task_runner_fn = runner_mod.make_task_runner()
+
     save_state(
         "phase_3",
         status="running",
@@ -147,19 +155,21 @@ async def run(args: argparse.Namespace) -> int:
         agent_model=agent_model,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
+        runner=runner_name,
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
     )
 
     logger.info(
-        "Phase 3: validating %d benign tasks across %d instances",
+        "Phase 3: validating %d benign tasks across %d instances (runner=%s)",
         len(benign_tasks),
         len(config.instances),
+        runner_name,
     )
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(benign_tasks, profiles_dir)
 
-    # Build lookup from raw tasks — run_tasks_by_site calls
+    # Build lookup from raw tasks, run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
     prepared_by_id = {str(task.get("id", "unknown")): task for task in benign_tasks}
 
@@ -182,7 +192,7 @@ async def run(args: argparse.Namespace) -> int:
         tasks=benign_tasks,
         instances=config.instances,
         agent_factory=agent_factory,
-        task_runner=_bound_run_task,
+        task_runner=_bound_run_task if runner_name == "browser_use" else task_runner_fn,
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
         resume=resume,
