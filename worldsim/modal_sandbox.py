@@ -147,7 +147,7 @@ async def run_claude_in_sandbox(
     site_files: dict[str, str],
     prompt: str,
     output_paths: list[str],
-    timeout: int = 3600,
+    timeout: int = 14400,
     model: str = "claude-opus-4-6",
     volumes: dict[str, modal.Volume] | None = None,
     label: str = "",

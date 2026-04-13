@@ -501,7 +501,7 @@ class BrowserUseAgent:
         *,
         use_vision: bool = False,
         max_steps: int = 50,
-        timeout: int = 300,
+        timeout: int = 10800,
         headless: bool = True,
     ) -> None:
         # ``llm`` is configured by the caller (see worldsim/main.py).
