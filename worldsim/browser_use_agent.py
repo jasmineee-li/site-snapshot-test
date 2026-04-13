@@ -538,12 +538,11 @@ class BrowserUseAgent:
                 use_vision=self.use_vision,
                 save_conversation_path=str(task_dir / "conversations"),
                 initial_actions=initial_actions,
-                max_steps=self.max_steps,
             )
 
             t0 = time.time()
             try:
-                history = await asyncio.wait_for(agent.run(), timeout=self.timeout)
+                history = await asyncio.wait_for(agent.run(max_steps=self.max_steps), timeout=self.timeout)
                 elapsed = time.time() - t0
                 status = "success" if history.is_done() else "failure"
             except TimeoutError:
