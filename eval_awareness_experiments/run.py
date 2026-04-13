@@ -20,6 +20,7 @@ from eval_awareness_experiments.experiments.p_eval import PEvalExperiment
 from eval_awareness_experiments.experiments.comparative import ComparativeExperiment
 from eval_awareness_experiments.experiments.transcript_awareness import TranscriptAwarenessExperiment
 from eval_awareness_experiments.experiments.open_ended import OpenEndedExperiment
+from eval_awareness_experiments.experiments.trajectory_awareness import TrajectoryAwarenessExperiment
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ EXPERIMENT_CLASSES = {
     "comparative": ComparativeExperiment,
     "transcript_awareness": TranscriptAwarenessExperiment,
     "open_ended": OpenEndedExperiment,
+    "trajectory_awareness": TrajectoryAwarenessExperiment,
 }
 
 
@@ -70,6 +72,27 @@ def load_manifest(manifest_path: Path) -> list[WebsiteSample]:
                 screenshot_path=d.get("screenshot_path"),
                 metadata=d.get("metadata", {}),
             ))
+
+        # Expand trajectories into samples (for trajectory_awareness experiment)
+        for traj in d.get("trajectories", []):
+            traj_id = f"{d['id']}_traj_{traj.get('agent', 'unk')}_{traj.get('task_id', 'unk')}"
+            samples.append(WebsiteSample(
+                id=traj_id,
+                source=d["source"],
+                website_type=d.get("metadata", {}).get("website_type")
+                    or d["id"].split("_", 1)[-1],
+                metadata={
+                    **d.get("metadata", {}),
+                    "trajectory_dir": traj.get("dir", ""),
+                    "benchmark": d["source"],
+                    "agent": traj.get("agent", ""),
+                    "task_id": traj.get("task_id", ""),
+                    "instruction": traj.get("instruction", ""),
+                    "passed": traj.get("passed"),
+                    "is_trajectory": True,
+                },
+            ))
+
     return samples
 
 
@@ -130,7 +153,10 @@ async def run_experiment(config: dict) -> None:
         exp_output = output_dir / config.get("name", experiment_name) / model_name.replace("/", "_")
 
         exp_cls = EXPERIMENT_CLASSES[experiment_name]
-        experiment = exp_cls(model=model, output_dir=exp_output)
+        exp_kwargs = {}
+        if experiment_name == "trajectory_awareness" and config.get("judges"):
+            exp_kwargs["judge_names"] = config["judges"]
+        experiment = exp_cls(model=model, output_dir=exp_output, **exp_kwargs)
 
         if experiment_name == "comparative":
             max_per_side = config.get("max_per_side")
@@ -160,8 +186,10 @@ def main():
                         help="Models to use")
     parser.add_argument("--formats", type=str, nargs="+", default=["html"],
                         help="Format types: html, axtree, screenshot")
+    parser.add_argument("--judges", type=str, nargs="+", default=None,
+                        help="Judge names for trajectory_awareness experiment")
     parser.add_argument("--sources", type=str, nargs="+", default=None,
-                        help="Filter by source: worldsim, webarena, agentcompany, real")
+                        help="Filter by source: worldsim, webarena, agentcompany, real, doomarena, wasp, os-harm")
     parser.add_argument("--website-types", type=str, nargs="+", default=None,
                         help="Filter by website type: github, gitlab, etc.")
     parser.add_argument("--max-samples", type=int, default=None,
@@ -186,6 +214,7 @@ def main():
             "website_types": args.website_types,
             "max_samples": args.max_samples,
             "seed": args.seed,
+            "judges": args.judges,
             "manifest": args.manifest,
             "output_dir": args.output_dir,
         }

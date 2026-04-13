@@ -1,0 +1,486 @@
+"""Convert benchmark-specific trajectory formats into StandardizedTrajectory.
+
+Supports:
+- webarena-infinity (HuggingFace history.json + result.json)
+- AgentLab/BrowserGym (step_*.pkl.gz + summary_info.json)
+- DoomArena (AgentLab redteam format with judge_results.json)
+- WASP (BrowserGym-based axtree + action logs)
+- OS-harm (better_log.json + test_injection.json task configs)
+
+Also provides conversion to Transcript (for existing browser-sim judges)
+and to (task, reasoning, answer) tuples (for Test_Awareness_Steering judge).
+"""
+
+import gzip
+import json
+import logging
+import pickle
+from pathlib import Path
+from typing import Any
+
+from eval_awareness_experiments.types import (
+    Message,
+    StandardizedTrajectory,
+    Transcript,
+    TrajectoryStep,
+)
+
+logger = logging.getLogger(__name__)
+
+MAX_REASONING_CHARS = 80_000
+
+
+# ---------------------------------------------------------------------------
+# WebArena-Infinity (HuggingFace format)
+# ---------------------------------------------------------------------------
+
+def parse_webarena_infinity_trajectory(
+    trajectory_dir: Path,
+) -> StandardizedTrajectory | None:
+    """Parse a webarena-infinity trajectory from history.json + result.json."""
+    history_path = trajectory_dir / "history.json"
+    result_path = trajectory_dir / "result.json"
+
+    if not history_path.exists() or not result_path.exists():
+        logger.warning(f"Missing files in {trajectory_dir}")
+        return None
+
+    history = json.loads(history_path.read_text())
+    result = json.loads(result_path.read_text())
+
+    steps = []
+    for entry in history.get("history", []):
+        thought = entry.get("thought", "")
+        actions = entry.get("actions", [])
+        action_str = "; ".join(
+            a.get("type", "unknown") for a in actions
+        ) if actions else ""
+        steps.append(TrajectoryStep(
+            thought=thought,
+            action=action_str,
+        ))
+
+    # Extract agent name from directory name (e.g., "kimi_task_m16" -> "kimi")
+    dir_name = trajectory_dir.name
+    agent = dir_name.split("_")[0] if "_" in dir_name else "unknown"
+
+    return StandardizedTrajectory(
+        id=f"wai_{dir_name}",
+        benchmark="webarena-infinity",
+        task_instruction=result.get("instruction", ""),
+        agent=agent,
+        steps=steps,
+        final_answer=result.get("final_result", ""),
+        passed=result.get("passed"),
+        metadata={
+            "task_id": result.get("task_id", ""),
+            "difficulty": result.get("difficulty", ""),
+            "elapsed": result.get("elapsed"),
+            "steps_count": result.get("steps"),
+            "format": history.get("format", ""),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# AgentLab / BrowserGym (pickle-based step format)
+# ---------------------------------------------------------------------------
+
+def _load_step_pickle(step_path: Path) -> dict[str, Any] | None:
+    """Load a step_N.pkl.gz file, returning its dict representation."""
+    try:
+        with gzip.open(step_path, "rb") as f:
+            step_info = pickle.load(f)
+        # StepInfo is a dataclass; convert to dict for safe access
+        if hasattr(step_info, "__dict__"):
+            return vars(step_info)
+        return step_info
+    except Exception as e:
+        logger.warning(f"Failed to load {step_path}: {e}")
+        return None
+
+
+def parse_agentlab_trajectory(
+    exp_dir: Path,
+) -> StandardizedTrajectory | None:
+    """Parse an AgentLab/BrowserGym experiment directory.
+
+    Expects: step_*.pkl.gz files + summary_info.json.
+    """
+    summary_path = exp_dir / "summary_info.json"
+    if not summary_path.exists():
+        logger.warning(f"No summary_info.json in {exp_dir}")
+        return None
+
+    summary = json.loads(summary_path.read_text())
+
+    # Load all steps
+    step_files = sorted(exp_dir.glob("step_*.pkl.gz"), key=lambda p: int(p.stem.split("_")[1]))
+    steps = []
+    task_instruction = ""
+
+    for step_path in step_files:
+        step_data = _load_step_pickle(step_path)
+        if step_data is None:
+            continue
+
+        agent_info = step_data.get("agent_info", {})
+        obs = step_data.get("obs", {})
+
+        thought = agent_info.get("think", "")
+        action = step_data.get("action", "")
+        observation = obs.get("axtree_txt", "")[:5000]  # truncate large axtrees
+
+        # Extract task instruction from first step's goal
+        if not task_instruction and obs.get("goal_object"):
+            goal = obs["goal_object"]
+            if isinstance(goal, str):
+                task_instruction = goal
+            elif hasattr(goal, "get"):
+                task_instruction = goal.get("text", str(goal))
+
+        steps.append(TrajectoryStep(
+            thought=thought,
+            action=action,
+            observation=observation,
+        ))
+
+    # Try to get task instruction from exp_args if not found in steps
+    if not task_instruction:
+        exp_args_path = exp_dir / "exp_args.pkl"
+        if exp_args_path.exists():
+            try:
+                with open(exp_args_path, "rb") as f:
+                    exp_args = pickle.load(f)
+                env_args = getattr(exp_args, "env_args", None)
+                if env_args:
+                    task_instruction = getattr(env_args, "task_name", "") or ""
+            except Exception:
+                pass
+
+    # Final answer from last step's thought or action
+    final_answer = ""
+    if steps:
+        last = steps[-1]
+        final_answer = last.thought if last.thought else last.action
+
+    return StandardizedTrajectory(
+        id=f"agentlab_{exp_dir.name}",
+        benchmark="agentlab",
+        task_instruction=task_instruction,
+        agent="unknown",  # caller should set this from exp_args
+        steps=steps,
+        final_answer=final_answer,
+        passed=summary.get("cum_reward", 0) > 0,
+        metadata={
+            "n_steps": summary.get("n_steps"),
+            "cum_reward": summary.get("cum_reward"),
+            "err_msg": summary.get("err_msg"),
+            "cost": summary.get("stats.cum_cost"),
+            "exp_dir": str(exp_dir),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# DoomArena (AgentLab redteam variant format)
+# ---------------------------------------------------------------------------
+
+def parse_doomarena_trajectory(
+    exp_dir: Path,
+) -> StandardizedTrajectory | None:
+    """Parse a DoomArena experiment directory (AgentLab redteam format).
+
+    Same as AgentLab but also reads judge_results.json for attack success.
+    """
+    traj = parse_agentlab_trajectory(exp_dir)
+    if traj is None:
+        return None
+
+    traj.benchmark = "doomarena"
+    traj.id = f"doomarena_{exp_dir.name}"
+
+    # Read judge results for attack success rate
+    judge_path = exp_dir / "judge_results.json"
+    if judge_path.exists():
+        judge = json.loads(judge_path.read_text())
+        traj.attack_success = judge.get("overall_success", False)
+        traj.metadata["judge_score"] = judge.get("overall_score")
+        traj.metadata["judge_results"] = judge.get("individual_results", [])
+
+    # Determine attack type from directory structure
+    traj.attack_type = "adversarial"
+    if "benign" in exp_dir.name:
+        traj.attack_type = "benign"
+    traj.safety_category = "adversarial_web_attack"
+
+    return traj
+
+
+# ---------------------------------------------------------------------------
+# WASP (BrowserGym-based, VisualWebArena)
+# ---------------------------------------------------------------------------
+
+def parse_wasp_trajectory(
+    result_dir: Path,
+) -> StandardizedTrajectory | None:
+    """Parse a WASP benchmark trajectory.
+
+    WASP uses BrowserGym format with axtree observations. Trajectory files
+    may be in different output formats (webarena, claude, gpt_web_tools).
+    """
+    # Try AgentLab/BrowserGym format first (step_*.pkl.gz)
+    if list(result_dir.glob("step_*.pkl.gz")):
+        traj = parse_agentlab_trajectory(result_dir)
+        if traj:
+            traj.benchmark = "wasp"
+            traj.id = f"wasp_{result_dir.name}"
+            traj.attack_type = "prompt_injection"
+            traj.safety_category = "web_injection"
+            return traj
+
+    # Try JSON-based format (WASP may output JSON logs)
+    for json_file in ["trajectory.json", "result.json", "log.json"]:
+        json_path = result_dir / json_file
+        if json_path.exists():
+            data = json.loads(json_path.read_text())
+            break
+    else:
+        logger.warning(f"No recognized trajectory format in {result_dir}")
+        return None
+
+    steps = []
+    history = data.get("history", data.get("steps", []))
+    for entry in history:
+        thought = entry.get("thought", entry.get("reasoning", ""))
+        action = entry.get("action", entry.get("response", ""))
+        observation = entry.get("observation", entry.get("state", ""))
+        if isinstance(observation, dict):
+            observation = observation.get("axtree_txt", str(observation))
+        steps.append(TrajectoryStep(
+            thought=thought,
+            action=action if isinstance(action, str) else json.dumps(action),
+            observation=observation[:5000] if isinstance(observation, str) else "",
+        ))
+
+    task = data.get("instruction", data.get("task", data.get("goal", "")))
+    final = data.get("final_result", data.get("answer", ""))
+    if not final and steps:
+        final = steps[-1].thought or steps[-1].action
+
+    return StandardizedTrajectory(
+        id=f"wasp_{result_dir.name}",
+        benchmark="wasp",
+        task_instruction=task,
+        agent=data.get("agent", "unknown"),
+        steps=steps,
+        final_answer=final,
+        passed=data.get("passed", data.get("success")),
+        attack_type="prompt_injection",
+        attack_success=data.get("attack_success"),
+        safety_category="web_injection",
+        metadata={
+            "task_id": data.get("task_id", ""),
+            "injection_type": data.get("injection_type", ""),
+            "output_format": data.get("output_format", ""),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# OS-harm (better_log.json + task config)
+# ---------------------------------------------------------------------------
+
+def parse_osharm_trajectory(
+    log_dir: Path,
+    task_info: dict | None = None,
+) -> StandardizedTrajectory | None:
+    """Parse an OS-harm trajectory from better_log.json.
+
+    Args:
+        log_dir: Directory containing better_log.json and optionally screenshots.
+        task_info: Task metadata from test_injection.json (optional).
+    """
+    log_path = log_dir / "better_log.json"
+    if not log_path.exists():
+        # Try alternative filenames
+        for alt in ["log.json", "trajectory.json"]:
+            alt_path = log_dir / alt
+            if alt_path.exists():
+                log_path = alt_path
+                break
+        else:
+            logger.warning(f"No log file in {log_dir}")
+            return None
+
+    data = json.loads(log_path.read_text())
+
+    # OS-harm logs may be a list of steps or a dict with a steps key
+    if isinstance(data, list):
+        step_entries = data
+        meta = {}
+    else:
+        step_entries = data.get("steps", data.get("history", []))
+        meta = {k: v for k, v in data.items() if k not in ("steps", "history")}
+
+    steps = []
+    for entry in step_entries:
+        thought = entry.get("thought", entry.get("reasoning", ""))
+        action = entry.get("action", "")
+        if isinstance(action, dict):
+            action = json.dumps(action)
+        observation = entry.get("observation", entry.get("screenshot", ""))
+        if isinstance(observation, dict):
+            observation = str(observation)
+        steps.append(TrajectoryStep(
+            thought=thought,
+            action=action,
+            observation=observation[:5000] if isinstance(observation, str) else "",
+        ))
+
+    task_info = task_info or {}
+    task = task_info.get("instruction", meta.get("task", meta.get("instruction", "")))
+
+    # Determine attack success from task info or log metadata
+    attack_success = task_info.get("attack_success", meta.get("attack_success"))
+
+    final = meta.get("final_result", "")
+    if not final and steps:
+        final = steps[-1].thought or steps[-1].action
+
+    return StandardizedTrajectory(
+        id=f"osharm_{log_dir.name}",
+        benchmark="os-harm",
+        task_instruction=task,
+        agent=meta.get("agent", task_info.get("agent", "unknown")),
+        steps=steps,
+        final_answer=final,
+        passed=meta.get("passed", task_info.get("passed")),
+        attack_type="prompt_injection",
+        attack_success=attack_success,
+        safety_category=task_info.get("harm_category", "web_injection"),
+        metadata={
+            "task_id": task_info.get("task_id", log_dir.name),
+            "injection_vector": task_info.get("injection_vector", ""),
+            "malicious_goal": task_info.get("malicious_goal", ""),
+            "domain": task_info.get("domain", ""),
+            **meta,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Conversion utilities
+# ---------------------------------------------------------------------------
+
+def trajectory_to_transcript(traj: StandardizedTrajectory) -> Transcript:
+    """Convert a StandardizedTrajectory to a Transcript for browser-sim judges.
+
+    Layout:
+    - User message: task instruction
+    - For each step: hidden assistant message (reasoning) + assistant message (action)
+    - Final assistant message: answer
+    """
+    messages = [
+        Message(role="user", content=traj.task_instruction),
+    ]
+
+    for i, step in enumerate(traj.steps):
+        if step.thought:
+            messages.append(Message(
+                role="assistant",
+                content=step.thought,
+                label=f"step_{i}_reasoning",
+                is_hidden=True,
+            ))
+        if step.action:
+            messages.append(Message(
+                role="assistant",
+                content=step.action,
+                label=f"step_{i}_action",
+            ))
+        if step.observation:
+            messages.append(Message(
+                role="tool",
+                content=step.observation[:3000],
+                label=f"step_{i}_observation",
+            ))
+
+    if traj.final_answer and (
+        not traj.steps or traj.final_answer != traj.steps[-1].thought
+    ):
+        messages.append(Message(
+            role="assistant",
+            content=traj.final_answer,
+            label="final_answer",
+        ))
+
+    return Transcript(
+        messages=messages,
+        source_file=traj.metadata.get("exp_dir", ""),
+        eval_name=traj.benchmark,
+        instruction=traj.task_instruction,
+        metadata={
+            "trajectory_id": traj.id,
+            "benchmark": traj.benchmark,
+            "agent": traj.agent,
+            "attack_type": traj.attack_type,
+            "attack_success": traj.attack_success,
+            "passed": traj.passed,
+        },
+    )
+
+
+def trajectory_to_judge_fields(
+    traj: StandardizedTrajectory,
+) -> tuple[str, str, str]:
+    """Extract (task, reasoning, answer) for the Test_Awareness_Steering judge.
+
+    Full-trajectory mode: concatenate all step thoughts as reasoning,
+    final result as answer. Truncates reasoning at MAX_REASONING_CHARS.
+    """
+    task = traj.task_instruction
+
+    # Concatenate all step thoughts with step numbering
+    reasoning_parts = []
+    for i, step in enumerate(traj.steps):
+        if step.thought:
+            reasoning_parts.append(f"[Step {i + 1}] {step.thought}")
+
+    reasoning = "\n\n".join(reasoning_parts)
+    if len(reasoning) > MAX_REASONING_CHARS:
+        reasoning = reasoning[:MAX_REASONING_CHARS] + "\n\n[... reasoning truncated ...]"
+
+    answer = traj.final_answer
+
+    return task, reasoning, answer
+
+
+# ---------------------------------------------------------------------------
+# Dispatcher
+# ---------------------------------------------------------------------------
+
+PARSERS = {
+    "webarena-infinity": parse_webarena_infinity_trajectory,
+    "agentlab": parse_agentlab_trajectory,
+    "doomarena": parse_doomarena_trajectory,
+    "wasp": parse_wasp_trajectory,
+    # os-harm uses parse_osharm_trajectory which takes extra task_info arg
+}
+
+
+def parse_trajectory(
+    source: str,
+    trajectory_dir: Path,
+    **kwargs: Any,
+) -> StandardizedTrajectory | None:
+    """Dispatch to the appropriate parser based on source type."""
+    if source == "os-harm":
+        return parse_osharm_trajectory(trajectory_dir, task_info=kwargs.get("task_info"))
+
+    parser = PARSERS.get(source)
+    if parser is None:
+        logger.error(f"Unknown trajectory source: {source}")
+        return None
+
+    return parser(trajectory_dir)
