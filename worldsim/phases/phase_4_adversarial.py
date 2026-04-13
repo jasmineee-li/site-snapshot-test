@@ -42,6 +42,7 @@ import requests
 from worldsim.agent_config import (
     DEFAULT_MODEL,
     bind_task_to_instance,
+    cap_tasks_per_site,
     execution_instance_dict,
     instances_for_site,
     make_agent_factory,
@@ -56,7 +57,7 @@ from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async, validate_data_seed
-from worldsim.site_lock import site_lock
+from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
@@ -118,6 +119,18 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("No tasks to evaluate")
         return 1
 
+    # Per-site cap for smoke testing (applied after validated-task filtering)
+    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    if max_tasks_per_site is not None:
+        pre_cap = len(tasks)
+        tasks = cap_tasks_per_site(tasks, max_tasks_per_site)
+        logger.info(
+            "Phase 4: capped to %d/%d tasks (max %d per site)",
+            len(tasks),
+            pre_cap,
+            max_tasks_per_site,
+        )
+
     # Load benchmark config
     instances_path = getattr(args, "instances", None)
     if not instances_path or not Path(instances_path).exists():
@@ -165,6 +178,7 @@ async def run(args: argparse.Namespace) -> int:
         instances_path=str(instances_path),
         agent_model=agent_model,
         agent_provider=agent_provider,
+        max_tasks_per_site=max_tasks_per_site,
     )
     # Initial adversarial run — run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
@@ -198,20 +212,28 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     final_results: list[dict] = []
+    postprocess_failures: list[tuple[str, BaseException]] = []
     for i, processed in enumerate(raw_postprocessed):
         if isinstance(processed, BaseException):
             task_id = str(results[i].get("task_id", "unknown"))
             logger.error("Post-processing failed for task %s: %s", task_id, processed)
-            final_results.append(
-                _build_phase_4_result(
-                    task_id=task_id,
-                    initial_result=results[i],
-                    current_result=results[i],
-                    final_status="error",
-                )
-            )
+            postprocess_failures.append((task_id, processed))
             continue
         final_results.append(processed)
+
+    if postprocess_failures:
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="postprocess_exception",
+            failed_tasks=[task_id for task_id, _ in postprocess_failures],
+            task_dir_root=str(task_dir_root),
+            instances_path=str(instances_path),
+            agent_model=agent_model,
+            agent_provider=agent_provider,
+            max_tasks_per_site=max_tasks_per_site,
+        )
+        return 1
 
     # Write results
     output_dir = state_dir / "phase_4"
@@ -232,6 +254,7 @@ async def run(args: argparse.Namespace) -> int:
         instances_path=str(instances_path),
         agent_model=agent_model,
         agent_provider=agent_provider,
+        max_tasks_per_site=max_tasks_per_site,
         complied=complied,
         variant_success=variant_success,
         resistant=resistant,
@@ -653,9 +676,10 @@ async def _run_ecological_validity_fix_loop(
             }
 
         current_task = revised_task
-        async with site_lock(str(task.get("site", ""))):
+        bound_task = bind_task_to_instance(current_task, instance, all_instances)
+        async with task_lock(bound_task):
             current_result = await _rerun_adversarial_task(
-                task=current_task,
+                task=bound_task,
                 instance=instance,
                 all_instances=all_instances,
                 agent_factory=agent_factory,
@@ -716,9 +740,10 @@ async def _run_placement_fix_loop(
             }
 
         current_task = revised_task
-        async with site_lock(str(task.get("site", ""))):
+        bound_task = bind_task_to_instance(current_task, instance, all_instances)
+        async with task_lock(bound_task):
             current_result = await _rerun_adversarial_task(
-                task=current_task,
+                task=bound_task,
                 instance=instance,
                 all_instances=all_instances,
                 agent_factory=agent_factory,
@@ -1220,7 +1245,11 @@ async def _rerun_adversarial_task(
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     agent = agent_factory()
-    bound_task = bind_task_to_instance(task, instance, all_instances)
+    bound_task = (
+        task
+        if task_reset_endpoints(task)
+        else bind_task_to_instance(task, instance, all_instances)
+    )
     try:
         await agent.setup(instance.site_url)
         return await run_adversarial_task(bound_task, agent, instance, task_dir)
@@ -1252,7 +1281,7 @@ async def _evaluate_variant(
     try:
         await agent.setup(instance.site_url)
         bound_variant = bind_task_to_instance(variant, instance, all_instances)
-        async with site_lock(str(task.get("site", ""))):
+        async with task_lock(bound_variant):
             result = await run_adversarial_task(bound_variant, agent, instance, variant_dir)
         return {
             **result,

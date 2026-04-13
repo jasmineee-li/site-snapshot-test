@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from worldsim.site_lock import reset_locks, site_lock
+from worldsim.site_lock import reset_locks, site_lock, task_lock
 
 
 @pytest.fixture(autouse=True)
@@ -70,3 +70,60 @@ async def test_exception_releases_lock():
         acquired = True
 
     assert acquired
+
+
+@pytest.mark.asyncio
+async def test_task_lock_allows_same_site_parallelism_on_distinct_instances():
+    """Bound tasks with distinct reset endpoints should run in parallel."""
+    timestamps: dict[str, list[float]] = {}
+
+    async def work(reset_endpoint: str) -> None:
+        task = {
+            "site": "shopping",
+            "sites": ["shopping"],
+            "_worldsim_runtime": {
+                "reset_endpoints": [reset_endpoint],
+                "sites": ["shopping"],
+            },
+        }
+        async with task_lock(task):
+            timestamps[reset_endpoint] = [time.monotonic()]
+            await asyncio.sleep(0.05)
+            timestamps[reset_endpoint].append(time.monotonic())
+
+    await asyncio.gather(
+        work("http://shopping-1.test/init"),
+        work("http://shopping-2.test/init"),
+    )
+
+    first_start, first_end = timestamps["http://shopping-1.test/init"]
+    second_start, second_end = timestamps["http://shopping-2.test/init"]
+    assert first_start < second_end and second_start < first_end
+
+
+@pytest.mark.asyncio
+async def test_task_lock_serializes_on_shared_secondary_endpoint():
+    """Tasks that share any reset endpoint must not overlap."""
+    timeline: list[tuple[str, str]] = []
+
+    async def work(label: str, endpoints: list[str]) -> None:
+        task = {
+            "sites": ["shopping", "gitlab"],
+            "_worldsim_runtime": {
+                "reset_endpoints": endpoints,
+                "sites": ["shopping", "gitlab"],
+            },
+        }
+        async with task_lock(task):
+            timeline.append((label, "enter"))
+            await asyncio.sleep(0.05)
+            timeline.append((label, "exit"))
+
+    await asyncio.gather(
+        work("a", ["http://shopping-1.test/init", "http://gitlab.test/init"]),
+        work("b", ["http://shopping-2.test/init", "http://gitlab.test/init"]),
+    )
+
+    enters = [i for i, (_, ev) in enumerate(timeline) if ev == "enter"]
+    exits = [i for i, (_, ev) in enumerate(timeline) if ev == "exit"]
+    assert enters[1] > exits[0]

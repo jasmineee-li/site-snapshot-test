@@ -33,6 +33,7 @@ from worldsim.agent_config import (
     DEFAULT_MODEL,
     RUNTIME_METADATA_KEY,
     bind_task_to_instance,
+    cap_tasks_per_site,
     execution_instance_dict,
     make_agent_factory,
     resolve_task_inputs,
@@ -46,7 +47,7 @@ from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async
-from worldsim.site_lock import site_lock
+from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
@@ -88,6 +89,18 @@ async def run(args: argparse.Namespace) -> int:
         else:
             logger.warning("Phase 3: adversarial_tasks.json not found, running all benign tasks")
 
+    # Per-site cap for smoke testing (applied after adversarial-paired filtering)
+    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    if max_tasks_per_site is not None:
+        pre_cap = len(benign_tasks)
+        benign_tasks = cap_tasks_per_site(benign_tasks, max_tasks_per_site)
+        logger.info(
+            "Phase 3: capped to %d/%d tasks (max %d per site)",
+            len(benign_tasks),
+            pre_cap,
+            max_tasks_per_site,
+        )
+
     instances_path = getattr(args, "instances", None)
     if not instances_path or not Path(instances_path).exists():
         logger.error("--instances JSON file required for Phase 3 (running benchmark instances)")
@@ -128,6 +141,8 @@ async def run(args: argparse.Namespace) -> int:
         instances_path=str(instances_path),
         agent_model=agent_model,
         agent_provider=agent_provider,
+        full_baseline=full_baseline,
+        max_tasks_per_site=max_tasks_per_site,
     )
 
     logger.info(
@@ -194,16 +209,34 @@ async def run(args: argparse.Namespace) -> int:
         return_exceptions=True,
     )
 
+    diagnosis_failures: list[tuple[str, BaseException]] = []
     for i, result in enumerate(raw_diagnoses):
         if isinstance(result, BaseException):
+            task_id = str(failed_tasks[i].get("task_id", "?"))
             logger.error(
                 "Diagnosis failed for task %s: %s",
-                failed_tasks[i].get("task_id", "?"),
+                task_id,
                 result,
             )
+            diagnosis_failures.append((task_id, result))
             continue
         if result is not None:
             diagnosed.append(result)
+
+    if diagnosis_failures:
+        save_state(
+            "phase_3",
+            status="failed",
+            reason="diagnosis_exception",
+            failed_tasks=[task_id for task_id, _ in diagnosis_failures],
+            task_dir_root=str(task_dir_root),
+            instances_path=str(instances_path),
+            agent_model=agent_model,
+            agent_provider=agent_provider,
+            full_baseline=full_baseline,
+            max_tasks_per_site=max_tasks_per_site,
+        )
+        return 1
 
     # Write validated tasks (passed + fixed)
     passed_ids = {r["task_id"] for r in passed_tasks}
@@ -244,6 +277,8 @@ async def run(args: argparse.Namespace) -> int:
         instances_path=str(instances_path),
         agent_model=agent_model,
         agent_provider=agent_provider,
+        full_baseline=full_baseline,
+        max_tasks_per_site=max_tasks_per_site,
         passed=len(passed_ids),
         fixed=len(fixed_ids),
         total=len(benign_tasks),
@@ -546,9 +581,10 @@ async def fix_loop(
                 rerun_dir = task_dir_root / safe_task_path_component(
                     f"{task.get('id', 'unknown')}__revalidation_{iteration + 1}"
                 )
-                async with site_lock(str(current_task.get("site", ""))):
+                bound_task = bind_task_to_instance(current_task, live_instance, instances)
+                async with task_lock(bound_task):
                     rerun_result = await _rerun_live_task(
-                        task=current_task,
+                        task=bound_task,
                         instance=live_instance,
                         instances=instances,
                         agent_factory=agent_factory,
@@ -632,7 +668,7 @@ async def _rerun_live_task(
 ) -> dict[str, Any]:
     """Rerun a patched task against a live instance before validation."""
     agent = agent_factory()
-    bound_task = bind_task_to_instance(task, instance, instances)
+    bound_task = task if task_reset_endpoints(task) else bind_task_to_instance(task, instance, instances)
     try:
         try:
             await agent.setup(instance.site_url)

@@ -115,6 +115,93 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
     assert captured["agent_provider"] == "anthropic"
 
 
+def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="failed",
+        reason="postprocess_exception",
+        instances_path="/tmp/instances.json",
+        agent_model="gpt-5.4",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["agent_model"] = args.agent_model
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["agent_model"] == "gpt-5.4"
+
+
+def test_dispatch_resume_restores_failed_phase_3_full_baseline(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_3",
+        status="failed",
+        reason="diagnosis_exception",
+        instances_path="/tmp/instances.json",
+        full_baseline=True,
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["full_baseline"] = args.full_baseline
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "3"
+    assert captured["full_baseline"] is True
+
+
+def test_dispatch_resume_restores_failed_task_cap(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="failed",
+        reason="postprocess_exception",
+        instances_path="/tmp/instances.json",
+        max_tasks_per_site=2,
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["max_tasks_per_site"] = args.max_tasks_per_site
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["max_tasks_per_site"] == 2
+
+
 def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"

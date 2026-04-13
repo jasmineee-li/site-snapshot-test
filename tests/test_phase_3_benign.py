@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+from argparse import Namespace
+from contextlib import asynccontextmanager
+
 import pytest
 
 from worldsim.agent_config import (
@@ -277,3 +281,121 @@ async def test_fix_loop_exits_early_when_fix_makes_no_changes(monkeypatch, tmp_p
 
     assert result.get("root_cause") == "agent_limitation" or result["action"] == "keep_flagged"
     assert not rerun_called, "rerun should not be called when fix made no changes"
+
+
+@pytest.mark.asyncio
+async def test_fix_loop_locks_full_bound_runtime_footprint(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    seen_reset_endpoints: list[str] = []
+
+    async def fake_diagnose_failure(*args, **kwargs):
+        return {
+            "root_cause": "reward_bug",
+            "suggested_fix": {
+                "target": "reward_function",
+                "patch": {
+                    "eval": [{"expected": {"retrieved_data": ["patched"]}}],
+                },
+            },
+        }
+
+    @asynccontextmanager
+    async def fake_task_lock(bound_task):
+        nonlocal seen_reset_endpoints
+        seen_reset_endpoints = list(bound_task[RUNTIME_METADATA_KEY]["reset_endpoints"])
+        yield
+
+    async def fake_rerun_live_task(task, instance, instances, agent_factory, task_dir):
+        assert task[RUNTIME_METADATA_KEY]["reset_endpoints"] == [
+            "http://shopping.test/init",
+            "http://gitlab.test/init",
+        ]
+        return {"passed": True, "trajectory_dir": str(task_dir)}
+
+    monkeypatch.setattr(phase_3_benign, "diagnose_failure", fake_diagnose_failure)
+    monkeypatch.setattr(phase_3_benign, "task_lock", fake_task_lock)
+    monkeypatch.setattr(phase_3_benign, "_rerun_live_task", fake_rerun_live_task)
+
+    result = await phase_3_benign.fix_loop(
+        task=task,
+        trajectory_dir=tmp_path / "initial",
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        instances=instances,
+        agent_factory=lambda: None,
+        max_iterations=1,
+    )
+
+    assert result["action"] == "fixed"
+    assert seen_reset_endpoints == [
+        "http://shopping.test/init",
+        "http://gitlab.test/init",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_phase_3_run_fails_on_gathered_diagnosis_exception(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "reset_endpoint": "http://shopping.test/init",
+                    }
+                ],
+            }
+        )
+    )
+
+    async def fake_run_tasks_by_site(**kwargs):
+        return [{"task_id": "task-1", "passed": False, "trajectory_dir": str(tmp_path / "traj")}]
+
+    async def fake_diagnose_one_task(**kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
+    monkeypatch.setattr(phase_3_benign, "_diagnose_one_task", fake_diagnose_one_task)
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["status"] == "failed"
+    assert state["reason"] == "diagnosis_exception"
+    assert state["failed_tasks"] == ["task-1"]
+    assert state["task_dir_root"].startswith(str(tmp_path / "phase_3"))
+    assert state["instances_path"] == str(instances_path)
+    assert state["agent_model"] == "demo-model"
+    assert state["full_baseline"] is True

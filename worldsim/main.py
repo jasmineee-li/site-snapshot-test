@@ -87,6 +87,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Phase 3: validate all benign tasks, not just adversarial-paired ones. "
         "Produces baseline capability metric.",
     )
+    phase_cmd.add_argument(
+        "--max-tasks-per-site",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Phases 3-4: cap tasks to at most N per site for smoke testing. "
+        "Selection is deterministic (fixed seed). Omit for full runs. "
+        "Use --resume later without this flag to complete remaining tasks.",
+    )
 
     resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
     resume_cmd.add_argument(
@@ -130,6 +139,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         help="Phase 3: validate all benign tasks, not just adversarial-paired ones. "
         "Produces baseline capability metric.",
+    )
+    resume_cmd.add_argument(
+        "--max-tasks-per-site",
+        type=int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override per-site task cap for the resumed phase. "
+        "Omit to run all remaining tasks.",
     )
 
     return parser
@@ -201,6 +218,11 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     elif status == "running":
         target = last_step
         print(f"Last checkpoint: {last_step} was running (likely crashed). Re-running {target}.")
+    elif status == "failed":
+        target = last_step
+        reason = state.get("reason")
+        suffix = f" ({reason})" if reason else ""
+        print(f"Last checkpoint: {last_step} failed{suffix}. Re-running {target}.")
     else:
         print(f"Last checkpoint: {last_step} has unknown status {status!r}.", file=sys.stderr)
         return 1
@@ -214,6 +236,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_provider = getattr(args, "agent_provider", None)
     generate_novel = getattr(args, "generate_novel", None)
     full_baseline = getattr(args, "full_baseline", None)
+    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -230,6 +253,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel = state.get("generate_novel", False)
     if full_baseline is None:
         full_baseline = state.get("full_baseline", False)
+    if max_tasks_per_site is None:
+        max_tasks_per_site = state.get("max_tasks_per_site")
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -245,6 +270,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_provider=agent_provider,
         generate_novel=generate_novel,
         full_baseline=full_baseline,
+        max_tasks_per_site=max_tasks_per_site,
     )
 
     return _dispatch_phase(synthetic)
