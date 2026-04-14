@@ -254,6 +254,9 @@ async def run_claude_in_sandbox(
             elif etype == "text":
                 preview = (event.get("preview", "") or "")[:100]
                 logger.info("  %s[sandbox] text: %s", tag, preview)
+            elif etype == "thinking":
+                preview = (event.get("preview", "") or "")[:100]
+                logger.debug("  %s[sandbox] thinking: %s", tag, preview)
             elif etype == "rate_limit":
                 logger.warning(
                     "  %s[sandbox] rate limited, retry after %ss",

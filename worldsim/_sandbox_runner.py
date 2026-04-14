@@ -24,6 +24,7 @@ async def main() -> None:
         RateLimitEvent,
         ResultMessage,
         TextBlock,
+        ThinkingBlock,
         ToolUseBlock,
     )
 
@@ -73,6 +74,16 @@ async def main() -> None:
                     elif isinstance(block, TextBlock):
                         # Log first 200 chars of text blocks for observability
                         event = {"type": "text", "preview": block.text[:200], "turn": turn_count}
+                        print(json.dumps(event), flush=True)
+                    elif isinstance(block, ThinkingBlock):
+                        # Extended thinking is emitted when effort="high"; capture
+                        # a preview for observability without dumping the full chain.
+                        thinking_text = getattr(block, "thinking", "") or ""
+                        event = {
+                            "type": "thinking",
+                            "preview": thinking_text[:200],
+                            "turn": turn_count,
+                        }
                         print(json.dumps(event), flush=True)
             elif isinstance(message, RateLimitEvent):
                 event = {
