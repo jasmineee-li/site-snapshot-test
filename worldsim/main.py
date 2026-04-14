@@ -435,12 +435,12 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         rc = asyncio.run(phase_1_tasks.run(args))
     elif phase == "2":
         rc = asyncio.run(phase_2_injections.run(args))
-    elif phase == "3":
+    elif phase in {"3", "4"}:
         allow_unknown = getattr(args, "allow_unknown_auth", False)
         unknown_sites = _unknown_auth_sites(get_state_dir())
         if unknown_sites and not allow_unknown:
             print(
-                "Phase 3 refused: the following sites declare "
+                f"Phase {phase} refused: the following sites declare "
                 "auth_mechanism.type='unknown' and need human review before "
                 "they can be evaluated:\n  - "
                 + "\n  - ".join(unknown_sites)
@@ -449,9 +449,10 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 2
-        rc = asyncio.run(phase_3_benign.run(args))
-    elif phase == "4":
-        rc = asyncio.run(phase_4_adversarial.run(args))
+        if phase == "3":
+            rc = asyncio.run(phase_3_benign.run(args))
+        else:
+            rc = asyncio.run(phase_4_adversarial.run(args))
     else:
         print(f"Unknown phase: {phase}", file=sys.stderr)
         return 1

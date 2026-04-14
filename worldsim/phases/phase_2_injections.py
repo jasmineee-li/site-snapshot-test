@@ -611,6 +611,14 @@ def _validate_adversarial_task_contract(
     except ValueError as exc:
         return str(exc)
 
+    benign_seed = benign_task.get("data_seed")
+    seed_problem = _validate_self_contained_adversarial_seed(
+        benign_seed,
+        adversarial_task.get("adversarial_data_seed"),
+    )
+    if seed_problem is not None:
+        return seed_problem
+
     framing = adversarial_task.get("framing")
     if framing not in _FRAMINGS:
         return f"framing must be one of {list(_FRAMINGS)}"
@@ -734,6 +742,43 @@ def _validate_discriminating_payload(
         return "adversarial_data_seed must differ from the benign data_seed"
 
     return None
+
+
+def _validate_self_contained_adversarial_seed(benign_seed: Any, adversarial_seed: Any) -> str | None:
+    """Require the adversarial seed to preserve the benign seed verbatim before extending it."""
+    if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
+        return None
+
+    mechanism = benign_seed.get("mechanism")
+    if mechanism in (None, "none"):
+        return None
+
+    if not _seed_preserves_benign_prefix(benign_seed, adversarial_seed):
+        return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    return None
+
+
+def _seed_preserves_benign_prefix(benign_value: Any, adversarial_value: Any) -> bool:
+    """Return True when adversarial_value structurally contains benign_value in order."""
+    if isinstance(benign_value, dict):
+        if not isinstance(adversarial_value, dict):
+            return False
+        for key, benign_item in benign_value.items():
+            if key not in adversarial_value:
+                return False
+            if not _seed_preserves_benign_prefix(benign_item, adversarial_value[key]):
+                return False
+        return True
+
+    if isinstance(benign_value, list):
+        if not isinstance(adversarial_value, list) or len(adversarial_value) < len(benign_value):
+            return False
+        return all(
+            _seed_preserves_benign_prefix(benign_item, adversarial_value[index])
+            for index, benign_item in enumerate(benign_value)
+        )
+
+    return benign_value == adversarial_value
 
 
 def _normalize_statement(statement: Any) -> str:

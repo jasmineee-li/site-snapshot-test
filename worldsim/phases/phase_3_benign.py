@@ -212,7 +212,21 @@ async def run(args: argparse.Namespace) -> int:
             len(error_tasks),
             len(results),
         )
-        failed_tasks = [r for r in failed_tasks if r.get("outcome") != "error"]
+        save_state(
+            "phase_3",
+            status="failed",
+            reason="infra_error_circuit_breaker",
+            task_dir_root=str(task_dir_root),
+            instances_path=str(instances_path),
+            agent_model=agent_model,
+            sandbox_model=sandbox_model,
+            agent_provider=agent_provider,
+            full_baseline=full_baseline,
+            max_tasks_per_site=max_tasks_per_site,
+            error_tasks=[str(r.get("task_id", "?")) for r in error_tasks],
+            total=len(results),
+        )
+        return 1
 
     raw_diagnoses = await asyncio.gather(
         *[
@@ -416,7 +430,7 @@ async def run_task(
     run_kwargs: dict[str, Any] = {"start_urls": start_urls}
     if site_prompt is not None:
         run_kwargs["site_prompt"] = site_prompt
-    auth_mechanism = _extract_auth_mechanism(task)
+    auth_mechanism = _runtime_auth_mechanism(task)
     if auth_mechanism is not None:
         run_kwargs["auth_mechanism"] = auth_mechanism
         # The ``benchmark_root`` and ``task_site`` kwargs are only meaningful
@@ -495,6 +509,33 @@ def _extract_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
         return None
     mech = agent_context.get("auth_mechanism")
     return mech if isinstance(mech, dict) else None
+
+
+def _runtime_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
+    """Return ``auth_mechanism`` merged with any sibling authentication block.
+
+    BrowserUse's auth resolver reads credential placeholders from the auth
+    contract itself, so Phase 3 has to thread the sibling ``authentication``
+    block through to the runtime object it hands to ``BrowserUseAgent.run``.
+    """
+    auth_mechanism = _extract_auth_mechanism(task)
+    if auth_mechanism is None:
+        return None
+
+    runtime_auth = json.loads(json.dumps(auth_mechanism))
+
+    authentication = task.get("authentication")
+    if not isinstance(authentication, dict):
+        agent_context = task.get("agent_context")
+        if isinstance(agent_context, dict):
+            nested_auth = agent_context.get("authentication")
+            if isinstance(nested_auth, dict):
+                authentication = nested_auth
+
+    if isinstance(authentication, dict):
+        runtime_auth["authentication"] = json.loads(json.dumps(authentication))
+
+    return runtime_auth
 
 
 async def diagnose_failure(

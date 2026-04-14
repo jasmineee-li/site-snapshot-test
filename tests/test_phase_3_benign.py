@@ -543,6 +543,108 @@ async def test_phase_3_run_fails_on_gathered_diagnosis_exception(monkeypatch, tm
     assert state["full_baseline"] is True
 
 
+@pytest.mark.asyncio
+async def test_phase_3_circuit_breaker_skips_diagnosis_loop(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(
+            {
+                "site_name": "shopping",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "reset_endpoint": "http://shopping.test/init",
+                    }
+                ],
+            }
+        )
+    )
+
+    async def fake_run_tasks_by_site(**kwargs):
+        return [
+            {
+                "task_id": "task-pass",
+                "passed": True,
+                "outcome": "pass",
+                "trajectory_dir": str(tmp_path / "pass"),
+            },
+            {
+                "task_id": "task-error",
+                "passed": False,
+                "outcome": "error",
+                "trajectory_dir": str(tmp_path / "error"),
+            },
+            {
+                "task_id": "task-failed",
+                "passed": False,
+                "outcome": "failed",
+                "trajectory_dir": str(tmp_path / "failed"),
+            },
+        ]
+
+    async def fake_diagnose_one_task(**kwargs):
+        raise AssertionError("diagnosis loop should be skipped by the circuit breaker")
+
+    saved_states: list[tuple[str, dict[str, object]]] = []
+
+    def fake_save_state(step, **metadata):
+        saved_states.append((step, metadata))
+
+    monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
+    monkeypatch.setattr(phase_3_benign, "_diagnose_one_task", fake_diagnose_one_task)
+    monkeypatch.setattr(phase_3_benign, "save_state", fake_save_state)
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 1
+    assert any(
+        metadata.get("status") == "failed"
+        and metadata.get("reason") == "infra_error_circuit_breaker"
+        for _, metadata in saved_states
+    )
+    assert not any(step == "phase_3" and metadata.get("status") == "complete" for step, metadata in saved_states)
+
+
 # ── Constrained fix-patch validator integration ─────────────────────────
 
 
@@ -823,6 +925,64 @@ async def test_run_task_forwards_benchmark_root_when_auth_mechanism_present(monk
     assert captured.get("benchmark_root") == bench_root
     assert captured.get("task_site") == "shopping"
     assert captured.get("auth_mechanism", {}).get("type") == "storage_state"
+
+
+@pytest.mark.asyncio
+async def test_run_task_forwards_http_header_credentials(monkeypatch, tmp_path):
+    """Phase 3 must pass authentication.credentials through to Browser Use auth."""
+    task, instances = _prepared_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    task["agent_context"] = {
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "emma.lopez@gmail.com", "password": "Password.123"},
+            "description": "Use benchmark credentials.",
+        },
+        "auth_mechanism": {
+            "type": "http_headers",
+            "http_headers": {
+                "headers": {
+                    "X-M2-Customer-Auto-Login": "${credentials.username}:${credentials.password}"
+                }
+            },
+        },
+    }
+
+    async def fake_reset(task):
+        return None
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    captured: dict = {}
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            captured.update(kwargs)
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_3_benign, "run_reward_function", fake_run_reward_function)
+
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert captured["auth_mechanism"]["authentication"]["credentials"] == {
+        "username": "emma.lopez@gmail.com",
+        "password": "Password.123",
+    }
 
 
 @pytest.mark.asyncio

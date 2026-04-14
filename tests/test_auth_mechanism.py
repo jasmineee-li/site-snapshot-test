@@ -11,6 +11,7 @@ Covers:
 from __future__ import annotations
 
 import json
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,7 @@ from worldsim.browser_use_agent import (
     AuthArtifactMissingError,
     _resolve_auth,
 )
-from worldsim.main import _unknown_auth_sites, build_parser
+from worldsim.main import _dispatch_phase, _unknown_auth_sites, build_parser
 
 
 def _valid_agent_context_with_auth(auth_mechanism: dict | None) -> dict:
@@ -395,3 +396,73 @@ class TestUnknownAuthGate:
             ]
         )
         assert args.allow_unknown_auth is False
+
+    def test_dispatch_phase_refuses_phase_4_unknown_auth_without_override(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+    ):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        self._write_ctx(
+            tmp_path / "phase_0c" / "site_a",
+            {"type": "unknown", "notes": "needs review"},
+        )
+
+        called = False
+
+        async def fake_phase_4_run(args):
+            nonlocal called
+            called = True
+            return 0
+
+        monkeypatch.setattr("worldsim.phases.phase_4_adversarial.run", fake_phase_4_run)
+
+        rc = _dispatch_phase(
+            Namespace(
+                phase="4",
+                benchmark=None,
+                config=None,
+                instances=None,
+                agent_model=None,
+                sandbox_model=None,
+                agent_provider=None,
+                allow_unknown_auth=False,
+            )
+        )
+
+        assert rc == 2
+        assert called is False
+        assert "Phase 4 refused" in capsys.readouterr().err
+
+    def test_dispatch_phase_allows_phase_4_unknown_auth_with_override(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        self._write_ctx(
+            tmp_path / "phase_0c" / "site_a",
+            {"type": "unknown", "notes": "needs review"},
+        )
+
+        called = False
+
+        async def fake_phase_4_run(args):
+            nonlocal called
+            called = True
+            assert args.phase == "4"
+            return 0
+
+        monkeypatch.setattr("worldsim.phases.phase_4_adversarial.run", fake_phase_4_run)
+
+        rc = _dispatch_phase(
+            Namespace(
+                phase="4",
+                benchmark=None,
+                config=None,
+                instances=None,
+                agent_model=None,
+                sandbox_model=None,
+                agent_provider=None,
+                allow_unknown_auth=True,
+            )
+        )
+
+        assert rc == 0
+        assert called is True

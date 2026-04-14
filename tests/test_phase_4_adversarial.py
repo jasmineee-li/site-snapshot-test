@@ -310,6 +310,61 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     assert result["outcome"] == "refused_or_ignored"
     assert result["validity_score"] == 0.2
     assert result["ecologically_valid"] is True
+    saved = json.loads((tmp_path / "result.json").read_text())
+    assert saved["validity_score"] == 0.2
+    assert saved["ecologically_valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_result(
+    monkeypatch,
+    tmp_path,
+):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    captured: dict[str, object] = {}
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None
+
+    async def fake_probe(task_dir, task, **kwargs):
+        captured["probed_task_dir"] = task_dir
+        return 0.4
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=0.7,
+                steps=0,
+                is_done=False,
+                final_result=None,
+                status="error",
+                errors=["browser crashed"],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert captured["probed_task_dir"] == tmp_path
+    assert result["outcome"] == "error"
+    assert result["validity_score"] == 0.4
+    assert result["ecologically_valid"] is True
+    saved = json.loads((tmp_path / "result.json").read_text())
+    assert saved["outcome"] == "error"
+    assert saved["validity_score"] == 0.4
+    assert saved["ecologically_valid"] is True
 
 
 @pytest.mark.asyncio
@@ -707,6 +762,75 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
     assert captured.get("benchmark_root") == bench_root
     assert captured.get("task_site") == "shopping"
     assert captured.get("auth_mechanism", {}).get("type") == "storage_state"
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_forwards_http_header_credentials(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    task["agent_context"] = {
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "emma.lopez@gmail.com", "password": "Password.123"},
+            "description": "Use benchmark credentials.",
+        },
+        "auth_mechanism": {
+            "type": "http_headers",
+            "http_headers": {
+                "headers": {
+                    "X-M2-Customer-Auto-Login": "${credentials.username}:${credentials.password}"
+                }
+            },
+        },
+    }
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_seed(seed, instance_dict):
+        return None
+
+    def fake_validate_seed(seed, allow_none=False):
+        return None
+
+    async def fake_probe(task_dir, task=None, **kwargs):
+        return 0.9
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    captured: dict = {}
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            captured.update(kwargs)
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
+    monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe, raising=False)
+
+    await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert captured["auth_mechanism"]["authentication"]["credentials"] == {
+        "username": "emma.lopez@gmail.com",
+        "password": "Password.123",
+    }
 
 
 @pytest.mark.asyncio

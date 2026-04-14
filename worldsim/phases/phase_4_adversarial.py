@@ -424,7 +424,7 @@ async def run_adversarial_task(
     run_kwargs: dict[str, Any] = {"start_urls": start_urls}
     if site_prompt is not None:
         run_kwargs["site_prompt"] = site_prompt
-    auth_mechanism = _extract_auth_mechanism(task)
+    auth_mechanism = _extract_runtime_auth(task)
     if auth_mechanism is not None:
         run_kwargs["auth_mechanism"] = auth_mechanism
         # Thread benchmark_root + task_site only when auth_mechanism is
@@ -446,6 +446,12 @@ async def run_adversarial_task(
         message = f"agent run {result.status}: " + (
             result.errors[-1] if result.errors else "no additional error details"
         )
+        validity_score = await probe_ecological_validity(
+            task_dir,
+            task,
+            sandbox_model=sandbox_model,
+        )
+        ecologically_valid = validity_score < VALIDITY_THRESHOLD
         save_result(
             task_dir,
             task,
@@ -453,15 +459,16 @@ async def run_adversarial_task(
             False,
             message,
             outcome="error",
-            ecologically_valid=False,
+            ecologically_valid=ecologically_valid,
+            validity_score=validity_score,
             trajectory_dir=str(task_dir),
         )
         return {
             "task_id": task_id,
             "outcome": "error",
             "error": message,
-            "ecologically_valid": False,
-            "validity_score": 1.0,
+            "ecologically_valid": ecologically_valid,
+            "validity_score": validity_score,
             "benign_passed": False,
             "adversarial_passed": False,
             "trajectory_dir": str(task_dir),
@@ -483,6 +490,12 @@ async def run_adversarial_task(
         network_trace=result.network_trace,
     )
     if _is_non_interpretable_benign_eval(benign_reward, benign_passed, benign_message):
+        validity_score = await probe_ecological_validity(
+            task_dir,
+            task,
+            sandbox_model=sandbox_model,
+        )
+        ecologically_valid = validity_score < VALIDITY_THRESHOLD
         save_result(
             task_dir,
             task,
@@ -490,18 +503,15 @@ async def run_adversarial_task(
             False,
             benign_message,
             outcome="error",
+            ecologically_valid=ecologically_valid,
+            validity_score=validity_score,
             trajectory_dir=str(task_dir),
-        )
-        validity_score = await probe_ecological_validity(
-            task_dir,
-            task,
-            sandbox_model=sandbox_model,
         )
         return {
             "task_id": task_id,
             "outcome": "error",
             "error": benign_message,
-            "ecologically_valid": validity_score < VALIDITY_THRESHOLD,
+            "ecologically_valid": ecologically_valid,
             "validity_score": validity_score,
             "benign_passed": False,
             "adversarial_passed": False,
@@ -529,7 +539,15 @@ async def run_adversarial_task(
     else:
         outcome = "task_broke"
 
-    # 3. Save trajectory (outcome + trajectory_dir persisted for per-task resume)
+    # 3. Probe ecological validity
+    validity_score = await probe_ecological_validity(
+        task_dir,
+        task,
+        sandbox_model=sandbox_model,
+    )
+    ecologically_valid = validity_score < VALIDITY_THRESHOLD
+
+    # 4. Persist the stage-1 result only after Gate 1 completes.
     save_result(
         task_dir,
         task,
@@ -537,16 +555,10 @@ async def run_adversarial_task(
         benign_passed,
         f"outcome={outcome}",
         outcome=outcome,
+        ecologically_valid=ecologically_valid,
+        validity_score=validity_score,
         trajectory_dir=str(task_dir),
     )
-
-    # 4. Probe ecological validity
-    validity_score = await probe_ecological_validity(
-        task_dir,
-        task,
-        sandbox_model=sandbox_model,
-    )
-    ecologically_valid = validity_score < VALIDITY_THRESHOLD
 
     return {
         "task_id": task_id,
@@ -1326,18 +1338,25 @@ def _has_scoreable_agent_output(result: Any) -> bool:
     )
 
 
-def _extract_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return the ``auth_mechanism`` dict embedded in a task's agent_context, or None.
+def _extract_runtime_auth(task: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the runtime auth contract needed by ``BrowserUseAgent``.
 
     Phase 1 round-trips ``AGENT_CONTEXT`` into each wrapped task under
-    ``agent_context``. The ``auth_mechanism`` sub-object is what
-    :func:`worldsim.browser_use_agent._resolve_auth` consumes at runtime.
+    ``agent_context``. Runtime auth needs the machine-readable
+    ``auth_mechanism`` plus, for some mechanism types, the sibling
+    ``authentication.credentials`` block.
     """
     agent_context = task.get("agent_context")
     if not isinstance(agent_context, dict):
         return None
     mech = agent_context.get("auth_mechanism")
-    return mech if isinstance(mech, dict) else None
+    if not isinstance(mech, dict):
+        return None
+    runtime_auth = json.loads(json.dumps(mech))
+    authentication = agent_context.get("authentication")
+    if isinstance(authentication, dict):
+        runtime_auth["authentication"] = json.loads(json.dumps(authentication))
+    return runtime_auth
 
 
 def _is_non_interpretable_benign_eval(
