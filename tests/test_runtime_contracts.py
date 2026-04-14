@@ -13,7 +13,6 @@ from worldsim.agent_config import (
     execution_instance_dict,
     make_llm,
     prepare_task_for_execution,
-    resolve_provider,
     resolve_task_inputs,
 )
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
@@ -250,17 +249,13 @@ def test_make_llm_no_fallback_when_google_key_present():
     """gemini model + GOOGLE_API_KEY set → uses Google directly (no fallback)."""
     env = _env_without("OPENROUTER_API_KEY")
     env["GOOGLE_API_KEY"] = "google-test-key"
-    mock_chat_cls, modules = _mock_browser_use_module(
-        "browser_use.llm.google", "ChatGoogle"
-    )
+    mock_chat_cls, modules = _mock_browser_use_module("browser_use.llm.google", "ChatGoogle")
     with (
         patch.dict(os.environ, env, clear=True),
         patch.dict("sys.modules", modules),
     ):
         llm = make_llm(model="gemini-3-flash-preview")
-        mock_chat_cls.assert_called_once_with(
-            model="gemini-3-flash-preview", temperature=0
-        )
+        mock_chat_cls.assert_called_once_with(model="gemini-3-flash-preview", temperature=0)
 
 
 def test_make_llm_openrouter_model_no_fallback_needed():
@@ -299,8 +294,8 @@ def test_make_llm_falls_back_to_openrouter_for_openai_model():
 
 
 def test_make_llm_falls_back_to_openrouter_for_anthropic_model():
-    """Anthropic model + no ANTHROPIC_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
-    env = _env_without("ANTHROPIC_API_KEY")
+    """Anthropic model, no Anthropic envs at all, OPENROUTER_API_KEY set -> OpenRouter."""
+    env = _env_without("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL")
     env["OPENROUTER_API_KEY"] = "or-test-key"
     mock_chat_cls, modules = _mock_browser_use_module(
         "browser_use.llm.openrouter", "ChatOpenRouter"
@@ -309,9 +304,29 @@ def test_make_llm_falls_back_to_openrouter_for_anthropic_model():
         patch.dict(os.environ, env, clear=True),
         patch.dict("sys.modules", modules),
     ):
-        llm = make_llm(model="claude-sonnet-4-6")
+        make_llm(model="claude-sonnet-4-6")
         mock_chat_cls.assert_called_once_with(
             model="anthropic/claude-sonnet-4-6", temperature=0, api_key="or-test-key"
+        )
+
+
+def test_make_llm_uses_anthropic_proxy_when_base_url_and_auth_token_set():
+    """Anthropic base_url + auth_token set: skip OpenRouter fallback, use ChatAnthropic."""
+    env = _env_without("ANTHROPIC_API_KEY")
+    env["ANTHROPIC_BASE_URL"] = "https://openrouter.ai/api"
+    env["ANTHROPIC_AUTH_TOKEN"] = "sk-or-proxy"
+    env["OPENROUTER_API_KEY"] = "or-fallback-key"
+    mock_chat_cls, modules = _mock_browser_use_module("browser_use.llm.anthropic", "ChatAnthropic")
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", modules),
+    ):
+        make_llm(model="claude-sonnet-4-6")
+        mock_chat_cls.assert_called_once_with(
+            model="claude-sonnet-4-6",
+            temperature=0,
+            base_url="https://openrouter.ai/api",
+            auth_token="sk-or-proxy",
         )
 
 
@@ -319,12 +334,8 @@ def test_make_llm_no_fallback_when_no_openrouter_key():
     """No provider key AND no OPENROUTER_API_KEY → normal error (no silent fallback)."""
     env = _env_without("GOOGLE_API_KEY", "OPENROUTER_API_KEY")
     with patch.dict(os.environ, env, clear=True):
-        mock_chat_cls, modules = _mock_browser_use_module(
-            "browser_use.llm.google", "ChatGoogle"
-        )
+        mock_chat_cls, modules = _mock_browser_use_module("browser_use.llm.google", "ChatGoogle")
         with patch.dict("sys.modules", modules):
             # No fallback — calls Google directly even without the key
             llm = make_llm(model="gemini-3-flash-preview")
-            mock_chat_cls.assert_called_once_with(
-                model="gemini-3-flash-preview", temperature=0
-            )
+            mock_chat_cls.assert_called_once_with(model="gemini-3-flash-preview", temperature=0)

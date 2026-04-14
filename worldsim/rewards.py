@@ -25,6 +25,7 @@ from collections import Counter
 from typing import Any
 
 from worldsim.agent_response_transform import transform_agent_response
+from worldsim.har_converter import ensure_har_trace
 from worldsim.placeholders import apply_placeholders, placeholder_for_site
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,9 @@ def _run_webarena_verified_eval(
     eval_configs = reward["eval"]
     agent_response = _build_agent_response(eval_configs, agent_result)
     environments = _build_webarena_environment_payload(instance)
+    # Vendor parser rejects both empty lists and our flat CDP format. Convert
+    # once here so every downstream call sees a valid non-empty HAR trace.
+    har_trace = ensure_har_trace(network_trace)
 
     subprocess_python = os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip()
     if subprocess_python:
@@ -123,7 +127,7 @@ def _run_webarena_verified_eval(
             python_executable=subprocess_python,
             task_id=task_id,
             agent_response=agent_response,
-            network_trace=network_trace or [],
+            network_trace=har_trace,
             environments=environments,
         )
 
@@ -156,7 +160,7 @@ def _run_webarena_verified_eval(
         result = wv.evaluate_task(
             task_id=task_id,
             agent_response=agent_response,
-            network_trace=network_trace or [],
+            network_trace=har_trace,
         )
 
         passed = result.score == 1.0

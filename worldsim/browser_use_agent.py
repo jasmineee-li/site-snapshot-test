@@ -391,9 +391,17 @@ class _NetworkTraceRecorder:
         return [self._flatten_entry(e) for e in raw_entries]
 
     def _write_trace(self, trace: list[dict[str, Any]]) -> None:
-        """Write both the evaluator-ready ``network_trace.json`` and
-        a HAR-envelope ``network.har`` to the task directory."""
-        # Flat list for direct consumption by NetworkEventEvaluator.
+        """Write the flat internal trace and a valid HAR file.
+
+        ``network_trace.json`` keeps the flat shape that older diagnostic
+        tooling expects. ``network.har`` is converted to the HAR entry
+        shape the vendor's NetworkEvent parser actually accepts; the
+        previous version wrote flat entries under a HAR envelope, which
+        the vendor rejected with ``"Unknown trace format"``.
+        """
+        # Import lazily to avoid a circular dep at module load time.
+        from worldsim.har_converter import flat_events_to_har_entries
+
         try:
             (self._task_dir / "network_trace.json").write_text(
                 json.dumps(trace, indent=2, default=str)
@@ -401,7 +409,7 @@ class _NetworkTraceRecorder:
         except Exception as e:
             logger.warning("Failed to write network_trace.json: %s", e)
 
-        # HAR-envelope wrapping the same entries (tooling compatibility).
+        har_entries = flat_events_to_har_entries(trace)
         payload = {
             "log": {
                 "version": "1.2",
@@ -409,7 +417,7 @@ class _NetworkTraceRecorder:
                     "name": "worldsim",
                     "version": "phase-3-network-trace",
                 },
-                "entries": trace,
+                "entries": har_entries,
             }
         }
         try:
