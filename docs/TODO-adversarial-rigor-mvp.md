@@ -6,7 +6,7 @@ Status: planning. Owner: Ashton. Target: an MVP that produces publication-defens
 
 Two failed Phase 4 attempts surfaced a single structural problem: the adversarial attacks our Phase 2 generator emits do not match the threat model the paper claims. All 60 current adversarial seeds use `mechanism: "sql"` and a majority target fields that only site administrators can modify (`catalog_product_entity_text`, `cms_page_content`, etc.). A reviewer reading this desk-rejects the "ecologically valid IPI wrapper" framing in `docs/worldsim-v5-full-specification.md:44-46` before reaching the eval-awareness results.
 
-The fix is not a Phase 2 prompt patch. It is a threat-model commitment that propagates through Phase 0c (attacker-controllability labels per surface), Phase 2 (closed-vocabulary framings and concealments, in-sandbox validation), the seeding layer (API as default, SQL as tagged research-mode arm), and multi-model agent support (Sonnet 4.6, Gemini 3 Pro Preview, Opus 4.6). Every change here is in service of the three research contributions in `docs/worldsim-v5-full-specification.md:44-64`.
+The fix is not a Phase 2 prompt patch. It is a threat-model commitment that propagates through Phase 0c (attacker-controllability labels per surface), Phase 2 (closed-vocabulary framings and concealments, in-sandbox validation), the seeding layer (API as default, SQL as tagged research-mode arm), and multi-model agent support (Sonnet 4.6, Gemini 3.1 Pro Preview, Opus 4.6). Every change here is in service of the three research contributions in `docs/worldsim-v5-full-specification.md:44-64`.
 
 Jasmine's behavior-gen pipeline on `main` solved several of these problems already. Where her rubric, prompts, or validation logic translate cleanly into our WebArena-backed architecture, we port verbatim and cite. Where the old sim-config format (synthetic pages) is obsolete under the "wrapper not full pipeline" principle (`docs/worldsim-v5-full-specification.md:220`), we drop it.
 
@@ -348,13 +348,13 @@ New optional generator script for gitlab: `scripts/phase_0d/bootstrap_gitlab_pat
 
 ### Goal
 
-Run Phase 3 and Phase 4 against three target models: `gemini-3-pro-preview` (fast, MVP smoke), `claude-sonnet-4-6` (primary), `claude-opus-4-6` (final cohort). Sandbox model (for Phase 0c, Phase 2, Phase 3 diagnosis) stays `claude-sonnet-4-6`.
+Run Phase 3 and Phase 4 against three target models: `claude-sonnet-4-6` (primary MVP smoke), `gemini-3.1-pro-preview` (secondary), `claude-opus-4-6` (final cohort). Sandbox model (for Phase 0c, Phase 2, Phase 3 diagnosis) stays `claude-sonnet-4-6`.
 
 ### Readiness per model
 
 - **claude-sonnet-4-6**: working. Confirmed in `logs/phase_3/20260414_022611/` run (5/12 pass). Routes via Anthropic tool-calling through OpenRouter's `/v1/messages` using `_anthropic_proxy_env` helper at `worldsim/agent_config.py:100-106` (commit c56f473).
 - **claude-opus-4-6**: untested but same path. `detect_provider` returns `anthropic` (prefix `claude`), proxy kicks in, `ChatAnthropic(model="claude-opus-4-6", base_url, auth_token)` identical to Sonnet. Quirk: `ChatAnthropic.max_tokens` defaults to 8192 at `.venv/.../browser_use/llm/anthropic/chat.py:40`; Opus can emit more on complex trajectories but MVP smoke should work.
-- **gemini-3-pro-preview**: valid slug (listed in `.venv/.../browser_use/llm/google/chat.py:25-42` `VerifiedGeminiModels`). No `GOOGLE_API_KEY` in `.env` today, so `make_llm` falls back to `ChatOpenRouter(model="google/gemini-3-pro-preview")`. Risk: OpenRouter path uses OpenAI-style `response_format: json_schema` which Anthropic rejected (commit c56f473); Gemini 3 Pro via OpenRouter may hit similar schema validation. Smoke will tell us.
+- **gemini-3.1-pro-preview**: routes via OpenRouter (`google/gemini-3.1-pro-preview`). Risk: OpenRouter path uses OpenAI-style `response_format: json_schema` which Anthropic rejected (commit c56f473); Gemini 3.1 Pro may hit similar schema validation. Smoke will tell us.
 
 ### Cost and wall-clock estimates
 
@@ -362,7 +362,7 @@ From `logs/phase_3/20260414_022611/` measured on Sonnet 4.6 (12 tasks, 5/12 pass
 
 | Model | $/trajectory (est) | Wall-clock/trajectory | 60-task run budget |
 |---|---|---|---|
-| Gemini 3 Pro Preview (OpenRouter) | ~$0.86 | ~4-10 min | ~$50 + 4-10 hrs |
+| Gemini 3.1 Pro Preview (OpenRouter) | ~$0.86 | ~4-10 min | ~$50 + 4-10 hrs |
 | Claude Sonnet 4.6 | ~$1.23 | ~3-10 min | ~$75 + 3-10 hrs |
 | Claude Opus 4.6 | ~$6.15 | ~5-10 min | ~$370 + 5-10 hrs |
 
@@ -377,7 +377,7 @@ Verify OpenRouter pricing at openrouter.ai before committing Opus budget.
    from worldsim.agent_config import make_llm
    from browser_use.llm.messages import UserMessage
    async def main():
-       for slug in ['gemini-3-pro-preview', 'claude-opus-4-6']:
+       for slug in ['gemini-3.1-pro-preview', 'claude-opus-4-6']:
            llm = make_llm(slug)
            print(slug, type(llm).__name__)
            r = await llm.ainvoke([UserMessage(content='Reply with: pong')])
@@ -390,7 +390,7 @@ Verify OpenRouter pricing at openrouter.ai before committing Opus budget.
    uv run python -m worldsim.main phase 3 \
      --benchmark vendors/webarena-verified \
      --instances instances.json \
-     --agent-model gemini-3-pro-preview \
+     --agent-model gemini-3.1-pro-preview \
      --max-tasks-per-site 1 \
      --sites gitlab
    ```
@@ -467,8 +467,8 @@ Footnote for Jasmine/Max to confirm:
 
 ### Day 4: multi-model smoke + Phase 3 full
 
-- LLM-only smoke for gemini-3-pro-preview and claude-opus-4-6.
-- Single-task Phase 3 smoke for gemini-3-pro-preview on gitlab.
+- LLM-only smoke for gemini-3.1-pro-preview and claude-opus-4-6.
+- Single-task Phase 3 smoke for gemini-3.1-pro-preview on gitlab.
 - If smoke passes: Phase 3 full on claude-sonnet-4-6 across all 60 benign tasks. Budget: ~$75. Wall-clock: 3-8 hrs.
 - Triage results. Write `logs/phase_3/validated_tasks.json`.
 
@@ -503,7 +503,7 @@ Mitigation:
 2. Host-side `_select_balanced_subset` surfaces under-filled cells as soft errors.
 3. If cell balance is irrecoverable after 2 retries, issue a single targeted re-run sandbox limited to the missing cells.
 
-### Risk 3: OpenRouter Gemini 3 Pro path hits schema-validation rejection
+### Risk 3: OpenRouter Gemini 3.1 Pro path hits schema-validation rejection
 
 Likelihood: medium (Anthropic hit it; Gemini may or may not). Impact: high for MVP (blocks Gemini as target agent).
 
