@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     phase_cmd = subparsers.add_parser("phase", help="Run a specific phase")
     phase_cmd.add_argument(
         "phase",
-        choices=["0", "0a", "0b", "0c", "1", "2", "3", "4"],
+        choices=["0", "0a", "0b", "0c", "0d", "1", "2", "3", "4"],
         help="Phase to run",
     )
     phase_cmd.add_argument(
@@ -105,6 +105,22 @@ def build_parser() -> argparse.ArgumentParser:
         "Use `resume --max-tasks-per-site N` to keep the cap, or omit it on "
         "resume to process all remaining tasks.",
     )
+    phase_cmd.add_argument(
+        "--sites",
+        type=str,
+        default=None,
+        metavar="SITE[,SITE...]",
+        help="Phase 2: comma-separated site names to include (e.g. 'shopping_admin'). "
+        "Other sites are skipped entirely; their existing adversarial_tasks.json "
+        "entries are preserved on merge.",
+    )
+    phase_cmd.add_argument(
+        "--allow-unknown-auth",
+        action="store_true",
+        default=False,
+        help="Phase 3-4: proceed even when a site's auth_mechanism.type is 'unknown'. "
+        "Default behavior is to refuse unknown-auth tasks so humans review them first.",
+    )
 
     resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
     resume_cmd.add_argument(
@@ -154,8 +170,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=argparse.SUPPRESS,
         metavar="N",
-        help="Override per-site task cap for the resumed phase. "
-        "Omit to run all remaining tasks.",
+        help="Override per-site task cap for the resumed phase. Omit to run all remaining tasks.",
+    )
+    resume_cmd.add_argument(
+        "--allow-unknown-auth",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Override the saved gate for auth_mechanism.type='unknown' during resume.",
     )
 
     return parser
@@ -184,6 +205,7 @@ _PHASE_ORDER: list[str] = [
     "phase_0a",
     "phase_0b",
     "phase_0c",
+    "phase_0d",
     "phase_1",
     "phase_2",
     "phase_3",
@@ -266,6 +288,10 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
 
+    allow_unknown_auth = getattr(args, "allow_unknown_auth", None)
+    if allow_unknown_auth is None:
+        allow_unknown_auth = state.get("allow_unknown_auth", False)
+
     synthetic = argparse.Namespace(
         command="phase",
         phase=phase_id,
@@ -278,9 +304,55 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel=generate_novel,
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
+        allow_unknown_auth=allow_unknown_auth,
     )
 
     return _dispatch_phase(synthetic)
+
+
+def _unknown_auth_sites(state_dir: Path) -> list[str]:
+    """Return a list of site names whose AGENT_CONTEXT declares unknown auth.
+
+    Handles both layouts Phase 0c can produce:
+      - flat: ``<state_dir>/phase_0c/AGENT_CONTEXT_<site>.json`` (current)
+      - nested: ``<state_dir>/phase_0c/<site>/AGENT_CONTEXT.json`` (future)
+
+    Returns an empty list when the directory is absent or nothing has been
+    profiled yet.
+    """
+    import json as _json
+
+    profiles_dir = state_dir / "phase_0c"
+    if not profiles_dir.exists():
+        return []
+
+    def _check(ctx_path: Path, site_name: str) -> None:
+        if not ctx_path.exists():
+            return
+        try:
+            data = _json.loads(ctx_path.read_text(encoding="utf-8"))
+        except (OSError, _json.JSONDecodeError):
+            return
+        if not isinstance(data, dict):
+            return
+        mech = data.get("auth_mechanism")
+        if isinstance(mech, dict) and mech.get("type") == "unknown":
+            unknown.append(site_name)
+
+    unknown: list[str] = []
+
+    # Flat layout: AGENT_CONTEXT_<site>.json
+    for ctx_path in sorted(profiles_dir.glob("AGENT_CONTEXT_*.json")):
+        site_name = ctx_path.stem[len("AGENT_CONTEXT_") :]
+        _check(ctx_path, site_name)
+
+    # Nested layout: <site>/AGENT_CONTEXT.json
+    for site_dir in sorted(profiles_dir.iterdir()):
+        if not site_dir.is_dir():
+            continue
+        _check(site_dir / "AGENT_CONTEXT.json", site_dir.name)
+
+    return sorted(set(unknown))
 
 
 def _dispatch_phase(args: argparse.Namespace) -> int:
@@ -288,6 +360,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
     from worldsim.cost_tracker import tracker as cost_tracker
     from worldsim.phases import (
         phase_0_recon,
+        phase_0d_auth_bootstrap,
         phase_1_tasks,
         phase_2_injections,
         phase_3_benign,
@@ -310,11 +383,33 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
             )
             return 1
         rc = asyncio.run(phase_0_recon.run(benchmark=args.benchmark, sub=phase))
+    elif phase == "0d":
+        if not args.benchmark:
+            print(
+                "--benchmark is required for Phase 0d; generator_script paths "
+                "in AGENT_CONTEXT resolve relative to the benchmark root.",
+                file=sys.stderr,
+            )
+            return 1
+        rc = asyncio.run(phase_0d_auth_bootstrap.run(args))
     elif phase == "1":
         rc = asyncio.run(phase_1_tasks.run(args))
     elif phase == "2":
         rc = asyncio.run(phase_2_injections.run(args))
     elif phase == "3":
+        allow_unknown = getattr(args, "allow_unknown_auth", False)
+        unknown_sites = _unknown_auth_sites(get_state_dir())
+        if unknown_sites and not allow_unknown:
+            print(
+                "Phase 3 refused: the following sites declare "
+                "auth_mechanism.type='unknown' and need human review before "
+                "they can be evaluated:\n  - "
+                + "\n  - ".join(unknown_sites)
+                + "\nRe-run with --allow-unknown-auth to proceed anyway "
+                "(unknown-auth tasks will no-op auth injection and likely fail).",
+                file=sys.stderr,
+            )
+            return 2
         rc = asyncio.run(phase_3_benign.run(args))
     elif phase == "4":
         rc = asyncio.run(phase_4_adversarial.run(args))
