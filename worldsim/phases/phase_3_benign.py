@@ -59,6 +59,33 @@ from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 logger = logging.getLogger(__name__)
 
 
+def _phase_3_state_metadata(
+    *,
+    task_dir_root: Path,
+    instances_path: Path | str,
+    agent_model: str,
+    sandbox_model: str,
+    agent_provider: str | None,
+    full_baseline: bool,
+    max_tasks_per_site: int | None,
+    benchmark_root: Path | None,
+    allow_unknown_auth: bool,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "task_dir_root": str(task_dir_root),
+        "instances_path": str(instances_path),
+        "agent_model": agent_model,
+        "sandbox_model": sandbox_model,
+        "agent_provider": agent_provider,
+        "full_baseline": full_baseline,
+        "max_tasks_per_site": max_tasks_per_site,
+        "allow_unknown_auth": allow_unknown_auth,
+    }
+    if benchmark_root is not None:
+        metadata["benchmark_path"] = str(benchmark_root)
+    return metadata
+
+
 async def run(args: argparse.Namespace) -> int:
     """Phase 3 entrypoint — benign validation of wrapped tasks."""
     state_dir = get_state_dir()
@@ -130,26 +157,29 @@ async def run(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
-    # Fail fast if Claude Code auth is missing — diagnosis sandboxes need it.
-    try:
-        preflight_auth_check()
-    except RuntimeError as exc:
-        logger.error("Phase 3 auth pre-flight failed:\n%s", exc)
-        save_state("phase_3", status="failed", reason="auth_preflight_failed")
-        return 1
-
-    agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
-    save_state(
-        "phase_3",
-        status="running",
-        task_dir_root=str(task_dir_root),
-        instances_path=str(instances_path),
+    benchmark_root = getattr(args, "benchmark", None)
+    allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
+    state_metadata = _phase_3_state_metadata(
+        task_dir_root=task_dir_root,
+        instances_path=instances_path,
         agent_model=agent_model,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
+        benchmark_root=benchmark_root,
+        allow_unknown_auth=allow_unknown_auth,
     )
+    # Fail fast if Claude Code auth is missing — diagnosis sandboxes need it.
+    try:
+        preflight_auth_check()
+    except RuntimeError as exc:
+        logger.error("Phase 3 auth pre-flight failed:\n%s", exc)
+        save_state("phase_3", status="failed", reason="auth_preflight_failed", **state_metadata)
+        return 1
+
+    agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
+    save_state("phase_3", status="running", **state_metadata)
 
     logger.info(
         "Phase 3: validating %d benign tasks across %d instances",
@@ -165,7 +195,6 @@ async def run(args: argparse.Namespace) -> int:
 
     # Thread the benchmark codebase root through so BrowserUseAgent can resolve
     # relative auth_mechanism.storage_state.path values. See worldsim/browser_use_agent.py:_resolve_auth.
-    benchmark_root = getattr(args, "benchmark", None)
 
     async def _bound_run_task(task, agent, instance, task_dir):
         return await run_task(
@@ -216,13 +245,7 @@ async def run(args: argparse.Namespace) -> int:
             "phase_3",
             status="failed",
             reason="infra_error_circuit_breaker",
-            task_dir_root=str(task_dir_root),
-            instances_path=str(instances_path),
-            agent_model=agent_model,
-            sandbox_model=sandbox_model,
-            agent_provider=agent_provider,
-            full_baseline=full_baseline,
-            max_tasks_per_site=max_tasks_per_site,
+            **state_metadata,
             error_tasks=[str(r.get("task_id", "?")) for r in error_tasks],
             total=len(results),
         )
@@ -266,13 +289,7 @@ async def run(args: argparse.Namespace) -> int:
             status="failed",
             reason="diagnosis_exception",
             failed_tasks=[task_id for task_id, _ in diagnosis_failures],
-            task_dir_root=str(task_dir_root),
-            instances_path=str(instances_path),
-            agent_model=agent_model,
-            sandbox_model=sandbox_model,
-            agent_provider=agent_provider,
-            full_baseline=full_baseline,
-            max_tasks_per_site=max_tasks_per_site,
+            **state_metadata,
         )
         return 1
 
@@ -310,14 +327,8 @@ async def run(args: argparse.Namespace) -> int:
     save_state(
         "phase_3",
         status="complete",
-        task_dir_root=str(task_dir_root),
+        **state_metadata,
         validated_tasks_path=str(output_dir / "validated_tasks.json"),
-        instances_path=str(instances_path),
-        agent_model=agent_model,
-        sandbox_model=sandbox_model,
-        agent_provider=agent_provider,
-        full_baseline=full_baseline,
-        max_tasks_per_site=max_tasks_per_site,
         passed=len(passed_ids),
         fixed=len(fixed_ids),
         total=len(benign_tasks),
@@ -512,11 +523,12 @@ def _extract_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _runtime_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return ``auth_mechanism`` merged with any sibling authentication block.
+    """Return ``auth_mechanism`` merged with ``agent_context.authentication``.
 
     BrowserUse's auth resolver reads credential placeholders from the auth
-    contract itself, so Phase 3 has to thread the sibling ``authentication``
-    block through to the runtime object it hands to ``BrowserUseAgent.run``.
+    contract itself, so Phase 3 has to thread the validated
+    ``agent_context.authentication`` block through to the runtime object it
+    hands to ``BrowserUseAgent.run``.
     """
     auth_mechanism = _extract_auth_mechanism(task)
     if auth_mechanism is None:
@@ -524,13 +536,12 @@ def _runtime_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
 
     runtime_auth = json.loads(json.dumps(auth_mechanism))
 
-    authentication = task.get("authentication")
-    if not isinstance(authentication, dict):
-        agent_context = task.get("agent_context")
-        if isinstance(agent_context, dict):
-            nested_auth = agent_context.get("authentication")
-            if isinstance(nested_auth, dict):
-                authentication = nested_auth
+    authentication = None
+    agent_context = task.get("agent_context")
+    if isinstance(agent_context, dict):
+        nested_auth = agent_context.get("authentication")
+        if isinstance(nested_auth, dict):
+            authentication = nested_auth
 
     if isinstance(authentication, dict):
         runtime_auth["authentication"] = json.loads(json.dumps(authentication))

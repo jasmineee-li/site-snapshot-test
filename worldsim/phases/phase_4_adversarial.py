@@ -31,6 +31,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import tempfile
 import time
 from collections.abc import Callable
@@ -59,7 +60,11 @@ from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
-from worldsim.seeding import apply_data_seed_async, validate_data_seed
+from worldsim.seeding import (
+    apply_data_seed_async,
+    self_contained_adversarial_seed_error,
+    validate_data_seed,
+)
 from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.task_paths import safe_task_path_component
@@ -73,6 +78,46 @@ REVISED_TASK_OUTPUT = "/workspace/output/revised_task.json"
 VARIANT_TASK_OUTPUT = "/workspace/output/variant_task.json"
 ECOLOGICAL_FIX_MAX_ITERATIONS = 2
 PLACEMENT_FIX_MAX_ITERATIONS = 2
+
+
+def _phase_4_state_metadata(
+    *,
+    task_dir_root: Path,
+    instances_path: Path | str,
+    agent_model: str,
+    sandbox_model: str,
+    agent_provider: str | None,
+    max_tasks_per_site: int | None,
+    benchmark_root: Path | None,
+    allow_unknown_auth: bool,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "task_dir_root": str(task_dir_root),
+        "instances_path": str(instances_path),
+        "agent_model": agent_model,
+        "sandbox_model": sandbox_model,
+        "agent_provider": agent_provider,
+        "max_tasks_per_site": max_tasks_per_site,
+        "allow_unknown_auth": allow_unknown_auth,
+    }
+    if benchmark_root is not None:
+        metadata["benchmark_path"] = str(benchmark_root)
+    return metadata
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(payload, handle, indent=2)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -97,9 +142,11 @@ async def run(args: argparse.Namespace) -> int:
     tasks: list[dict[str, Any]] = []
     rebase_errors: list[str] = []
     for adversarial_task in adversarial_tasks:
-        benign_task = validated_by_id.get(str(adversarial_task.get("benign_task_id", "")))
-        if benign_task is None:
-            benign_task = validated_by_id.get(str(adversarial_task.get("id", "")))
+        benign_task_id = str(adversarial_task.get("benign_task_id", "")).strip()
+        if not benign_task_id:
+            rebase_errors.append(f"{adversarial_task.get('id', '?')}: missing benign_task_id")
+            continue
+        benign_task = validated_by_id.get(benign_task_id)
         if benign_task is None:
             continue
         try:
@@ -157,12 +204,27 @@ async def run(args: argparse.Namespace) -> int:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         task_dir_root = state_dir / "phase_4" / timestamp
 
+    agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
+    sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
+    agent_provider = getattr(args, "agent_provider", None)
+    benchmark_root = getattr(args, "benchmark", None)
+    allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
+    state_metadata = _phase_4_state_metadata(
+        task_dir_root=task_dir_root,
+        instances_path=instances_path,
+        agent_model=agent_model,
+        sandbox_model=sandbox_model,
+        agent_provider=agent_provider,
+        max_tasks_per_site=max_tasks_per_site,
+        benchmark_root=benchmark_root,
+        allow_unknown_auth=allow_unknown_auth,
+    )
     # Fail fast if Claude Code auth is missing — judge/variant sandboxes need it.
     try:
         preflight_auth_check()
     except RuntimeError as exc:
         logger.error("Phase 4 auth pre-flight failed:\n%s", exc)
-        save_state("phase_4", status="failed", reason="auth_preflight_failed")
+        save_state("phase_4", status="failed", reason="auth_preflight_failed", **state_metadata)
         return 1
 
     logger.info(
@@ -173,23 +235,10 @@ async def run(args: argparse.Namespace) -> int:
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(tasks, profiles_dir)
 
-    agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
-    sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
-    agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
-    save_state(
-        "phase_4",
-        status="running",
-        task_dir_root=str(task_dir_root),
-        instances_path=str(instances_path),
-        agent_model=agent_model,
-        sandbox_model=sandbox_model,
-        agent_provider=agent_provider,
-        max_tasks_per_site=max_tasks_per_site,
-    )
+    save_state("phase_4", status="running", **state_metadata)
     # Thread the benchmark codebase root through so BrowserUseAgent can resolve
     # relative auth_mechanism.storage_state.path values.
-    benchmark_root = getattr(args, "benchmark", None)
 
     async def _bound_run_adversarial_task(task, agent, instance, task_dir):
         return await run_adversarial_task(
@@ -250,12 +299,7 @@ async def run(args: argparse.Namespace) -> int:
             status="failed",
             reason="postprocess_exception",
             failed_tasks=[task_id for task_id, _ in postprocess_failures],
-            task_dir_root=str(task_dir_root),
-            instances_path=str(instances_path),
-            agent_model=agent_model,
-            sandbox_model=sandbox_model,
-            agent_provider=agent_provider,
-            max_tasks_per_site=max_tasks_per_site,
+            **state_metadata,
         )
         return 1
 
@@ -274,12 +318,7 @@ async def run(args: argparse.Namespace) -> int:
     save_state(
         "phase_4",
         status="complete",
-        task_dir_root=str(task_dir_root),
-        instances_path=str(instances_path),
-        agent_model=agent_model,
-        sandbox_model=sandbox_model,
-        agent_provider=agent_provider,
-        max_tasks_per_site=max_tasks_per_site,
+        **state_metadata,
         complied=complied,
         variant_success=variant_success,
         resistant=resistant,
@@ -365,13 +404,13 @@ async def _postprocess_one_task(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
+        resume=resume,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
-    processed_file.parent.mkdir(parents=True, exist_ok=True)
-    processed_file.write_text(json.dumps(processed, indent=2))
+    _write_json_atomic(processed_file, processed)
 
     return processed
 
@@ -589,6 +628,7 @@ async def _process_adversarial_result(
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
+    resume: bool = False,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
@@ -614,6 +654,7 @@ async def _process_adversarial_result(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
+        resume=resume,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
     )
@@ -1125,6 +1166,40 @@ async def generate_variant(
     )
 
 
+def _strategy_variation_checkpoint_path(task_dir_root: Path, task_id: str) -> Path:
+    return task_dir_root / safe_task_path_component(task_id) / "strategy_variation_checkpoint.json"
+
+
+def _load_json_dict(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _load_saved_variant_result(task_dir_root: Path, task_id: str, index: int) -> dict[str, Any] | None:
+    variant_dir = task_dir_root / safe_task_path_component(f"{task_id}_variant_{index}")
+    result_file = variant_dir / "result.json"
+    if not result_file.exists():
+        return None
+    payload = _load_json_dict(result_file)
+    if payload is None:
+        return None
+    payload["trajectory_dir"] = str(variant_dir)
+    return payload
+
+
+def _variant_changes_seed(original_task: dict[str, Any], variant_task: dict[str, Any]) -> bool:
+    return json.dumps(
+        original_task.get("adversarial_data_seed"),
+        sort_keys=True,
+    ) != json.dumps(
+        variant_task.get("adversarial_data_seed"),
+        sort_keys=True,
+    )
+
+
 async def run_strategy_variation(
     task: dict[str, Any],
     initial_result: dict[str, Any],
@@ -1133,6 +1208,7 @@ async def run_strategy_variation(
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
+    resume: bool = False,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
@@ -1141,14 +1217,22 @@ async def run_strategy_variation(
     One round per task. Fan-out of up to 3 variants based on judge's
     recommended strategies.
     """
+    task_id = str(task.get("id", "unknown"))
+    checkpoint_path = _strategy_variation_checkpoint_path(task_dir_root, task_id)
+    checkpoint = _load_json_dict(checkpoint_path) if resume else None
+
     # 1. Judge diagnoses why agent refused
-    trajectory_dir = initial_result.get("trajectory_dir", "")
-    recommendation = await run_judge(
-        task,
-        trajectory_dir,
-        profile_path,
-        sandbox_model=sandbox_model,
-    )
+    recommendation = checkpoint.get("judge_diagnosis") if checkpoint else None
+    if not isinstance(recommendation, dict):
+        trajectory_dir = initial_result.get("trajectory_dir", "")
+        recommendation = await run_judge(
+            task,
+            trajectory_dir,
+            profile_path,
+            sandbox_model=sandbox_model,
+        )
+        checkpoint = {"judge_diagnosis": recommendation}
+        _write_json_atomic(checkpoint_path, checkpoint)
 
     strategies = recommendation.get("recommended_strategies", [])
     if not strategies:
@@ -1177,20 +1261,33 @@ async def run_strategy_variation(
         }
 
     # 2. Generate variants in parallel (up to 3 Modal Sandboxes)
-    selected_strategies = strategies[:3]
-    variants = await asyncio.gather(
-        *[
-            generate_variant(task, strategy, profile_path, sandbox_model=sandbox_model)
-            for strategy in selected_strategies
-        ]
-    )
+    variant_candidates = checkpoint.get("variant_candidates") if checkpoint else None
+    if not isinstance(variant_candidates, list):
+        selected_strategies = strategies[:3]
+        variants = await asyncio.gather(
+            *[
+                generate_variant(task, strategy, profile_path, sandbox_model=sandbox_model)
+                for strategy in selected_strategies
+            ]
+        )
 
-    # Filter out failed variant generations — these are just copies of the
-    # original task and would inflate attempt counts / produce false results.
+        # Filter out failed or no-op variant generations — bookkeeping-only changes
+        # should not trigger a fresh judge/eval cycle.
+        variant_candidates = [
+            {"variant": variant, "strategy": selected_strategies[i]}
+            for i, variant in enumerate(variants)
+            if _variant_changes_seed(task, variant)
+        ]
+        checkpoint = checkpoint or {"judge_diagnosis": recommendation}
+        checkpoint["variant_candidates"] = variant_candidates
+        _write_json_atomic(checkpoint_path, checkpoint)
+
     real_variants = [
-        (v, selected_strategies[i])
-        for i, v in enumerate(variants)
-        if not _tasks_equivalent(task, v)
+        (item.get("variant"), item.get("strategy"))
+        for item in variant_candidates
+        if isinstance(item, dict)
+        and isinstance(item.get("variant"), dict)
+        and isinstance(item.get("strategy"), dict)
     ]
     if not real_variants:
         return {
@@ -1221,19 +1318,23 @@ async def run_strategy_variation(
                 index=i,
                 agent_factory=agent_factory,
                 task_dir_root=task_dir_root,
+                resume=resume,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
             )
             for i, (variant, strategy) in enumerate(limited_variants)
         ]
     )
-
-    return {
+    result = {
         "status": "varied",
         "judge_diagnosis": recommendation,
         "attempts": [initial_result],
         "variant_results": variant_results,
     }
+    checkpoint = checkpoint or {"judge_diagnosis": recommendation}
+    checkpoint["variant_results"] = variant_results
+    _write_json_atomic(checkpoint_path, checkpoint)
+    return result
 
 
 def _merge_variant_task(
@@ -1254,6 +1355,10 @@ def _merge_variant_task(
     original_seed = merged.get("adversarial_data_seed", {})
     if candidate_seed.get("mechanism") != original_seed.get("mechanism"):
         logger.warning("Variant attempted to change seed mechanism; keeping original task")
+        return merged
+    seed_error = self_contained_adversarial_seed_error(merged.get("data_seed"), candidate_seed)
+    if seed_error is not None:
+        logger.warning("Variant produced invalid adversarial_data_seed: %s", seed_error)
         return merged
 
     immutable_fields = (
@@ -1300,10 +1405,16 @@ def _rebase_adversarial_task(
         validate_data_seed(adversarial_data_seed, allow_none=False)
     except ValueError as exc:
         raise ValueError(f"invalid adversarial_data_seed: {exc}") from exc
+    seed_error = self_contained_adversarial_seed_error(
+        benign_task.get("data_seed"),
+        adversarial_data_seed,
+    )
+    if seed_error is not None:
+        raise ValueError(seed_error)
 
     rebuilt = json.loads(json.dumps(benign_task))
     rebuilt["id"] = adversarial_task.get("id", benign_task.get("id"))
-    rebuilt["benign_task_id"] = adversarial_task.get("benign_task_id", benign_task.get("id"))
+    rebuilt["benign_task_id"] = adversarial_task["benign_task_id"]
     rebuilt["adversarial_data_seed"] = json.loads(json.dumps(adversarial_data_seed))
     rebuilt["reward_function"] = {
         "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
@@ -1491,6 +1602,7 @@ async def _evaluate_variant(
     index: int,
     agent_factory: Callable[[], AgentRunner],
     task_dir_root: Path,
+    resume: bool = False,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
@@ -1498,6 +1610,23 @@ async def _evaluate_variant(
         f"{task.get('id', 'unknown')}_variant_{index}"
     )
     variant_dir.mkdir(parents=True, exist_ok=True)
+
+    if resume:
+        prior_result = _load_saved_variant_result(
+            task_dir_root,
+            str(task.get("id", "unknown")),
+            index,
+        )
+        if prior_result is not None:
+            logger.info(
+                "Resume: reusing variant %d result for task %s",
+                index,
+                task.get("id", "unknown"),
+            )
+            return {
+                **prior_result,
+                "strategy": strategy.get("strategy"),
+            }
 
     agent = agent_factory()
     try:

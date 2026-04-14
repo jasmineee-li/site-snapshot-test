@@ -177,6 +177,54 @@ def test_rebase_adversarial_task_uses_validated_benign_contract():
     assert rebuilt["agent_context"] == validated_benign["agent_context"]
 
 
+def test_rebase_adversarial_task_rejects_non_self_contained_seed():
+    task, _ = _prepared_adv_task()
+    validated_benign = json.loads(json.dumps(task))
+    validated_benign["data_seed"] = {
+        "mechanism": "api",
+        "api_calls": [{"method": "POST", "path": "/api/base", "body": {"baseline": 1}}],
+    }
+
+    malformed_adversarial = json.loads(json.dumps(task))
+    malformed_adversarial["adversarial_data_seed"] = {
+        "mechanism": "api",
+        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"attack": 1}}],
+    }
+
+    with pytest.raises(ValueError, match="preserve the benign data_seed"):
+        phase_4_adversarial._rebase_adversarial_task(
+            malformed_adversarial,
+            validated_benign,
+        )
+
+
+def test_merge_variant_task_rejects_seed_that_drops_benign_setup():
+    task, _ = _prepared_adv_task()
+    task["data_seed"] = {
+        "mechanism": "api",
+        "api_calls": [{"method": "POST", "path": "/api/base", "body": {"baseline": 1}}],
+    }
+    task["adversarial_data_seed"] = {
+        "mechanism": "api",
+        "api_calls": [
+            {"method": "POST", "path": "/api/base", "body": {"baseline": 1}},
+            {"method": "POST", "path": "/api/seed", "body": {"attack": 1}},
+        ],
+    }
+
+    merged = phase_4_adversarial._merge_variant_task(
+        task,
+        {
+            "adversarial_data_seed": {
+                "mechanism": "api",
+                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"attack": 2}}],
+            }
+        },
+    )
+
+    assert merged["adversarial_data_seed"] == task["adversarial_data_seed"]
+
+
 @pytest.mark.asyncio
 async def test_probe_ecological_validity_stages_task_json(monkeypatch, tmp_path):
     (tmp_path / "history.json").write_text("{}")
@@ -557,6 +605,111 @@ async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints
 
 
 @pytest.mark.asyncio
+async def test_run_strategy_variation_ignores_bookkeeping_only_variants(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+
+    async def fake_run_judge(*args, **kwargs):
+        return {
+            "diagnosis": "needs more specificity",
+            "recommended_strategies": [{"strategy": "specificity"}],
+        }
+
+    async def fake_generate_variant(*args, **kwargs):
+        clone = json.loads(json.dumps(task))
+        clone["applied_strategy"] = {"strategy": "specificity"}
+        return clone
+
+    def fail_agent_factory():
+        raise AssertionError("no-op variants should never reach evaluation")
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=fail_agent_factory,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["status"] == "variant_generation_failed"
+    assert result["variant_results"] == []
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                "judge_diagnosis": {
+                    "diagnosis": "needs more specificity",
+                    "recommended_strategies": [{"strategy": "specificity"}],
+                },
+                "variant_candidates": [
+                    {
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
+            }
+        )
+    )
+    variant_dir = tmp_path / "adv-1_variant_0"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    (variant_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "adv-1",
+                "outcome": "complied",
+                "ecologically_valid": True,
+            }
+        )
+    )
+
+    async def fail_run_judge(*args, **kwargs):
+        raise AssertionError("resume should reuse saved judge output")
+
+    async def fail_generate_variant(*args, **kwargs):
+        raise AssertionError("resume should reuse saved variants")
+
+    def fail_agent_factory():
+        raise AssertionError("resume should reuse saved variant result")
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=fail_agent_factory,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert result["status"] == "varied"
+    assert result["variant_results"] == [
+        {
+            "task_id": "adv-1",
+            "outcome": "complied",
+            "ecologically_valid": True,
+            "trajectory_dir": str(variant_dir),
+            "strategy": "specificity",
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_phase_4_requires_validated_tasks_file(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)
@@ -657,6 +810,8 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
             }
         )
     )
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
 
     async def fake_run_tasks_by_site(**kwargs):
         return [
@@ -679,8 +834,10 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
     rc = await phase_4_adversarial.run(
         Namespace(
             instances=instances_path,
+            benchmark=benchmark_root,
             agent_model="demo-model",
             agent_provider=None,
+            allow_unknown_auth=True,
             resume=False,
         )
     )
@@ -692,7 +849,76 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
     assert state["failed_tasks"] == ["adv-1"]
     assert state["task_dir_root"].startswith(str(tmp_path / "phase_4"))
     assert state["instances_path"] == str(instances_path)
+    assert state["benchmark_path"] == str(benchmark_root)
+    assert state["allow_unknown_auth"] is True
     assert state["agent_model"] == "demo-model"
+
+
+@pytest.mark.asyncio
+async def test_phase_4_run_rejects_missing_benign_task_id(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "adv-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"adversarial_reward": {"type": "noop"}},
+                    "adversarial_data_seed": {"mechanism": "none"},
+                }
+            ]
+        )
+    )
+    (tmp_path / "phase_3" / "validated_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "benign-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"type": "noop"},
+                }
+            ]
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "reset_endpoint": "http://shopping.test/init",
+                    }
+                ],
+            }
+        )
+    )
+
+    monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            resume=False,
+        )
+    )
+
+    assert rc == 1
 
 
 # ── benchmark_root / task_site plumbing ──────────────────────────────────

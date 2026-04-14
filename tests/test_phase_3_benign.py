@@ -334,6 +334,38 @@ def test_build_agent_prompt_uses_per_task_format_field_from_instantiation_dict()
     assert '"name", "state", and "postcode"' in prompt
 
 
+def test_runtime_auth_mechanism_ignores_top_level_authentication_override():
+    task, _ = _prepared_task()
+    task["agent_context"] = {
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "correct", "password": "good-secret"},
+            "description": "Use the benchmark credentials.",
+        },
+        "auth_mechanism": {
+            "type": "http_headers",
+            "http_headers": {
+                "headers": {
+                    "X-Login": "${credentials.username}:${credentials.password}",
+                }
+            },
+        },
+    }
+    task["authentication"] = {
+        "pre_authenticated": False,
+        "credentials": {"username": "rogue", "password": "bad-secret"},
+        "description": "Do not use this.",
+    }
+
+    runtime_auth = phase_3_benign._runtime_auth_mechanism(task)
+
+    assert runtime_auth is not None
+    assert runtime_auth["authentication"]["credentials"] == {
+        "username": "correct",
+        "password": "good-secret",
+    }
+
+
 @pytest.mark.asyncio
 async def test_run_task_scores_partial_timeout_when_artifacts_exist(monkeypatch, tmp_path):
     task, instances = _prepared_task()
@@ -589,6 +621,8 @@ async def test_phase_3_circuit_breaker_skips_diagnosis_loop(monkeypatch, tmp_pat
             }
         )
     )
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
 
     async def fake_run_tasks_by_site(**kwargs):
         return [
@@ -629,9 +663,11 @@ async def test_phase_3_circuit_breaker_skips_diagnosis_loop(monkeypatch, tmp_pat
     rc = await phase_3_benign.run(
         Namespace(
             instances=instances_path,
+            benchmark=benchmark_root,
             agent_model="demo-model",
             agent_provider=None,
             full_baseline=True,
+            allow_unknown_auth=True,
             resume=False,
         )
     )
@@ -640,6 +676,14 @@ async def test_phase_3_circuit_breaker_skips_diagnosis_loop(monkeypatch, tmp_pat
     assert any(
         metadata.get("status") == "failed"
         and metadata.get("reason") == "infra_error_circuit_breaker"
+        and metadata.get("benchmark_path") == str(benchmark_root)
+        and metadata.get("allow_unknown_auth") is True
+        for _, metadata in saved_states
+    )
+    assert any(
+        metadata.get("status") == "running"
+        and metadata.get("benchmark_path") == str(benchmark_root)
+        and metadata.get("allow_unknown_auth") is True
         for _, metadata in saved_states
     )
     assert not any(step == "phase_3" and metadata.get("status") == "complete" for step, metadata in saved_states)
