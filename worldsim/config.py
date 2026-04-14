@@ -11,8 +11,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import merge_placeholder_maps
 
 
@@ -46,6 +47,14 @@ class BenchmarkInstance(BaseModel):
         description="Optional seeding-time auth configuration, e.g. static headers or "
         "a bearer token loaded from disk.",
     )
+
+    @field_validator("db_connection")
+    @classmethod
+    def _validate_db_connection(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        parse_supported_db_connection(value, purpose="BenchmarkInstance.db_connection")
+        return value.strip()
 
 
 class BenchmarkConfig(BaseModel):

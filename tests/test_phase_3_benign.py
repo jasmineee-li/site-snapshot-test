@@ -661,6 +661,70 @@ async def test_phase_3_run_fails_on_gathered_diagnosis_exception(monkeypatch, tm
 
 
 @pytest.mark.asyncio
+async def test_phase_3_run_fails_sql_seed_preflight_without_db_connection(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-sql",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Seed the catalog",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {
+                        "mechanism": "sql",
+                        "statements": ["INSERT INTO products (id) VALUES (1)"],
+                    },
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                    }
+                ],
+            }
+        )
+    )
+
+    monkeypatch.setattr(
+        phase_3_benign,
+        "preflight_auth_check",
+        lambda: (_ for _ in ()).throw(AssertionError("auth preflight should not run")),
+    )
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["status"] == "failed"
+    assert state["reason"] == "seed_runtime_config_error"
+    assert any("SQL-seeded task" in error for error in state["seed_runtime_errors"])
+    assert state["instances_path"] == str(instances_path)
+    assert state["agent_model"] == "demo-model"
+    assert state["full_baseline"] is True
+
+
+@pytest.mark.asyncio
 async def test_phase_3_circuit_breaker_skips_diagnosis_loop(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_1").mkdir(parents=True)

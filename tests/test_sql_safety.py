@@ -151,6 +151,26 @@ def test_db_query_match_does_not_allow_substring_false_positive(monkeypatch):
     assert passed is False
 
 
+def test_db_query_match_rejects_blank_db_connection():
+    passed, message = _db_query_match(
+        {"query": "SELECT 1", "expected": None},
+        {"db_connection": "   "},
+    )
+
+    assert passed is False
+    assert "non-empty URI string" in message
+
+
+def test_db_query_match_rejects_unsupported_db_connection_scheme():
+    passed, message = _db_query_match(
+        {"query": "SELECT 1", "expected": None},
+        {"db_connection": "sqlite:///tmp/demo.db"},
+    )
+
+    assert passed is False
+    assert "unsupported scheme 'sqlite'" in message
+
+
 def test_webarena_eval_fails_closed_without_vendor_package(monkeypatch):
     real_import = builtins.__import__
 

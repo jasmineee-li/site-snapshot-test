@@ -173,6 +173,40 @@ def test_benchmark_config_accepts_instance_auth_blocks():
     }
 
 
+def test_benchmark_config_rejects_blank_db_connection():
+    with pytest.raises(ValueError, match="non-empty URI string"):
+        BenchmarkConfig.model_validate(
+            {
+                "benchmark_name": "WebArena Verified",
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "db_connection": "   ",
+                    }
+                ],
+                "benchmark_codebase": "/tmp/benchmark",
+            }
+        )
+
+
+def test_benchmark_config_rejects_unsupported_db_connection_scheme():
+    with pytest.raises(ValueError, match="unsupported scheme 'sqlite'"):
+        BenchmarkConfig.model_validate(
+            {
+                "benchmark_name": "WebArena Verified",
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "db_connection": "sqlite:///tmp/demo.db",
+                    }
+                ],
+                "benchmark_codebase": "/tmp/benchmark",
+            }
+        )
+
+
 def test_make_llm_rejects_unknown_model_family_without_provider():
     with pytest.raises(ValueError, match="Could not infer a provider"):
         make_llm(model="mystery-model-1")

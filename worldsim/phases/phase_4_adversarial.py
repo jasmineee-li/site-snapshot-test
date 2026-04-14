@@ -68,6 +68,7 @@ from worldsim.resume_metadata import (
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import (
     apply_data_seed_async,
+    collect_sql_seed_runtime_errors,
     self_contained_adversarial_seed_error,
     validate_data_seed,
 )
@@ -306,6 +307,24 @@ async def run(args: argparse.Namespace) -> int:
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
     )
+    sql_seed_errors = collect_sql_seed_runtime_errors(
+        tasks,
+        config.instances,
+        seed_field="adversarial_data_seed",
+    )
+    if sql_seed_errors:
+        logger.error(
+            "Phase 4 seed pre-flight failed:\n%s",
+            "\n".join(f"  - {error}" for error in sql_seed_errors),
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="seed_runtime_config_error",
+            seed_runtime_errors=sql_seed_errors,
+            **state_metadata,
+        )
+        return 1
     # Fail fast if Claude Code auth is missing — judge/variant sandboxes need it.
     try:
         preflight_auth_check()

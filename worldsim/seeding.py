@@ -25,6 +25,7 @@ from typing import Any
 
 import requests
 
+from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import apply_placeholders, merge_placeholder_maps
 
 logger = logging.getLogger(__name__)
@@ -188,6 +189,7 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     validate_data_seed(seed)
     mechanism = seed["mechanism"]
     if mechanism == "sql":
+        _require_sql_db_connection(instance.get("db_connection"))
         for stmt in seed["statements"]:
             execute_sql(stmt, instance["db_connection"])
     elif mechanism in {"api", "form"}:
@@ -226,34 +228,18 @@ def execute_sql(statement: str, db_connection: str) -> None:
     """
     _validate_seed_sql(statement)
 
-    parsed = urllib.parse.urlparse(db_connection)
+    parsed = _parse_runtime_db_connection(db_connection, purpose="SQL seed db_connection")
+    conn = _connect_db(parsed)
+    scheme = parsed.scheme.lower()
 
-    if parsed.scheme == "mysql":
-        import pymysql  # late import — only needed on the MySQL path
-
-        conn = pymysql.connect(
-            host=parsed.hostname,
-            port=parsed.port or 3306,
-            user=parsed.username,
-            password=parsed.password,
-            database=(parsed.path or "").lstrip("/"),
-        )
+    if scheme == "mysql":
         try:
             with conn.cursor() as cursor:
                 cursor.execute(statement)
             conn.commit()
         finally:
             conn.close()
-    elif parsed.scheme in ("postgresql", "postgres"):
-        import psycopg2  # late import — only needed on the PostgreSQL path
-
-        conn = psycopg2.connect(
-            host=parsed.hostname,
-            port=parsed.port or 5432,
-            user=parsed.username,
-            password=parsed.password,
-            dbname=(parsed.path or "").lstrip("/"),
-        )
+    elif scheme in ("postgresql", "postgres"):
         try:
             with conn.cursor() as cursor:
                 cursor.execute(statement)
@@ -261,9 +247,47 @@ def execute_sql(statement: str, db_connection: str) -> None:
         finally:
             conn.close()
     else:
-        raise NotImplementedError(
-            f"DB dialect {parsed.scheme!r} not yet supported by worldsim.seeding"
-        )
+        raise RuntimeError(f"SQL seed db_connection uses unsupported scheme {scheme!r}")
+
+
+def collect_sql_seed_runtime_errors(
+    tasks: list[dict[str, Any]],
+    instances: list[Any],
+    *,
+    seed_field: str,
+) -> list[str]:
+    """Return one error per SQL-incompatible site instance."""
+    sql_task_counts: dict[str, int] = {}
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        seed = task.get(seed_field)
+        if isinstance(seed, dict) and seed.get("mechanism") == "sql":
+            site = str(task.get("site", "")).strip() or "<unknown>"
+            sql_task_counts[site] = sql_task_counts.get(site, 0) + 1
+
+    errors: list[str] = []
+    for site, task_count in sorted(sql_task_counts.items()):
+        site_instances = [
+            instance
+            for instance in instances
+            if _instance_value(instance, "site_name") == site
+        ]
+        if not site_instances:
+            errors.append(
+                f"site {site!r} has {task_count} SQL-seeded task(s) but no configured instances"
+            )
+            continue
+        for instance in site_instances:
+            site_url = _instance_value(instance, "site_url") or "<unknown>"
+            try:
+                _require_sql_db_connection(_instance_value(instance, "db_connection"))
+            except RuntimeError as exc:
+                errors.append(
+                    f"site {site!r} has {task_count} SQL-seeded task(s) but instance "
+                    f"{site_url!r} is not SQL-ready: {exc}"
+                )
+    return errors
 
 
 def _validate_seed_sql(statement: str) -> None:
@@ -303,6 +327,30 @@ def _seed_preserves_prefix(benign_value: Any, adversarial_value: Any) -> bool:
         )
 
     return benign_value == adversarial_value
+
+
+def _instance_value(instance: Any, field: str) -> Any:
+    if isinstance(instance, dict):
+        return instance.get(field)
+    return getattr(instance, field, None)
+
+
+def _parse_runtime_db_connection(
+    db_connection: Any,
+    *,
+    purpose: str,
+) -> urllib.parse.ParseResult:
+    try:
+        return parse_supported_db_connection(db_connection, purpose=purpose)
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
+def _require_sql_db_connection(db_connection: Any) -> urllib.parse.ParseResult:
+    return _parse_runtime_db_connection(
+        db_connection,
+        purpose="SQL seed requires instance['db_connection']",
+    )
 
 
 def _apply_http_seed_call(
@@ -828,17 +876,18 @@ def _select_db_values(
     value_column: str,
     predicates: list[tuple[str, Any]],
 ) -> list[Any]:
-    if not isinstance(db_connection, str) or not db_connection:
-        raise RuntimeError("HTTP seed postcondition requires db_connection on instance")
-
-    parsed = urllib.parse.urlparse(db_connection)
+    parsed = _parse_runtime_db_connection(
+        db_connection,
+        purpose="HTTP seed postcondition requires instance['db_connection']",
+    )
     conn = _connect_db(parsed)
     try:
-        _configure_read_only_connection(conn, parsed.scheme)
-        quoted_table = _quote_identifier(table, parsed.scheme)
-        quoted_value_column = _quote_identifier(value_column, parsed.scheme)
+        scheme = parsed.scheme.lower()
+        _configure_read_only_connection(conn, scheme)
+        quoted_table = _quote_identifier(table, scheme)
+        quoted_value_column = _quote_identifier(value_column, scheme)
         where_clause = " AND ".join(
-            f"{_quote_identifier(column, parsed.scheme)} = %s" for column, _ in predicates
+            f"{_quote_identifier(column, scheme)} = %s" for column, _ in predicates
         )
         query = (
             f"SELECT {quoted_value_column} FROM {quoted_table} "
@@ -866,7 +915,8 @@ def _select_db_values(
 
 
 def _connect_db(parsed: urllib.parse.ParseResult) -> Any:
-    if parsed.scheme == "mysql":
+    scheme = parsed.scheme.lower()
+    if scheme == "mysql":
         import pymysql
 
         return pymysql.connect(
@@ -876,7 +926,7 @@ def _connect_db(parsed: urllib.parse.ParseResult) -> Any:
             password=parsed.password,
             database=(parsed.path or "").lstrip("/"),
         )
-    if parsed.scheme in ("postgresql", "postgres"):
+    if scheme in ("postgresql", "postgres"):
         import psycopg2
 
         return psycopg2.connect(
@@ -886,7 +936,7 @@ def _connect_db(parsed: urllib.parse.ParseResult) -> Any:
             password=parsed.password,
             dbname=(parsed.path or "").lstrip("/"),
         )
-    raise RuntimeError(f"unsupported DB dialect for HTTP seed verification: {parsed.scheme}")
+    raise RuntimeError(f"unsupported DB dialect for HTTP seed verification: {scheme}")
 
 
 def _configure_read_only_connection(conn: Any, scheme: str) -> None:

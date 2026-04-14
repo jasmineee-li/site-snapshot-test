@@ -25,6 +25,7 @@ from collections import Counter
 from typing import Any
 
 from worldsim.agent_response_transform import transform_agent_response
+from worldsim.db_urls import parse_supported_db_connection
 from worldsim.har_converter import ensure_har_trace
 from worldsim.placeholders import apply_placeholders, placeholder_for_site
 
@@ -559,11 +560,13 @@ def _db_query_match(reward: dict[str, Any], instance: dict[str, Any]) -> tuple[b
         return False, str(exc)
 
     try:
-        import urllib.parse
+        parsed = parse_supported_db_connection(
+            db_conn,
+            purpose="db_query_match requires instance['db_connection']",
+        )
+        scheme = parsed.scheme.lower()
 
-        parsed = urllib.parse.urlparse(db_conn)
-
-        if parsed.scheme == "mysql":
+        if scheme == "mysql":
             import pymysql
 
             conn = pymysql.connect(
@@ -573,7 +576,7 @@ def _db_query_match(reward: dict[str, Any], instance: dict[str, Any]) -> tuple[b
                 password=parsed.password,
                 database=(parsed.path or "").lstrip("/"),
             )
-        elif parsed.scheme in ("postgresql", "postgres"):
+        elif scheme in ("postgresql", "postgres"):
             import psycopg2  # late import — only needed on the PostgreSQL path
 
             conn = psycopg2.connect(
@@ -584,10 +587,10 @@ def _db_query_match(reward: dict[str, Any], instance: dict[str, Any]) -> tuple[b
                 dbname=(parsed.path or "").lstrip("/"),
             )
         else:
-            return False, f"unsupported DB dialect: {parsed.scheme}"
+            return False, f"unsupported DB dialect: {scheme}"
 
         try:
-            _configure_read_only_connection(conn, parsed.scheme)
+            _configure_read_only_connection(conn, scheme)
             with conn.cursor() as cursor:
                 cursor.execute(query)
                 rows = cursor.fetchall()
