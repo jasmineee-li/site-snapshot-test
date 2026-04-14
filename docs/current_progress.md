@@ -80,6 +80,44 @@ Everything below reflects the current working tree.
 - **Multi-site placeholder resolution.** `placeholders.py` handles `__SHOPPING__`, `__SHOPPING_ADMIN__`, `__GITLAB__`, `__REDDIT__`, `__WIKIPEDIA__`, `__MAP__` tokens. Strict mode raises on unresolved placeholders. `merge_placeholder_maps` composes config-level, instance-level, and task-level sources.
 - **Data seeding.** Three mechanisms: sql (MySQL + PostgreSQL), api (HTTP requests), state_push (JSON PUT). SQL statements are validated against a disallowed keyword list. Async wrapper via `asyncio.to_thread`.
 - **Eval worker pool.** `run_eval` + `staggered_worker` with `STAGGER_DELAY=5`. Phase-agnostic via `task_runner` callable. Site-aware routing via `run_tasks_by_site`.
+- **Machine-readable `auth_mechanism` schema.** Phase 0c now emits an additive `auth_mechanism` block alongside prose `authentication`. Validator enforces per-type required fields (`storage_state`, `http_basic`, `form_login`, `http_headers`, `client_cert`, `pre_auth_script`, `none`, `unknown`). Runtime ships `storage_state` + `http_basic` + `none` as first-batch implementations in `BrowserUseAgent._resolve_auth`; remaining types raise `NotImplementedError`. CLI `--allow-unknown-auth` gates Phase 3 against unreviewed `unknown`-typed sites.
+- **Constrained fix-loop patches.** `worldsim/fix_validation.py` gates every diagnosis-sandbox patch before `_apply_fix`: origin + method + path allowlist harvested at runtime from `BENCHMARK_PROFILE_{site}.json` (no hardcoded URLs), SQL delegated to `_sandbox_validator.validate_seed_sql`, state_push shape-checked. Rejected patches trigger one retry of `diagnose_failure` with rejection context appended to the prompt; second rejection records `patch_rejected`/`rejection_reasons`/`original_sandbox_patch` in `diagnoses.json` and scores the task as-is. Seeding layer adds a belt-and-suspenders method allowlist so `DELETE`/`HEAD`/`OPTIONS` are blocked at the lowest layer. Diagnosis prompt hardened to classify auth gaps as `agent_limitation` and reserve `mechanism: "api"` for endpoints listed in `verification_capabilities`.
+
+### Post-Rerun Changes (this session)
+
+Landed on `feat/worldsim-v5` on top of the archived-rerun baseline:
+
+1. **Phase 2 `--sites` + `--max-tasks-per-site`.** Deterministic seeded subsetting for fast iteration (same sampler as Phase 3/4 so the same N tasks pair across phases). The `--sites` filter preserves other sites' existing entries in `adversarial_tasks.json` on merge, so partial reruns do not wipe earlier results.
+2. **SQL validator string-literal stripping.** `worldsim/_sandbox_validator.py` and `worldsim/seeding.py` now strip single-quoted SQL string literals (honoring `''` escape) before running the disallowed-keyword regex. Eliminates false-positives on English words like "DO NOT" or "MERGE request" inside `VALUES (...)` payloads.
+3. **`auth_mechanism` schema + runtime dispatcher.** Additive block alongside the prose `authentication`. Schema lives in `worldsim/_sandbox_validator.py::_validate_auth_mechanism`. First-batch runtime implementations: `storage_state`, `http_basic`, `http_headers`, `none`. Stubs raise `NotImplementedError`: `form_login`, `pre_auth_script`, `client_cert`. `--allow-unknown-auth` CLI gate refuses Phase 3/4 when any site declares `type: "unknown"`. Prompt `profile-agent-context.md` updated with detection checklist, classification rules, and four worked examples.
+4. **Phase 0d auth bootstrap (new phase).** `worldsim/phases/phase_0d_auth_bootstrap.py`. Dispatch order per site: `generator_script` -> native `form_login` Playwright helper -> trust existing `storage_state.path` -> skip. Writes `logs/phase_0d/<site>/storage_state.json` and a content-addressed `completion.json`. SHA-256 input hash covers site name, credentials, declared path, generator script bytes, and form_login recipe. Runtime rotations of credentials or scripts trigger regeneration automatically. Wired into `_PHASE_ORDER` between 0c and 1. `BrowserUseAgent._resolve_auth` consults `logs/phase_0d/<site>/storage_state.json` as a fallback when the declared path is missing.
+5. **Fix-loop patch validator.** `worldsim/fix_validation.py` (new). URL allowlist is harvested from the Phase 0c profile (`verification_capabilities[*].examples[*].eval_config.expected.url` plus an optional top-level `seeding_endpoints`). Placeholders (`{id}`, numeric segments, `__GITLAB__`) collapse to per-segment wildcards. Rejected patches trigger one diagnosis retry with rejection context appended to the prompt, then fall through to `keep_flagged`. Defense in depth: `apply_data_seed` enforces the `GET/POST/PUT/PATCH` method allowlist at the lowest layer.
+6. **`benchmark_root` threaded through retry paths.** Phase 3's `_diagnose_one_task` -> `fix_loop` -> `_rerun_live_task` -> `run_task` and Phase 4's `_postprocess_one_task` -> `_process_adversarial_result` -> `_run_ecological_validity_fix_loop` / `_run_placement_fix_loop` / `run_strategy_variation` -> `_rerun_adversarial_task` / `_evaluate_variant` -> `run_adversarial_task` all honor the flag. Resolves `auth_mechanism.storage_state.path` values declared relative to the benchmark codebase root.
+
+Bugfixes:
+
+- **`_unknown_auth_sites` handles the flat Phase 0c layout.** `worldsim/main.py` previously filtered on `is_dir()` and missed the `AGENT_CONTEXT_<site>.json` flat layout that Phase 0c actually emits. Now handles both flat and nested layouts.
+- **Phase 2 merge preserves other sites' adversarial tasks.** `worldsim/phases/phase_2_injections.py`: when `--sites` is set and `adversarial_tasks.json` exists, entries whose `site` is outside the filter are preserved verbatim.
+- **`_resolve_auth` header kwarg.** Browser Use's `BrowserSession` takes `headers=`, not Playwright's `extra_http_headers=`. Unblocks `http_headers` runtime injection.
+
+Infrastructure scripts:
+
+- `scripts/webarena-compose-override.yml`: added wikipedia amd64 image pin + map volume `name:` overrides so `docker compose up -d map` binds to the unprefixed populated volumes instead of creating empty prefixed ones.
+- `scripts/bootstrap_ec2.sh` (new): end-to-end orchestrator that scp's helpers, brings up all 6 containers, patches env-ctrl, verifies /init endpoints.
+- `scripts/setup-wikipedia-robust.sh` (new): ZIM download with CMU + archive.org mirrors in parallel, size + magic-byte verification, atomic replace-in-volume.
+- `scripts/wa_envctrl_patcher.py` (new): Python patcher for env-ctrl sites that inserts `import os` after `from __future__` and patches `_init` to read `WA_ENV_CTRL_EXTERNAL_SITE_URL`. Idempotent, self-repairs prior broken runs.
+- `scripts/patch_webarena_containers.sh`: added `--on-ec2` mode, `docker cp`'s the Python patcher instead of inlining fragile shell-escaped Python.
+
+Instance files:
+
+- `instances.json`: wikipedia + map added.
+- `instances_smoke.json` + `instances_shopping_admin.json`: scoped subsets for smoke testing.
+
+Runtime artifact:
+
+- `logs/phase_0c/AGENT_CONTEXT_gitlab.json`: hand-edited to add the `form_login` recipe (byteblaze / hello1234 + `data-testid` selectors) because Phase 0b's sandbox file scope for gitlab excludes `examples/configs/` and `tests/integration/environments/gitlab/conftest.py`. The file's `notes` flags that Phase 0b should expand its scope.
+
+Deps: Phase 0d's `form_login` bootstrap imports `playwright.async_api.async_playwright` lazily. Install `playwright` in the environment (and run `playwright install chromium`) before running Phase 0d against a `form_login` site. Operators who only run `generator_script` / `pre_auth_script` sites do not need Playwright.
 
 ## Pipeline Outputs on Disk
 
@@ -149,12 +187,37 @@ The original Docker images (`am1n3e/webarena-verified-*`) ship env-ctrl code whe
 
 **Fix (two layers, both required for robustness):**
 
-1. `scripts/webarena-compose-override.yml` -- sets `WA_ENV_CTRL_EXTERNAL_SITE_URL` for shopping, shopping_admin, gitlab, and reddit. Deployed into `vendors/webarena-verified/docker-compose.override.yml` by the patch script. Docker Compose auto-merges it. Survives container recreation.
-2. `scripts/patch_webarena_containers.sh` -- patches running containers to add the env-var fallback in the Python `_init()` code (for images that lack it). Also deploys the override file. Idempotent.
-
-Run after `docker compose up`: `./scripts/patch_webarena_containers.sh [HOST_IP]`.
+1. `scripts/webarena-compose-override.yml` -- sets `WA_ENV_CTRL_EXTERNAL_SITE_URL` for shopping, shopping_admin, gitlab, and reddit. Deployed into `vendors/webarena-verified/docker-compose.override.yml` by the patch script (and into `/home/ubuntu/docker-compose.override.yml` by `bootstrap_ec2.sh`). Docker Compose auto-merges it. Survives container recreation.
+2. `scripts/patch_webarena_containers.sh` (+ `scripts/wa_envctrl_patcher.py`) -- patches running containers to add the env-var fallback in the Python `_init()` code (for images that lack it). Idempotent. The Python helper inserts `import os` AFTER any `from __future__` line (the prior inline snippet prepended it at line 0 and triggered a `SyntaxError` on `from __future__ import annotations`; the helper also self-repairs that broken state). Run modes:
+   * `./scripts/patch_webarena_containers.sh [HOST_IP]` from the repo root deploys the override file into `vendors/webarena-verified/`.
+   * `./scripts/patch_webarena_containers.sh --on-ec2 [HOST_IP]` runs the in-container Python patch against the local EC2 docker daemon; `bootstrap_ec2.sh` scp's the script and `wa_envctrl_patcher.py` up and drives this mode automatically.
 
 For fresh container starts, only the override file is needed (the env var is sufficient when the Python code has the fallback; the patch script ensures it does).
+
+## Bootstrap script
+
+Canonical single-entrypoint for taking a fresh (or partially bootstrapped) EC2 host to a working 6-site WebArena Verified deployment is [`scripts/bootstrap_ec2.sh`](../scripts/bootstrap_ec2.sh). From the repo root, on your workstation:
+
+```bash
+./scripts/bootstrap_ec2.sh
+# or with overrides:
+HOST_IP=1.2.3.4 SSH_KEY=~/.ssh/webarena-key.pem ./scripts/bootstrap_ec2.sh
+```
+
+What it does, idempotently:
+
+1. scp's `setup-map-robust.sh`, `setup-wikipedia-robust.sh`, `build-wikipedia-amd64.sh`, `webarena-compose-override.yml`, `patch_webarena_containers.sh`, and `wa_envctrl_patcher.py` to `/home/ubuntu/`.
+2. Replaces `/home/ubuntu/docker-compose.override.yml` with the canonical one in this repo.
+3. SSHes in and runs `build-wikipedia-amd64.sh` (skips if the image tag already exists).
+4. SSHes in and runs `setup-map-robust.sh` (aria2 resume, per-volume `.extracted` sentinels).
+5. SSHes in and runs `setup-wikipedia-robust.sh` (aria2 resume across CMU + archive.org in parallel, size + `ZIM\x04` magic check, atomic replace-in-volume via alpine `cp <src> <dst>.new && mv <dst>.new <dst>`; only restarts wikipedia if the ZIM actually changed).
+6. `docker compose up -d` on the EC2 brings up all 6 sites.
+7. Runs `patch_webarena_containers.sh --on-ec2` on the EC2 so the Python env-ctrl base_url patcher targets the EC2's docker daemon.
+8. Verifies each site's env-ctrl `/init` returns HTTP 200.
+9. If gitlab specifically fails, respawns its env-ctrl via `docker exec -d webarena-verified-gitlab sh -c 'setsid /usr/local/bin/env-ctrl serve --port 8877 >>/tmp/env-ctrl.log 2>&1 </dev/null'`. gitlab's image has no process manager for env-ctrl; plain `pkill` leaves nothing to respawn it, and plain backgrounded ssh commands get SIGHUP'd when the exec returns.
+10. Prints a per-site summary (HTTP code, site URL, env-ctrl URL).
+
+`scripts/setup-wikipedia-robust.sh` is analogous to `setup-map-robust.sh` and can also be run standalone on the EC2 host if the wiki flow needs to be re-run in isolation. It writes a `.verified` sentinel next to the on-disk ZIM so re-runs are a no-op once the file has passed verification.
 
 ## Known Issues and Lessons Learned
 
@@ -181,11 +244,12 @@ Prioritized execution order from the current canonical state:
 1. **Rerun Phase 0a.** Full pipeline from scratch. The sandbox runner fix (`ede6432`) means all prior sandbox outputs were produced without Claude Code semantics and cannot be trusted. Run: `uv run python -m worldsim.main phase 0a --benchmark vendors/webarena-verified`
 2. **Rerun Phase 0b.** Pure Python, deterministic given the Phase 0a manifest. Run: `uv run python -m worldsim.main phase 0b --benchmark vendors/webarena-verified`
 3. **Rerun Phase 0c.** Tiered profiling (4 sandboxes/site). Produces `BENCHMARK_PROFILE_{site}.json`, `AGENT_CONTEXT_{site}.json`, and tier debug artifacts. Run: `uv run python -m worldsim.main phase 0c --benchmark vendors/webarena-verified`
-4. **Rerun Phase 1.** Rebuild benign task bundles with embedded `agent_context` and preserved `instantiation_dict`. Run: `uv run python -m worldsim.main phase 1 --benchmark vendors/webarena-verified`
-5. **Rerun Phase 2.** Regenerate adversarial tasks with `agent_context` as immutable field and injection prompts conditioned on the benchmark contract. Run: `uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified --instances instances.json`
-6. **Fix WebArena Docker containers.** Wikipedia container is crashing (`exec format error`, arm64 image on x86_64 host, needs rebuild for amd64). Map container does not exist. Shopping, shopping_admin, gitlab, reddit are healthy. Update `instances.json` once wikipedia and map are running.
-7. **Run Phase 3 (benign validation).** `uv run python -m worldsim.main phase 3 --instances instances.json --agent-model gemini-3-flash-preview`. Smoke test with `--max-tasks-per-site 2` first.
-8. **Run Phase 4 (adversarial evaluation).** `uv run python -m worldsim.main phase 4 --instances instances.json`
+4. **Run Phase 0d (auth bootstrap).** Materializes `logs/phase_0d/<site>/storage_state.json` for sites whose `auth_mechanism.type` is `storage_state` or `form_login`. Run: `uv run python -m worldsim.main phase 0d --benchmark vendors/webarena-verified --instances instances.json`. Idempotent, so a re-run after credential rotation regenerates only what changed.
+5. **Rerun Phase 1.** Rebuild benign task bundles with embedded `agent_context` and preserved `instantiation_dict`. Run: `uv run python -m worldsim.main phase 1 --benchmark vendors/webarena-verified`
+6. **Rerun Phase 2.** Regenerate adversarial tasks with `agent_context` as immutable field and injection prompts conditioned on the benchmark contract. Run: `uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified --instances instances.json`. Use `--sites <site>` for scoped iteration; the merge path preserves entries for sites outside the filter.
+7. **Fix WebArena Docker containers.** `scripts/bootstrap_ec2.sh` is the single entrypoint. Wikipedia amd64 image rebuild + parallel ZIM download is handled by `setup-wikipedia-robust.sh`; map volume name overrides live in `webarena-compose-override.yml`. Update `instances.json` once wikipedia and map are healthy.
+8. **Run Phase 3 (benign validation).** `uv run python -m worldsim.main phase 3 --instances instances.json --agent-model gemini-3-flash-preview`. Smoke test with `--max-tasks-per-site 2` first. Add `--allow-unknown-auth` only if a site is still declaring `auth_mechanism.type: "unknown"` and you have accepted the review risk.
+9. **Run Phase 4 (adversarial evaluation).** `uv run python -m worldsim.main phase 4 --instances instances.json`
 
 ## Cost Summary
 
@@ -204,13 +268,15 @@ These numbers are useful context, but they are not the final cost profile for th
 
 Models used in the archived run: `claude-opus-4-6` (primary, ~$96.59), `claude-haiku-4-5-20251001` (sub-agent, ~$3.15). The archived run used the OpenRouter auth path.
 
+Latest rerun (scoped smoke through Phase 3 with fix-loop active, `--sites shopping_admin --max-tasks-per-site`): pipeline total landed at roughly $70 end-to-end. Fix-loop cost is tracked alongside diagnosis cost in `cost_report.json`, so the per-rejection retries surface as distinct `phase_3_diagnose` entries.
+
 ## Codebase Stats
 
 | Metric | Value |
 |--------|-------|
-| `worldsim/` Python lines | 10,039 |
-| Test files | 14 files, 5,733 lines |
-| Tests collected | 246 |
+| `worldsim/` Python lines | 10,039 (+auth_mechanism + fix_validation + phase_0d) |
+| Test files | 17 files (`test_auth_mechanism.py`, `test_fix_validation.py`, `test_phase_0d_auth_bootstrap.py` new) |
+| Tests collected | 345 |
 | Prompt files | 14 |
 
 ## Key Files
@@ -223,6 +289,8 @@ Models used in the archived run: `claude-opus-4-6` (primary, ~$96.59), `claude-h
 | `worldsim/_sandbox_runner.py` | Runs inside Modal. Drives `claude-agent-sdk` with the Claude Code preset. |
 | `worldsim/_sandbox_validator.py` | In-sandbox output validation for manifests, profiles, tasks, diagnosis, and ecological-validity artifacts. |
 | `worldsim/phases/phase_0_recon.py` | Phase 0 orchestration, including the new tiered Phase 0c profiling flow. |
+| `worldsim/phases/phase_0d_auth_bootstrap.py` | Phase 0d auth bootstrap. Dispatch: `generator_script` -> native `form_login` (Playwright) -> trust existing `storage_state.path` -> skip. Idempotent via SHA-256 of inputs. |
+| `worldsim/fix_validation.py` | Host-side patch validator for Phase 3's fix-loop. Method + origin + path allowlist harvested at runtime from the site profile. |
 | `worldsim/agent_prompt.py` | Shared builder for benchmark-specific runtime prompts from `agent_context`. |
 | `worldsim/phases/phase_1_mode_a.py` | Wraps benchmark tasks and now preserves `instantiation_dict` + embeds `agent_context`. |
 | `worldsim/phases/phase_1_mode_b.py` | Novel-task generation, per-site caching, and `agent_context` propagation. |
@@ -238,6 +306,12 @@ Models used in the archived run: `claude-opus-4-6` (primary, ~$96.59), `claude-h
 | `tests/test_phase_1_tasks.py` | Tests for `agent_context` propagation, cache invalidation, and `instantiation_dict` preservation. |
 | `tests/test_phase_3_benign.py` | Tests for benchmark-specific prompt construction. |
 | `tests/test_phase_4_adversarial.py` | Tests for benchmark-specific prompt use in adversarial evaluation. |
+| `tests/test_auth_mechanism.py` | 33 tests: `auth_mechanism` schema validation + `_resolve_auth` dispatcher coverage. |
+| `tests/test_fix_validation.py` | 29 tests: URL allowlist, method gating, SQL delegation, state_push shape. |
+| `tests/test_phase_0d_auth_bootstrap.py` | 30 tests: dispatch precedence, idempotency hashing, form_login bootstrap, trust-path mode. |
+| `scripts/bootstrap_ec2.sh` | Single-entrypoint host-side orchestrator: scp helpers, bring up all 6 containers, patch env-ctrl, verify /init endpoints. |
+| `scripts/setup-wikipedia-robust.sh` | Parallel ZIM download (CMU + archive.org), size + magic-byte verification, atomic replace-in-volume. |
+| `scripts/wa_envctrl_patcher.py` | In-container Python patcher: inserts `import os` after `from __future__`, then splices the `WA_ENV_CTRL_EXTERNAL_SITE_URL` fallback into `_init`. Idempotent, self-repairs prior broken runs. |
 
 ## Auth Setup
 

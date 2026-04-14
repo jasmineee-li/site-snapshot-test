@@ -172,7 +172,15 @@ On crash, `--resume` reads this file and applies two-branch logic:
 - **complete**: the phase finished successfully. Skip to the next phase in `_PHASE_ORDER`.
 - **running**: the phase started but did not finish. Re-run it from the beginning.
 
-`_PHASE_ORDER` is a fixed list: `["phase_0a", "phase_0b", "phase_0c", "phase_1", "phase_2", "phase_3", "phase_4"]`. The resume loader also checks for a `logs_dir` key in the state metadata; if present, it uses that path instead of the default, allowing runs that were started with a custom `WORLDSIM_STATE_DIR` to resume correctly.
+`_PHASE_ORDER` is a fixed list: `["phase_0a", "phase_0b", "phase_0c", "phase_0d", "phase_1", "phase_2", "phase_3", "phase_4"]`. The resume loader also checks for a `logs_dir` key in the state metadata; if present, it uses that path instead of the default, allowing runs that were started with a custom `WORLDSIM_STATE_DIR` to resume correctly.
+
+### CLI Flags
+
+Selected flags on `uv run python -m worldsim.main phase <id> ...`:
+
+- `--sites <site[,site...]>` (Phase 2 only). Restrict injection generation to the listed sites. Other sites' existing entries in `adversarial_tasks.json` are preserved on merge, so partial reruns do not wipe earlier results.
+- `--max-tasks-per-site <N>` (Phase 2, 3, 4). Deterministic seeded sampler caps each site to N tasks. Phase 2 uses the same sampler as Phase 3 and Phase 4 so the same N tasks pair across phases when the same seed is used.
+- `--allow-unknown-auth` (Phase 3, 4). Bypass the safety gate that otherwise refuses to run when any site in `logs/phase_0c/AGENT_CONTEXT_<site>.json` declares `auth_mechanism.type: "unknown"`. The default gate enumerates offending sites and returns exit 2. The gate handles both the flat (`AGENT_CONTEXT_<site>.json`) and nested (`<site>/AGENT_CONTEXT.json`) Phase 0c layouts.
 
 ### Per-Task Resume (Phase 3 and Phase 4)
 
@@ -431,6 +439,7 @@ Host-side validation retries invalid tier outputs up to ``PROFILE_FIX_MAX_ITERAT
     "credentials": { "username": "...", "password": "..." },
     "description": "How authentication works for this site."
   },
+  "auth_mechanism": { "type": "...", "...": { ... } },
   "agent_prompt_template": "Template string with {{INSTRUCTION}} and {{START_URLS}}, or null.",
   "site_context": {
     "platform_name": "...",
@@ -439,6 +448,28 @@ Host-side validation retries invalid tier outputs up to ``PROFILE_FIX_MAX_ITERAT
 }
 
 The agent context schema is benchmark-agnostic. ``requires_structured_output`` is true when the evaluator parses agent text output (e.g. WebArena Verified's JSON response wrapper), false when evaluation checks browser state directly (e.g. DoomArena's DOM inspection). The ``agent_prompt_template`` is discovered from vendor example prompts when they exist, or null when the benchmark provides no agent prompt guidance.
+
+**`auth_mechanism` (machine-readable auth contract).** Additive sibling of the prose `authentication` block. The prose block remains the LLM-facing description; `auth_mechanism` is what the runtime consumes. Exactly one `type` is declared and exactly one matching sub-object is populated:
+
+| `type` | Sub-object keys | Runtime status |
+| :---- | :---- | :---- |
+| `storage_state` | `path`, `generator_script`, `per_task_refresh`, optional nested `form_login` | implemented |
+| `http_basic` | `username`, `password` | implemented |
+| `http_headers` | `headers` (string-to-string map), `scope_url_pattern` | implemented |
+| `none` | `notes` | implemented (no-op) |
+| `form_login` | `login_url`, `username_selector`, `password_selector`, `submit_selector`, `success_url_substring` | Phase 0d bootstrap only (stub at runtime) |
+| `pre_auth_script` | `script_path`, `args` | stub (raises `NotImplementedError`) |
+| `client_cert` | `cert_path`, `key_path`, `origin` | stub (raises `NotImplementedError`) |
+| `unknown` | `notes` | gated by `--allow-unknown-auth` |
+
+Cross-block rule: when a `form_login` recipe is declared (top-level or nested under `storage_state`), `authentication.credentials` must provide string `username` + `password`. The validator enforces it. A `storage_state` type may additionally carry a nested `form_login` recipe; Phase 0d uses the nested recipe to bootstrap the artifact without a hand-authored `generator_script`.
+
+Runtime wiring in `worldsim/browser_use_agent.py::_resolve_auth`:
+
+- `storage_state`: resolves `path` (relative paths join against `benchmark_root`), falls back to `logs/phase_0d/<site>/storage_state.json` when the declared path is absent but Phase 0d produced one, then passes `storage_state=<abs_path>` into `BrowserSession(...)`.
+- `http_basic`: sets `http_credentials={"username": ..., "password": ...}`.
+- `http_headers`: interpolates `${credentials.username}` / `${credentials.password}` from `authentication.credentials` and sets `headers=` (the Browser Use `BrowserSession` kwarg; not Playwright's `extra_http_headers`).
+- `none` / `unknown`: no-op.
 
 **Prompts:**
 
@@ -476,6 +507,30 @@ async def run_phase_0c(manifest, sandbox_map, benchmark_root, output_dir):
     ])
 
 **Validation.** Each tier output is validated independently via the in-sandbox validator and mirrored host-side before downstream use. Tier 1 outputs are validated before Tier 2 receives them. The merged profile undergoes the same cross-reference validation as before (injection surface source_fields must reference data model entities). Invalid merged profiles are fatal and are never published to disk.
+
+### Step 0d: Auth Bootstrap
+
+**Purpose.** Materialize a `storage_state` artifact for every site whose `auth_mechanism.type` is `storage_state` or `form_login`. Runs once between Phase 0c and Phase 3. No LLM sandboxes.
+
+**Implementation.** `worldsim/phases/phase_0d_auth_bootstrap.py`. Per-site dispatch (first match wins):
+
+1. `auth_mechanism.storage_state.generator_script` is declared: import the script as an in-process module and invoke `generate(credentials, site_url, output_path)`. The callable may be sync or async; it must write non-empty JSON at `output_path`.
+2. A `form_login` recipe is declared (top-level or nested under `storage_state`): run the built-in Playwright bootstrapper. Launches headless Chromium, navigates to `login_url` (resolved against the live `site_url` when relative), fills the declared selectors with `authentication.credentials.username` + `password`, clicks submit, waits for `success_url_substring` in the final URL, and dumps `context.storage_state()` to the output path.
+3. The declared `storage_state.path` already exists in the benchmark tree and is non-empty JSON: copy it into Phase 0d's output location and stamp completion.
+4. Otherwise: skip with a warning.
+
+**Storage layout.**
+
+    logs/phase_0d/
+      <site>/
+        storage_state.json
+        completion.json        # {input_hash, generated_at, dispatch, site, ...}
+
+**Idempotency.** `completion.json` stores a SHA-256 of the inputs (site name, credentials, declared path, generator script bytes, form_login recipe). A re-run is a no-op when the existing artifact is non-empty JSON and the input hash matches. Credential or script rotations automatically trigger regeneration.
+
+**CLI.** `uv run python -m worldsim.main phase 0d --benchmark vendors/<benchmark> [--instances instances.json]`. The `--instances` flag is optional; when present, the bootstrapper passes the site's live `site_url` to generators.
+
+**Non-goals.** Phase 0d does not manage benchmark environment lifecycles. It does not cope with CAPTCHA / OTP / SSO flows (use a `pre_auth_script` or a hand-written `generator_script` for those). It does not implement `per_task_refresh` (runtime raises `NotImplementedError` if a site sets it true).
 
 ---
 
@@ -668,6 +723,8 @@ def apply_data_seed(seed, instance):
 
 `execute_sql` supports MySQL (via pymysql) and PostgreSQL (via psycopg2). The driver is selected automatically from the `db_connection` URI scheme.
 
+**SQL keyword scan (string-literal stripping).** `validate_seed_sql` rejects disallowed SQL keywords (DROP, TRUNCATE, GRANT, MERGE, etc.), but it first strips single-quoted string literals (honoring `''` as the escape) before running the keyword regex. Otherwise benign English words in `VALUES (...)` payloads ("DO NOT", "MERGE request") would trip the filter. Implementation lives in both `worldsim._sandbox_validator` (used by the fix-loop validator) and `worldsim.seeding` (used by runtime seeding) and stays in parity.
+
 ### Failure Diagnosis
 
 For each failed task, a Modal Sandbox receives the trajectory and diagnoses the root cause.
@@ -714,7 +771,20 @@ A browser-use agent failed a benign task. Determine the root cause.
 
 `/workspace/output/diagnosis.json`
 
-**Fix loop.** Up to 2 iterations. Exit on pass or agent_limitation.
+**Fix loop.** Up to 2 iterations. Exit on pass or `agent_limitation`.
+
+**Fix-loop patch validator.** Every `suggested_fix` the diagnosis sandbox returns is gated host-side by `worldsim/fix_validation.py::validate_fix_patch` before `_apply_fix` merges it into the task. Rules:
+
+- `target` must be one of `reward_function`, `data_seed`, `task_removal`, `none`. `task_removal` / `none` require `patch` to be null.
+- `reward_function` patches are shape-checked against a known set of top-level keys.
+- `data_seed` patches:
+  - `mechanism: "sql"`: each statement goes through `worldsim._sandbox_validator.validate_seed_sql`, the single source of truth for SQL guardrails.
+  - `mechanism: "api"`: every `api_calls[*]` must use one of `GET/POST/PUT/PATCH`, and the path must match an allowlist harvested at runtime from the site profile. Sources (in order): a top-level `seeding_endpoints` field, then `verification_capabilities[*].examples[*].eval_config.expected.url`. Site-name placeholders (`__GITLAB__`) are stripped, path placeholders (`{id}`) and numeric segments collapse to a per-segment wildcard. No hardcoded URLs. If the profile has nothing to anchor the allowlist, api patches fail closed.
+  - `mechanism: "state_push"`: the `state` body must be a JSON-serializable object.
+
+Rejected patches trigger one retry of `diagnose_failure`. The retry prompt embeds the rejection reasons and the original patch, and the diagnosis prompt reminds the sandbox that auth gaps classify as `agent_limitation`, not `seed_bug`. A second rejection (or any non-recoverable classification) falls through to `keep_flagged` and records `patch_rejected` / `rejection_reasons` / `original_sandbox_patch` alongside the trajectory's original score. Every rejection is appended to `diagnoses.json` under `rejections` for audit.
+
+`worldsim/seeding.py::apply_data_seed` additionally enforces the `GET/POST/PUT/PATCH` method allowlist at the lowest layer so any caller that bypasses the fix-loop validator still cannot emit `DELETE` / `HEAD` / `OPTIONS` via the seeding path.
 
 **Pass criteria for Phase 4.** Benign task must succeed with the target agent.
 
@@ -963,6 +1033,11 @@ Phase 0b: Sandbox Filesystem Mapping (local Python)
 Phase 0c: Per-Site Profiling (N parallel Modal Sandboxes)
 
     -> BENCHMARK_PROFILE_{site}.json
+    -> AGENT_CONTEXT_{site}.json
+
+Phase 0d: Auth Bootstrap (local Python + optional Playwright)
+
+    -> logs/phase_0d/<site>/storage_state.json (per storage_state / form_login site)
 
 Phase 1 Mode A: Wrap existing tasks -> benign task bundles
 
@@ -992,6 +1067,7 @@ Phase 4: Adversarial Evaluation + Adaptive Strategy Variation
 | Benchmark environments | User-managed | N instances for N workers |
 | Code exploration (0a, 0c) | Claude Code in Modal Sandbox | 0a: single, 0c: N parallel |
 | Filesystem mapping (0b) | Local Python | Single |
+| Auth bootstrap (0d) | Local Python (+ optional Playwright) | Per site, sequential |
 | Task generation (1b) | Claude Code in Modal Sandbox | One per site |
 | Injection generation (2) | Claude Code in Modal Sandbox | One per site |
 | Agent execution (3, 4) | Local Browser Use worker pool | M parallel workers |
