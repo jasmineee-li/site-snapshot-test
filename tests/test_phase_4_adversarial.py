@@ -57,6 +57,46 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     return task, instances
 
 
+def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_change():
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    strategy = {"strategy": "specificity"}
+    with_auth = BenchmarkInstance(
+        site_name="shopping",
+        site_url="http://shopping.test",
+        reset_endpoint="http://shopping.test/init",
+        url_placeholders={"__SHOPPING__": "http://shopping.test"},
+        auth={"headers": {"Authorization": "Bearer one"}},
+    )
+    changed_auth = BenchmarkInstance(
+        site_name="shopping",
+        site_url="http://shopping.test",
+        reset_endpoint="http://shopping.test/init",
+        url_placeholders={"__SHOPPING__": "http://shopping-alt.test"},
+        auth={"headers": {"Authorization": "Bearer two"}},
+    )
+
+    assert phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=with_auth,
+        config_url_placeholders={"__GITLAB__": "http://gitlab.test"},
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    ) != phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=changed_auth,
+        config_url_placeholders={"__GITLAB__": "http://gitlab.test"},
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    )
+
+
 @pytest.mark.asyncio
 async def test_generate_variant_reads_variant_output_path(monkeypatch, tmp_path):
     task, _ = _prepared_adv_task()
@@ -1021,6 +1061,7 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
         initial_result,
         primary_instances=[instances[0]],
         all_instances=instances,
+        config_url_placeholders=None,
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
@@ -1064,6 +1105,7 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
                         variant,
                         {"strategy": "specificity"},
                         instance=instances[0],
+                        config_url_placeholders=None,
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
@@ -1127,6 +1169,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
                         initial_result,
                         primary_instances=[instances[0]],
                         all_instances=instances,
+                        config_url_placeholders=None,
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
@@ -1165,6 +1208,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
                         variant,
                         {"strategy": "specificity"},
                         instance=instances[1],
+                        config_url_placeholders=None,
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,

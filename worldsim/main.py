@@ -421,7 +421,13 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 1
-        rc = asyncio.run(phase_0_recon.run(benchmark=args.benchmark, sub=phase))
+        rc = asyncio.run(
+            phase_0_recon.run(
+                benchmark=args.benchmark,
+                sub=phase,
+                sandbox_model=args.sandbox_model,
+            )
+        )
     elif phase == "0d":
         if not args.benchmark:
             print(

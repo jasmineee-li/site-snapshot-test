@@ -176,6 +176,43 @@ class TestHappyPath:
         data = json.loads((state_dir / "phase_0d" / "reddit" / "storage_state.json").read_text())
         assert data["via"] == "async"
 
+    def test_run_persists_benchmark_and_instances_paths_for_resume(self, tmp_path, monkeypatch):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _write_generator(bench, "scripts/make_auth.py", _GOOD_GENERATOR)
+        _write_context(
+            profiles,
+            "shopping",
+            auth_mechanism={
+                "type": "storage_state",
+                "storage_state": {
+                    "path": "auth/shopping_state.json",
+                    "generator_script": "scripts/make_auth.py",
+                },
+            },
+        )
+        instances_path = tmp_path / "instances.json"
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "demo",
+                    "benchmark_codebase": str(bench),
+                    "instances": [
+                        {
+                            "site_name": "shopping",
+                            "site_url": "http://shopping.test",
+                        }
+                    ],
+                }
+            )
+        )
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+
+        assert rc == 0
+        state = json.loads((state_dir / "pipeline_state.json").read_text())
+        assert state["benchmark_path"] == str(bench)
+        assert state["instances_path"] == str(instances_path)
+
     def test_no_sites_with_storage_state_is_noop(self, tmp_path, monkeypatch):
         state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_context(
@@ -289,6 +326,61 @@ class TestIdempotency:
         )["input_hash"]
         assert first_hash != second_hash
 
+    def test_refresh_when_site_url_changes(self, tmp_path, monkeypatch):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _write_generator(bench, "scripts/make_auth.py", _GOOD_GENERATOR)
+        _write_context(
+            profiles,
+            "shopping",
+            auth_mechanism={
+                "type": "storage_state",
+                "storage_state": {
+                    "path": "auth/shopping_state.json",
+                    "generator_script": "scripts/make_auth.py",
+                },
+            },
+        )
+        instances_path = tmp_path / "instances.json"
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "demo",
+                    "benchmark_codebase": str(bench),
+                    "instances": [
+                        {
+                            "site_name": "shopping",
+                            "site_url": "http://shopping-v1.test",
+                        }
+                    ],
+                }
+            )
+        )
+
+        asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+        completion_path = state_dir / "phase_0d" / "shopping" / "completion.json"
+        first = json.loads(completion_path.read_text())
+
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "demo",
+                    "benchmark_codebase": str(bench),
+                    "instances": [
+                        {
+                            "site_name": "shopping",
+                            "site_url": "http://shopping-v2.test",
+                        }
+                    ],
+                }
+            )
+        )
+
+        asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+        second = json.loads(completion_path.read_text())
+
+        assert first["input_hash"] != second["input_hash"]
+        assert second["site_url"] == "http://shopping-v2.test"
+
 
 # ---------------------------------------------------------------------------
 # Contract violations + generator failures
@@ -381,6 +473,47 @@ class TestContractFailures:
         # Skipped, not failed.
         assert rc == 0
         assert not (state_dir / "phase_0d" / "gitlab" / "storage_state.json").exists()
+
+    def test_relative_generator_script_escape_is_rejected(self, tmp_path, monkeypatch):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        escaped = tmp_path / "escape.py"
+        escaped.write_text(_GOOD_GENERATOR, encoding="utf-8")
+        _write_context(
+            profiles,
+            "shopping",
+            auth_mechanism={
+                "type": "storage_state",
+                "storage_state": {
+                    "path": "auth/shopping_state.json",
+                    "generator_script": "../escape.py",
+                },
+            },
+        )
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench)))
+
+        assert rc == 1
+        assert not (state_dir / "phase_0d" / "shopping" / "storage_state.json").exists()
+
+    def test_relative_trust_path_escape_is_rejected(self, tmp_path, monkeypatch):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        escaped = tmp_path / "state.json"
+        escaped.write_text(json.dumps({"cookies": [{"name": "session"}]}), encoding="utf-8")
+        _write_context(
+            profiles,
+            "shopping",
+            auth_mechanism={
+                "type": "storage_state",
+                "storage_state": {
+                    "path": "../state.json",
+                },
+            },
+        )
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench)))
+
+        assert rc == 1
+        assert not (state_dir / "phase_0d" / "shopping" / "storage_state.json").exists()
 
 
 # ---------------------------------------------------------------------------

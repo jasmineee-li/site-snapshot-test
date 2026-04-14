@@ -44,7 +44,11 @@ logger = logging.getLogger(__name__)
 PROFILE_FIX_MAX_ITERATIONS = 2
 
 
-async def run(benchmark: Path, sub: str = "0") -> int:
+async def run(
+    benchmark: Path,
+    sub: str = "0",
+    sandbox_model: str = "claude-sonnet-4-6",
+) -> int:
     """Phase 0 entrypoint.
 
     Args:
@@ -65,17 +69,32 @@ async def run(benchmark: Path, sub: str = "0") -> int:
             preflight_auth_check()
         except RuntimeError as exc:
             logger.error("Phase 0 auth pre-flight failed:\n%s", exc)
-            save_state(f"phase_{sub}", status="failed", reason="auth_preflight_failed")
+            save_state(
+                f"phase_{sub}",
+                status="failed",
+                reason="auth_preflight_failed",
+                sandbox_model=sandbox_model,
+            )
             return 1
 
     if sub in {"0", "0a"}:
-        save_state("phase_0a", status="running", benchmark_path=str(benchmark))
-        manifest = await run_phase_0a(benchmark, output_base / "phase_0a")
+        save_state(
+            "phase_0a",
+            status="running",
+            benchmark_path=str(benchmark),
+            sandbox_model=sandbox_model,
+        )
+        manifest = await run_phase_0a(
+            benchmark,
+            output_base / "phase_0a",
+            sandbox_model=sandbox_model,
+        )
         save_state(
             "phase_0a",
             status="complete",
             manifest_path=str(output_base / "phase_0a" / "BENCHMARK_MANIFEST.json"),
             benchmark_path=str(benchmark),
+            sandbox_model=sandbox_model,
         )
         cost_tracker.log_phase_summary("phase_0a")
         cost_tracker.save(get_state_dir() / "cost_report.json")
@@ -90,7 +109,12 @@ async def run(benchmark: Path, sub: str = "0") -> int:
                 logger.error("Phase 0a output not found at %s — run phase 0a first", manifest_path)
                 return 1
             manifest = json.loads(manifest_path.read_text())
-        save_state("phase_0b", status="running", benchmark_path=str(benchmark))
+        save_state(
+            "phase_0b",
+            status="running",
+            benchmark_path=str(benchmark),
+            sandbox_model=sandbox_model,
+        )
         sandbox_map = compute_sandbox_maps(manifest, benchmark)
         out_dir = output_base / "phase_0b"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -100,6 +124,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
             status="complete",
             sandbox_map_path=str(out_dir / "SANDBOX_MAP.json"),
             benchmark_path=str(benchmark),
+            sandbox_model=sandbox_model,
         )
         logger.info("Phase 0b complete — sandbox maps written for %d sites", len(sandbox_map))
         if sub == "0b":
@@ -120,14 +145,26 @@ async def run(benchmark: Path, sub: str = "0") -> int:
                 )
                 return 1
             sandbox_map = json.loads(sandbox_map_path.read_text())
-        save_state("phase_0c", status="running", benchmark_path=str(benchmark))
+        save_state(
+            "phase_0c",
+            status="running",
+            benchmark_path=str(benchmark),
+            sandbox_model=sandbox_model,
+        )
         try:
-            await run_phase_0c(manifest, sandbox_map, benchmark, output_base / "phase_0c")
+            await run_phase_0c(
+                manifest,
+                sandbox_map,
+                benchmark,
+                output_base / "phase_0c",
+                sandbox_model=sandbox_model,
+            )
         except Exception as e:
             save_state(
                 "phase_0c",
                 status="failed",
                 benchmark_path=str(benchmark),
+                sandbox_model=sandbox_model,
                 error=str(e),
             )
             logger.error("Phase 0c failed: %s", e)
@@ -137,6 +174,7 @@ async def run(benchmark: Path, sub: str = "0") -> int:
             status="complete",
             profiles_dir=str(output_base / "phase_0c"),
             benchmark_path=str(benchmark),
+            sandbox_model=sandbox_model,
         )
         cost_tracker.log_phase_summary("phase_0c")
         cost_tracker.save(get_state_dir() / "cost_report.json")
@@ -150,7 +188,12 @@ async def run(benchmark: Path, sub: str = "0") -> int:
 # ---------------------------------------------------------------------------
 
 
-async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
+async def run_phase_0a(
+    benchmark_root: Path,
+    output_dir: Path,
+    *,
+    sandbox_model: str = "claude-sonnet-4-6",
+) -> dict:
     """Discover benchmark structure via a single Modal Sandbox.
 
     Claude Code explores the full benchmark codebase and produces
@@ -176,6 +219,7 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
             "/workspace/output/BENCHMARK_MANIFEST.json",
             "/workspace/output/BENCHMARK_MANIFEST.md",
         ],
+        model=sandbox_model,
         volumes={"/workspace/benchmark": vol},
         label="0a-discovery",
     )
@@ -217,6 +261,7 @@ async def run_phase_0a(benchmark_root: Path, output_dir: Path) -> dict:
                 "/workspace/output/BENCHMARK_MANIFEST.json",
                 "/workspace/output/BENCHMARK_MANIFEST.md",
             ],
+            model=sandbox_model,
             volumes={"/workspace/benchmark": vol},
             label="0a-discovery-retry",
         )
@@ -428,6 +473,7 @@ async def run_phase_0c(
     benchmark_root: Path,
     output_dir: Path,
     timeout: int = 14400,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Profile each site via tiered parallel Modal Sandboxes.
 
@@ -475,6 +521,7 @@ async def run_phase_0c(
                 output_dir=output_dir,
                 manifest=manifest,
                 timeout=timeout,
+                sandbox_model=sandbox_model,
             )
             for name, files in sites_to_profile.items()
         ],
@@ -534,6 +581,7 @@ async def _run_tier_sandbox(
     output_paths: list[str],
     timeout: int,
     label: str,
+    sandbox_model: str,
     extra_inputs: dict[str, str] | None = None,
 ) -> dict[str, str | None]:
     """Run a single profiling tier sandbox with the standard pattern.
@@ -550,6 +598,7 @@ async def _run_tier_sandbox(
         prompt=prompt,
         output_paths=output_paths,
         timeout=timeout,
+        model=sandbox_model,
         label=label,
     )
     cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
@@ -596,6 +645,7 @@ async def _run_tier_json_with_retries(
     output_path: str,
     timeout: int,
     label: str,
+    sandbox_model: str,
     validate_parsed: Callable[[object], list[str]],
     extra_inputs: dict[str, str] | None = None,
     correction_guidance: str | None = None,
@@ -619,6 +669,7 @@ async def _run_tier_json_with_retries(
             output_paths=[output_path],
             timeout=timeout,
             label=attempt_label,
+            sandbox_model=sandbox_model,
             extra_inputs=extra_inputs,
         )
 
@@ -670,6 +721,7 @@ async def _profile_one_site_tiered(
     output_dir: Path,
     manifest: dict,
     timeout: int,
+    sandbox_model: str,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
@@ -701,6 +753,7 @@ async def _profile_one_site_tiered(
                 output_path="/workspace/output/VERIFICATION_CAPABILITIES.json",
                 timeout=timeout,
                 label=f"0c-{site_name}-A-verify",
+                sandbox_model=sandbox_model,
                 validate_parsed=lambda data: (
                     validate_verification_capabilities(data, site_name=site_name)
                     + _validate_manifest_eval_types(data, manifest_eval_type_set)
@@ -718,6 +771,7 @@ async def _profile_one_site_tiered(
                 output_path="/workspace/output/DATA_MODEL.json",
                 timeout=timeout,
                 label=f"0c-{site_name}-B-data",
+                sandbox_model=sandbox_model,
                 validate_parsed=lambda data: validate_data_model_profile(data, site_name=site_name),
                 correction_guidance=(
                     "Every entity must declare a non-empty fields array, and every field name should "
@@ -732,6 +786,7 @@ async def _profile_one_site_tiered(
                 output_path="/workspace/output/AGENT_CONTEXT.json",
                 timeout=timeout,
                 label=f"0c-{site_name}-C-context",
+                sandbox_model=sandbox_model,
                 validate_parsed=lambda data: validate_agent_context(data, site_name=site_name),
                 correction_guidance=(
                     "When structured output is required, output_schema must be a JSON object. "
@@ -789,6 +844,7 @@ async def _profile_one_site_tiered(
             output_path="/workspace/output/INJECTION_SURFACE.json",
             timeout=timeout,
             label=f"0c-{site_name}-DE-inject",
+            sandbox_model=sandbox_model,
             extra_inputs=tier2_extra_inputs,
             validate_parsed=lambda data: validate_injection_surface(
                 data,

@@ -22,6 +22,8 @@ def instance_identity(instance: Any) -> dict[str, Any]:
         "site_url": getattr(instance, "site_url", None),
         "reset_endpoint": getattr(instance, "reset_endpoint", None),
         "db_connection": getattr(instance, "db_connection", None),
+        "url_placeholders": getattr(instance, "url_placeholders", None),
+        "auth": getattr(instance, "auth", None),
     }
 
 

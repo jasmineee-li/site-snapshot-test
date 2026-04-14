@@ -115,6 +115,7 @@ def _fingerprint_payload(*parts: Any) -> str:
 def _phase_3_eval_context(
     *,
     instances: list[BenchmarkInstance],
+    config_url_placeholders: dict[str, str] | None,
     agent_model: str,
     agent_provider: str | None,
     benchmark_root: Path | None,
@@ -122,6 +123,7 @@ def _phase_3_eval_context(
     return {
         "phase": "phase_3_initial_result",
         "instances": instances_identity(instances),
+        "config_url_placeholders": config_url_placeholders,
         "agent_model": agent_model,
         "agent_provider": agent_provider,
         "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
@@ -142,6 +144,7 @@ def _phase_3_diagnosis_fingerprint(
     result: dict[str, Any],
     *,
     instances: list[BenchmarkInstance],
+    config_url_placeholders: dict[str, str] | None,
     benchmark_root: Path | None,
     sandbox_model: str,
     site_profile: dict[str, Any] | None,
@@ -152,6 +155,7 @@ def _phase_3_diagnosis_fingerprint(
         {
             "phase": "phase_3_diagnosis",
             "instances": instances_identity(instances),
+            "config_url_placeholders": config_url_placeholders,
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
@@ -281,6 +285,7 @@ async def run(args: argparse.Namespace) -> int:
     site_profiles = _load_site_profiles(benign_tasks, profiles_dir)
     eval_context = _phase_3_eval_context(
         instances=config.instances,
+        config_url_placeholders=config.url_placeholders,
         agent_model=agent_model,
         agent_provider=agent_provider,
         benchmark_root=benchmark_root,
@@ -373,6 +378,7 @@ async def run(args: argparse.Namespace) -> int:
                 profiles_dir=profiles_dir,
                 task_dir_root=task_dir_root,
                 instances=config.instances,
+                config_url_placeholders=config.url_placeholders,
                 agent_factory=agent_factory,
                 resume=resume,
                 benchmark_root=benchmark_root,
@@ -470,6 +476,7 @@ async def _diagnose_one_task(
     instances: list[BenchmarkInstance],
     agent_factory: Callable[[], BrowserUseAgent],
     resume: bool,
+    config_url_placeholders: dict[str, str] | None = None,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
@@ -487,6 +494,7 @@ async def _diagnose_one_task(
         task,
         r,
         instances=instances,
+        config_url_placeholders=config_url_placeholders,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,

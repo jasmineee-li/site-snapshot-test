@@ -129,6 +129,10 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Phase 0d requires --benchmark for generator_script resolution")
         return 1
     benchmark = Path(benchmark).resolve()
+    phase_state_metadata = _phase_0d_state_metadata(
+        benchmark=benchmark,
+        instances=getattr(args, "instances", None),
+    )
 
     state_dir = get_state_dir()
     profiles_dir = state_dir / "phase_0c"
@@ -154,11 +158,16 @@ async def run(args: argparse.Namespace) -> int:
             "{'storage_state','form_login'}; nothing to do"
         )
         save_state(
-            "phase_0d", status="complete", output_dir=str(output_dir), generated=[], skipped=[]
+            "phase_0d",
+            status="complete",
+            output_dir=str(output_dir),
+            generated=[],
+            skipped=[],
+            **phase_state_metadata,
         )
         return 0
 
-    save_state("phase_0d", status="running", output_dir=str(output_dir))
+    save_state("phase_0d", status="running", output_dir=str(output_dir), **phase_state_metadata)
 
     generated: list[str] = []
     skipped: list[dict[str, Any]] = []
@@ -170,7 +179,13 @@ async def run(args: argparse.Namespace) -> int:
         artifact_path = site_output / "storage_state.json"
         completion_path = site_output / "completion.json"
 
-        input_hash = _compute_input_hash(spec, benchmark_root=benchmark)
+        site_url = site_urls.get(spec.site_name, "")
+        try:
+            input_hash = _compute_input_hash(spec, benchmark_root=benchmark, site_url=site_url)
+        except AuthBootstrapError as exc:
+            logger.error("Phase 0d failed for site %r: %s", spec.site_name, exc)
+            failures.append((spec.site_name, str(exc)))
+            continue
         if _is_idempotent_skip(artifact_path, completion_path, input_hash):
             logger.info(
                 "Phase 0d: skipping site %r (artifact present and input hash matches)",
@@ -178,9 +193,12 @@ async def run(args: argparse.Namespace) -> int:
             )
             skipped.append({"site": spec.site_name, "reason": "up_to_date"})
             continue
-
-        site_url = site_urls.get(spec.site_name, "")
-        dispatch = _choose_dispatch(spec, benchmark_root=benchmark)
+        try:
+            dispatch = _choose_dispatch(spec, benchmark_root=benchmark)
+        except AuthBootstrapError as exc:
+            logger.error("Phase 0d failed for site %r: %s", spec.site_name, exc)
+            failures.append((spec.site_name, str(exc)))
+            continue
 
         if dispatch == "generator_script":
             try:
@@ -248,6 +266,7 @@ async def run(args: argparse.Namespace) -> int:
                     "generator_script": spec.generator_script,
                     "form_login": spec.form_login,
                     "agent_context_source": str(spec.agent_context_source),
+                    "site_url": site_url,
                 },
                 indent=2,
             )
@@ -268,6 +287,7 @@ async def run(args: argparse.Namespace) -> int:
             generated=generated,
             skipped=skipped,
             failures=[{"site": s, "error": e} for s, e in failures],
+            **phase_state_metadata,
         )
         return 1
 
@@ -277,6 +297,7 @@ async def run(args: argparse.Namespace) -> int:
         output_dir=str(output_dir),
         generated=generated,
         skipped=skipped,
+        **phase_state_metadata,
     )
     logger.info(
         "Phase 0d complete — %d generated, %d skipped",
@@ -450,7 +471,7 @@ def _spec_from_context(site_name: str, context_path: Path) -> _SiteSpec | None:
     )
 
 
-def _compute_input_hash(spec: _SiteSpec, *, benchmark_root: Path) -> str:
+def _compute_input_hash(spec: _SiteSpec, *, benchmark_root: Path, site_url: str) -> str:
     """Content-hash the inputs that determine whether regeneration is needed.
 
     Changes in any of the following invalidate the artifact: credentials,
@@ -484,6 +505,7 @@ def _compute_input_hash(spec: _SiteSpec, *, benchmark_root: Path) -> str:
             + json.dumps(spec.form_login, sort_keys=True, default=str).encode("utf-8")
             + b"\n"
         )
+    hasher.update(b"site_url:" + site_url.encode("utf-8") + b"\n")
     return hasher.hexdigest()
 
 
@@ -494,7 +516,19 @@ def _resolve_generator_path(generator_script: str, benchmark_root: Path) -> Path
     candidate = Path(generator_script)
     if candidate.is_absolute():
         return candidate
-    return (benchmark_root / candidate).resolve()
+    return _resolve_benchmark_relative_path(candidate, benchmark_root)
+
+
+def _resolve_benchmark_relative_path(path: Path, benchmark_root: Path) -> Path:
+    """Resolve a benchmark-relative path and reject escapes outside benchmark_root."""
+    resolved = (benchmark_root / path).resolve()
+    try:
+        resolved.relative_to(benchmark_root)
+    except ValueError as exc:
+        raise AuthBootstrapError(
+            f"path {str(path)!r} resolves outside benchmark root {benchmark_root}"
+        ) from exc
+    return resolved
 
 
 def _is_idempotent_skip(
@@ -681,7 +715,11 @@ def _choose_dispatch(spec: _SiteSpec, *, benchmark_root: Path) -> str:
         return "form_login"
     if spec.mech_type == "storage_state" and spec.declared_path:
         declared = Path(spec.declared_path)
-        resolved = declared if declared.is_absolute() else (benchmark_root / declared)
+        resolved = (
+            declared
+            if declared.is_absolute()
+            else _resolve_benchmark_relative_path(declared, benchmark_root)
+        )
         try:
             if resolved.exists() and resolved.stat().st_size > 0:
                 # Validate JSON shape before trusting.
@@ -705,7 +743,11 @@ def _trust_declared_path(
     path behave identically to the form_login / generator_script paths.
     """
     declared = Path(spec.declared_path)
-    resolved = declared if declared.is_absolute() else (benchmark_root / declared)
+    resolved = (
+        declared
+        if declared.is_absolute()
+        else _resolve_benchmark_relative_path(declared, benchmark_root)
+    )
     try:
         raw = resolved.read_text(encoding="utf-8")
     except OSError as exc:
@@ -847,6 +889,17 @@ def phase_0d_artifact_path(site_name: str, state_dir: Path | None = None) -> Pat
     """Return the canonical artifact path for a site's Phase 0d output."""
     base = Path(state_dir) if state_dir is not None else get_state_dir()
     return base / "phase_0d" / site_name / "storage_state.json"
+
+
+def _phase_0d_state_metadata(
+    *,
+    benchmark: Path,
+    instances: str | Path | None,
+) -> dict[str, str]:
+    payload = {"benchmark_path": str(benchmark)}
+    if instances is not None:
+        payload["instances_path"] = str(Path(instances))
+    return payload
 
 
 __all__ = [

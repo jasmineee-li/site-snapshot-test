@@ -167,6 +167,41 @@ async def test_run_phase_0c_fails_when_any_tier_output_is_missing(monkeypatch, t
 
 
 @pytest.mark.asyncio
+async def test_run_phase_0a_passes_explicit_sandbox_model(monkeypatch, tmp_path):
+    benchmark_root, _ = _benchmark_setup(tmp_path)
+    captured = {}
+
+    async def fake_upload_to_volume(path):
+        assert path == benchmark_root
+        return object()
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        captured["model"] = kwargs.get("model")
+        return {
+            "/workspace/output/BENCHMARK_MANIFEST.json": json.dumps(
+                {
+                    "sites": [],
+                    "evaluation": {"eval_types": []},
+                    "benchmark_codebase": str(benchmark_root),
+                }
+            ),
+            "/workspace/output/BENCHMARK_MANIFEST.md": "ok",
+            "_summary": None,
+        }
+
+    monkeypatch.setattr(phase_0_recon, "upload_to_volume", fake_upload_to_volume)
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0a(
+        benchmark_root,
+        tmp_path / "out",
+        sandbox_model="claude-opus-4-6",
+    )
+
+    assert captured["model"] == "claude-opus-4-6"
+
+
+@pytest.mark.asyncio
 async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
     de_attempts = 0
@@ -273,3 +308,35 @@ async def test_correction_loop_hard_fails_after_max_retries(monkeypatch, tmp_pat
     assert de_attempts == 1 + phase_0_recon.PROFILE_FIX_MAX_ITERATIONS
     assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
     assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_threads_explicit_sandbox_model(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    seen_models: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        seen_models.append(kwargs["model"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+        sandbox_model="claude-opus-4-6",
+    )
+
+    assert seen_models
+    assert set(seen_models) == {"claude-opus-4-6"}

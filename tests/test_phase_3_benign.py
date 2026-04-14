@@ -55,6 +55,34 @@ def _prepared_task() -> tuple[dict, list[BenchmarkInstance]]:
     return task, instances
 
 
+def test_phase_3_result_fingerprint_changes_when_config_placeholders_change():
+    task, instances = _prepared_task()
+    base_context = phase_3_benign._phase_3_eval_context(
+        instances=instances,
+        config_url_placeholders={"__SHOPPING__": "http://shopping-v1.test"},
+        agent_model="demo-model",
+        agent_provider=None,
+        benchmark_root=None,
+    )
+    changed_context = phase_3_benign._phase_3_eval_context(
+        instances=instances,
+        config_url_placeholders={"__SHOPPING__": "http://shopping-v2.test"},
+        agent_model="demo-model",
+        agent_provider=None,
+        benchmark_root=None,
+    )
+
+    assert phase_3_benign._phase_3_result_fingerprint(
+        task,
+        eval_context=base_context,
+        site_profile=None,
+    ) != phase_3_benign._phase_3_result_fingerprint(
+        task,
+        eval_context=changed_context,
+        site_profile=None,
+    )
+
+
 @pytest.mark.asyncio
 async def test_fix_loop_applies_reward_patch_and_preserves_runtime(monkeypatch, tmp_path):
     task, instances = _prepared_task()

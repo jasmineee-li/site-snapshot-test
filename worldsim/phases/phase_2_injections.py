@@ -79,6 +79,7 @@ async def run(args: argparse.Namespace) -> int:
     """Phase 2 entrypoint — generate adversarial injections for each site."""
     state_dir = get_state_dir()
     output_dir = state_dir / "phase_2"
+    sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
 
     # Load benign tasks from Phase 1
     tasks_path = state_dir / "phase_1" / "benign_tasks.json"
@@ -98,10 +99,15 @@ async def run(args: argparse.Namespace) -> int:
         preflight_auth_check()
     except RuntimeError as exc:
         logger.error("Phase 2 auth pre-flight failed:\n%s", exc)
-        save_state("phase_2", status="failed", reason="auth_preflight_failed")
+        save_state(
+            "phase_2",
+            status="failed",
+            reason="auth_preflight_failed",
+            sandbox_model=sandbox_model,
+        )
         return 1
 
-    save_state("phase_2", status="running")
+    save_state("phase_2", status="running", sandbox_model=sandbox_model)
 
     # Optional per-site cap (same deterministic seeded sampler Phase 3/4 use,
     # so the same N tasks pair across phases).
@@ -153,7 +159,12 @@ async def run(args: argparse.Namespace) -> int:
             "Phase 2 cannot proceed because required site profiles are invalid:\n%s",
             "\n".join(f"  - {item}" for item in profile_errors),
         )
-        save_state("phase_2", status="failed", reason="invalid_site_profiles")
+        save_state(
+            "phase_2",
+            status="failed",
+            reason="invalid_site_profiles",
+            sandbox_model=sandbox_model,
+        )
         return 1
 
     # Shard each site's tasks into chunks of TASKS_PER_SHARD and run all
@@ -171,6 +182,7 @@ async def run(args: argparse.Namespace) -> int:
                     all_site_tasks=tasks,
                     profile_path=site_profiles[site],
                     label=label,
+                    sandbox_model=sandbox_model,
                 )
             )
 
@@ -215,7 +227,12 @@ async def run(args: argparse.Namespace) -> int:
 
     if not all_adversarial:
         logger.error("Phase 2 produced zero adversarial tasks across all sites")
-        save_state("phase_2", status="failed", reason="no_adversarial_tasks")
+        save_state(
+            "phase_2",
+            status="failed",
+            reason="no_adversarial_tasks",
+            sandbox_model=sandbox_model,
+        )
         return 1
 
     # Write combined output.  When --sites filter is active and a prior
@@ -249,7 +266,7 @@ async def run(args: argparse.Namespace) -> int:
             "Phase 2: no adversarial tasks produced across all sites — "
             "check sandbox logs and profiles"
         )
-        save_state("phase_2", status="failed", task_count=0)
+        save_state("phase_2", status="failed", task_count=0, sandbox_model=sandbox_model)
         return 1
 
     save_state(
@@ -257,6 +274,7 @@ async def run(args: argparse.Namespace) -> int:
         status="complete",
         adversarial_tasks_path=str(output_path),
         task_count=len(all_adversarial),
+        sandbox_model=sandbox_model,
     )
     cost_tracker.log_phase_summary("phase_2")
     cost_tracker.save(state_dir / "cost_report.json")
@@ -310,6 +328,7 @@ async def _generate_injections_for_site(
     all_site_tasks: list[dict] | None = None,
     profile_path: Path | None = None,
     label: str | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> SiteInjectionResult:
     """Generate adversarial injections for a shard (or full set) of tasks via Modal Sandbox.
 
@@ -364,6 +383,7 @@ async def _generate_injections_for_site(
                 validation_command="adversarial-tasks",
             ),
             output_paths=["/workspace/output/adversarial_tasks.json"],
+            model=sandbox_model,
             label=label,
         )
 
