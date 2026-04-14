@@ -24,6 +24,7 @@ import subprocess
 from collections import Counter
 from typing import Any
 
+from worldsim.agent_response_transform import transform_agent_response
 from worldsim.placeholders import apply_placeholders, placeholder_for_site
 
 logger = logging.getLogger(__name__)
@@ -309,11 +310,27 @@ def _run_homebrew_eval(
 
 
 def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) -> dict[str, Any]:
-    """Build a WebArena Verified-compatible agent response dict."""
+    """Build a WebArena Verified-compatible agent response dict.
+
+    When the task has an ``AgentResponseEvaluator``, first try the 4-strategy
+    extractor from ``worldsim.agent_response_transform``. This matches the
+    vendor's canonical CLI behavior: ``eval-tasks`` wires the extractor in via
+    ``--agent-response-transform`` and prefers the transformed dict over the
+    raw text when it yields a JSON object (see
+    ``vendors/webarena-verified/src/webarena_verified/__main__.py`` around
+    ``_transform_agent_response`` at lines 944-950). Without this we score 0
+    on runs where the content is correct but the JSON wrapper is mangled,
+    while the benchmark's own CLI scores 1. Scope is intentionally limited to
+    tasks that declare an ``AgentResponseEvaluator`` -- other evaluator types
+    (and other benchmarks) are left untouched.
+    """
+
     # Infer task type from the expected response in the first AgentResponseEvaluator
     task_type = "retrieve"
+    has_agent_response_evaluator = False
     for config in eval_configs:
         if config.get("evaluator") == "AgentResponseEvaluator":
+            has_agent_response_evaluator = True
             expected = config.get("expected", {})
             task_type = expected.get("task_type", "retrieve")
             break
@@ -322,12 +339,20 @@ def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) ->
     if agent_result is not None:
         final_result = getattr(agent_result, "final_result", None)
 
+    is_done = agent_result is not None and getattr(agent_result, "is_done", False)
+
+    # Prefer a transform-extracted dict for WebArena-Verified
+    # AgentResponseEvaluator tasks. Fall back to the prose-wrapping behavior
+    # when no strategy matches (transform returns None).
+    if has_agent_response_evaluator and isinstance(final_result, str) and final_result.strip():
+        transformed = transform_agent_response(final_result)
+        if transformed is not None:
+            return transformed
+
     # Parse the agent's final answer into retrieved_data format
     retrieved_data = None
     if task_type == "retrieve" and final_result:
         retrieved_data = _parse_retrieved_data(final_result)
-
-    is_done = agent_result is not None and getattr(agent_result, "is_done", False)
 
     return {
         "task_type": task_type,

@@ -179,6 +179,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override the saved gate for auth_mechanism.type='unknown' during resume.",
     )
 
+    rescore_cmd = subparsers.add_parser(
+        "rescore-phase-3",
+        help="Re-score an existing Phase 3 run with the agent-response transform.",
+    )
+    rescore_cmd.add_argument(
+        "--phase-3-dir",
+        type=Path,
+        default=Path("logs/phase_3_gemini-3-flash"),
+        help="Phase 3 output directory containing results.json and task trajectories.",
+    )
+    rescore_cmd.add_argument(
+        "--instances",
+        type=Path,
+        default=None,
+        help="Optional instances JSON, used to supply URL placeholders to the "
+        "vendor evaluator's config-validation step.",
+    )
+
     return parser
 
 
@@ -195,6 +213,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "phase":
         return _dispatch_phase(args)
+
+    if args.command == "rescore-phase-3":
+        from worldsim.phases import phase_3_rescore
+
+        return phase_3_rescore.run(args)
 
     return 0
 
