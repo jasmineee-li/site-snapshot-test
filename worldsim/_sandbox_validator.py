@@ -36,6 +36,10 @@ _DISALLOWED_SQL_KEYWORDS = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+# Matches single-quoted SQL string literals with SQL's `''` escape. We strip
+# these before running the disallowed-keyword check so that keyword-like words
+# ("DO NOT", "MERGE request") appearing inside string values are not flagged.
+_SQL_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
 
 
 def validate_seed_sql(statement: str) -> str | None:
@@ -45,7 +49,7 @@ def validate_seed_sql(statement: str) -> str | None:
         return "SQL seed statement is empty"
     if _MULTI_STATEMENT_PATTERN.search(normalized.rstrip(";")):
         return "SQL seed must be a single statement"
-    if _DISALLOWED_SQL_KEYWORDS.search(normalized):
+    if _DISALLOWED_SQL_KEYWORDS.search(_SQL_STRING_LITERAL.sub("''", normalized)):
         return f"SQL seed contains a disallowed keyword: {normalized[:100]}..."
 
     first_token = normalized.split(None, 1)[0].upper()
@@ -575,7 +579,10 @@ def validate_injection_surface(
     if not isinstance(coverage, dict):
         errors.append("missing 'existing_task_coverage' object")
     else:
-        for key in ("injection_surfaces_with_task_coverage", "injection_surfaces_without_task_coverage"):
+        for key in (
+            "injection_surfaces_with_task_coverage",
+            "injection_surfaces_without_task_coverage",
+        ):
             items = coverage.get(key)
             if not isinstance(items, list):
                 errors.append(f"existing_task_coverage missing '{key}' array")
@@ -616,7 +623,9 @@ def validate_agent_context(data: object, *, site_name: str) -> list[str]:
                 "requires_structured_output is true"
             )
         elif requires and not isinstance(schema, dict):
-            errors.append("response_format.output_schema must be an object when structured output is required")
+            errors.append(
+                "response_format.output_schema must be an object when structured output is required"
+            )
         if not requires and schema is not None:
             errors.append(
                 "response_format.output_schema should be null when "
@@ -849,9 +858,7 @@ def main() -> int:
     dm_parser = subparsers.add_parser("data-model", help="Validate DATA_MODEL.json")
     dm_parser.add_argument("--site-name", required=True, help="Expected site_name")
 
-    is_parser = subparsers.add_parser(
-        "injection-surface", help="Validate INJECTION_SURFACE.json"
-    )
+    is_parser = subparsers.add_parser("injection-surface", help="Validate INJECTION_SURFACE.json")
     is_parser.add_argument("--site-name", required=True, help="Expected site_name")
 
     ac_parser = subparsers.add_parser("agent-context", help="Validate AGENT_CONTEXT.json")

@@ -32,6 +32,16 @@ _DISALLOWED_SQL_KEYWORDS = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+# Strip single-quoted SQL string literals (with `''` escape) before keyword
+# scan, so keyword-like words inside a VALUES (...) string literal don't trip
+# the filter. Parity with `worldsim/_sandbox_validator.py`.
+_SQL_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
+
+# Host-side backstop: the real allowlist is in ``worldsim.fix_validation``.
+# This mirrors ``fix_validation.ALLOWED_METHODS`` so destructive verbs
+# (DELETE) and probing verbs (HEAD, OPTIONS) are blocked at the lowest
+# layer too.
+_ALLOWED_API_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
 
 
 def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
@@ -59,6 +69,11 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
             raise ValueError("api data seed must include a non-empty api_calls list")
+        # Belt-and-suspenders: reject destructive/probing HTTP methods here
+        # even when the upstream Phase 3 validator was bypassed. The
+        # authoritative allowlist (path, origin) lives in
+        # ``worldsim.fix_validation.validate_fix_patch``; this check keeps
+        # any caller of ``apply_data_seed`` on the safe subset of verbs.
         for call in api_calls:
             if not isinstance(call, dict):
                 raise ValueError("api data seed calls must be objects")
@@ -66,6 +81,11 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             path = call.get("path")
             if not isinstance(method, str) or not method.strip():
                 raise ValueError("api data seed calls must include a method")
+            if method.strip().upper() not in _ALLOWED_API_METHODS:
+                raise ValueError(
+                    f"api data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
+                )
             if not isinstance(path, str) or not path.startswith("/"):
                 raise ValueError("api data seed calls must include a path starting with '/'")
         return
@@ -183,7 +203,7 @@ def _validate_seed_sql(statement: str) -> None:
         raise ValueError("SQL seed statement is empty")
     if _MULTI_STATEMENT_PATTERN.search(normalized.rstrip(";")):
         raise ValueError("SQL seed must be a single statement")
-    if _DISALLOWED_SQL_KEYWORDS.search(normalized):
+    if _DISALLOWED_SQL_KEYWORDS.search(_SQL_STRING_LITERAL.sub("''", normalized)):
         raise ValueError(f"SQL seed contains a disallowed keyword: {normalized[:100]}...")
 
     first_token = normalized.split(None, 1)[0].upper()
