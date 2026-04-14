@@ -82,6 +82,8 @@ We report the gap between ecologically valid ASR (computed only from trajectorie
 * A target agent model to test against  
 * Agent profiles and target domains (for generating new tasks on top of existing environments)
 
+**Threat model (v5 MVP).** An authenticated user with no special privileges on the target site. They can perform any action the site offers to regular users, including posting reviews, commenting on issues, submitting to forums, filing tickets, editing OSM tags, and editing wiki pages. They cannot access admin panels, modify the database directly, or impersonate other users. All adversarial content must therefore enter through channels that a regular user can legitimately use, typically authenticated HTTP POST or PUT requests against the site's public API or form endpoints. SQL writes are used only as a lab-mode shortcut when the equivalent API call is unavailable, and such attacks are tagged `privileged_seed: true` and reported separately from the headline ASR.
+
 ## **Pipeline Phases** 
 
 ## ***Note: Read the Document sub-tab [Worldsim: Planning Doc](https://docs.google.com/document/d/1OKq3ML9lCNVz3LbTh_d_IWgdLwTBsgjI50Ug-3HikJ4/edit?tab=t.kbq98zldtw1t) for Complete Technical Specification of Pipeline Phases)***
