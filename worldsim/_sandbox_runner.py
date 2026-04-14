@@ -141,3 +141,9 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+    # Explicit flush so the final NDJSON summary and EOF are delivered to the
+    # Modal worker promptly before process teardown. Without this, async
+    # subprocess cleanup during asyncio.run() shutdown can delay fd close and
+    # leave Modal's stream readers briefly waiting for EOF frames.
+    sys.stdout.flush()
+    sys.stderr.flush()

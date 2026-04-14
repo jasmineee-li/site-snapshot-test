@@ -152,7 +152,7 @@ async def run_claude_in_sandbox(
     prompt: str,
     output_paths: list[str],
     timeout: int = 14400,
-    model: str = "claude-opus-4-6",
+    model: str = "claude-sonnet-4-6",
     volumes: dict[str, modal.Volume] | None = None,
     label: str = "",
 ) -> dict[str, str | None]:
@@ -174,7 +174,9 @@ async def run_claude_in_sandbox(
             Claude exits. Missing files are returned as ``None``.
         timeout: Wall-clock timeout for the sandbox in seconds.
         model: Model identifier passed to Claude Agent SDK (default:
-            ``claude-opus-4-6``).
+            ``claude-sonnet-4-6``). In practice, we run Sonnet first for
+            long smokes and cost-sensitive passes, then move to Opus for
+            confirmation runs when needed.
         volumes: Optional dict mapping mount paths to ``modal.Volume`` objects.
             Use for large, stable file sets (e.g., benchmark codebases) that
             should be uploaded once and mounted read-only, instead of being
@@ -222,62 +224,102 @@ async def run_claude_in_sandbox(
             model,
             secrets=_build_claude_secrets(),
             workdir="/workspace",
+            timeout=timeout,
+            bufsize=1,
         )
 
         # Stream NDJSON events from the runner for live observability.
+        # IMPORTANT, stdout and stderr MUST be drained concurrently. Modal's
+        # _StreamReaderThroughServer creates a background asyncio.Task per
+        # stream at construction that drains the gRPC stream into an in-memory
+        # buffer with 10 retry credits. If we drain serially, an unread
+        # stream's retry budget can exhaust during long runs (server recycles
+        # its 55s window repeatedly), the background task silently dies WITHOUT
+        # writing the `None` EOF sentinel, and the subsequent async-for polls
+        # the buffer forever. This wedged 5/43 shards in our first Phase 2 run.
         tag = f"[{label}] " if label else ""
         summary_data: dict | None = None
         turn_count = 0
         sandbox_start = time.monotonic()
-        async for line in claude_ps.stdout:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                logger.debug("%snon-JSON stdout line from sandbox runner: %s", tag, line[:200])
-                continue
+        stderr_lines: list[str] = []
 
-            etype = event.get("type")
-            if etype == "tool_call":
-                turn_count += 1
-                logger.info("  %s[sandbox] tool_call #%d: %s", tag, turn_count, event.get("tool"))
-                if turn_count % 10 == 0:
-                    elapsed = time.monotonic() - sandbox_start
-                    logger.info(
-                        "  %s[sandbox] progress: %d tool calls in %.1fs",
-                        tag,
-                        turn_count,
-                        elapsed,
-                    )
-            elif etype == "text":
-                preview = (event.get("preview", "") or "")[:100]
-                logger.info("  %s[sandbox] text: %s", tag, preview)
-            elif etype == "thinking":
-                preview = (event.get("preview", "") or "")[:100]
-                logger.debug("  %s[sandbox] thinking: %s", tag, preview)
-            elif etype == "rate_limit":
-                logger.warning(
-                    "  %s[sandbox] rate limited, retry after %ss",
-                    tag,
-                    event.get("retry_after_seconds"),
-                )
-            elif etype == "error":
-                logger.warning("  %s[sandbox] SDK error: %s", tag, event.get("message"))
-            elif etype == "summary":
-                summary_data = event
-                _log_summary(event, label=label)
+        async def _drain_stdout() -> None:
+            nonlocal summary_data, turn_count
+            try:
+                async for line in claude_ps.stdout:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        logger.debug(
+                            "%snon-JSON stdout line from sandbox runner: %s",
+                            tag,
+                            line[:200],
+                        )
+                        continue
+
+                    etype = event.get("type")
+                    if etype == "tool_call":
+                        turn_count += 1
+                        logger.info(
+                            "  %s[sandbox] tool_call #%d: %s",
+                            tag,
+                            turn_count,
+                            event.get("tool"),
+                        )
+                        if turn_count % 10 == 0:
+                            elapsed = time.monotonic() - sandbox_start
+                            logger.info(
+                                "  %s[sandbox] progress: %d tool calls in %.1fs",
+                                tag,
+                                turn_count,
+                                elapsed,
+                            )
+                    elif etype == "text":
+                        preview = (event.get("preview", "") or "")[:100]
+                        logger.info("  %s[sandbox] text: %s", tag, preview)
+                    elif etype == "thinking":
+                        preview = (event.get("preview", "") or "")[:100]
+                        logger.debug("  %s[sandbox] thinking: %s", tag, preview)
+                    elif etype == "rate_limit":
+                        logger.warning(
+                            "  %s[sandbox] rate limited, retry after %ss",
+                            tag,
+                            event.get("retry_after_seconds"),
+                        )
+                    elif etype == "error":
+                        logger.warning("  %s[sandbox] SDK error: %s", tag, event.get("message"))
+                    elif etype == "summary":
+                        summary_data = event
+                        _log_summary(event, label=label)
+            finally:
+                # Release the SDK's stream generator so its background
+                # _consume_container_process_task can clean up and not leak.
+                try:
+                    await claude_ps.stdout.aclose()
+                except Exception:
+                    pass
+
+        async def _drain_stderr() -> None:
+            try:
+                async for line in claude_ps.stderr:
+                    line = line.strip()
+                    if line:
+                        stderr_lines.append(line)
+            finally:
+                try:
+                    await claude_ps.stderr.aclose()
+                except Exception:
+                    pass
+
+        await asyncio.gather(_drain_stdout(), _drain_stderr())
 
         await claude_ps.wait.aio()
 
         # Surface stderr so import failures, SDK errors, and tracebacks
         # are visible instead of silently lost.
-        stderr_lines: list[str] = []
-        async for line in claude_ps.stderr:
-            line = line.strip()
-            if line:
-                stderr_lines.append(line)
         if stderr_lines:
             logger.warning(
                 "%sSandbox stderr (%d lines):\n%s",

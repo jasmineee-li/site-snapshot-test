@@ -1,6 +1,48 @@
 # WorldSim v5 -- Current Progress
 
-Last updated: 2026-04-13
+Last updated: 2026-04-14
+
+## 2026-04-14 session update (newest first)
+
+For the full handoff, see `docs/handoffs/2026-04-14-phase-2-rerun-handoff.md`. Summary:
+
+### What shipped today
+
+- **Phase 0c rerun complete** on all 6 sites with the MVP's new schema (`controllable_by_tier`, `controllability_justification`, `delivery_channels` object-list, `rendering_format`, `compatible_concealments`). Cost: $86.34 on Opus. Shopping audit passed (review_*→any_user, product_*→admin, customer_*→none). Output at `logs/phase_0c/`. Previous Phase 0c backed up to `logs/phase_0c_preupgrade_backup/`.
+- **Critical Modal SDK stream-wedge fix landed** in `worldsim/modal_sandbox.py` and `worldsim/_sandbox_runner.py`. Replaces serial stdout→stderr drain with concurrent `asyncio.gather(_drain_stdout(), _drain_stderr())` + `try/finally: aclose()` on each stream, adds `timeout=timeout, bufsize=1` to `sandbox.exec.aio()`, and flushes stdio after `asyncio.run(main())`. This addresses the real failure mode from multi-hour Modal runs, where the sandbox finished its work but the orchestrator stayed wedged waiting on stream EOF.
+- **Sonnet first, Opus later.** `worldsim/modal_sandbox.py:155` now defaults to `claude-sonnet-4-6`, which matches the MVP operating plan for smoke tests and long pipeline runs. Once a path is stable, we can rerun or confirm with `claude-opus-4-6`.
+- **Phase 2 attempt #1 hung** on the stream-wedge bug (5/43 shards wedged silent after the sandboxes finished their work). Outputs rescued directly from Modal via `modal container exec cat` — 94 valid tasks in `logs/phase_2_rescue/`. 38 in-memory shards from the same run are unrecoverable (trapped in the hung orchestrator's `asyncio.gather`).
+
+### Immediate next action
+
+Kill the hung Phase 2 orchestrator (PID 15407) and rerun Phase 2 on the patched Sonnet code (~$7, ~30 min). See handoff doc for exact commands and audit criteria.
+
+### Open sequence
+
+1. Phase 2 rerun → audit cell coverage
+2. Phase 0d — `scripts/phase_0d/bootstrap_gitlab_pat.py` (free, ~1 min)
+3. Phase 3 single-task gitlab smoke (~$1.50, ~10 min — verifies Modal patch holds)
+4. Phase 3 full on Sonnet (~$75, 3–8 hr)
+5. Phase 4 full on Sonnet (~$20–60)
+6. Per-framing / per-concealment ASR analysis
+7. Archive to `logs/paper_run_v1/`
+
+### Cost ledger (sunk)
+
+| Phase | Run | Cost | Notes |
+|---|---|---|---|
+| Phase 0a | once | $1.95 | |
+| Phase 0c | rerun 2026-04-14 | $86.34 | On Opus; should have been ~$25 on Sonnet |
+| Phase 2 | attempt #1 hung | $112.25 | 38 in-memory shards lost; 5 rescued to disk |
+| Phase 3 | smokes | $44.66 | |
+| **Total sunk** | | **~$247** | |
+| **Remaining (Sonnet)** | | **~$100–140** | |
+
+### Root cause of Phase 2 hang (for future runs)
+
+Modal SDK 1.4.1 `_StreamReaderThroughServer` spawns a background `asyncio.Task` per stream (stdout, stderr) at construction time. Each has 10 retry credits for transient gRPC errors. If we drain streams serially (our prior code), the unread stream's retry budget can exhaust on the server's 55s window recycles. The background task dies silently without writing a `None` EOF sentinel; the foreground `_stream_container_process` then polls a never-completing buffer forever. Modal's own CLI (`modal/cli/container.py`) and `attach()` always drain stdout and stderr concurrently for exactly this reason. Our new code matches that pattern.
+
+---
 
 ## Branch
 

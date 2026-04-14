@@ -82,7 +82,7 @@ async def run_claude_in_sandbox(
     prompt: str,
     output_paths: list[str],      # files to collect after execution
     timeout: int = 3600,
-    model: str = "claude-opus-4-6",
+    model: str = "claude-sonnet-4-6",
     volumes: dict[str, modal.Volume] | None = None,
 ) -> dict[str, str | None]:
     """Run Claude Code in an isolated Modal Sandbox with only the specified files.
@@ -104,15 +104,40 @@ async def run_claude_in_sandbox(
         "python", "/workspace/_sdk_runner.py", model,
         secrets=_build_claude_secrets(),
         workdir="/workspace",
+        timeout=timeout,
+        bufsize=1,
     )
     # Stream NDJSON events from the SDK runner for live observability.
+    # IMPORTANT, stdout and stderr must be drained concurrently on long runs,
+    # otherwise Modal's background stream readers can wedge waiting for EOF.
     summary = None
-    async for line in claude_ps.stdout:
-        event = json.loads(line)
-        if event.get("type") == "tool_call":
-            logger.info("tool_call: %s", event.get("tool"))
-        elif event.get("type") == "summary":
-            summary = event
+    stderr_lines = []
+
+    async def _drain_stdout():
+        nonlocal summary
+        try:
+            async for line in claude_ps.stdout:
+                event = json.loads(line)
+                if event.get("type") == "tool_call":
+                    logger.info("tool_call: %s", event.get("tool"))
+                elif event.get("type") == "summary":
+                    summary = event
+        finally:
+            await claude_ps.stdout.aclose()
+
+    async def _drain_stderr():
+        try:
+            async for line in claude_ps.stderr:
+                line = line.strip()
+                if line:
+                    stderr_lines.append(line)
+        finally:
+            await claude_ps.stderr.aclose()
+
+    await asyncio.gather(_drain_stdout(), _drain_stderr())
+    await claude_ps.wait.aio()
+    if stderr_lines:
+        logger.warning("Sandbox stderr:\n%s", "\n".join(stderr_lines[:20]))
     outputs = {}
     for path in output_paths:
         try:
@@ -125,9 +150,11 @@ async def run_claude_in_sandbox(
 
 **File routing.** The orchestrator decides which files go into each sandbox. This is the key architectural primitive: instead of scoping via ignore files, we scope via inclusion. Each phase defines its file requirements, and the orchestrator builds the sandbox image from those requirements.
 
-**Sandbox runner.** `_sandbox_runner.py` is a small script staged into every sandbox at `/workspace/_sdk_runner.py`. It imports the Claude Agent SDK, reads the prompt from `/workspace/_prompt.txt`, invokes the SDK's `ClaudeCode.run()` with the specified model, and streams progress to stdout as NDJSON. Each line is one of four event types: `tool_call` (tool name and arguments), `text` (partial assistant text), `error` (exception message), or `summary` (final result). The `summary` event contains: `total_cost_usd`, `num_turns`, `session_id`, `duration_ms`, and a `model_usage` dict mapping model IDs to `{input_tokens, output_tokens, cache_read_tokens}`.
+**Sandbox runner.** `_sandbox_runner.py` is a small script staged into every sandbox at `/workspace/_sdk_runner.py`. It imports the Claude Agent SDK, reads the prompt from `/workspace/_prompt.txt`, invokes the SDK's `ClaudeCode.run()` with the specified model, and streams progress to stdout as NDJSON. Each line is one of four event types: `tool_call` (tool name and arguments), `text` (partial assistant text), `error` (exception message), or `summary` (final result). The `summary` event contains: `total_cost_usd`, `num_turns`, `session_id`, `duration_ms`, and a `model_usage` dict mapping model IDs to `{input_tokens, output_tokens, cache_read_tokens}`. The runner explicitly flushes stdout and stderr at process exit so the final summary and EOF are delivered promptly to Modal's stream readers.
 
-**Structured event logging.** The SDK runner inside each sandbox streams NDJSON events to stdout as Claude Code executes. The orchestrator parses these in real time, logging tool calls and text previews. When the run completes, the SDK yields a ``ResultMessage`` with ``total_cost_usd``, ``num_turns``, ``session_id``, ``duration_ms``, and per-model token breakdowns. This metadata is attached to the return dict under the ``"_summary"`` key, giving callers access to cost and usage data without changing the file-based output contract.
+**Structured event logging.** The SDK runner inside each sandbox streams NDJSON events to stdout as Claude Code executes. The orchestrator parses these in real time, logging tool calls and text previews. On long-running sandboxes, especially multi-hour Phase 2 and Phase 0c runs, the orchestrator must drain stdout and stderr concurrently. Serial draining can wedge Modal's background stream readers and leave the orchestrator waiting forever even after the sandbox has finished its work. When the run completes, the SDK yields a ``ResultMessage`` with ``total_cost_usd``, ``num_turns``, ``session_id``, ``duration_ms``, and per-model token breakdowns. This metadata is attached to the return dict under the ``"_summary"`` key, giving callers access to cost and usage data without changing the file-based output contract.
+
+**Operational model note.** For MVP operations, WorldSim uses ``claude-sonnet-4-6`` first for smoke tests, long profiling runs, and cost-sensitive pipeline passes. ``claude-opus-4-6`` remains a follow-up option for confirmation runs once the pipeline behavior is stable.
 
 ### In-Sandbox Output Validation
 
