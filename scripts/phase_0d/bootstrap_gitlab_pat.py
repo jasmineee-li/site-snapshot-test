@@ -15,9 +15,12 @@ from pathlib import Path
 
 import requests
 
-
 _AUTH_TOKEN_RE = re.compile(
     r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',
+    re.IGNORECASE,
+)
+_CSRF_META_RE = re.compile(
+    r'<meta\s+name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']',
     re.IGNORECASE,
 )
 _PAT_RE = re.compile(
@@ -69,27 +72,40 @@ def bootstrap_pat(
     form_url = f"{site_url.rstrip('/')}/-/profile/personal_access_tokens"
     form_response = session.get(form_url, timeout=30)
     form_response.raise_for_status()
-    match = _AUTH_TOKEN_RE.search(form_response.text)
+    match = _AUTH_TOKEN_RE.search(form_response.text) or _CSRF_META_RE.search(form_response.text)
     if match is None:
         raise RuntimeError("Could not find GitLab authenticity_token on the PAT form page")
+    csrf_token = match.group(1)
 
     response = session.post(
         form_url,
         data={
-            "authenticity_token": match.group(1),
+            "authenticity_token": csrf_token,
             "personal_access_token[name]": token_name,
             "personal_access_token[expires_at]": "",
             "personal_access_token[scopes][]": "api",
         },
+        headers={"X-CSRF-Token": csrf_token},
         timeout=30,
     )
     response.raise_for_status()
-    token_match = _PAT_RE.search(response.text)
-    if token_match is None:
-        raise RuntimeError("GitLab PAT creation page did not expose a created token value")
+
+    new_token: str | None = None
+    content_type = response.headers.get("Content-Type", "")
+    if "application/json" in content_type:
+        try:
+            new_token = response.json().get("new_token")
+        except ValueError:
+            new_token = None
+    if not new_token:
+        token_match = _PAT_RE.search(response.text)
+        if token_match is not None:
+            new_token = token_match.group(1).strip()
+    if not new_token:
+        raise RuntimeError("GitLab PAT creation response did not expose a created token value")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(token_match.group(1).strip() + "\n", encoding="utf-8")
+    output_path.write_text(new_token.strip() + "\n", encoding="utf-8")
     return output_path
 
 
