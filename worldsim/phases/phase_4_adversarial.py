@@ -40,7 +40,6 @@ from typing import Any
 
 import requests
 
-from worldsim.agent_prompt import build_agent_prompt
 from worldsim.agent_config import (
     DEFAULT_MODEL,
     bind_task_to_instance,
@@ -52,6 +51,7 @@ from worldsim.agent_config import (
     run_tasks_by_site,
     task_reset_endpoints,
 )
+from worldsim.agent_prompt import build_agent_prompt
 from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
@@ -182,13 +182,22 @@ async def run(args: argparse.Namespace) -> int:
         agent_provider=agent_provider,
         max_tasks_per_site=max_tasks_per_site,
     )
+    # Thread the benchmark codebase root through so BrowserUseAgent can resolve
+    # relative auth_mechanism.storage_state.path values.
+    benchmark_root = getattr(args, "benchmark", None)
+
+    async def _bound_run_adversarial_task(task, agent, instance, task_dir):
+        return await run_adversarial_task(
+            task, agent, instance, task_dir, benchmark_root=benchmark_root
+        )
+
     # Initial adversarial run — run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
     results = await run_tasks_by_site(
         tasks=tasks,
         instances=config.instances,
         agent_factory=agent_factory,
-        task_runner=run_adversarial_task,
+        task_runner=_bound_run_adversarial_task,
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
         resume=resume,
@@ -207,6 +216,7 @@ async def run(args: argparse.Namespace) -> int:
                 agent_factory=agent_factory,
                 task_dir_root=task_dir_root,
                 resume=resume,
+                benchmark_root=benchmark_root,
             )
             for result in results
         ],
@@ -293,6 +303,7 @@ async def _postprocess_one_task(
     agent_factory: Callable[[], AgentRunner],
     task_dir_root: Path,
     resume: bool,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -340,6 +351,7 @@ async def _postprocess_one_task(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
+        benchmark_root=benchmark_root,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -354,11 +366,17 @@ async def run_adversarial_task(
     agent: AgentRunner,
     instance: BenchmarkInstance,
     task_dir: Path,
+    *,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Run one adversarial task: reset -> seed adversarial data -> agent -> evaluate.
 
     Classifies outcome as complied/refused_or_ignored/task_broke and probes
     ecological validity.
+
+    ``benchmark_root`` is forwarded to ``BrowserUseAgent.run`` so
+    ``auth_mechanism.storage_state.path`` values declared relative in the
+    site's AGENT_CONTEXT resolve correctly.
     """
     task_id = task.get("id", "unknown")
 
@@ -384,6 +402,17 @@ async def run_adversarial_task(
     run_kwargs: dict[str, Any] = {"start_urls": start_urls}
     if site_prompt is not None:
         run_kwargs["site_prompt"] = site_prompt
+    auth_mechanism = _extract_auth_mechanism(task)
+    if auth_mechanism is not None:
+        run_kwargs["auth_mechanism"] = auth_mechanism
+        # Thread benchmark_root + task_site only when auth_mechanism is
+        # declared — they are only meaningful for the storage_state path
+        # resolver / Phase 0d fallback.
+        if benchmark_root is not None:
+            run_kwargs["benchmark_root"] = benchmark_root
+        site_value = task.get("site")
+        if isinstance(site_value, str) and site_value:
+            run_kwargs["task_site"] = site_value
     result = await agent.run(
         instruction,
         instance.site_url,
@@ -510,6 +539,7 @@ async def _process_adversarial_result(
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "error" or initial_result.get("error"):
@@ -533,6 +563,7 @@ async def _process_adversarial_result(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
+        benchmark_root=benchmark_root,
     )
     if ecological_fix is not None:
         annotations["ecological_validity_fix"] = ecological_fix
@@ -558,6 +589,7 @@ async def _process_adversarial_result(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
+        benchmark_root=benchmark_root,
     )
     if placement_fix is not None:
         annotations["placement_fix"] = placement_fix
@@ -615,6 +647,7 @@ async def _process_adversarial_result(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
+        benchmark_root=benchmark_root,
     )
     variant_outcomes = [
         variant_result.get("outcome")
@@ -662,6 +695,7 @@ async def _run_ecological_validity_fix_loop(
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Retry ecologically invalid trajectories with realism-focused seed fixes."""
     if initial_result.get("ecologically_valid"):
@@ -696,10 +730,9 @@ async def _run_ecological_validity_fix_loop(
                 instance=instance,
                 all_instances=all_instances,
                 agent_factory=agent_factory,
+                benchmark_root=benchmark_root,
                 task_dir=task_dir_root
-                / safe_task_path_component(
-                    f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"
-                ),
+                / safe_task_path_component(f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"),
             )
         attempts.append(current_result)
         if current_result.get("ecologically_valid"):
@@ -726,6 +759,7 @@ async def _run_placement_fix_loop(
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Retry task-breaking attacks with placement-only seed fixes."""
     if initial_result.get("outcome") != "task_broke":
@@ -760,6 +794,7 @@ async def _run_placement_fix_loop(
                 instance=instance,
                 all_instances=all_instances,
                 agent_factory=agent_factory,
+                benchmark_root=benchmark_root,
                 task_dir=task_dir_root
                 / safe_task_path_component(
                     f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
@@ -1028,6 +1063,7 @@ async def run_strategy_variation(
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> generate variants -> evaluate.
 
@@ -1106,6 +1142,7 @@ async def run_strategy_variation(
                 index=i,
                 agent_factory=agent_factory,
                 task_dir_root=task_dir_root,
+                benchmark_root=benchmark_root,
             )
             for i, (variant, strategy) in enumerate(limited_variants)
         ]
@@ -1221,6 +1258,20 @@ def _has_scoreable_agent_output(result: Any) -> bool:
     )
 
 
+def _extract_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the ``auth_mechanism`` dict embedded in a task's agent_context, or None.
+
+    Phase 1 round-trips ``AGENT_CONTEXT`` into each wrapped task under
+    ``agent_context``. The ``auth_mechanism`` sub-object is what
+    :func:`worldsim.browser_use_agent._resolve_auth` consumes at runtime.
+    """
+    agent_context = task.get("agent_context")
+    if not isinstance(agent_context, dict):
+        return None
+    mech = agent_context.get("auth_mechanism")
+    return mech if isinstance(mech, dict) else None
+
+
 def _is_non_interpretable_benign_eval(
     benign_reward: dict[str, Any],
     benign_passed: bool,
@@ -1315,17 +1366,18 @@ async def _rerun_adversarial_task(
     all_instances: list[BenchmarkInstance],
     agent_factory: Callable[[], AgentRunner],
     task_dir: Path,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     agent = agent_factory()
     bound_task = (
-        task
-        if task_reset_endpoints(task)
-        else bind_task_to_instance(task, instance, all_instances)
+        task if task_reset_endpoints(task) else bind_task_to_instance(task, instance, all_instances)
     )
     try:
         await agent.setup(instance.site_url)
-        return await run_adversarial_task(bound_task, agent, instance, task_dir)
+        return await run_adversarial_task(
+            bound_task, agent, instance, task_dir, benchmark_root=benchmark_root
+        )
     finally:
         await agent.teardown()
 
@@ -1344,6 +1396,7 @@ async def _evaluate_variant(
     index: int,
     agent_factory: Callable[[], AgentRunner],
     task_dir_root: Path,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     variant_dir = task_dir_root / safe_task_path_component(
         f"{task.get('id', 'unknown')}_variant_{index}"
@@ -1355,7 +1408,9 @@ async def _evaluate_variant(
         await agent.setup(instance.site_url)
         bound_variant = bind_task_to_instance(variant, instance, all_instances)
         async with task_lock(bound_variant):
-            result = await run_adversarial_task(bound_variant, agent, instance, variant_dir)
+            result = await run_adversarial_task(
+                bound_variant, agent, instance, variant_dir, benchmark_root=benchmark_root
+            )
         return {
             **result,
             "strategy": strategy.get("strategy", f"strategy_{index}"),

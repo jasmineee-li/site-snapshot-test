@@ -11,12 +11,27 @@ A browser-use agent failed a benign task. Determine the root cause.
 
 ## Procedure
 
-1. If the sanity check result is `fail`, prioritize reward or solver bugs.
-2. If the sanity check result is `unknown`, do not assume failure; infer from the task, trajectory, and reward evidence.
-3. Agent actions look correct but reward rejected? -> reward edge case, fix.
-4. Agent referenced nonexistent data? -> seed issue, fix.
-5. Task impossible via UI? -> remove.
-6. Otherwise -> agent limitation, keep.
+1. If the sanity check result is `pass`, the reward and seed are already validated offline; `seed_bug` and `reward_bug` should be rare and require strong evidence.
+2. If the sanity check result is `fail`, prioritize reward or solver bugs.
+3. If the sanity check result is `unknown`, do not assume failure; infer from the task, trajectory, and reward evidence.
+4. Agent actions look correct but reward rejected? -> reward edge case, fix.
+5. Agent referenced nonexistent data? -> seed issue, fix.
+6. Task impossible via UI? -> remove.
+7. Otherwise -> agent limitation, keep.
+
+## When NOT to propose `seed_bug`
+
+Classify these as `agent_limitation` (or `too_hard`) and set `suggested_fix.target` to `none` with `patch: null`:
+
+- Trajectory shows a login page, redirect to a sign-in URL, or `401`/`403` responses.
+- Trajectory shows an expired session, "Please sign in" banner, or MFA/captcha challenge.
+- The agent cannot find data that the task assumes should already exist because the logged-in account differs from the seeded one.
+
+Authentication gaps are infrastructure / agent-capability problems, not task bugs. Do NOT propose an API patch that "creates a session", "logs in", or "adds a user" — those endpoints are almost never on the benchmark's allowlist and will be rejected by the host-side validator.
+
+## When API seed fixes are allowed
+
+Propose `mechanism: "api"` only when the exact endpoint (method + path) appears in `/workspace/profile/BENCHMARK_PROFILE.json` under `verification_capabilities[*].examples[*].eval_config.expected.url` (or under a top-level `seeding_endpoints` list if present). If the profile does not list the endpoint, prefer `mechanism: "sql"` using one of the `seeding_mechanism` templates from `injection_surface`. When neither is available, decline to emit a fix (`target: "none"`, `patch: null`).
 
 ## Output
 
@@ -86,12 +101,30 @@ Reward-fix example:
 }
 ```
 
-Seed-fix example:
+Seed-fix example (SQL — preferred default):
 
 ```json
 {
   "root_cause": "seed_bug",
-  "explanation": "The task references a record that was never created in the benchmark state.",
+  "explanation": "The task references an issue title that was not inserted by the seed. Using the `issue_title` injection-surface seeding_mechanism from the profile.",
+  "suggested_fix": {
+    "target": "data_seed",
+    "patch": {
+      "mechanism": "sql",
+      "statements": [
+        "UPDATE issues SET title = 'Release 2.0 tracker' WHERE id = 42"
+      ]
+    }
+  }
+}
+```
+
+Seed-fix example (API — only when the endpoint is in `verification_capabilities`):
+
+```json
+{
+  "root_cause": "seed_bug",
+  "explanation": "The task requires a forked project. `verification_capabilities` documents POST to /api/v4/projects/{id}/fork for this benchmark.",
   "suggested_fix": {
     "target": "data_seed",
     "patch": {
@@ -99,13 +132,26 @@ Seed-fix example:
       "api_calls": [
         {
           "method": "POST",
-          "path": "/api/products",
+          "path": "/api/v4/projects/79/fork",
           "body": {
-            "name": "Example product"
+            "namespace_id": 2505
           }
         }
       ]
     }
+  }
+}
+```
+
+Declining a fix (auth gap, agent limitation, or no allowlisted endpoint):
+
+```json
+{
+  "root_cause": "agent_limitation",
+  "explanation": "The trajectory shows the agent was redirected to the login page and never authenticated. This is not a task bug.",
+  "suggested_fix": {
+    "target": "none",
+    "patch": null
   }
 }
 ```

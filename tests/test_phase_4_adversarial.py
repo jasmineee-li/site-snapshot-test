@@ -344,7 +344,9 @@ async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkey
         return False, "unexpected reward"
 
     class FakeAgent:
-        async def run(self, instruction, server_url, task_dir, *, start_urls=None, site_prompt=None):
+        async def run(
+            self, instruction, server_url, task_dir, *, start_urls=None, site_prompt=None
+        ):
             captured["start_urls"] = start_urls
             captured["site_prompt"] = site_prompt
             return AgentResult(
@@ -381,7 +383,7 @@ async def test_evaluate_variant_rebinds_runtime_metadata(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
 
-    async def fake_run_adversarial_task(task, agent, instance, task_dir):
+    async def fake_run_adversarial_task(task, agent, instance, task_dir, **kwargs):
         assert task[RUNTIME_METADATA_KEY]["reset_endpoints"] == [
             "http://shopping.test/init",
             "http://gitlab.test/init",
@@ -449,7 +451,7 @@ async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints
     variant = json.loads(json.dumps(task))
     timestamps: dict[str, list[float]] = {}
 
-    async def fake_run_adversarial_task(task, agent, instance, task_dir):
+    async def fake_run_adversarial_task(task, agent, instance, task_dir, **kwargs):
         timestamps[instance.site_url] = [time.monotonic()]
         await asyncio.sleep(0.05)
         timestamps[instance.site_url].append(time.monotonic())
@@ -618,3 +620,127 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
     assert state["task_dir_root"].startswith(str(tmp_path / "phase_4"))
     assert state["instances_path"] == str(instances_path)
     assert state["agent_model"] == "demo-model"
+
+
+# ── benchmark_root / task_site plumbing ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
+    monkeypatch, tmp_path
+):
+    """Phase 4 run_adversarial_task forwards benchmark_root + task_site when auth_mechanism set."""
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    task["agent_context"] = {
+        "auth_mechanism": {
+            "type": "storage_state",
+            "storage_state": {"path": "auth/shopping_state.json"},
+        }
+    }
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_seed(seed, instance_dict):
+        return None
+
+    def fake_validate_seed(seed, allow_none=False):
+        return None
+
+    async def fake_probe(task_dir, task=None):
+        return 0.9
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    captured: dict = {}
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            captured.update(kwargs)
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
+    monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe, raising=False)
+
+    bench_root = tmp_path / "bench"
+    bench_root.mkdir()
+
+    await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+        benchmark_root=bench_root,
+    )
+
+    assert captured.get("benchmark_root") == bench_root
+    assert captured.get("task_site") == "shopping"
+    assert captured.get("auth_mechanism", {}).get("type") == "storage_state"
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatch, tmp_path):
+    """Without auth_mechanism, run_adversarial_task omits the auth-only kwargs."""
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_seed(seed, instance_dict):
+        return None
+
+    def fake_validate_seed(seed, allow_none=False):
+        return None
+
+    async def fake_probe(task_dir, task=None):
+        return 0.9
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    captured: dict = {}
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            captured.update(kwargs)
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
+    monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe, raising=False)
+
+    await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+        benchmark_root=tmp_path / "bench",
+    )
+
+    assert "benchmark_root" not in captured
+    assert "task_site" not in captured
+    assert "auth_mechanism" not in captured

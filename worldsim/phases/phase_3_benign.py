@@ -30,7 +30,6 @@ from typing import Any
 
 import requests
 
-from worldsim.agent_prompt import build_agent_prompt
 from worldsim.agent_config import (
     DEFAULT_MODEL,
     RUNTIME_METADATA_KEY,
@@ -42,9 +41,11 @@ from worldsim.agent_config import (
     run_tasks_by_site,
     task_reset_endpoints,
 )
+from worldsim.agent_prompt import build_agent_prompt
 from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.fix_validation import validate_fix_patch
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
@@ -157,12 +158,19 @@ async def run(args: argparse.Namespace) -> int:
     # prepare_tasks_for_execution internally, so no need to call it here.
     prepared_by_id = {str(task.get("id", "unknown")): task for task in benign_tasks}
 
+    # Thread the benchmark codebase root through so BrowserUseAgent can resolve
+    # relative auth_mechanism.storage_state.path values. See worldsim/browser_use_agent.py:_resolve_auth.
+    benchmark_root = getattr(args, "benchmark", None)
+
+    async def _bound_run_task(task, agent, instance, task_dir):
+        return await run_task(task, agent, instance, task_dir, benchmark_root=benchmark_root)
+
     # Run evaluation via worker pool, routing tasks only to matching site instances.
     results = await run_tasks_by_site(
         tasks=benign_tasks,
         instances=config.instances,
         agent_factory=agent_factory,
-        task_runner=run_task,
+        task_runner=_bound_run_task,
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
         resume=resume,
@@ -205,6 +213,7 @@ async def run(args: argparse.Namespace) -> int:
                 instances=config.instances,
                 agent_factory=agent_factory,
                 resume=resume,
+                benchmark_root=benchmark_root,
             )
             for r in failed_tasks
         ],
@@ -305,6 +314,7 @@ async def _diagnose_one_task(
     instances: list[BenchmarkInstance],
     agent_factory: Callable[[], BrowserUseAgent],
     resume: bool,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Run diagnosis-fix loop for a single failed task. Returns diagnosis dict or None."""
     task_id = str(r.get("task_id", "?"))
@@ -340,6 +350,7 @@ async def _diagnose_one_task(
         task_dir_root=task_dir_root,
         instances=instances,
         agent_factory=agent_factory,
+        benchmark_root=benchmark_root,
     )
 
     # Persist diagnosis for resume. Without this, all diagnoses would
@@ -355,10 +366,18 @@ async def run_task(
     agent: AgentRunner,
     instance: BenchmarkInstance,
     task_dir: Path,
+    *,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Run one benign task: reset -> seed -> agent run -> reward check.
 
     This is the ``task_runner`` callable passed to ``eval_worker_pool.run_eval``.
+
+    ``benchmark_root`` is forwarded to ``BrowserUseAgent.run`` so
+    ``auth_mechanism.storage_state.path`` values that are declared relative
+    (the common case for benchmarks that ship ``.auth/*.json`` artifacts next
+    to their sources) resolve against the correct codebase root. Absolute
+    paths bypass the root.
     """
     task_id = task.get("id", "unknown")
 
@@ -378,6 +397,18 @@ async def run_task(
     run_kwargs: dict[str, Any] = {"start_urls": start_urls}
     if site_prompt is not None:
         run_kwargs["site_prompt"] = site_prompt
+    auth_mechanism = _extract_auth_mechanism(task)
+    if auth_mechanism is not None:
+        run_kwargs["auth_mechanism"] = auth_mechanism
+        # The ``benchmark_root`` and ``task_site`` kwargs are only meaningful
+        # alongside an ``auth_mechanism`` (they feed the storage_state path
+        # resolver and Phase 0d fallback). Gating them here keeps the surface
+        # narrow for legacy tests / fakes that don't declare auth_mechanism.
+        if benchmark_root is not None:
+            run_kwargs["benchmark_root"] = benchmark_root
+        site_value = task.get("site")
+        if isinstance(site_value, str) and site_value:
+            run_kwargs["task_site"] = site_value
     result = await agent.run(
         instruction,
         instance.site_url,
@@ -433,14 +464,32 @@ def _has_scoreable_agent_output(result: Any) -> bool:
     )
 
 
+def _extract_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the ``auth_mechanism`` dict embedded in a task's agent_context, or None.
+
+    Phase 1 round-trips ``AGENT_CONTEXT`` into each wrapped task under
+    ``agent_context``. The ``auth_mechanism`` sub-object is what
+    :func:`worldsim.browser_use_agent._resolve_auth` consumes at runtime.
+    """
+    agent_context = task.get("agent_context")
+    if not isinstance(agent_context, dict):
+        return None
+    mech = agent_context.get("auth_mechanism")
+    return mech if isinstance(mech, dict) else None
+
+
 async def diagnose_failure(
     task: dict[str, Any],
     trajectory_dir: Path,
     profile_path: Path,
+    *,
+    rejection_feedback: str | None = None,
 ) -> dict[str, Any]:
     """Diagnose why a benign task failed via Modal Sandbox.
 
     Returns diagnosis dict with root_cause, explanation, and suggested_fix.
+    If ``rejection_feedback`` is provided, it is appended to the diagnosis
+    prompt as a retry signal explaining why the previous patch was rejected.
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
@@ -461,6 +510,14 @@ async def diagnose_failure(
         load_trajectory_into_sandbox(trajectory_dir, sandbox_files)
 
         prompt = _render_diagnosis_prompt(task)
+        if rejection_feedback:
+            prompt = (
+                prompt
+                + "\n\n## Previous patch rejected\n\n"
+                + rejection_feedback
+                + "\n\nIf you cannot propose a safe patch, set `root_cause` to "
+                "`agent_limitation` or `too_hard` and `suggested_fix.target` to `none`.\n"
+            )
 
         task_id = task.get("id", "unknown")
         outputs = await run_claude_in_sandbox(
@@ -531,17 +588,33 @@ async def fix_loop(
     instances: list[BenchmarkInstance],
     agent_factory: Callable[[], BrowserUseAgent],
     max_iterations: int = 2,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Iterative diagnosis-fix loop for failed tasks.
 
     Up to ``max_iterations`` attempts. Exits early on pass or terminal
-    root causes (impossible, agent_limitation).
+    root causes (impossible, agent_limitation). Every proposed fix is
+    validated against the site profile via ``validate_fix_patch`` before
+    ``_apply_fix`` merges it. First rejection triggers a retry of the
+    diagnosis sandbox with rejection context appended; second rejection
+    (or any non-recoverable classification) falls through to
+    ``keep_flagged`` with the original trajectory score retained.
     """
     current_trajectory = trajectory_dir
     current_task = task
+    site_profile = _load_site_profile(profile_path)
+    rejection_feedback: str | None = None
+    rejections: list[dict[str, Any]] = []
 
     for iteration in range(max_iterations):
-        diagnosis = await diagnose_failure(current_task, current_trajectory, profile_path)
+        diagnosis = await diagnose_failure(
+            current_task,
+            current_trajectory,
+            profile_path,
+            rejection_feedback=rejection_feedback,
+        )
+        # Clear feedback after one retry (we only retry once per plan).
+        rejection_feedback = None
         root_cause = diagnosis.get("root_cause", "unknown")
 
         logger.info(
@@ -552,14 +625,52 @@ async def fix_loop(
         )
 
         if root_cause == "impossible":
-            return {"action": "remove", "diagnosis": diagnosis}
+            return _with_rejections({"action": "remove", "diagnosis": diagnosis}, rejections)
 
         if root_cause in ("too_hard", "agent_limitation", "diagnosis_failed"):
-            return {"action": "keep_flagged", "diagnosis": diagnosis}
+            return _with_rejections({"action": "keep_flagged", "diagnosis": diagnosis}, rejections)
 
         if root_cause in ("reward_bug", "seed_bug"):
             suggested_fix = diagnosis.get("suggested_fix")
             if suggested_fix:
+                # Gate the patch before it touches the task. Hallucinated
+                # URLs (e.g. POST /api/v4/session on GitLab) and destructive
+                # methods are rejected here before seeding executes.
+                live_instance = _select_instance_for_task(current_task, instances)
+                site_url = live_instance.site_url if live_instance is not None else ""
+                patch_errors = validate_fix_patch(suggested_fix, site_profile, site_url)
+                if patch_errors:
+                    rejection = {
+                        "iteration": iteration,
+                        "errors": patch_errors,
+                        "original_patch": suggested_fix,
+                        "retried": iteration + 1 < max_iterations,
+                    }
+                    logger.warning(
+                        "Patch rejected for task %s (iteration %d): %s",
+                        task.get("id", "?"),
+                        iteration,
+                        patch_errors,
+                    )
+                    if iteration + 1 < max_iterations:
+                        rejection["final_action"] = "retry"
+                        rejections.append(rejection)
+                        rejection_feedback = _format_rejection_feedback(patch_errors, suggested_fix)
+                        continue
+                    # Out of retries — score as-is.
+                    rejection["final_action"] = "keep_flagged"
+                    rejections.append(rejection)
+                    return _with_rejections(
+                        {
+                            "action": "keep_flagged",
+                            "diagnosis": diagnosis,
+                            "patch_rejected": True,
+                            "rejection_reasons": patch_errors,
+                            "original_sandbox_patch": suggested_fix,
+                        },
+                        rejections,
+                    )
+
                 candidate_task = _apply_fix(current_task, suggested_fix)
                 # If the fix sandbox made no effective changes, the remaining
                 # failure is an agent limitation, not a task bug.
@@ -568,23 +679,28 @@ async def fix_loop(
                         "Diagnosis made no changes to task %s, treating as agent limitation",
                         task.get("id", "?"),
                     )
-                    return {
-                        "action": "keep_flagged",
-                        "root_cause": "agent_limitation",
-                        "diagnosis": diagnosis,
-                    }
-                current_task = candidate_task
-                live_instance = _select_instance_for_task(current_task, instances)
-                if live_instance is None:
-                    return {
-                        "action": "keep_flagged",
-                        "diagnosis": diagnosis,
-                        "fixed_task": current_task,
-                        "rerun": {
-                            "passed": False,
-                            "message": "No matching live instance available for rerun",
+                    return _with_rejections(
+                        {
+                            "action": "keep_flagged",
+                            "root_cause": "agent_limitation",
+                            "diagnosis": diagnosis,
                         },
-                    }
+                        rejections,
+                    )
+                current_task = candidate_task
+                if live_instance is None:
+                    return _with_rejections(
+                        {
+                            "action": "keep_flagged",
+                            "diagnosis": diagnosis,
+                            "fixed_task": current_task,
+                            "rerun": {
+                                "passed": False,
+                                "message": "No matching live instance available for rerun",
+                            },
+                        },
+                        rejections,
+                    )
 
                 rerun_dir = task_dir_root / safe_task_path_component(
                     f"{task.get('id', 'unknown')}__revalidation_{iteration + 1}"
@@ -597,23 +713,66 @@ async def fix_loop(
                         instances=instances,
                         agent_factory=agent_factory,
                         task_dir=rerun_dir,
+                        benchmark_root=benchmark_root,
                     )
                 if rerun_result.get("passed"):
-                    return {
-                        "action": "fixed",
-                        "diagnosis": diagnosis,
-                        "fixed_task": current_task,
-                        "rerun": rerun_result,
-                        "rerun_task_dir": str(rerun_dir),
-                    }
+                    return _with_rejections(
+                        {
+                            "action": "fixed",
+                            "diagnosis": diagnosis,
+                            "fixed_task": current_task,
+                            "rerun": rerun_result,
+                            "rerun_task_dir": str(rerun_dir),
+                        },
+                        rejections,
+                    )
 
                 current_trajectory = rerun_dir
                 continue
 
         # Unknown root cause — flag and move on
-        return {"action": "keep_flagged", "diagnosis": diagnosis}
+        return _with_rejections({"action": "keep_flagged", "diagnosis": diagnosis}, rejections)
 
-    return {"action": "keep_flagged", "diagnosis": diagnosis}
+    return _with_rejections({"action": "keep_flagged", "diagnosis": diagnosis}, rejections)
+
+
+def _with_rejections(result: dict[str, Any], rejections: list[dict[str, Any]]) -> dict[str, Any]:
+    """Attach per-iteration rejection records to a fix_loop result."""
+    if rejections:
+        result["rejections"] = rejections
+    return result
+
+
+def _format_rejection_feedback(errors: list[str], suggested_fix: dict[str, Any]) -> str:
+    """Render rejection context to paste into the retry diagnosis prompt."""
+    try:
+        patch_json = json.dumps(suggested_fix, indent=2)
+    except (TypeError, ValueError):
+        patch_json = str(suggested_fix)
+    bullet_errors = "\n".join(f"- {e}" for e in errors)
+    return (
+        "A previous diagnosis for this task was rejected. The proposed patch "
+        "violated safety constraints:\n"
+        f"{bullet_errors}\n\n"
+        "Original patch:\n"
+        f"```json\n{patch_json}\n```\n\n"
+        "Common failure mode: proposing API endpoints not observed in "
+        "`verification_capabilities`. If the root cause looks like an auth "
+        "gap (session missing, login failed, 401/403), classify as "
+        "`agent_limitation`, not `seed_bug`."
+    )
+
+
+def _load_site_profile(profile_path: Path) -> dict[str, Any]:
+    """Load a site profile, returning ``{}`` when the file is missing/invalid."""
+    if not profile_path.exists():
+        return {}
+    try:
+        data = json.loads(profile_path.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Could not load site profile %s: %s", profile_path, exc)
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def _apply_fix(task: dict, suggested_fix: dict) -> dict:
@@ -673,14 +832,19 @@ async def _rerun_live_task(
     instances: list[BenchmarkInstance],
     agent_factory: Callable[[], BrowserUseAgent],
     task_dir: Path,
+    benchmark_root: Path | None = None,
 ) -> dict[str, Any]:
     """Rerun a patched task against a live instance before validation."""
     agent = agent_factory()
-    bound_task = task if task_reset_endpoints(task) else bind_task_to_instance(task, instance, instances)
+    bound_task = (
+        task if task_reset_endpoints(task) else bind_task_to_instance(task, instance, instances)
+    )
     try:
         try:
             await agent.setup(instance.site_url)
-            result = await run_task(bound_task, agent, instance, task_dir)
+            result = await run_task(
+                bound_task, agent, instance, task_dir, benchmark_root=benchmark_root
+            )
         except Exception as e:
             logger.warning("Live rerun failed for task %s: %s", task.get("id", "?"), e)
             return {
