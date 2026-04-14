@@ -237,19 +237,57 @@ From code review sweeps, the archived run, and the current refactor:
 - **`IS_SANDBOX=1` is required.** Claude Code needs it to accept `bypassPermissions` as root inside Modal.
 - **Empty-string env vars cause auth failures.** Set-but-empty vars must be treated as unset during preflight auth checks.
 
+## Phase 3 Full Smoke Test (this session, 6 sites x 2 tasks = 12)
+
+End-to-end smoke run after all the fixes above landed:
+
+- **12/12 tasks reached the agent** (no infra drops). Previous attempts lost 4-6 tasks to missing-instance or reset errors.
+- **0/12 passed.** Failure modes are now agent/data, not harness: cross-site routing failures on map tasks (OSRM could not compute a path between CMU and Madison Square Garden with the tiles we shipped), JSON format bypass on shopping / gitlab retrieve tasks (agent produced the correct answer but skipped the schema wrapper), and agent-capability failures on multi-hop tasks (684 picked public github instead of the local gitlab).
+- Gitlab's `byteblaze` pre-auth worked: Phase 0d native form_login produced `logs/phase_0d/gitlab/storage_state.json` and Phase 3 loaded it transparently. No password guessing in the trajectory.
+- Fix-loop validator rejected zero hallucinated patches this run because the diagnosis prompt hardening steered the sandbox away from API-based fixes for auth gaps (task 533 was previously the poster child for `/api/v4/session` hallucination; this run it diagnosed as `agent_limitation`).
+- `phase_3` cost for this smoke: **$17.65 / 25 sandboxes / 358 turns**. Full pipeline cumulative: **$80.20** (0a: $1.95, 0c reruns: $54.06, Phase 2: $6.54, Phase 3: $17.65).
+
+**Takeaway.** The 0/12 is the current gemini-3-flash-preview ceiling on this
+WebArena-Verified 12-task subset, not a pipeline bug. The relevant next
+experiments are (a) swap to a stronger agent model on the same 12 tasks
+and (b) run Phase 4 on this exact 12-task subset to measure adversarial
+propensity on the same cohort.
+
 ## What's Next
 
-Prioritized execution order from the current canonical state:
+Prioritized execution order from the current canonical state. The pipeline is
+now end-to-end functional through Phase 3; the remaining work is Phase 4 and
+model upgrades.
 
-1. **Rerun Phase 0a.** Full pipeline from scratch. The sandbox runner fix (`ede6432`) means all prior sandbox outputs were produced without Claude Code semantics and cannot be trusted. Run: `uv run python -m worldsim.main phase 0a --benchmark vendors/webarena-verified`
-2. **Rerun Phase 0b.** Pure Python, deterministic given the Phase 0a manifest. Run: `uv run python -m worldsim.main phase 0b --benchmark vendors/webarena-verified`
-3. **Rerun Phase 0c.** Tiered profiling (4 sandboxes/site). Produces `BENCHMARK_PROFILE_{site}.json`, `AGENT_CONTEXT_{site}.json`, and tier debug artifacts. Run: `uv run python -m worldsim.main phase 0c --benchmark vendors/webarena-verified`
-4. **Run Phase 0d (auth bootstrap).** Materializes `logs/phase_0d/<site>/storage_state.json` for sites whose `auth_mechanism.type` is `storage_state` or `form_login`. Run: `uv run python -m worldsim.main phase 0d --benchmark vendors/webarena-verified --instances instances.json`. Idempotent, so a re-run after credential rotation regenerates only what changed.
-5. **Rerun Phase 1.** Rebuild benign task bundles with embedded `agent_context` and preserved `instantiation_dict`. Run: `uv run python -m worldsim.main phase 1 --benchmark vendors/webarena-verified`
-6. **Rerun Phase 2.** Regenerate adversarial tasks with `agent_context` as immutable field and injection prompts conditioned on the benchmark contract. Run: `uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified --instances instances.json`. Use `--sites <site>` for scoped iteration; the merge path preserves entries for sites outside the filter.
-7. **Fix WebArena Docker containers.** `scripts/bootstrap_ec2.sh` is the single entrypoint. Wikipedia amd64 image rebuild + parallel ZIM download is handled by `setup-wikipedia-robust.sh`; map volume name overrides live in `webarena-compose-override.yml`. Update `instances.json` once wikipedia and map are healthy.
-8. **Run Phase 3 (benign validation).** `uv run python -m worldsim.main phase 3 --instances instances.json --agent-model gemini-3-flash-preview`. Smoke test with `--max-tasks-per-site 2` first. Add `--allow-unknown-auth` only if a site is still declaring `auth_mechanism.type: "unknown"` and you have accepted the review risk.
-9. **Run Phase 4 (adversarial evaluation).** `uv run python -m worldsim.main phase 4 --instances instances.json`
+1. **Run Phase 4 on the current 12-task subset.** Adversarial evaluation against
+   the same deterministic seed/cap as Phase 3 (`--max-tasks-per-site 2`) so the
+   benign and adversarial task sets stay 1:1 paired.
+   ```
+   uv run python -m worldsim.main phase 4 --instances instances.json \
+     --max-tasks-per-site 2 --agent-model gemini-3-flash-preview
+   ```
+   Expected runtime: one Gate 1 probe pass per trajectory (~5 probes/task
+   averaging P(eval) via the ecological-validity loop), followed by Gate 2
+   attack-effectiveness judgments. Budget ~$20-40 on this cohort at
+   gemini-3-flash rates, more on Opus.
+2. **Swap to a stronger agent model and rerun Phase 3 on the same 12.** Try
+   `claude-opus-4-6`, `claude-sonnet-4-6`, or `openrouter/openai/gpt-5`. Our
+   trajectory audits showed multiple tasks where gemini-3-flash got the
+   right answer but ignored the JSON schema, so format-following alone should
+   flip several passes.
+3. **Expand Phase 0b's sandbox file map.** Today's Phase 0c rerun came back
+   `auth_mechanism.type: "unknown"` for gitlab because the credential sources
+   (`examples/configs/config.example.json`, `tests/integration/environments/gitlab/conftest.py`)
+   were outside the per-site file scope. Expanding 0b's glob patterns to
+   include these conventional locations would make auth discovery fully
+   automatic on future benchmark onboardings.
+4. **Implement runtime `form_login`.** Phase 0d handles the offline
+   bootstrap case; the runtime-form_login path in `_resolve_auth` still raises
+   `NotImplementedError`. Matters for benchmarks that need per-task fresh
+   sessions (none on the current roadmap but cheap to add).
+5. **Push Phase 0c sandbox scope fix + Phase 4 results back through the
+   pipeline.** After Phase 4 lands clean, doc a canonical cost curve per
+   benchmark in `docs/worldsim-v5-technical-specifcation.md`.
 
 ## Cost Summary
 
@@ -268,7 +306,17 @@ These numbers are useful context, but they are not the final cost profile for th
 
 Models used in the archived run: `claude-opus-4-6` (primary, ~$96.59), `claude-haiku-4-5-20251001` (sub-agent, ~$3.15). The archived run used the OpenRouter auth path.
 
-Latest rerun (scoped smoke through Phase 3 with fix-loop active, `--sites shopping_admin --max-tasks-per-site`): pipeline total landed at roughly $70 end-to-end. Fix-loop cost is tracked alongside diagnosis cost in `cost_report.json`, so the per-rejection retries surface as distinct `phase_3_diagnose` entries.
+Latest full-pipeline rerun (Phase 0a + 0c rerun with auth_mechanism discovery + 0d form_login bootstrap + Phase 1 rewrap + Phase 2 with --sites shopping_admin merge + full 6-site Phase 3 smoke `--max-tasks-per-site 2`):
+
+| Phase | Sandboxes | Turns | Cost |
+|-------|-----------|-------|------|
+| Phase 0a | 1 | 54 | $1.95 |
+| Phase 0c (2 attempts, tiered) | 48 | 995 | $54.06 |
+| Phase 2 (6 sites + shopping_admin rerun) | 7 | 107 | $7.42 |
+| Phase 3 (full 6-site smoke, 12 tasks) | 25 | 358 | $17.65 |
+| **Total** | **81** | **1514** | **$80.20** (approx, rounded to the visible `cost_report.json` tail at session close) |
+
+Fix-loop rejection cost is tracked in-line with diagnosis cost; retries surface as distinct `phase_3_diagnose` entries. Phase 3 cost was higher than run 1's `$1.48` because every one of the 12 tasks ran to completion and hit the diagnosis path; run 1's path errored early on most of them.
 
 ## Codebase Stats
 
