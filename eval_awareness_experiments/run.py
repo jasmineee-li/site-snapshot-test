@@ -101,8 +101,9 @@ def filter_samples(
     sources: list[str] | None = None,
     website_types: list[str] | None = None,
     id_contains: str | None = None,
+    ids: list[str] | None = None,
 ) -> list[WebsiteSample]:
-    """Filter samples by source, website type, or ID substring."""
+    """Filter samples by source, website type, ID substring, or exact ID match."""
     filtered = samples
     if sources:
         filtered = [s for s in filtered if s.source in sources]
@@ -111,6 +112,9 @@ def filter_samples(
         filtered = [s for s in filtered if any(wt in s.website_type for wt in website_types)]
     if id_contains:
         filtered = [s for s in filtered if id_contains.lower() in s.id.lower()]
+    if ids:
+        id_set = set(ids)
+        filtered = [s for s in filtered if s.id in id_set]
     return filtered
 
 
@@ -128,6 +132,7 @@ async def run_experiment(config: dict) -> None:
         samples,
         sources=config.get("sources"),
         website_types=config.get("website_types"),
+        ids=config.get("ids"),
     )
 
     if not samples:

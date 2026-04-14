@@ -10,10 +10,100 @@ more like an evaluation environment. Counterbalanced two ways:
 import asyncio
 import json
 import logging
+import os
 import random
+import re
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
+
+# When set, _run_one_inner dumps the exact prompt sent and the exact response
+# received. Each dump goes to a separate file under $COMPARATIVE_DEBUG_DIR
+# (one file per {pair, order, judge prompt}).
+_DEBUG = os.environ.get("COMPARATIVE_DEBUG") == "1"
+_DEBUG_DIR = os.environ.get("COMPARATIVE_DEBUG_DIR")
+
+
+def _safe_name(s: str, max_len: int = 50) -> str:
+    """Sanitize a sample id for safe use in filenames."""
+    s = re.sub(r"[^a-zA-Z0-9._-]", "_", s)
+    if len(s) > max_len:
+        s = s[:max_len]
+    return s
+
+
+def _debug_dump(
+    *,
+    model: str,
+    sample_a,
+    sample_b,
+    format_type: str,
+    order_label: str,
+    idx: int,
+    label: str,
+    json_key: str,
+    prompt_text: str,
+    content_a: str | None,
+    content_b: str | None,
+    image_paths: list[str] | None,
+    response_text: str,
+) -> None:
+    """Dump the exact prompt sent + response received to a per-call file.
+
+    Fires when COMPARATIVE_DEBUG=1 is set. Each (pair, order, judge prompt)
+    gets its own file at $COMPARATIVE_DEBUG_DIR. If the env var is not set,
+    writes to ./comparative_debug.
+    """
+    out_dir = Path(_DEBUG_DIR or "comparative_debug")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_a = _safe_name(sample_a.id)
+    safe_b = _safe_name(sample_b.id)
+    filename = f"{format_type}__{safe_a}__vs__{safe_b}__{order_label}__p{idx:02d}_{label}.txt"
+    out_file = out_dir / filename
+
+    sep = "=" * 100
+    sub = "-" * 100
+
+    abs_images = None
+    if image_paths:
+        abs_images = [str(Path(p).resolve()) for p in image_paths]
+
+    lines = [
+        sep,
+        f"model              = {model}",
+        f"format             = {format_type}",
+        f"order              = {order_label}",
+        f"judge_prompt_idx   = {idx}  ({label}-framed, json_key={json_key})",
+        f"sample_A.id        = {sample_a.id}",
+        f"sample_A.source    = {sample_a.source}",
+        f"sample_A.wtype     = {sample_a.website_type}",
+        f"sample_B.id        = {sample_b.id}",
+        f"sample_B.source    = {sample_b.source}",
+        f"sample_B.wtype     = {sample_b.website_type}",
+    ]
+    if abs_images:
+        lines.append(f"image_A (A slot)   = {abs_images[0]}")
+        lines.append(f"image_B (B slot)   = {abs_images[1]}")
+    lines.extend([
+        sep,
+        "",
+        "=== PROMPT TEXT SENT TO MODEL ===",
+        sub,
+        prompt_text,
+        sub,
+    ])
+    if content_a is not None:
+        lines.append(f"\n(content_a: {len(content_a)} chars, embedded in prompt above)")
+        lines.append(f"(content_b: {len(content_b) if content_b else 0} chars, embedded in prompt above)")
+    lines.extend([
+        "",
+        "=== RAW RESPONSE TEXT FROM MODEL ===",
+        sub,
+        response_text,
+        sub,
+    ])
+    out_file.write_text("\n".join(lines), encoding="utf-8")
 
 from eval_awareness_experiments.experiments.base import BaseExperiment
 from eval_awareness_experiments.experiments.prompts import (
@@ -241,6 +331,20 @@ class ComparativeExperiment(BaseExperiment):
                 output = await self.model.generate(prompt_text)
 
             response_text = output.message.text
+
+            if _DEBUG:
+                _debug_dump(
+                    model=self.model.model,
+                    sample_a=sample_a, sample_b=sample_b,
+                    format_type=format_type, order_label=order_label,
+                    idx=idx, label=label, json_key=json_key,
+                    prompt_text=prompt_text,
+                    content_a=content_a if format_type != "screenshot" else None,
+                    content_b=content_b if format_type != "screenshot" else None,
+                    image_paths=[content_a, content_b] if format_type == "screenshot" else None,
+                    response_text=response_text,
+                )
+
             parsed = parse_json_safe(response_text)
 
             choice = parsed.get(json_key) if parsed else None
