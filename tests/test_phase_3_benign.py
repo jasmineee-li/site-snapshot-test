@@ -14,6 +14,7 @@ from worldsim.agent_config import (
 from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
 from worldsim.phases import phase_3_benign
+from worldsim.task_paths import safe_task_path_component
 
 
 def _prepared_task() -> tuple[dict, list[BenchmarkInstance]]:
@@ -196,6 +197,89 @@ async def test_rerun_live_task_rebinds_runtime_metadata(monkeypatch, tmp_path):
     )
 
     assert result["passed"] is True
+
+
+@pytest.mark.asyncio
+async def test_rerun_live_task_forwards_site_profile(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    site_profile = {"site_name": "shopping", "seed_verification": {"kind": "api"}}
+
+    async def fake_run_task(task, agent, instance, task_dir, **kwargs):
+        assert kwargs["site_profile"] == site_profile
+        return {"passed": True, "trajectory_dir": str(task_dir)}
+
+    class FakeAgent:
+        async def setup(self, server_url):
+            return None
+
+        async def teardown(self):
+            return None
+
+    monkeypatch.setattr(phase_3_benign, "run_task", fake_run_task)
+
+    result = await phase_3_benign._rerun_live_task(
+        task=task,
+        instance=instances[0],
+        instances=instances,
+        agent_factory=FakeAgent,
+        task_dir=tmp_path / "rerun",
+        site_profile=site_profile,
+    )
+
+    assert result["passed"] is True
+
+
+@pytest.mark.asyncio
+async def test_diagnose_one_task_resume_ignores_stale_checkpoint(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    prepared_by_id = {task["id"]: task}
+    trajectory_dir = tmp_path / "traj"
+    trajectory_dir.mkdir()
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    (profiles_dir / "BENCHMARK_PROFILE_shopping.json").write_text("{}")
+
+    diagnosis_file = (
+        tmp_path / safe_task_path_component(task["id"]) / "diagnosis.json"
+    )
+    diagnosis_file.parent.mkdir(parents=True, exist_ok=True)
+    diagnosis_file.write_text(
+        json.dumps(
+            {
+                "action": "keep_flagged",
+                phase_3_benign._CHECKPOINT_FINGERPRINT_KEY: "stale",
+            }
+        )
+    )
+
+    calls = {"fix_loop": 0}
+
+    async def fake_fix_loop(**kwargs):
+        calls["fix_loop"] += 1
+        return {"action": "fixed", "rerun": {"passed": True}}
+
+    monkeypatch.setattr(phase_3_benign, "fix_loop", fake_fix_loop)
+
+    result = await phase_3_benign._diagnose_one_task(
+        r={
+            "task_id": task["id"],
+            "passed": False,
+            "trajectory_dir": str(trajectory_dir),
+        },
+        prepared_by_id=prepared_by_id,
+        profiles_dir=profiles_dir,
+        task_dir_root=tmp_path,
+        instances=instances,
+        agent_factory=lambda: None,
+        resume=True,
+    )
+
+    assert calls["fix_loop"] == 1
+    assert result == {
+        "task_id": task["id"],
+        "action": "fixed",
+        "rerun": {"passed": True},
+    }
 
 
 @pytest.mark.asyncio

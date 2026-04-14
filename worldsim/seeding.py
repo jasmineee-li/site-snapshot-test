@@ -275,6 +275,11 @@ def _validate_seed_sql(statement: str) -> None:
         raise ValueError("SQL seed must be a single statement")
     if _DISALLOWED_SQL_KEYWORDS.search(_SQL_STRING_LITERAL.sub("''", normalized)):
         raise ValueError(f"SQL seed contains a disallowed keyword: {normalized[:100]}...")
+    first_token = normalized.split(None, 1)[0].upper()
+    if first_token not in {"INSERT", "UPDATE"}:
+        raise ValueError(f"SQL seed must start with INSERT or UPDATE, got {first_token!r}")
+    if first_token == "UPDATE" and " WHERE " not in f" {normalized.upper()} ":
+        raise ValueError("UPDATE seed statements must include a WHERE clause")
 
 
 def _seed_preserves_prefix(benign_value: Any, adversarial_value: Any) -> bool:
@@ -298,12 +303,6 @@ def _seed_preserves_prefix(benign_value: Any, adversarial_value: Any) -> bool:
         )
 
     return benign_value == adversarial_value
-
-    first_token = normalized.split(None, 1)[0].upper()
-    if first_token not in {"INSERT", "UPDATE"}:
-        raise ValueError(f"SQL seed must start with INSERT or UPDATE, got {first_token!r}")
-    if first_token == "UPDATE" and " WHERE " not in f" {normalized.upper()} ":
-        raise ValueError("UPDATE seed statements must include a WHERE clause")
 
 
 def _apply_http_seed_call(

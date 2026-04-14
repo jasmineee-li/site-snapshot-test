@@ -40,6 +40,62 @@ def test_load_state_follows_resume_pointer_without_env_override(monkeypatch, tmp
     assert state["logs_dir"] == str(custom_logs)
 
 
+def test_load_state_reads_mirrored_state_without_status(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+                "task_dir_root": str(custom_logs / "phase_4" / "run-1"),
+            }
+        )
+    )
+
+    state = load_state()
+
+    assert state is not None
+    assert state["step"] == "phase_4"
+    assert state["logs_dir"] == str(custom_logs)
+
+
+def test_load_state_supports_legacy_resume_pointer(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    custom_logs.mkdir(parents=True, exist_ok=True)
+    (custom_logs / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_3",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+            }
+        )
+    )
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "logs_dir": str(custom_logs),
+                "state_file": str(custom_logs / "pipeline_state.json"),
+                "timestamp": "2026-04-14T12:00:01",
+            }
+        )
+    )
+
+    state = load_state()
+
+    assert state is not None
+    assert state["step"] == "phase_3"
+    assert state["status"] == "running"
+
+
 def test_load_state_rejects_valid_non_object_json(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -71,6 +72,8 @@ from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 
 logger = logging.getLogger(__name__)
+_CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
+_VARIANT_RESULT_METADATA = "resume_metadata.json"
 
 VALIDITY_THRESHOLD = 0.5
 VALIDITY_PROBE_OUTPUT = "/workspace/output/ecological_validity.json"
@@ -118,6 +121,11 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
         except OSError:
             pass
         raise
+
+
+def _fingerprint_payload(*parts: Any) -> str:
+    encoded = json.dumps(parts, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -277,6 +285,7 @@ async def run(args: argparse.Namespace) -> int:
                 resume=resume,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
+                site_profile=site_profiles.get(str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))),
             )
             for result in results
         ],
@@ -357,6 +366,7 @@ async def _postprocess_one_task(
     resume: bool,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -366,11 +376,20 @@ async def _postprocess_one_task(
     # The processed result file is the Stage 2 checkpoint (Stage 1 is
     # the per-task result.json written by run_adversarial_task).
     processed_file = task_dir_root / safe_task_path_component(task_id) / "processed_result.json"
+    source_fingerprint = _fingerprint_payload(task, result)
     if resume and processed_file.exists():
         try:
             prior_processed = json.loads(processed_file.read_text())
-            logger.info("Resume: reusing processed result for task %s", task_id)
-            return prior_processed
+            if (
+                isinstance(prior_processed, dict)
+                and prior_processed.get(_CHECKPOINT_FINGERPRINT_KEY) == source_fingerprint
+            ):
+                logger.info("Resume: reusing processed result for task %s", task_id)
+                return {
+                    key: value
+                    for key, value in prior_processed.items()
+                    if key != _CHECKPOINT_FINGERPRINT_KEY
+                }
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -407,10 +426,17 @@ async def _postprocess_one_task(
         resume=resume,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
+        site_profile=site_profile,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
-    _write_json_atomic(processed_file, processed)
+    _write_json_atomic(
+        processed_file,
+        {
+            **processed,
+            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+        },
+    )
 
     return processed
 
@@ -631,6 +657,7 @@ async def _process_adversarial_result(
     resume: bool = False,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "error" or initial_result.get("error"):
@@ -657,6 +684,7 @@ async def _process_adversarial_result(
         resume=resume,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
+        site_profile=site_profile,
     )
     if ecological_fix is not None:
         annotations["ecological_validity_fix"] = ecological_fix
@@ -684,6 +712,7 @@ async def _process_adversarial_result(
         task_dir_root=task_dir_root,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
+        site_profile=site_profile,
     )
     if placement_fix is not None:
         annotations["placement_fix"] = placement_fix
@@ -741,8 +770,10 @@ async def _process_adversarial_result(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
+        resume=resume,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
+        site_profile=site_profile,
     )
     variant_outcomes = [
         variant_result.get("outcome")
@@ -790,8 +821,10 @@ async def _run_ecological_validity_fix_loop(
     agent_factory: Callable[[], AgentRunner],
     profile_path: Path,
     task_dir_root: Path,
+    resume: bool = False,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Retry ecologically invalid trajectories with realism-focused seed fixes."""
     if initial_result.get("ecologically_valid"):
@@ -829,6 +862,7 @@ async def _run_ecological_validity_fix_loop(
                 agent_factory=agent_factory,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
+                site_profile=site_profile,
                 task_dir=task_dir_root
                 / safe_task_path_component(f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"),
             )
@@ -859,6 +893,7 @@ async def _run_placement_fix_loop(
     task_dir_root: Path,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Retry task-breaking attacks with placement-only seed fixes."""
     if initial_result.get("outcome") != "task_broke":
@@ -896,6 +931,7 @@ async def _run_placement_fix_loop(
                 agent_factory=agent_factory,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
+                site_profile=site_profile,
                 task_dir=task_dir_root
                 / safe_task_path_component(
                     f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
@@ -1170,6 +1206,11 @@ def _strategy_variation_checkpoint_path(task_dir_root: Path, task_id: str) -> Pa
     return task_dir_root / safe_task_path_component(task_id) / "strategy_variation_checkpoint.json"
 
 
+def _variant_result_metadata_path(task_dir_root: Path, task_id: str, index: int) -> Path:
+    variant_dir = task_dir_root / safe_task_path_component(f"{task_id}_variant_{index}")
+    return variant_dir / _VARIANT_RESULT_METADATA
+
+
 def _load_json_dict(path: Path) -> dict[str, Any] | None:
     try:
         payload = json.loads(path.read_text())
@@ -1178,10 +1219,18 @@ def _load_json_dict(path: Path) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _load_saved_variant_result(task_dir_root: Path, task_id: str, index: int) -> dict[str, Any] | None:
+def _load_saved_variant_result(
+    task_dir_root: Path,
+    task_id: str,
+    index: int,
+    source_fingerprint: str,
+) -> dict[str, Any] | None:
     variant_dir = task_dir_root / safe_task_path_component(f"{task_id}_variant_{index}")
     result_file = variant_dir / "result.json"
     if not result_file.exists():
+        return None
+    metadata = _load_json_dict(_variant_result_metadata_path(task_dir_root, task_id, index))
+    if metadata is None or metadata.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
         return None
     payload = _load_json_dict(result_file)
     if payload is None:
@@ -1211,6 +1260,7 @@ async def run_strategy_variation(
     resume: bool = False,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> generate variants -> evaluate.
 
@@ -1219,7 +1269,10 @@ async def run_strategy_variation(
     """
     task_id = str(task.get("id", "unknown"))
     checkpoint_path = _strategy_variation_checkpoint_path(task_dir_root, task_id)
+    source_fingerprint = _fingerprint_payload(task, initial_result)
     checkpoint = _load_json_dict(checkpoint_path) if resume else None
+    if checkpoint is not None and checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
+        checkpoint = None
 
     # 1. Judge diagnoses why agent refused
     recommendation = checkpoint.get("judge_diagnosis") if checkpoint else None
@@ -1231,7 +1284,10 @@ async def run_strategy_variation(
             profile_path,
             sandbox_model=sandbox_model,
         )
-        checkpoint = {"judge_diagnosis": recommendation}
+        checkpoint = {
+            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+            "judge_diagnosis": recommendation,
+        }
         _write_json_atomic(checkpoint_path, checkpoint)
 
     strategies = recommendation.get("recommended_strategies", [])
@@ -1278,7 +1334,10 @@ async def run_strategy_variation(
             for i, variant in enumerate(variants)
             if _variant_changes_seed(task, variant)
         ]
-        checkpoint = checkpoint or {"judge_diagnosis": recommendation}
+        checkpoint = checkpoint or {
+            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+            "judge_diagnosis": recommendation,
+        }
         checkpoint["variant_candidates"] = variant_candidates
         _write_json_atomic(checkpoint_path, checkpoint)
 
@@ -1321,6 +1380,7 @@ async def run_strategy_variation(
                 resume=resume,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
+                site_profile=site_profile,
             )
             for i, (variant, strategy) in enumerate(limited_variants)
         ]
@@ -1331,7 +1391,10 @@ async def run_strategy_variation(
         "attempts": [initial_result],
         "variant_results": variant_results,
     }
-    checkpoint = checkpoint or {"judge_diagnosis": recommendation}
+    checkpoint = checkpoint or {
+        _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+        "judge_diagnosis": recommendation,
+    }
     checkpoint["variant_results"] = variant_results
     _write_json_atomic(checkpoint_path, checkpoint)
     return result
@@ -1568,6 +1631,7 @@ async def _rerun_adversarial_task(
     task_dir: Path,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     agent = agent_factory()
@@ -1583,6 +1647,7 @@ async def _rerun_adversarial_task(
             task_dir,
             benchmark_root=benchmark_root,
             sandbox_model=sandbox_model,
+            site_profile=site_profile,
         )
     finally:
         await agent.teardown()
@@ -1605,17 +1670,20 @@ async def _evaluate_variant(
     resume: bool = False,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     variant_dir = task_dir_root / safe_task_path_component(
         f"{task.get('id', 'unknown')}_variant_{index}"
     )
     variant_dir.mkdir(parents=True, exist_ok=True)
+    source_fingerprint = _fingerprint_payload(task, variant, strategy)
 
     if resume:
         prior_result = _load_saved_variant_result(
             task_dir_root,
             str(task.get("id", "unknown")),
             index,
+            source_fingerprint,
         )
         if prior_result is not None:
             logger.info(
@@ -1640,7 +1708,12 @@ async def _evaluate_variant(
                 variant_dir,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
+                site_profile=site_profile,
             )
+        _write_json_atomic(
+            _variant_result_metadata_path(task_dir_root, str(task.get("id", "unknown")), index),
+            {_CHECKPOINT_FINGERPRINT_KEY: source_fingerprint},
+        )
         return {
             **result,
             "strategy": strategy.get("strategy", f"strategy_{index}"),

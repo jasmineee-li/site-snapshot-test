@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
+import os
 import tempfile
 import time
 from collections.abc import Callable
@@ -57,6 +59,7 @@ from worldsim.task_paths import safe_task_path_component
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 
 logger = logging.getLogger(__name__)
+_CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
 
 
 def _phase_3_state_metadata(
@@ -84,6 +87,26 @@ def _phase_3_state_metadata(
     if benchmark_root is not None:
         metadata["benchmark_path"] = str(benchmark_root)
     return metadata
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(payload, handle, indent=2)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _fingerprint_payload(*parts: Any) -> str:
+    encoded = json.dumps(parts, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -263,6 +286,9 @@ async def run(args: argparse.Namespace) -> int:
                 resume=resume,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
+                site_profile=site_profiles.get(
+                    str(prepared_by_id.get(str(r.get("task_id", "")), {}).get("site", ""))
+                ),
             )
             for r in failed_tasks
         ],
@@ -355,6 +381,7 @@ async def _diagnose_one_task(
     resume: bool,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Run diagnosis-fix loop for a single failed task. Returns diagnosis dict or None."""
     task_id = str(r.get("task_id", "?"))
@@ -365,11 +392,23 @@ async def _diagnose_one_task(
 
     # On resume, skip tasks that were already diagnosed in a prior run.
     diagnosis_file = task_dir_root / safe_task_path_component(task_id) / "diagnosis.json"
+    source_fingerprint = _fingerprint_payload(task, r)
     if resume and diagnosis_file.exists():
         try:
             prior_diagnosis = json.loads(diagnosis_file.read_text())
-            logger.info("Resume: reusing prior diagnosis for task %s", task_id)
-            return {"task_id": task_id, **prior_diagnosis}
+            if (
+                isinstance(prior_diagnosis, dict)
+                and prior_diagnosis.get(_CHECKPOINT_FINGERPRINT_KEY) == source_fingerprint
+            ):
+                logger.info("Resume: reusing prior diagnosis for task %s", task_id)
+                return {
+                    "task_id": task_id,
+                    **{
+                        key: value
+                        for key, value in prior_diagnosis.items()
+                        if key != _CHECKPOINT_FINGERPRINT_KEY
+                    },
+                }
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -392,12 +431,18 @@ async def _diagnose_one_task(
         agent_factory=agent_factory,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
+        site_profile=site_profile,
     )
 
     # Persist diagnosis for resume. Without this, all diagnoses would
     # re-run on crash recovery (Modal sandbox invocations are expensive).
-    diagnosis_file.parent.mkdir(parents=True, exist_ok=True)
-    diagnosis_file.write_text(json.dumps(fix_result, indent=2))
+    _write_json_atomic(
+        diagnosis_file,
+        {
+            **fix_result,
+            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+        },
+    )
 
     return {"task_id": task_id, **fix_result}
 
@@ -663,6 +708,7 @@ async def fix_loop(
     max_iterations: int = 2,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Iterative diagnosis-fix loop for failed tasks.
 
@@ -676,7 +722,8 @@ async def fix_loop(
     """
     current_trajectory = trajectory_dir
     current_task = task
-    site_profile = _load_site_profile(profile_path)
+    if site_profile is None:
+        site_profile = _load_site_profile(profile_path)
     rejection_feedback: str | None = None
     rejections: list[dict[str, Any]] = []
 
@@ -789,6 +836,7 @@ async def fix_loop(
                         agent_factory=agent_factory,
                         task_dir=rerun_dir,
                         benchmark_root=benchmark_root,
+                        site_profile=site_profile,
                     )
                 if rerun_result.get("passed"):
                     return _with_rejections(
@@ -916,6 +964,7 @@ async def _rerun_live_task(
     agent_factory: Callable[[], BrowserUseAgent],
     task_dir: Path,
     benchmark_root: Path | None = None,
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Rerun a patched task against a live instance before validation."""
     agent = agent_factory()
@@ -926,7 +975,12 @@ async def _rerun_live_task(
         try:
             await agent.setup(instance.site_url)
             result = await run_task(
-                bound_task, agent, instance, task_dir, benchmark_root=benchmark_root
+                bound_task,
+                agent,
+                instance,
+                task_dir,
+                benchmark_root=benchmark_root,
+                site_profile=site_profile,
             )
         except Exception as e:
             logger.warning("Live rerun failed for task %s: %s", task.get("id", "?"), e)
