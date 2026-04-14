@@ -59,12 +59,16 @@ class LLM:
             api_key=os.getenv("OPENROUTER_API_KEY"),
         )
 
-    async def generate(self, prompt: str | list) -> GenerateResult:
+    async def generate(
+        self, prompt: str | list, response_format: dict | None = None,
+    ) -> GenerateResult:
         """Generate a response from the model.
 
         Args:
             prompt: Either a string (sent as single user message) or a list
                 of chat message objects (with .role and .content attributes).
+            response_format: Optional response format constraint, e.g.
+                {"type": "json_object"} for structured JSON output.
 
         Returns:
             GenerateResult with .message.text containing the response.
@@ -74,15 +78,28 @@ class LLM:
         else:
             messages = [{"role": m.role, "content": m.content} for m in prompt]
 
+        kwargs = self._extra_kwargs()
+        if response_format:
+            kwargs["response_format"] = response_format
+
         async with self._semaphore:
             resp = await self._client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 max_tokens=self.max_tokens,
-                **self._extra_kwargs(),
+                **kwargs,
             )
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
+
+    async def generate_json(self, prompt: str | list) -> GenerateResult:
+        """Generate a JSON response from the model.
+
+        Convenience wrapper that sets response_format to json_object.
+        """
+        return await self.generate(
+            prompt, response_format={"type": "json_object"},
+        )
 
     async def generate_with_images(
         self, text_prompt: str, image_paths: list[str | Path]

@@ -103,10 +103,43 @@ ChatMessage = ChatMessageSystem | ChatMessageUser | ChatMessageAssistant
 # ---------------------------------------------------------------------------
 
 @dataclass
+class TrajectoryStep:
+    """A single step in an agent's trajectory."""
+    thought: str       # Agent's reasoning/thinking at this step
+    action: str        # What the agent did (click, type, terminate, etc.)
+    observation: str = ""  # Page state / axtree / observation after action
+
+
+@dataclass
+class StandardizedTrajectory:
+    """Benchmark-agnostic representation of an agent trajectory.
+
+    Bridges benchmark-specific formats and the judge input requirements.
+    The Test_Awareness_Steering judge needs (task, reasoning, answer);
+    existing browser-sim judges need a Transcript.
+    """
+    id: str
+    benchmark: str            # "doomarena", "wasp", "os-harm", "webarena-infinity", etc.
+    task_instruction: str     # The task given to the agent
+    agent: str                # "opus-4.6", "kimi", etc.
+    steps: list[TrajectoryStep]
+    final_answer: str         # Agent's final output/termination message
+    passed: bool | None = None
+    attack_type: str | None = None      # "prompt_injection", "adversarial_popup", etc.
+    attack_success: bool | None = None  # Whether the attack succeeded (for ASR)
+    safety_category: str | None = None  # "web_injection", "social_engineering", etc.
+    injection_condition: str | None = None  # "baseline", "eval_cue", "scenario_cue", etc.
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class WebsiteSample:
     """A website sample from one of the benchmark sources."""
     id: str
-    source: Literal["worldsim", "webarena", "agentcompany", "real"]
+    source: Literal[
+        "worldsim", "webarena", "webarena-infinity", "agentcompany", "real",
+        "doomarena", "wasp", "safearena", "os-harm",
+    ]
     website_type: str  # "github", "gmail", "paypal", "gitlab", etc.
     html_path: str | None = None
     axtree_path: str | None = None
