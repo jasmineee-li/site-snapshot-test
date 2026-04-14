@@ -44,6 +44,9 @@ def save_result(
     Extra keyword arguments (e.g. ``outcome``, ``ecologically_valid``) are
     merged into the result dict so downstream resume can reconstruct the
     full classification without re-running evaluation.
+
+    When ``_resume_fingerprint`` is present, resume logic only reuses the
+    sentinel for matching execution context.
     """
     task_dir = Path(task_dir)
     task_dir.mkdir(parents=True, exist_ok=True)

@@ -7,6 +7,7 @@ import pytest
 
 from worldsim.config import BenchmarkInstance
 from worldsim.eval_worker_pool import run_eval
+from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
 
@@ -107,7 +108,14 @@ async def test_run_eval_resume_all_completed_returns_prior_only(monkeypatch, tmp
         d = tmp_path / safe_task_path_component(tid)
         d.mkdir()
         (d / "result.json").write_text(
-            json.dumps({"task_id": tid, "passed": True, "message": "done"})
+            json.dumps(
+                {
+                    "task_id": tid,
+                    "passed": True,
+                    "message": "done",
+                    RESULT_FINGERPRINT_KEY: f"fp-{tid}",
+                }
+            )
         )
 
     factory_called = False
@@ -124,6 +132,7 @@ async def test_run_eval_resume_all_completed_returns_prior_only(monkeypatch, tmp
         task_runner=lambda *a, **kw: None,
         task_dir_root=tmp_path,
         resume=True,
+        expected_result_fingerprints={"task-a": "fp-task-a", "task-b": "fp-task-b"},
     )
 
     assert not factory_called
@@ -177,3 +186,33 @@ async def test_run_eval_resume_nonexistent_dir_behaves_like_fresh_run(monkeypatc
 
     assert executed_ids == ["task-z"]
     assert len(results) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_eval_resume_reruns_task_when_result_fingerprint_is_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    task_dir = tmp_path / safe_task_path_component("task-a")
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps({"task_id": "task-a", "passed": True, "message": "stale"})
+    )
+
+    executed_ids: list[str] = []
+
+    async def task_runner(task, agent, instance, task_dir):
+        executed_ids.append(task["id"])
+        return {"task_id": task["id"], "passed": True, "message": "reran"}
+
+    results = await run_eval(
+        tasks=[{"id": "task-a"}],
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=task_runner,
+        task_dir_root=tmp_path,
+        resume=True,
+        expected_result_fingerprints={"task-a": "expected-fp"},
+    )
+
+    assert executed_ids == ["task-a"]
+    assert results == [{"task_id": "task-a", "passed": True, "message": "reran"}]

@@ -14,6 +14,7 @@ from worldsim.agent_config import (
 from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
 from worldsim.phases import phase_3_benign
+from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
 
@@ -773,6 +774,137 @@ async def test_phase_3_circuit_breaker_skips_diagnosis_loop(monkeypatch, tmp_pat
     assert not any(step == "phase_3" and metadata.get("status") == "complete" for step, metadata in saved_states)
 
 
+@pytest.mark.asyncio
+async def test_phase_3_run_skips_diagnosis_for_infrastructure_errors(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                },
+                {
+                    "id": "task-2",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the cart",
+                    "start_urls": ["http://shopping.test/cart"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                },
+                {
+                    "id": "task-3",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the profile",
+                    "start_urls": ["http://shopping.test/profile"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                },
+                {
+                    "id": "task-4",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the wishlist",
+                    "start_urls": ["http://shopping.test/wishlist"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                },
+            ]
+        )
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(
+            {
+                "site_name": "shopping",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "reset_endpoint": "http://shopping.test/init",
+                    }
+                ],
+            }
+        )
+    )
+
+    async def fake_run_tasks_by_site(**kwargs):
+        return [
+            {
+                "task_id": "task-1",
+                "passed": False,
+                "outcome": "error",
+                "trajectory_dir": str(tmp_path / "error"),
+            },
+            {
+                "task_id": "task-2",
+                "passed": False,
+                "outcome": "failed",
+                "trajectory_dir": str(tmp_path / "failed"),
+            },
+            {
+                "task_id": "task-3",
+                "passed": True,
+                "outcome": "passed",
+                "trajectory_dir": str(tmp_path / "pass-1"),
+            },
+            {
+                "task_id": "task-4",
+                "passed": True,
+                "outcome": "passed",
+                "trajectory_dir": str(tmp_path / "pass-2"),
+            },
+        ]
+
+    diagnosed_task_ids: list[str] = []
+
+    async def fake_diagnose_one_task(**kwargs):
+        diagnosed_task_ids.append(kwargs["r"]["task_id"])
+        return {
+            "task_id": kwargs["r"]["task_id"],
+            "action": "keep_flagged",
+        }
+
+    monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
+    monkeypatch.setattr(phase_3_benign, "_diagnose_one_task", fake_diagnose_one_task)
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            allow_unknown_auth=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 0
+    assert diagnosed_task_ids == ["task-2"]
+
+
 # ── Constrained fix-patch validator integration ─────────────────────────
 
 
@@ -1154,3 +1286,41 @@ async def test_run_task_omits_benchmark_root_when_no_auth_mechanism(monkeypatch,
     assert "benchmark_root" not in captured
     assert "task_site" not in captured
     assert "auth_mechanism" not in captured
+
+
+@pytest.mark.asyncio
+async def test_run_task_persists_resume_fingerprint(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_3_benign, "run_reward_function", fake_run_reward_function)
+
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+        resume_fingerprint="phase3-fp",
+    )
+
+    payload = json.loads((tmp_path / "result.json").read_text())
+    assert payload[RESULT_FINGERPRINT_KEY] == "phase3-fp"

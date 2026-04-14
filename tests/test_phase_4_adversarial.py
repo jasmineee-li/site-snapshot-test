@@ -16,6 +16,7 @@ from worldsim.agent_config import (
 from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
 from worldsim.phases import phase_4_adversarial
+from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
 
@@ -150,6 +151,45 @@ async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path
     ]
     assert result["successful_strategy"] == "specificity"
     assert result["final_status"] == "success_on_variant"
+
+
+@pytest.mark.asyncio
+async def test_process_adversarial_result_marks_uninterpretable_variation_inconclusive(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "ecologically_valid": True,
+        "trajectory_dir": str(tmp_path / "traj"),
+    }
+
+    async def no_fix(*args, **kwargs):
+        return None
+
+    async def fake_strategy_variation(*args, **kwargs):
+        return {
+            "status": "no_instances",
+            "judge_diagnosis": {"diagnosis": "needs separate worker"},
+            "variant_results": [],
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_ecological_validity_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["final_status"] == "inconclusive"
 
 
 @pytest.mark.asyncio
@@ -419,6 +459,54 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     saved = json.loads((tmp_path / "result.json").read_text())
     assert saved["validity_score"] == 0.2
     assert saved["ecologically_valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None
+
+    async def fake_probe(task_dir, task, **kwargs):
+        return 0.2
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        if reward.get("type") == "noop":
+            return reward is task["reward_function"]["benign_reward"], "ok"
+        return False, "unexpected reward"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=2.1,
+                steps=5,
+                is_done=False,
+                final_result="partial answer",
+                status="timeout",
+                errors=["agent timed out after 30s"],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+        resume_fingerprint="phase4-fp",
+    )
+
+    saved = json.loads((tmp_path / "result.json").read_text())
+    assert saved[RESULT_FINGERPRINT_KEY] == "phase4-fp"
 
 
 @pytest.mark.asyncio
@@ -752,7 +840,15 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
     variant = json.loads(json.dumps(task))
     variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
-    checkpoint_fingerprint = phase_4_adversarial._fingerprint_payload(task, initial_result)
+    checkpoint_fingerprint = phase_4_adversarial._phase_4_postprocess_fingerprint(
+        task,
+        initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    )
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
@@ -787,10 +883,14 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
         json.dumps(
             {
                 phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._fingerprint_payload(
+                    phase_4_adversarial._phase_4_variant_fingerprint(
                         task,
                         variant,
                         {"strategy": "specificity"},
+                        instance=instances[0],
+                        benchmark_root=None,
+                        sandbox_model="claude-sonnet-4-6",
+                        site_profile=None,
                     )
                 )
             }
@@ -830,6 +930,114 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
             "strategy": "specificity",
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_different_instance(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    initial_result = {"trajectory_dir": str(tmp_path / "traj")}
+    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                        task,
+                        initial_result,
+                        primary_instances=[instances[0]],
+                        all_instances=instances,
+                        benchmark_root=None,
+                        sandbox_model="claude-sonnet-4-6",
+                        site_profile=None,
+                    )
+                ),
+                "judge_diagnosis": {
+                    "diagnosis": "needs more specificity",
+                    "recommended_strategies": [{"strategy": "specificity"}],
+                },
+                "variant_candidates": [
+                    {
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
+            }
+        )
+    )
+    variant_dir = tmp_path / "adv-1_variant_0"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    (variant_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "adv-1",
+                "outcome": "complied",
+                "ecologically_valid": True,
+            }
+        )
+    )
+    (variant_dir / phase_4_adversarial._VARIANT_RESULT_METADATA).write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_adversarial._phase_4_variant_fingerprint(
+                        task,
+                        variant,
+                        {"strategy": "specificity"},
+                        instance=instances[1],
+                        benchmark_root=None,
+                        sandbox_model="claude-sonnet-4-6",
+                        site_profile=None,
+                    )
+                )
+            }
+        )
+    )
+
+    calls = {"evaluated": 0}
+
+    async def fake_run_adversarial_task(task, agent, instance, task_dir, **kwargs):
+        calls["evaluated"] += 1
+        return {
+            "task_id": task["id"],
+            "outcome": "complied",
+            "ecologically_valid": True,
+        }
+
+    class FakeAgent:
+        async def setup(self, server_url):
+            return None
+
+        async def teardown(self):
+            return None
+
+    async def fail_run_judge(*args, **kwargs):
+        raise AssertionError("resume should reuse saved judge output")
+
+    async def fail_generate_variant(*args, **kwargs):
+        raise AssertionError("resume should reuse saved variants")
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=FakeAgent,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert calls["evaluated"] == 1
+    assert result["variant_results"][0]["strategy"] == "specificity"
 
 
 @pytest.mark.asyncio

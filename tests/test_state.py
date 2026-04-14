@@ -6,6 +6,7 @@ from argparse import Namespace
 from worldsim import main as worldsim_main
 from worldsim.browser_use_agent import AgentResult
 from worldsim.eval_worker_pool import load_completed_results
+from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.state import get_state_dir, load_state, save_state
 from worldsim.trajectory import save_result
 
@@ -94,6 +95,39 @@ def test_load_state_supports_legacy_resume_pointer(monkeypatch, tmp_path):
     assert state is not None
     assert state["step"] == "phase_3"
     assert state["status"] == "running"
+
+
+def test_load_state_prefers_authoritative_state_file_over_stale_resume_mirror(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    custom_logs.mkdir(parents=True, exist_ok=True)
+    (custom_logs / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "status": "running",
+                "timestamp": "2026-04-14T12:05:00",
+                "logs_dir": str(custom_logs),
+            }
+        )
+    )
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "step": "phase_3",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+            }
+        )
+    )
+
+    state = load_state()
+
+    assert state is not None
+    assert state["step"] == "phase_4"
 
 
 def test_load_state_rejects_valid_non_object_json(monkeypatch, tmp_path):
@@ -418,6 +452,28 @@ def test_load_completed_results_skips_variant_and_rerun_dirs(tmp_path):
     assert completed["10"]["trajectory_dir"] == str(initial_dir)
 
 
+def test_load_completed_results_filters_out_stale_fingerprints(tmp_path):
+    task_dir = tmp_path / "task-10"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "task-10",
+                "passed": True,
+                "message": "initial",
+                RESULT_FINGERPRINT_KEY: "old-fp",
+            }
+        )
+    )
+
+    completed = load_completed_results(
+        tmp_path,
+        expected_fingerprints={"task-10": "new-fp"},
+    )
+
+    assert completed == {}
+
+
 def test_save_state_preserves_task_dir_root(monkeypatch, tmp_path):
     """task_dir_root is persisted in pipeline_state.json for resume."""
     monkeypatch.chdir(tmp_path)
@@ -530,8 +586,10 @@ def test_save_result_extra_fields_persisted(tmp_path):
         "ok",
         outcome="complied",
         ecologically_valid=True,
+        **{RESULT_FINGERPRINT_KEY: "task-fp"},
     )
 
     data = json.loads((task_dir / "result.json").read_text())
     assert data["outcome"] == "complied"
     assert data["ecologically_valid"] is True
+    assert data[RESULT_FINGERPRINT_KEY] == "task-fp"

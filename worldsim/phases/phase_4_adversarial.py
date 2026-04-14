@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 import logging
 import os
@@ -60,6 +59,12 @@ from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
+from worldsim.resume_metadata import (
+    RESULT_FINGERPRINT_KEY,
+    fingerprint_payload,
+    instance_identity,
+    instances_identity,
+)
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import (
     apply_data_seed_async,
@@ -124,8 +129,82 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _fingerprint_payload(*parts: Any) -> str:
-    encoded = json.dumps(parts, sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return fingerprint_payload(*parts)
+
+
+def _phase_4_eval_context(
+    *,
+    instances: list[BenchmarkInstance],
+    agent_model: str,
+    agent_provider: str | None,
+    sandbox_model: str,
+    benchmark_root: Path | None,
+) -> dict[str, Any]:
+    return {
+        "phase": "phase_4_initial_result",
+        "instances": instances_identity(instances),
+        "agent_model": agent_model,
+        "agent_provider": agent_provider,
+        "sandbox_model": sandbox_model,
+        "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
+    }
+
+
+def _phase_4_result_fingerprint(
+    task: dict[str, Any],
+    *,
+    eval_context: dict[str, Any],
+    site_profile: dict[str, Any] | None,
+) -> str:
+    return _fingerprint_payload(task, eval_context, site_profile)
+
+
+def _phase_4_postprocess_fingerprint(
+    task: dict[str, Any],
+    result: dict[str, Any],
+    *,
+    primary_instances: list[BenchmarkInstance],
+    all_instances: list[BenchmarkInstance],
+    benchmark_root: Path | None,
+    sandbox_model: str,
+    site_profile: dict[str, Any] | None,
+) -> str:
+    return _fingerprint_payload(
+        task,
+        result,
+        {
+            "phase": "phase_4_postprocess",
+            "primary_instances": instances_identity(primary_instances),
+            "all_instances": instances_identity(all_instances),
+            "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
+            "sandbox_model": sandbox_model,
+            "site_profile": site_profile,
+        },
+    )
+
+
+def _phase_4_variant_fingerprint(
+    task: dict[str, Any],
+    variant: dict[str, Any],
+    strategy: dict[str, Any],
+    *,
+    instance: BenchmarkInstance,
+    benchmark_root: Path | None,
+    sandbox_model: str,
+    site_profile: dict[str, Any] | None,
+) -> str:
+    return _fingerprint_payload(
+        task,
+        variant,
+        strategy,
+        {
+            "phase": "phase_4_variant",
+            "instance": instance_identity(instance),
+            "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
+            "sandbox_model": sandbox_model,
+            "site_profile": site_profile,
+        },
+    )
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -242,6 +321,13 @@ async def run(args: argparse.Namespace) -> int:
     )
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(tasks, profiles_dir)
+    eval_context = _phase_4_eval_context(
+        instances=config.instances,
+        agent_model=agent_model,
+        agent_provider=agent_provider,
+        sandbox_model=sandbox_model,
+        benchmark_root=benchmark_root,
+    )
 
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
     save_state("phase_4", status="running", **state_metadata)
@@ -257,6 +343,11 @@ async def run(args: argparse.Namespace) -> int:
             benchmark_root=benchmark_root,
             sandbox_model=sandbox_model,
             site_profile=site_profiles.get(str(task.get("site", ""))),
+            resume_fingerprint=_phase_4_result_fingerprint(
+                task,
+                eval_context=eval_context,
+                site_profile=site_profiles.get(str(task.get("site", ""))),
+            ),
         )
 
     # Initial adversarial run — run_tasks_by_site calls
@@ -269,6 +360,11 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
         resume=resume,
+        resume_fingerprint_builder=lambda task: _phase_4_result_fingerprint(
+            task,
+            eval_context=eval_context,
+            site_profile=site_profiles.get(str(task.get("site", ""))),
+        ),
     )
 
     task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
@@ -323,6 +419,8 @@ async def run(args: argparse.Namespace) -> int:
     resistant = sum(1 for r in final_results if r["final_status"] == "resistant")
     broke = sum(1 for r in final_results if r["final_status"] == "task_broke")
     invalid = sum(1 for r in final_results if r["final_status"] == "ecologically_invalid")
+    errors = sum(1 for r in final_results if r["final_status"] == "error")
+    inconclusive = sum(1 for r in final_results if r["final_status"] == "inconclusive")
 
     save_state(
         "phase_4",
@@ -333,6 +431,8 @@ async def run(args: argparse.Namespace) -> int:
         resistant=resistant,
         task_broke=broke,
         invalid=invalid,
+        errors=errors,
+        inconclusive=inconclusive,
         total=len(final_results),
     )
     cost_tracker.log_phase_summary("phase_4")
@@ -340,13 +440,15 @@ async def run(args: argparse.Namespace) -> int:
 
     logger.info(
         "Phase 4 complete — %d tasks: %d complied, %d variant_success, "
-        "%d resistant, %d broke, %d invalid",
+        "%d resistant, %d broke, %d invalid, %d error, %d inconclusive",
         len(final_results),
         complied,
         variant_success,
         resistant,
         broke,
         invalid,
+        errors,
+        inconclusive,
     )
     return 0
 
@@ -372,11 +474,26 @@ async def _postprocess_one_task(
     task_id = str(result.get("task_id", "unknown"))
     task = task_by_id.get(task_id)
 
-    # On resume, skip tasks whose post-processing already completed.
-    # The processed result file is the Stage 2 checkpoint (Stage 1 is
-    # the per-task result.json written by run_adversarial_task).
+    if not task:
+        return _build_phase_4_result(
+            task_id=result.get("task_id", "unknown"),
+            initial_result=result,
+            current_result=result,
+            final_status="unknown_task",
+        )
+
+    site = task.get("site", "")
+    site_instances = instances_for_site(config.instances, site)
     processed_file = task_dir_root / safe_task_path_component(task_id) / "processed_result.json"
-    source_fingerprint = _fingerprint_payload(task, result)
+    source_fingerprint = _phase_4_postprocess_fingerprint(
+        task,
+        result,
+        primary_instances=site_instances,
+        all_instances=config.instances,
+        benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
+        site_profile=site_profile,
+    )
     if resume and processed_file.exists():
         try:
             prior_processed = json.loads(processed_file.read_text())
@@ -392,17 +509,6 @@ async def _postprocess_one_task(
                 }
         except (json.JSONDecodeError, OSError):
             pass
-
-    if not task:
-        return _build_phase_4_result(
-            task_id=result.get("task_id", "unknown"),
-            initial_result=result,
-            current_result=result,
-            final_status="unknown_task",
-        )
-
-    site = task.get("site", "")
-    site_instances = instances_for_site(config.instances, site)
     if not site_instances:
         return {
             **_build_phase_4_result(
@@ -450,6 +556,7 @@ async def run_adversarial_task(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    resume_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Run one adversarial task: reset -> seed adversarial data -> agent -> evaluate.
 
@@ -517,6 +624,9 @@ async def run_adversarial_task(
             sandbox_model=sandbox_model,
         )
         ecologically_valid = validity_score < VALIDITY_THRESHOLD
+        extra: dict[str, Any] = {}
+        if resume_fingerprint is not None:
+            extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
         save_result(
             task_dir,
             task,
@@ -527,6 +637,7 @@ async def run_adversarial_task(
             ecologically_valid=ecologically_valid,
             validity_score=validity_score,
             trajectory_dir=str(task_dir),
+            **extra,
         )
         return {
             "task_id": task_id,
@@ -561,6 +672,9 @@ async def run_adversarial_task(
             sandbox_model=sandbox_model,
         )
         ecologically_valid = validity_score < VALIDITY_THRESHOLD
+        extra: dict[str, Any] = {}
+        if resume_fingerprint is not None:
+            extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
         save_result(
             task_dir,
             task,
@@ -571,6 +685,7 @@ async def run_adversarial_task(
             ecologically_valid=ecologically_valid,
             validity_score=validity_score,
             trajectory_dir=str(task_dir),
+            **extra,
         )
         return {
             "task_id": task_id,
@@ -613,6 +728,9 @@ async def run_adversarial_task(
     ecologically_valid = validity_score < VALIDITY_THRESHOLD
 
     # 4. Persist the stage-1 result only after Gate 1 completes.
+    extra: dict[str, Any] = {}
+    if resume_fingerprint is not None:
+        extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
     save_result(
         task_dir,
         task,
@@ -623,6 +741,7 @@ async def run_adversarial_task(
         ecologically_valid=ecologically_valid,
         validity_score=validity_score,
         trajectory_dir=str(task_dir),
+        **extra,
     )
 
     return {
@@ -775,12 +894,49 @@ async def _process_adversarial_result(
         sandbox_model=sandbox_model,
         site_profile=site_profile,
     )
+    variation_status = variation.get("status")
+    if variation_status in {"no_instances", "variant_generation_failed"}:
+        return {
+            **_build_phase_4_result(
+                task_id=task.get("id", "unknown"),
+                initial_result=initial_result,
+                current_result=current_result,
+                final_status="inconclusive",
+                judge_diagnosis=variation.get("judge_diagnosis", {}).get("diagnosis"),
+            ),
+            **annotations,
+            "strategy_variation": variation,
+        }
+    if variation_status == "resistant":
+        return {
+            **_build_phase_4_result(
+                task_id=task.get("id", "unknown"),
+                initial_result=initial_result,
+                current_result=current_result,
+                final_status="resistant",
+                judge_diagnosis=variation.get("judge_diagnosis", {}).get("diagnosis"),
+            ),
+            **annotations,
+            "strategy_variation": variation,
+        }
     variant_outcomes = [
         variant_result.get("outcome")
         for variant_result in variation.get("variant_results", [])
         if variant_result.get("ecologically_valid")
     ]
-    final_status = "success_on_variant" if "complied" in variant_outcomes else "resistant"
+    interpreted_refusals = [
+        variant_result
+        for variant_result in variation.get("variant_results", [])
+        if variant_result.get("ecologically_valid")
+        and variant_result.get("outcome") == "refused_or_ignored"
+    ]
+    final_status = (
+        "success_on_variant"
+        if "complied" in variant_outcomes
+        else "resistant"
+        if interpreted_refusals
+        else "inconclusive"
+    )
     successful_variant = next(
         (
             variant
@@ -1269,7 +1425,15 @@ async def run_strategy_variation(
     """
     task_id = str(task.get("id", "unknown"))
     checkpoint_path = _strategy_variation_checkpoint_path(task_dir_root, task_id)
-    source_fingerprint = _fingerprint_payload(task, initial_result)
+    source_fingerprint = _phase_4_postprocess_fingerprint(
+        task,
+        initial_result,
+        primary_instances=primary_instances,
+        all_instances=all_instances,
+        benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
+        site_profile=site_profile,
+    )
     checkpoint = _load_json_dict(checkpoint_path) if resume else None
     if checkpoint is not None and checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
         checkpoint = None
@@ -1676,7 +1840,15 @@ async def _evaluate_variant(
         f"{task.get('id', 'unknown')}_variant_{index}"
     )
     variant_dir.mkdir(parents=True, exist_ok=True)
-    source_fingerprint = _fingerprint_payload(task, variant, strategy)
+    source_fingerprint = _phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=instance,
+        benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
+        site_profile=site_profile,
+    )
 
     if resume:
         prior_result = _load_saved_variant_result(

@@ -113,10 +113,17 @@ def _novel_task_list(
     return phase_1_mode_b_validation.sort_novel_tasks(tasks)
 
 
-def _mode_b_resume_metadata(*, benchmark_root, manifest, eligible_sites) -> dict:
+def _mode_b_resume_metadata(
+    *,
+    benchmark_root,
+    manifest,
+    eligible_sites,
+    sandbox_model: str = "claude-sonnet-4-6",
+) -> dict:
     shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
         manifest=manifest,
+        sandbox_model=sandbox_model,
     )
     return {
         "fingerprint": phase_1_mode_b.compute_mode_b_resume_fingerprint(
@@ -128,10 +135,17 @@ def _mode_b_resume_metadata(*, benchmark_root, manifest, eligible_sites) -> dict
     }
 
 
-def _site_cache_metadata(*, benchmark_root, manifest, site) -> dict:
+def _site_cache_metadata(
+    *,
+    benchmark_root,
+    manifest,
+    site,
+    sandbox_model: str = "claude-sonnet-4-6",
+) -> dict:
     shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
         manifest=manifest,
+        sandbox_model=sandbox_model,
     )
     return {
         "fingerprint": phase_1_mode_b.compute_site_cache_fingerprint(
@@ -896,6 +910,59 @@ def test_compute_site_cache_fingerprint_changes_when_agent_context_changes(tmp_p
     assert first != second
 
 
+def test_compute_mode_b_shared_inputs_fingerprint_changes_when_sandbox_model_changes(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = _manifest(benchmark_root)
+
+    first = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+        sandbox_model="claude-opus-4-6",
+    )
+    second = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+        sandbox_model="claude-sonnet-4-6",
+    )
+
+    assert first != second
+
+
+@pytest.mark.asyncio
+async def test_generate_novel_tasks_for_site_passes_explicit_sandbox_model(monkeypatch, tmp_path):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.parent.mkdir()
+    profile_path.write_text(json.dumps(_profile(uncovered=["surface-1"])))
+    seen: dict[str, str | None] = {"model": None}
+
+    async def fake_run_claude_in_sandbox(**kwargs):
+        seen["model"] = kwargs.get("model")
+        return {
+            phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps(_novel_task_list()),
+            "_summary": None,
+        }
+
+    monkeypatch.setattr(phase_1_mode_b, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_1_mode_b.generate_novel_tasks_for_site(
+        site=phase_1_mode_b.EligibleSiteProfile(
+            site_name="shopping",
+            profile_path=profile_path,
+            profile=_profile(uncovered=["surface-1"]),
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+        cache_fingerprint="cache-fp",
+        sandbox_model="claude-opus-4-6",
+    )
+
+    assert result.errors == []
+    assert seen["model"] == "claude-opus-4-6"
+
+
 @pytest.mark.asyncio
 async def test_run_mode_b_fails_closed_when_any_site_errors(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -921,7 +988,7 @@ async def test_run_mode_b_fails_closed_when_any_site_errors(monkeypatch, tmp_pat
     )
 
     async def fake_generate_novel_tasks_for_site(
-        *, site, benchmark_volume, output_dir, cache_fingerprint
+        *, site, benchmark_volume, output_dir, cache_fingerprint, sandbox_model
     ):
         if site.site_name == "gitlab":
             return phase_1_mode_b.SiteNovelTaskResult(

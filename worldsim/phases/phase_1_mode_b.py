@@ -50,6 +50,7 @@ async def run_mode_b(
     manifest: dict[str, Any],
     benchmark_root: Path,
     output_dir: Path,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> list[dict[str, Any]]:
     """Generate Mode B novel tasks for eligible sites."""
     state_dir = get_state_dir()
@@ -71,6 +72,7 @@ async def run_mode_b(
     shared_inputs_fingerprint = compute_mode_b_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
         manifest=manifest,
+        sandbox_model=sandbox_model,
     )
     cached_results = _load_all_cached_site_results(
         eligible_sites=eligible_sites,
@@ -103,6 +105,7 @@ async def run_mode_b(
                     shared_inputs_fingerprint=shared_inputs_fingerprint,
                     site=site,
                 ),
+                sandbox_model=sandbox_model,
             )
             for site in eligible_sites
         ],
@@ -169,6 +172,7 @@ async def generate_novel_tasks_for_site(
     benchmark_volume: Any,
     output_dir: Path,
     cache_fingerprint: str,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> SiteNovelTaskResult:
     """Generate and validate novel tasks for one site."""
     intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
@@ -206,6 +210,7 @@ async def generate_novel_tasks_for_site(
             site_files=site_files,
             prompt=prompt,
             output_paths=[NOVEL_TASK_OUTPUT_PATH],
+            model=sandbox_model,
             volumes={"/workspace/benchmark": benchmark_volume},
             label=f"1b-{site.site_name}",
         )
@@ -430,11 +435,13 @@ def compute_mode_b_shared_inputs_fingerprint(
     *,
     benchmark_root: Path,
     manifest: dict[str, Any],
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> str:
     """Return a content-based digest for shared Mode B generation inputs."""
     payload = {
         "benchmark_tree_digest": _directory_tree_digest(benchmark_root),
         "manifest": manifest,
+        "sandbox_model": sandbox_model,
     }
     return _stable_json_digest(payload)
 

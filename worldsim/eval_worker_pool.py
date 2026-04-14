@@ -23,6 +23,7 @@ from typing import Any
 
 from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkInstance
+from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,11 @@ TaskRunner = Callable[
 ]
 
 
-def load_completed_results(task_dir_root: Path) -> dict[str, dict[str, Any]]:
+def load_completed_results(
+    task_dir_root: Path,
+    *,
+    expected_fingerprints: dict[str, str] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Scan task_dir_root for existing result.json sentinel files.
 
     Returns a dict mapping task_id -> result dict for tasks that completed
@@ -73,6 +78,16 @@ def load_completed_results(task_dir_root: Path) -> dict[str, dict[str, Any]]:
             # that won't match the canonical path for the bare task_id.
             if subdir.name != safe_task_path_component(task_id):
                 continue
+            if expected_fingerprints is not None:
+                expected_fingerprint = expected_fingerprints.get(task_id)
+                actual_fingerprint = data.get(RESULT_FINGERPRINT_KEY)
+                if not expected_fingerprint or actual_fingerprint != expected_fingerprint:
+                    logger.info(
+                        "Ignoring stale result for task %s at %s due to resume fingerprint mismatch",
+                        task_id,
+                        result_file,
+                    )
+                    continue
             data["trajectory_dir"] = str(subdir)
             completed[task_id] = data
         except (json.JSONDecodeError, OSError):
@@ -159,6 +174,7 @@ async def run_eval(
     task_dir_root: Path,
     task_binder: Callable[[dict[str, Any], BenchmarkInstance], dict[str, Any]] | None = None,
     resume: bool = False,
+    expected_result_fingerprints: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Distribute ``tasks`` across ``instances`` with staggered worker startup.
 
@@ -182,7 +198,10 @@ async def run_eval(
     # On resume, load prior results and filter out completed tasks.
     prior_results: list[dict[str, Any]] = []
     if resume:
-        completed = load_completed_results(task_dir_root)
+        completed = load_completed_results(
+            task_dir_root,
+            expected_fingerprints=expected_result_fingerprints,
+        )
         if completed:
             original_count = len(tasks)
             tasks = [t for t in tasks if str(t.get("id", "")) not in completed]

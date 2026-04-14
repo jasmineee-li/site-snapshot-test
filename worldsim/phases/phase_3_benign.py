@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 import logging
 import os
@@ -51,6 +50,11 @@ from worldsim.fix_validation import validate_fix_patch
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
+from worldsim.resume_metadata import (
+    RESULT_FINGERPRINT_KEY,
+    fingerprint_payload,
+    instances_identity,
+)
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async
 from worldsim.site_lock import task_lock
@@ -105,8 +109,54 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _fingerprint_payload(*parts: Any) -> str:
-    encoded = json.dumps(parts, sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    return fingerprint_payload(*parts)
+
+
+def _phase_3_eval_context(
+    *,
+    instances: list[BenchmarkInstance],
+    agent_model: str,
+    agent_provider: str | None,
+    benchmark_root: Path | None,
+) -> dict[str, Any]:
+    return {
+        "phase": "phase_3_initial_result",
+        "instances": instances_identity(instances),
+        "agent_model": agent_model,
+        "agent_provider": agent_provider,
+        "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
+    }
+
+
+def _phase_3_result_fingerprint(
+    task: dict[str, Any],
+    *,
+    eval_context: dict[str, Any],
+    site_profile: dict[str, Any] | None,
+) -> str:
+    return _fingerprint_payload(task, eval_context, site_profile)
+
+
+def _phase_3_diagnosis_fingerprint(
+    task: dict[str, Any],
+    result: dict[str, Any],
+    *,
+    instances: list[BenchmarkInstance],
+    benchmark_root: Path | None,
+    sandbox_model: str,
+    site_profile: dict[str, Any] | None,
+) -> str:
+    return _fingerprint_payload(
+        task,
+        result,
+        {
+            "phase": "phase_3_diagnosis",
+            "instances": instances_identity(instances),
+            "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
+            "sandbox_model": sandbox_model,
+            "site_profile": site_profile,
+        },
+    )
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -211,6 +261,12 @@ async def run(args: argparse.Namespace) -> int:
     )
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(benign_tasks, profiles_dir)
+    eval_context = _phase_3_eval_context(
+        instances=config.instances,
+        agent_model=agent_model,
+        agent_provider=agent_provider,
+        benchmark_root=benchmark_root,
+    )
 
     # Build lookup from raw tasks — run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
@@ -227,6 +283,11 @@ async def run(args: argparse.Namespace) -> int:
             task_dir,
             benchmark_root=benchmark_root,
             site_profile=site_profiles.get(str(task.get("site", ""))),
+            resume_fingerprint=_phase_3_result_fingerprint(
+                task,
+                eval_context=eval_context,
+                site_profile=site_profiles.get(str(task.get("site", ""))),
+            ),
         )
 
     # Run evaluation via worker pool, routing tasks only to matching site instances.
@@ -238,6 +299,11 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
         resume=resume,
+        resume_fingerprint_builder=lambda task: _phase_3_result_fingerprint(
+            task,
+            eval_context=eval_context,
+            site_profile=site_profiles.get(str(task.get("site", ""))),
+        ),
     )
 
     # Summarize results
@@ -274,6 +340,13 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
 
+    diagnosable_failures = [r for r in failed_tasks if r.get("outcome") != "error"]
+    if error_tasks:
+        logger.warning(
+            "Skipping diagnosis for %d infrastructure-error tasks; only non-error failures enter the fix loop",
+            len(error_tasks),
+        )
+
     raw_diagnoses = await asyncio.gather(
         *[
             _diagnose_one_task(
@@ -290,7 +363,7 @@ async def run(args: argparse.Namespace) -> int:
                     str(prepared_by_id.get(str(r.get("task_id", "")), {}).get("site", ""))
                 ),
             )
-            for r in failed_tasks
+            for r in diagnosable_failures
         ],
         return_exceptions=True,
     )
@@ -298,7 +371,7 @@ async def run(args: argparse.Namespace) -> int:
     diagnosis_failures: list[tuple[str, BaseException]] = []
     for i, result in enumerate(raw_diagnoses):
         if isinstance(result, BaseException):
-            task_id = str(failed_tasks[i].get("task_id", "?"))
+            task_id = str(diagnosable_failures[i].get("task_id", "?"))
             logger.error(
                 "Diagnosis failed for task %s: %s",
                 task_id,
@@ -392,7 +465,14 @@ async def _diagnose_one_task(
 
     # On resume, skip tasks that were already diagnosed in a prior run.
     diagnosis_file = task_dir_root / safe_task_path_component(task_id) / "diagnosis.json"
-    source_fingerprint = _fingerprint_payload(task, r)
+    source_fingerprint = _phase_3_diagnosis_fingerprint(
+        task,
+        r,
+        instances=instances,
+        benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
+        site_profile=site_profile,
+    )
     if resume and diagnosis_file.exists():
         try:
             prior_diagnosis = json.loads(diagnosis_file.read_text())
@@ -455,6 +535,7 @@ async def run_task(
     *,
     benchmark_root: Path | None = None,
     site_profile: dict[str, Any] | None = None,
+    resume_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Run one benign task: reset -> seed -> agent run -> reward check.
 
@@ -509,7 +590,10 @@ async def run_task(
         message = f"agent run {result.status}: " + (
             result.errors[-1] if result.errors else "no additional error details"
         )
-        save_result(task_dir, task, result, False, message)
+        extra: dict[str, Any] = {}
+        if resume_fingerprint is not None:
+            extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+        save_result(task_dir, task, result, False, message, **extra)
         return {
             "task_id": task_id,
             "passed": False,
@@ -531,7 +615,10 @@ async def run_task(
     )
 
     # Save trajectory artifacts
-    save_result(task_dir, task, result, passed, message)
+    extra: dict[str, Any] = {}
+    if resume_fingerprint is not None:
+        extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+    save_result(task_dir, task, result, passed, message, **extra)
 
     return {
         "task_id": task_id,
