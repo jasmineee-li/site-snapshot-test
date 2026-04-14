@@ -147,6 +147,8 @@ class _NetworkTraceRecorder:
             self._poll_task = None
 
         trace = self._finalize_trace()
+        # Persist only redacted wire artifacts; downstream sandboxes may stage
+        # network.har wholesale from the trajectory directory.
         self._write_trace([self._redact_trace_entry(entry) for entry in trace])
         return trace
 
