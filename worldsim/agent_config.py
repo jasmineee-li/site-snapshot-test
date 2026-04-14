@@ -97,6 +97,15 @@ def resolve_provider(model: str, provider: str | None) -> str:
 # ── LLM construction ─────────────────────────────────────────────────────
 
 
+def _anthropic_proxy_env() -> tuple[str, str] | None:
+    """Return (base_url, auth_token) if an Anthropic-compatible proxy is configured."""
+    if os.environ.get("ANTHROPIC_API_KEY", "").strip():
+        return None
+    base = os.environ.get("ANTHROPIC_BASE_URL", "").strip()
+    auth = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
+    return (base, auth) if base and auth else None
+
+
 def make_llm(
     model: str = DEFAULT_MODEL,
     provider: str | None = None,
@@ -118,33 +127,30 @@ def make_llm(
     """
     provider = resolve_provider(model, provider)
 
-    # If the resolved provider's API key is missing but OpenRouter is available,
-    # fall back to OpenRouter transparently.
     _PROVIDER_ENV_VARS = {
         "google": "GOOGLE_API_KEY",
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
     }
     provider_key_var = _PROVIDER_ENV_VARS.get(provider)
+    anthropic_proxy_ready = provider == "anthropic" and _anthropic_proxy_env() is not None
     if (
         provider != "openrouter"
+        and not anthropic_proxy_ready
         and provider_key_var
         and not os.environ.get(provider_key_var, "").strip()
         and os.environ.get("OPENROUTER_API_KEY", "").strip()
     ):
         logger.info(
             "Provider %r requires %s (not set), falling back to OpenRouter",
-            provider, provider_key_var,
+            provider,
+            provider_key_var,
         )
         provider = "openrouter"
-        # Prefix model name for OpenRouter format if needed
         prefix_map = {"google": "google/", "openai": "openai/", "anthropic": "anthropic/"}
         prefix = prefix_map.get(resolve_provider(model, None) or "", "")
         if prefix and not model.startswith(prefix):
             model = prefix + model
-
-    # Browser Use >= 0.12.6 uses its own BaseChatModel protocol (not LangChain).
-    # Each provider's chat class implements the required `provider` property.
 
     if provider == "google":
         try:
@@ -174,7 +180,16 @@ def make_llm(
                 "browser-use is required for the Anthropic provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        return ChatAnthropic(model=model, temperature=temperature)
+        kwargs: dict[str, Any] = {"model": model, "temperature": temperature}
+        proxy = _anthropic_proxy_env()
+        if proxy is not None:
+            # Route via ChatAnthropic's tool-calling path: it ignores `minimum`/`maximum`
+            # in schemas, while the OpenAI-style response_format path (ChatOpenRouter) rejects them.
+            base_url, auth_token = proxy
+            kwargs["base_url"] = base_url
+            kwargs["auth_token"] = auth_token
+            logger.info("Anthropic provider: using custom base_url %s with auth_token", base_url)
+        return ChatAnthropic(**kwargs)
 
     if provider == "openrouter":
         try:
