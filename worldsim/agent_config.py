@@ -157,8 +157,8 @@ def make_llm(
             from browser_use.llm.google.chat import ChatGoogle
         except ImportError as exc:
             raise RuntimeError(
-                "browser-use[google] is required for the Google provider. "
-                "Install it with: uv pip install browser-use"
+                "Browser Use dependencies are required for the Google provider. "
+                "Install them with: uv sync --extra browser"
             ) from exc
         return ChatGoogle(model=model, temperature=temperature)
 
@@ -167,8 +167,8 @@ def make_llm(
             from browser_use.llm.openai.chat import ChatOpenAI
         except ImportError as exc:
             raise RuntimeError(
-                "browser-use is required for the OpenAI provider. "
-                "Install it with: uv pip install browser-use"
+                "Browser Use dependencies are required for the OpenAI provider. "
+                "Install them with: uv sync --extra browser"
             ) from exc
         return ChatOpenAI(model=model, temperature=temperature)
 
@@ -177,8 +177,8 @@ def make_llm(
             from browser_use.llm.anthropic.chat import ChatAnthropic
         except ImportError as exc:
             raise RuntimeError(
-                "browser-use is required for the Anthropic provider. "
-                "Install it with: uv pip install browser-use"
+                "Browser Use dependencies are required for the Anthropic provider. "
+                "Install them with: uv sync --extra browser"
             ) from exc
         kwargs: dict[str, Any] = {"model": model, "temperature": temperature}
         proxy = _anthropic_proxy_env()
@@ -196,8 +196,8 @@ def make_llm(
             from browser_use.llm.openrouter.chat import ChatOpenRouter
         except ImportError as exc:
             raise RuntimeError(
-                "browser-use is required for the OpenRouter provider. "
-                "Install it with: uv pip install browser-use"
+                "Browser Use dependencies are required for the OpenRouter provider. "
+                "Install them with: uv sync --extra browser"
             ) from exc
         return ChatOpenRouter(
             model=model,

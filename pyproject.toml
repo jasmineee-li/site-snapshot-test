@@ -6,7 +6,6 @@ requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
     "modal>=1.0",
-    "browser-use>=0.12.6",
     "anthropic>=0.40",
     "requests>=2.32",
     "claude-agent-sdk>=0.1.59,<0.2",
@@ -14,16 +13,27 @@ dependencies = [
     "pydantic>=2.9",
     "pymysql>=1.1",
     "psycopg2-binary>=2.9",
-    # LLM providers are supplied by browser-use's native chat classes
-    # (browser_use.llm.{google,openai,anthropic,openrouter}.chat).
-    # No separate langchain-* packages needed.
+    # Browser Use itself lives behind the optional "browser" extra because
+    # its OpenAI pin conflicts with the AgentLab comparison stack.
 ]
 
 [project.optional-dependencies]
+browser = [
+    "browser-use>=0.12.6",
+]
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24",
+    # AgentLab currently pins pytest==7.3.2, so keep dev tooling compatible
+    # with the comparison extra instead of making the extras mutually exclusive.
+    "pytest>=7.3.2,<8",
+    "pytest-asyncio>=0.21,<0.24",
     "ruff>=0.11",
+]
+comparison = [
+    "agentlab @ git+https://github.com/ServiceNow/AgentLab@71ec578c",
+    "browsergym>=0.13",
+    "doomarena @ git+https://github.com/ServiceNow/DoomArena#subdirectory=doomarena/core",
+    "doomarena-browsergym @ git+https://github.com/ServiceNow/DoomArena#subdirectory=doomarena/browsergym",
+    "litellm>=1.40",
 ]
 
 [project.scripts]
@@ -32,6 +42,17 @@ worldsim = "worldsim.main:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "browser" },
+        { extra = "comparison" },
+    ],
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["worldsim"]

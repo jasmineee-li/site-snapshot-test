@@ -28,6 +28,8 @@ load_dotenv(override=True)  # override=True: .env values win over empty-string s
 DEFAULT_AGENT_MODEL = "gemini-3-flash-preview"
 DEFAULT_SANDBOX_MODEL = "claude-sonnet-4-6"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
+RUNNER_CHOICES = ("browser_use", "agentlab")
+ATTACK_MODE_CHOICES = ("worldsim",)
 
 
 def _positive_int(value: str) -> int:
@@ -128,6 +130,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Phase 3-4: proceed even when a site's auth_mechanism.type is 'unknown'. "
         "Default behavior is to refuse unknown-auth tasks so humans review them first.",
     )
+    phase_cmd.add_argument(
+        "--runner",
+        default="browser_use",
+        choices=RUNNER_CHOICES,
+        help="Agent execution backend for Phase 3 (default: browser_use). "
+        "Packaged installs need the 'browser' extra for browser_use or the "
+        "'comparison' extra for agentlab. "
+        "Phase 4 currently runs through the browser_use pipeline because its "
+        "ecological-validity and strategy-variation loops still depend on "
+        "Browser Use trajectory artifacts.",
+    )
+    phase_cmd.add_argument(
+        "--attack-mode",
+        default="worldsim",
+        choices=ATTACK_MODE_CHOICES,
+        help="Phase 4 attack mode (default: worldsim). "
+        "Only the WorldSim seeded-attack path is currently wired into the "
+        "Phase 4 post-processing loop.",
+    )
+    phase_cmd.add_argument(
+        "--benchmark-adapter",
+        default=None,
+        help="Benchmark adapter name for the AgentLab runner (e.g., 'doomarena', "
+        "'stwebagentbench', 'wasp', 'safearena'). Used by the benchmark-aware "
+        "Phase 1/3 adapter path when --runner=agentlab.",
+    )
 
     resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
     resume_cmd.add_argument(
@@ -207,6 +235,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional instances JSON, used to supply URL placeholders to the "
         "vendor evaluator's config-validation step.",
+    )
+    resume_cmd.add_argument(
+        "--runner",
+        default=argparse.SUPPRESS,
+        choices=RUNNER_CHOICES,
+        help="Override the agent execution backend for the resumed phase.",
+    )
+    resume_cmd.add_argument(
+        "--attack-mode",
+        default=argparse.SUPPRESS,
+        choices=ATTACK_MODE_CHOICES,
+        help="Override Phase 4 attack mode for the resumed phase.",
+    )
+    resume_cmd.add_argument(
+        "--benchmark-adapter",
+        default=argparse.SUPPRESS,
+        help="Override benchmark adapter for the resumed phase.",
     )
 
     return parser
@@ -323,6 +368,25 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     if full_baseline is None:
         full_baseline = state.get("full_baseline", False)
 
+    runner = getattr(args, "runner", None) or state.get("runner", "browser_use")
+    attack_mode = getattr(args, "attack_mode", None) or state.get("attack_mode", "worldsim")
+    benchmark_adapter = getattr(args, "benchmark_adapter", None) or state.get(
+        "benchmark_adapter"
+    )
+    if target == "phase_4":
+        if runner != "browser_use":
+            print(
+                "Resume note: Phase 4 currently supports only runner=browser_use; "
+                f"ignoring saved runner={runner!r}."
+            )
+            runner = "browser_use"
+        if attack_mode not in ATTACK_MODE_CHOICES:
+            print(
+                "Resume note: Phase 4 currently supports only attack_mode='worldsim'; "
+                f"ignoring saved attack_mode={attack_mode!r}."
+            )
+            attack_mode = "worldsim"
+
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
 
@@ -344,6 +408,9 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
         allow_unknown_auth=allow_unknown_auth,
+        runner=runner,
+        attack_mode=attack_mode,
+        benchmark_adapter=benchmark_adapter,
     )
 
     return _dispatch_phase(synthetic)

@@ -28,6 +28,28 @@ from typing import Any
 from worldsim.browser_use_agent import AgentResult
 
 
+def save_result_payload(
+    task_dir: Path,
+    data: dict[str, Any],
+) -> None:
+    """Write an already-normalized result payload atomically."""
+    task_dir = Path(task_dir)
+    task_dir.mkdir(parents=True, exist_ok=True)
+
+    target = task_dir / "result.json"
+    fd, tmp_path = tempfile.mkstemp(dir=task_dir, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp_path, target)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 def save_result(
     task_dir: Path,
     task: dict[str, Any],
@@ -45,8 +67,6 @@ def save_result(
     merged into the result dict so downstream resume can reconstruct the
     full classification without re-running evaluation.
     """
-    task_dir = Path(task_dir)
-    task_dir.mkdir(parents=True, exist_ok=True)
     data = {
         "task_id": task.get("id", "unknown"),
         "passed": passed,
@@ -61,18 +81,7 @@ def save_result(
     }
     # Atomic write: tmpfile + os.replace prevents truncated result.json on crash,
     # which would cause load_completed_results to misidentify the task as complete.
-    target = task_dir / "result.json"
-    fd, tmp_path = tempfile.mkstemp(dir=task_dir, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, target)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    save_result_payload(task_dir, data)
 
 
 def load_trajectory_into_sandbox(
