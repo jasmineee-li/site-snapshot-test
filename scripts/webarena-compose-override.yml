@@ -44,3 +44,25 @@ services:
     platform: linux/amd64
     environment:
       - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_WIKIPEDIA_PORT:-8888}
+
+# Map volume binding. setup-map-robust.sh extracts to un-prefixed volume names
+# (`webarena-verified-map-*`) via `docker run -v <name>:/volume`, but the
+# `name: webarena-verified-envs` project prefix in docker-compose.yml causes
+# `docker compose up -d map` to create/mount `webarena-verified-envs_*`
+# volumes instead. Without the `name:` overrides below, compose attaches map
+# to empty prefixed volumes and the container crashes on startup. Setting
+# the explicit `name:` on each map volume disables the project prefix and
+# binds to the same volume the extraction script populated.
+volumes:
+  webarena-verified-map-tile-db:
+    name: webarena-verified-map-tile-db
+  webarena-verified-map-routing-car:
+    name: webarena-verified-map-routing-car
+  webarena-verified-map-routing-bike:
+    name: webarena-verified-map-routing-bike
+  webarena-verified-map-routing-foot:
+    name: webarena-verified-map-routing-foot
+  webarena-verified-map-nominatim-db:
+    name: webarena-verified-map-nominatim-db
+  webarena-verified-map-nominatim-flatnode:
+    name: webarena-verified-map-nominatim-flatnode
