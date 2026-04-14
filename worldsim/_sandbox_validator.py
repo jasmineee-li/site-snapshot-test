@@ -40,6 +40,17 @@ _DISALLOWED_SQL_KEYWORDS = re.compile(
 # these before running the disallowed-keyword check so that keyword-like words
 # ("DO NOT", "MERGE request") appearing inside string values are not flagged.
 _SQL_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
+_SQL_INSERT_TARGET = re.compile(r"^\s*INSERT\s+INTO\s+([`\"]?[\w.]+[`\"]?)", re.IGNORECASE)
+_SQL_UPDATE_TARGET = re.compile(r"^\s*UPDATE\s+([`\"]?[\w.]+[`\"]?)", re.IGNORECASE)
+_SQL_INSERT_COLUMNS = re.compile(
+    r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)",
+    re.IGNORECASE,
+)
+_SQL_UPDATE_SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bWHERE\b|$)", re.IGNORECASE | re.DOTALL)
+_NUMERIC_PATH_SEGMENT = re.compile(r"/\d+(?=/|$)")
+_PATH_PLACEHOLDER = re.compile(r"/\{[^}/]+\}(?=/|$)")
+_ALLOWED_API_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
+_FORM_METHODS = frozenset({"POST", "PUT", "PATCH"})
 
 
 def validate_seed_sql(statement: str) -> str | None:
@@ -88,21 +99,40 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
                 errors.append(sql_err)
         return errors
 
-    if mechanism == "api":
+    if mechanism in {"api", "form"}:
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
-            errors.append("api data seed must include a non-empty api_calls list")
+            errors.append(f"{mechanism} data seed must include a non-empty api_calls list")
             return errors
         for call in api_calls:
             if not isinstance(call, dict):
-                errors.append("api data seed calls must be objects")
+                errors.append(f"{mechanism} data seed calls must be objects")
                 continue
             method = call.get("method")
             path = call.get("path")
             if not isinstance(method, str) or not method.strip():
-                errors.append("api data seed calls must include a method")
+                errors.append(f"{mechanism} data seed calls must include a method")
+            elif method.strip().upper() not in _ALLOWED_API_METHODS:
+                errors.append(
+                    f"{mechanism} data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
+                )
+            elif mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
+                errors.append(
+                    f"form data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_FORM_METHODS)})"
+                )
             if not isinstance(path, str) or not path.startswith("/"):
-                errors.append("api data seed calls must include a path starting with '/'")
+                errors.append(f"{mechanism} data seed calls must include a path starting with '/'")
+            body = call.get("body")
+            body_form = call.get("body_form")
+            if mechanism == "form":
+                if not isinstance(body_form, dict) or not body_form:
+                    errors.append("form data seed calls must include a non-empty body_form object")
+                if body is not None:
+                    errors.append("form data seed calls must not include JSON body")
+            elif body_form is not None:
+                errors.append("api data seed calls must use body, not body_form")
         return errors
 
     if mechanism == "state_push":
@@ -179,6 +209,31 @@ def validate_profile(data: object, *, site_name: str) -> list[str]:
     return errors
 
 
+_CONTROLLABLE_TIERS = frozenset({"anon", "any_user", "authed_user", "admin", "none"})
+_DELIVERY_MECHANISMS = frozenset({"api", "form", "upload", "sql"})
+_RENDERING_FORMATS = frozenset({"raw_html", "markdown", "plaintext"})
+_CONCEALMENTS = frozenset(
+    {"plaintext", "offscreen_css", "markdown_fenced_system", "image_alt_text"}
+)
+_POSTCONDITION_TYPES = frozenset({"db_row_value"})
+_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
+_PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
+_FRAMINGS = frozenset(
+    {
+        "authority",
+        "urgency",
+        "policy",
+        "error_recovery",
+        "support_escalation",
+        "ci_failure",
+        "moderation_appeal",
+        "seller_footnote",
+        "peer_tip",
+    }
+)
+_ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
+
+
 def _entity_field_index(data_model: object) -> dict[str, set[str]]:
     """Return {entity_name: {field_name}} for a data model payload."""
     index: dict[str, set[str]] = {}
@@ -199,6 +254,265 @@ def _entity_field_index(data_model: object) -> dict[str, set[str]]:
             if isinstance(field_name, str) and field_name:
                 fields.add(field_name)
     return index
+
+
+def _validate_concealment_compatibility(
+    rendering_format: object,
+    concealments: object,
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(concealments, list) or not concealments:
+        return ["compatible_concealments must be a non-empty array"]
+
+    for concealment in concealments:
+        if concealment not in _CONCEALMENTS:
+            errors.append(
+                f"compatible_concealments contains invalid value {concealment!r}; "
+                f"allowed: {sorted(_CONCEALMENTS)}"
+            )
+            continue
+        if concealment == "markdown_fenced_system" and rendering_format != "markdown":
+            errors.append(
+                "markdown_fenced_system is only compatible with rendering_format='markdown'"
+            )
+        if concealment == "offscreen_css" and rendering_format != "raw_html":
+            errors.append("offscreen_css is only compatible with rendering_format='raw_html'")
+
+    return errors
+
+
+def _validate_delivery_channel_entry(entry: object, index: int) -> list[str]:
+    prefix = f"delivery_channels[{index}]"
+    if not isinstance(entry, dict):
+        return [f"{prefix} must be an object"]
+
+    errors: list[str] = []
+    mechanism = entry.get("mechanism")
+    if mechanism not in _DELIVERY_MECHANISMS:
+        errors.append(
+            f"{prefix} mechanism must be one of {sorted(_DELIVERY_MECHANISMS)}, "
+            f"got {mechanism!r}"
+        )
+
+    privileged_seed = entry.get("privileged_seed")
+    if not isinstance(privileged_seed, bool):
+        errors.append(f"{prefix} privileged_seed must be a boolean")
+
+    path_template = entry.get("path_template")
+    method = entry.get("method")
+    body_field = entry.get("body_field")
+    table = entry.get("table")
+    column = entry.get("column")
+    postcondition = entry.get("postcondition")
+
+    if mechanism in {"api", "form", "upload"}:
+        if not isinstance(path_template, str) or not path_template.startswith("/"):
+            errors.append(f"{prefix} path_template must be a path string starting with '/'")
+        if not isinstance(method, str) or not method.strip():
+            errors.append(f"{prefix} method must be a non-empty string")
+        if not isinstance(body_field, str) or not body_field.strip():
+            errors.append(f"{prefix} body_field must be a non-empty string")
+        if table is not None:
+            errors.append(f"{prefix} table must be null when mechanism={mechanism!r}")
+        if column is not None:
+            errors.append(f"{prefix} column must be null when mechanism={mechanism!r}")
+        errors.extend(
+            _validate_delivery_channel_postcondition(
+                postcondition,
+                prefix=prefix,
+                body_field=body_field,
+                path_template=path_template,
+                required=True,
+            )
+        )
+    elif mechanism == "sql":
+        if not isinstance(table, str) or not table.strip():
+            errors.append(f"{prefix} table must be a non-empty string when mechanism='sql'")
+        if not isinstance(column, str) or not column.strip():
+            errors.append(f"{prefix} column must be a non-empty string when mechanism='sql'")
+        if path_template is not None:
+            errors.append(f"{prefix} path_template must be null when mechanism='sql'")
+        if method is not None:
+            errors.append(f"{prefix} method must be null when mechanism='sql'")
+        if body_field is not None:
+            errors.append(f"{prefix} body_field must be null when mechanism='sql'")
+        errors.extend(
+            _validate_delivery_channel_postcondition(
+                postcondition,
+                prefix=prefix,
+                body_field=None,
+                path_template=None,
+                required=False,
+            )
+        )
+
+    return errors
+
+
+def _validate_delivery_channel_postcondition(
+    postcondition: object,
+    *,
+    prefix: str,
+    body_field: object,
+    path_template: object,
+    required: bool,
+) -> list[str]:
+    if postcondition is None:
+        if required:
+            return [f"{prefix} postcondition is required for non-sql delivery channels"]
+        return []
+    if not isinstance(postcondition, dict):
+        return [f"{prefix} postcondition must be an object"]
+
+    errors: list[str] = []
+    postcondition_type = postcondition.get("type")
+    if postcondition_type not in _POSTCONDITION_TYPES:
+        errors.append(
+            f"{prefix} postcondition.type must be one of {sorted(_POSTCONDITION_TYPES)}, "
+            f"got {postcondition_type!r}"
+        )
+        return errors
+
+    table = postcondition.get("table")
+    if not isinstance(table, str) or not _IDENTIFIER_PATTERN.match(table):
+        errors.append(f"{prefix} postcondition.table must be a SQL identifier")
+
+    value_column = postcondition.get("value_column")
+    if not isinstance(value_column, str) or not _IDENTIFIER_PATTERN.match(value_column):
+        errors.append(f"{prefix} postcondition.value_column must be a SQL identifier")
+
+    where = postcondition.get("where")
+    if not isinstance(where, dict) or not where:
+        errors.append(f"{prefix} postcondition.where must be a non-empty object")
+        return errors
+
+    path_params = {
+        match.group(1)
+        for match in _PATH_PARAM_PATTERN.finditer(path_template)
+    } if isinstance(path_template, str) else set()
+
+    for column_name, source in where.items():
+        if not isinstance(column_name, str) or not _IDENTIFIER_PATTERN.match(column_name):
+            errors.append(f"{prefix} postcondition.where keys must be SQL identifiers")
+            continue
+        if not isinstance(source, dict) or len(source) != 1:
+            errors.append(
+                f"{prefix} postcondition.where[{column_name!r}] must declare exactly one source"
+            )
+            continue
+        source_key, source_value = next(iter(source.items()))
+        if source_key == "path_param":
+            if not isinstance(source_value, str) or source_value not in path_params:
+                errors.append(
+                    f"{prefix} postcondition.where[{column_name!r}] path_param must match "
+                    "a placeholder in path_template"
+                )
+        elif source_key == "body_field":
+            if not isinstance(source_value, str) or not source_value.strip():
+                errors.append(
+                    f"{prefix} postcondition.where[{column_name!r}] body_field must be a non-empty string"
+                )
+            elif isinstance(body_field, str) and source_value == body_field:
+                continue
+        elif source_key == "literal":
+            if not isinstance(source_value, (str, int, float, bool)) and source_value is not None:
+                errors.append(
+                    f"{prefix} postcondition.where[{column_name!r}] literal must be a JSON scalar"
+                )
+        else:
+            errors.append(
+                f"{prefix} postcondition.where[{column_name!r}] source must be one of "
+                "path_param, body_field, literal"
+            )
+    return errors
+
+
+def _validate_injection_surface_labels(surface: object, index: int) -> list[str]:
+    prefix = f"injection_surface[{index}]"
+    if not isinstance(surface, dict):
+        return [f"{prefix} must be an object"]
+
+    errors: list[str] = []
+    rendering_format = surface.get("rendering_format")
+    if rendering_format not in _RENDERING_FORMATS:
+        errors.append(
+            f"{prefix} rendering_format must be one of {sorted(_RENDERING_FORMATS)}, "
+            f"got {rendering_format!r}"
+        )
+
+    tier = surface.get("controllable_by_tier")
+    if tier not in _CONTROLLABLE_TIERS:
+        errors.append(
+            f"{prefix} controllable_by_tier must be one of {sorted(_CONTROLLABLE_TIERS)}, "
+            f"got {tier!r}"
+        )
+
+    justification = surface.get("controllability_justification")
+    if not isinstance(justification, str) or not justification.strip():
+        errors.append(f"{prefix} missing non-empty controllability_justification")
+
+    delivery_channels = surface.get("delivery_channels")
+    if not isinstance(delivery_channels, list) or not delivery_channels:
+        errors.append(f"{prefix} delivery_channels must be a non-empty array")
+    else:
+        for channel_index, channel in enumerate(delivery_channels):
+            errors.extend(
+                f"{prefix} {error}"
+                for error in _validate_delivery_channel_entry(channel, channel_index)
+            )
+
+    errors.extend(
+        f"{prefix} {error}"
+        for error in _validate_concealment_compatibility(
+            rendering_format,
+            surface.get("compatible_concealments"),
+        )
+    )
+    return errors
+
+
+def _validate_agent_context_tier_consistency(
+    surfaces: object,
+    agent_context: object | None,
+) -> list[str]:
+    if not isinstance(surfaces, list):
+        return []
+    requires_authenticated_context = any(
+        isinstance(surface, dict) and surface.get("controllable_by_tier") == "authed_user"
+        for surface in surfaces
+    )
+    if not requires_authenticated_context:
+        return []
+    if not isinstance(agent_context, dict):
+        return [
+            "injection surfaces with controllable_by_tier='authed_user' require agent_context"
+        ]
+
+    auth_mechanism = agent_context.get("auth_mechanism")
+    if not isinstance(auth_mechanism, dict):
+        return [
+            "injection surfaces with controllable_by_tier='authed_user' require "
+            "agent_context.auth_mechanism"
+        ]
+    auth_type = auth_mechanism.get("type")
+    if not isinstance(auth_type, str) or not auth_type.strip():
+        return [
+            "injection surfaces with controllable_by_tier='authed_user' require "
+            "agent_context.auth_mechanism.type"
+        ]
+    if auth_type != "none":
+        return []
+
+    errors: list[str] = []
+    for index, surface in enumerate(surfaces):
+        if not isinstance(surface, dict):
+            continue
+        if surface.get("controllable_by_tier") == "authed_user":
+            errors.append(
+                f"injection_surface[{index}] controllable_by_tier='authed_user' requires "
+                "agent_context auth_mechanism.type != 'none'"
+            )
+    return errors
 
 
 def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
@@ -287,20 +601,48 @@ def validate_adversarial_tasks(data: object) -> list[str]:
     # Load benign tasks for cross-reference and merge simulation
     benign_path = Path("/workspace/tasks/benign_tasks.json")
     benign_by_id: dict[str, dict] = {}
-    if benign_path.exists():
+    if not benign_path.exists():
+        errors.append("missing benign_tasks.json for cross-reference")
+    else:
         try:
             benign_tasks = json.loads(benign_path.read_text())
             if isinstance(benign_tasks, list):
+                if not benign_tasks:
+                    errors.append("benign_tasks.json is empty; cross-reference requires at least one benign task")
                 benign_by_id = {
                     str(t.get("id", "")): t for t in benign_tasks if isinstance(t, dict)
                 }
+                if benign_tasks and not benign_by_id:
+                    errors.append(
+                        "benign_tasks.json must contain at least one task object with a non-empty id"
+                    )
+            else:
+                errors.append("benign_tasks.json must be a JSON array for cross-reference")
         except json.JSONDecodeError:
             errors.append("could not parse benign_tasks.json for cross-reference")
+
+    benchmark_profile: dict[str, object] | None = None
+    profile_path = Path("/workspace/profile/BENCHMARK_PROFILE.json")
+    if not profile_path.exists():
+        errors.append("missing BENCHMARK_PROFILE.json for cross-reference")
+    else:
+        try:
+            loaded_profile = json.loads(profile_path.read_text())
+            if isinstance(loaded_profile, dict):
+                benchmark_profile = loaded_profile
+            else:
+                errors.append("BENCHMARK_PROFILE.json must be a JSON object for cross-reference")
+        except json.JSONDecodeError:
+            errors.append("could not parse BENCHMARK_PROFILE.json for cross-reference")
 
     # Minimal schema only requires these fields from Claude's output.
     _REQUIRED_FIELDS = (
         "id",
         "benign_task_id",
+        "target_surface_id",
+        "framing",
+        "concealment",
+        "delivery_mechanism",
         "adversarial_data_seed",
     )
 
@@ -354,7 +696,497 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         for se in seed_errors:
             errors.append(f"{prefix} adversarial_data_seed: {se}")
 
+        framing = task.get("framing")
+        if framing not in _FRAMINGS:
+            errors.append(f"{prefix} framing must be one of {sorted(_FRAMINGS)}")
+
+        concealment = task.get("concealment")
+        if concealment not in _CONCEALMENTS:
+            errors.append(f"{prefix} concealment must be one of {sorted(_CONCEALMENTS)}")
+
+        delivery_mechanism = task.get("delivery_mechanism")
+        if delivery_mechanism not in _DELIVERY_MECHANISMS:
+            errors.append(
+                f"{prefix} delivery_mechanism must be one of {sorted(_DELIVERY_MECHANISMS)}"
+            )
+
+        target_surface_id = task.get("target_surface_id")
+        target_surface: dict[str, object] | None = None
+        if not isinstance(target_surface_id, str) or not target_surface_id.strip():
+            errors.append(f"{prefix} target_surface_id must be a non-empty string")
+        elif benchmark_profile is not None:
+            target_surface = _find_surface_by_id(benchmark_profile, target_surface_id)
+            if target_surface is None:
+                available_ids = _available_surface_ids(benchmark_profile)
+                errors.append(
+                    f"{prefix} target_surface_id {target_surface_id!r} not found in "
+                    f"BENCHMARK_PROFILE.json; available ids: {available_ids}"
+                )
+            else:
+                if target_surface.get("controllable_by_tier") not in _ELIGIBLE_CONTROLLABLE_TIERS:
+                    errors.append(
+                        f"{prefix} target surface {target_surface_id!r} must have "
+                        f"controllable_by_tier in {sorted(_ELIGIBLE_CONTROLLABLE_TIERS)}"
+                    )
+
+                if concealment in _CONCEALMENTS:
+                    compatible = target_surface.get("compatible_concealments")
+                    if not isinstance(compatible, list) or concealment not in compatible:
+                        errors.append(
+                            f"{prefix} target surface {target_surface_id!r} does not support "
+                            f"concealment={concealment!r}"
+                        )
+
+                matching_entries = _matching_delivery_entries(target_surface, str(delivery_mechanism))
+                if delivery_mechanism == "upload":
+                    errors.append(
+                        f"{prefix} delivery_mechanism='upload' is not supported by the current runtime"
+                    )
+                elif delivery_mechanism in _DELIVERY_MECHANISMS and not matching_entries:
+                    available = _format_surface_delivery_channels(target_surface)
+                    errors.append(
+                        f"{prefix} target surface {target_surface_id!r} does not support "
+                        f"delivery_mechanism={delivery_mechanism!r}; available delivery_channels: {available}"
+                    )
+                elif delivery_mechanism in _DELIVERY_MECHANISMS and not any(
+                    entry.get("privileged_seed") is False for entry in matching_entries
+                ):
+                    errors.append(
+                        f"{prefix} target surface {target_surface_id!r} only supports "
+                        f"delivery_mechanism={delivery_mechanism!r} through privileged_seed=true "
+                        "research-mode channels, which are excluded from default adversarial tasks"
+                    )
+
+                seed_writes = _extract_seed_writes(task.get("adversarial_data_seed"))
+                if not seed_writes:
+                    errors.append(
+                        f"{prefix} could not determine the adversarial_data_seed target for "
+                        f"target_surface_id={target_surface_id!r}"
+                    )
+                else:
+                    if any(write.get("mechanism") != delivery_mechanism for write in seed_writes):
+                        errors.append(
+                            f"{prefix} delivery_mechanism={delivery_mechanism!r} does not match "
+                            "the mechanism declared in adversarial_data_seed"
+                        )
+                    violating_target = next(
+                        (
+                            seed_write
+                            for seed_write in seed_writes
+                            if _surface_matches_write(target_surface, seed_write) is not None
+                        ),
+                        None,
+                    )
+                    if violating_target is not None:
+                        actual_target = _format_seed_write(violating_target)
+                        available = _format_surface_delivery_channels(target_surface)
+                        other_surface = _surface_for_seed_write(
+                            benchmark_profile,
+                            violating_target,
+                            exclude_id=target_surface_id,
+                        )
+                        message = (
+                            f"{prefix} declared target_surface_id={target_surface_id!r} but seed targets "
+                            f"{actual_target!r}, which is not registered to that surface. "
+                            f"Available delivery_channels for {target_surface_id}: {available}."
+                        )
+                        if other_surface is not None:
+                            message += f" Did you mean that surface {other_surface!r}?"
+                        errors.append(message)
+
+        benign_task = benign_by_id.get(benign_task_id) if benign_by_id else None
+        if benign_task is not None:
+            diff_error = _validate_discriminating_payload(
+                benign_task.get("data_seed"),
+                task.get("adversarial_data_seed"),
+                target_surface if benchmark_profile is not None and isinstance(target_surface, dict) else None,
+            )
+            if diff_error is not None:
+                errors.append(f"{prefix} {diff_error}")
+
     return errors
+
+
+def _available_surface_ids(benchmark_profile: dict[str, object]) -> list[str]:
+    ids: list[str] = []
+    for surface in benchmark_profile.get("injection_surface", []):
+        if not isinstance(surface, dict):
+            continue
+        surface_id = surface.get("id")
+        if isinstance(surface_id, str) and surface_id:
+            ids.append(surface_id)
+    return ids
+
+
+def _find_surface_by_id(
+    benchmark_profile: dict[str, object],
+    target_surface_id: str,
+) -> dict[str, object] | None:
+    for surface in benchmark_profile.get("injection_surface", []):
+        if isinstance(surface, dict) and surface.get("id") == target_surface_id:
+            return surface
+    return None
+
+
+def _normalize_delivery_path(path: str) -> str:
+    return _PATH_PLACEHOLDER.sub("/{id}", _NUMERIC_PATH_SEGMENT.sub("/{id}", path))
+
+
+def _canonical_delivery_channel_entry(entry: object) -> tuple[str, str] | None:
+    if not isinstance(entry, dict):
+        return None
+    mechanism = entry.get("mechanism")
+    if mechanism == "sql":
+        table = entry.get("table")
+        if isinstance(table, str) and table.strip():
+            return ("sql", f"table:{table.strip()}")
+        return None
+    if mechanism in {"api", "form", "upload"}:
+        method = entry.get("method")
+        path_template = entry.get("path_template")
+        if isinstance(method, str) and method.strip() and isinstance(path_template, str):
+            return (
+                str(mechanism),
+                f"path:{method.strip().upper()} {_normalize_delivery_path(path_template)}",
+            )
+    return None
+
+
+def _format_surface_delivery_channels(surface: dict[str, object]) -> list[str]:
+    formatted: list[str] = []
+    delivery_channels = surface.get("delivery_channels")
+    if not isinstance(delivery_channels, list):
+        return formatted
+    for entry in delivery_channels:
+        canonical = _canonical_delivery_channel_entry(entry)
+        if canonical is None:
+            continue
+        mechanism, resource = canonical
+        if resource.startswith("table:"):
+            formatted.append(f"{mechanism} {resource}")
+        elif resource.startswith("path:"):
+            formatted.append(f"{mechanism} {resource[len('path:'):]}")
+    return formatted
+
+
+def _matching_delivery_entries(surface: dict[str, object], delivery_mechanism: str) -> list[dict[str, object]]:
+    delivery_channels = surface.get("delivery_channels")
+    if not isinstance(delivery_channels, list):
+        return []
+    return [
+        entry for entry in delivery_channels
+        if isinstance(entry, dict) and entry.get("mechanism") == delivery_mechanism
+    ]
+
+
+def _extract_seed_targets(
+    seed: dict[str, object] | object,
+) -> list[tuple[str, str]] | None:
+    writes = _extract_seed_writes(seed)
+    if writes is None:
+        return None
+    return [(str(write["mechanism"]), str(write["resource"])) for write in writes]
+
+
+def _extract_seed_writes(
+    seed: dict[str, object] | object,
+) -> list[dict[str, object]] | None:
+    if not isinstance(seed, dict):
+        return None
+
+    mechanism = seed.get("mechanism")
+    if mechanism == "sql":
+        statements = seed.get("statements")
+        if not isinstance(statements, list) or not statements:
+            return None
+        writes: list[dict[str, object]] = []
+        for statement in statements:
+            if not isinstance(statement, str) or validate_seed_sql(statement) is not None:
+                return None
+            insert_match = _SQL_INSERT_TARGET.match(statement)
+            update_match = _SQL_UPDATE_TARGET.match(statement)
+            table = (
+                insert_match.group(1)
+                if insert_match
+                else update_match.group(1)
+                if update_match
+                else None
+            )
+            if not isinstance(table, str) or not table.strip():
+                return None
+            writes.append(
+                {
+                    "mechanism": "sql",
+                    "resource": f"table:{table.strip('`\"')}",
+                    "fields": _extract_sql_columns(statement),
+                }
+            )
+        return writes
+
+    if mechanism in {"api", "form", "upload"}:
+        api_calls = seed.get("api_calls")
+        if not isinstance(api_calls, list) or not api_calls:
+            return None
+        writes: list[dict[str, object]] = []
+        for call in api_calls:
+            if not isinstance(call, dict):
+                return None
+            method = call.get("method")
+            path = call.get("path")
+            if not isinstance(method, str) or not method.strip():
+                return None
+            if not isinstance(path, str) or not path.startswith("/"):
+                return None
+            fields: set[str] = set()
+            for body_key in ("body_form", "body"):
+                body = call.get(body_key)
+                if isinstance(body, dict):
+                    fields.update(str(key) for key in body.keys())
+            writes.append(
+                (
+                    {
+                        "mechanism": str(mechanism),
+                        "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
+                        "fields": fields,
+                    }
+                )
+            )
+        return writes
+
+    return None
+
+
+def _extract_seed_target(seed: dict[str, object] | object) -> tuple[str, str] | None:
+    targets = _extract_seed_targets(seed)
+    if not targets:
+        return None
+    return targets[0]
+
+
+def _surface_matches_seed(
+    surface: dict[str, object],
+    seed_target: tuple[str, str],
+) -> str | None:
+    closest_mismatch: str | None = None
+    delivery_channels = surface.get("delivery_channels")
+    if not isinstance(delivery_channels, list):
+        return "no registered delivery_channels"
+    for entry in delivery_channels:
+        canonical = _canonical_delivery_channel_entry(entry)
+        if canonical is None:
+            continue
+        if canonical == seed_target:
+            return None
+        if closest_mismatch is None:
+            closest_mismatch = f"{canonical[0]} {canonical[1]}"
+    return closest_mismatch
+
+
+def _surface_matches_write(
+    surface: dict[str, object],
+    write: dict[str, object],
+) -> str | None:
+    closest_mismatch: str | None = None
+    delivery_channels = surface.get("delivery_channels")
+    if not isinstance(delivery_channels, list):
+        return "no registered delivery_channels"
+    for entry in delivery_channels:
+        if not isinstance(entry, dict) or entry.get("privileged_seed") is not False:
+            continue
+        canonical = _canonical_delivery_channel_entry(entry)
+        if canonical is None:
+            continue
+        if canonical != (write.get("mechanism"), write.get("resource")):
+            if closest_mismatch is None:
+                closest_mismatch = _format_entry_match(entry)
+            continue
+        expected_field = entry.get("column") if canonical[0] == "sql" else entry.get("body_field")
+        write_fields = write.get("fields")
+        if (
+            isinstance(expected_field, str)
+            and isinstance(write_fields, set)
+            and write_fields == {expected_field}
+        ):
+            return None
+        if closest_mismatch is None:
+            closest_mismatch = _format_entry_match(entry)
+    return closest_mismatch
+
+
+def _surface_for_seed_target(
+    benchmark_profile: dict[str, object],
+    seed_target: tuple[str, str],
+    *,
+    exclude_id: str | None = None,
+) -> str | None:
+    for surface in benchmark_profile.get("injection_surface", []):
+        if not isinstance(surface, dict):
+            continue
+        surface_id = surface.get("id")
+        if exclude_id is not None and surface_id == exclude_id:
+            continue
+        if _surface_matches_seed(surface, seed_target) is None and isinstance(surface_id, str):
+            return surface_id
+    return None
+
+
+def _surface_for_seed_write(
+    benchmark_profile: dict[str, object],
+    write: dict[str, object],
+    *,
+    exclude_id: str | None = None,
+) -> str | None:
+    for surface in benchmark_profile.get("injection_surface", []):
+        if not isinstance(surface, dict):
+            continue
+        surface_id = surface.get("id")
+        if exclude_id is not None and surface_id == exclude_id:
+            continue
+        if _surface_matches_write(surface, write) is None and isinstance(surface_id, str):
+            return surface_id
+    return None
+
+
+def _validate_discriminating_payload(
+    benign_seed: object,
+    adversarial_seed: object,
+    surface: dict[str, object] | None = None,
+) -> str | None:
+    if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
+        return None
+
+    benign_statements = benign_seed.get("statements")
+    adversarial_statements = adversarial_seed.get("statements")
+    if isinstance(benign_statements, list) and isinstance(adversarial_statements, list):
+        if [_normalize_statement(s) for s in benign_statements] == [
+            _normalize_statement(s) for s in adversarial_statements
+        ]:
+            return (
+                "adversarial_data_seed SQL statements must differ from benign data_seed "
+                "beyond whitespace/case"
+            )
+
+    if surface is not None:
+        adversarial_mechanism = adversarial_seed.get("mechanism")
+        benign_values = _extract_target_field_values(benign_seed, surface)
+        adversarial_values = _extract_target_field_values(adversarial_seed, surface)
+        if (
+            adversarial_mechanism in {"api", "form", "upload"}
+            and _seed_matches_surface_channel(adversarial_seed, surface)
+            and not adversarial_values
+        ):
+            return "adversarial_data_seed must set the declared target field on the target surface"
+        if adversarial_values and benign_values == adversarial_values:
+            return (
+                "adversarial_data_seed target field values must differ from benign "
+                "data_seed beyond whitespace/case"
+            )
+
+    if json.dumps(benign_seed, sort_keys=True).lower() == json.dumps(
+        adversarial_seed, sort_keys=True
+    ).lower():
+        return "adversarial_data_seed must differ from the benign data_seed"
+
+    return None
+
+
+def _normalize_statement(statement: object) -> str:
+    if not isinstance(statement, str):
+        return ""
+    return "".join(statement.split()).lower()
+
+
+def _extract_target_field_values(
+    seed: object,
+    surface: dict[str, object],
+) -> list[str]:
+    if not isinstance(seed, dict):
+        return []
+    mechanism = seed.get("mechanism")
+    if mechanism not in {"api", "form", "upload"}:
+        return []
+    api_calls = seed.get("api_calls")
+    seed_targets = _extract_seed_targets(seed)
+    if not isinstance(api_calls, list) or seed_targets is None:
+        return []
+    values: list[str] = []
+    for call, seed_target in zip(api_calls, seed_targets):
+        if not isinstance(call, dict):
+            continue
+        for entry in _matching_delivery_entries(surface, seed_target[0]):
+            if _canonical_delivery_channel_entry(entry) != seed_target:
+                continue
+            body_field = entry.get("body_field")
+            if not isinstance(body_field, str) or not body_field:
+                continue
+            for body_key in ("body_form", "body"):
+                body = call.get(body_key)
+                if isinstance(body, dict) and body_field in body:
+                    values.append(_normalize_payload_value(body[body_field]))
+                    break
+    return values
+
+
+def _seed_matches_surface_channel(
+    seed: object,
+    surface: dict[str, object],
+) -> bool:
+    writes = _extract_seed_writes(seed)
+    if writes is None:
+        return False
+    return any(_surface_matches_write(surface, write) is None for write in writes)
+
+
+def _normalize_payload_value(value: object) -> str:
+    if isinstance(value, str):
+        return "".join(value.split()).lower()
+    return json.dumps(value, sort_keys=True).lower()
+
+
+def _extract_sql_columns(statement: str) -> set[str]:
+    insert_match = _SQL_INSERT_COLUMNS.match(statement)
+    if insert_match:
+        return {
+            column.strip().strip('`"')
+            for column in insert_match.group(1).split(",")
+            if column.strip()
+        }
+    update_match = _SQL_UPDATE_SET_CLAUSE.search(statement)
+    if not update_match:
+        return set()
+    columns: set[str] = set()
+    for assignment in update_match.group(1).split(","):
+        column, _, _ = assignment.partition("=")
+        normalized = column.strip().strip('`"')
+        if normalized:
+            columns.add(normalized)
+    return columns
+
+
+def _format_entry_match(entry: dict[str, object]) -> str:
+    mechanism = str(entry.get("mechanism"))
+    if mechanism == "sql":
+        return f"sql table:{entry.get('table')} column:{entry.get('column')}"
+    return (
+        f"{mechanism} path:{str(entry.get('method')).strip().upper()} "
+        f"{_normalize_delivery_path(str(entry.get('path_template')))} "
+        f"field:{entry.get('body_field')}"
+    )
+
+
+def _format_seed_write(write: dict[str, object]) -> str:
+    mechanism = str(write.get("mechanism"))
+    resource = str(write.get("resource"))
+    fields = write.get("fields")
+    if mechanism == "sql":
+        field_suffix = ""
+        if isinstance(fields, set) and fields:
+            field_suffix = f" column:{sorted(fields)[0]}"
+        return f"{mechanism} {resource}{field_suffix}"
+    field_suffix = ""
+    if isinstance(fields, set) and fields:
+        field_suffix = f" field:{sorted(fields)[0]}"
+    return f"{mechanism} {resource}{field_suffix}"
 
 
 def validate_diagnosis(data: object) -> list[str]:
@@ -533,6 +1365,7 @@ def validate_injection_surface(
     *,
     site_name: str,
     data_model: object | None = None,
+    agent_context: object | None = None,
 ) -> list[str]:
     """Validate INJECTION_SURFACE.json structure."""
     errors: list[str] = []
@@ -574,6 +1407,7 @@ def validate_injection_surface(
         realism = surface.get("attacker_realism")
         if realism not in ("low", "medium", "high"):
             errors.append(f"{prefix} attacker_realism must be low/medium/high, got {realism!r}")
+        errors.extend(_validate_injection_surface_labels(surface, i))
 
     coverage = data.get("existing_task_coverage")
     if not isinstance(coverage, dict):
@@ -592,6 +1426,8 @@ def validate_injection_surface(
                         errors.append(
                             f"existing_task_coverage.{key} references unknown surface {item!r}"
                         )
+
+    errors.extend(_validate_agent_context_tier_consistency(surfaces, agent_context))
 
     return errors
 
@@ -1067,10 +1903,14 @@ def cmd_injection_surface(args: argparse.Namespace) -> int:
     input_data_model, input_err = _load_json(_INPUTS_DIR / "DATA_MODEL.json")
     if input_err:
         return _emit_result(False, [input_err])
+    input_agent_context, agent_context_err = _load_json(_INPUTS_DIR / "AGENT_CONTEXT.json")
+    if agent_context_err:
+        return _emit_result(False, [agent_context_err])
     errors = validate_injection_surface(
         data,
         site_name=args.site_name,
         data_model=input_data_model,
+        agent_context=input_agent_context,
     )
     return _emit_result(not errors, errors)
 

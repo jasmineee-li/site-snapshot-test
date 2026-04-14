@@ -765,6 +765,9 @@ async def _profile_one_site_tiered(
         (inputs_dir / "DATA_MODEL.json").write_text(
             json.dumps(data_model, indent=2)
         )
+        (inputs_dir / "AGENT_CONTEXT.json").write_text(
+            json.dumps(agent_context, indent=2)
+        )
 
         tier2_extra_inputs = {
             "/workspace/inputs/VERIFICATION_CAPABILITIES.json": str(
@@ -772,6 +775,9 @@ async def _profile_one_site_tiered(
             ),
             "/workspace/inputs/DATA_MODEL.json": str(
                 inputs_dir / "DATA_MODEL.json"
+            ),
+            "/workspace/inputs/AGENT_CONTEXT.json": str(
+                inputs_dir / "AGENT_CONTEXT.json"
             ),
         }
 
@@ -788,6 +794,7 @@ async def _profile_one_site_tiered(
                 data,
                 site_name=site_name,
                 data_model=data_model,
+                agent_context=agent_context,
             ),
             correction_guidance=(
                 "Every source_field must use entity.field format and reference a real field on the "
@@ -803,6 +810,7 @@ async def _profile_one_site_tiered(
             "site_name": site_name,
             "verification_capabilities": verify_caps,
             "data_model": data_model,
+            "agent_context": agent_context,
             "injection_surface": injection_surface.get("injection_surface", []),
             "existing_task_coverage": injection_surface.get("existing_task_coverage", {}),
         }
