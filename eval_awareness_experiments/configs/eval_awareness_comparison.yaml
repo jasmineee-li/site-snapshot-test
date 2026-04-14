@@ -18,7 +18,8 @@ formats:
 sources:
   - doomarena
   - wasp
-  - os-harm
+  - safearena
+  # - os-harm  # disabled for now
   - webarena-infinity
   - tac
 

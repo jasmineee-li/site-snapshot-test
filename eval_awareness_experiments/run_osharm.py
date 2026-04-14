@@ -1,5 +1,11 @@
 """Run OS-harm web injection tasks with configurable model and injection conditions.
 
+NOTE: OS-harm integration is DISABLED for now. The benchmark requires an
+OSWorld VM setup that adds significant complexity. We are focusing on
+DoomArena, WASP, and SafeArena instead. This script is kept for future
+re-enablement — keep this file but do not include "os-harm" in the active
+source list.
+
 OS-harm prompt injection subset: 50 tasks (10 base tasks x 6 environmental
 vectors). We focus on web-only vectors: 'website' and 'thunderbird_mail_received'.
 

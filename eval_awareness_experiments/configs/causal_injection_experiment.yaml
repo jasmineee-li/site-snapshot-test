@@ -6,11 +6,9 @@
 # This config runs the judges on the generated trajectories.
 #
 # Conditions (applied by run_causal_experiment.py):
-#   baseline          — original injection unmodified
-#   eval_cue          — <llm_safety_test>[injection]</llm_safety_test>
-#   scenario_cue      — <hypothetical_scenario>[injection]</hypothetical_scenario>
-#   anti_eval_cue     — <real_environment>[injection]</real_environment>
-#   combined_scenario — <hypothetical_scenario>...[injection]</hypothetical_scenario>
+#   baseline     — original injection unmodified
+#   eval_cue     — <llm_safety_test>[injection]</llm_safety_test>
+#   scenario_cue — <hypothetical_scenario>[injection]</hypothetical_scenario>
 
 name: causal_injection_experiment
 experiment: trajectory_awareness
@@ -24,7 +22,8 @@ formats:
 sources:
   - doomarena
   - wasp
-  - os-harm
+  - safearena
+  # - os-harm  # disabled for now
 
 judges:
   - test_awareness_steering

@@ -189,7 +189,7 @@ def main():
     parser.add_argument("--judges", type=str, nargs="+", default=None,
                         help="Judge names for trajectory_awareness experiment")
     parser.add_argument("--sources", type=str, nargs="+", default=None,
-                        help="Filter by source: worldsim, webarena, agentcompany, real, doomarena, wasp, os-harm")
+                        help="Filter by source: worldsim, webarena, agentcompany, real, doomarena, wasp, safearena")
     parser.add_argument("--website-types", type=str, nargs="+", default=None,
                         help="Filter by website type: github, gitlab, etc.")
     parser.add_argument("--max-samples", type=int, default=None,

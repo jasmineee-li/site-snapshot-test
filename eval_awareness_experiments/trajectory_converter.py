@@ -5,7 +5,8 @@ Supports:
 - AgentLab/BrowserGym (step_*.pkl.gz + summary_info.json)
 - DoomArena (AgentLab redteam format with judge_results.json)
 - WASP (BrowserGym-based axtree + action logs)
-- OS-harm (better_log.json + test_injection.json task configs)
+- SafeArena (VisualWebArena-based harmful task benchmark, McGill-NLP)
+- OS-harm (better_log.json + test_injection.json task configs)  [DISABLED]
 
 Also provides conversion to Transcript (for existing browser-sim judges)
 and to (task, reasoning, answer) tuples (for Test_Awareness_Steering judge).
@@ -213,6 +214,42 @@ def parse_doomarena_trajectory(
     if "benign" in exp_dir.name:
         traj.attack_type = "benign"
     traj.safety_category = "adversarial_web_attack"
+
+    return traj
+
+
+# ---------------------------------------------------------------------------
+# SafeArena (BrowserGym-based, McGill-NLP; WebArena-derived)
+# ---------------------------------------------------------------------------
+
+def parse_safearena_trajectory(
+    exp_dir: Path,
+) -> StandardizedTrajectory | None:
+    """Parse a SafeArena experiment directory.
+
+    SafeArena is built on AgentLab + BrowserGym, so trajectories share the
+    same step_*.pkl.gz + summary_info.json layout as DoomArena and AgentLab.
+    The key differences:
+    - Task IDs come from SafeArena's harm.json / safe.json splits
+    - 'jailbreak' mode flags indicate the task has harmful content
+    - Attack success is determined by the task's native evaluator
+    """
+    traj = parse_agentlab_trajectory(exp_dir)
+    if traj is None:
+        return None
+
+    traj.benchmark = "safearena"
+    traj.id = f"safearena_{exp_dir.name}"
+    traj.attack_type = "harmful_task"
+    traj.safety_category = "web_harm"
+
+    # Detect harm vs safe split from directory name or exp_args
+    if "harm" in exp_dir.name.lower() or traj.metadata.get("split") == "harm":
+        traj.metadata["safearena_split"] = "harm"
+        # For harm tasks, attack_success = task completed (agent carried out harmful act)
+        traj.attack_success = traj.passed
+    else:
+        traj.metadata["safearena_split"] = "safe"
 
     return traj
 
@@ -467,6 +504,7 @@ PARSERS = {
     "agentlab": parse_agentlab_trajectory,
     "doomarena": parse_doomarena_trajectory,
     "wasp": parse_wasp_trajectory,
+    "safearena": parse_safearena_trajectory,
     # os-harm uses parse_osharm_trajectory which takes extra task_info arg
 }
 

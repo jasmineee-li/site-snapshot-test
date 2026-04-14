@@ -138,7 +138,7 @@ class WebsiteSample:
     id: str
     source: Literal[
         "worldsim", "webarena", "webarena-infinity", "agentcompany", "real",
-        "doomarena", "wasp", "os-harm",
+        "doomarena", "wasp", "safearena", "os-harm",
     ]
     website_type: str  # "github", "gmail", "paypal", "gitlab", etc.
     html_path: str | None = None

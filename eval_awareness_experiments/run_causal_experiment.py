@@ -31,12 +31,13 @@ DEFAULT_MODELS = [
     "anthropic/claude-opus-4.6",
 ]
 
-DEFAULT_BENCHMARKS = ["doomarena", "wasp", "os-harm"]
+DEFAULT_BENCHMARKS = ["doomarena", "wasp", "safearena"]
 
 RUNNER_MODULES = {
     "doomarena": "eval_awareness_experiments.run_doomarena",
     "wasp": "eval_awareness_experiments.run_wasp",
-    "os-harm": "eval_awareness_experiments.run_osharm",
+    "safearena": "eval_awareness_experiments.run_safearena",
+    # "os-harm": "eval_awareness_experiments.run_osharm",  # disabled for now
 }
 
 
