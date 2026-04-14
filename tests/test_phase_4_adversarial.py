@@ -58,8 +58,10 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
 @pytest.mark.asyncio
 async def test_generate_variant_reads_variant_output_path(monkeypatch, tmp_path):
     task, _ = _prepared_adv_task()
+    captured = {}
 
     async def fake_run_claude_in_sandbox(*args, **kwargs):
+        captured["model"] = kwargs.get("model")
         return {
             phase_4_adversarial.VARIANT_TASK_OUTPUT: json.dumps(
                 {
@@ -88,10 +90,12 @@ async def test_generate_variant_reads_variant_output_path(monkeypatch, tmp_path)
         task,
         {"strategy": "specificity"},
         tmp_path / "profile.json",
+        sandbox_model="claude-sonnet-4-6",
     )
 
     assert variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] == 2
     assert not phase_4_adversarial._tasks_equivalent(task, variant)
+    assert captured["model"] == "claude-sonnet-4-6"
 
 
 @pytest.mark.asyncio
@@ -180,6 +184,7 @@ async def test_probe_ecological_validity_stages_task_json(monkeypatch, tmp_path)
 
     async def fake_run_claude_in_sandbox(*, site_files, prompt, output_paths, **kwargs):
         captured["site_files"] = site_files
+        captured["model"] = kwargs.get("model")
         return {
             phase_4_adversarial.VALIDITY_PROBE_OUTPUT: json.dumps({"average_score": 0.2}),
             "_summary": None,
@@ -190,10 +195,12 @@ async def test_probe_ecological_validity_stages_task_json(monkeypatch, tmp_path)
     score = await phase_4_adversarial.probe_ecological_validity(
         tmp_path,
         {"id": "adv-1", "instruction": "task text"},
+        sandbox_model="claude-sonnet-4-6",
     )
 
     assert score == 0.2
     assert "/workspace/task.json" in captured["site_files"]
+    assert captured["model"] == "claude-sonnet-4-6"
 
 
 @pytest.mark.asyncio
@@ -215,7 +222,7 @@ async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable
     async def fake_apply_seed(seed, instance):
         return None
 
-    async def fake_probe(task_dir, task):
+    async def fake_probe(task_dir, task, **kwargs):
         return 0.25
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
@@ -268,7 +275,7 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     async def fake_apply_seed(seed, instance):
         return None
 
-    async def fake_probe(task_dir, task):
+    async def fake_probe(task_dir, task, **kwargs):
         return 0.2
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
@@ -335,7 +342,7 @@ async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkey
     async def fake_apply_seed(seed, instance):
         return None
 
-    async def fake_probe(task_dir, task):
+    async def fake_probe(task_dir, task, **kwargs):
         return 0.1
 
     def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
@@ -531,6 +538,7 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)
     (tmp_path / "phase_3").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
     (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
         json.dumps(
             [
@@ -566,6 +574,16 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
                     "reward_function": {"type": "noop"},
                 }
             ]
+        )
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(
+            {
+                "site_name": "shopping",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
         )
     )
     instances_path = tmp_path / "instances.json"
@@ -648,7 +666,7 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
     def fake_validate_seed(seed, allow_none=False):
         return None
 
-    async def fake_probe(task_dir, task=None):
+    async def fake_probe(task_dir, task=None, **kwargs):
         return 0.9
 
     def fake_run_reward_function(*args, **kwargs):
@@ -706,7 +724,7 @@ async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatc
     def fake_validate_seed(seed, allow_none=False):
         return None
 
-    async def fake_probe(task_dir, task=None):
+    async def fake_probe(task_dir, task=None, **kwargs):
         return 0.9
 
     def fake_run_reward_function(*args, **kwargs):

@@ -56,6 +56,7 @@ from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
+from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async, validate_data_seed
@@ -169,8 +170,11 @@ async def run(args: argparse.Namespace) -> int:
         len(tasks),
         len(config.instances),
     )
+    profiles_dir = state_dir / "phase_0c"
+    site_profiles = _load_site_profiles(tasks, profiles_dir)
 
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
+    sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
     save_state(
@@ -179,6 +183,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=str(task_dir_root),
         instances_path=str(instances_path),
         agent_model=agent_model,
+        sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         max_tasks_per_site=max_tasks_per_site,
     )
@@ -188,7 +193,13 @@ async def run(args: argparse.Namespace) -> int:
 
     async def _bound_run_adversarial_task(task, agent, instance, task_dir):
         return await run_adversarial_task(
-            task, agent, instance, task_dir, benchmark_root=benchmark_root
+            task,
+            agent,
+            instance,
+            task_dir,
+            benchmark_root=benchmark_root,
+            sandbox_model=sandbox_model,
+            site_profile=site_profiles.get(str(task.get("site", ""))),
         )
 
     # Initial adversarial run — run_tasks_by_site calls
@@ -203,7 +214,6 @@ async def run(args: argparse.Namespace) -> int:
         resume=resume,
     )
 
-    profiles_dir = state_dir / "phase_0c"
     task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
 
     raw_postprocessed = await asyncio.gather(
@@ -217,6 +227,7 @@ async def run(args: argparse.Namespace) -> int:
                 task_dir_root=task_dir_root,
                 resume=resume,
                 benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
             )
             for result in results
         ],
@@ -242,6 +253,7 @@ async def run(args: argparse.Namespace) -> int:
             task_dir_root=str(task_dir_root),
             instances_path=str(instances_path),
             agent_model=agent_model,
+            sandbox_model=sandbox_model,
             agent_provider=agent_provider,
             max_tasks_per_site=max_tasks_per_site,
         )
@@ -265,6 +277,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=str(task_dir_root),
         instances_path=str(instances_path),
         agent_model=agent_model,
+        sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         max_tasks_per_site=max_tasks_per_site,
         complied=complied,
@@ -304,6 +317,7 @@ async def _postprocess_one_task(
     task_dir_root: Path,
     resume: bool,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -352,6 +366,7 @@ async def _postprocess_one_task(
         profile_path=profile_path,
         task_dir_root=task_dir_root,
         benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -368,6 +383,8 @@ async def run_adversarial_task(
     task_dir: Path,
     *,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run one adversarial task: reset -> seed adversarial data -> agent -> evaluate.
 
@@ -381,6 +398,11 @@ async def run_adversarial_task(
     task_id = task.get("id", "unknown")
 
     instance_dict = execution_instance_dict(instance, task)
+    if isinstance(site_profile, dict):
+        instance_dict["site_profile"] = json.loads(json.dumps(site_profile))
+    target_surface_id = task.get("target_surface_id")
+    if isinstance(target_surface_id, str) and target_surface_id:
+        instance_dict["seed_target_surface_id"] = target_surface_id
 
     # Reset all environments the task may touch.
     await _reset_task_environment(task)
@@ -470,7 +492,11 @@ async def run_adversarial_task(
             outcome="error",
             trajectory_dir=str(task_dir),
         )
-        validity_score = await probe_ecological_validity(task_dir, task)
+        validity_score = await probe_ecological_validity(
+            task_dir,
+            task,
+            sandbox_model=sandbox_model,
+        )
         return {
             "task_id": task_id,
             "outcome": "error",
@@ -515,7 +541,11 @@ async def run_adversarial_task(
     )
 
     # 4. Probe ecological validity
-    validity_score = await probe_ecological_validity(task_dir, task)
+    validity_score = await probe_ecological_validity(
+        task_dir,
+        task,
+        sandbox_model=sandbox_model,
+    )
     ecologically_valid = validity_score < VALIDITY_THRESHOLD
 
     return {
@@ -531,6 +561,14 @@ async def run_adversarial_task(
     }
 
 
+def _load_site_profiles(tasks: list[dict[str, Any]], profiles_dir: Path) -> dict[str, dict[str, Any]]:
+    profiles: dict[str, dict[str, Any]] = {}
+    for site in sorted({str(task.get("site", "")) for task in tasks if task.get("site")}):
+        profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
+        profiles[site] = load_and_validate_profile(site, profile_path)
+    return profiles
+
+
 async def _process_adversarial_result(
     task: dict[str, Any],
     initial_result: dict[str, Any],
@@ -540,6 +578,7 @@ async def _process_adversarial_result(
     profile_path: Path,
     task_dir_root: Path,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "error" or initial_result.get("error"):
@@ -564,6 +603,7 @@ async def _process_adversarial_result(
         profile_path=profile_path,
         task_dir_root=task_dir_root,
         benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
     )
     if ecological_fix is not None:
         annotations["ecological_validity_fix"] = ecological_fix
@@ -590,6 +630,7 @@ async def _process_adversarial_result(
         profile_path=profile_path,
         task_dir_root=task_dir_root,
         benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
     )
     if placement_fix is not None:
         annotations["placement_fix"] = placement_fix
@@ -648,6 +689,7 @@ async def _process_adversarial_result(
         profile_path=profile_path,
         task_dir_root=task_dir_root,
         benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
     )
     variant_outcomes = [
         variant_result.get("outcome")
@@ -696,6 +738,7 @@ async def _run_ecological_validity_fix_loop(
     profile_path: Path,
     task_dir_root: Path,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any] | None:
     """Retry ecologically invalid trajectories with realism-focused seed fixes."""
     if initial_result.get("ecologically_valid"):
@@ -713,6 +756,7 @@ async def _run_ecological_validity_fix_loop(
             prompt_name="fix-ecological-validity",
             revision_kind="ecological_validity_fix",
             output_path=REVISED_TASK_OUTPUT,
+            sandbox_model=sandbox_model,
         )
         if _tasks_equivalent(current_task, revised_task):
             return {
@@ -731,6 +775,7 @@ async def _run_ecological_validity_fix_loop(
                 all_instances=all_instances,
                 agent_factory=agent_factory,
                 benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
                 task_dir=task_dir_root
                 / safe_task_path_component(f"{task.get('id', 'unknown')}__ecoval_{iteration + 1}"),
             )
@@ -760,6 +805,7 @@ async def _run_placement_fix_loop(
     profile_path: Path,
     task_dir_root: Path,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any] | None:
     """Retry task-breaking attacks with placement-only seed fixes."""
     if initial_result.get("outcome") != "task_broke":
@@ -777,6 +823,7 @@ async def _run_placement_fix_loop(
             prompt_name="fix-injection-placement",
             revision_kind="placement_fix",
             output_path=REVISED_TASK_OUTPUT,
+            sandbox_model=sandbox_model,
         )
         if _tasks_equivalent(current_task, revised_task):
             return {
@@ -795,6 +842,7 @@ async def _run_placement_fix_loop(
                 all_instances=all_instances,
                 agent_factory=agent_factory,
                 benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
                 task_dir=task_dir_root
                 / safe_task_path_component(
                     f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
@@ -894,6 +942,8 @@ def _post_reset(endpoint: str) -> None:
 async def probe_ecological_validity(
     task_dir: Path,
     task: dict[str, Any] | None = None,
+    *,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> float:
     """Probe ecological validity of a trajectory.
 
@@ -924,6 +974,7 @@ async def probe_ecological_validity(
                     validation_command="ecological-validity",
                 ),
                 output_paths=[VALIDITY_PROBE_OUTPUT],
+                model=sandbox_model,
                 label=f"4-validity-{task_id}",
             )
     else:
@@ -935,6 +986,7 @@ async def probe_ecological_validity(
                 validation_command="ecological-validity",
             ),
             output_paths=[VALIDITY_PROBE_OUTPUT],
+            model=sandbox_model,
             label=f"4-validity-{task_id}",
         )
     cost_tracker.record("phase_4", outputs.get("_summary"))
@@ -974,6 +1026,8 @@ async def run_judge(
     task: dict[str, Any],
     trajectory_dir: str | Path,
     profile_path: Path,
+    *,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Judge diagnoses why an ecologically valid attack was refused.
 
@@ -1002,6 +1056,7 @@ async def run_judge(
                 validation_command="judge-recommendation",
             ),
             output_paths=["/workspace/output/judge_recommendation.json"],
+            model=sandbox_model,
             label=f"4-judge-{task.get('id', 'unknown')}",
         )
 
@@ -1034,6 +1089,8 @@ async def generate_variant(
     task: dict[str, Any],
     strategy: dict[str, Any],
     profile_path: Path,
+    *,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Generate a variant adversarial task following a specific strategy.
 
@@ -1052,6 +1109,7 @@ async def generate_variant(
         revision_kind="applied_strategy",
         output_path=VARIANT_TASK_OUTPUT,
         merge_base_task=task,
+        sandbox_model=sandbox_model,
     )
 
 
@@ -1064,6 +1122,7 @@ async def run_strategy_variation(
     profile_path: Path,
     task_dir_root: Path,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> generate variants -> evaluate.
 
@@ -1072,7 +1131,12 @@ async def run_strategy_variation(
     """
     # 1. Judge diagnoses why agent refused
     trajectory_dir = initial_result.get("trajectory_dir", "")
-    recommendation = await run_judge(task, trajectory_dir, profile_path)
+    recommendation = await run_judge(
+        task,
+        trajectory_dir,
+        profile_path,
+        sandbox_model=sandbox_model,
+    )
 
     strategies = recommendation.get("recommended_strategies", [])
     if not strategies:
@@ -1103,7 +1167,10 @@ async def run_strategy_variation(
     # 2. Generate variants in parallel (up to 3 Modal Sandboxes)
     selected_strategies = strategies[:3]
     variants = await asyncio.gather(
-        *[generate_variant(task, strategy, profile_path) for strategy in selected_strategies]
+        *[
+            generate_variant(task, strategy, profile_path, sandbox_model=sandbox_model)
+            for strategy in selected_strategies
+        ]
     )
 
     # Filter out failed variant generations — these are just copies of the
@@ -1143,6 +1210,7 @@ async def run_strategy_variation(
                 agent_factory=agent_factory,
                 task_dir_root=task_dir_root,
                 benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
             )
             for i, (variant, strategy) in enumerate(limited_variants)
         ]
@@ -1302,6 +1370,7 @@ async def _revise_adversarial_task(
     revision_kind: str,
     output_path: str,
     merge_base_task: dict[str, Any] | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Run a sandbox that revises only the adversarial seed of a task."""
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1328,6 +1397,7 @@ async def _revise_adversarial_task(
             site_files=sandbox_files,
             prompt=load_prompt(prompt_name, validation_command=validation_cmd),
             output_paths=[output_path],
+            model=sandbox_model,
             label=f"4-{revision_kind}-{task.get('id', 'unknown')}",
         )
 
@@ -1367,6 +1437,7 @@ async def _rerun_adversarial_task(
     agent_factory: Callable[[], AgentRunner],
     task_dir: Path,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     agent = agent_factory()
@@ -1376,7 +1447,12 @@ async def _rerun_adversarial_task(
     try:
         await agent.setup(instance.site_url)
         return await run_adversarial_task(
-            bound_task, agent, instance, task_dir, benchmark_root=benchmark_root
+            bound_task,
+            agent,
+            instance,
+            task_dir,
+            benchmark_root=benchmark_root,
+            sandbox_model=sandbox_model,
         )
     finally:
         await agent.teardown()
@@ -1397,6 +1473,7 @@ async def _evaluate_variant(
     agent_factory: Callable[[], AgentRunner],
     task_dir_root: Path,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     variant_dir = task_dir_root / safe_task_path_component(
         f"{task.get('id', 'unknown')}_variant_{index}"
@@ -1409,7 +1486,12 @@ async def _evaluate_variant(
         bound_variant = bind_task_to_instance(variant, instance, all_instances)
         async with task_lock(bound_variant):
             result = await run_adversarial_task(
-                bound_variant, agent, instance, variant_dir, benchmark_root=benchmark_root
+                bound_variant,
+                agent,
+                instance,
+                variant_dir,
+                benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
             )
         return {
             **result,

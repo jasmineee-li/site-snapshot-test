@@ -192,6 +192,16 @@ def test_build_parser_accepts_generate_novel_flag():
     assert args.generate_novel is True
 
 
+def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(
+        ["phase", "3", "--instances", "instances.json", "--sandbox-model", "claude-opus-4-6"]
+    )
+
+    assert args.sandbox_model == "claude-opus-4-6"
+
+
 @pytest.mark.parametrize(
     "argv",
     [

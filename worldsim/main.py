@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
 DEFAULT_AGENT_MODEL = "gemini-3-flash-preview"
+DEFAULT_SANDBOX_MODEL = "claude-sonnet-4-6"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
 
 
@@ -80,6 +81,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_AGENT_MODEL,
         help=f"LLM model name for Browser Use agent (default: {DEFAULT_AGENT_MODEL}). "
         "Examples: gpt-5.4, claude-sonnet-4-6, gemini-3-flash-preview, gemini-3.1-pro-preview.",
+    )
+    phase_cmd.add_argument(
+        "--sandbox-model",
+        default=DEFAULT_SANDBOX_MODEL,
+        help="Claude sandbox model for Phase 3-4 diagnosis/judge/fix steps "
+        f"(default: {DEFAULT_SANDBOX_MODEL}).",
     )
     phase_cmd.add_argument(
         "--agent-provider",
@@ -145,6 +152,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--agent-model",
         default=argparse.SUPPRESS,
         help="Override the saved Browser Use agent model for the resumed phase.",
+    )
+    resume_cmd.add_argument(
+        "--sandbox-model",
+        default=argparse.SUPPRESS,
+        help="Override the saved Claude sandbox model for the resumed phase.",
     )
     resume_cmd.add_argument(
         "--agent-provider",
@@ -287,6 +299,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     config = getattr(args, "config", None)
     instances = getattr(args, "instances", None)
     agent_model = getattr(args, "agent_model", None)
+    sandbox_model = getattr(args, "sandbox_model", None)
     agent_provider = getattr(args, "agent_provider", None)
     generate_novel = getattr(args, "generate_novel", None)
     full_baseline = getattr(args, "full_baseline", None)
@@ -301,6 +314,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         instances = Path(state["instances_path"])
     if agent_model is None:
         agent_model = state.get("agent_model")
+    if sandbox_model is None:
+        sandbox_model = state.get("sandbox_model", DEFAULT_SANDBOX_MODEL)
     if agent_provider is None:
         agent_provider = state.get("agent_provider")
     if generate_novel is None:
@@ -323,6 +338,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         config=config,
         instances=instances,
         agent_model=agent_model,
+        sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         generate_novel=generate_novel,
         full_baseline=full_baseline,

@@ -47,6 +47,7 @@ from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.fix_validation import validate_fix_patch
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
+from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async
@@ -127,6 +128,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root = state_dir / "phase_3" / timestamp
 
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
+    sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
     # Fail fast if Claude Code auth is missing — diagnosis sandboxes need it.
     try:
@@ -143,6 +145,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=str(task_dir_root),
         instances_path=str(instances_path),
         agent_model=agent_model,
+        sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
@@ -153,6 +156,8 @@ async def run(args: argparse.Namespace) -> int:
         len(benign_tasks),
         len(config.instances),
     )
+    profiles_dir = state_dir / "phase_0c"
+    site_profiles = _load_site_profiles(benign_tasks, profiles_dir)
 
     # Build lookup from raw tasks — run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
@@ -163,7 +168,14 @@ async def run(args: argparse.Namespace) -> int:
     benchmark_root = getattr(args, "benchmark", None)
 
     async def _bound_run_task(task, agent, instance, task_dir):
-        return await run_task(task, agent, instance, task_dir, benchmark_root=benchmark_root)
+        return await run_task(
+            task,
+            agent,
+            instance,
+            task_dir,
+            benchmark_root=benchmark_root,
+            site_profile=site_profiles.get(str(task.get("site", ""))),
+        )
 
     # Run evaluation via worker pool, routing tasks only to matching site instances.
     results = await run_tasks_by_site(
@@ -187,7 +199,6 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     # Diagnosis loop for failures
-    profiles_dir = state_dir / "phase_0c"
     diagnosed: list[dict] = []
 
     # Circuit breaker: if >30% of tasks errored (infrastructure problems,
@@ -214,6 +225,7 @@ async def run(args: argparse.Namespace) -> int:
                 agent_factory=agent_factory,
                 resume=resume,
                 benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
             )
             for r in failed_tasks
         ],
@@ -243,6 +255,7 @@ async def run(args: argparse.Namespace) -> int:
             task_dir_root=str(task_dir_root),
             instances_path=str(instances_path),
             agent_model=agent_model,
+            sandbox_model=sandbox_model,
             agent_provider=agent_provider,
             full_baseline=full_baseline,
             max_tasks_per_site=max_tasks_per_site,
@@ -287,6 +300,7 @@ async def run(args: argparse.Namespace) -> int:
         validated_tasks_path=str(output_dir / "validated_tasks.json"),
         instances_path=str(instances_path),
         agent_model=agent_model,
+        sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
@@ -315,6 +329,7 @@ async def _diagnose_one_task(
     agent_factory: Callable[[], BrowserUseAgent],
     resume: bool,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any] | None:
     """Run diagnosis-fix loop for a single failed task. Returns diagnosis dict or None."""
     task_id = str(r.get("task_id", "?"))
@@ -351,6 +366,7 @@ async def _diagnose_one_task(
         instances=instances,
         agent_factory=agent_factory,
         benchmark_root=benchmark_root,
+        sandbox_model=sandbox_model,
     )
 
     # Persist diagnosis for resume. Without this, all diagnoses would
@@ -368,6 +384,7 @@ async def run_task(
     task_dir: Path,
     *,
     benchmark_root: Path | None = None,
+    site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run one benign task: reset -> seed -> agent run -> reward check.
 
@@ -382,6 +399,8 @@ async def run_task(
     task_id = task.get("id", "unknown")
 
     instance_dict = execution_instance_dict(instance, task)
+    if isinstance(site_profile, dict):
+        instance_dict["site_profile"] = json.loads(json.dumps(site_profile))
 
     # Reset all environments the task depends on.
     await _reset_task_environment(task)
@@ -484,6 +503,7 @@ async def diagnose_failure(
     profile_path: Path,
     *,
     rejection_feedback: str | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Diagnose why a benign task failed via Modal Sandbox.
 
@@ -524,6 +544,7 @@ async def diagnose_failure(
             site_files=sandbox_files,
             prompt=prompt,
             output_paths=["/workspace/output/diagnosis.json"],
+            model=sandbox_model,
             label=f"3-diagnose-{task_id}",
         )
 
@@ -589,6 +610,7 @@ async def fix_loop(
     agent_factory: Callable[[], BrowserUseAgent],
     max_iterations: int = 2,
     benchmark_root: Path | None = None,
+    sandbox_model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Iterative diagnosis-fix loop for failed tasks.
 
@@ -612,6 +634,7 @@ async def fix_loop(
             current_trajectory,
             profile_path,
             rejection_feedback=rejection_feedback,
+            sandbox_model=sandbox_model,
         )
         # Clear feedback after one retry (we only retry once per plan).
         rejection_feedback = None
@@ -741,6 +764,14 @@ def _with_rejections(result: dict[str, Any], rejections: list[dict[str, Any]]) -
     if rejections:
         result["rejections"] = rejections
     return result
+
+
+def _load_site_profiles(tasks: list[dict[str, Any]], profiles_dir: Path) -> dict[str, dict[str, Any]]:
+    profiles: dict[str, dict[str, Any]] = {}
+    for site in sorted({str(task.get("site", "")) for task in tasks if task.get("site")}):
+        profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
+        profiles[site] = load_and_validate_profile(site, profile_path)
+    return profiles
 
 
 def _format_rejection_feedback(errors: list[str], suggested_fix: dict[str, Any]) -> str:

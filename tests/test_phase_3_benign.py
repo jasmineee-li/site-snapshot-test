@@ -205,6 +205,7 @@ async def test_diagnose_failure_uses_unknown_sanity_when_unavailable(monkeypatch
 
     async def fake_run_claude_in_sandbox(*, site_files, prompt, output_paths, **kwargs):
         captured["prompt"] = prompt
+        captured["model"] = kwargs.get("model")
         return {
             "/workspace/output/diagnosis.json": '{"root_cause":"agent_limitation","suggested_fix":{"target":"none","patch":null}}',
             "_summary": None,
@@ -216,9 +217,11 @@ async def test_diagnose_failure_uses_unknown_sanity_when_unavailable(monkeypatch
         task=task,
         trajectory_dir=tmp_path,
         profile_path=tmp_path / "profile.json",
+        sandbox_model="claude-sonnet-4-6",
     )
 
     assert "`unknown`" in captured["prompt"]
+    assert captured["model"] == "claude-sonnet-4-6"
 
 
 def test_render_diagnosis_prompt_uses_explicit_sanity_result():
@@ -465,6 +468,7 @@ async def test_fix_loop_locks_full_bound_runtime_footprint(monkeypatch, tmp_path
 async def test_phase_3_run_fails_on_gathered_diagnosis_exception(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
     (tmp_path / "phase_1" / "benign_tasks.json").write_text(
         json.dumps(
             [
@@ -478,6 +482,16 @@ async def test_phase_3_run_fails_on_gathered_diagnosis_exception(monkeypatch, tm
                     "reward_function": {"eval": []},
                 }
             ]
+        )
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(
+            {
+                "site_name": "shopping",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
         )
     )
     instances_path = tmp_path / "instances.json"
