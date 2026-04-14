@@ -16,11 +16,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import urllib.parse
+import weakref
+from pathlib import Path
 from typing import Any
 
 import requests
+
+from worldsim.placeholders import apply_placeholders, merge_placeholder_maps
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +47,42 @@ _SQL_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
 # (DELETE) and probing verbs (HEAD, OPTIONS) are blocked at the lowest
 # layer too.
 _ALLOWED_API_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
+_FORM_METHODS = frozenset({"POST", "PUT", "PATCH"})
+_CSRF_TOKEN_CACHE: weakref.WeakKeyDictionary[
+    requests.Session,
+    dict[tuple[str, str], tuple[str | None, str | None]],
+] = weakref.WeakKeyDictionary()
+_BLOCKED_CALL_HEADER_NAMES = frozenset(
+    {
+        "authorization",
+        "cookie",
+        "origin",
+        "referer",
+        "x-csrf-token",
+        "x-csrftoken",
+        "x-xsrf-token",
+        "x-xsrftoken",
+        "host",
+        "forwarded",
+        "proxy",
+        "proxy-authorization",
+        "proxy-authenticate",
+        "proxy-connection",
+        "transfer-encoding",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-proto",
+    }
+)
+_CSRF_INPUT_PATTERNS = (
+    re.compile(r'name=["\'](form_key|authenticity_token|csrf_token)["\'][^>]*value=["\']([^"\']+)'),
+    re.compile(
+        r'<meta[^>]+name=["\']csrf-token["\'][^>]+content=["\']([^"\']+)["\']',
+        re.IGNORECASE,
+    ),
+)
+_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
+_PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
 
 
 def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
@@ -65,10 +106,10 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             _validate_seed_sql(statement)
         return
 
-    if mechanism == "api":
+    if mechanism in {"api", "form"}:
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
-            raise ValueError("api data seed must include a non-empty api_calls list")
+            raise ValueError(f"{mechanism} data seed must include a non-empty api_calls list")
         # Belt-and-suspenders: reject destructive/probing HTTP methods here
         # even when the upstream Phase 3 validator was bypassed. The
         # authoritative allowlist (path, origin) lives in
@@ -83,11 +124,27 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
                 raise ValueError("api data seed calls must include a method")
             if method.strip().upper() not in _ALLOWED_API_METHODS:
                 raise ValueError(
-                    f"api data seed method {method!r} not allowed "
+                    f"{mechanism} data seed method {method!r} not allowed "
                     f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
                 )
+            if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
+                raise ValueError(
+                    f"form data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_FORM_METHODS)})"
+                )
             if not isinstance(path, str) or not path.startswith("/"):
-                raise ValueError("api data seed calls must include a path starting with '/'")
+                raise ValueError(
+                    f"{mechanism} data seed calls must include a path starting with '/'"
+                )
+            json_body = call.get("body")
+            body_form = call.get("body_form")
+            if mechanism == "form":
+                if not isinstance(body_form, dict) or not body_form:
+                    raise ValueError("form data seed calls must include a non-empty body_form object")
+                if json_body is not None:
+                    raise ValueError("form data seed calls must not include JSON body")
+            elif body_form is not None:
+                raise ValueError("api data seed calls must use body, not body_form")
         return
 
     if mechanism == "state_push":
@@ -115,15 +172,10 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     if mechanism == "sql":
         for stmt in seed["statements"]:
             execute_sql(stmt, instance["db_connection"])
-    elif mechanism == "api":
-        for call in seed["api_calls"]:
-            resp = requests.request(
-                call["method"],
-                f"{instance['site_url']}{call['path']}",
-                json=call.get("body"),
-                timeout=30,
-            )
-            resp.raise_for_status()
+    elif mechanism in {"api", "form"}:
+        with requests.Session() as session:
+            for call in seed["api_calls"]:
+                _apply_http_seed_call(session, mechanism, call, instance)
     elif mechanism == "state_push":
         resp = requests.put(
             f"{instance['site_url']}/api/state",
@@ -211,3 +263,654 @@ def _validate_seed_sql(statement: str) -> None:
         raise ValueError(f"SQL seed must start with INSERT or UPDATE, got {first_token!r}")
     if first_token == "UPDATE" and " WHERE " not in f" {normalized.upper()} ":
         raise ValueError("UPDATE seed statements must include a WHERE clause")
+
+
+def _apply_http_seed_call(
+    session: requests.Session,
+    mechanism: str,
+    call: dict[str, Any],
+    instance: dict[str, Any],
+) -> None:
+    method = str(call["method"]).strip().upper()
+    raw_path = str(call["path"])
+    url = _resolve_call_url(raw_path, instance)
+    headers = _build_request_headers(instance, call)
+    json_body = call.get("body")
+    form_body = _prepare_form_body(method, url, headers, call.get("body_form"), instance, session)
+
+    response = _request_with_context(
+        session,
+        method=method,
+        url=url,
+        headers=headers,
+        json_body=json_body if form_body is None else None,
+        form_body=form_body,
+        instance=instance,
+        raw_path=raw_path,
+    )
+    if form_body is not None and response.status_code in {403, 419, 422}:
+        _clear_cached_csrf_token(session, instance, url)
+        retried_form_body = _prepare_form_body(
+            method,
+            url,
+            headers,
+            call.get("body_form"),
+            instance,
+            session,
+            force_refresh=True,
+        )
+        response = _request_with_context(
+            session,
+            method=method,
+            url=url,
+            headers=headers,
+            json_body=None,
+            form_body=retried_form_body,
+            instance=instance,
+            raw_path=raw_path,
+        )
+
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        site_name = instance.get("site_name", "<unknown>")
+        raise RuntimeError(
+            f"HTTP seed failed for site {site_name!r} {method} {raw_path}: "
+            f"status={response.status_code}"
+        ) from exc
+
+    _verify_http_seed_postcondition(
+        mechanism=mechanism,
+        call=call,
+        instance=instance,
+        raw_path=raw_path,
+    )
+
+
+def _resolve_call_url(raw_path: str, instance: dict[str, Any]) -> str:
+    placeholders = merge_placeholder_maps(instance.get("url_placeholders"))
+    resolved_path = apply_placeholders(raw_path, placeholders, strict=True)
+    instance_origin = _origin_for_url(str(instance["site_url"]))
+    if resolved_path.startswith("http://") or resolved_path.startswith("https://"):
+        resolved_url = resolved_path
+    else:
+        resolved_url = f"{str(instance['site_url']).rstrip('/')}{resolved_path}"
+    if _origin_for_url(resolved_url) != instance_origin:
+        raise RuntimeError(
+            f"HTTP seed target must stay on origin {instance_origin!r}, got {resolved_url!r}"
+        )
+    return resolved_url
+
+
+def _build_request_headers(instance: dict[str, Any], call: dict[str, Any]) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    auth = instance.get("auth")
+    auth_header_names: set[str] = set()
+    if isinstance(auth, dict):
+        auth_type = str(auth.get("type", "")).strip()
+        if auth_type == "http_headers":
+            declared_headers = auth.get("headers")
+            if isinstance(declared_headers, dict):
+                for key, value in declared_headers.items():
+                    resolved = _resolve_header_value(value)
+                    headers[str(key)] = resolved
+                    auth_header_names.add(str(key).lower())
+        elif auth_type == "bearer_token":
+            token = _resolve_bearer_token(auth)
+            header_name = str(auth.get("header_name") or "Authorization")
+            if header_name.lower() == "authorization" and not token.lower().startswith("bearer "):
+                token = f"Bearer {token}"
+            headers[header_name] = token
+            auth_header_names.add(header_name.lower())
+
+    call_headers = call.get("headers")
+    if isinstance(call_headers, dict):
+        sanitized = _sanitize_call_headers(call_headers, protected_headers=auth_header_names)
+        merged = dict(sanitized)
+        merged.update(headers)
+        headers = merged
+    return headers
+
+
+def _resolve_bearer_token(auth: dict[str, Any]) -> str:
+    inline = auth.get("token")
+    if isinstance(inline, str) and inline.strip():
+        return inline.strip()
+
+    token_source = auth.get("token_source")
+    if isinstance(token_source, str) and token_source.strip():
+        path = _resolve_token_source_path(token_source)
+        token = path.read_text(encoding="utf-8").strip()
+        if not token:
+            raise RuntimeError(f"token_source {path} is empty")
+        return token
+
+    raise RuntimeError("bearer_token auth requires token or token_source")
+
+
+def _resolve_header_value(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        env_name = value.get("from_env")
+        if isinstance(env_name, str) and env_name:
+            resolved = os.environ.get(env_name)
+            if not resolved:
+                raise RuntimeError(f"required auth header env var {env_name!r} is not set")
+            return resolved
+    raise RuntimeError("auth header values must be strings or {\"from_env\": \"VAR_NAME\"}")
+
+
+def _sanitize_call_headers(
+    call_headers: dict[str, Any],
+    *,
+    protected_headers: set[str],
+) -> dict[str, str]:
+    sanitized: dict[str, str] = {}
+    for key, value in call_headers.items():
+        key_str = str(key)
+        lowered = key_str.lower()
+        if lowered in _BLOCKED_CALL_HEADER_NAMES or lowered in protected_headers:
+            continue
+        sanitized[key_str] = str(value)
+    return sanitized
+
+
+def _resolve_token_source_path(token_source: str) -> Path:
+    path = Path(token_source).expanduser().resolve(strict=False)
+    allowed_roots = _allowed_token_source_roots()
+    if not any(path.is_relative_to(root) for root in allowed_roots):
+        raise RuntimeError(
+            "token_source must be under one of: "
+            + ", ".join(str(root) for root in sorted(allowed_roots))
+        )
+    return path
+
+
+def _allowed_token_source_roots() -> set[Path]:
+    roots = {(Path.cwd() / "logs" / "phase_0d").resolve(strict=False)}
+    state_dir = os.environ.get("WORLDSIM_STATE_DIR")
+    if state_dir:
+        roots.add((Path(state_dir).expanduser() / "phase_0d").resolve(strict=False))
+    return roots
+
+
+def _origin_for_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _normalize_delivery_path(path: str) -> str:
+    return re.sub(r"/\{[^}/]+\}(?=/|$)", "/{id}", re.sub(r"/\d+(?=/|$)", "/{id}", path))
+
+
+def _prepare_form_body(
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    body_form: object,
+    instance: dict[str, Any],
+    session: requests.Session,
+    *,
+    force_refresh: bool = False,
+) -> dict[str, Any] | None:
+    if not isinstance(body_form, dict):
+        return None
+    form_body = dict(body_form)
+    if method not in _FORM_METHODS:
+        return form_body
+
+    token_name, token_value = _get_csrf_token(
+        session,
+        url,
+        headers,
+        instance,
+        force_refresh=force_refresh,
+    )
+    if token_name and token_value:
+        form_body[token_name] = token_value
+    return form_body
+
+
+def _get_csrf_token(
+    session: requests.Session,
+    url: str,
+    headers: dict[str, str],
+    instance: dict[str, Any],
+    *,
+    force_refresh: bool = False,
+) -> tuple[str | None, str | None]:
+    origin = _origin_for_url(url)
+    cache_key = _csrf_cache_key(session, instance, url)
+    session_cache = _CSRF_TOKEN_CACHE.setdefault(session, {})
+    if not force_refresh and cache_key in session_cache:
+        return session_cache[cache_key]
+
+    for candidate_url in (url, origin):
+        try:
+            response = session.get(
+                candidate_url,
+                headers=headers,
+                timeout=30,
+                allow_redirects=False,
+            )
+            if 300 <= response.status_code < 400:
+                continue
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+        token = _extract_csrf_token(response.text)
+        if token != (None, None):
+            session_cache[cache_key] = token
+            return token
+
+    return (None, None)
+
+
+def _clear_cached_csrf_token(
+    session: requests.Session,
+    instance: dict[str, Any],
+    url: str,
+) -> None:
+    cache_key = _csrf_cache_key(session, instance, url)
+    session_cache = _CSRF_TOKEN_CACHE.get(session)
+    if session_cache is not None:
+        session_cache.pop(cache_key, None)
+
+
+def _csrf_cache_key(
+    session: requests.Session,
+    instance: dict[str, Any],
+    url: str,
+) -> tuple[str, str]:
+    parsed = urllib.parse.urlparse(url)
+    normalized_path = _normalize_delivery_path(parsed.path or "/")
+    query_suffix = f"?{parsed.query}" if parsed.query else ""
+    return (
+        str(instance.get("site_name", "")),
+        f"{parsed.scheme}://{parsed.netloc}{normalized_path}{query_suffix}",
+    )
+
+
+def _extract_csrf_token(html: str) -> tuple[str | None, str | None]:
+    for pattern in _CSRF_INPUT_PATTERNS[:1]:
+        match = pattern.search(html)
+        if match:
+            return match.group(1), match.group(2)
+    meta_match = _CSRF_INPUT_PATTERNS[1].search(html)
+    if meta_match:
+        return "csrf_token", meta_match.group(1)
+    return (None, None)
+
+
+def _verify_http_seed_postcondition(
+    *,
+    mechanism: str,
+    call: dict[str, Any],
+    instance: dict[str, Any],
+    raw_path: str,
+) -> None:
+    site_profile = instance.get("site_profile")
+    if not isinstance(site_profile, dict):
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} requires instance['site_profile'] for postcondition verification"
+        )
+
+    surface_id = instance.get("seed_target_surface_id")
+    matches = _matching_http_delivery_channels(
+        site_profile,
+        mechanism=mechanism,
+        call=call,
+        surface_id=surface_id if isinstance(surface_id, str) and surface_id else None,
+    )
+    if not matches:
+        hint = f" on surface {surface_id!r}" if isinstance(surface_id, str) and surface_id else ""
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} does not match any registered delivery channel{hint}"
+        )
+    if len(matches) > 1:
+        surface_ids = sorted({str(surface.get('id', '?')) for surface, _ in matches})
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} matches multiple delivery channels: {surface_ids}"
+        )
+
+    surface, entry = matches[0]
+    postcondition = entry.get("postcondition")
+    if not isinstance(postcondition, dict):
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} is missing delivery_channels postcondition metadata"
+        )
+
+    _verify_db_row_value_postcondition(
+        postcondition=postcondition,
+        entry=entry,
+        call=call,
+        instance=instance,
+        raw_path=raw_path,
+        surface_id=str(surface.get("id", "?")),
+    )
+
+
+def _matching_http_delivery_channels(
+    site_profile: dict[str, Any],
+    *,
+    mechanism: str,
+    call: dict[str, Any],
+    surface_id: str | None,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    matches: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    surfaces = site_profile.get("injection_surface")
+    if not isinstance(surfaces, list):
+        return matches
+    for surface in surfaces:
+        if not isinstance(surface, dict):
+            continue
+        if surface_id is not None and surface.get("id") != surface_id:
+            continue
+        for entry in surface.get("delivery_channels", []):
+            if not isinstance(entry, dict):
+                continue
+            if _entry_matches_http_call(entry, mechanism=mechanism, call=call):
+                matches.append((surface, entry))
+    return matches
+
+
+def _entry_matches_http_call(
+    entry: dict[str, Any],
+    *,
+    mechanism: str,
+    call: dict[str, Any],
+) -> bool:
+    if entry.get("mechanism") != mechanism:
+        return False
+    entry_method = entry.get("method")
+    entry_path_template = entry.get("path_template")
+    body_field = entry.get("body_field")
+    call_method = call.get("method")
+    call_path = call.get("path")
+    if (
+        not isinstance(entry_method, str)
+        or not isinstance(entry_path_template, str)
+        or not isinstance(body_field, str)
+        or not isinstance(call_method, str)
+        or not isinstance(call_path, str)
+    ):
+        return False
+    if entry_method.strip().upper() != call_method.strip().upper():
+        return False
+    parsed_path = urllib.parse.urlparse(call_path).path
+    if _normalize_delivery_path(entry_path_template) != _normalize_delivery_path(parsed_path):
+        return False
+    return body_field in _extract_http_body(call)
+
+
+def _extract_http_body(call: dict[str, Any]) -> dict[str, Any]:
+    for body_key in ("body_form", "body"):
+        body = call.get(body_key)
+        if isinstance(body, dict):
+            return body
+    return {}
+
+
+def _verify_db_row_value_postcondition(
+    *,
+    postcondition: dict[str, Any],
+    entry: dict[str, Any],
+    call: dict[str, Any],
+    instance: dict[str, Any],
+    raw_path: str,
+    surface_id: str,
+) -> None:
+    if postcondition.get("type") != "db_row_value":
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} on surface {surface_id!r} uses unsupported "
+            f"postcondition type {postcondition.get('type')!r}"
+        )
+
+    table = postcondition.get("table")
+    value_column = postcondition.get("value_column")
+    where = postcondition.get("where")
+    path_template = entry.get("path_template")
+    body_field = entry.get("body_field")
+    body = _extract_http_body(call)
+    if not isinstance(body_field, str) or body_field not in body:
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} on surface {surface_id!r} is missing body field "
+            f"{body_field!r} required for postcondition verification"
+        )
+    if (
+        not isinstance(table, str)
+        or not _IDENTIFIER_PATTERN.match(table)
+        or not isinstance(value_column, str)
+        or not _IDENTIFIER_PATTERN.match(value_column)
+        or not isinstance(where, dict)
+        or not where
+    ):
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} on surface {surface_id!r} has invalid postcondition metadata"
+        )
+
+    path_params = _extract_path_params(path_template, call.get("path"))
+    predicates: list[tuple[str, Any]] = []
+    for where_column, source in where.items():
+        if not isinstance(where_column, str) or not _IDENTIFIER_PATTERN.match(where_column):
+            raise RuntimeError(
+                f"HTTP seed for {raw_path} on surface {surface_id!r} has invalid "
+                f"postcondition where column {where_column!r}"
+            )
+        predicates.append(
+            (
+                where_column,
+                _resolve_postcondition_source(
+                    source,
+                    body=body,
+                    path_params=path_params,
+                    raw_path=raw_path,
+                    surface_id=surface_id,
+                ),
+            )
+        )
+
+    expected_value = body[body_field]
+    actual_values = _select_db_values(
+        db_connection=instance.get("db_connection"),
+        table=table,
+        value_column=value_column,
+        predicates=predicates,
+    )
+    if not any(_values_equal(actual, expected_value) for actual in actual_values):
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} on surface {surface_id!r} did not satisfy "
+            f"postcondition: expected {table}.{value_column}={expected_value!r} "
+            f"for selectors {dict(predicates)!r}, got {actual_values[:5]!r}"
+        )
+
+
+def _extract_path_params(path_template: object, actual_path: object) -> dict[str, str]:
+    if not isinstance(path_template, str) or not isinstance(actual_path, str):
+        return {}
+    template_path = urllib.parse.urlparse(path_template).path
+    parsed_path = urllib.parse.urlparse(actual_path).path
+    pattern_parts: list[str] = []
+    last_index = 0
+    param_names: list[str] = []
+    for match in _PATH_PARAM_PATTERN.finditer(template_path):
+        pattern_parts.append(re.escape(template_path[last_index : match.start()]))
+        pattern_parts.append(r"([^/]+)")
+        param_names.append(match.group(1))
+        last_index = match.end()
+    pattern_parts.append(re.escape(template_path[last_index:]))
+    match = re.match("^" + "".join(pattern_parts) + "$", parsed_path)
+    if match is None:
+        return {}
+    return {name: value for name, value in zip(param_names, match.groups(), strict=False)}
+
+
+def _resolve_postcondition_source(
+    source: object,
+    *,
+    body: dict[str, Any],
+    path_params: dict[str, str],
+    raw_path: str,
+    surface_id: str,
+) -> Any:
+    if not isinstance(source, dict) or len(source) != 1:
+        raise RuntimeError(
+            f"HTTP seed for {raw_path} on surface {surface_id!r} has malformed postcondition source"
+        )
+    source_key, source_value = next(iter(source.items()))
+    if source_key == "path_param":
+        if not isinstance(source_value, str) or source_value not in path_params:
+            raise RuntimeError(
+                f"HTTP seed for {raw_path} on surface {surface_id!r} references missing "
+                f"path_param {source_value!r} in postcondition"
+            )
+        return path_params[source_value]
+    if source_key == "body_field":
+        if not isinstance(source_value, str) or source_value not in body:
+            raise RuntimeError(
+                f"HTTP seed for {raw_path} on surface {surface_id!r} references missing "
+                f"body_field {source_value!r} in postcondition"
+            )
+        return body[source_value]
+    if source_key == "literal":
+        return source_value
+    raise RuntimeError(
+        f"HTTP seed for {raw_path} on surface {surface_id!r} uses unsupported "
+        f"postcondition source {source_key!r}"
+    )
+
+
+def _select_db_values(
+    *,
+    db_connection: Any,
+    table: str,
+    value_column: str,
+    predicates: list[tuple[str, Any]],
+) -> list[Any]:
+    if not isinstance(db_connection, str) or not db_connection:
+        raise RuntimeError("HTTP seed postcondition requires db_connection on instance")
+
+    parsed = urllib.parse.urlparse(db_connection)
+    conn = _connect_db(parsed)
+    try:
+        _configure_read_only_connection(conn, parsed.scheme)
+        quoted_table = _quote_identifier(table, parsed.scheme)
+        quoted_value_column = _quote_identifier(value_column, parsed.scheme)
+        where_clause = " AND ".join(
+            f"{_quote_identifier(column, parsed.scheme)} = %s" for column, _ in predicates
+        )
+        query = (
+            f"SELECT {quoted_value_column} FROM {quoted_table} "
+            f"WHERE {where_clause} LIMIT 5"
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(query, [value for _, value in predicates])
+            rows = cursor.fetchall()
+    except Exception as exc:
+        raise RuntimeError(f"HTTP seed postcondition query failed: {exc}") from exc
+    finally:
+        try:
+            conn.rollback()
+        except Exception:
+            logger.debug("Failed to rollback postcondition verification connection", exc_info=True)
+        conn.close()
+
+    values: list[Any] = []
+    for row in rows:
+        if isinstance(row, (list, tuple)) and row:
+            values.append(row[0])
+        else:
+            values.append(row)
+    return values
+
+
+def _connect_db(parsed: urllib.parse.ParseResult) -> Any:
+    if parsed.scheme == "mysql":
+        import pymysql
+
+        return pymysql.connect(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=parsed.password,
+            database=(parsed.path or "").lstrip("/"),
+        )
+    if parsed.scheme in ("postgresql", "postgres"):
+        import psycopg2
+
+        return psycopg2.connect(
+            host=parsed.hostname,
+            port=parsed.port or 5432,
+            user=parsed.username,
+            password=parsed.password,
+            dbname=(parsed.path or "").lstrip("/"),
+        )
+    raise RuntimeError(f"unsupported DB dialect for HTTP seed verification: {parsed.scheme}")
+
+
+def _configure_read_only_connection(conn: Any, scheme: str) -> None:
+    try:
+        if hasattr(conn, "autocommit"):
+            conn.autocommit = False
+        with conn.cursor() as cursor:
+            if scheme == "mysql":
+                cursor.execute("SET SESSION TRANSACTION READ ONLY")
+                cursor.execute("START TRANSACTION READ ONLY")
+            elif scheme in ("postgresql", "postgres"):
+                cursor.execute("BEGIN")
+                cursor.execute("SET TRANSACTION READ ONLY")
+            else:
+                raise RuntimeError(f"unsupported DB dialect: {scheme}")
+    except Exception as exc:
+        raise RuntimeError("could not enable read-only transaction guard") from exc
+
+
+def _quote_identifier(identifier: str, scheme: str) -> str:
+    if not _IDENTIFIER_PATTERN.match(identifier):
+        raise RuntimeError(f"invalid SQL identifier {identifier!r}")
+    quote = "`" if scheme == "mysql" else '"'
+    return ".".join(f"{quote}{part}{quote}" for part in identifier.split("."))
+
+
+def _values_equal(actual: Any, expected: Any) -> bool:
+    if actual == expected:
+        return True
+    if isinstance(actual, bytes) and isinstance(expected, str):
+        return actual.decode("utf-8", errors="replace") == expected
+    return False
+
+
+def _request_with_context(
+    session: requests.Session,
+    *,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    json_body: Any,
+    form_body: dict[str, Any] | None,
+    instance: dict[str, Any],
+    raw_path: str,
+) -> requests.Response:
+    try:
+        response = session.request(
+            method,
+            url,
+            headers=headers,
+            json=json_body,
+            data=form_body,
+            timeout=30,
+            allow_redirects=False,
+        )
+        if 300 <= response.status_code < 400:
+            location = response.headers.get("Location")
+            raise RuntimeError(
+                f"HTTP seed request for {method} {raw_path} returned redirect "
+                f"status={response.status_code} location={location!r}"
+            )
+        return response
+    except requests.RequestException as exc:
+        site_name = instance.get("site_name", "<unknown>")
+        raise RuntimeError(
+            f"HTTP seed request failed for site {site_name!r} {method} {raw_path}: {exc}"
+        ) from exc

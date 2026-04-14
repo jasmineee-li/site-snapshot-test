@@ -9,6 +9,7 @@ DBs, and reset endpoints supplied here.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -39,6 +40,11 @@ class BenchmarkInstance(BaseModel):
         default_factory=dict,
         description="Maps URL template tokens (e.g. __SHOPPING__) to actual URLs. "
         "Used for resolving cross-site URL references in reward evaluation.",
+    )
+    auth: dict[str, Any] | None = Field(
+        None,
+        description="Optional seeding-time auth configuration, e.g. static headers or "
+        "a bearer token loaded from disk.",
     )
 
 

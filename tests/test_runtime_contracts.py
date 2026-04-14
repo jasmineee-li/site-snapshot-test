@@ -147,6 +147,32 @@ def test_benchmark_config_accepts_top_level_url_placeholders():
     }
 
 
+def test_benchmark_config_accepts_instance_auth_blocks():
+    config = BenchmarkConfig.model_validate(
+        {
+            "benchmark_name": "WebArena Verified",
+            "instances": [
+                {
+                    "site_name": "gitlab",
+                    "site_url": "http://gitlab.test",
+                    "auth": {
+                        "type": "bearer_token",
+                        "header_name": "PRIVATE-TOKEN",
+                        "token_source": "/tmp/token.txt",
+                    },
+                }
+            ],
+            "benchmark_codebase": "/tmp/benchmark",
+        }
+    )
+
+    assert config.instances[0].auth == {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_source": "/tmp/token.txt",
+    }
+
+
 def test_make_llm_rejects_unknown_model_family_without_provider():
     with pytest.raises(ValueError, match="Could not infer a provider"):
         make_llm(model="mystery-model-1")
