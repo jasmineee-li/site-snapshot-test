@@ -70,6 +70,9 @@ class AgentRunner(Protocol):
         *,
         start_urls: list[str] | None = None,
         site_prompt: str | None = None,
+        auth_mechanism: dict[str, Any] | None = None,
+        benchmark_root: Path | None = None,
+        task_site: str | None = None,
     ) -> AgentResult: ...
 
     async def teardown(self) -> None: ...
@@ -470,6 +473,169 @@ class _NetworkTraceRecorder:
         return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, redacted_query, ""))
 
 
+class AuthArtifactMissingError(RuntimeError):
+    """Raised when a declared storage_state artifact (or its generator) is missing."""
+
+
+def _phase_0d_fallback_path(task: dict[str, Any] | None) -> Path | None:
+    """Return the Phase 0d-bootstrapped storage_state.json path for ``task``'s site.
+
+    Phase 0d writes artifacts to ``<state_dir>/phase_0d/<site>/storage_state.json``.
+    We consult it as a fallback when the benchmark-declared storage_state path is
+    missing, so operators who bootstrap via ``worldsim phase 0d`` do not need to
+    re-edit AGENT_CONTEXT to point at the generated artifact.
+
+    Returns ``None`` when the task has no ``site`` field or phase 0d was never
+    run. The import is local to avoid a circular module dependency between
+    ``browser_use_agent`` and ``phases.phase_0d_auth_bootstrap``.
+    """
+    if not isinstance(task, dict):
+        return None
+    site = task.get("site")
+    if not isinstance(site, str) or not site.strip():
+        return None
+    try:
+        from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
+    except ImportError:  # pragma: no cover — only triggers on misinstalled env.
+        return None
+    return phase_0d_artifact_path(site.strip())
+
+
+# Stable enum of first-batch implementations. Types outside this set are schema-
+# legal (validator accepts them) but raise ``NotImplementedError`` at runtime
+# until their dispatcher arm is written. See plan §8 rollout order.
+_IMPLEMENTED_AUTH_TYPES = frozenset({"storage_state", "http_basic", "none"})
+_UNIMPLEMENTED_AUTH_TYPES = frozenset({"form_login", "pre_auth_script", "client_cert"})
+
+
+def _resolve_auth(
+    auth_mechanism: dict[str, Any] | None,
+    task: dict[str, Any] | None,
+    benchmark_root: Path | None,
+) -> tuple[dict[str, Any], list[Any]]:
+    """Translate an ``auth_mechanism`` dict into BrowserSession kwargs + deferred actions.
+
+    Returns ``(session_kwargs, deferred_actions)``. ``session_kwargs`` is merged
+    into the ``BrowserSession(...)`` call. ``deferred_actions`` is a list of
+    async callables that receive the started session (unused for the first
+    batch — reserved for ``form_login`` / ``pre_auth_script``).
+
+    First-batch implementations: ``storage_state``, ``http_basic``, ``none``.
+    ``unknown`` also no-ops (runtime has already been gated by
+    ``--allow-unknown-auth`` in ``main.py``).
+
+    Raises ``NotImplementedError`` for stub types (``form_login``,
+    ``pre_auth_script``, ``client_cert``, ``http_headers``) with a clear
+    pointer to the plan.
+    Raises :class:`AuthArtifactMissingError` when a declared storage_state
+    path is absent and no generator is declared.
+    """
+    session_kwargs: dict[str, Any] = {}
+    deferred_actions: list[Any] = []
+
+    # No declared auth_mechanism: no-op (legacy pipeline path).
+    if not auth_mechanism:
+        return session_kwargs, deferred_actions
+
+    mech_type = auth_mechanism.get("type")
+    if mech_type in (None, "", "none", "unknown"):
+        return session_kwargs, deferred_actions
+
+    if mech_type in _UNIMPLEMENTED_AUTH_TYPES:
+        raise NotImplementedError(
+            f"auth_mechanism.type={mech_type!r} is schema-legal but the runtime "
+            "dispatcher has not been implemented yet. See plan §8 — only "
+            "storage_state, http_basic, and none ship in the first batch."
+        )
+
+    if mech_type == "storage_state":
+        sub = auth_mechanism.get("storage_state") or {}
+        # per_task_refresh is schema-legal but unimplemented: no current consumer
+        # on the roadmap (verified 2026-04 across adapter branches + grep). Defer
+        # with a clear runtime error so sites that flip it on see the gap
+        # immediately instead of getting silent stale auth.
+        if bool(sub.get("per_task_refresh")):
+            raise NotImplementedError(
+                "auth_mechanism.storage_state.per_task_refresh=True is not yet "
+                "implemented at runtime. No benchmark on the current roadmap "
+                "requires per-task regeneration; Phase 0d produces one-shot "
+                "artifacts. Remove per_task_refresh from AGENT_CONTEXT or wire "
+                "it through BrowserUseAgent.run() / Phase 0d before re-enabling."
+            )
+        raw_path = sub.get("path")
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise AuthArtifactMissingError(
+                "auth_mechanism.storage_state.path is empty; validator should have caught this"
+            )
+        path = Path(raw_path)
+        if not path.is_absolute() and benchmark_root is not None:
+            path = Path(benchmark_root) / path
+        # storage_state wins over any form_login that may coexist (plan §5 edges).
+        if not path.exists():
+            generator = sub.get("generator_script")
+            # Phase 0d writes the generated artifact to
+            # ``logs/phase_0d/<site>/storage_state.json``. Consult that path as
+            # a fallback before declaring the artifact missing so the runtime
+            # picks up bootstrapped credentials automatically.
+            bootstrap_path = _phase_0d_fallback_path(task)
+            if bootstrap_path is not None and bootstrap_path.exists():
+                session_kwargs["storage_state"] = str(bootstrap_path)
+                return session_kwargs, deferred_actions
+            if generator:
+                raise AuthArtifactMissingError(
+                    f"storage_state artifact missing at {path}; generator_script "
+                    f"{generator!r} declared — run Phase 0d (auth-bootstrap) "
+                    "before Phase 3."
+                )
+            raise AuthArtifactMissingError(
+                f"storage_state artifact missing at {path} and no generator_script declared"
+            )
+        session_kwargs["storage_state"] = str(path)
+        return session_kwargs, deferred_actions
+
+    if mech_type == "http_basic":
+        sub = auth_mechanism.get("http_basic") or {}
+        username = sub.get("username")
+        password = sub.get("password")
+        if not username or not password:
+            raise AuthArtifactMissingError(
+                "auth_mechanism.http_basic requires non-empty username/password"
+            )
+        session_kwargs["http_credentials"] = {"username": username, "password": password}
+        return session_kwargs, deferred_actions
+
+    if mech_type == "http_headers":
+        sub = auth_mechanism.get("http_headers") or {}
+        headers = sub.get("headers")
+        if not isinstance(headers, dict) or not headers:
+            raise AuthArtifactMissingError(
+                "auth_mechanism.http_headers requires a non-empty headers dict"
+            )
+        # Interpolate ${credentials.username}/${credentials.password} tokens so
+        # benchmarks that declare an auto-login header with variable credentials
+        # (e.g. Magento's X-M2-Customer-Auto-Login: <user>:<pass>) resolve at
+        # runtime. Absent credentials leave the header value as-is.
+        creds = (auth_mechanism.get("authentication") or {}).get("credentials") or {}
+        u, p = creds.get("username", ""), creds.get("password", "")
+        resolved: dict[str, str] = {}
+        for name, value in headers.items():
+            if not isinstance(name, str) or not isinstance(value, str):
+                raise AuthArtifactMissingError(
+                    "auth_mechanism.http_headers.headers must be a string->string map"
+                )
+            resolved[name] = value.replace("${credentials.username}", u).replace(
+                "${credentials.password}", p
+            )
+        # NB: Browser Use's BrowserSession uses `headers=` (not Playwright's
+        # `extra_http_headers=`); the kwarg is forwarded to the Playwright
+        # context internally.
+        session_kwargs["headers"] = resolved
+        return session_kwargs, deferred_actions
+
+    # Defensive fallback: an unknown-but-enumerated type slipped through.
+    raise NotImplementedError(f"auth_mechanism.type={mech_type!r} has no runtime dispatcher")
+
+
 class BrowserUseAgent:
     """Browser Use-backed :class:`AgentRunner` (spec canonical implementation)."""
 
@@ -504,11 +670,28 @@ class BrowserUseAgent:
         *,
         start_urls: list[str] | None = None,
         site_prompt: str | None = None,
+        auth_mechanism: dict[str, Any] | None = None,
+        benchmark_root: Path | None = None,
+        task_site: str | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
 
         task_dir = Path(task_dir)
         task_dir.mkdir(parents=True, exist_ok=True)
+
+        # Resolve the declared auth_mechanism into BrowserSession kwargs +
+        # deferred post-start actions. Errors here surface before we spin up a
+        # browser so they fail fast and cheaply.
+        # ``task_site`` (when present) lets ``_resolve_auth`` fall back to the
+        # Phase 0d-bootstrapped artifact at
+        # ``logs/phase_0d/<site>/storage_state.json`` when the declared path is
+        # missing.
+        resolve_task = {"site": task_site} if task_site else None
+        session_auth_kwargs, deferred_auth_actions = _resolve_auth(
+            auth_mechanism,
+            task=resolve_task,
+            benchmark_root=benchmark_root,
+        )
 
         self._session = BrowserSession(
             headless=self.headless,
@@ -519,6 +702,7 @@ class BrowserUseAgent:
                 "--no-sandbox",  # required for Chrome on EC2/Docker/root
                 "--disable-software-rasterizer",  # reduce CPU when GPU unavailable
             ],
+            **session_auth_kwargs,
         )
 
         # Retry browser startup with linear backoff for transient failures
@@ -534,11 +718,19 @@ class BrowserUseAgent:
                     delay = 3 * attempt
                     logger.warning(
                         "Browser startup failed (attempt %d/3), retrying in %ds: %s",
-                        attempt, delay, exc,
+                        attempt,
+                        delay,
+                        exc,
                     )
                     await asyncio.sleep(delay)
         if last_exc is not None:
             raise last_exc
+
+        # Run any deferred auth actions (e.g. future form_login flow) after
+        # session.start() succeeds, before the Agent is constructed. No-op for
+        # the first batch (storage_state / http_basic / none).
+        for action in deferred_auth_actions:
+            await action(self._session)
 
         network_recorder = _NetworkTraceRecorder(self._session, task_dir)
         await network_recorder.start()
@@ -563,7 +755,9 @@ class BrowserUseAgent:
 
             t0 = time.time()
             try:
-                history = await asyncio.wait_for(agent.run(max_steps=self.max_steps), timeout=self.timeout)
+                history = await asyncio.wait_for(
+                    agent.run(max_steps=self.max_steps), timeout=self.timeout
+                )
                 elapsed = time.time() - t0
                 status = "success" if history.is_done() else "failure"
             except TimeoutError:
@@ -631,11 +825,7 @@ class BrowserUseAgent:
                 "user_data_dir",
                 None,
             )
-            if (
-                user_data_dir
-                and Path(user_data_dir).exists()
-                and "/tmp/" in str(user_data_dir)
-            ):
+            if user_data_dir and Path(user_data_dir).exists() and "/tmp/" in str(user_data_dir):
                 shutil.rmtree(user_data_dir, ignore_errors=True)
         except Exception:
             pass
