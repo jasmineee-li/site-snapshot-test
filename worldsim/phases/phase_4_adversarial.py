@@ -914,7 +914,7 @@ async def _process_adversarial_result(
         site_profile=site_profile,
     )
     variation_status = variation.get("status")
-    if variation_status in {"no_instances", "variant_generation_failed"}:
+    if variation_status in {"no_instances", "variant_generation_failed", "judge_failed"}:
         return {
             **_build_phase_4_result(
                 task_id=task.get("id", "unknown"),
@@ -1334,19 +1334,52 @@ async def run_judge(
     rec_json = outputs.get("/workspace/output/judge_recommendation.json")
     if not rec_json:
         return {
+            "status": "error",
             "diagnosis": "judge sandbox did not produce output",
             "refusal_trigger": "unknown",
             "recommended_strategies": [],
         }
 
     try:
-        return json.loads(rec_json)
+        payload = json.loads(rec_json)
+        if isinstance(payload, dict):
+            payload.setdefault("status", "ok")
+            return payload
+        return {
+            "status": "error",
+            "diagnosis": "judge output must be a JSON object",
+            "refusal_trigger": "unknown",
+            "recommended_strategies": [],
+        }
     except json.JSONDecodeError:
         return {
+            "status": "error",
             "diagnosis": f"invalid JSON from judge: {rec_json[:200]}",
             "refusal_trigger": "unknown",
             "recommended_strategies": [],
         }
+
+
+def _normalize_recommended_strategies(
+    recommendation: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return valid strategy recommendations and any validation errors."""
+    raw_strategies = recommendation.get("recommended_strategies")
+    if not isinstance(raw_strategies, list):
+        return [], ["judge recommendation missing recommended_strategies list"]
+
+    validated: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for index, strategy in enumerate(raw_strategies):
+        if not isinstance(strategy, dict):
+            errors.append(f"recommended_strategies[{index}] is not an object")
+            continue
+        name = strategy.get("strategy")
+        if not isinstance(name, str) or not name.strip():
+            errors.append(f"recommended_strategies[{index}].strategy is missing")
+            continue
+        validated.append(strategy)
+    return validated, errors
 
 
 async def generate_variant(
@@ -1461,23 +1494,53 @@ async def run_strategy_variation(
     recommendation = checkpoint.get("judge_diagnosis") if checkpoint else None
     if not isinstance(recommendation, dict):
         trajectory_dir = initial_result.get("trajectory_dir", "")
-        recommendation = await run_judge(
-            task,
-            trajectory_dir,
-            profile_path,
-            sandbox_model=sandbox_model,
-        )
+        try:
+            recommendation = await run_judge(
+                task,
+                trajectory_dir,
+                profile_path,
+                sandbox_model=sandbox_model,
+            )
+        except Exception as exc:
+            logger.exception("Judge sandbox failed for task %s: %s", task_id, exc)
+            recommendation = {
+                "status": "error",
+                "diagnosis": f"judge sandbox failed: {exc!r}",
+                "refusal_trigger": "unknown",
+                "recommended_strategies": [],
+            }
         checkpoint = {
             _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
             "judge_diagnosis": recommendation,
         }
         _write_json_atomic(checkpoint_path, checkpoint)
 
-    strategies = recommendation.get("recommended_strategies", [])
+    recommendation_status = str(recommendation.get("status", "ok")).strip().lower()
+    strategies, strategy_errors = _normalize_recommended_strategies(recommendation)
+    if recommendation_status != "ok":
+        return {
+            "status": "judge_failed",
+            "judge_diagnosis": recommendation,
+            "attempts": [initial_result],
+            "variant_results": [],
+        }
+    if strategy_errors:
+        return {
+            "status": "judge_failed",
+            "judge_diagnosis": {
+                **recommendation,
+                "validation_errors": strategy_errors,
+            },
+            "attempts": [initial_result],
+            "variant_results": [],
+        }
     if not strategies:
         return {
-            "status": "resistant",
-            "judge_diagnosis": recommendation,
+            "status": "judge_failed",
+            "judge_diagnosis": {
+                **recommendation,
+                "validation_errors": ["judge returned no recommended strategies"],
+            },
             "attempts": [initial_result],
             "variant_results": [],
         }
@@ -1501,27 +1564,48 @@ async def run_strategy_variation(
 
     # 2. Generate variants in parallel (up to 3 Modal Sandboxes)
     variant_candidates = checkpoint.get("variant_candidates") if checkpoint else None
+    variant_generation_errors = checkpoint.get("variant_generation_errors") if checkpoint else None
+    if not isinstance(variant_generation_errors, list):
+        variant_generation_errors = []
     if not isinstance(variant_candidates, list):
         selected_strategies = strategies[:3]
         variants = await asyncio.gather(
             *[
                 generate_variant(task, strategy, profile_path, sandbox_model=sandbox_model)
                 for strategy in selected_strategies
-            ]
+            ],
+            return_exceptions=True,
         )
 
         # Filter out failed or no-op variant generations — bookkeeping-only changes
         # should not trigger a fresh judge/eval cycle.
-        variant_candidates = [
-            {"variant": variant, "strategy": selected_strategies[i]}
-            for i, variant in enumerate(variants)
-            if _variant_changes_seed(task, variant)
-        ]
+        variant_candidates = []
+        variant_generation_errors = []
+        for i, variant in enumerate(variants):
+            strategy = selected_strategies[i]
+            strategy_name = strategy.get("strategy", f"strategy_{i}")
+            if isinstance(variant, BaseException):
+                logger.error(
+                    "Variant generation failed for task %s strategy %s: %s",
+                    task_id,
+                    strategy_name,
+                    variant,
+                )
+                variant_generation_errors.append(
+                    {
+                        "strategy": strategy_name,
+                        "error": repr(variant),
+                    }
+                )
+                continue
+            if _variant_changes_seed(task, variant):
+                variant_candidates.append({"variant": variant, "strategy": strategy})
         checkpoint = checkpoint or {
             _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
             "judge_diagnosis": recommendation,
         }
         checkpoint["variant_candidates"] = variant_candidates
+        checkpoint["variant_generation_errors"] = variant_generation_errors
         _write_json_atomic(checkpoint_path, checkpoint)
 
     real_variants = [
@@ -1537,6 +1621,7 @@ async def run_strategy_variation(
             "judge_diagnosis": recommendation,
             "attempts": [initial_result],
             "variant_results": [],
+            "variant_generation_errors": variant_generation_errors,
         }
 
     # 3. Evaluate variants in parallel, one per separate benchmark instance.
@@ -1573,6 +1658,7 @@ async def run_strategy_variation(
         "judge_diagnosis": recommendation,
         "attempts": [initial_result],
         "variant_results": variant_results,
+        "variant_generation_errors": variant_generation_errors,
     }
     checkpoint = checkpoint or {
         _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
