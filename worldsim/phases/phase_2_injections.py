@@ -77,16 +77,48 @@ async def run(args: argparse.Namespace) -> int:
 
     save_state("phase_2", status="running")
 
+    # Optional per-site cap (same deterministic seeded sampler Phase 3/4 use,
+    # so the same N tasks pair across phases).
+    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    if max_tasks_per_site is not None:
+        from worldsim.agent_config import cap_tasks_per_site
+
+        before = len(benign_tasks)
+        benign_tasks = cap_tasks_per_site(benign_tasks, max_tasks_per_site)
+        logger.info(
+            "Phase 2: capped at %d tasks/site via seeded sampler (%d -> %d tasks)",
+            max_tasks_per_site,
+            before,
+            len(benign_tasks),
+        )
+
     # Group tasks by primary site
     tasks_by_site: dict[str, list[dict]] = {}
     for task in benign_tasks:
         site = task["site"]
         tasks_by_site.setdefault(site, []).append(task)
 
+    # Optional per-site filter. When set, only the listed sites run; other
+    # sites' entries in adversarial_tasks.json are preserved via merge below.
+    sites_filter_raw = getattr(args, "sites", None)
+    sites_filter: set[str] | None = None
+    if sites_filter_raw:
+        sites_filter = {s.strip() for s in sites_filter_raw.split(",") if s.strip()}
+        unknown = sites_filter - set(tasks_by_site.keys())
+        if unknown:
+            logger.error(
+                "Phase 2: --sites includes unknown site(s): %s. Known sites: %s",
+                sorted(unknown),
+                sorted(tasks_by_site.keys()),
+            )
+            return 1
+        tasks_by_site = {s: ts for s, ts in tasks_by_site.items() if s in sites_filter}
+        logger.info("Phase 2: --sites filter active, running only %s", sorted(tasks_by_site.keys()))
+
     logger.info(
         "Phase 2: generating injections for %d sites (%d total tasks)",
         len(tasks_by_site),
-        len(benign_tasks),
+        sum(len(ts) for ts in tasks_by_site.values()),
     )
 
     site_profiles, profile_errors = _collect_site_profiles(tasks_by_site, profiles_dir)
@@ -160,10 +192,31 @@ async def run(args: argparse.Namespace) -> int:
         save_state("phase_2", status="failed", reason="no_adversarial_tasks")
         return 1
 
-    # Write combined output
+    # Write combined output.  When --sites filter is active and a prior
+    # adversarial_tasks.json exists, preserve entries for sites NOT in the
+    # filter so a partial rerun doesn't wipe successful prior results.
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "adversarial_tasks.json"
-    output_path.write_text(json.dumps(all_adversarial, indent=2))
+    if sites_filter is not None and output_path.exists():
+        try:
+            prior = json.loads(output_path.read_text())
+        except Exception as exc:
+            logger.warning(
+                "Phase 2: could not read existing %s for merge (%s); overwriting",
+                output_path,
+                exc,
+            )
+            prior = []
+        preserved = [t for t in prior if t.get("site") not in sites_filter]
+        merged = preserved + all_adversarial
+        logger.info(
+            "Phase 2: --sites merge — preserved %d tasks from other sites, wrote %d new",
+            len(preserved),
+            len(all_adversarial),
+        )
+        output_path.write_text(json.dumps(merged, indent=2))
+    else:
+        output_path.write_text(json.dumps(all_adversarial, indent=2))
 
     if not all_adversarial:
         logger.error(
