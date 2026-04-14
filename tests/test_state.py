@@ -321,6 +321,62 @@ def test_dispatch_resume_allows_explicit_task_cap_override(monkeypatch, tmp_path
     assert captured["max_tasks_per_site"] == 5
 
 
+def test_dispatch_resume_restores_saved_phase_2_sites_filter(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_2",
+        status="running",
+        sandbox_model="claude-sonnet-4-6",
+        sites="shopping,gitlab",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["sites"] = args.sites
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "2"
+    assert captured["sites"] == "shopping,gitlab"
+
+
+def test_dispatch_resume_allows_explicit_phase_2_sites_override(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_2",
+        status="running",
+        sandbox_model="claude-sonnet-4-6",
+        sites="shopping",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["sites"] = args.sites
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace(sites="gitlab"))
+
+    assert rc == 0
+    assert captured["phase"] == "2"
+    assert captured["sites"] == "gitlab"
+
+
 def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"

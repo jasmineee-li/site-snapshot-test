@@ -210,6 +210,27 @@ class TestResolveAuth:
         kwargs, _ = _resolve_auth(auth, task=None, benchmark_root=bench)
         assert kwargs == {"storage_state": str(artifact)}
 
+    def test_storage_state_relative_path_requires_benchmark_root(self):
+        auth = {
+            "type": "storage_state",
+            "storage_state": {"path": "auth/state.json"},
+        }
+        with pytest.raises(AuthArtifactMissingError, match="requires a benchmark root"):
+            _resolve_auth(auth, task=None, benchmark_root=None)
+
+    def test_storage_state_relative_path_cannot_escape_benchmark_root(self, tmp_path: Path):
+        bench = tmp_path / "bench"
+        bench.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "state.json").write_text("{}", encoding="utf-8")
+        auth = {
+            "type": "storage_state",
+            "storage_state": {"path": "../outside/state.json"},
+        }
+        with pytest.raises(AuthArtifactMissingError, match="outside benchmark root"):
+            _resolve_auth(auth, task=None, benchmark_root=bench)
+
     def test_storage_state_missing_raises(self, tmp_path: Path):
         auth = {
             "type": "storage_state",
@@ -268,6 +289,34 @@ class TestResolveAuth:
             "headers": {"X-M2-Customer-Auto-Login": "emma.lopez@gmail.com:Password.123"}
         }
         assert deferred == []
+
+    def test_http_headers_preserves_static_values_without_credentials(self):
+        auth = {
+            "type": "http_headers",
+            "http_headers": {
+                "headers": {
+                    "X-Static-Token": "fixed-token",
+                }
+            },
+        }
+        kwargs, deferred = _resolve_auth(auth, task=None, benchmark_root=None)
+        assert kwargs == {"headers": {"X-Static-Token": "fixed-token"}}
+        assert deferred == []
+
+    def test_http_headers_rejects_missing_credentials_for_placeholders(self):
+        auth = {
+            "type": "http_headers",
+            "http_headers": {
+                "headers": {
+                    "X-M2-Customer-Auto-Login": "${credentials.username}:${credentials.password}"
+                }
+            },
+        }
+        with pytest.raises(
+            AuthArtifactMissingError,
+            match="references credentials placeholders",
+        ):
+            _resolve_auth(auth, task=None, benchmark_root=None)
 
     def test_http_headers_rejects_empty(self):
         from worldsim.browser_use_agent import AuthArtifactMissingError
@@ -371,6 +420,14 @@ class TestUnknownAuthGate:
 
     def test_unknown_auth_sites_empty_when_no_profile_dir(self, tmp_path: Path):
         assert _unknown_auth_sites(tmp_path) == []
+
+    def test_unknown_auth_sites_rejects_malformed_context_artifacts(self, tmp_path: Path):
+        phase0c = tmp_path / "phase_0c"
+        phase0c.mkdir(parents=True)
+        (phase0c / "AGENT_CONTEXT_broken.json").write_text("{not-json", encoding="utf-8")
+
+        with pytest.raises(RuntimeError, match="Failed to read Phase 0c AGENT_CONTEXT"):
+            _unknown_auth_sites(tmp_path)
 
     def test_cli_parses_allow_unknown_auth_flag(self):
         parser = build_parser()

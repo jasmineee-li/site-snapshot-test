@@ -67,7 +67,9 @@ import hashlib
 import inspect
 import json
 import logging
+import os
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -80,6 +82,21 @@ logger = logging.getLogger(__name__)
 
 class AuthBootstrapError(RuntimeError):
     """Raised when a ``storage_state`` artifact cannot be produced."""
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 @dataclass
@@ -256,20 +273,18 @@ async def run(args: argparse.Namespace) -> int:
             skipped.append({"site": spec.site_name, "reason": reason})
             continue
 
-        completion_path.write_text(
-            json.dumps(
-                {
-                    "site": spec.site_name,
-                    "input_hash": input_hash,
-                    "artifact_path": str(artifact_path),
-                    "dispatch": dispatch,
-                    "generator_script": spec.generator_script,
-                    "form_login": spec.form_login,
-                    "agent_context_source": str(spec.agent_context_source),
-                    "site_url": site_url,
-                },
-                indent=2,
-            )
+        _write_json_atomic(
+            completion_path,
+            {
+                "site": spec.site_name,
+                "input_hash": input_hash,
+                "artifact_path": str(artifact_path),
+                "dispatch": dispatch,
+                "generator_script": spec.generator_script,
+                "form_login": spec.form_login,
+                "agent_context_source": str(spec.agent_context_source),
+                "site_url": site_url,
+            },
         )
         generated.append(spec.site_name)
         logger.info(
@@ -505,6 +520,25 @@ def _compute_input_hash(spec: _SiteSpec, *, benchmark_root: Path, site_url: str)
             + json.dumps(spec.form_login, sort_keys=True, default=str).encode("utf-8")
             + b"\n"
         )
+    # When the dispatch falls through to trust-path mode, the trusted artifact
+    # bytes are part of the effective runtime input. Hash them so in-place auth
+    # rotations invalidate the completion marker instead of silently reusing the
+    # old copied storage_state.json.
+    if not spec.generator_script and spec.form_login is None and spec.declared_path:
+        declared = Path(spec.declared_path)
+        resolved = (
+            declared
+            if declared.is_absolute()
+            else _resolve_benchmark_relative_path(declared, benchmark_root)
+        )
+        hasher.update(b"trusted_path:" + str(resolved).encode("utf-8") + b"\n")
+        if resolved.exists():
+            try:
+                hasher.update(b"trusted_bytes:" + resolved.read_bytes())
+            except OSError:
+                hasher.update(b"trusted_bytes:<unreadable>")
+        else:
+            hasher.update(b"trusted_bytes:<missing>")
     hasher.update(b"site_url:" + site_url.encode("utf-8") + b"\n")
     return hasher.hexdigest()
 
@@ -632,7 +666,14 @@ def _verify_generate_signature(generate: Any, script_display_name: str) -> None:
     has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
     required = ("credentials", "site_url", "output_path")
     for name in required:
-        if name in params:
+        param = params.get(name)
+        if param is not None:
+            if param.kind == inspect.Parameter.POSITIONAL_ONLY and not has_var_kw:
+                raise AuthBootstrapError(
+                    f"generator_script {script_display_name!r} parameter {name!r} is positional-only; "
+                    "Phase 0d calls generate(credentials=..., site_url=..., output_path=...). "
+                    "Make it keyword-capable or accept **kwargs."
+                )
             continue
         if has_var_kw:
             continue

@@ -42,6 +42,101 @@ logger = logging.getLogger(__name__)
 
 # Maximum number of correction retries for profile validation (initial attempt + this many).
 PROFILE_FIX_MAX_ITERATIONS = 2
+_PROFILE_METADATA_PREFIX = "PROFILE_METADATA_"
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    """Atomically replace *path* with *text*."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _profile_metadata_path(output_dir: Path, site_name: str) -> Path:
+    return output_dir / f"{_PROFILE_METADATA_PREFIX}{site_name}.json"
+
+
+def _existing_site_outputs_are_reusable(
+    *,
+    output_dir: Path,
+    site_name: str,
+    benchmark_root: Path,
+    sandbox_model: str,
+    manifest_eval_type_set: set[str],
+) -> bool:
+    """Return True only when existing site outputs are complete and match this run."""
+    profile_path = output_dir / f"BENCHMARK_PROFILE_{site_name}.json"
+    context_path = output_dir / f"AGENT_CONTEXT_{site_name}.json"
+    metadata_path = _profile_metadata_path(output_dir, site_name)
+    if not (profile_path.exists() and context_path.exists() and metadata_path.exists()):
+        return False
+    try:
+        profile = json.loads(profile_path.read_text())
+        agent_context = json.loads(context_path.read_text())
+        metadata = json.loads(metadata_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "Phase 0c: existing outputs for site %r are unreadable/corrupt, re-profiling: %s",
+            site_name,
+            exc,
+        )
+        return False
+
+    if not isinstance(profile, dict) or not isinstance(agent_context, dict) or not isinstance(
+        metadata, dict
+    ):
+        logger.warning(
+            "Phase 0c: existing outputs for site %r have invalid JSON shape, re-profiling",
+            site_name,
+        )
+        return False
+
+    if profile.get("agent_context") != agent_context:
+        logger.warning(
+            "Phase 0c: existing profile/context for site %r disagree, re-profiling",
+            site_name,
+        )
+        return False
+
+    expected_metadata = {
+        "site_name": site_name,
+        "benchmark_root": str(benchmark_root),
+        "sandbox_model": sandbox_model,
+    }
+    for key, expected in expected_metadata.items():
+        if metadata.get(key) != expected:
+            logger.info(
+                "Phase 0c: existing outputs for site %r do not match current %s, re-profiling",
+                site_name,
+                key,
+            )
+            return False
+
+    try:
+        validate_agent_context(agent_context, site_name=site_name)
+        validate_profile(
+            site_name,
+            profile,
+            manifest_eval_types=manifest_eval_type_set,
+        )
+    except ValueError as exc:
+        logger.warning(
+            "Phase 0c: existing outputs for site %r failed validation, re-profiling: %s",
+            site_name,
+            exc,
+        )
+        return False
+
+    return True
 
 
 async def run(
@@ -495,13 +590,22 @@ async def run_phase_0c(
     """
     benchmark_root = Path(benchmark_root).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_eval_type_set = {
+        str(eval_type)
+        for eval_type in manifest.get("evaluation", {}).get("eval_types", [])
+        if eval_type
+    }
 
     # Skip sites that already have all outputs on disk (supports re-runs).
     sites_to_profile = {}
     for name, files in sandbox_map.items():
-        profile_path = output_dir / f"BENCHMARK_PROFILE_{name}.json"
-        context_path = output_dir / f"AGENT_CONTEXT_{name}.json"
-        if profile_path.exists() and context_path.exists():
+        if _existing_site_outputs_are_reusable(
+            output_dir=output_dir,
+            site_name=name,
+            benchmark_root=benchmark_root,
+            sandbox_model=sandbox_model,
+            manifest_eval_type_set=manifest_eval_type_set,
+        ):
             logger.info(
                 "Phase 0c: skipping site %r (profile + agent context already exist)", name
             )
@@ -882,12 +986,24 @@ async def _profile_one_site_tiered(
         output_dir.mkdir(parents=True, exist_ok=True)
 
         profile_path = output_dir / f"BENCHMARK_PROFILE_{site_name}.json"
-        profile_path.write_text(json.dumps(profile, indent=2))
+        _write_text_atomic(profile_path, json.dumps(profile, indent=2))
         logger.info("Phase 0c: wrote %s", profile_path)
 
         context_path = output_dir / f"AGENT_CONTEXT_{site_name}.json"
-        context_path.write_text(json.dumps(agent_context, indent=2))
+        _write_text_atomic(context_path, json.dumps(agent_context, indent=2))
         logger.info("Phase 0c: wrote %s", context_path)
+
+        _write_text_atomic(
+            _profile_metadata_path(output_dir, site_name),
+            json.dumps(
+                {
+                    "site_name": site_name,
+                    "benchmark_root": str(benchmark_root),
+                    "sandbox_model": sandbox_model,
+                },
+                indent=2,
+            ),
+        )
 
         # Write individual tier outputs for debugging/inspection
         for tier_name, tier_data in [
@@ -896,7 +1012,7 @@ async def _profile_one_site_tiered(
             ("INJECTION_SURFACE", injection_surface),
         ]:
             tier_path = output_dir / f"{tier_name}_{site_name}.json"
-            tier_path.write_text(json.dumps(tier_data, indent=2))
+            _write_text_atomic(tier_path, json.dumps(tier_data, indent=2))
 
         return site_name, {
             "profile": profile,

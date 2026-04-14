@@ -80,6 +80,13 @@ async def run(args: argparse.Namespace) -> int:
     state_dir = get_state_dir()
     output_dir = state_dir / "phase_2"
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
+    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    sites_filter_raw = getattr(args, "sites", None)
+    state_metadata: dict[str, Any] = {
+        "sandbox_model": sandbox_model,
+        "max_tasks_per_site": max_tasks_per_site,
+        "sites": sites_filter_raw,
+    }
 
     # Load benign tasks from Phase 1
     tasks_path = state_dir / "phase_1" / "benign_tasks.json"
@@ -103,15 +110,14 @@ async def run(args: argparse.Namespace) -> int:
             "phase_2",
             status="failed",
             reason="auth_preflight_failed",
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         return 1
 
-    save_state("phase_2", status="running", sandbox_model=sandbox_model)
+    save_state("phase_2", status="running", **state_metadata)
 
     # Optional per-site cap (same deterministic seeded sampler Phase 3/4 use,
     # so the same N tasks pair across phases).
-    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     if max_tasks_per_site is not None:
         from worldsim.agent_config import cap_tasks_per_site
 
@@ -132,7 +138,6 @@ async def run(args: argparse.Namespace) -> int:
 
     # Optional per-site filter. When set, only the listed sites run; other
     # sites' entries in adversarial_tasks.json are preserved via merge below.
-    sites_filter_raw = getattr(args, "sites", None)
     sites_filter: set[str] | None = None
     if sites_filter_raw:
         sites_filter = {s.strip() for s in sites_filter_raw.split(",") if s.strip()}
@@ -163,7 +168,7 @@ async def run(args: argparse.Namespace) -> int:
             "phase_2",
             status="failed",
             reason="invalid_site_profiles",
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         return 1
 
@@ -219,11 +224,20 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     if site_failures:
-        logger.warning(
-            "Phase 2: %d site(s) had issues (adversarial tasks from successful sites are kept):\n%s",
+        logger.error(
+            "Phase 2: refusing to publish partial results because %d site/shard run(s) failed:\n%s",
             len(site_failures),
             "\n".join(f"  - {failure}" for failure in site_failures),
         )
+        save_state(
+            "phase_2",
+            status="failed",
+            reason="site_generation_failures",
+            generation_failures=site_failures,
+            generated_task_count=len(all_adversarial),
+            **state_metadata,
+        )
+        return 1
 
     if not all_adversarial:
         logger.error("Phase 2 produced zero adversarial tasks across all sites")
@@ -231,7 +245,7 @@ async def run(args: argparse.Namespace) -> int:
             "phase_2",
             status="failed",
             reason="no_adversarial_tasks",
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         return 1
 
@@ -266,7 +280,7 @@ async def run(args: argparse.Namespace) -> int:
             "Phase 2: no adversarial tasks produced across all sites — "
             "check sandbox logs and profiles"
         )
-        save_state("phase_2", status="failed", task_count=0, sandbox_model=sandbox_model)
+        save_state("phase_2", status="failed", task_count=0, **state_metadata)
         return 1
 
     save_state(
@@ -274,7 +288,7 @@ async def run(args: argparse.Namespace) -> int:
         status="complete",
         adversarial_tasks_path=str(output_path),
         task_count=len(all_adversarial),
-        sandbox_model=sandbox_model,
+        **state_metadata,
     )
     cost_tracker.log_phase_summary("phase_2")
     cost_tracker.save(state_dir / "cost_report.json")

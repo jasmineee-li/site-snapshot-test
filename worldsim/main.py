@@ -185,6 +185,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override per-site task cap for the resumed phase. Omit to run all remaining tasks.",
     )
     resume_cmd.add_argument(
+        "--sites",
+        type=str,
+        default=argparse.SUPPRESS,
+        metavar="SITE[,SITE...]",
+        help="Override the saved Phase 2 site filter on resume.",
+    )
+    resume_cmd.add_argument(
         "--allow-unknown-auth",
         action="store_true",
         default=argparse.SUPPRESS,
@@ -304,6 +311,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     generate_novel = getattr(args, "generate_novel", None)
     full_baseline = getattr(args, "full_baseline", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    sites = getattr(args, "sites", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -322,6 +330,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel = state.get("generate_novel", False)
     if full_baseline is None:
         full_baseline = state.get("full_baseline", False)
+    if sites is None:
+        sites = state.get("sites")
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -343,6 +353,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel=generate_novel,
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
+        sites=sites,
         allow_unknown_auth=allow_unknown_auth,
     )
 
@@ -365,14 +376,18 @@ def _unknown_auth_sites(state_dir: Path) -> list[str]:
     if not profiles_dir.exists():
         return []
 
+    parse_errors: list[str] = []
+
     def _check(ctx_path: Path, site_name: str) -> None:
         if not ctx_path.exists():
             return
         try:
             data = _json.loads(ctx_path.read_text(encoding="utf-8"))
-        except (OSError, _json.JSONDecodeError):
+        except (OSError, _json.JSONDecodeError) as exc:
+            parse_errors.append(f"{ctx_path}: {exc}")
             return
         if not isinstance(data, dict):
+            parse_errors.append(f"{ctx_path}: expected JSON object")
             return
         mech = data.get("auth_mechanism")
         if isinstance(mech, dict) and mech.get("type") == "unknown":
@@ -390,6 +405,12 @@ def _unknown_auth_sites(state_dir: Path) -> list[str]:
         if not site_dir.is_dir():
             continue
         _check(site_dir / "AGENT_CONTEXT.json", site_dir.name)
+
+    if parse_errors:
+        raise RuntimeError(
+            "Failed to read Phase 0c AGENT_CONTEXT artifacts required for the unknown-auth gate:\n"
+            + "\n".join(f"  - {error}" for error in parse_errors)
+        )
 
     return sorted(set(unknown))
 
@@ -443,7 +464,11 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         rc = asyncio.run(phase_2_injections.run(args))
     elif phase in {"3", "4"}:
         allow_unknown = getattr(args, "allow_unknown_auth", False)
-        unknown_sites = _unknown_auth_sites(get_state_dir())
+        try:
+            unknown_sites = _unknown_auth_sites(get_state_dir())
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
         if unknown_sites and not allow_unknown:
             print(
                 f"Phase {phase} refused: the following sites declare "

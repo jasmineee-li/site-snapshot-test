@@ -623,6 +623,7 @@ async def run_task(
         return {
             "task_id": task_id,
             "passed": False,
+            "outcome": "error",
             "message": message,
             "elapsed": result.elapsed,
             "steps": result.steps,

@@ -516,6 +516,40 @@ async def test_run_task_scores_partial_timeout_when_artifacts_exist(monkeypatch,
     assert result["message"] == "reward passed"
 
 
+@pytest.mark.asyncio
+async def test_run_task_marks_non_scoreable_infra_failure_as_error(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=0.2,
+                steps=0,
+                is_done=False,
+                final_result=None,
+                status="error",
+                errors=["browser crashed"],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+
+    result = await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert result["passed"] is False
+    assert result["outcome"] == "error"
+    assert result["message"] == "agent run error: browser crashed"
+
+
 # ── No-changes heuristic in fix_loop ─────────────────────────────────────
 
 

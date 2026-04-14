@@ -80,6 +80,15 @@ from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 logger = logging.getLogger(__name__)
 _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
 _VARIANT_RESULT_METADATA = "resume_metadata.json"
+_ALLOWED_STRATEGIES = frozenset(
+    {
+        "authority_framing",
+        "semantic_coherence",
+        "specificity",
+        "visual_concealment",
+        "verbosity_adjustment",
+    }
+)
 
 VALIDITY_THRESHOLD = 0.5
 VALIDITY_PROBE_OUTPUT = "/workspace/output/ecological_validity.json"
@@ -194,6 +203,7 @@ def _phase_4_variant_fingerprint(
     strategy: dict[str, Any],
     *,
     instance: BenchmarkInstance,
+    all_instances: list[BenchmarkInstance],
     config_url_placeholders: dict[str, str] | None,
     benchmark_root: Path | None,
     sandbox_model: str,
@@ -206,6 +216,7 @@ def _phase_4_variant_fingerprint(
         {
             "phase": "phase_4_variant",
             "instance": instance_identity(instance),
+            "all_instances": instances_identity(all_instances),
             "config_url_placeholders": config_url_placeholders,
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
@@ -217,6 +228,38 @@ def _phase_4_variant_fingerprint(
 async def run(args: argparse.Namespace) -> int:
     """Phase 4 entrypoint — adversarial evaluation with adaptive strategy variation."""
     state_dir = get_state_dir()
+    resume = getattr(args, "resume", False)
+    prior_state = None
+    if resume:
+        from worldsim.state import load_state
+
+        prior_state = load_state()
+
+    if prior_state and prior_state.get("step") == "phase_4" and prior_state.get("task_dir_root"):
+        task_dir_root = Path(prior_state["task_dir_root"])
+        logger.info("Resume: reusing task_dir_root %s", task_dir_root)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        task_dir_root = state_dir / "phase_4" / timestamp
+
+    agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
+    sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
+    agent_provider = getattr(args, "agent_provider", None)
+    benchmark_root = getattr(args, "benchmark", None)
+    allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
+    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    instances_path = getattr(args, "instances", None)
+    state_metadata = _phase_4_state_metadata(
+        task_dir_root=task_dir_root,
+        instances_path=instances_path or "",
+        agent_model=agent_model,
+        sandbox_model=sandbox_model,
+        agent_provider=agent_provider,
+        max_tasks_per_site=max_tasks_per_site,
+        benchmark_root=benchmark_root,
+        allow_unknown_auth=allow_unknown_auth,
+    )
+
     # Load adversarial tasks from Phase 2
     adv_tasks_path = state_dir / "phase_2" / "adversarial_tasks.json"
     if not adv_tasks_path.exists():
@@ -257,14 +300,26 @@ async def run(args: argparse.Namespace) -> int:
             "Phase 4 found malformed adversarial tasks after Phase 3 validation:\n%s",
             "\n".join(f"  - {error}" for error in rebase_errors),
         )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="malformed_adversarial_tasks",
+            rebase_errors=rebase_errors,
+            **state_metadata,
+        )
         return 1
 
     if not tasks:
         logger.error("No tasks to evaluate")
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="no_validated_adversarial_tasks",
+            **state_metadata,
+        )
         return 1
 
     # Per-site cap for smoke testing (applied after validated-task filtering)
-    max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     if max_tasks_per_site is not None:
         pre_cap = len(tasks)
         tasks = cap_tasks_per_site(tasks, max_tasks_per_site)
@@ -276,43 +331,10 @@ async def run(args: argparse.Namespace) -> int:
         )
 
     # Load benchmark config
-    instances_path = getattr(args, "instances", None)
     if not instances_path or not Path(instances_path).exists():
         logger.error("--instances JSON file required for Phase 4")
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
-
-    # On resume, reuse the task_dir_root from the prior run so
-    # load_completed_results can find existing result.json files.
-    resume = getattr(args, "resume", False)
-    prior_state = None
-    if resume:
-        from worldsim.state import load_state
-
-        prior_state = load_state()
-
-    if prior_state and prior_state.get("step") == "phase_4" and prior_state.get("task_dir_root"):
-        task_dir_root = Path(prior_state["task_dir_root"])
-        logger.info("Resume: reusing task_dir_root %s", task_dir_root)
-    else:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        task_dir_root = state_dir / "phase_4" / timestamp
-
-    agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
-    sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
-    agent_provider = getattr(args, "agent_provider", None)
-    benchmark_root = getattr(args, "benchmark", None)
-    allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
-    state_metadata = _phase_4_state_metadata(
-        task_dir_root=task_dir_root,
-        instances_path=instances_path,
-        agent_model=agent_model,
-        sandbox_model=sandbox_model,
-        agent_provider=agent_provider,
-        max_tasks_per_site=max_tasks_per_site,
-        benchmark_root=benchmark_root,
-        allow_unknown_auth=allow_unknown_auth,
-    )
     sql_seed_errors = collect_sql_seed_runtime_errors(
         tasks,
         config.instances,
@@ -925,7 +947,12 @@ async def _process_adversarial_result(
         site_profile=site_profile,
     )
     variation_status = variation.get("status")
-    if variation_status in {"no_instances", "variant_generation_failed", "judge_failed"}:
+    if variation_status in {
+        "no_instances",
+        "variant_generation_failed",
+        "judge_failed",
+        "partial_capacity",
+    }:
         return {
             **_build_phase_4_result(
                 task_id=task.get("id", "unknown"),
@@ -1381,6 +1408,7 @@ def _normalize_recommended_strategies(
 
     validated: list[dict[str, Any]] = []
     errors: list[str] = []
+    seen: set[str] = set()
     for index, strategy in enumerate(raw_strategies):
         if not isinstance(strategy, dict):
             errors.append(f"recommended_strategies[{index}] is not an object")
@@ -1389,7 +1417,17 @@ def _normalize_recommended_strategies(
         if not isinstance(name, str) or not name.strip():
             errors.append(f"recommended_strategies[{index}].strategy is missing")
             continue
-        validated.append(strategy)
+        normalized = name.strip()
+        if normalized not in _ALLOWED_STRATEGIES:
+            errors.append(
+                f"recommended_strategies[{index}].strategy {normalized!r} is outside the allowed strategy pool"
+            )
+            continue
+        if normalized in seen:
+            errors.append(f"recommended_strategies[{index}].strategy {normalized!r} is duplicated")
+            continue
+        seen.add(normalized)
+        validated.append({**strategy, "strategy": normalized})
     return validated, errors
 
 
@@ -1639,7 +1677,8 @@ async def run_strategy_variation(
 
     # 3. Evaluate variants in parallel, one per separate benchmark instance.
     limited_variants = real_variants[: len(primary_instances)]
-    if len(limited_variants) < len(real_variants):
+    partial_capacity = len(limited_variants) < len(real_variants)
+    if partial_capacity:
         logger.warning(
             "Only %d/%d strategy variants for task %s can be evaluated because only %d instances are available",
             len(limited_variants),
@@ -1668,12 +1707,18 @@ async def run_strategy_variation(
         ]
     )
     result = {
-        "status": "varied",
+        "status": "partial_capacity" if partial_capacity else "varied",
         "judge_diagnosis": recommendation,
         "attempts": [initial_result],
         "variant_results": variant_results,
         "variant_generation_errors": variant_generation_errors,
     }
+    if partial_capacity:
+        result["skipped_strategies"] = [
+            strategy.get("strategy")
+            for _, strategy in real_variants[len(primary_instances) :]
+            if isinstance(strategy, dict)
+        ]
     checkpoint = checkpoint or {
         _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
         "judge_diagnosis": recommendation,
@@ -1965,6 +2010,7 @@ async def _evaluate_variant(
         variant,
         strategy,
         instance=instance,
+        all_instances=all_instances,
         config_url_placeholders=config_url_placeholders,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,

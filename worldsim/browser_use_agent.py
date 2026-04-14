@@ -511,6 +511,27 @@ def _phase_0d_fallback_path(task: dict[str, Any] | None) -> Path | None:
     return phase_0d_artifact_path(site.strip())
 
 
+def _resolve_storage_state_path(raw_path: str, benchmark_root: Path | None) -> Path:
+    """Resolve a storage-state artifact path and enforce benchmark-root containment."""
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    if benchmark_root is None:
+        raise AuthArtifactMissingError(
+            "relative auth_mechanism.storage_state.path requires a benchmark root; "
+            "pass --benchmark so the runtime can resolve the artifact safely"
+        )
+    resolved_root = Path(benchmark_root).resolve()
+    resolved = (resolved_root / path).resolve()
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise AuthArtifactMissingError(
+            f"storage_state path {raw_path!r} resolves outside benchmark root {resolved_root}"
+        ) from exc
+    return resolved
+
+
 # Stable enum of first-batch implementations. Types outside this set are schema-
 # legal (validator accepts them) but raise ``NotImplementedError`` at runtime
 # until their dispatcher arm is written. See plan §8 rollout order.
@@ -577,9 +598,7 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 "auth_mechanism.storage_state.path is empty; validator should have caught this"
             )
-        path = Path(raw_path)
-        if not path.is_absolute() and benchmark_root is not None:
-            path = Path(benchmark_root) / path
+        path = _resolve_storage_state_path(raw_path.strip(), benchmark_root)
         # storage_state wins over any form_login that may coexist (plan §5 edges).
         if not path.exists():
             generator = sub.get("generator_script")
@@ -624,7 +643,8 @@ def _resolve_auth(
         # Interpolate ${credentials.username}/${credentials.password} tokens so
         # benchmarks that declare an auto-login header with variable credentials
         # (e.g. Magento's X-M2-Customer-Auto-Login: <user>:<pass>) resolve at
-        # runtime. Absent credentials leave the header value as-is.
+        # runtime. Missing credentials fail closed only when the template
+        # actually references them; static headers are preserved verbatim.
         creds = (auth_mechanism.get("authentication") or {}).get("credentials") or {}
         u, p = creds.get("username", ""), creds.get("password", "")
         resolved: dict[str, str] = {}
@@ -633,9 +653,21 @@ def _resolve_auth(
                 raise AuthArtifactMissingError(
                     "auth_mechanism.http_headers.headers must be a string->string map"
                 )
-            resolved[name] = value.replace("${credentials.username}", u).replace(
-                "${credentials.password}", p
-            )
+            needs_username = "${credentials.username}" in value
+            needs_password = "${credentials.password}" in value
+            if (needs_username or needs_password) and (
+                not isinstance(creds, dict) or not u or not p
+            ):
+                raise AuthArtifactMissingError(
+                    "auth_mechanism.http_headers references credentials placeholders but "
+                    "authentication.credentials is missing username/password"
+                )
+            if needs_username or needs_password:
+                resolved[name] = value.replace("${credentials.username}", u).replace(
+                    "${credentials.password}", p
+                )
+            else:
+                resolved[name] = value
         # NB: Browser Use's BrowserSession uses `headers=` (not Playwright's
         # `extra_http_headers=`); the kwarg is forwarded to the Playwright
         # context internally.

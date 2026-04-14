@@ -103,6 +103,12 @@ def generate(only_one_param):
 """
 
 
+_POSITIONAL_ONLY_SIGNATURE = """
+def generate(credentials, /, site_url, output_path):
+    pass
+"""
+
+
 _EMPTY_WRITE = """
 def generate(credentials, site_url, output_path, **kwargs):
     output_path.write_text("")  # empty file — orchestrator must reject
@@ -972,6 +978,29 @@ class TestDispatchPrecedence:
         )
         assert marker["dispatch"] == "trust_path"
 
+    def test_trust_path_auth_drift_invalidates_idempotent_skip(self, tmp_path, monkeypatch):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        pre_staged = bench / "auth" / "state.json"
+        pre_staged.parent.mkdir(parents=True)
+        pre_staged.write_text(json.dumps({"cookies": [], "via": "v1"}))
+        _write_context(
+            profiles,
+            "prestaged_site",
+            auth_mechanism={
+                "type": "storage_state",
+                "storage_state": {"path": "auth/state.json"},
+            },
+        )
+
+        assert asyncio.run(bootstrap.run(_make_args(bench))) == 0
+        artifact = state_dir / "phase_0d" / "prestaged_site" / "storage_state.json"
+        assert json.loads(artifact.read_text())["via"] == "v1"
+
+        pre_staged.write_text(json.dumps({"cookies": [], "via": "v2"}))
+
+        assert asyncio.run(bootstrap.run(_make_args(bench))) == 0
+        assert json.loads(artifact.read_text())["via"] == "v2"
+
 
 # ---------------------------------------------------------------------------
 # Validator — schema consistency for form_login
@@ -1012,6 +1041,16 @@ class TestValidatorFormLogin:
         }
         errors = validate_agent_context(data, site_name="gitlab")
         assert errors == [], f"unexpected errors: {errors}"
+
+
+def test_verify_generate_signature_rejects_positional_only_required_params(tmp_path):
+    script = tmp_path / "bad_generator.py"
+    script.write_text(_POSITIONAL_ONLY_SIGNATURE, encoding="utf-8")
+
+    module = bootstrap._load_module(script, "shopping")
+
+    with pytest.raises(bootstrap.AuthBootstrapError, match="positional-only"):
+        bootstrap._verify_generate_signature(module.generate, str(script))
 
     def test_validator_rejects_form_login_without_credentials(self):
         from worldsim._sandbox_validator import validate_agent_context

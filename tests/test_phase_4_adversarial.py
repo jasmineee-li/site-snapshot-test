@@ -81,6 +81,7 @@ def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_
         variant,
         strategy,
         instance=with_auth,
+        all_instances=instances,
         config_url_placeholders={"__GITLAB__": "http://gitlab.test"},
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
@@ -90,7 +91,44 @@ def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_
         variant,
         strategy,
         instance=changed_auth,
+        all_instances=instances,
         config_url_placeholders={"__GITLAB__": "http://gitlab.test"},
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    )
+
+
+def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    strategy = {"strategy": "specificity"}
+    changed_secondary = [
+        instances[0],
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-alt.test",
+            reset_endpoint="http://gitlab-alt.test/init",
+        ),
+    ]
+
+    assert phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=instances[0],
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    ) != phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=instances[0],
+        all_instances=changed_secondary,
+        config_url_placeholders=None,
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
@@ -252,6 +290,51 @@ async def test_process_adversarial_result_marks_judge_failed_variation_inconclus
             "status": "judge_failed",
             "judge_diagnosis": {"diagnosis": "judge sandbox did not produce output"},
             "variant_results": [],
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_ecological_validity_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["final_status"] == "inconclusive"
+
+
+@pytest.mark.asyncio
+async def test_process_adversarial_result_marks_partial_capacity_inconclusive(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "ecologically_valid": True,
+        "trajectory_dir": str(tmp_path / "traj"),
+    }
+
+    async def no_fix(*args, **kwargs):
+        return None
+
+    async def fake_strategy_variation(*args, **kwargs):
+        return {
+            "status": "partial_capacity",
+            "judge_diagnosis": {"diagnosis": "needed more strategies than capacity allowed"},
+            "variant_results": [
+                {
+                    "strategy": "specificity",
+                    "outcome": "refused_or_ignored",
+                    "ecologically_valid": True,
+                }
+            ],
         }
 
     monkeypatch.setattr(phase_4_adversarial, "_run_ecological_validity_fix_loop", no_fix)
@@ -949,6 +1032,36 @@ async def test_run_strategy_variation_marks_judge_failure_when_no_strategies_ret
 
 
 @pytest.mark.asyncio
+async def test_run_strategy_variation_rejects_out_of_pool_strategy_names(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+
+    async def fake_run_judge(*args, **kwargs):
+        return {
+            "status": "ok",
+            "diagnosis": "use a custom strategy",
+            "recommended_strategies": [{"strategy": "invented_strategy"}],
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["status"] == "judge_failed"
+    assert result["variant_results"] == []
+    assert result["judge_diagnosis"]["validation_errors"] == [
+        "recommended_strategies[0].strategy 'invented_strategy' is outside the allowed strategy pool"
+    ]
+
+
+@pytest.mark.asyncio
 async def test_run_strategy_variation_handles_variant_generation_exceptions(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
@@ -1009,6 +1122,56 @@ async def test_run_strategy_variation_handles_variant_generation_exceptions(monk
             "error": "RuntimeError('sandbox crashed')",
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_marks_partial_capacity(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    specificity_variant = json.loads(json.dumps(task))
+    specificity_variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    authority_variant = json.loads(json.dumps(task))
+    authority_variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 3
+
+    async def fake_run_judge(*args, **kwargs):
+        return {
+            "status": "ok",
+            "diagnosis": "try two strategies",
+            "recommended_strategies": [
+                {"strategy": "specificity"},
+                {"strategy": "authority_framing"},
+            ],
+        }
+
+    async def fake_generate_variant(task, strategy, profile_path, **kwargs):
+        if strategy["strategy"] == "specificity":
+            return specificity_variant
+        return authority_variant
+
+    async def fake_evaluate_variant(**kwargs):
+        return {
+            "task_id": task["id"],
+            "outcome": "refused_or_ignored",
+            "ecologically_valid": True,
+            "strategy": kwargs["strategy"]["strategy"],
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["status"] == "partial_capacity"
+    assert [item["strategy"] for item in result["variant_results"]] == ["specificity"]
+    assert result["skipped_strategies"] == ["authority_framing"]
 
 
 @pytest.mark.asyncio
@@ -1105,6 +1268,7 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
                         variant,
                         {"strategy": "specificity"},
                         instance=instances[0],
+                        all_instances=instances,
                         config_url_placeholders=None,
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
@@ -1208,6 +1372,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
                         variant,
                         {"strategy": "specificity"},
                         instance=instances[1],
+                        all_instances=instances,
                         config_url_placeholders=None,
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
