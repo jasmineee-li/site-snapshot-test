@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""Bootstrap a GitLab personal access token from Phase 0d storage-state cookies.
+
+Run Phase 0d first so ``logs/phase_0d/gitlab/storage_state.json`` exists.
+This helper reuses those browser cookies to create a PAT and writes it to
+``logs/phase_0d/gitlab/personal_access_token.txt`` by default.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from pathlib import Path
+
+import requests
+
+
+_AUTH_TOKEN_RE = re.compile(
+    r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',
+    re.IGNORECASE,
+)
+_PAT_RE = re.compile(
+    r'id=["\']created-personal-access-token["\'][^>]*value=["\']([^"\']+)["\']',
+    re.IGNORECASE,
+)
+
+
+def _default_state_path() -> Path:
+    return Path("logs/phase_0d/gitlab/storage_state.json")
+
+
+def _default_output_path() -> Path:
+    return Path("logs/phase_0d/gitlab/personal_access_token.txt")
+
+
+def _load_cookies(storage_state_path: Path) -> list[dict]:
+    payload = json.loads(storage_state_path.read_text(encoding="utf-8"))
+    cookies = payload.get("cookies")
+    if not isinstance(cookies, list) or not cookies:
+        raise RuntimeError(f"{storage_state_path} does not contain browser cookies")
+    return cookies
+
+
+def _build_session(cookies: list[dict]) -> requests.Session:
+    session = requests.Session()
+    for cookie in cookies:
+        if not isinstance(cookie, dict):
+            continue
+        name = cookie.get("name")
+        value = cookie.get("value")
+        domain = cookie.get("domain")
+        if isinstance(name, str) and isinstance(value, str):
+            session.cookies.set(name, value, domain=domain)
+    return session
+
+
+def bootstrap_pat(
+    *,
+    site_url: str,
+    storage_state_path: Path,
+    output_path: Path,
+    token_name: str = "worldsim-api",
+) -> Path:
+    if output_path.exists() and output_path.read_text(encoding="utf-8").strip():
+        return output_path
+
+    session = _build_session(_load_cookies(storage_state_path))
+    form_url = f"{site_url.rstrip('/')}/-/profile/personal_access_tokens"
+    form_response = session.get(form_url, timeout=30)
+    form_response.raise_for_status()
+    match = _AUTH_TOKEN_RE.search(form_response.text)
+    if match is None:
+        raise RuntimeError("Could not find GitLab authenticity_token on the PAT form page")
+
+    response = session.post(
+        form_url,
+        data={
+            "authenticity_token": match.group(1),
+            "personal_access_token[name]": token_name,
+            "personal_access_token[expires_at]": "",
+            "personal_access_token[scopes][]": "api",
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    token_match = _PAT_RE.search(response.text)
+    if token_match is None:
+        raise RuntimeError("GitLab PAT creation page did not expose a created token value")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(token_match.group(1).strip() + "\n", encoding="utf-8")
+    return output_path
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Bootstrap a GitLab PAT from storage_state")
+    parser.add_argument("--site-url", required=True)
+    parser.add_argument("--storage-state", type=Path, default=_default_state_path())
+    parser.add_argument("--output", type=Path, default=_default_output_path())
+    parser.add_argument("--token-name", default="worldsim-api")
+    args = parser.parse_args()
+
+    bootstrap_pat(
+        site_url=args.site_url,
+        storage_state_path=args.storage_state,
+        output_path=args.output,
+        token_name=args.token_name,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
