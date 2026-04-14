@@ -95,15 +95,24 @@ async def run(args: argparse.Namespace) -> int:
 
     output_path = output_dir / "benign_tasks.json"
     resume_metadata_path = output_dir / MODE_B_RESUME_METADATA_PATH
+    benchmark_adapter_name = getattr(args, "benchmark_adapter", None) or manifest.get(
+        "benchmark_name"
+    )
 
     _save_phase_1_running_state(
         benchmark_root=benchmark_root,
         manifest_path=Path(manifest_path),
         generate_novel=generate_novel,
+        benchmark_adapter=benchmark_adapter_name,
     )
 
     profiles_dir = get_state_dir() / "phase_0c"
-    mode_a_tasks = build_mode_a_tasks(manifest, benchmark_root, profiles_dir=profiles_dir)
+    mode_a_tasks = build_mode_a_tasks(
+        manifest,
+        benchmark_root,
+        profiles_dir=profiles_dir,
+        benchmark_name=benchmark_adapter_name,
+    )
     if not mode_a_tasks:
         logger.error("No tasks found in benchmark — check manifest task_definition_paths")
         _save_phase_1_failure_state(
@@ -111,6 +120,7 @@ async def run(args: argparse.Namespace) -> int:
             benchmark_root=benchmark_root,
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
+            benchmark_adapter=benchmark_adapter_name,
         )
         return 1
 
@@ -149,6 +159,7 @@ async def run(args: argparse.Namespace) -> int:
         novel_task_count=len(novel_tasks),
         benchmark_path=str(benchmark_root),
         manifest_path=str(manifest_path),
+        benchmark_adapter=benchmark_adapter_name,
         generate_novel=generate_novel,
     )
     cost_tracker.log_phase_summary("phase_1")
@@ -196,14 +207,20 @@ def _save_phase_1_running_state(
     benchmark_root: Path,
     manifest_path: Path,
     generate_novel: bool,
+    benchmark_adapter: str | None = None,
 ) -> None:
     """Persist the start of Phase 1 for resume support."""
+    payload: dict[str, Any] = {
+        "status": "running",
+        "benchmark_path": str(benchmark_root),
+        "manifest_path": str(manifest_path),
+        "generate_novel": generate_novel,
+    }
+    if benchmark_adapter:
+        payload["benchmark_adapter"] = benchmark_adapter
     save_state(
         "phase_1",
-        status="running",
-        benchmark_path=str(benchmark_root),
-        manifest_path=str(manifest_path),
-        generate_novel=generate_novel,
+        **payload,
     )
 
 
@@ -213,6 +230,7 @@ def _save_phase_1_failure_state(
     benchmark_root: Path | None,
     manifest_path: Path,
     generate_novel: bool,
+    benchmark_adapter: str | None = None,
     mode_a_task_count: int | None = None,
     error: str | None = None,
 ) -> None:
@@ -225,6 +243,8 @@ def _save_phase_1_failure_state(
     }
     if benchmark_root is not None:
         payload["benchmark_path"] = str(benchmark_root)
+    if benchmark_adapter:
+        payload["benchmark_adapter"] = benchmark_adapter
     if mode_a_task_count is not None:
         payload["mode_a_task_count"] = mode_a_task_count
     if error is not None:

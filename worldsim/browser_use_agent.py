@@ -744,43 +744,44 @@ class BrowserUseAgent:
             **session_auth_kwargs,
         )
 
-        # Retry browser startup with linear backoff for transient failures
-        last_exc: Exception | None = None
-        for attempt in range(1, 4):
-            try:
-                await self._session.start()
-                last_exc = None
-                break
-            except (TimeoutError, ConnectionError, OSError, RuntimeError) as exc:
-                last_exc = exc
-                if attempt < 3:
-                    delay = 3 * attempt
-                    logger.warning(
-                        "Browser startup failed (attempt %d/3), retrying in %ds: %s",
-                        attempt,
-                        delay,
-                        exc,
-                    )
-                    await asyncio.sleep(delay)
-        if last_exc is not None:
-            raise last_exc
-
-        # Run any deferred auth actions (e.g. future form_login flow) after
-        # session.start() succeeds, before the Agent is constructed. No-op for
-        # the first batch (storage_state / http_basic / none).
-        for action in deferred_auth_actions:
-            await action(self._session)
-
-        network_recorder = _NetworkTraceRecorder(self._session, task_dir)
-        await network_recorder.start()
-
         history = None
         agent = None
         elapsed = 0.0
         network_trace: list[dict[str, Any]] = []
         status = "error"
         extra_errors: list[str] = []
+        network_recorder: _NetworkTraceRecorder | None = None
         try:
+            # Retry browser startup with linear backoff for transient failures.
+            last_exc: Exception | None = None
+            for attempt in range(1, 4):
+                try:
+                    await self._session.start()
+                    last_exc = None
+                    break
+                except (TimeoutError, ConnectionError, OSError, RuntimeError) as exc:
+                    last_exc = exc
+                    if attempt < 3:
+                        delay = 3 * attempt
+                        logger.warning(
+                            "Browser startup failed (attempt %d/3), retrying in %ds: %s",
+                            attempt,
+                            delay,
+                            exc,
+                        )
+                        await asyncio.sleep(delay)
+            if last_exc is not None:
+                raise last_exc
+
+            # Run any deferred auth actions (e.g. future form_login flow) after
+            # session.start() succeeds, before the Agent is constructed. No-op for
+            # the first batch (storage_state / http_basic / none).
+            for action in deferred_auth_actions:
+                await action(self._session)
+
+            network_recorder = _NetworkTraceRecorder(self._session, task_dir)
+            await network_recorder.start()
+
             initial_actions = _build_initial_actions(start_urls or [])
             task_text = site_prompt if site_prompt else task
             agent = Agent(
@@ -795,7 +796,8 @@ class BrowserUseAgent:
             t0 = time.time()
             try:
                 history = await asyncio.wait_for(
-                    agent.run(max_steps=self.max_steps), timeout=self.timeout
+                    _run_agent_history(agent, max_steps=self.max_steps),
+                    timeout=self.timeout,
                 )
                 elapsed = time.time() - t0
                 status = "success" if history.is_done() else "failure"
@@ -812,7 +814,8 @@ class BrowserUseAgent:
                 history = getattr(agent, "history", None)
                 logger.exception("Agent run failed for %s", task_dir)
         finally:
-            network_trace = await network_recorder.stop()
+            if network_recorder is not None:
+                network_trace = await network_recorder.stop()
             history = history or (getattr(agent, "history", None) if agent is not None else None)
             _write_agent_artifacts(
                 task_dir=task_dir,
@@ -888,6 +891,17 @@ def _build_initial_actions(start_urls: list[str]) -> list[dict[str, dict[str, An
             }
         )
     return actions or None
+
+
+async def _run_agent_history(agent: Any, *, max_steps: int) -> Any:
+    """Run a Browser Use agent, tolerating older no-arg test doubles."""
+    try:
+        run_call = agent.run(max_steps=max_steps)
+    except TypeError as exc:
+        if "max_steps" not in str(exc):
+            raise
+        run_call = agent.run()
+    return await run_call
 
 
 def _write_agent_artifacts(

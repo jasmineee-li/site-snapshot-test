@@ -41,6 +41,7 @@ from typing import Any
 import requests
 
 from worldsim.agent_config import (
+    RUNTIME_METADATA_KEY,
     DEFAULT_MODEL,
     bind_task_to_instance,
     cap_tasks_per_site,
@@ -72,6 +73,19 @@ REVISED_TASK_OUTPUT = "/workspace/output/revised_task.json"
 VARIANT_TASK_OUTPUT = "/workspace/output/variant_task.json"
 ECOLOGICAL_FIX_MAX_ITERATIONS = 2
 PLACEMENT_FIX_MAX_ITERATIONS = 2
+
+
+def make_agent_factory(
+    *,
+    runner_name: str,
+    model: str,
+    provider: str | None,
+) -> Callable[[], AgentRunner]:
+    """Resolve the configured runner module and return its agent factory."""
+    from worldsim.runners import get_runner_module
+
+    runner_mod = get_runner_module(runner_name)
+    return runner_mod.make_agent_factory(model=model, provider=provider)
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -221,10 +235,11 @@ async def run(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
-    from worldsim.runners import get_runner_module
-
-    runner_mod = get_runner_module(runner_name)
-    agent_factory = runner_mod.make_agent_factory(model=agent_model, provider=agent_provider)
+    agent_factory = make_agent_factory(
+        runner_name=runner_name,
+        model=agent_model,
+        provider=agent_provider,
+    )
     save_state(
         "phase_4",
         status="running",
@@ -1367,8 +1382,12 @@ def _rebase_adversarial_task(
         "reward_function",
         "adversarial_data_seed",
     }
+    disallowed_passthrough_fields = {
+        "agentlab_task_name",
+        RUNTIME_METADATA_KEY,
+    }
     for key, value in adversarial_task.items():
-        if key in immutable_fields:
+        if key in immutable_fields or key in disallowed_passthrough_fields:
             continue
         rebuilt[key] = json.loads(json.dumps(value))
     return rebuilt

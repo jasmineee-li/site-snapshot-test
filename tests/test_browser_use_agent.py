@@ -107,7 +107,7 @@ async def test_browser_use_agent_cleans_temp_profile_when_startup_never_succeeds
     monkeypatch, tmp_path
 ):
     profile_dir = Path("/tmp") / f"browser-use-user-data-dir-fail-{tmp_path.name}"
-    profile_dir.mkdir()
+    profile_dir.mkdir(exist_ok=True)
     kill_calls = {"count": 0}
 
     class FakeSession:
