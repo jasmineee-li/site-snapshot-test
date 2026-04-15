@@ -219,12 +219,12 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
-    site_profile_payloads = {site: json.loads(path.read_text()) for site, path in site_profiles.items()}
+    site_profile_payloads = {
+        site: json.loads(path.read_text()) for site, path in site_profiles.items()
+    }
     benign_by_id = {str(task.get("id", "")): task for task in benign_tasks}
     expected_benign_task_ids = {
-        str(task.get("id", ""))
-        for tasks in tasks_by_site.values()
-        for task in tasks
+        str(task.get("id", "")) for tasks in tasks_by_site.values() for task in tasks
     }
 
     prior_state = load_state() or {}
@@ -299,13 +299,15 @@ async def run(args: argparse.Namespace) -> int:
                 continue
             if result.errors:
                 site_failures.extend(f"{result.site_name}: {error}" for error in result.errors)
-                continue
-            all_plans.extend(result.adversarial_tasks)
-            logger.info(
-                "Phase 2: site %r produced %d validated plans",
-                result.site_name,
-                len(result.adversarial_tasks),
-            )
+            # Fail-open: include whatever valid tasks succeeded even if sibling shards failed.
+            if result.adversarial_tasks:
+                all_plans.extend(result.adversarial_tasks)
+                logger.info(
+                    "Phase 2: site %r produced %d validated plans (%d shard error(s))",
+                    result.site_name,
+                    len(result.adversarial_tasks),
+                    len(result.errors),
+                )
 
         succeeded = sum(1 for r in results if not isinstance(r, BaseException) and not r.errors)
         logger.info(
@@ -371,8 +373,7 @@ async def run(args: argparse.Namespace) -> int:
             sites_filter=sites_filter,
             expected_task_ids={str(plan.get("id", "")) for plan in candidate_plans},
             expected_benign_task_ids={
-                str(plan.get("benign_task_id", ""))
-                for plan in candidate_plans
+                str(plan.get("benign_task_id", "")) for plan in candidate_plans
             },
             texts_per_plan=texts_per_plan,
             benign_by_id=benign_by_id,
@@ -428,7 +429,9 @@ async def run(args: argparse.Namespace) -> int:
         filled_tasks,
         sites_filter=sites_filter,
     )
-    if reusable_final_tasks is None or output_path.read_text() != json.dumps(merged_output, indent=2):
+    if reusable_final_tasks is None or output_path.read_text() != json.dumps(
+        merged_output, indent=2
+    ):
         write_json_atomic(
             output_path,
             merged_output,
@@ -436,7 +439,9 @@ async def run(args: argparse.Namespace) -> int:
         )
 
     text_fill_failures = [
-        diag for diag in text_fill_diagnostics if diag.get("status") not in {"ok", "reused_existing"}
+        diag
+        for diag in text_fill_diagnostics
+        if diag.get("status") not in {"ok", "reused_existing"}
     ]
     status = "partial_complete" if site_failures or text_fill_failures else "complete"
     save_state(
@@ -746,16 +751,17 @@ def _load_reusable_phase_2_plans(
         return None
     if not isinstance(plans, list):
         return None
-    filtered_plans = plans if sites_filter is None else [
-        plan for plan in plans if str(plan.get("site", "")) in sites_filter
-    ]
+    filtered_plans = (
+        plans
+        if sites_filter is None
+        else [plan for plan in plans if str(plan.get("site", "")) in sites_filter]
+    )
     if not filtered_plans:
         return None
-    if not _identifiers_match_exactly(
-        filtered_plans,
-        field="benign_task_id",
-        expected_ids=expected_benign_task_ids,
-    ):
+    # Subset check: every plan's benign_task_id must exist in expected, but we
+    # don't require every benign task to have a plan (569 plans for 812 tasks is valid).
+    plan_benign_ids = {str(p.get("benign_task_id", "")) for p in filtered_plans}
+    if not plan_benign_ids.issubset(expected_benign_task_ids) or not plan_benign_ids:
         return None
     if not _identifiers_are_unique(filtered_plans, field="id"):
         return None
@@ -805,9 +811,11 @@ def _load_reusable_phase_2_tasks(
         return None
     if not isinstance(loaded, list):
         return None
-    tasks = loaded if sites_filter is None else [
-        task for task in loaded if str(task.get("site", "")) in sites_filter
-    ]
+    tasks = (
+        loaded
+        if sites_filter is None
+        else [task for task in loaded if str(task.get("site", "")) in sites_filter]
+    )
     if not tasks:
         return None
     if expected_task_ids is not None:
@@ -961,8 +969,8 @@ def _merge_preserving_unfiltered_sites(
 
 def _voice_registry() -> dict[str, Any]:
     if not hasattr(_voice_registry, "_cache"):
-        setattr(_voice_registry, "_cache", load_voice_registry())
-    return getattr(_voice_registry, "_cache")
+        _voice_registry._cache = load_voice_registry()
+    return _voice_registry._cache
 
 
 def _render_generation_prompt(
@@ -1299,7 +1307,7 @@ def _validate_common_surface_contract(
     if attack_write.get("placeholder_count") != 1:
         return f"seed payload must contain exactly one {PAYLOAD_PLACEHOLDER} placeholder"
     if attack_write.get("mechanism") != delivery_mechanism:
-        return f"delivery_mechanism must match the mechanism declared in seed payload"
+        return "delivery_mechanism must match the mechanism declared in seed payload"
 
     try:
         _resolve_delivery_channel(
@@ -1444,7 +1452,7 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
             matches.append(
                 {
                     "mechanism": "sql",
-                    "resource": f"table:{table_match.group(1).strip('`\"')}",
+                    "resource": f"table:{table_match.group(1).strip('`"')}",
                     "fields": _extract_sql_columns(statement),
                     "placeholder_fields": placeholder_fields,
                     "placeholder_count": placeholder_count,
@@ -1475,9 +1483,7 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
             if isinstance(value, str) and PAYLOAD_PLACEHOLDER in value
         }
         placeholder_count = sum(
-            value.count(PAYLOAD_PLACEHOLDER)
-            for value in body.values()
-            if isinstance(value, str)
+            value.count(PAYLOAD_PLACEHOLDER) for value in body.values() if isinstance(value, str)
         )
         if placeholder_count <= 0:
             continue
@@ -1502,7 +1508,11 @@ def _entry_matches_attack_write(entry: dict[str, Any], attack_write: dict[str, A
             return False
         column = entry.get("column")
         placeholder_fields = attack_write.get("placeholder_fields")
-        return isinstance(column, str) and isinstance(placeholder_fields, set) and placeholder_fields == {column}
+        return (
+            isinstance(column, str)
+            and isinstance(placeholder_fields, set)
+            and placeholder_fields == {column}
+        )
     path_template = entry.get("path_template")
     method = entry.get("method")
     body_field = entry.get("body_field")
@@ -1512,7 +1522,10 @@ def _entry_matches_attack_write(entry: dict[str, Any], attack_write: dict[str, A
         or not isinstance(body_field, str)
     ):
         return False
-    if attack_write.get("resource") != f"path:{method.strip().upper()} {_normalize_delivery_path(path_template)}":
+    if (
+        attack_write.get("resource")
+        != f"path:{method.strip().upper()} {_normalize_delivery_path(path_template)}"
+    ):
         return False
     placeholder_fields = attack_write.get("placeholder_fields")
     return isinstance(placeholder_fields, set) and placeholder_fields == {body_field}
@@ -1534,9 +1547,7 @@ def _extract_sql_placeholder_fields(statement: str) -> set[str] | None:
         if len(columns) != len(values):
             return None
         placeholder_fields = {
-            column
-            for column, value in zip(columns, values)
-            if PAYLOAD_PLACEHOLDER in value
+            column for column, value in zip(columns, values) if PAYLOAD_PLACEHOLDER in value
         }
         if not placeholder_fields:
             return set()
