@@ -38,7 +38,7 @@ from worldsim.state import get_state_dir, save_state
 logger = logging.getLogger(__name__)
 
 TASKS_PER_SHARD = 20
-DEFAULT_SANDBOX_CONCURRENCY = 4
+DEFAULT_SANDBOX_CONCURRENCY = 250
 DEFAULT_LAUNCH_JITTER_MS = 750
 _FRAMINGS = (
     "authority",
