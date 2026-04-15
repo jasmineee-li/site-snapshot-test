@@ -138,6 +138,28 @@ def build_parser() -> argparse.ArgumentParser:
         "to smooth burst traffic. Omit to use the phase default.",
     )
     phase_cmd.add_argument(
+        "--phase-2b-texts-per-plan",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help="Phase 2: host-side text fill variants to generate per validated plan. "
+        "Defaults to 1.",
+    )
+    phase_cmd.add_argument(
+        "--phase-2-text-fill-concurrency",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help="Phase 2: cap concurrent host-side text fill requests to at most N.",
+    )
+    phase_cmd.add_argument(
+        "--phase-2-text-model",
+        type=str,
+        default=None,
+        metavar="MODEL",
+        help="Phase 2: model identifier for host-side text fill requests.",
+    )
+    phase_cmd.add_argument(
         "--allow-unknown-auth",
         action="store_true",
         default=False,
@@ -220,6 +242,27 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="MS",
         help="Override the saved Phase 2 launch jitter on resume.",
+    )
+    resume_cmd.add_argument(
+        "--phase-2b-texts-per-plan",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override the saved Phase 2 texts-per-plan on resume.",
+    )
+    resume_cmd.add_argument(
+        "--phase-2-text-fill-concurrency",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override the saved Phase 2 text-fill concurrency on resume.",
+    )
+    resume_cmd.add_argument(
+        "--phase-2-text-model",
+        type=str,
+        default=argparse.SUPPRESS,
+        metavar="MODEL",
+        help="Override the saved Phase 2 text-fill model on resume.",
     )
     resume_cmd.add_argument(
         "--allow-unknown-auth",
@@ -345,6 +388,9 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     sites = getattr(args, "sites", None)
     phase_2_sandbox_concurrency = getattr(args, "phase_2_sandbox_concurrency", None)
     phase_2_launch_jitter_ms = getattr(args, "phase_2_launch_jitter_ms", None)
+    phase_2b_texts_per_plan = getattr(args, "phase_2b_texts_per_plan", None)
+    phase_2_text_fill_concurrency = getattr(args, "phase_2_text_fill_concurrency", None)
+    phase_2_text_model = getattr(args, "phase_2_text_model", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -369,6 +415,12 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_2_sandbox_concurrency = state.get("phase_2_sandbox_concurrency")
     if phase_2_launch_jitter_ms is None:
         phase_2_launch_jitter_ms = state.get("phase_2_launch_jitter_ms")
+    if phase_2b_texts_per_plan is None:
+        phase_2b_texts_per_plan = state.get("phase_2b_texts_per_plan")
+    if phase_2_text_fill_concurrency is None:
+        phase_2_text_fill_concurrency = state.get("phase_2_text_fill_concurrency")
+    if phase_2_text_model is None:
+        phase_2_text_model = state.get("phase_2_text_model")
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -393,6 +445,9 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         sites=sites,
         phase_2_sandbox_concurrency=phase_2_sandbox_concurrency,
         phase_2_launch_jitter_ms=phase_2_launch_jitter_ms,
+        phase_2b_texts_per_plan=phase_2b_texts_per_plan,
+        phase_2_text_fill_concurrency=phase_2_text_fill_concurrency,
+        phase_2_text_model=phase_2_text_model,
         allow_unknown_auth=allow_unknown_auth,
     )
 

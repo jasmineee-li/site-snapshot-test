@@ -234,6 +234,27 @@ def test_build_parser_accepts_phase_2_traffic_shaping_flags():
     assert args.phase_2_launch_jitter_ms == 500
 
 
+def test_build_parser_accepts_phase_2_text_fill_flags():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(
+        [
+            "phase",
+            "2",
+            "--phase-2b-texts-per-plan",
+            "3",
+            "--phase-2-text-fill-concurrency",
+            "7",
+            "--phase-2-text-model",
+            "anthropic/claude-sonnet-4.5",
+        ]
+    )
+
+    assert args.phase_2b_texts_per_plan == 3
+    assert args.phase_2_text_fill_concurrency == 7
+    assert args.phase_2_text_model == "anthropic/claude-sonnet-4.5"
+
+
 @pytest.mark.parametrize(
     "argv",
     [
@@ -242,6 +263,8 @@ def test_build_parser_accepts_phase_2_traffic_shaping_flags():
         ["resume", "--max-tasks-per-site", "0"],
         ["phase", "2", "--phase-2-sandbox-concurrency", "0"],
         ["resume", "--phase-2-launch-jitter-ms", "0"],
+        ["phase", "2", "--phase-2b-texts-per-plan", "0"],
+        ["resume", "--phase-2-text-fill-concurrency", "0"],
     ],
 )
 def test_build_parser_rejects_non_positive_max_tasks_per_site(argv):

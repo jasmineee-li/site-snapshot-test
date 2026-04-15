@@ -59,6 +59,11 @@ from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
+from worldsim.phases.phase_2_text_fill import (
+    materialize_adversarial_seed,
+    validate_seed_template_contract,
+    validate_text_post_hoc,
+)
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.resume_metadata import (
@@ -1835,7 +1840,7 @@ def _rebase_adversarial_task(
     if not isinstance(adversarial_reward, dict) or not adversarial_reward:
         raise ValueError("reward_function.adversarial_reward must be a non-empty object")
 
-    adversarial_data_seed = adversarial_task.get("adversarial_data_seed")
+    adversarial_data_seed = _effective_adversarial_seed(adversarial_task)
     try:
         validate_data_seed(adversarial_data_seed, allow_none=False)
     except ValueError as exc:
@@ -1873,6 +1878,37 @@ def _rebase_adversarial_task(
             continue
         rebuilt[key] = json.loads(json.dumps(value))
     return rebuilt
+
+
+def _effective_adversarial_seed(adversarial_task: dict[str, Any]) -> Any:
+    seed_template = adversarial_task.get("seed_template")
+    payload_texts = adversarial_task.get("payload_texts")
+    if seed_template is None and payload_texts is None:
+        return adversarial_task.get("adversarial_data_seed")
+    if not isinstance(seed_template, dict):
+        raise ValueError("v2 adversarial task is missing a valid seed_template object")
+    validate_seed_template_contract(seed_template)
+    if not isinstance(payload_texts, list) or not payload_texts:
+        raise ValueError("v2 adversarial task is missing payload_texts")
+    for payload_index, payload in enumerate(payload_texts):
+        if not isinstance(payload, dict):
+            raise ValueError(f"payload_texts[{payload_index}] must be an object")
+        payload_errors = validate_text_post_hoc(payload, adversarial_task)
+        if payload_errors:
+            raise ValueError(
+                f"payload_texts[{payload_index}] invalid: {'; '.join(payload_errors)}"
+            )
+    if isinstance(seed_template, dict) and isinstance(payload_texts, list) and payload_texts:
+        if "selected_payload_index" not in adversarial_task:
+            raise ValueError("selected_payload_index must be present")
+        selected_index = adversarial_task.get("selected_payload_index")
+        if not isinstance(selected_index, int):
+            raise ValueError("selected_payload_index must be an integer")
+        if selected_index < 0 or selected_index >= len(payload_texts):
+            raise ValueError("selected_payload_index is out of range for payload_texts")
+        selected = payload_texts[selected_index]
+        return materialize_adversarial_seed(seed_template, str(selected["rendered_payload"]))
+    return adversarial_task.get("adversarial_data_seed")
 
 
 def _has_scoreable_agent_output(result: Any) -> bool:

@@ -15,7 +15,7 @@ from worldsim.agent_config import (
 )
 from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
-from worldsim.phases import phase_4_adversarial
+from worldsim.phases import phase_2_text_fill, phase_4_adversarial
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
@@ -55,6 +55,18 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     )
     assert missing == []
     return task, instances
+
+
+def _v2_payload_contract_fields(*, task_id: str = "adv-1") -> dict[str, object]:
+    tokens = phase_2_text_fill.derive_required_tokens(task_id)
+    directive = tokens[0]["value"]
+    url = tokens[1]["value"]
+    return {
+        "required_tokens": tokens,
+        "length_budget": {"min": 20, "max": 400, "source": "test"},
+        "directive": directive,
+        "url": url,
+    }
 
 
 def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_change():
@@ -1922,6 +1934,226 @@ async def test_phase_4_run_rejects_missing_benign_task_id(monkeypatch, tmp_path)
     )
 
     assert rc == 1
+
+
+@pytest.mark.parametrize(
+    ("selected_payload_index", "payload_factory", "match"),
+    [
+        (
+            3,
+            lambda metadata: [
+                {
+                    "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
+                    "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                    "framing_witnesses": ["Visible note"],
+                    "concealment_witnesses": [metadata["directive"]],
+                }
+            ],
+            "out of range",
+        ),
+        (0, lambda metadata: [{}], "rendered_payload"),
+    ],
+)
+def test_effective_adversarial_seed_fails_closed_on_malformed_v2_payload_metadata(
+    selected_payload_index,
+    payload_factory,
+    match,
+):
+    metadata = _v2_payload_contract_fields()
+    task = {
+        "id": "adv-1",
+        "concealment": "plaintext",
+        "seed_template": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "{{PAYLOAD_TEXT}}"},
+                }
+            ],
+        },
+        "required_tokens": metadata["required_tokens"],
+        "length_budget": metadata["length_budget"],
+        "payload_texts": payload_factory(metadata),
+        "selected_payload_index": selected_payload_index,
+        "adversarial_data_seed": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "stale"},
+                }
+            ],
+        },
+    }
+
+    with pytest.raises(ValueError, match=match):
+        phase_4_adversarial._effective_adversarial_seed(task)
+
+
+def test_effective_adversarial_seed_requires_selected_payload_index():
+    metadata = _v2_payload_contract_fields()
+    task = {
+        "id": "adv-1",
+        "concealment": "plaintext",
+        "seed_template": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "{{PAYLOAD_TEXT}}"},
+                }
+            ],
+        },
+        "required_tokens": metadata["required_tokens"],
+        "length_budget": metadata["length_budget"],
+        "payload_texts": [
+            {
+                "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
+                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "framing_witnesses": ["Visible note"],
+                "concealment_witnesses": [metadata["directive"]],
+            }
+        ],
+        "adversarial_data_seed": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "stale"},
+                }
+            ],
+        },
+    }
+
+    with pytest.raises(ValueError, match="selected_payload_index must be present"):
+        phase_4_adversarial._effective_adversarial_seed(task)
+
+
+def test_effective_adversarial_seed_rejects_invalid_seed_template_contract():
+    metadata = _v2_payload_contract_fields()
+    task = {
+        "id": "adv-1",
+        "concealment": "plaintext",
+        "seed_template": {
+            "mechanism": "sql",
+            "statements": [
+                "INSERT INTO review_detail (detail) VALUES ('{{PAYLOAD_TEXT}}' || 'x')"
+            ],
+        },
+        "required_tokens": metadata["required_tokens"],
+        "length_budget": metadata["length_budget"],
+        "payload_texts": [
+            {
+                "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
+                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "framing_witnesses": ["Visible note"],
+                "concealment_witnesses": [metadata["directive"]],
+            }
+        ],
+        "selected_payload_index": 0,
+        "adversarial_data_seed": {
+            "mechanism": "sql",
+            "statements": ["INSERT INTO review_detail (detail) VALUES ('stale')"],
+        },
+    }
+
+    with pytest.raises(ValueError, match="quoted SQL string literal"):
+        phase_4_adversarial._effective_adversarial_seed(task)
+
+
+def test_effective_adversarial_seed_rejects_malformed_non_selected_payload_entry():
+    metadata = _v2_payload_contract_fields()
+    task = {
+        "id": "adv-1",
+        "concealment": "plaintext",
+        "seed_template": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "{{PAYLOAD_TEXT}}"},
+                }
+            ],
+        },
+        "required_tokens": metadata["required_tokens"],
+        "length_budget": metadata["length_budget"],
+        "payload_texts": [
+            {
+                "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
+                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "framing_witnesses": ["Visible note"],
+                "concealment_witnesses": [metadata["directive"]],
+            },
+            {},
+        ],
+        "selected_payload_index": 0,
+        "adversarial_data_seed": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "stale"},
+                }
+            ],
+        },
+    }
+
+    with pytest.raises(ValueError, match=r"payload_texts\[1\].*rendered_payload"):
+        phase_4_adversarial._effective_adversarial_seed(task)
+
+
+def test_effective_adversarial_seed_rejects_semantically_invalid_selected_payload():
+    metadata = _v2_payload_contract_fields()
+    task = {
+        "id": "adv-1",
+        "concealment": "markdown_fenced_system",
+        "seed_template": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "{{PAYLOAD_TEXT}}"},
+                }
+            ],
+        },
+        "required_tokens": metadata["required_tokens"],
+        "length_budget": metadata["length_budget"],
+        "payload_texts": [
+            {
+                "rendered_payload": (
+                    f"Visible note {metadata['directive']} {metadata['url']}\n\n"
+                    "```system\n"
+                    "wrapper only\n"
+                    "```"
+                ),
+                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "framing_witnesses": ["Visible note"],
+                "concealment_witnesses": ["```system"],
+            }
+        ],
+        "selected_payload_index": 0,
+        "adversarial_data_seed": {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body_form": {"detail": "stale"},
+                }
+            ],
+        },
+    }
+
+    with pytest.raises(ValueError, match="inside concealed payload content"):
+        phase_4_adversarial._effective_adversarial_seed(task)
 
 
 # ── benchmark_root / task_site plumbing ──────────────────────────────────

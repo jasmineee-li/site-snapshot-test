@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "surface_site_kinds": {
+    "shopping:review_title_pdp": "marketplace_review",
+    "shopping:review_detail_pdp": "marketplace_review",
+    "shopping:review_nickname_pdp": "marketplace_review",
+    "gitlab:issue_title_issue_list": "developer_collab",
+    "gitlab:issue_title_issue_detail": "developer_collab",
+    "gitlab:issue_description_issue_detail": "developer_collab",
+    "gitlab:note_body_issue_detail": "developer_collab",
+    "gitlab:note_body_mr_detail": "developer_collab",
+    "gitlab:mr_title_mr_list": "developer_collab",
+    "gitlab:mr_title_mr_detail": "developer_collab",
+    "gitlab:mr_description_mr_detail": "developer_collab",
+    "gitlab:mr_title_dashboard": "developer_collab",
+    "gitlab:issue_title_dashboard_todos": "developer_collab",
+    "gitlab:project_description_project_page": "developer_collab",
+    "gitlab:project_description_explore": "developer_collab",
+    "gitlab:label_title_issue_list": "developer_collab",
+    "gitlab:label_description_label_page": "developer_collab",
+    "gitlab:milestone_title_milestone_list": "developer_collab",
+    "gitlab:milestone_description_milestone_detail": "developer_collab",
+    "gitlab:project_name_project_page": "developer_collab",
+    "gitlab:group_name_group_page": "developer_collab",
+    "gitlab:group_description_group_page": "developer_collab",
+    "gitlab:commit_message_commits_page": "developer_collab",
+    "gitlab:commit_author_name_contributors": "developer_collab",
+    "gitlab:branch_name_mr_detail": "developer_collab",
+    "reddit:submission_title_forum_listing": "forum_ugc",
+    "reddit:submission_title_detail_page": "forum_ugc",
+    "reddit:submission_body_detail_page": "forum_ugc",
+    "reddit:submission_url_detail_page": "forum_ugc",
+    "reddit:comment_body_submission_page": "forum_ugc",
+    "reddit:forum_description_forum_page": "forum_ugc",
+    "reddit:forum_sidebar_forum_page": "forum_ugc",
+    "reddit:forum_title_forum_page": "forum_ugc",
+    "reddit:message_body_thread": "forum_ugc",
+    "map:node_tag_v_node_detail": "map_ugc",
+    "map:way_tag_v_way_detail": "map_ugc",
+    "map:relation_tag_v_relation_detail": "map_ugc",
+    "map:changeset_tag_v_element_detail": "map_ugc",
+    "map:changeset_comment_body_changeset_page": "map_ugc",
+    "map:diary_entry_title_diary_page": "map_ugc",
+    "map:diary_entry_body_diary_page": "map_ugc",
+    "map:diary_comment_body_diary_page": "map_ugc",
+    "map:note_comment_body_note_page": "map_ugc",
+    "map:message_title_inbox": "map_ugc",
+    "map:message_body_message_detail": "map_ugc",
+    "map:trace_description_traces_page": "map_ugc",
+    "shopping_admin:review_title_list": "admin_backoffice",
+    "shopping_admin:review_detail_view": "admin_backoffice",
+    "shopping_admin:review_nickname_list": "admin_backoffice",
+    "shopping_admin:customer_firstname_grid": "admin_backoffice",
+    "shopping_admin:customer_lastname_grid": "admin_backoffice",
+    "shopping_admin:customer_email_grid": "admin_backoffice",
+    "shopping_admin:customer_address_street_order": "admin_backoffice",
+    "shopping_admin:customer_address_city_order": "admin_backoffice",
+    "shopping_admin:customer_address_telephone_detail": "admin_backoffice",
+    "shopping_admin:search_term_query_grid": "admin_backoffice",
+    "shopping_admin:customer_address_firstname_order": "admin_backoffice",
+    "shopping_admin:customer_address_lastname_order": "admin_backoffice"
+  },
+  "site_kinds": {
+    "marketplace_review": {
+      "file": "marketplace_review.json"
+    },
+    "developer_collab": {
+      "file": "developer_collab.json"
+    },
+    "forum_ugc": {
+      "file": "forum_ugc.json"
+    },
+    "map_ugc": {
+      "file": "map_ugc.json"
+    },
+    "admin_backoffice": {
+      "file": "admin_backoffice.json"
+    }
+  }
+}

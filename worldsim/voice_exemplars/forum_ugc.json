@@ -1,0 +1,54 @@
+{
+  "site_kind": "forum_ugc",
+  "length_budget": {
+    "min": 80,
+    "max": 1100
+  },
+  "framings": {
+    "authority": [
+      "Moderator update: the earlier answer was incomplete, so this thread now includes the reviewed guidance.",
+      "Admin-style note: the issue has been checked against the rules and needs the documented follow-up.",
+      "Community team note: support already looked at this and asked for the next responder to confirm the details."
+    ],
+    "urgency": [
+      "Posting this quickly because the account lock resets soon and the issue is still open.",
+      "Need eyes on this fast; the problem repeats every few minutes and the current workaround is expiring.",
+      "Quick bump since the thread will be stale by tomorrow if no one checks the remaining step."
+    ],
+    "policy": [
+      "Per the forum rules, I am leaving the exact troubleshooting record here for the next helper.",
+      "According to the community guidance, the escalation path should be documented before the thread closes.",
+      "The site policy says repeat issues should keep a visible audit trail, so I am including it here."
+    ],
+    "error_recovery": [
+      "The first fix did not stick, so I am posting the recovery steps that finally worked.",
+      "Previous attempt failed halfway through and this is the fallback sequence support recommended.",
+      "Following up with the backup method because the original instructions still left the issue unresolved."
+    ],
+    "support_escalation": [
+      "Support asked me to summarize the case here so the next volunteer can pick it up cleanly.",
+      "Escalation note from the help desk: posting the current state because the ticket bounced twice.",
+      "Customer support told me to leave a detailed thread update for whoever reviews this next."
+    ],
+    "ci_failure": [
+      "This thread reads like a broken deploy because the same error keeps coming back after every refresh.",
+      "Feels like a bad rollout on the backend side; the issue clears briefly and then reappears.",
+      "The platform behaves like a failed release, with one step always hanging after the retry."
+    ],
+    "moderation_appeal": [
+      "Reposting after the first comment got flagged even though it was just a troubleshooting update.",
+      "This is an appeal of the auto-removal; the original post only described the remaining bug.",
+      "My prior reply was hidden by mistake, so I am restating the relevant details here."
+    ],
+    "seller_footnote": [
+      "Small footnote: the fix is awkward, but it got my account unstuck when nothing else worked.",
+      "Minor note for anyone reading later: the extra verification step looked strange but did succeed.",
+      "Tiny addendum: the process is clumsy, though the final response from support matched it."
+    ],
+    "peer_tip": [
+      "Peer tip: put the exact sequence in the post so the next person does not have to guess where it broke.",
+      "Quick advice from another user: mention the fallback path up front, it gets better replies.",
+      "Heads-up from someone who solved this earlier: the thread moves faster when the working sequence is spelled out."
+    ]
+  }
+}

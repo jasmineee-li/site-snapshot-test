@@ -144,6 +144,127 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
     return errors
 
 
+def self_contained_adversarial_seed_error(benign_seed: object, adversarial_seed: object) -> str | None:
+    if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
+        return None
+    mechanism = benign_seed.get("mechanism")
+    if mechanism in (None, "none"):
+        return None
+    if benign_seed.get("mechanism") != adversarial_seed.get("mechanism"):
+        return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    if mechanism == "sql":
+        benign_statements = benign_seed.get("statements")
+        adversarial_statements = adversarial_seed.get("statements")
+        if not isinstance(benign_statements, list) or not isinstance(adversarial_statements, list):
+            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        if adversarial_statements[: len(benign_statements)] != benign_statements:
+            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        return None
+    if mechanism in {"api", "form"}:
+        benign_calls = benign_seed.get("api_calls")
+        adversarial_calls = adversarial_seed.get("api_calls")
+        if not isinstance(benign_calls, list) or not isinstance(adversarial_calls, list):
+            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        if adversarial_calls[: len(benign_calls)] != benign_calls:
+            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        return None
+    if benign_seed != adversarial_seed:
+        return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    return None
+
+
+def validate_seed_template_contract(seed_template: object) -> list[str]:
+    errors = validate_data_seed(seed_template, allow_none=False)
+    if errors:
+        return errors
+    if not isinstance(seed_template, dict):
+        return ["seed_template must be an object"]
+
+    mechanism = seed_template.get("mechanism")
+    if mechanism not in {"sql", "api", "form"}:
+        return ["seed_template mechanism must be one of {'sql', 'api', 'form'}"]
+
+    total_placeholders = _count_placeholder_occurrences(seed_template)
+    if total_placeholders != 1:
+        return ["seed_template must contain exactly one {{PAYLOAD_TEXT}} placeholder"]
+
+    if mechanism == "sql":
+        return _validate_sql_placeholder_context(seed_template)
+
+    api_calls = seed_template.get("api_calls")
+    if not isinstance(api_calls, list):
+        return [f"{mechanism} seed_template must include api_calls"]
+    expected_body_key = "body_form" if mechanism == "form" else "body"
+    placeholder_count = 0
+    for call in api_calls:
+        if not isinstance(call, dict):
+            return [f"{mechanism} seed_template api_calls entries must be objects"]
+        body = call.get(expected_body_key)
+        if isinstance(body, dict):
+            placeholder_count += _count_placeholder_occurrences(body)
+    if placeholder_count != 1:
+        return [
+            f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one {expected_body_key} field"
+        ]
+    return []
+
+
+def _count_placeholder_occurrences(value: object) -> int:
+    if isinstance(value, str):
+        return value.count(_PAYLOAD_PLACEHOLDER)
+    if isinstance(value, list):
+        return sum(_count_placeholder_occurrences(item) for item in value)
+    if isinstance(value, dict):
+        return sum(_count_placeholder_occurrences(item) for item in value.values())
+    return 0
+
+
+def _validate_sql_placeholder_context(seed_template: dict[str, object]) -> list[str]:
+    statements = seed_template.get("statements")
+    if not isinstance(statements, list):
+        return ["sql seed_template must include statements"]
+    for statement in statements:
+        if not isinstance(statement, str):
+            return ["sql seed_template statements must be strings"]
+        placeholder_count = statement.count(_PAYLOAD_PLACEHOLDER)
+        if placeholder_count <= 0:
+            continue
+        if not _statement_has_exact_placeholder_sql_value(statement):
+            return ["sql seed_template must place {{PAYLOAD_TEXT}} inside a quoted SQL string literal"]
+    return []
+
+
+def _statement_has_exact_placeholder_sql_value(statement: str) -> bool:
+    insert_match = re.match(
+        r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)\s*VALUES\s*\((.*)\)\s*$",
+        statement,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if insert_match:
+        values = _split_sql_csv(insert_match.group(2))
+        return any(_is_exact_placeholder_sql_literal(value) for value in values)
+
+    update_match = _SQL_UPDATE_SET_CLAUSE.search(statement)
+    if not update_match:
+        return False
+    assignments = _split_sql_csv(update_match.group(1))
+    for assignment in assignments:
+        _, sep, value = assignment.partition("=")
+        if not sep:
+            return False
+        if _is_exact_placeholder_sql_literal(value):
+            return True
+    return False
+
+
+def _is_exact_placeholder_sql_literal(value: str) -> bool:
+    normalized = value.strip()
+    if normalized.count(_PAYLOAD_PLACEHOLDER) != 1:
+        return False
+    match = _SQL_STRING_LITERAL.fullmatch(normalized)
+    return match is not None and match.group(0).count(_PAYLOAD_PLACEHOLDER) == 1
+
+
 # ---------------------------------------------------------------------------
 # Per-schema validators
 # ---------------------------------------------------------------------------
@@ -232,6 +353,22 @@ _FRAMINGS = frozenset(
     }
 )
 _ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
+_PAYLOAD_PLACEHOLDER = "{{PAYLOAD_TEXT}}"
+_FORBIDDEN_PLAN_FIELDS = frozenset(
+    {
+        "payload_texts",
+        "selected_payload_index",
+        "payload_text_diagnostics",
+        "adversarial_data_seed",
+    }
+)
+_FINAL_STAGE_ONLY_FIELDS = frozenset(
+    {
+        "payload_texts",
+        "selected_payload_index",
+        "payload_text_diagnostics",
+    }
+)
 
 
 def _entity_field_index(data_model: object) -> dict[str, set[str]]:
@@ -635,8 +772,17 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         except json.JSONDecodeError:
             errors.append("could not parse BENCHMARK_PROFILE.json for cross-reference")
 
-    # Minimal schema only requires these fields from Claude's output.
-    _REQUIRED_FIELDS = (
+    _REQUIRED_PLAN_FIELDS = (
+        "id",
+        "benign_task_id",
+        "target_surface_id",
+        "framing",
+        "concealment",
+        "delivery_mechanism",
+        "attack_objective",
+        "seed_template",
+    )
+    _REQUIRED_V1_FIELDS = (
         "id",
         "benign_task_id",
         "target_surface_id",
@@ -655,10 +801,22 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         task_id = str(task.get("id", "?"))
         prefix = f"task {i} ({task_id})"
 
-        missing = [f for f in _REQUIRED_FIELDS if f not in task]
+        is_plan = "seed_template" in task
+        missing = [f for f in (_REQUIRED_PLAN_FIELDS if is_plan else _REQUIRED_V1_FIELDS) if f not in task]
         if missing:
             errors.append(f"{prefix} missing required fields: {', '.join(missing)}")
             continue
+        final_stage_fields = sorted(_FINAL_STAGE_ONLY_FIELDS.intersection(task.keys()))
+        if final_stage_fields:
+            errors.append(
+                f"{prefix} must not include Phase 2b/final-task fields: {', '.join(final_stage_fields)}"
+            )
+        if is_plan:
+            forbidden_fields = sorted(_FORBIDDEN_PLAN_FIELDS.intersection(task.keys()))
+            if forbidden_fields:
+                errors.append(
+                    f"{prefix} must not include Phase 2b/final-task fields: {', '.join(forbidden_fields)}"
+                )
 
         # Cross-reference benign task
         benign_task_id = str(task.get("benign_task_id", ""))
@@ -691,10 +849,22 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         elif "type" not in adv_reward:
             errors.append(f"{prefix} adversarial_reward missing type field")
 
-        # Validate adversarial_data_seed
-        seed_errors = validate_data_seed(task.get("adversarial_data_seed"), allow_none=False)
+        seed_key = "seed_template" if is_plan else "adversarial_data_seed"
+        seed_errors = (
+            validate_seed_template_contract(task.get(seed_key))
+            if is_plan
+            else validate_data_seed(task.get(seed_key), allow_none=False)
+        )
         for se in seed_errors:
-            errors.append(f"{prefix} adversarial_data_seed: {se}")
+            errors.append(f"{prefix} {seed_key}: {se}")
+
+        if is_plan:
+            attack_objective = task.get("attack_objective")
+            if not isinstance(attack_objective, str) or not attack_objective.strip():
+                errors.append(f"{prefix} attack_objective must be a non-empty string")
+            seed_template = task.get("seed_template")
+        else:
+            seed_template = task.get("adversarial_data_seed")
 
         framing = task.get("framing")
         if framing not in _FRAMINGS:
@@ -757,45 +927,92 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                         "research-mode channels, which are excluded from default adversarial tasks"
                     )
 
-                seed_writes = _extract_seed_writes(task.get("adversarial_data_seed"))
-                if not seed_writes:
-                    errors.append(
-                        f"{prefix} could not determine the adversarial_data_seed target for "
-                        f"target_surface_id={target_surface_id!r}"
-                    )
-                else:
-                    if any(write.get("mechanism") != delivery_mechanism for write in seed_writes):
+                if is_plan:
+                    if delivery_mechanism == "sql" and _surface_has_non_privileged_http(target_surface):
                         errors.append(
-                            f"{prefix} delivery_mechanism={delivery_mechanism!r} does not match "
-                            "the mechanism declared in adversarial_data_seed"
+                            f"{prefix} delivery_mechanism='sql' is only allowed when the target surface has no non-privileged HTTP channel"
                         )
-                    violating_target = next(
-                        (
-                            seed_write
-                            for seed_write in seed_writes
-                            if _surface_matches_write(target_surface, seed_write) is not None
-                        ),
-                        None,
-                    )
-                    if violating_target is not None:
-                        actual_target = _format_seed_write(violating_target)
-                        available = _format_surface_delivery_channels(target_surface)
-                        other_surface = _surface_for_seed_write(
-                            benchmark_profile,
-                            violating_target,
-                            exclude_id=target_surface_id,
+
+                    attack_write = _extract_attack_write(seed_template)
+                    if attack_write is None:
+                        errors.append(
+                            f"{prefix} could not determine the seed payload target for "
+                            f"target_surface_id={target_surface_id!r}"
                         )
-                        message = (
-                            f"{prefix} declared target_surface_id={target_surface_id!r} but seed targets "
-                            f"{actual_target!r}, which is not registered to that surface. "
-                            f"Available delivery_channels for {target_surface_id}: {available}."
+                    else:
+                        if attack_write.get("mechanism") != delivery_mechanism:
+                            errors.append(
+                                f"{prefix} delivery_mechanism={delivery_mechanism!r} does not match "
+                                "the mechanism declared in the seed payload"
+                            )
+                        elif attack_write.get("placeholder_count") != 1:
+                            errors.append(
+                                f"{prefix} seed payload must contain exactly one {_PAYLOAD_PLACEHOLDER} placeholder"
+                            )
+                        violating_target = _surface_matches_attack_write(target_surface, attack_write)
+                        if violating_target is not None:
+                            actual_target = _format_seed_write(attack_write)
+                            available = _format_surface_delivery_channels(target_surface)
+                            other_surface = _surface_for_attack_write(
+                                benchmark_profile,
+                                attack_write,
+                                exclude_id=target_surface_id,
+                            )
+                            message = (
+                                f"{prefix} declared target_surface_id={target_surface_id!r} but seed targets "
+                                f"{actual_target!r}, which is not registered to that surface. "
+                                f"Available delivery_channels for {target_surface_id}: {available}."
+                            )
+                            if other_surface is not None:
+                                message += f" Did you mean that surface {other_surface!r}?"
+                            errors.append(message)
+                else:
+                    seed_writes = _extract_seed_writes(task.get("adversarial_data_seed"))
+                    if not seed_writes:
+                        errors.append(
+                            f"{prefix} could not determine the adversarial_data_seed target for "
+                            f"target_surface_id={target_surface_id!r}"
                         )
-                        if other_surface is not None:
-                            message += f" Did you mean that surface {other_surface!r}?"
-                        errors.append(message)
+                    else:
+                        if any(write.get("mechanism") != delivery_mechanism for write in seed_writes):
+                            errors.append(
+                                f"{prefix} delivery_mechanism={delivery_mechanism!r} does not match "
+                                "the mechanism declared in adversarial_data_seed"
+                            )
+                        violating_target = next(
+                            (
+                                seed_write
+                                for seed_write in seed_writes
+                                if _surface_matches_write(target_surface, seed_write) is not None
+                            ),
+                            None,
+                        )
+                        if violating_target is not None:
+                            actual_target = _format_seed_write(violating_target)
+                            available = _format_surface_delivery_channels(target_surface)
+                            other_surface = _surface_for_seed_write(
+                                benchmark_profile,
+                                violating_target,
+                                exclude_id=target_surface_id,
+                            )
+                            message = (
+                                f"{prefix} declared target_surface_id={target_surface_id!r} but seed targets "
+                                f"{actual_target!r}, which is not registered to that surface. "
+                                f"Available delivery_channels for {target_surface_id}: {available}."
+                            )
+                            if other_surface is not None:
+                                message += f" Did you mean that surface {other_surface!r}?"
+                            errors.append(message)
 
         benign_task = benign_by_id.get(benign_task_id) if benign_by_id else None
-        if benign_task is not None:
+        if benign_task is not None and is_plan:
+            self_contained_error = self_contained_adversarial_seed_error(
+                benign_task.get("data_seed"),
+                seed_template,
+            )
+            if self_contained_error is not None:
+                errors.append(f"{prefix} {self_contained_error}")
+        if benign_task is not None and not is_plan:
             diff_error = _validate_discriminating_payload(
                 benign_task.get("data_seed"),
                 task.get("adversarial_data_seed"),
@@ -928,6 +1145,7 @@ def _extract_seed_writes(
         if not isinstance(api_calls, list) or not api_calls:
             return None
         writes: list[dict[str, object]] = []
+        body_key = "body_form" if mechanism == "form" else "body"
         for call in api_calls:
             if not isinstance(call, dict):
                 return None
@@ -938,10 +1156,9 @@ def _extract_seed_writes(
             if not isinstance(path, str) or not path.startswith("/"):
                 return None
             fields: set[str] = set()
-            for body_key in ("body_form", "body"):
-                body = call.get(body_key)
-                if isinstance(body, dict):
-                    fields.update(str(key) for key in body.keys())
+            body = call.get(body_key)
+            if isinstance(body, dict):
+                fields.update(str(key) for key in body.keys())
             writes.append(
                 (
                     {
@@ -1005,12 +1222,241 @@ def _surface_matches_write(
         if (
             isinstance(expected_field, str)
             and isinstance(write_fields, set)
-            and write_fields == {expected_field}
+            and (
+                expected_field in write_fields
+                if canonical[0] == "sql"
+                else write_fields == {expected_field}
+            )
         ):
             return None
         if closest_mismatch is None:
             closest_mismatch = _format_entry_match(entry)
     return closest_mismatch
+
+
+def _surface_has_non_privileged_http(surface: dict[str, object]) -> bool:
+    delivery_channels = surface.get("delivery_channels")
+    if not isinstance(delivery_channels, list):
+        return False
+    for entry in delivery_channels:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("privileged_seed") is not False:
+            continue
+        if entry.get("mechanism") in {"api", "form"}:
+            return True
+    return False
+
+
+def _extract_attack_write(seed: dict[str, object] | object) -> dict[str, object] | None:
+    if not isinstance(seed, dict):
+        return None
+    mechanism = seed.get("mechanism")
+    if mechanism == "sql":
+        statements = seed.get("statements")
+        if not isinstance(statements, list) or not statements:
+            return None
+        matches: list[dict[str, object]] = []
+        for statement in statements:
+            if not isinstance(statement, str):
+                return None
+            placeholder_count = statement.count(_PAYLOAD_PLACEHOLDER)
+            if placeholder_count <= 0:
+                continue
+            if validate_seed_sql(statement) is not None:
+                return None
+            insert_match = _SQL_INSERT_TARGET.match(statement)
+            update_match = _SQL_UPDATE_TARGET.match(statement)
+            table = (
+                insert_match.group(1)
+                if insert_match
+                else update_match.group(1)
+                if update_match
+                else None
+            )
+            if not isinstance(table, str) or not table.strip():
+                return None
+            columns = _extract_sql_columns(statement)
+            placeholder_fields = _extract_sql_placeholder_fields(statement)
+            if not placeholder_fields:
+                return None
+            matches.append(
+                {
+                    "mechanism": "sql",
+                    "resource": f"table:{table.strip('`\"')}",
+                    "fields": columns,
+                    "placeholder_fields": placeholder_fields,
+                    "placeholder_count": placeholder_count,
+                }
+            )
+        return matches[0] if len(matches) == 1 else None
+
+    if mechanism in {"api", "form"}:
+        api_calls = seed.get("api_calls")
+        if not isinstance(api_calls, list) or not api_calls:
+            return None
+        matches: list[dict[str, object]] = []
+        body_key = "body_form" if mechanism == "form" else "body"
+        for call in api_calls:
+            if not isinstance(call, dict):
+                return None
+            method = call.get("method")
+            path = call.get("path")
+            if not isinstance(method, str) or not method.strip():
+                return None
+            if not isinstance(path, str) or not path.startswith("/"):
+                return None
+            body = call.get(body_key)
+            if not isinstance(body, dict):
+                continue
+            placeholder_fields = {
+                str(key)
+                for key, value in body.items()
+                if isinstance(value, str) and _PAYLOAD_PLACEHOLDER in value
+            }
+            placeholder_count = sum(
+                value.count(_PAYLOAD_PLACEHOLDER)
+                for value in body.values()
+                if isinstance(value, str)
+            )
+            if placeholder_count <= 0:
+                continue
+            matches.append(
+                {
+                    "mechanism": str(mechanism),
+                    "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
+                    "fields": {str(key) for key in body.keys()},
+                    "placeholder_fields": placeholder_fields,
+                    "placeholder_count": placeholder_count,
+                }
+            )
+        return matches[0] if len(matches) == 1 else None
+
+    return None
+
+
+def _surface_matches_attack_write(
+    surface: dict[str, object],
+    write: dict[str, object],
+) -> str | None:
+    closest_mismatch: str | None = None
+    delivery_channels = surface.get("delivery_channels")
+    if not isinstance(delivery_channels, list):
+        return "no registered delivery_channels"
+    for entry in delivery_channels:
+        if not isinstance(entry, dict) or entry.get("privileged_seed") is not False:
+            continue
+        canonical = _canonical_delivery_channel_entry(entry)
+        if canonical is None:
+            continue
+        if canonical != (write.get("mechanism"), write.get("resource")):
+            if closest_mismatch is None:
+                closest_mismatch = _format_entry_match(entry)
+            continue
+        expected_field = entry.get("column") if canonical[0] == "sql" else entry.get("body_field")
+        placeholder_fields = write.get("placeholder_fields")
+        if (
+            isinstance(expected_field, str)
+            and isinstance(placeholder_fields, set)
+            and placeholder_fields == {expected_field}
+            and write.get("placeholder_count") == 1
+        ):
+            return None
+        if closest_mismatch is None:
+            closest_mismatch = _format_entry_match(entry)
+    return closest_mismatch
+
+
+def _extract_sql_placeholder_fields(statement: str) -> set[str] | None:
+    insert_match = re.match(
+        r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)\s*VALUES\s*\((.*)\)\s*$",
+        statement,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if insert_match:
+        columns = [
+            column.strip().strip('`"')
+            for column in insert_match.group(1).split(",")
+            if column.strip()
+        ]
+        values = _split_sql_csv(insert_match.group(2))
+        if len(columns) != len(values):
+            return None
+        placeholder_fields = {
+            column
+            for column, value in zip(columns, values)
+            if _PAYLOAD_PLACEHOLDER in value
+        }
+        if not placeholder_fields:
+            return set()
+        for value in values:
+            if _PAYLOAD_PLACEHOLDER not in value:
+                continue
+            if not _is_exact_placeholder_sql_literal(value):
+                return None
+        return placeholder_fields
+
+    update_match = _SQL_UPDATE_SET_CLAUSE.search(statement)
+    if not update_match:
+        return None
+    assignments = _split_sql_csv(update_match.group(1))
+    placeholder_fields: set[str] = set()
+    for assignment in assignments:
+        column, sep, value = assignment.partition("=")
+        if not sep:
+            return None
+        normalized_column = column.strip().strip('`"')
+        if not normalized_column:
+            return None
+        if _PAYLOAD_PLACEHOLDER not in value:
+            continue
+        if not _is_exact_placeholder_sql_literal(value):
+            return None
+        placeholder_fields.add(normalized_column)
+    return placeholder_fields
+
+
+def _is_exact_placeholder_sql_literal(value: str) -> bool:
+    normalized = value.strip()
+    if normalized.count(_PAYLOAD_PLACEHOLDER) != 1:
+        return False
+    match = _SQL_STRING_LITERAL.fullmatch(normalized)
+    return match is not None and match.group(0).count(_PAYLOAD_PLACEHOLDER) == 1
+
+
+def _split_sql_csv(value: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    in_string = False
+    depth = 0
+    i = 0
+    while i < len(value):
+        char = value[i]
+        if char == "'":
+            current.append(char)
+            if in_string and i + 1 < len(value) and value[i + 1] == "'":
+                current.append(value[i + 1])
+                i += 2
+                continue
+            in_string = not in_string
+            i += 1
+            continue
+        if not in_string:
+            if char == "(":
+                depth += 1
+            elif char == ")" and depth > 0:
+                depth -= 1
+            elif char == "," and depth == 0:
+                parts.append("".join(current).strip())
+                current = []
+                i += 1
+                continue
+        current.append(char)
+        i += 1
+    tail = "".join(current).strip()
+    if tail:
+        parts.append(tail)
+    return parts
 
 
 def _surface_for_seed_target(
@@ -1043,6 +1489,23 @@ def _surface_for_seed_write(
         if exclude_id is not None and surface_id == exclude_id:
             continue
         if _surface_matches_write(surface, write) is None and isinstance(surface_id, str):
+            return surface_id
+    return None
+
+
+def _surface_for_attack_write(
+    benchmark_profile: dict[str, object],
+    write: dict[str, object],
+    *,
+    exclude_id: str | None = None,
+) -> str | None:
+    for surface in benchmark_profile.get("injection_surface", []):
+        if not isinstance(surface, dict):
+            continue
+        surface_id = surface.get("id")
+        if exclude_id is not None and surface_id == exclude_id:
+            continue
+        if _surface_matches_attack_write(surface, write) is None and isinstance(surface_id, str):
             return surface_id
     return None
 
@@ -1119,11 +1582,10 @@ def _extract_target_field_values(
             body_field = entry.get("body_field")
             if not isinstance(body_field, str) or not body_field:
                 continue
-            for body_key in ("body_form", "body"):
-                body = call.get(body_key)
-                if isinstance(body, dict) and body_field in body:
-                    values.append(_normalize_payload_value(body[body_field]))
-                    break
+            body_key = "body_form" if seed_target[0] == "form" else "body"
+            body = call.get(body_key)
+            if isinstance(body, dict) and body_field in body:
+                values.append(_normalize_payload_value(body[body_field]))
     return values
 
 

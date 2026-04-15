@@ -437,6 +437,40 @@ def test_dispatch_resume_restores_saved_phase_2_traffic_shaping(monkeypatch, tmp
     assert captured["phase_2_launch_jitter_ms"] == 400
 
 
+def test_dispatch_resume_restores_saved_phase_2_text_fill_flags(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_2",
+        status="running",
+        sandbox_model="claude-sonnet-4-6",
+        phase_2b_texts_per_plan=3,
+        phase_2_text_fill_concurrency=9,
+        phase_2_text_model="anthropic/claude-sonnet-4.5",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["phase_2b_texts_per_plan"] = args.phase_2b_texts_per_plan
+        captured["phase_2_text_fill_concurrency"] = args.phase_2_text_fill_concurrency
+        captured["phase_2_text_model"] = args.phase_2_text_model
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "2"
+    assert captured["phase_2b_texts_per_plan"] == 3
+    assert captured["phase_2_text_fill_concurrency"] == 9
+    assert captured["phase_2_text_model"] == "anthropic/claude-sonnet-4.5"
+
+
 def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
