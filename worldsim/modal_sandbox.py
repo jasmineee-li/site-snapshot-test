@@ -12,7 +12,9 @@ import json
 import logging
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import modal
 
@@ -28,6 +30,9 @@ CLAUDE_ALLOWED_ENV_VARS: tuple[str, ...] = (
 )
 
 NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
+SANDBOX_WATCHDOG_SILENCE_SECONDS = 20 * 60
+SANDBOX_WATCHDOG_POLL_SECONDS = 15
+SANDBOX_RATE_LIMIT_GRACE_SECONDS = 90
 
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -139,6 +144,94 @@ _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 _VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
 
 
+class SandboxRetriableTimeoutError(TimeoutError):
+    """Raised when the sandbox appears stalled but is safe to retry."""
+
+    retriable = True
+
+    def __init__(self, message: str, *, label: str = "") -> None:
+        super().__init__(message)
+        self.label = label
+
+
+@dataclass
+class SandboxWatchdogState:
+    """Track shard liveness across normal progress and rate-limit backoff."""
+
+    last_event_at: float
+    last_non_rate_limit_progress_at: float
+    blocked_until: float | None = None
+    consecutive_rejected_rate_limits: int = 0
+
+
+def _coerce_float(value: Any) -> float | None:
+    """Best-effort float coercion for JSON event fields."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _update_watchdog_state(
+    state: SandboxWatchdogState,
+    event: dict[str, Any],
+    *,
+    now_monotonic: float,
+    now_wall: float,
+) -> None:
+    """Record liveness state from a sandbox NDJSON event."""
+    state.last_event_at = now_monotonic
+    if event.get("type") != "rate_limit":
+        state.last_non_rate_limit_progress_at = now_monotonic
+        state.blocked_until = None
+        state.consecutive_rejected_rate_limits = 0
+        return
+
+    if event.get("status") == "rejected":
+        state.consecutive_rejected_rate_limits += 1
+        resets_at = _coerce_float(event.get("resets_at"))
+        if resets_at is not None:
+            state.blocked_until = max(resets_at, now_wall)
+            return
+        retry_after_seconds = _coerce_float(event.get("retry_after_seconds"))
+        if retry_after_seconds is not None:
+            state.blocked_until = now_wall + max(0.0, retry_after_seconds)
+            return
+        state.blocked_until = None
+        return
+
+    state.blocked_until = None
+    state.consecutive_rejected_rate_limits = 0
+
+
+def _watchdog_timeout_reason(
+    state: SandboxWatchdogState,
+    *,
+    now_monotonic: float,
+    now_wall: float,
+    silence_seconds: int = SANDBOX_WATCHDOG_SILENCE_SECONDS,
+    rate_limit_grace_seconds: int = SANDBOX_RATE_LIMIT_GRACE_SECONDS,
+) -> str | None:
+    """Return a timeout reason when the shard appears stalled."""
+    if state.consecutive_rejected_rate_limits > 0 and state.blocked_until is not None:
+        if now_wall > state.blocked_until + rate_limit_grace_seconds:
+            quiet_for = now_monotonic - state.last_non_rate_limit_progress_at
+            return (
+                "no non-rate-limit progress after rejected rate limit backoff "
+                f"(quiet={quiet_for:.0f}s, blocked_until={state.blocked_until:.0f}, "
+                f"rejected_events={state.consecutive_rejected_rate_limits})"
+            )
+
+    quiet_for = now_monotonic - state.last_event_at
+    if quiet_for > silence_seconds:
+        return f"no sandbox events for {quiet_for:.0f}s"
+    return None
+
+
 async def _get_app() -> modal.App:
     """Look up (or create) the Modal App for this pipeline.
 
@@ -242,7 +335,13 @@ async def run_claude_in_sandbox(
         summary_data: dict | None = None
         turn_count = 0
         sandbox_start = time.monotonic()
+        watchdog_state = SandboxWatchdogState(
+            last_event_at=sandbox_start,
+            last_non_rate_limit_progress_at=sandbox_start,
+        )
         stderr_lines: list[str] = []
+        watchdog_done = asyncio.Event()
+        watchdog_reason: str | None = None
 
         async def _drain_stdout() -> None:
             nonlocal summary_data, turn_count
@@ -261,6 +360,13 @@ async def run_claude_in_sandbox(
                         )
                         continue
 
+                    now_monotonic = time.monotonic()
+                    _update_watchdog_state(
+                        watchdog_state,
+                        event,
+                        now_monotonic=now_monotonic,
+                        now_wall=time.time(),
+                    )
                     etype = event.get("type")
                     if etype == "tool_call":
                         turn_count += 1
@@ -285,10 +391,17 @@ async def run_claude_in_sandbox(
                         preview = (event.get("preview", "") or "")[:100]
                         logger.debug("  %s[sandbox] thinking: %s", tag, preview)
                     elif etype == "rate_limit":
+                        status = event.get("status")
+                        rate_limit_type = event.get("rate_limit_type")
+                        utilization = event.get("utilization")
                         logger.warning(
-                            "  %s[sandbox] rate limited, retry after %ss",
+                            "  %s[sandbox] rate limited status=%s type=%s retry_after=%ss resets_at=%s utilization=%s",
                             tag,
+                            status,
+                            rate_limit_type,
                             event.get("retry_after_seconds"),
+                            event.get("resets_at"),
+                            utilization,
                         )
                     elif etype == "error":
                         logger.warning("  %s[sandbox] SDK error: %s", tag, event.get("message"))
@@ -315,9 +428,36 @@ async def run_claude_in_sandbox(
                 except Exception:
                     pass
 
-        await asyncio.gather(_drain_stdout(), _drain_stderr())
+        async def _watchdog() -> None:
+            nonlocal watchdog_reason
+            while not watchdog_done.is_set():
+                await asyncio.sleep(SANDBOX_WATCHDOG_POLL_SECONDS)
+                reason = _watchdog_timeout_reason(
+                    watchdog_state,
+                    now_monotonic=time.monotonic(),
+                    now_wall=time.time(),
+                )
+                if reason is None:
+                    continue
+                watchdog_reason = reason
+                logger.error("  %s[sandbox] watchdog timeout: %s", tag, reason)
+                try:
+                    await sandbox.terminate.aio()
+                except Exception as exc:
+                    logger.warning("%sSandbox watchdog terminate failed: %s", tag, exc)
+                return
 
-        await claude_ps.wait.aio()
+        watchdog_task = asyncio.create_task(_watchdog())
+        await asyncio.gather(_drain_stdout(), _drain_stderr())
+        watchdog_done.set()
+        try:
+            await claude_ps.wait.aio()
+        finally:
+            watchdog_task.cancel()
+            try:
+                await watchdog_task
+            except asyncio.CancelledError:
+                pass
 
         # Surface stderr so import failures, SDK errors, and tracebacks
         # are visible instead of silently lost.
@@ -338,6 +478,12 @@ async def run_claude_in_sandbox(
             )
         else:
             logger.info("%sSandbox runner exited (rc=0, %d tool calls)", tag, turn_count)
+
+        if watchdog_reason is not None:
+            raise SandboxRetriableTimeoutError(
+                f"{label or 'sandbox'} stalled: {watchdog_reason}",
+                label=label,
+            )
 
         # -- Read output files -------------------------------------------------
         outputs: dict[str, str | None] = {}

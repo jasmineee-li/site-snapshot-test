@@ -122,6 +122,22 @@ def build_parser() -> argparse.ArgumentParser:
         "entries are preserved on merge.",
     )
     phase_cmd.add_argument(
+        "--phase-2-sandbox-concurrency",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help="Phase 2: cap concurrent sandbox shards to at most N launches. "
+        "Omit to use the phase default.",
+    )
+    phase_cmd.add_argument(
+        "--phase-2-launch-jitter-ms",
+        type=_positive_int,
+        default=None,
+        metavar="MS",
+        help="Phase 2: add up to MS of deterministic per-shard launch jitter "
+        "to smooth burst traffic. Omit to use the phase default.",
+    )
+    phase_cmd.add_argument(
         "--allow-unknown-auth",
         action="store_true",
         default=False,
@@ -190,6 +206,20 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="SITE[,SITE...]",
         help="Override the saved Phase 2 site filter on resume.",
+    )
+    resume_cmd.add_argument(
+        "--phase-2-sandbox-concurrency",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override the saved Phase 2 sandbox concurrency on resume.",
+    )
+    resume_cmd.add_argument(
+        "--phase-2-launch-jitter-ms",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="MS",
+        help="Override the saved Phase 2 launch jitter on resume.",
     )
     resume_cmd.add_argument(
         "--allow-unknown-auth",
@@ -313,6 +343,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     full_baseline = getattr(args, "full_baseline", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites = getattr(args, "sites", None)
+    phase_2_sandbox_concurrency = getattr(args, "phase_2_sandbox_concurrency", None)
+    phase_2_launch_jitter_ms = getattr(args, "phase_2_launch_jitter_ms", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -333,6 +365,10 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         full_baseline = state.get("full_baseline", False)
     if sites is None:
         sites = state.get("sites")
+    if phase_2_sandbox_concurrency is None:
+        phase_2_sandbox_concurrency = state.get("phase_2_sandbox_concurrency")
+    if phase_2_launch_jitter_ms is None:
+        phase_2_launch_jitter_ms = state.get("phase_2_launch_jitter_ms")
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -355,6 +391,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
         sites=sites,
+        phase_2_sandbox_concurrency=phase_2_sandbox_concurrency,
+        phase_2_launch_jitter_ms=phase_2_launch_jitter_ms,
         allow_unknown_auth=allow_unknown_auth,
     )
 

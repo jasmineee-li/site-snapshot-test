@@ -216,12 +216,32 @@ def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
     assert args.sandbox_model == "claude-opus-4-6"
 
 
+def test_build_parser_accepts_phase_2_traffic_shaping_flags():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(
+        [
+            "phase",
+            "2",
+            "--phase-2-sandbox-concurrency",
+            "3",
+            "--phase-2-launch-jitter-ms",
+            "500",
+        ]
+    )
+
+    assert args.phase_2_sandbox_concurrency == 3
+    assert args.phase_2_launch_jitter_ms == 500
+
+
 @pytest.mark.parametrize(
     "argv",
     [
         ["phase", "3", "--max-tasks-per-site", "0"],
         ["phase", "4", "--max-tasks-per-site", "-1"],
         ["resume", "--max-tasks-per-site", "0"],
+        ["phase", "2", "--phase-2-sandbox-concurrency", "0"],
+        ["resume", "--phase-2-launch-jitter-ms", "0"],
     ],
 )
 def test_build_parser_rejects_non_positive_max_tasks_per_site(argv):

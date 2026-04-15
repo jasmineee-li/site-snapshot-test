@@ -14,6 +14,52 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
+
+
+def _jsonable(obj: Any) -> Any:
+    """Convert SDK objects to plain JSON-serializable data."""
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, dict):
+        return {str(key): _jsonable(value) for key, value in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(item) for item in obj]
+    if hasattr(obj, "model_dump"):
+        return _jsonable(obj.model_dump())
+    if hasattr(obj, "__dict__"):
+        return _jsonable(vars(obj))
+    return str(obj)
+
+
+def _coerce_unix_timestamp(value: Any) -> float | None:
+    """Return a numeric Unix timestamp when one is present."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _rate_limit_event_payload(message: Any, *, now_ts: float | None = None) -> dict[str, Any]:
+    """Serialize a Claude Agent SDK rate-limit event for NDJSON logging."""
+    now_ts = time.time() if now_ts is None else now_ts
+    info = getattr(message, "rate_limit_info", None)
+    resets_at = _coerce_unix_timestamp(getattr(info, "resets_at", None))
+    retry_after_seconds = None
+    if resets_at is not None:
+        retry_after_seconds = max(0.0, resets_at - now_ts)
+    return {
+        "type": "rate_limit",
+        "status": getattr(info, "status", None),
+        "rate_limit_type": getattr(info, "rate_limit_type", getattr(info, "type", None)),
+        "resets_at": resets_at,
+        "retry_after_seconds": retry_after_seconds,
+        "utilization": _jsonable(getattr(info, "utilization", None)),
+    }
 
 
 async def main() -> None:
@@ -86,10 +132,7 @@ async def main() -> None:
                         }
                         print(json.dumps(event), flush=True)
             elif isinstance(message, RateLimitEvent):
-                event = {
-                    "type": "rate_limit",
-                    "retry_after_seconds": getattr(message, "retry_after_seconds", None),
-                }
+                event = _rate_limit_event_payload(message)
                 print(json.dumps(event), flush=True)
             elif isinstance(message, ResultMessage):
                 result_msg = message

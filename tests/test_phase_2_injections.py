@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from argparse import Namespace
 
@@ -810,3 +811,40 @@ async def test_generate_injections_for_site_passes_explicit_sandbox_model(monkey
 
     assert result.errors == []
     assert captured["model"] == "claude-opus-4-6"
+
+
+def test_launch_jitter_seconds_is_deterministic_and_bounded():
+    jitter = phase_2_injections._launch_jitter_seconds("gitlab-shard-6", 750)
+
+    assert jitter == phase_2_injections._launch_jitter_seconds("gitlab-shard-6", 750)
+    assert 0.0 <= jitter <= 0.75
+
+
+@pytest.mark.asyncio
+async def test_run_shard_with_limit_serializes_work(monkeypatch):
+    limiter = asyncio.Semaphore(1)
+    state = {"current": 0, "max": 0}
+
+    async def fake_generate(**kwargs):
+        state["current"] += 1
+        state["max"] = max(state["max"], state["current"])
+        await asyncio.sleep(0)
+        state["current"] -= 1
+        return phase_2_injections.SiteInjectionResult(kwargs["site_name"], [], [])
+
+    monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
+
+    await asyncio.gather(
+        phase_2_injections._run_shard_with_limit(
+            limiter,
+            launch_jitter_seconds=0.0,
+            site_name="shopping",
+        ),
+        phase_2_injections._run_shard_with_limit(
+            limiter,
+            launch_jitter_seconds=0.0,
+            site_name="gitlab",
+        ),
+    )
+
+    assert state["max"] == 1

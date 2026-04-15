@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -37,6 +38,8 @@ from worldsim.state import get_state_dir, save_state
 logger = logging.getLogger(__name__)
 
 TASKS_PER_SHARD = 20
+DEFAULT_SANDBOX_CONCURRENCY = 4
+DEFAULT_LAUNCH_JITTER_MS = 750
 _FRAMINGS = (
     "authority",
     "urgency",
@@ -83,10 +86,16 @@ async def run(args: argparse.Namespace) -> int:
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites_filter_raw = getattr(args, "sites", None)
+    sandbox_concurrency = (
+        getattr(args, "phase_2_sandbox_concurrency", None) or DEFAULT_SANDBOX_CONCURRENCY
+    )
+    launch_jitter_ms = getattr(args, "phase_2_launch_jitter_ms", None) or DEFAULT_LAUNCH_JITTER_MS
     state_metadata: dict[str, Any] = {
         "sandbox_model": sandbox_model,
         "max_tasks_per_site": max_tasks_per_site,
         "sites": sites_filter_raw,
+        "phase_2_sandbox_concurrency": sandbox_concurrency,
+        "phase_2_launch_jitter_ms": launch_jitter_ms,
     }
 
     # Load benign tasks from Phase 1
@@ -154,9 +163,11 @@ async def run(args: argparse.Namespace) -> int:
         logger.info("Phase 2: --sites filter active, running only %s", sorted(tasks_by_site.keys()))
 
     logger.info(
-        "Phase 2: generating injections for %d sites (%d total tasks)",
+        "Phase 2: generating injections for %d sites (%d total tasks, concurrency=%d, jitter<=%dms)",
         len(tasks_by_site),
         sum(len(ts) for ts in tasks_by_site.values()),
+        sandbox_concurrency,
+        launch_jitter_ms,
     )
 
     site_profiles, profile_errors = _collect_site_profiles(tasks_by_site, profiles_dir)
@@ -173,16 +184,19 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
 
-    # Shard each site's tasks into chunks of TASKS_PER_SHARD and run all
-    # shards in parallel.  Shopping (192 tasks) becomes ~8 shards instead of
-    # one 54-minute sandbox.
+    # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch them
+    # under a bounded semaphore with small deterministic jitter. Shopping
+    # (192 tasks) becomes ~8 shorter sandboxes without one large burst.
     shard_coros = []
+    shard_limiter = asyncio.Semaphore(sandbox_concurrency)
     for site, tasks in tasks_by_site.items():
         shards = _shard_tasks(tasks, TASKS_PER_SHARD)
         for shard_idx, shard in enumerate(shards):
             label = f"{site}-shard-{shard_idx}" if len(shards) > 1 else site
             shard_coros.append(
-                _generate_injections_for_site(
+                _run_shard_with_limit(
+                    shard_limiter,
+                    launch_jitter_seconds=_launch_jitter_seconds(label, launch_jitter_ms),
                     site_name=site,
                     site_tasks=shard,
                     all_site_tasks=tasks,
@@ -304,6 +318,28 @@ async def run(args: argparse.Namespace) -> int:
 def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
     """Split a task list into chunks of at most *shard_size*."""
     return [tasks[i : i + shard_size] for i in range(0, len(tasks), shard_size)]
+
+
+def _launch_jitter_seconds(label: str, jitter_ms: int) -> float:
+    """Return a deterministic launch jitter for a shard label."""
+    if jitter_ms <= 0:
+        return 0.0
+    digest = hashlib.sha256(label.encode("utf-8")).digest()
+    bucket = int.from_bytes(digest[:2], byteorder="big")
+    return (bucket % (jitter_ms + 1)) / 1000.0
+
+
+async def _run_shard_with_limit(
+    limiter: asyncio.Semaphore,
+    *,
+    launch_jitter_seconds: float,
+    **kwargs: Any,
+) -> SiteInjectionResult:
+    """Apply launch jitter and bounded concurrency around one shard sandbox."""
+    if launch_jitter_seconds > 0:
+        await asyncio.sleep(launch_jitter_seconds)
+    async with limiter:
+        return await _generate_injections_for_site(**kwargs)
 
 
 def _merge_shard_results(
