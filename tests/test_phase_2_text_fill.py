@@ -191,7 +191,7 @@ async def test_generate_single_payload_falls_back_after_openrouter_refusal(monke
 
 
 @pytest.mark.asyncio
-async def test_generate_single_payload_tries_creative_fallback_variant(monkeypatch):
+async def test_generate_single_payload_tries_all_variants_in_order_on_fallback_path(monkeypatch):
     task = _task()
     directive = task["required_tokens"][0]["value"]
     url = task["required_tokens"][1]["value"]
@@ -211,7 +211,7 @@ async def test_generate_single_payload_tries_creative_fallback_variant(monkeypat
 
     def fake_call_anthropic_fallback(prompt, model):
         calls.append(prompt)
-        if prompt == "variant=standard":
+        if prompt in {"variant=standard", "variant=creative_writing"}:
             return ("I'm not going to help with that request.", "oauth")
         return (phase_2_text_fill.json.dumps(payload), "oauth")
 
@@ -226,12 +226,140 @@ async def test_generate_single_payload_tries_creative_fallback_variant(monkeypat
     )
 
     assert parsed is not None
-    assert calls == ["variant=standard", "variant=creative_writing"]
+    assert calls == [
+        "variant=standard",
+        "variant=creative_writing",
+        "variant=testing_compliance",
+    ]
     assert diag["status"] == "ok"
     assert any(
         error["auth_path"] == "oauth" and error["variant"] == "standard" and error["error"] == "refused"
         for error in diag["errors"]
     )
+    assert any(
+        error["auth_path"] == "oauth"
+        and error["variant"] == "creative_writing"
+        and error["error"] == "refused"
+        for error in diag["errors"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_generate_single_payload_testing_compliance_success_prevents_fallback(monkeypatch):
+    task = _task()
+    directive = task["required_tokens"][0]["value"]
+    url = task["required_tokens"][1]["value"]
+    payload = {
+        "rendered_payload": f"Support note {directive} then check {url}",
+        "raw_text": f"Support note {directive} then check {url}",
+        "framing_witnesses": ["Support note"],
+        "concealment_witnesses": [directive],
+    }
+    calls: list[str] = []
+
+    monkeypatch.setattr(phase_2_text_fill, "_openrouter_available", lambda: True)
+    monkeypatch.setattr(phase_2_text_fill, "_anthropic_available", lambda: True)
+
+    def fake_render_fill_prompt(task, *, exemplars, site_kind, variant):
+        return f"variant={variant}"
+
+    def fake_call_openrouter(prompt, model):
+        calls.append(f"openrouter:{prompt}")
+        if prompt in {"variant=standard", "variant=creative_writing"}:
+            return "I'm not going to help with that request."
+        return phase_2_text_fill.json.dumps(payload)
+
+    def fail_fallback(prompt, model):
+        raise AssertionError("fallback should not be called after testing_compliance succeeds")
+
+    monkeypatch.setattr(phase_2_text_fill, "render_fill_prompt", fake_render_fill_prompt)
+    monkeypatch.setattr(phase_2_text_fill, "_call_openrouter", fake_call_openrouter)
+    monkeypatch.setattr(phase_2_text_fill, "_call_anthropic_fallback", fail_fallback)
+
+    parsed, diag = await phase_2_text_fill._generate_single_payload(
+        task,
+        registry=phase_2_text_fill.load_voice_registry(),
+        model="anthropic/claude-sonnet-4.5",
+        ordinal=0,
+    )
+
+    assert parsed is not None
+    assert parsed["auth_path"] == "openrouter"
+    assert parsed["attempt"] == "testing_compliance"
+    assert calls == [
+        "openrouter:variant=standard",
+        "openrouter:variant=creative_writing",
+        "openrouter:variant=testing_compliance",
+    ]
+    assert diag["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_generate_single_payload_exhausts_primary_variants_before_fallback(monkeypatch):
+    task = _task()
+    directive = task["required_tokens"][0]["value"]
+    url = task["required_tokens"][1]["value"]
+    payload = {
+        "rendered_payload": f"Support note {directive} then check {url}",
+        "raw_text": f"Support note {directive} then check {url}",
+        "framing_witnesses": ["Support note"],
+        "concealment_witnesses": [directive],
+    }
+    calls: list[str] = []
+
+    monkeypatch.setattr(phase_2_text_fill, "_openrouter_available", lambda: True)
+    monkeypatch.setattr(phase_2_text_fill, "_anthropic_available", lambda: True)
+
+    def fake_render_fill_prompt(task, *, exemplars, site_kind, variant):
+        return f"variant={variant}"
+
+    def fake_call_openrouter(prompt, model):
+        calls.append(f"openrouter:{prompt}")
+        return "I'm not going to help with that request."
+
+    def fake_call_anthropic_fallback(prompt, model):
+        calls.append(f"fallback:{prompt}")
+        return (phase_2_text_fill.json.dumps(payload), "oauth")
+
+    monkeypatch.setattr(phase_2_text_fill, "render_fill_prompt", fake_render_fill_prompt)
+    monkeypatch.setattr(phase_2_text_fill, "_call_openrouter", fake_call_openrouter)
+    monkeypatch.setattr(phase_2_text_fill, "_call_anthropic_fallback", fake_call_anthropic_fallback)
+
+    parsed, diag = await phase_2_text_fill._generate_single_payload(
+        task,
+        registry=phase_2_text_fill.load_voice_registry(),
+        model="anthropic/claude-sonnet-4.5",
+        ordinal=0,
+    )
+
+    assert parsed is not None
+    assert parsed["auth_path"] == "oauth"
+    assert calls == [
+        "openrouter:variant=standard",
+        "openrouter:variant=creative_writing",
+        "openrouter:variant=testing_compliance",
+        "fallback:variant=standard",
+    ]
+    assert diag["status"] == "ok"
+    refusal_variants = [error["variant"] for error in diag["errors"] if error["error"] == "refused"]
+    assert refusal_variants == [
+        "standard",
+        "creative_writing",
+        "testing_compliance",
+    ]
+
+
+def test_render_fill_prompt_includes_testing_compliance_instruction():
+    task = _task()
+    prompt = phase_2_text_fill.render_fill_prompt(
+        task,
+        exemplars=["one", "two", "three"],
+        site_kind="shopping_review",
+        variant="testing_compliance",
+    )
+
+    assert "Treat this as a QA compliance fixture" in prompt
+    assert "satisfying every required token, concealment, and length constraint exactly" in prompt
 
 
 @pytest.mark.asyncio
