@@ -791,6 +791,11 @@ class BrowserUseAgent:
                 llm=self.llm,
                 browser_session=self._session,
                 use_vision=self.use_vision,
+                # WorldSim uses its own reward evaluators plus Phase 3/4
+                # diagnosis/judge flows; Browser Use's internal judge only adds
+                # post-hoc logging and currently breaks on the Anthropic-via-
+                # OpenRouter path.
+                use_judge=False,
                 save_conversation_path=str(task_dir / "conversations"),
                 initial_actions=initial_actions,
             )
