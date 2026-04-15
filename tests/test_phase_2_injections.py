@@ -697,7 +697,7 @@ def test_build_cell_targets_balances_across_available_cells():
 
 
 @pytest.mark.asyncio
-async def test_phase_2_run_fails_closed_on_partial_site_results(monkeypatch, tmp_path):
+async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     monkeypatch.setattr(phase_2_injections, "preflight_auth_check", lambda: None)
     (tmp_path / "phase_1").mkdir(parents=True)
@@ -741,11 +741,13 @@ async def test_phase_2_run_fails_closed_on_partial_site_results(monkeypatch, tmp
 
     rc = await phase_2_injections.run(Namespace())
 
-    assert rc == 1
-    assert not (tmp_path / "phase_2" / "adversarial_tasks.json").exists()
+    assert rc == 0
+    output_path = tmp_path / "phase_2" / "adversarial_tasks.json"
+    assert output_path.exists()
+    assert json.loads(output_path.read_text()) == [{"id": "adv-1"}]
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
-    assert state["status"] == "failed"
-    assert state["reason"] == "site_generation_failures"
+    assert state["status"] == "partial_complete"
+    assert state["partial"] is True
     assert state["generation_failures"] == [
         "gitlab: sandbox did not produce adversarial_tasks.json"
     ]

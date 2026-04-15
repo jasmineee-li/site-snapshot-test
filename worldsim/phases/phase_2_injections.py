@@ -280,25 +280,23 @@ async def run(args: argparse.Namespace) -> int:
             failpoint_base="phase_2.output.adversarial_tasks",
         )
 
-    if not all_adversarial:
-        logger.error(
-            "Phase 2: no adversarial tasks produced across all sites — "
-            "check sandbox logs and profiles"
-        )
-        save_state("phase_2", status="failed", task_count=0, **state_metadata)
-        return 1
-
+    status = "partial_complete" if site_failures else "complete"
     save_state(
         "phase_2",
-        status="complete",
+        status=status,
         adversarial_tasks_path=str(output_path),
         task_count=len(all_adversarial),
+        generation_failures=site_failures,
+        partial=bool(site_failures),
         **state_metadata,
     )
     cost_tracker.log_phase_summary("phase_2")
     cost_tracker.save(state_dir / "cost_report.json")
     logger.info(
-        "Phase 2 complete — %d adversarial tasks written to %s", len(all_adversarial), output_path
+        "Phase 2 %s — %d adversarial tasks written to %s",
+        status,
+        len(all_adversarial),
+        output_path,
     )
     return 0
 

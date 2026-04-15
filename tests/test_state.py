@@ -349,6 +349,35 @@ def test_dispatch_resume_restores_saved_phase_2_sites_filter(monkeypatch, tmp_pa
     assert captured["sites"] == "shopping,gitlab"
 
 
+def test_dispatch_resume_treats_partial_complete_as_advanced_phase(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_2",
+        status="partial_complete",
+        sandbox_model="claude-sonnet-4-6",
+        partial=True,
+        generation_failures=["gitlab: sandbox did not produce adversarial_tasks.json"],
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["sandbox_model"] = args.sandbox_model
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "3"
+    assert captured["sandbox_model"] == "claude-sonnet-4-6"
+
+
 def test_dispatch_resume_allows_explicit_phase_2_sites_override(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"

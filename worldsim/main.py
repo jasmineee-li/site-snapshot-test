@@ -282,12 +282,13 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     if logs_dir and not os.environ.get("WORLDSIM_STATE_DIR"):
         os.environ["WORLDSIM_STATE_DIR"] = str(logs_dir)
 
-    if status == "complete":
+    if status in {"complete", "partial_complete"}:
         target = _next_step(last_step)
         if target is None:
             print(f"Last checkpoint: {last_step} complete. Pipeline finished — nothing to resume.")
             return 0
-        print(f"Last checkpoint: {last_step} complete. Resuming from {target}.")
+        qualifier = "partial and " if status == "partial_complete" else ""
+        print(f"Last checkpoint: {last_step} {qualifier}complete. Resuming from {target}.")
     elif status == "running":
         target = last_step
         print(f"Last checkpoint: {last_step} was running (likely crashed). Re-running {target}.")
