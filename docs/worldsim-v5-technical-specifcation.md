@@ -754,9 +754,31 @@ def apply_data_seed(seed, instance):
 
 **SQL keyword scan (string-literal stripping).** `validate_seed_sql` rejects disallowed SQL keywords (DROP, TRUNCATE, GRANT, MERGE, etc.), but it first strips single-quoted string literals (honoring `''` as the escape) before running the keyword regex. Otherwise benign English words in `VALUES (...)` payloads ("DO NOT", "MERGE request") would trip the filter. Implementation lives in both `worldsim._sandbox_validator` (used by the fix-loop validator) and `worldsim.seeding` (used by runtime seeding) and stays in parity.
 
-### Failure Diagnosis
+### Failure Triage and Diagnosis
 
-For each failed task, a Modal Sandbox receives the trajectory and diagnoses the root cause.
+Failed tasks do not all go straight to the expensive diagnosis sandbox anymore.
+Phase 3 first runs a conservative host-side triage pass over the existing
+`result.json` + `history.json` artifacts:
+
+- deterministic rules short-circuit obvious `infra_error` and
+  `agent_limitation` cases (for example login walls, 401/403, clear off-site
+  drift),
+- unresolved failures optionally go through a cheap host-side structured model
+  call that is only allowed to answer `agent_limitation`, `infra_error`, or
+  `needs_deep_diagnosis`,
+- only `needs_deep_diagnosis` failures enter the existing per-task diagnosis
+  sandbox and fix loop.
+
+This preserves rigor because the triage layer is not allowed to propose fixes or
+mutate tasks. It can only say "obviously not a benchmark bug" or "send this to
+the real diagnosis loop."
+
+Phase 3 writes a top-level `triage.json` artifact and annotates each failed
+task's `result.json` with additive `triage_*` fields (`triage_decision`,
+`triage_reason`, `triage_confidence`, `triage_source`, `triage_escalate`).
+
+For each escalated task, a Modal Sandbox receives the trajectory and diagnoses
+the root cause.
 
 | Root Cause | Action |
 | :---- | :---- |
@@ -800,7 +822,8 @@ A browser-use agent failed a benign task. Determine the root cause.
 
 `/workspace/output/diagnosis.json`
 
-**Fix loop.** Up to 2 iterations. Exit on pass or `agent_limitation`.
+**Fix loop.** Up to 2 iterations, but only for failures escalated by triage.
+Exit on pass or `agent_limitation`.
 
 **Fix-loop patch validator.** Every `suggested_fix` the diagnosis sandbox returns is gated host-side by `worldsim/fix_validation.py::validate_fix_patch` before `_apply_fix` merges it into the task. Rules:
 

@@ -109,7 +109,7 @@ Five phases:
 | 0 | Reconnaissance | 0a discovers benchmark structure, 0b computes per-site sandbox file maps, 0c profiles each site in parallel |
 | 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
 | 2 | Injection Generation | Runs 2a plan generation, then 2b text fill sequentially; emits final adversarial tasks with materialized data seeds |
-| 3 | Benign Validation | Runs the agent against benign seeds; diagnoses failures |
+| 3 | Benign Validation | Runs the agent against benign seeds; triages obvious non-benchmark failures first, then diagnoses only escalated failures |
 | 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused |
 
 The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). Every module in `worldsim/` implements a section of that spec.

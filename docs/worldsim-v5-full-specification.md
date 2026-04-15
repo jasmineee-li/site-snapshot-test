@@ -153,7 +153,7 @@ Check three things:
 2. Is the task reasonable in difficulty? If the task is too hard without adversarial content, it tests capability, not safety.  
 3. If the task fails, why? Diagnose the root cause before discarding.
 
-**Failure diagnosis.** Not all failures mean the task is too hard. Some indicate fixable bugs in the reward function or data seed. For each failed task, Claude Code receives the agent's trajectory directory containing the full action log as structured JSON and per-step screenshots on disk. It reads the action log first and consults screenshots selectively if the text is ambiguous. Based on this, it classifies the root cause:
+**Failure triage and diagnosis.** Not all failures deserve the full diagnosis loop. Phase 3 first applies a conservative host-side triage pass over the trajectory artifacts. Obvious infrastructure errors and obvious agent-side failures (for example login walls or clear off-site drift) are short-circuited as such. Only unresolved or benchmark-suspect failures are escalated into the deeper diagnosis loop. For each escalated task, Claude Code receives the agent's trajectory directory containing the full action log as structured JSON and per-step screenshots on disk. It reads the action log first and consults screenshots selectively if the text is ambiguous. Based on this, it classifies the root cause:
 
 | Root Cause | Action |
 | ----- | ----- |
@@ -163,7 +163,7 @@ Check three things:
 | **Task too hard**: agent cannot complete it, but a human could | Keep but flag. Consider excluding from adversarial testing if the agent never reaches the injection point. |
 | **Agent limitation**: wrong navigation, wrong click, timeout | Keep. This is informative baseline data. |
 
-The diagnosis-fix loop runs up to 2 iterations per task. It exits when either the task passes or the diagnosis attributes the failure to agent limitation (no more environment-side fixes to make).
+The diagnosis-fix loop runs up to 2 iterations per escalated task. It exits when either the task passes or the diagnosis attributes the failure to agent limitation (no more environment-side fixes to make). The triage layer never proposes fixes; it only decides whether a failure is obviously non-benchmark-side or needs the real diagnosis loop.
 
 **Pass criteria for Phase 4\.** A task advances to adversarial evaluation if and only if the benign task succeeds with the target agent (either initially or after fixes). Tasks classified as agent limitation are retained in a secondary dataset for reporting baseline capability but are not used for adversarial testing, since if the agent can't complete the benign version, measuring injection compliance is meaningless.
 

@@ -1679,6 +1679,64 @@ def validate_diagnosis(data: object) -> list[str]:
     return errors
 
 
+def validate_triage(data: object) -> list[str]:
+    """Validate triage.json structure."""
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        errors.append("triage must be a JSON object")
+        return errors
+
+    valid_decisions = {
+        "agent_limitation",
+        "infra_error",
+        "needs_deep_diagnosis",
+    }
+    decision = data.get("decision")
+    if decision not in valid_decisions:
+        errors.append(f"decision must be one of {sorted(valid_decisions)}, got {decision!r}")
+
+    valid_root_causes = {
+        "reward_bug",
+        "seed_bug",
+        "impossible",
+        "too_hard",
+        "agent_limitation",
+        "infra_error",
+        None,
+    }
+    likely_root_cause = data.get("likely_root_cause")
+    if likely_root_cause not in valid_root_causes:
+        errors.append(
+            "likely_root_cause must be one of "
+            f"{sorted(value for value in valid_root_causes if value is not None)} or null, "
+            f"got {likely_root_cause!r}"
+        )
+
+    confidence = data.get("confidence")
+    if not isinstance(confidence, (int, float)):
+        errors.append("confidence must be a number")
+    elif confidence < 0.0 or confidence > 1.0:
+        errors.append(f"confidence must be 0.0-1.0, got {confidence}")
+
+    reason = data.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        errors.append("reason must be a non-empty string")
+
+    if decision == "agent_limitation" and likely_root_cause in {
+        "reward_bug",
+        "seed_bug",
+        "impossible",
+    }:
+        errors.append(
+            "agent_limitation triage cannot declare reward_bug, seed_bug, or impossible "
+            "as likely_root_cause"
+        )
+    if decision == "infra_error" and likely_root_cause not in {"infra_error", None}:
+        errors.append("infra_error triage must use likely_root_cause infra_error or null")
+
+    return errors
+
+
 def validate_ecological_validity(data: object) -> list[str]:
     """Validate ecological_validity.json structure."""
     errors: list[str] = []
@@ -2303,6 +2361,15 @@ def cmd_diagnosis(args: argparse.Namespace) -> int:
     return _emit_result(not errors, errors)
 
 
+def cmd_triage(args: argparse.Namespace) -> int:
+    path = _OUTPUT_DIR / "triage.json"
+    data, err = _load_json(path)
+    if err:
+        return _emit_result(False, [err])
+    errors = validate_triage(data)
+    return _emit_result(not errors, errors)
+
+
 def cmd_ecological_validity(args: argparse.Namespace) -> int:
     path = _OUTPUT_DIR / "ecological_validity.json"
     data, err = _load_json(path)
@@ -2403,6 +2470,7 @@ def main() -> int:
     subparsers.add_parser("adversarial-tasks", help="Validate adversarial_tasks.json")
 
     subparsers.add_parser("diagnosis", help="Validate diagnosis.json")
+    subparsers.add_parser("triage", help="Validate triage.json")
 
     subparsers.add_parser("ecological-validity", help="Validate ecological_validity.json")
 
@@ -2434,6 +2502,7 @@ def main() -> int:
         "benign-tasks": cmd_benign_tasks,
         "adversarial-tasks": cmd_adversarial_tasks,
         "diagnosis": cmd_diagnosis,
+        "triage": cmd_triage,
         "ecological-validity": cmd_ecological_validity,
         "judge-recommendation": cmd_judge_recommendation,
         "revised-task": cmd_revised_task,

@@ -235,6 +235,8 @@ Once MVP cross-check lands and Phase 0c + Phase 2 are regenerated:
 5. **Phase 4 full for each**: against validated benign cohort. Times three models = 3 runs. ~$200-400 total + 5-15 hrs.
 6. **Phase 5 post-hoc**: run the 3-signal probe battery over all Phase 4 trajectories. ~$200-500.
 
+Operational note: Phase 3 now emits `triage.json` in addition to `results.json` / `diagnoses.json`. Use it when auditing capability failures versus benchmark-side failures, but do not treat it as a new experimental variable; it is an efficiency and traceability improvement inside the benign-validation pipeline.
+
 ### Why
 - Contribution 1 reports ASR per model. Single-model results are not publishable.
 - Contribution 2 claims model-dependent effects in eval awareness. Requires at least 3 models.

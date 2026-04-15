@@ -1031,6 +1031,208 @@ async def test_phase_3_run_skips_diagnosis_for_infrastructure_errors(monkeypatch
     assert diagnosed_task_ids == ["task-2"]
 
 
+@pytest.mark.asyncio
+async def test_phase_3_run_skips_diagnosis_for_auth_failures_after_triage(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(
+            {
+                "site_name": "shopping",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "reset_endpoint": "http://shopping.test/init",
+                    }
+                ],
+            }
+        )
+    )
+
+    auth_traj = tmp_path / "auth-failure"
+    auth_traj.mkdir()
+    (auth_traj / "history.json").write_text(
+        json.dumps([{"text": "Please sign in to continue"}])
+    )
+    (auth_traj / "result.json").write_text(
+        json.dumps({"task_id": "task-1", "passed": False, "message": "Please sign in"})
+    )
+
+    async def fake_run_tasks_by_site(**kwargs):
+        return [
+            {
+                "task_id": "task-1",
+                "passed": False,
+                "message": "Please sign in to continue",
+                "trajectory_dir": str(auth_traj),
+            }
+        ]
+
+    async def fake_diagnose_one_task(**kwargs):
+        raise AssertionError("auth failures should not enter deep diagnosis")
+
+    monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
+    monkeypatch.setattr(phase_3_benign, "_diagnose_one_task", fake_diagnose_one_task)
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            allow_unknown_auth=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 0
+    triage = json.loads((tmp_path / "phase_3" / "triage.json").read_text())
+    assert triage == [
+        {
+            "task_id": "task-1",
+            "decision": "agent_limitation",
+            "likely_root_cause": "agent_limitation",
+            "confidence": 0.99,
+            "reason": "Trajectory shows an authentication, session, or access-control failure, which is not a task or seed bug.",
+            "source": "rules",
+            "escalate": False,
+        }
+    ]
+    results = json.loads((tmp_path / "phase_3" / "results.json").read_text())
+    assert results[0]["triage_decision"] == "agent_limitation"
+    persisted_result = json.loads((auth_traj / "result.json").read_text())
+    assert persisted_result["triage_decision"] == "agent_limitation"
+
+
+@pytest.mark.asyncio
+async def test_phase_3_run_escalates_ambiguous_failure_to_deep_diagnosis(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Find the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(
+            {
+                "site_name": "shopping",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "reset_endpoint": "http://shopping.test/init",
+                    }
+                ],
+            }
+        )
+    )
+
+    ambiguous_traj = tmp_path / "ambiguous-failure"
+    ambiguous_traj.mkdir()
+    (ambiguous_traj / "history.json").write_text(
+        json.dumps([{"text": "Opened the order details page and extracted a candidate answer."}])
+    )
+    (ambiguous_traj / "result.json").write_text(
+        json.dumps({"task_id": "task-1", "passed": False, "message": "reward mismatch"})
+    )
+    diagnosed_task_ids: list[str] = []
+
+    async def fake_run_tasks_by_site(**kwargs):
+        return [
+            {
+                "task_id": "task-1",
+                "passed": False,
+                "message": "reward rejected final answer",
+                "trajectory_dir": str(ambiguous_traj),
+            }
+        ]
+
+    async def fake_diagnose_one_task(**kwargs):
+        diagnosed_task_ids.append(kwargs["r"]["task_id"])
+        return {"task_id": "task-1", "action": "keep_flagged"}
+
+    monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
+    monkeypatch.setattr(phase_3_benign, "_diagnose_one_task", fake_diagnose_one_task)
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            allow_unknown_auth=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 0
+    assert diagnosed_task_ids == ["task-1"]
+    triage = json.loads((tmp_path / "phase_3" / "triage.json").read_text())
+    assert triage[0]["decision"] == "needs_deep_diagnosis"
+    assert triage[0]["escalate"] is True
+
+
 # ── Constrained fix-patch validator integration ─────────────────────────
 
 

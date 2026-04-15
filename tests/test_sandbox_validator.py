@@ -1132,6 +1132,44 @@ class TestValidateDiagnosis:
         assert any("target" in e for e in errors)
 
 
+class TestValidateTriage:
+    def test_accepts_valid(self):
+        data = {
+            "decision": "needs_deep_diagnosis",
+            "likely_root_cause": "reward_bug",
+            "confidence": 0.72,
+            "reason": "Trajectory suggests a reward mismatch worth escalating.",
+        }
+
+        errors = validator.validate_triage(data)
+
+        assert errors == []
+
+    def test_rejects_invalid_decision(self):
+        data = {
+            "decision": "reward_bug",
+            "likely_root_cause": "reward_bug",
+            "confidence": 0.5,
+            "reason": "bad enum",
+        }
+
+        errors = validator.validate_triage(data)
+
+        assert any("decision" in e for e in errors)
+
+    def test_rejects_invalid_cross_field_pair(self):
+        data = {
+            "decision": "agent_limitation",
+            "likely_root_cause": "reward_bug",
+            "confidence": 0.95,
+            "reason": "contradictory output",
+        }
+
+        errors = validator.validate_triage(data)
+
+        assert any("agent_limitation" in e for e in errors)
+
+
 class TestValidateAgentContext:
     def test_rejects_non_object_output_schema_when_structured_output_required(self):
         data = {

@@ -48,6 +48,7 @@ from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.fix_validation import validate_fix_patch
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
+from worldsim.phase_3_triage import triage_failures
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.resume_metadata import (
@@ -131,6 +132,45 @@ def _write_json_atomic(
     failpoint_base: str | None = None,
 ) -> None:
     write_json_atomic(path, payload, failpoint_base=failpoint_base)
+
+
+def _triage_metadata_fields(triage: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "triage_decision": triage.get("decision"),
+        "triage_likely_root_cause": triage.get("likely_root_cause"),
+        "triage_confidence": triage.get("confidence"),
+        "triage_reason": triage.get("reason"),
+        "triage_source": triage.get("source"),
+        "triage_escalate": triage.get("escalate"),
+    }
+
+
+def _persist_triage_metadata(
+    *,
+    result: dict[str, Any],
+    triage: dict[str, Any],
+) -> None:
+    trajectory_dir_raw = str(result.get("trajectory_dir", "")).strip()
+    if not trajectory_dir_raw:
+        return
+    trajectory_dir = Path(trajectory_dir_raw)
+    result_path = trajectory_dir / "result.json"
+    if not result_path.exists():
+        return
+    try:
+        payload = json.loads(result_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        logger.warning("Failed to load %s for triage metadata update", result_path)
+        return
+    if not isinstance(payload, dict):
+        logger.warning("Skipping triage metadata update for non-object %s", result_path)
+        return
+    payload.update(_triage_metadata_fields(triage))
+    _write_json_atomic(
+        result_path,
+        payload,
+        failpoint_base="phase_3.outputs.triage_result",
+    )
 
 
 def _fingerprint_payload(*parts: Any) -> str:
@@ -373,6 +413,7 @@ async def run(args: argparse.Namespace) -> int:
 
     # Diagnosis loop for failures
     diagnosed: list[dict] = []
+    triage_records: list[dict[str, Any]] = []
 
     # Circuit breaker: if >30% of tasks errored (infrastructure problems,
     # not agent failures), skip the expensive diagnosis loop and surface the
@@ -395,11 +436,48 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
 
-    diagnosable_failures = [r for r in failed_tasks if r.get("outcome") != "error"]
-    if error_tasks:
+    if failed_tasks:
+        triage_records = await triage_failures(
+            failed_results=failed_tasks,
+            prepared_by_id=prepared_by_id,
+        )
+        triage_by_id = {str(record.get("task_id", "")): record for record in triage_records}
+        for result in failed_tasks:
+            task_id = str(result.get("task_id", ""))
+            triage = triage_by_id.get(task_id)
+            if triage is None:
+                continue
+            result.update(_triage_metadata_fields(triage))
+            _persist_triage_metadata(result=result, triage=triage)
+    else:
+        triage_by_id = {}
+
+    output_dir = state_dir / "phase_3"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(
+        output_dir / "triage.json",
+        triage_records,
+        failpoint_base="phase_3.outputs.triage",
+    )
+
+    diagnosable_failures = [
+        r
+        for r in failed_tasks
+        if r.get("outcome") != "error" and bool(r.get("triage_escalate"))
+    ]
+    triaged_agent_limitations = [
+        r for r in failed_tasks if r.get("triage_decision") == "agent_limitation"
+    ]
+    triaged_infra = [r for r in failed_tasks if r.get("triage_decision") == "infra_error"]
+    if triaged_infra:
         logger.warning(
-            "Skipping diagnosis for %d infrastructure-error tasks; only non-error failures enter the fix loop",
-            len(error_tasks),
+            "Skipping diagnosis for %d infrastructure-error tasks after triage",
+            len(triaged_infra),
+        )
+    if triaged_agent_limitations:
+        logger.info(
+            "Skipping diagnosis for %d obvious agent-limitation failures after triage",
+            len(triaged_agent_limitations),
         )
 
     raw_diagnoses = await asyncio.gather(
@@ -473,8 +551,6 @@ async def run(args: argparse.Namespace) -> int:
         {k: v for k, v in t.items() if k != RUNTIME_METADATA_KEY} for t in validated_tasks
     ]
 
-    output_dir = state_dir / "phase_3"
-    output_dir.mkdir(parents=True, exist_ok=True)
     write_json_atomic(
         output_dir / "validated_tasks.json",
         clean_tasks,
@@ -498,6 +574,9 @@ async def run(args: argparse.Namespace) -> int:
         validated_tasks_path=str(output_dir / "validated_tasks.json"),
         passed=len(passed_ids),
         fixed=len(fixed_ids),
+        triaged_agent_limitations=len(triaged_agent_limitations),
+        triaged_infra=len(triaged_infra),
+        triaged_escalated=len(diagnosable_failures),
         total=len(benign_tasks),
     )
     cost_tracker.log_phase_summary("phase_3")

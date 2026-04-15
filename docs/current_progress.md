@@ -1,6 +1,14 @@
 # WorldSim v5 -- Current Progress
 
-Last updated: 2026-04-14 (evening session)
+Last updated: 2026-04-15
+
+## 2026-04-15 update (newest first)
+
+- **Phase 3 conservative triage gate landed.** Benign failures now pass through a cheap host-side triage layer before the expensive diagnosis sandbox. High-precision rules short-circuit obvious `infra_error` and `agent_limitation` cases (auth/session walls, clear off-site drift); unresolved cases can use a structured host-side model triage call; only `needs_deep_diagnosis` failures enter `_diagnose_one_task` and the existing fix loop.
+- **New Phase 3 artifacts.** `logs/phase_3/triage.json` records the per-failure triage decision, confidence, reason, source, and `escalate` bit. Failed per-task `result.json` files now also carry additive `triage_*` metadata so audit/replay can reconstruct why a task was or was not escalated.
+- **Rigor preserved.** The triage layer cannot mutate tasks or propose patches. Benchmark mutations still happen only through the existing structured diagnosis prompt plus host-side `validate_fix_patch`, so the validated benign cohort semantics are unchanged.
+
+## 2026-04-14 evening session update (newest first)
 
 ## 2026-04-14 evening session update (newest first)
 
@@ -146,6 +154,7 @@ Everything below reflects the current working tree.
 - **Phase 1 Mode B propagation and cache hardening.** Novel-task generation now receives `AGENT_CONTEXT.json`, embeds it into generated tasks, and invalidates stale per-site caches when the sibling `AGENT_CONTEXT_{site}.json` changes or when cached tasks are missing the embedded context.
 - **Phase 2 immutable contract update.** Adversarial task generation now treats `agent_context` as an immutable field copied from the benign task and passes `AGENT_CONTEXT.json` into the injection-generation sandbox so attacks are crafted against the real benchmark contract.
 - **Phase 3 -- Benign Validation.** Full implementation: reset endpoint call, data seed application, Browser Use agent run, reward function evaluation, failure diagnosis loop (reward bug, data seed issue, impossible task, task too hard, agent limitation). Phase 3 now builds a benchmark-specific `site_prompt` from embedded `agent_context`.
+- **Phase 3 conservative triage before diagnosis.** New `worldsim/phase_3_triage.py` adds a cheap host-side pre-filter before `_diagnose_one_task`. Obvious infra/auth/off-site failures are classified locally; ambiguous failures escalate; only escalated failures pay for the expensive sandbox diagnosis loop. Top-level `phase_3/triage.json` plus additive `triage_*` metadata in failed `result.json` preserve the audit trail.
 - **Phase 4 -- Adversarial Evaluation.** Full iterative decision tree remains in place, and now uses the same `agent_context`-driven prompt builder as Phase 3 so benign and adversarial runs share the same benchmark contract.
 - **Profile cross-reference hardening.** `profile_validation.py` and `_sandbox_validator.py` now reject `source_field` references that use a real entity with a field belonging to some other entity. Field validation is now entity-scoped, not global-name-scoped.
 - **Browser Use agent runner.** `BrowserUseAgent` supports `start_urls` and `site_prompt`, preserves task-scoped HAR capture and screenshots, and uses benchmark-specific task text when provided instead of the generic one-line prompt.
@@ -230,6 +239,7 @@ logs_run1_no_tiered_site_discovery_and_missing_benchmark_specific_task_template/
   phase_2/
     adversarial_tasks.json
   phase_3/
+    triage.json
     diagnoses.json
     results.json
     validated_tasks.json
