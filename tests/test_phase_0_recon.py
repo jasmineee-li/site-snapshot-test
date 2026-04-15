@@ -404,3 +404,63 @@ async def test_run_phase_0c_reprofiles_when_existing_outputs_are_stale(monkeypat
     assert calls, "stale outputs must be re-profiled instead of silently skipped"
     profile = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
     assert profile["agent_context"]["site_context"]["description"] == "Fresh profile"
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_profile_metadata_is_malformed(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+
+    profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        "{not-json",
+        encoding="utf-8",
+    )
+
+    calls: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        calls.append(kwargs["label"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            context = _valid_agent_context()
+            context["site_context"]["description"] = "Fresh malformed metadata profile"
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, context)
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={site_name: [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+    )
+
+    assert site_name in result
+    assert calls, "malformed metadata must trigger re-profiling"
+    refreshed = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
+    assert refreshed["agent_context"]["site_context"]["description"] == (
+        "Fresh malformed metadata profile"
+    )

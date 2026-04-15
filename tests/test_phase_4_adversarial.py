@@ -411,6 +411,57 @@ async def test_postprocess_one_task_resume_ignores_stale_processed_result(monkey
     assert processed["final_status"] == "complied"
 
 
+@pytest.mark.asyncio
+async def test_postprocess_one_task_resume_ignores_malformed_processed_result(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    result = {
+        "task_id": task["id"],
+        "outcome": "refused_or_ignored",
+        "ecologically_valid": True,
+        "trajectory_dir": str(tmp_path / "traj"),
+    }
+    processed_file = (
+        tmp_path / safe_task_path_component(task["id"]) / "processed_result.json"
+    )
+    processed_file.parent.mkdir(parents=True, exist_ok=True)
+    processed_file.write_text("{not-json", encoding="utf-8")
+
+    calls = {"process": 0}
+
+    async def fake_process_adversarial_result(**kwargs):
+        calls["process"] += 1
+        return {
+            "task_id": task["id"],
+            "initial_outcome": "refused_or_ignored",
+            "ecologically_valid": True,
+            "judge_diagnosis": None,
+            "strategies_attempted": [],
+            "final_status": "complied",
+            "successful_strategy": None,
+        }
+
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_process_adversarial_result",
+        fake_process_adversarial_result,
+    )
+
+    processed = await phase_4_adversarial._postprocess_one_task(
+        result=result,
+        task_by_id={task["id"]: task},
+        config=SimpleNamespace(instances=instances),
+        profiles_dir=tmp_path,
+        agent_factory=lambda: None,
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert calls["process"] == 1
+    assert processed["final_status"] == "complied"
+
+
 def test_rebase_adversarial_task_uses_validated_benign_contract():
     task, _ = _prepared_adv_task()
     validated_benign = json.loads(json.dumps(task))
@@ -849,6 +900,50 @@ async def test_evaluate_variant_resume_ignores_result_without_matching_metadata(
     (
         variant_dir / phase_4_adversarial._VARIANT_RESULT_METADATA
     ).write_text(json.dumps({phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: "stale"}))
+
+    calls = {"run": 0}
+
+    async def fake_run_adversarial_task(task, agent, instance, task_dir, **kwargs):
+        calls["run"] += 1
+        return {"task_id": task["id"], "outcome": "complied", "ecologically_valid": True}
+
+    class FakeAgent:
+        async def setup(self, server_url):
+            return None
+
+        async def teardown(self):
+            return None
+
+    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+
+    result = await phase_4_adversarial._evaluate_variant(
+        task=task,
+        variant=variant,
+        instance=instances[0],
+        all_instances=instances,
+        strategy={"strategy": "specificity"},
+        index=0,
+        agent_factory=FakeAgent,
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert calls["run"] == 1
+    assert result["outcome"] == "complied"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_variant_resume_ignores_malformed_result_metadata_json(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    variant_dir = tmp_path / "adv-1_variant_0"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    (variant_dir / "result.json").write_text(
+        json.dumps({"task_id": "adv-1", "outcome": "complied", "ecologically_valid": True})
+    )
+    (variant_dir / phase_4_adversarial._VARIANT_RESULT_METADATA).write_text("{bad-json")
 
     calls = {"run": 0}
 
@@ -1441,6 +1536,57 @@ async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatc
             }
         )
     )
+
+    calls = {"judge": 0}
+
+    async def fake_run_judge(*args, **kwargs):
+        calls["judge"] += 1
+        return {
+            "diagnosis": "fresh",
+            "recommended_strategies": [{"strategy": "specificity"}],
+        }
+
+    async def fake_generate_variant(*args, **kwargs):
+        variant = json.loads(json.dumps(task))
+        variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+        return variant
+
+    async def fake_evaluate_variant(**kwargs):
+        return {
+            "task_id": task["id"],
+            "outcome": "complied",
+            "ecologically_valid": True,
+            "strategy": "specificity",
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert calls["judge"] == 1
+    assert result["status"] == "varied"
+    assert result["judge_diagnosis"]["diagnosis"] == "fresh"
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_resume_ignores_malformed_checkpoint(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text("{bad-json", encoding="utf-8")
 
     calls = {"judge": 0}
 

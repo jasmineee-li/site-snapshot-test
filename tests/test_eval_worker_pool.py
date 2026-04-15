@@ -216,3 +216,69 @@ async def test_run_eval_resume_reruns_task_when_result_fingerprint_is_missing(mo
 
     assert executed_ids == ["task-a"]
     assert results == [{"task_id": "task-a", "passed": True, "message": "reran"}]
+
+
+@pytest.mark.asyncio
+async def test_run_eval_resume_reruns_task_when_result_fingerprint_mismatches(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    task_dir = tmp_path / safe_task_path_component("task-a")
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "task-a",
+                "passed": True,
+                "message": "stale",
+                RESULT_FINGERPRINT_KEY: "stale-fp",
+            }
+        )
+    )
+
+    executed_ids: list[str] = []
+
+    async def task_runner(task, agent, instance, task_dir):
+        executed_ids.append(task["id"])
+        return {"task_id": task["id"], "passed": True, "message": "reran"}
+
+    results = await run_eval(
+        tasks=[{"id": "task-a"}],
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=task_runner,
+        task_dir_root=tmp_path,
+        resume=True,
+        expected_result_fingerprints={"task-a": "expected-fp"},
+    )
+
+    assert executed_ids == ["task-a"]
+    assert results == [{"task_id": "task-a", "passed": True, "message": "reran"}]
+
+
+@pytest.mark.asyncio
+async def test_run_eval_resume_ignores_malformed_result_json(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    task_dir = tmp_path / safe_task_path_component("task-a")
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text("{bad-json", encoding="utf-8")
+
+    executed_ids: list[str] = []
+
+    async def task_runner(task, agent, instance, task_dir):
+        executed_ids.append(task["id"])
+        return {"task_id": task["id"], "passed": True, "message": "reran"}
+
+    results = await run_eval(
+        tasks=[{"id": "task-a"}],
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=task_runner,
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert executed_ids == ["task-a"]
+    assert results == [{"task_id": "task-a", "passed": True, "message": "reran"}]

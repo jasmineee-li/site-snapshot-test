@@ -70,3 +70,6 @@ indent-style = "space"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "crash_resume: focused crash/resume and resume-drift differential tests",
+]

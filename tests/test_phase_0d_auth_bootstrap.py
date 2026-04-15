@@ -1001,6 +1001,29 @@ class TestDispatchPrecedence:
         assert asyncio.run(bootstrap.run(_make_args(bench))) == 0
         assert json.loads(artifact.read_text())["via"] == "v2"
 
+    def test_malformed_completion_invalidates_idempotent_skip(self, tmp_path, monkeypatch):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        pre_staged = bench / "auth" / "state.json"
+        pre_staged.parent.mkdir(parents=True)
+        pre_staged.write_text(json.dumps({"cookies": [], "via": "v1"}))
+        _write_context(
+            profiles,
+            "prestaged_site",
+            auth_mechanism={
+                "type": "storage_state",
+                "storage_state": {"path": "auth/state.json"},
+            },
+        )
+
+        assert asyncio.run(bootstrap.run(_make_args(bench))) == 0
+        artifact = state_dir / "phase_0d" / "prestaged_site" / "storage_state.json"
+        completion = state_dir / "phase_0d" / "prestaged_site" / "completion.json"
+        completion.write_text("{bad-json", encoding="utf-8")
+        pre_staged.write_text(json.dumps({"cookies": [], "via": "v2"}))
+
+        assert asyncio.run(bootstrap.run(_make_args(bench))) == 0
+        assert json.loads(artifact.read_text())["via"] == "v2"
+
 
 # ---------------------------------------------------------------------------
 # Validator — schema consistency for form_login
