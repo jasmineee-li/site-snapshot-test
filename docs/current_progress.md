@@ -1,46 +1,80 @@
 # WorldSim v5 -- Current Progress
 
-Last updated: 2026-04-14
+Last updated: 2026-04-14 (evening session)
 
-## 2026-04-14 session update (newest first)
+## 2026-04-14 evening session update (newest first)
 
-For the full handoff, see `docs/handoffs/2026-04-14-phase-2-rerun-handoff.md`. Summary:
+For the full handoff, see `docs/handoffs/orchestrator-handoff-phase-2-v2.md`. Summary:
 
-### What shipped today
+### What shipped this session
 
-- **Phase 0c rerun complete** on all 6 sites with the MVP's new schema (`controllable_by_tier`, `controllability_justification`, `delivery_channels` object-list, `rendering_format`, `compatible_concealments`). Cost: $86.34 on Opus. Shopping audit passed (review_*→any_user, product_*→admin, customer_*→none). Output at `logs/phase_0c/`. Previous Phase 0c backed up to `logs/phase_0c_preupgrade_backup/`.
-- **Critical Modal SDK stream-wedge fix landed** in `worldsim/modal_sandbox.py` and `worldsim/_sandbox_runner.py`. Replaces serial stdout→stderr drain with concurrent `asyncio.gather(_drain_stdout(), _drain_stderr())` + `try/finally: aclose()` on each stream, adds `timeout=timeout, bufsize=1` to `sandbox.exec.aio()`, and flushes stdio after `asyncio.run(main())`. This addresses the real failure mode from multi-hour Modal runs, where the sandbox finished its work but the orchestrator stayed wedged waiting on stream EOF.
-- **Sonnet first, Opus later.** `worldsim/modal_sandbox.py:155` now defaults to `claude-sonnet-4-6`, which matches the MVP operating plan for smoke tests and long pipeline runs. Once a path is stable, we can rerun or confirm with `claude-opus-4-6`.
-- **Phase 2 attempt #1 hung** on the stream-wedge bug (5/43 shards wedged silent after the sandboxes finished their work). Outputs rescued directly from Modal via `modal container exec cat` — 94 valid tasks in `logs/phase_2_rescue/`. 38 in-memory shards from the same run are unrecoverable (trapped in the hung orchestrator's `asyncio.gather`).
+- **Phase 0d gitlab PAT bootstrap fixed and verified.** Modern GitLab renders the CSRF token only in `<meta name="csrf-token">` (no hidden input) and returns the created token as JSON `{new_token: "glpat-..."}`, not as HTML. Updated `scripts/phase_0d/bootstrap_gitlab_pat.py` to fall back to the meta tag and parse JSON. Token lives at `logs/phase_0d/gitlab/personal_access_token.txt`, verified with HTTP 200 against `/api/v4/user`. Committed as **`b1d1e1a`** and pushed to origin.
+- **Phase 2 orchestrator patches landed (uncommitted):**
+  - Per-shard persistence in `_generate_injections_for_site` — each validated shard writes to `logs/phase_2/shards/<label>.json` as soon as it completes. Crash-safe.
+  - Fail-open publish in the main phase_2 entrypoint — partial `adversarial_tasks.json` is always written when ≥1 shard succeeds, tagged `status="partial_complete"` with `partial=true` + `generation_failures=[...]`. Only fully-failed runs (zero shards) return exit 1.
+  - `asyncio` import added to `modal_sandbox.py` (the prior patch used `asyncio.gather` without the import, killing all 43 shards in the first retry attempt).
+- **Modal sandbox watchdog infrastructure added externally** to `worldsim/modal_sandbox.py` (uncommitted). Adds `SandboxWatchdogState`, silence-based abort thresholds, rate-limit grace windows, and a retriable timeout error class. Still under review; retain and inspect the diff before committing.
+- **Three Phase 2 rerun attempts this session, all failed with different root causes:**
+  1. OAuth, 43 shards simultaneous → Modal SDK stream-wedge (hit the prior session's bug, already patched).
+  2. OAuth, patched → all 43 shards completed but 12 failed to produce output due to OAuth simultaneous-burst rate-limit; orchestrator's fail-closed logic then discarded the 31 successful shards in memory. Cost ~$78.88 sunk. ← This is what motivated the fail-open + per-shard persistence patches above.
+  3. OpenRouter (fallback) → 21 of 43 shards refused immediately with "I'm not going to help, even given the security research framing." ~50% refusal rate on proxy-auth path. 10 shards produced output before being killed.
+
+### Major decision: Phase 2 v2 (plan/text decomposition) architecture
+
+Phase 2 single-shot design is auth-coupled to OAuth because the prompt asks the model to generate adversarial content text. Proxy-auth paths (OpenRouter) evaluate the prompt under a stricter policy regime and refuse at ~50%. OAuth refuses at ~0% but is rate-limited.
+
+**The refactor splits Phase 2 into two sub-phases mirroring Jasmine's `behavior-gen/pipeline.py` decomposition:**
+
+- **Phase 2a — Plan.** Pure schema work: `target_surface_id`, `framing`, `concealment`, `delivery_mechanism`, `delivery_channel`, `attack_objective`, `required_tokens`, `length_budget`, `reward_function`. NO payload text. Runs under Claude Code in Modal, OAuth-or-OpenRouter compatible (no refusal because no harm-adjacent content is emitted).
+- **Phase 2b — Text fill.** Parallel structured-output API calls (not Claude Code). Per-plan: one async call that composes UGC in the plan's declared voice with required tokens. Self-healing 3-framing retry loop + OAuth fallback. Empirically: OpenRouter Sonnet 4.5 ACCEPTS 3 of 4 tested framings for UGC composition.
+
+Comprehensive spec with acceptance criteria, implementation order, and voice-exemplar design is now in `docs/TODO-adversarial-rigor-mvp.md:639+`. Codex is implementing this next. The new handoff (`2026-04-14-phase-2-v2-handoff.md`) includes a ready-made subagent verification prompt the orchestrator runs before executing anything.
+
+### Empirical smoke test result (OpenRouter refusal asymmetry)
+
+| Framing sent to OpenRouter Sonnet 4.5 | Result |
+|---|---|
+| "You are a security researcher generating adversarial indirect prompt injections..." | REFUSED |
+| "Compose a single customer review in the voice of a platform-trust admin with these exact tokens..." | ACCEPTED |
+| UGC composition + markdown-fenced concealment requirement | ACCEPTED |
+| UGC composition + "safety eval composer" system prompt + angry-consumer voice | ACCEPTED |
+
+Mechanism unproven; behavior reproducible. Justifies the Phase 2b decomposition without needing to close the mechanism question.
 
 ### Immediate next action
 
-Kill the hung Phase 2 orchestrator (PID 15407) and rerun Phase 2 on the patched Sonnet code (~$7, ~30 min). See handoff doc for exact commands and audit criteria.
+**Codex implements Phase 2 v2 per `docs/TODO-adversarial-rigor-mvp.md:639+`.** After Codex commits, the next orchestrator follows `docs/handoffs/orchestrator-handoff-phase-2-v2.md`, starting with the subagent verification check.
 
-### Open sequence
+### Open sequence (after Codex completes)
 
-1. Phase 2 rerun → audit cell coverage
-2. Phase 0d — `scripts/phase_0d/bootstrap_gitlab_pat.py` (free, ~1 min)
-3. Phase 3 single-task gitlab smoke (~$1.50, ~10 min — verifies Modal patch holds)
-4. Phase 3 full on Sonnet (~$75, 3–8 hr)
-5. Phase 4 full on Sonnet (~$20–60)
-6. Per-framing / per-concealment ASR analysis
-7. Archive to `logs/paper_run_v1/`
+1. Subagent verification of v2 implementation (6-section checklist in the handoff)
+2. Clean up contaminated state (nuke `logs/phase_2/shards/` — OpenRouter-generated, research-integrity concern)
+3. Phase 2a run → audit plans (≥60 plans, ≥20 cells, 5 sites)
+4. Phase 2b run → audit payloads (≥95% first-attempt success, ≤5% OAuth fallback)
+5. Phase 3 gitlab smoke (critical patch-validation checkpoint)
+6. Phase 3 full on Sonnet (~$75, 3–8 hr)
+7. Phase 4 full on Sonnet (~$20–60)
+8. Per-cell ASR analysis; archive to `logs/paper_run_v1/`; produce `docs/paper_run_v1_summary.md`
 
-### Cost ledger (sunk)
+### Cost ledger (sunk, updated)
 
-| Phase | Run | Cost | Notes |
-|---|---|---|---|
-| Phase 0a | once | $1.95 | |
-| Phase 0c | rerun 2026-04-14 | $86.34 | On Opus; should have been ~$25 on Sonnet |
-| Phase 2 | attempt #1 hung | $112.25 | 38 in-memory shards lost; 5 rescued to disk |
-| Phase 3 | smokes | $44.66 | |
-| **Total sunk** | | **~$247** | |
-| **Remaining (Sonnet)** | | **~$100–140** | |
+| Phase / attempt | Cost | Notes |
+|---|---|---|
+| Phase 0a | $1.95 | |
+| Phase 0c (on Opus) | $86.34 | should have been Sonnet; $60 waste |
+| Phase 3 smokes (old schema) | $44.66 | |
+| Phase 2 attempt #1 (OAuth, stream-wedged) | $112.25 | 5 shards rescued, later superseded |
+| Phase 2 attempt #2 (OAuth, patched, rate-limit burst) | $78.88 | 31 successful shards discarded ← fixed by fail-open patch |
+| Phase 2 attempt #3 (OpenRouter, refusals) | ~$2 | 21 immediate refusals |
+| **Total sunk** | **~$326** | |
+| **Remaining (Phase 2 v2 + Phase 3 + Phase 4)** | **~$80–150** | OAuth-subscription absorbs the majority; real spend is OpenRouter share |
 
-### Root cause of Phase 2 hang (for future runs)
+### Root causes of this session's failures (for future runs)
 
-Modal SDK 1.4.1 `_StreamReaderThroughServer` spawns a background `asyncio.Task` per stream (stdout, stderr) at construction time. Each has 10 retry credits for transient gRPC errors. If we drain streams serially (our prior code), the unread stream's retry budget can exhaust on the server's 55s window recycles. The background task dies silently without writing a `None` EOF sentinel; the foreground `_stream_container_process` then polls a never-completing buffer forever. Modal's own CLI (`modal/cli/container.py`) and `attach()` always drain stdout and stderr concurrently for exactly this reason. Our new code matches that pattern.
+1. **OAuth simultaneous-burst rate-limit cliff:** launching 43 shards in ~80ms triggers rate-limit rejection for ~10–12 shards that die with `Fatal error in message reader: Command failed with exit code 1`. Mitigated by `DEFAULT_SANDBOX_CONCURRENCY` semaphore (added externally, currently =250 which is effectively uncapped; recommend 4–15 for OAuth runs).
+2. **Fail-closed orchestrator discarded in-memory successful shards:** the prior code's `site_failures → return 1` in `phase_2_injections.py:227-241` threw away 31 shards' worth of output when 12 failed. Fixed by fail-open publish + per-shard persistence to disk.
+3. **OpenRouter proxy-auth refuses adversarial prompts:** ~50% immediate-refusal rate on the Phase 2 prompt as written. Fixed structurally by the v2 decomposition (plan stays refusal-safe, text is UGC-framed).
+4. **GitLab PAT bootstrap broken on modern GitLab:** CSRF token moved from hidden input to meta tag; response moved from HTML scrape to JSON body. Fixed in commit `b1d1e1a`.
 
 ---
 
