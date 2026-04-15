@@ -1135,39 +1135,65 @@ class TestValidateDiagnosis:
 class TestValidateTriage:
     def test_accepts_valid(self):
         data = {
+            "task_id": "task-1",
             "decision": "needs_deep_diagnosis",
             "likely_root_cause": "reward_bug",
             "confidence": 0.72,
             "reason": "Trajectory suggests a reward mismatch worth escalating.",
+            "source": "model",
+            "escalate": True,
         }
 
-        errors = validator.validate_triage(data)
+        errors = validator.validate_triage_record(data)
 
         assert errors == []
 
     def test_rejects_invalid_decision(self):
         data = {
+            "task_id": "task-1",
             "decision": "reward_bug",
             "likely_root_cause": "reward_bug",
             "confidence": 0.5,
             "reason": "bad enum",
+            "source": "model",
+            "escalate": True,
         }
 
-        errors = validator.validate_triage(data)
+        errors = validator.validate_triage_record(data)
 
         assert any("decision" in e for e in errors)
 
     def test_rejects_invalid_cross_field_pair(self):
         data = {
+            "task_id": "task-1",
             "decision": "agent_limitation",
             "likely_root_cause": "reward_bug",
             "confidence": 0.95,
             "reason": "contradictory output",
+            "source": "model",
+            "escalate": False,
         }
+
+        errors = validator.validate_triage_record(data)
+
+        assert any("agent_limitation" in e for e in errors)
+
+    def test_accepts_valid_collection(self):
+        data = [
+            {
+                "task_id": "task-1",
+                "decision": "agent_limitation",
+                "likely_root_cause": "agent_limitation",
+                "confidence": 0.99,
+                "reason": "Clear login wall.",
+                "source": "rules",
+                "escalate": False,
+            }
+        ]
 
         errors = validator.validate_triage(data)
 
-        assert any("agent_limitation" in e for e in errors)
+        assert errors == []
 
 
 class TestValidateAgentContext:

@@ -1679,11 +1679,11 @@ def validate_diagnosis(data: object) -> list[str]:
     return errors
 
 
-def validate_triage(data: object) -> list[str]:
-    """Validate triage.json structure."""
+def validate_triage_record(data: object) -> list[str]:
+    """Validate one triage decision record."""
     errors: list[str] = []
     if not isinstance(data, dict):
-        errors.append("triage must be a JSON object")
+        errors.append("triage record must be a JSON object")
         return errors
 
     valid_decisions = {
@@ -1722,6 +1722,18 @@ def validate_triage(data: object) -> list[str]:
     if not isinstance(reason, str) or not reason.strip():
         errors.append("reason must be a non-empty string")
 
+    source = data.get("source")
+    if source not in {"rules", "model"}:
+        errors.append(f"source must be 'rules' or 'model', got {source!r}")
+
+    escalate = data.get("escalate")
+    if not isinstance(escalate, bool):
+        errors.append("escalate must be a boolean")
+
+    task_id = data.get("task_id")
+    if not isinstance(task_id, str) or not task_id.strip():
+        errors.append("task_id must be a non-empty string")
+
     if decision == "agent_limitation" and likely_root_cause in {
         "reward_bug",
         "seed_bug",
@@ -1734,6 +1746,18 @@ def validate_triage(data: object) -> list[str]:
     if decision == "infra_error" and likely_root_cause not in {"infra_error", None}:
         errors.append("infra_error triage must use likely_root_cause infra_error or null")
 
+    return errors
+
+
+def validate_triage(data: object) -> list[str]:
+    """Validate the persisted triage.json artifact."""
+    errors: list[str] = []
+    if not isinstance(data, list):
+        errors.append("triage.json must be a JSON array")
+        return errors
+    for i, record in enumerate(data):
+        record_errors = validate_triage_record(record)
+        errors.extend(f"triage[{i}]: {error}" for error in record_errors)
     return errors
 
 

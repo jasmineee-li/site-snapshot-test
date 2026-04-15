@@ -165,7 +165,10 @@ def _persist_triage_metadata(
     if not isinstance(payload, dict):
         logger.warning("Skipping triage metadata update for non-object %s", result_path)
         return
-    payload.update(_triage_metadata_fields(triage))
+    metadata_fields = _triage_metadata_fields(triage)
+    if all(payload.get(key) == value for key, value in metadata_fields.items()):
+        return
+    payload.update(metadata_fields)
     _write_json_atomic(
         result_path,
         payload,

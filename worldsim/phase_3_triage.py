@@ -25,7 +25,7 @@ from typing import Any
 
 import requests
 
-from worldsim._sandbox_validator import validate_triage
+from worldsim._sandbox_validator import validate_triage_record
 from worldsim.prompt_loading import load_prompt
 
 DEFAULT_TRIAGE_MODEL = "anthropic/claude-sonnet-4.5"
@@ -33,6 +33,7 @@ DEFAULT_TRIAGE_CONCURRENCY = 20
 _OPENROUTER_TIMEOUT_SECONDS = 60
 _ANTHROPIC_TIMEOUT_SECONDS = 60
 _JSON_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
+_MAX_MODEL_HISTORY_CHARS = 4000
 _AUTH_MARKERS = (
     "401",
     "403",
@@ -83,6 +84,16 @@ _REFUSAL_SNIPPETS = (
     "i am not going to",
     "i'm unable to",
 )
+_ACTION_CONTEXT_MARKERS = ("redirect", "navigated", "opened", "went to", "visit", "search", "searched")
+
+
+@dataclass(slots=True)
+class TriageContext:
+    task_id: str
+    task: dict[str, Any]
+    result: dict[str, Any]
+    history_text: str
+    haystack: str
 
 
 @dataclass(slots=True)
@@ -119,10 +130,14 @@ async def triage_failures(
     ``needs_deep_diagnosis``.
     """
     decisions_by_task_id: dict[str, dict[str, Any]] = {}
-    unresolved: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    unresolved: list[TriageContext] = []
 
     for result in failed_results:
         task_id = str(result.get("task_id", ""))
+        cached = _cached_triage_record(result)
+        if cached is not None:
+            decisions_by_task_id[task_id] = cached
+            continue
         task = prepared_by_id.get(task_id)
         if task is None:
             decisions_by_task_id[task_id] = (
@@ -136,20 +151,21 @@ async def triage_failures(
                 ).as_dict()
             )
             continue
-        rule_decision = triage_failure_rules(result=result, task=task)
+        context = _build_triage_context(result=result, task=task)
+        rule_decision = triage_failure_rules(context=context)
         if rule_decision is not None:
             decisions_by_task_id[task_id] = rule_decision.as_dict()
         else:
-            unresolved.append((result, task))
+            unresolved.append(context)
 
     if not unresolved:
         return [decisions_by_task_id[str(result.get("task_id", ""))] for result in failed_results]
 
     if not _triage_model_available():
-        for result, _task in unresolved:
-            task_id = str(result.get("task_id", ""))
+        for context in unresolved:
+            task_id = context.task_id
             decisions_by_task_id[task_id] = TriageDecision(
-                task_id=str(result.get("task_id", "")),
+                task_id=task_id,
                 decision="needs_deep_diagnosis",
                 likely_root_cause=None,
                 confidence=1.0,
@@ -159,19 +175,21 @@ async def triage_failures(
         return [decisions_by_task_id[str(result.get("task_id", ""))] for result in failed_results]
 
     limiter = asyncio.Semaphore(max(1, concurrency))
-    triage_model = model or os.environ.get("WORLDSIM_PHASE3_TRIAGE_MODEL", "").strip() or DEFAULT_TRIAGE_MODEL
+    triage_model = (
+        model or os.environ.get("WORLDSIM_PHASE3_TRIAGE_MODEL", "").strip() or DEFAULT_TRIAGE_MODEL
+    )
 
-    async def _run_one(result: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
+    async def _run_one(context: TriageContext) -> dict[str, Any]:
         async with limiter:
-            return await _triage_failure_model(result=result, task=task, model=triage_model)
+            return await _triage_failure_model(context=context, model=triage_model)
 
     model_results = await asyncio.gather(
-        *(_run_one(result, task) for result, task in unresolved),
+        *(_run_one(context) for context in unresolved),
         return_exceptions=True,
     )
     for idx, payload in enumerate(model_results):
-        result, _task = unresolved[idx]
-        task_id = str(result.get("task_id", ""))
+        context = unresolved[idx]
+        task_id = context.task_id
         if isinstance(payload, BaseException):
             decisions_by_task_id[task_id] = (
                 TriageDecision(
@@ -191,17 +209,13 @@ async def triage_failures(
 
 def triage_failure_rules(
     *,
-    result: dict[str, Any],
-    task: dict[str, Any],
+    context: TriageContext,
 ) -> TriageDecision | None:
     """Return a high-precision rule-based triage decision or ``None``."""
-    task_id = str(result.get("task_id", task.get("id", "")))
-    outcome = str(result.get("outcome", "")).strip().lower()
-    message = str(result.get("message", "")).strip()
-    history_text = _load_history_text(Path(result.get("trajectory_dir", "")))
-    haystack = _normalize_text(message, history_text)
+    task_id = context.task_id
+    outcome = str(context.result.get("outcome", "")).strip().lower()
 
-    if outcome == "error" or _contains_any(haystack, _INFRA_MARKERS):
+    if outcome == "error" or _contains_any(context.haystack, _INFRA_MARKERS):
         return TriageDecision(
             task_id=task_id,
             decision="infra_error",
@@ -211,7 +225,7 @@ def triage_failure_rules(
             source="rules",
         )
 
-    if _contains_any(haystack, _AUTH_MARKERS):
+    if _has_auth_failure_signal(context):
         return TriageDecision(
             task_id=task_id,
             decision="agent_limitation",
@@ -221,7 +235,7 @@ def triage_failure_rules(
             source="rules",
         )
 
-    if _contains_any(haystack, _OFFSITE_MARKERS):
+    if _has_offsite_drift_signal(context):
         return TriageDecision(
             task_id=task_id,
             decision="agent_limitation",
@@ -232,6 +246,19 @@ def triage_failure_rules(
         )
 
     return None
+
+
+def _build_triage_context(*, result: dict[str, Any], task: dict[str, Any]) -> TriageContext:
+    task_id = str(result.get("task_id", task.get("id", "")))
+    history_text = _load_history_text(Path(str(result.get("trajectory_dir", "")).strip()))
+    haystack = _normalize_text(str(result.get("message", "")), history_text)
+    return TriageContext(
+        task_id=task_id,
+        task=task,
+        result=result,
+        history_text=history_text,
+        haystack=haystack,
+    )
 
 
 def _load_history_text(trajectory_dir: Path) -> str:
@@ -275,13 +302,32 @@ def _contains_any(haystack: str, needles: tuple[str, ...]) -> bool:
     return any(needle in haystack for needle in needles)
 
 
+def _count_matches(haystack: str, needles: tuple[str, ...]) -> int:
+    return sum(haystack.count(needle) for needle in needles)
+
+
+def _has_auth_failure_signal(context: TriageContext) -> bool:
+    message_text = str(context.result.get("message", "")).strip().lower()
+    history_text = context.history_text.lower()
+    if _contains_any(message_text, _AUTH_MARKERS):
+        return True
+    marker_hits = _count_matches(history_text, _AUTH_MARKERS)
+    return marker_hits >= 2 and _contains_any(history_text, _ACTION_CONTEXT_MARKERS)
+
+
+def _has_offsite_drift_signal(context: TriageContext) -> bool:
+    history_text = context.history_text.lower()
+    offsite_hits = _count_matches(history_text, _OFFSITE_MARKERS)
+    action_hits = _count_matches(history_text, _ACTION_CONTEXT_MARKERS)
+    return offsite_hits >= 2 and action_hits >= 1
+
+
 async def _triage_failure_model(
     *,
-    result: dict[str, Any],
-    task: dict[str, Any],
+    context: TriageContext,
     model: str,
 ) -> dict[str, Any]:
-    prompt = _build_triage_prompt(task=task, result=result)
+    prompt = _build_triage_prompt(context=context)
     errors: list[str] = []
 
     if _openrouter_available():
@@ -292,7 +338,7 @@ async def _triage_failure_model(
         else:
             parsed = _coerce_triage_response(
                 raw,
-                task_id=str(result.get("task_id", "")),
+                task_id=context.task_id,
                 source="model",
             )
             if parsed is not None:
@@ -307,7 +353,7 @@ async def _triage_failure_model(
         else:
             parsed = _coerce_triage_response(
                 raw,
-                task_id=str(result.get("task_id", "")),
+                task_id=context.task_id,
                 source="model",
             )
             if parsed is not None:
@@ -315,7 +361,7 @@ async def _triage_failure_model(
             errors.append("anthropic_invalid_or_refused")
 
     return TriageDecision(
-        task_id=str(result.get("task_id", "")),
+        task_id=context.task_id,
         decision="needs_deep_diagnosis",
         likely_root_cause=None,
         confidence=1.0,
@@ -327,29 +373,29 @@ async def _triage_failure_model(
     ).as_dict()
 
 
-def _build_triage_prompt(*, task: dict[str, Any], result: dict[str, Any]) -> str:
+def _build_triage_prompt(*, context: TriageContext) -> str:
     prompt = load_prompt("triage-benign-failure")
-    context = {
+    payload = {
         "task": {
-            "id": task.get("id"),
-            "site": task.get("site"),
-            "instruction": task.get("instruction"),
-            "start_urls": task.get("start_urls"),
-            "sanity_result": _task_sanity_result(task),
-            "agent_context": _triage_agent_context(task),
+            "id": context.task.get("id"),
+            "site": context.task.get("site"),
+            "instruction": context.task.get("instruction"),
+            "start_urls": context.task.get("start_urls"),
+            "sanity_result": _task_sanity_result(context.task),
+            "agent_context": _triage_agent_context(context.task),
         },
         "result": {
-            "passed": result.get("passed"),
-            "outcome": result.get("outcome"),
-            "message": result.get("message"),
-            "steps": result.get("steps"),
-            "elapsed": result.get("elapsed"),
+            "passed": context.result.get("passed"),
+            "outcome": context.result.get("outcome"),
+            "message": context.result.get("message"),
+            "steps": context.result.get("steps"),
+            "elapsed": context.result.get("elapsed"),
         },
-        "history_excerpt": _load_history_text(Path(result.get("trajectory_dir", ""))),
+        "history_excerpt": _history_excerpt_for_model(context),
     }
     return (
         f"{prompt}\n\n## Task Context\n\n"
-        f"```json\n{json.dumps(context, indent=2)}\n```"
+        f"```json\n{json.dumps(payload, indent=2)}\n```"
     )
 
 
@@ -377,9 +423,31 @@ def _triage_agent_context(task: dict[str, Any]) -> dict[str, Any]:
         return {}
     auth = agent_context.get("authentication")
     mech = agent_context.get("auth_mechanism")
+    sanitized_auth: dict[str, Any] | None = None
+    if isinstance(auth, dict):
+        credentials = auth.get("credentials")
+        credential_keys: list[str] = []
+        if isinstance(credentials, dict):
+            credential_keys = sorted(str(key) for key in credentials.keys())
+        sanitized_auth = {
+            "pre_authenticated": auth.get("pre_authenticated"),
+            "description": auth.get("description"),
+            "has_credentials": bool(credentials),
+            "credential_keys": credential_keys,
+        }
+    sanitized_mech: dict[str, Any] | None = None
+    if isinstance(mech, dict):
+        mech_type = mech.get("type")
+        sanitized_mech = {"type": mech_type}
+        if mech_type == "storage_state":
+            sanitized_mech["has_path"] = bool(mech.get("path"))
+        if mech_type == "http_headers":
+            headers = mech.get("http_headers", {}).get("headers")
+            if isinstance(headers, dict):
+                sanitized_mech["header_names"] = sorted(str(key) for key in headers.keys())
     return {
-        "authentication": auth if isinstance(auth, dict) else None,
-        "auth_mechanism": mech if isinstance(mech, dict) else None,
+        "authentication": sanitized_auth,
+        "auth_mechanism": sanitized_mech,
     }
 
 
@@ -396,32 +464,21 @@ def _coerce_triage_response(raw: str | tuple[str, str], *, task_id: str, source:
         return None
     parsed.setdefault("task_id", task_id)
     parsed.setdefault("source", source)
-    errors = validate_triage(parsed)
+    parsed.setdefault("escalate", True)
+    errors = validate_triage_record(parsed)
     if errors:
         return None
     return parsed
 
 
 def _finalize_model_decision(parsed: dict[str, Any]) -> dict[str, Any]:
-    decision = str(parsed.get("decision"))
-    confidence = float(parsed.get("confidence", 0.0))
-    if decision == "agent_limitation" and confidence >= 0.90:
-        return {
-            **parsed,
-            "escalate": False,
-        }
-    if decision == "infra_error" and confidence >= 0.95:
-        return {
-            **parsed,
-            "escalate": False,
-        }
     return {
         "task_id": str(parsed.get("task_id", "")),
         "decision": "needs_deep_diagnosis",
         "likely_root_cause": parsed.get("likely_root_cause"),
-        "confidence": confidence,
+        "confidence": float(parsed.get("confidence", 0.0)),
         "reason": str(parsed.get("reason", "")).strip()
-        or "Model triage did not provide a high-confidence short-circuit decision.",
+        or "Model triage returned advisory metadata only; escalating conservatively.",
         "source": str(parsed.get("source", "model")),
         "escalate": True,
     }
@@ -432,9 +489,7 @@ def _triage_model_available() -> bool:
 
 
 def _openrouter_available() -> bool:
-    return bool(os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()) and bool(
-        os.environ.get("ANTHROPIC_BASE_URL", "").strip()
-    )
+    return _openrouter_credentials() is not None
 
 
 def _anthropic_available() -> bool:
@@ -444,8 +499,10 @@ def _anthropic_available() -> bool:
 
 
 def _call_openrouter(prompt: str, model: str) -> str:
-    base_url = os.environ["ANTHROPIC_BASE_URL"].rstrip("/")
-    auth_token = os.environ["ANTHROPIC_AUTH_TOKEN"].strip()
+    credentials = _openrouter_credentials()
+    if credentials is None:
+        raise RuntimeError("no openrouter credentials configured")
+    base_url, auth_token = credentials
     response = requests.post(
         f"{base_url}/v1/chat/completions",
         headers={
@@ -512,3 +569,83 @@ def _direct_anthropic_model_name(model: str) -> str:
 def _is_refusal(text: str) -> bool:
     normalized = text.lower()
     return any(snippet in normalized for snippet in _REFUSAL_SNIPPETS)
+
+
+def _openrouter_credentials() -> tuple[str, str] | None:
+    anthropic_base = os.environ.get("ANTHROPIC_BASE_URL", "").strip()
+    anthropic_token = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
+    if anthropic_base and anthropic_token:
+        return (anthropic_base.rstrip("/"), anthropic_token)
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if openrouter_key:
+        return ("https://openrouter.ai/api", openrouter_key)
+    return None
+
+
+def _history_excerpt_for_model(context: TriageContext) -> str:
+    excerpt = context.history_text.strip()
+    if not excerpt:
+        return ""
+    lines = [line.strip() for line in excerpt.splitlines() if line.strip()]
+    salient: list[str] = []
+    for line in lines:
+        lower = line.lower()
+        if (
+            _contains_any(lower, _AUTH_MARKERS)
+            or _contains_any(lower, _OFFSITE_MARKERS)
+            or _contains_any(lower, _INFRA_MARKERS)
+            or "error" in lower
+            or "reward" in lower
+            or "final" in lower
+        ):
+            salient.append(line)
+    tail = lines[-20:]
+    merged = "\n".join((salient + tail)[-40:])
+    minimized = merged[:_MAX_MODEL_HISTORY_CHARS]
+    return _redact_sensitive_text(minimized, task=context.task)
+
+
+def _redact_sensitive_text(text: str, *, task: dict[str, Any]) -> str:
+    redacted = text
+    credentials = (
+        task.get("agent_context", {})
+        .get("authentication", {})
+        .get("credentials")
+        if isinstance(task.get("agent_context"), dict)
+        and isinstance(task.get("agent_context", {}).get("authentication"), dict)
+        else None
+    )
+    if isinstance(credentials, dict):
+        for value in credentials.values():
+            if isinstance(value, str) and value.strip():
+                redacted = redacted.replace(value, "[REDACTED_CREDENTIAL]")
+    redacted = re.sub(
+        r"(?i)(password|token|secret|api[_-]?key|cookie|authorization)\s*[:=]\s*\S+",
+        r"\1=[REDACTED]",
+        redacted,
+    )
+    redacted = re.sub(
+        r"(?i)(bearer\s+token)\s+[A-Za-z0-9._-]+",
+        r"\1 [REDACTED]",
+        redacted,
+    )
+    redacted = re.sub(r"Bearer\s+[A-Za-z0-9._-]+", "Bearer [REDACTED]", redacted, flags=re.IGNORECASE)
+    return redacted
+
+
+def _cached_triage_record(result: dict[str, Any]) -> dict[str, Any] | None:
+    if "triage_decision" not in result:
+        return None
+    record = {
+        "task_id": str(result.get("task_id", "")),
+        "decision": result.get("triage_decision"),
+        "likely_root_cause": result.get("triage_likely_root_cause"),
+        "confidence": result.get("triage_confidence"),
+        "reason": result.get("triage_reason"),
+        "source": result.get("triage_source"),
+        "escalate": bool(result.get("triage_escalate")),
+    }
+    errors = validate_triage_record(record)
+    if errors:
+        return None
+    return record

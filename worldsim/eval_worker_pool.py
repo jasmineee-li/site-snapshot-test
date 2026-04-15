@@ -68,6 +68,16 @@ def _normalize_completed_result(data: dict[str, Any], *, trajectory_dir: Path) -
     for key in ("passed", "message", "elapsed", "steps", "is_done"):
         if key in data:
             normalized[key] = data.get(key)
+    for key in (
+        "triage_decision",
+        "triage_likely_root_cause",
+        "triage_confidence",
+        "triage_reason",
+        "triage_source",
+        "triage_escalate",
+    ):
+        if key in data:
+            normalized[key] = data.get(key)
     return normalized
 
 

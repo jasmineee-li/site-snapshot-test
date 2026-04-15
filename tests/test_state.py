@@ -593,6 +593,33 @@ def test_load_completed_results_finds_valid_results(tmp_path):
     assert completed["42"]["trajectory_dir"] == str(task_dir)
 
 
+def test_load_completed_results_preserves_triage_metadata(tmp_path):
+    from worldsim.task_paths import safe_task_path_component
+
+    task_dir = tmp_path / safe_task_path_component("42")
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "42",
+                "passed": False,
+                "message": "reward mismatch",
+                "triage_decision": "agent_limitation",
+                "triage_likely_root_cause": "agent_limitation",
+                "triage_confidence": 0.99,
+                "triage_reason": "Clear login wall.",
+                "triage_source": "rules",
+                "triage_escalate": False,
+            }
+        )
+    )
+
+    completed = load_completed_results(tmp_path)
+
+    assert completed["42"]["triage_decision"] == "agent_limitation"
+    assert completed["42"]["triage_escalate"] is False
+
+
 def test_load_completed_results_skips_corrupt_files(tmp_path):
     """Corrupt result.json files are skipped, allowing re-run."""
     from worldsim.task_paths import safe_task_path_component

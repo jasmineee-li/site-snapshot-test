@@ -763,9 +763,9 @@ Phase 3 first runs a conservative host-side triage pass over the existing
 - deterministic rules short-circuit obvious `infra_error` and
   `agent_limitation` cases (for example login walls, 401/403, clear off-site
   drift),
-- unresolved failures optionally go through a cheap host-side structured model
-  call that is only allowed to answer `agent_limitation`, `infra_error`, or
-  `needs_deep_diagnosis`,
+- unresolved failures can optionally go through a sanitized host-side
+  structured model call for advisory metadata, but that path is escalation-only
+  and never suppresses deep diagnosis,
 - only `needs_deep_diagnosis` failures enter the existing per-task diagnosis
   sandbox and fix loop.
 

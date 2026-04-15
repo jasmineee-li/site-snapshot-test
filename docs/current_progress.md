@@ -4,7 +4,7 @@ Last updated: 2026-04-15
 
 ## 2026-04-15 update (newest first)
 
-- **Phase 3 conservative triage gate landed.** Benign failures now pass through a cheap host-side triage layer before the expensive diagnosis sandbox. High-precision rules short-circuit obvious `infra_error` and `agent_limitation` cases (auth/session walls, clear off-site drift); unresolved cases can use a structured host-side model triage call; only `needs_deep_diagnosis` failures enter `_diagnose_one_task` and the existing fix loop.
+- **Phase 3 conservative triage gate landed.** Benign failures now pass through a cheap host-side triage layer before the expensive diagnosis sandbox. High-precision rules short-circuit obvious `infra_error` and `agent_limitation` cases (auth/session walls, clear off-site drift); unresolved cases can use a sanitized host-side model triage call for advisory metadata, but only deterministic rules are allowed to suppress deep diagnosis.
 - **New Phase 3 artifacts.** `logs/phase_3/triage.json` records the per-failure triage decision, confidence, reason, source, and `escalate` bit. Failed per-task `result.json` files now also carry additive `triage_*` metadata so audit/replay can reconstruct why a task was or was not escalated.
 - **Rigor preserved.** The triage layer cannot mutate tasks or propose patches. Benchmark mutations still happen only through the existing structured diagnosis prompt plus host-side `validate_fix_patch`, so the validated benign cohort semantics are unchanged.
 
