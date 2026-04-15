@@ -2347,3 +2347,156 @@ async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatc
     assert "benchmark_root" not in captured
     assert "task_site" not in captured
     assert "auth_mechanism" not in captured
+
+
+@pytest.mark.asyncio
+async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "adv-gitlab",
+                    "benign_task_id": "benign-gitlab",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"adversarial_reward": {"type": "noop"}},
+                    "adversarial_data_seed": {
+                        "mechanism": "api",
+                        "api_calls": [
+                            {"method": "POST", "path": "/api/seed", "body": {"x": 1}}
+                        ],
+                    },
+                },
+                {
+                    "id": "adv-shopping",
+                    "benign_task_id": "benign-shopping",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Open order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"adversarial_reward": {"type": "noop"}},
+                    "adversarial_data_seed": {
+                        "mechanism": "api",
+                        "api_calls": [
+                            {"method": "POST", "path": "/api/seed", "body": {"x": 2}}
+                        ],
+                    },
+                },
+            ]
+        )
+    )
+    (tmp_path / "phase_3" / "validated_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "benign-gitlab",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"type": "noop"},
+                }
+            ]
+        )
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_gitlab.json").write_text(
+        json.dumps(
+            {
+                "site_name": "gitlab",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "reset_endpoint": "http://gitlab.test/init",
+                    }
+                ],
+            }
+        )
+    )
+    captured: dict[str, object] = {}
+
+    async def fake_run_tasks_by_site(**kwargs):
+        captured["tasks"] = kwargs["tasks"]
+        return []
+
+    monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=tmp_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            max_tasks_per_site=1,
+            sites="gitlab",
+            allow_unknown_auth=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 0
+    tasks = captured["tasks"]
+    assert isinstance(tasks, list)
+    assert len(tasks) == 1
+    assert tasks[0]["site"] == "gitlab"
+
+
+@pytest.mark.asyncio
+async def test_phase_4_run_rejects_unknown_sites_filter(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "adv-shopping",
+                    "benign_task_id": "benign-shopping",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Open order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"adversarial_reward": {"type": "noop"}},
+                    "adversarial_data_seed": {"mechanism": "none"},
+                }
+            ]
+        )
+    )
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=tmp_path / "missing.json",
+            benchmark=tmp_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            max_tasks_per_site=None,
+            sites="gitlab",
+            allow_unknown_auth=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 1

@@ -1450,3 +1450,130 @@ async def test_run_task_persists_resume_fingerprint(monkeypatch, tmp_path):
 
     payload = json.loads((tmp_path / "result.json").read_text())
     assert payload[RESULT_FINGERPRINT_KEY] == "phase3-fp"
+
+
+@pytest.mark.asyncio
+async def test_phase_3_run_filters_tasks_by_sites_before_sampling(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "gitlab-1",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open the issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                },
+                {
+                    "id": "shopping-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Open the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                },
+            ]
+        )
+    )
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
+        json.dumps([{"id": "adv-1", "benign_task_id": "gitlab-1", "site": "gitlab"}])
+    )
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_gitlab.json").write_text(
+        json.dumps(
+            {
+                "site_name": "gitlab",
+                "data_model": [],
+                "injection_surface": [],
+                "verification_capabilities": [],
+            }
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "reset_endpoint": "http://gitlab.test/init",
+                    }
+                ],
+            }
+        )
+    )
+    captured: dict[str, object] = {}
+
+    async def fake_run_tasks_by_site(**kwargs):
+        captured["tasks"] = kwargs["tasks"]
+        return []
+
+    monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=tmp_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=False,
+            max_tasks_per_site=1,
+            sites="gitlab",
+            allow_unknown_auth=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 0
+    tasks = captured["tasks"]
+    assert isinstance(tasks, list)
+    assert len(tasks) == 1
+    assert tasks[0]["site"] == "gitlab"
+
+
+@pytest.mark.asyncio
+async def test_phase_3_run_rejects_unknown_sites_filter(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "shopping-1",
+                    "site": "shopping",
+                    "sites": ["shopping"],
+                    "instruction": "Open the order",
+                    "start_urls": ["http://shopping.test/orders"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=tmp_path / "missing.json",
+            benchmark=tmp_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            max_tasks_per_site=None,
+            sites="gitlab",
+            allow_unknown_auth=True,
+            resume=False,
+        )
+    )
+
+    assert rc == 1

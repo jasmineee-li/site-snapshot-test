@@ -120,6 +120,7 @@ def _phase_4_state_metadata(
     sandbox_model: str,
     agent_provider: str | None,
     max_tasks_per_site: int | None,
+    sites: str | None,
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
 ) -> dict[str, Any]:
@@ -132,9 +133,32 @@ def _phase_4_state_metadata(
         "max_tasks_per_site": max_tasks_per_site,
         "allow_unknown_auth": allow_unknown_auth,
     }
+    if sites is not None:
+        metadata["sites"] = sites
     if benchmark_root is not None:
         metadata["benchmark_path"] = str(benchmark_root)
     return metadata
+
+
+def _filter_tasks_by_sites(
+    tasks: list[dict[str, Any]],
+    sites_filter_raw: str | None,
+    *,
+    phase_label: str,
+) -> list[dict[str, Any]]:
+    if not sites_filter_raw:
+        return tasks
+    sites_filter = {site.strip() for site in sites_filter_raw.split(",") if site.strip()}
+    known_sites = {str(task.get("site", "")).strip() for task in tasks if task.get("site")}
+    unknown = sites_filter - known_sites
+    if unknown:
+        raise ValueError(
+            f"{phase_label}: --sites includes unknown site(s): {sorted(unknown)}. "
+            f"Known sites: {sorted(known_sites)}"
+        )
+    filtered = [task for task in tasks if str(task.get("site", "")).strip() in sites_filter]
+    logger.info("%s: --sites filter active, running only %s", phase_label, sorted(sites_filter))
+    return filtered
 
 
 def _write_json_atomic(
@@ -256,6 +280,7 @@ async def run(args: argparse.Namespace) -> int:
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    sites_filter_raw = getattr(args, "sites", None)
     instances_path = getattr(args, "instances", None)
     state_metadata = _phase_4_state_metadata(
         task_dir_root=task_dir_root,
@@ -264,6 +289,7 @@ async def run(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         max_tasks_per_site=max_tasks_per_site,
+        sites=sites_filter_raw,
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
     )
@@ -274,6 +300,15 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Adversarial tasks not found at %s — run phase 2 first", adv_tasks_path)
         return 1
     adversarial_tasks = json.loads(adv_tasks_path.read_text())
+    try:
+        adversarial_tasks = _filter_tasks_by_sites(
+            adversarial_tasks,
+            sites_filter_raw,
+            phase_label="Phase 4",
+        )
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 1
 
     # Load validated task IDs from Phase 3 (only evaluate tasks that passed benign validation)
     validated_path = state_dir / "phase_3" / "validated_tasks.json"

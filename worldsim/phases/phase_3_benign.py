@@ -82,6 +82,7 @@ def _phase_3_state_metadata(
     agent_provider: str | None,
     full_baseline: bool,
     max_tasks_per_site: int | None,
+    sites: str | None,
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
 ) -> dict[str, Any]:
@@ -95,9 +96,32 @@ def _phase_3_state_metadata(
         "max_tasks_per_site": max_tasks_per_site,
         "allow_unknown_auth": allow_unknown_auth,
     }
+    if sites is not None:
+        metadata["sites"] = sites
     if benchmark_root is not None:
         metadata["benchmark_path"] = str(benchmark_root)
     return metadata
+
+
+def _filter_tasks_by_sites(
+    tasks: list[dict[str, Any]],
+    sites_filter_raw: str | None,
+    *,
+    phase_label: str,
+) -> list[dict[str, Any]]:
+    if not sites_filter_raw:
+        return tasks
+    sites_filter = {site.strip() for site in sites_filter_raw.split(",") if site.strip()}
+    known_sites = {str(task.get("site", "")).strip() for task in tasks if task.get("site")}
+    unknown = sites_filter - known_sites
+    if unknown:
+        raise ValueError(
+            f"{phase_label}: --sites includes unknown site(s): {sorted(unknown)}. "
+            f"Known sites: {sorted(known_sites)}"
+        )
+    filtered = [task for task in tasks if str(task.get("site", "")).strip() in sites_filter]
+    logger.info("%s: --sites filter active, running only %s", phase_label, sorted(sites_filter))
+    return filtered
 
 
 def _write_json_atomic(
@@ -173,6 +197,12 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Benign tasks not found at %s — run phase 1 first", tasks_path)
         return 1
     benign_tasks = json.loads(tasks_path.read_text())
+    sites_filter_raw = getattr(args, "sites", None)
+    try:
+        benign_tasks = _filter_tasks_by_sites(benign_tasks, sites_filter_raw, phase_label="Phase 3")
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 1
 
     # Default: filter to only tasks with adversarial counterparts
     full_baseline = getattr(args, "full_baseline", False)
@@ -245,6 +275,7 @@ async def run(args: argparse.Namespace) -> int:
         agent_provider=agent_provider,
         full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
+        sites=sites_filter_raw,
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
     )

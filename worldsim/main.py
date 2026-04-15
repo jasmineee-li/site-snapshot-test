@@ -126,9 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         metavar="SITE[,SITE...]",
-        help="Phase 2: comma-separated site names to include (e.g. 'shopping_admin'). "
-        "Other sites are skipped entirely; their existing adversarial_tasks.json "
-        "entries are preserved on merge.",
+        help="Comma-separated site names to include (e.g. 'shopping_admin'). "
+        "Phase 2 preserves unselected sites on merge; Phases 3-4 filter task selection "
+        "to the listed sites only.",
     )
     phase_cmd.add_argument(
         "--phase-2-sandbox-concurrency",
@@ -246,7 +246,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default=argparse.SUPPRESS,
         metavar="SITE[,SITE...]",
-        help="Override the saved Phase 2 site filter on resume.",
+        help="Override the saved site filter on resume.",
     )
     resume_cmd.add_argument(
         "--phase-2-sandbox-concurrency",

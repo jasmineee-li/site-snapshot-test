@@ -406,6 +406,62 @@ def test_dispatch_resume_allows_explicit_phase_2_sites_override(monkeypatch, tmp
     assert captured["sites"] == "gitlab"
 
 
+def test_dispatch_resume_restores_saved_phase_3_sites_filter(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_3",
+        status="running",
+        instances_path="/tmp/instances.json",
+        sites="gitlab",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["sites"] = args.sites
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "3"
+    assert captured["sites"] == "gitlab"
+
+
+def test_dispatch_resume_restores_saved_phase_4_sites_filter(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="running",
+        instances_path="/tmp/instances.json",
+        sites="shopping,gitlab",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["sites"] = args.sites
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["sites"] == "shopping,gitlab"
+
+
 def test_dispatch_resume_restores_saved_phase_2_traffic_shaping(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
