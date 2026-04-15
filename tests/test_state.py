@@ -6,6 +6,7 @@ from argparse import Namespace
 from worldsim import main as worldsim_main
 from worldsim.browser_use_agent import AgentResult
 from worldsim.eval_worker_pool import load_completed_results
+from worldsim.phase_3_triage import TRIAGE_CACHE_VERSION
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.state import get_state_dir, load_state, save_state
 from worldsim.trajectory import save_result
@@ -610,6 +611,7 @@ def test_load_completed_results_preserves_triage_metadata(tmp_path):
                 "triage_reason": "Clear login wall.",
                 "triage_source": "rules",
                 "triage_escalate": False,
+                "triage_cache_version": TRIAGE_CACHE_VERSION,
             }
         )
     )
@@ -618,6 +620,7 @@ def test_load_completed_results_preserves_triage_metadata(tmp_path):
 
     assert completed["42"]["triage_decision"] == "agent_limitation"
     assert completed["42"]["triage_escalate"] is False
+    assert completed["42"]["triage_cache_version"] == TRIAGE_CACHE_VERSION
 
 
 def test_load_completed_results_skips_corrupt_files(tmp_path):

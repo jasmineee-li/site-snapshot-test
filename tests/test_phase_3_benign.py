@@ -13,6 +13,7 @@ from worldsim.agent_config import (
 )
 from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
+from worldsim.phase_3_triage import TRIAGE_CACHE_VERSION
 from worldsim.phases import phase_3_benign
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
@@ -1081,10 +1082,15 @@ async def test_phase_3_run_skips_diagnosis_for_auth_failures_after_triage(monkey
     auth_traj = tmp_path / "auth-failure"
     auth_traj.mkdir()
     (auth_traj / "history.json").write_text(
-        json.dumps([{"text": "Please sign in to continue"}])
+        json.dumps(
+            [
+                {"current_url": "http://shopping.test/login"},
+                {"status": "session expired"},
+            ]
+        )
     )
     (auth_traj / "result.json").write_text(
-        json.dumps({"task_id": "task-1", "passed": False, "message": "Please sign in"})
+        json.dumps({"task_id": "task-1", "passed": False, "message": "reward mismatch"})
     )
 
     async def fake_run_tasks_by_site(**kwargs):
@@ -1092,7 +1098,7 @@ async def test_phase_3_run_skips_diagnosis_for_auth_failures_after_triage(monkey
             {
                 "task_id": "task-1",
                 "passed": False,
-                "message": "Please sign in to continue",
+                "message": "reward mismatch",
                 "trajectory_dir": str(auth_traj),
             }
         ]
@@ -1131,8 +1137,10 @@ async def test_phase_3_run_skips_diagnosis_for_auth_failures_after_triage(monkey
     ]
     results = json.loads((tmp_path / "phase_3" / "results.json").read_text())
     assert results[0]["triage_decision"] == "agent_limitation"
+    assert results[0]["triage_cache_version"] == TRIAGE_CACHE_VERSION
     persisted_result = json.loads((auth_traj / "result.json").read_text())
     assert persisted_result["triage_decision"] == "agent_limitation"
+    assert persisted_result["triage_cache_version"] == TRIAGE_CACHE_VERSION
 
 
 @pytest.mark.asyncio

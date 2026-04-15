@@ -48,7 +48,7 @@ from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.fix_validation import validate_fix_patch
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
-from worldsim.phase_3_triage import triage_failures
+from worldsim.phase_3_triage import TRIAGE_CACHE_VERSION, triage_failures
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.resume_metadata import (
@@ -142,6 +142,7 @@ def _triage_metadata_fields(triage: dict[str, Any]) -> dict[str, Any]:
         "triage_reason": triage.get("reason"),
         "triage_source": triage.get("source"),
         "triage_escalate": triage.get("escalate"),
+        "triage_cache_version": TRIAGE_CACHE_VERSION,
     }
 
 

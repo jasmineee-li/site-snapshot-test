@@ -5,6 +5,7 @@ import json
 import pytest
 
 from worldsim.phase_3_triage import (
+    TRIAGE_CACHE_VERSION,
     _build_triage_context,
     _build_triage_prompt,
     _finalize_model_decision,
@@ -36,9 +37,16 @@ def _result(tmp_path, task_id: str = "task-1", *, outcome: str = "failed", messa
 
 
 def test_triage_failure_rules_classifies_auth_failures(tmp_path):
-    result = _result(tmp_path, message="Please sign in to continue")
+    result = _result(tmp_path, message="reward mismatch")
     trajectory_dir = tmp_path / "task-1"
-    (trajectory_dir / "history.json").write_text(json.dumps([{"text": "Please sign in"}]))
+    (trajectory_dir / "history.json").write_text(
+        json.dumps(
+            [
+                {"current_url": "http://shopping.test/login"},
+                {"status": "session expired"},
+            ]
+        )
+    )
 
     decision = triage_failure_rules(context=_build_triage_context(result=result, task=_task()))
 
@@ -58,13 +66,13 @@ def test_triage_failure_rules_classifies_infra_failures(tmp_path):
 
 
 def test_triage_failure_rules_classifies_offsite_drift(tmp_path):
-    result = _result(tmp_path, message="searched for answer on DuckDuckGo")
+    result = _result(tmp_path, message="reward mismatch")
     trajectory_dir = tmp_path / "task-1"
     (trajectory_dir / "history.json").write_text(
         json.dumps(
             [
-                {"text": "Opened DuckDuckGo and searched for answer"},
-                {"text": "Stayed on DuckDuckGo results instead of returning to shopping"},
+                {"current_url": "https://duckduckgo.com/?q=shopping+order"},
+                {"current_url": "https://duckduckgo.com/?q=shopping+tracking"},
             ]
         )
     )
@@ -119,6 +127,7 @@ async def test_triage_failures_reuses_cached_decisions(monkeypatch, tmp_path):
             "triage_reason": "Clear login wall.",
             "triage_source": "rules",
             "triage_escalate": False,
+            "triage_cache_version": TRIAGE_CACHE_VERSION,
         }
     )
 
@@ -129,6 +138,50 @@ async def test_triage_failures_reuses_cached_decisions(monkeypatch, tmp_path):
 
     assert decisions[0]["decision"] == "agent_limitation"
     assert decisions[0]["escalate"] is False
+
+
+@pytest.mark.asyncio
+async def test_triage_failures_ignores_stale_model_short_circuit_cache(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-test-key")
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    prompt_calls: list[str] = []
+
+    def fake_call_openrouter(prompt: str, model: str) -> str:
+        prompt_calls.append(prompt)
+        return json.dumps(
+            {
+                "decision": "agent_limitation",
+                "likely_root_cause": "agent_limitation",
+                "confidence": 0.99,
+                "reason": "Looks like a login wall.",
+            }
+        )
+
+    monkeypatch.setattr("worldsim.phase_3_triage._call_openrouter", fake_call_openrouter)
+    result = _result(tmp_path, message="reward rejected final answer")
+    result.update(
+        {
+            "triage_decision": "agent_limitation",
+            "triage_likely_root_cause": "agent_limitation",
+            "triage_confidence": 0.99,
+            "triage_reason": "Old model short circuit.",
+            "triage_source": "model",
+            "triage_escalate": False,
+            "triage_cache_version": TRIAGE_CACHE_VERSION - 1,
+        }
+    )
+
+    decisions = await triage_failures(
+        failed_results=[result],
+        prepared_by_id={"task-1": _task()},
+    )
+
+    assert len(prompt_calls) == 1
+    assert decisions[0]["decision"] == "needs_deep_diagnosis"
+    assert decisions[0]["source"] == "model"
 
 
 def test_finalize_model_decision_always_escalates():

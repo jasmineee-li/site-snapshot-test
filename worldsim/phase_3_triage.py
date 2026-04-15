@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -30,6 +31,7 @@ from worldsim.prompt_loading import load_prompt
 
 DEFAULT_TRIAGE_MODEL = "anthropic/claude-sonnet-4.5"
 DEFAULT_TRIAGE_CONCURRENCY = 20
+TRIAGE_CACHE_VERSION = 2
 _OPENROUTER_TIMEOUT_SECONDS = 60
 _ANTHROPIC_TIMEOUT_SECONDS = 60
 _JSON_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
@@ -84,7 +86,22 @@ _REFUSAL_SNIPPETS = (
     "i am not going to",
     "i'm unable to",
 )
-_ACTION_CONTEXT_MARKERS = ("redirect", "navigated", "opened", "went to", "visit", "search", "searched")
+_URL_SIGNAL_KEYS = {"url", "current_url", "document_url", "page_url", "target_url", "href"}
+_ERROR_SIGNAL_KEYS = {"error", "errors", "exception", "failure_reason"}
+_STATUS_SIGNAL_KEYS = {"status", "state", "status_code", "http_status", "response_status"}
+_AUTH_URL_MARKERS = ("/login", "/signin", "/sign-in", "/auth", "/captcha", "/mfa", "/2fa")
+_OFFSITE_HOST_MARKERS = (
+    "duckduckgo.",
+    "google.",
+    "bing.",
+    "browserling.",
+    "croxyproxy.",
+    "archive.ph",
+    "urlscan.io",
+    "screenshotmachine.",
+    "view-page-source.com",
+    "codebeautify.",
+)
 
 
 @dataclass(slots=True)
@@ -92,8 +109,12 @@ class TriageContext:
     task_id: str
     task: dict[str, Any]
     result: dict[str, Any]
+    history_payload: Any
     history_text: str
-    haystack: str
+    history_urls: list[str]
+    history_errors: list[str]
+    history_statuses: list[str]
+    allowed_hosts: set[str]
 
 
 @dataclass(slots=True)
@@ -215,7 +236,7 @@ def triage_failure_rules(
     task_id = context.task_id
     outcome = str(context.result.get("outcome", "")).strip().lower()
 
-    if outcome == "error" or _contains_any(context.haystack, _INFRA_MARKERS):
+    if outcome == "error" or _contains_any(str(context.result.get("message", "")).lower(), _INFRA_MARKERS):
         return TriageDecision(
             task_id=task_id,
             decision="infra_error",
@@ -250,33 +271,91 @@ def triage_failure_rules(
 
 def _build_triage_context(*, result: dict[str, Any], task: dict[str, Any]) -> TriageContext:
     task_id = str(result.get("task_id", task.get("id", "")))
-    history_text = _load_history_text(Path(str(result.get("trajectory_dir", "")).strip()))
-    haystack = _normalize_text(str(result.get("message", "")), history_text)
+    trajectory_dir = Path(str(result.get("trajectory_dir", "")).strip())
+    history_payload = _load_history_payload(trajectory_dir)
+    history_text = _render_history_text(history_payload)
+    history_urls, history_errors, history_statuses = _extract_history_signals(history_payload)
     return TriageContext(
         task_id=task_id,
         task=task,
         result=result,
+        history_payload=history_payload,
         history_text=history_text,
-        haystack=haystack,
+        history_urls=history_urls,
+        history_errors=history_errors,
+        history_statuses=history_statuses,
+        allowed_hosts=_allowed_hosts_for_task(task),
     )
 
 
-def _load_history_text(trajectory_dir: Path) -> str:
+def _load_history_payload(trajectory_dir: Path) -> Any:
     history_path = trajectory_dir / "history.json"
     if not history_path.exists():
-        return ""
+        return None
     try:
-        data = json.loads(history_path.read_text())
+        return json.loads(history_path.read_text())
     except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _render_history_text(history_payload: Any) -> str:
+    if history_payload is None:
         return ""
     flattened: list[str] = []
-    _collect_strings(data, flattened)
+    _collect_strings(history_payload, flattened)
     text = "\n".join(flattened)
     if len(text) <= 12000:
         return text
     head = text[:6000]
     tail = text[-6000:]
     return f"{head}\n...\n{tail}"
+
+
+def _extract_history_signals(history_payload: Any) -> tuple[list[str], list[str], list[str]]:
+    urls: list[str] = []
+    errors: list[str] = []
+    statuses: list[str] = []
+    _collect_signal_strings(history_payload, urls=urls, errors=errors, statuses=statuses)
+    return (urls, errors, statuses)
+
+
+def _collect_signal_strings(
+    value: Any,
+    *,
+    urls: list[str],
+    errors: list[str],
+    statuses: list[str],
+    key: str | None = None,
+) -> None:
+    if isinstance(value, dict):
+        for child_key, child_value in value.items():
+            _collect_signal_strings(
+                child_value,
+                urls=urls,
+                errors=errors,
+                statuses=statuses,
+                key=str(child_key).lower(),
+            )
+        return
+    if isinstance(value, list):
+        for item in value:
+            _collect_signal_strings(item, urls=urls, errors=errors, statuses=statuses, key=key)
+        return
+    if isinstance(value, (int, float)) and (key or "").lower() in _STATUS_SIGNAL_KEYS:
+        statuses.append(str(value))
+        return
+    if not isinstance(value, str):
+        return
+    stripped = value.strip()
+    if not stripped:
+        return
+    lowered_key = (key or "").lower()
+    if lowered_key in _URL_SIGNAL_KEYS:
+        urls.append(stripped)
+    elif lowered_key in _ERROR_SIGNAL_KEYS:
+        errors.append(stripped)
+    elif lowered_key in _STATUS_SIGNAL_KEYS:
+        statuses.append(stripped)
 
 
 def _collect_strings(value: Any, acc: list[str]) -> None:
@@ -294,32 +373,41 @@ def _collect_strings(value: Any, acc: list[str]) -> None:
             _collect_strings(item, acc)
 
 
-def _normalize_text(*parts: str) -> str:
-    return "\n".join(part for part in parts if part).lower()
-
-
 def _contains_any(haystack: str, needles: tuple[str, ...]) -> bool:
     return any(needle in haystack for needle in needles)
 
 
-def _count_matches(haystack: str, needles: tuple[str, ...]) -> int:
-    return sum(haystack.count(needle) for needle in needles)
-
-
 def _has_auth_failure_signal(context: TriageContext) -> bool:
-    message_text = str(context.result.get("message", "")).strip().lower()
-    history_text = context.history_text.lower()
-    if _contains_any(message_text, _AUTH_MARKERS):
+    error_text = "\n".join(context.history_errors).lower()
+    status_text = "\n".join(context.history_statuses).lower()
+    if _contains_any(error_text, _AUTH_MARKERS) or _contains_any(status_text, _AUTH_MARKERS):
         return True
-    marker_hits = _count_matches(history_text, _AUTH_MARKERS)
-    return marker_hits >= 2 and _contains_any(history_text, _ACTION_CONTEXT_MARKERS)
+    for raw_url in context.history_urls:
+        parsed = _safe_urlparse(raw_url)
+        if parsed is None:
+            continue
+        path = parsed.path.lower()
+        if any(marker in path for marker in _AUTH_URL_MARKERS):
+            return True
+    return False
 
 
 def _has_offsite_drift_signal(context: TriageContext) -> bool:
-    history_text = context.history_text.lower()
-    offsite_hits = _count_matches(history_text, _OFFSITE_MARKERS)
-    action_hits = _count_matches(history_text, _ACTION_CONTEXT_MARKERS)
-    return offsite_hits >= 2 and action_hits >= 1
+    external_hosts: list[str] = []
+    for raw_url in context.history_urls:
+        parsed = _safe_urlparse(raw_url)
+        if parsed is None or not parsed.netloc:
+            continue
+        host = parsed.netloc.lower()
+        if host in context.allowed_hosts:
+            continue
+        external_hosts.append(host)
+    if not external_hosts:
+        return False
+    final_host = external_hosts[-1]
+    repeated_external = len(external_hosts) >= 2
+    named_offsite = any(_contains_any(host, _OFFSITE_HOST_MARKERS) for host in external_hosts)
+    return repeated_external and named_offsite and _contains_any(final_host, _OFFSITE_HOST_MARKERS)
 
 
 async def _triage_failure_model(
@@ -636,16 +724,41 @@ def _redact_sensitive_text(text: str, *, task: dict[str, Any]) -> str:
 def _cached_triage_record(result: dict[str, Any]) -> dict[str, Any] | None:
     if "triage_decision" not in result:
         return None
+    if result.get("triage_cache_version") != TRIAGE_CACHE_VERSION:
+        return None
+    source = result.get("triage_source")
+    decision = result.get("triage_decision")
+    if source != "rules" and decision != "needs_deep_diagnosis":
+        return None
     record = {
         "task_id": str(result.get("task_id", "")),
-        "decision": result.get("triage_decision"),
+        "decision": decision,
         "likely_root_cause": result.get("triage_likely_root_cause"),
         "confidence": result.get("triage_confidence"),
         "reason": result.get("triage_reason"),
-        "source": result.get("triage_source"),
+        "source": source,
         "escalate": bool(result.get("triage_escalate")),
     }
     errors = validate_triage_record(record)
     if errors:
         return None
     return record
+
+
+def _allowed_hosts_for_task(task: dict[str, Any]) -> set[str]:
+    hosts: set[str] = set()
+    for raw_url in task.get("start_urls", []) or []:
+        parsed = _safe_urlparse(str(raw_url))
+        if parsed is not None and parsed.netloc:
+            hosts.add(parsed.netloc.lower())
+    return hosts
+
+
+def _safe_urlparse(value: str) -> Any | None:
+    try:
+        parsed = urlparse(value)
+    except Exception:
+        return None
+    if not parsed.scheme and not parsed.netloc:
+        return None
+    return parsed

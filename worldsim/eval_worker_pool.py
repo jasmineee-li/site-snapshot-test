@@ -75,6 +75,7 @@ def _normalize_completed_result(data: dict[str, Any], *, trajectory_dir: Path) -
         "triage_reason",
         "triage_source",
         "triage_escalate",
+        "triage_cache_version",
     ):
         if key in data:
             normalized[key] = data.get(key)
