@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
+from worldsim.config import has_configured_agent_auth
+
 logger = logging.getLogger(__name__)
 
 _SENSITIVE_HEADER_NAMES = {
@@ -676,6 +678,22 @@ def _resolve_auth(
 
     # Defensive fallback: an unknown-but-enumerated type slipped through.
     raise NotImplementedError(f"auth_mechanism.type={mech_type!r} has no runtime dispatcher")
+
+
+def resolve_instance_agent_auth(instance: dict[str, Any]) -> dict[str, Any] | None:
+    """Derive a ``_resolve_auth``-compatible auth_mechanism from instance config.
+
+    Returns an auth_mechanism dict that is passed directly as
+    ``run_kwargs["auth_mechanism"]`` to ``BrowserUseAgent.run``. This makes
+    ``instances.json`` the single source of truth for auth.
+
+    Returns ``None`` if the instance has no ``agent_auth`` configured. In that
+    case the task runs without auth (no silent fallback to Phase 0c).
+    """
+    agent_auth = instance.get("agent_auth")
+    if not has_configured_agent_auth(agent_auth):
+        return None
+    return agent_auth
 
 
 class BrowserUseAgent:

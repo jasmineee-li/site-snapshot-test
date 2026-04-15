@@ -23,33 +23,7 @@ Produce `/workspace/output/AGENT_CONTEXT.json`.
    strings (e.g. via an `instantiation_dict` field that gets interpolated into
    the intent template).
 
-5. Search for authentication credentials, storage state files, or auto-login
-   mechanisms. Check source code, config files, Docker entrypoints, and
-   example agent code. Specifically look for:
-
-   - JSON files under directories named `auth/`, `.auth/`, `storage_state/`,
-     `cookies/`, or similar (these are typically pre-baked browser contexts).
-   - Scripts named `setup*`, `login*`, `auth*`, or `prepare*` (these often
-     generate storage-state artifacts or exchange credentials for cookies).
-   - `credentials` dictionaries or `.env`-style files that ship
-     username/password pairs.
-   - HTML form selectors (input name/id for username, password, submit) and
-     a post-login signal (URL pattern, DOM substring) that the benchmark's
-     own harness asserts on.
-   - HTTP basic-auth headers or API-key headers baked into config or fixture
-     data.
-   - The benchmark's own runner, conftest, or entrypoint — whichever auth
-     mechanism it actually uses should win the classification below.
-
-6. Classify the site's authentication into exactly one `auth_mechanism.type`.
-   If multiple patterns coexist (e.g. credentials AND a storage-state file),
-   prefer whichever the benchmark's own harness uses at runtime. Never
-   invent a `form_login` when no selectors are documented. If authentication
-   appears required but no mechanism is identifiable, declare
-   `type: "unknown"` with `notes` explaining what you looked for and what was
-   missing — do not guess.
-
-7. Identify the site's platform name and role from README files, UI strings
+5. Identify the site's platform name and role from README files, UI strings
    in the source, or Docker service names.
 
 ## JSON schema
@@ -61,21 +35,6 @@ Produce `/workspace/output/AGENT_CONTEXT.json`.
     "output_schema": {{ "field": "type description" }},
     "per_task_format_field": "field_name_or_null",
     "description": "How the evaluator works and what the agent should return."
-  }},
-  "authentication": {{
-    "pre_authenticated": false,
-    "credentials": {{ "username": "...", "password": "..." }},
-    "description": "How authentication works for this site."
-  }},
-  "auth_mechanism": {{
-    "type": "storage_state | form_login | http_basic | http_headers | client_cert | pre_auth_script | none | unknown",
-    "storage_state": {{ "path": "relative/or/absolute/path.json", "generator_script": "<path or null>", "per_task_refresh": false }},
-    "form_login": {{ "login_url": "...", "username_selector": "...", "password_selector": "...", "submit_selector": "...", "success_url_substring": "..." }},
-    "http_basic": {{ "username": "...", "password": "..." }},
-    "http_headers": {{ "headers": {{ "X-API-Key": "..." }}, "scope_url_pattern": "..." }},
-    "client_cert": {{ "cert_path": "...", "key_path": "...", "origin": "..." }},
-    "pre_auth_script": {{ "script_path": "...", "args": [] }},
-    "notes": "required when type is 'none' or 'unknown'"
   }},
   "agent_prompt_template": "Full template string with {{INSTRUCTION}} and {{START_URLS}} placeholders, or null.",
   "site_context": {{
@@ -90,17 +49,7 @@ Field notes:
 - `requires_structured_output`: true when the evaluator parses agent text (e.g. JSON response); false when evaluation checks browser state (DOM, network events).
 - `output_schema`: the JSON structure the agent must return. Null when `requires_structured_output` is false.
 - `per_task_format_field`: field name in the task's `instantiation_dict` that contains per-task formatting instructions baked into the intent string. Null if tasks do not embed format specs.
-- `credentials`: login credentials if discoverable. Null if auth is handled externally or not needed.
 - `agent_prompt_template`: must contain `{{INSTRUCTION}}` and `{{START_URLS}}` if present. Null if no template exists.
-- `auth_mechanism.type`: machine-readable classification. Exactly one sub-object is populated and must match `type`. Keep the prose `authentication` block unchanged — it stays the LLM-facing description. Type guide (benchmark-agnostic):
-  - `storage_state`: a pre-baked browser-context JSON file that the harness loads before task start. Populate `path` (relative paths resolve against the benchmark root).
-  - `form_login`: the harness (or your agent) POSTs a credentials form. Populate the four selectors and `success_url_substring` (a substring expected in the URL once login completes, e.g. `/dashboard`). Credentials come from `authentication.credentials` — do not duplicate them. Phase 0d can auto-bootstrap a `storage_state` artifact from this recipe without a hand-authored generator script. If the login page requires CAPTCHA, OTP, or SSO, use `pre_auth_script` instead.
-  - `http_basic`: HTTP Basic credentials sent with every request. Credentials come from `authentication.credentials`.
-  - `http_headers`: static headers (API keys, bearer tokens) injected into every request.
-  - `client_cert`: mutual-TLS; certificate + key on disk and bound to `origin`.
-  - `pre_auth_script`: a script the harness runs to provision a session, producing a storage_state artifact.
-  - `none`: the site is affirmatively public and requires no auth. Populate `notes`.
-  - `unknown`: auth clearly required but no mechanism was identifiable. Populate `notes` describing what you looked for. This is the review queue — do not invent a mechanism.
 
 ## Examples
 
@@ -119,15 +68,6 @@ A benchmark where the evaluator parses agent JSON and vendor prompts exist:
     }},
     "per_task_format_field": "retrieved_data_format_spec",
     "description": "Agent must return JSON with task_type, status, and retrieved_data. Some tasks embed format instructions in the intent via the instantiation_dict field retrieved_data_format_spec."
-  }},
-  "authentication": {{
-    "pre_authenticated": false,
-    "credentials": {{"username": "admin", "password": "admin1234"}},
-    "description": "Admin panel with auto-login plugin. If session expires, re-authenticate with admin / admin1234."
-  }},
-  "auth_mechanism": {{
-    "type": "http_basic",
-    "http_basic": {{"username": "admin", "password": "admin1234"}}
   }},
   "agent_prompt_template": "You are an autonomous web agent operating in Merchant Admin Portal.\n\n## Authentication\nYou are already logged in as admin. To re-authenticate, use credentials: admin / admin1234.\n\n## Task\n- **Objective:** {{INSTRUCTION}}\n- **Start URLs:**\n{{START_URLS}}\n\n## Response Format\nReturn JSON with task_type, status, retrieved_data, error_details.",
   "site_context": {{
@@ -149,15 +89,6 @@ A benchmark where evaluation checks browser DOM/network state:
     "per_task_format_field": null,
     "description": "Evaluation uses program_html and url_match checks against browser DOM state. Agent does not need to return structured text."
   }},
-  "authentication": {{
-    "pre_authenticated": true,
-    "credentials": null,
-    "description": "Browser session is pre-authenticated via storage_state JSON files loaded before task execution."
-  }},
-  "auth_mechanism": {{
-    "type": "storage_state",
-    "storage_state": {{"path": "auth/shopping_state.json", "generator_script": null, "per_task_refresh": false}}
-  }},
   "agent_prompt_template": null,
   "site_context": {{
     "platform_name": "Shopping Site",
@@ -167,8 +98,8 @@ A benchmark where evaluation checks browser DOM/network state:
 ```
 </example>
 
-<example benchmark="action-based-with-credentials">
-A benchmark with action-based eval but discoverable credentials:
+<example benchmark="action-based-no-prompt">
+A benchmark with action-based eval and no vendor prompt template:
 
 ```json
 {{
@@ -178,83 +109,10 @@ A benchmark with action-based eval but discoverable credentials:
     "per_task_format_field": null,
     "description": "Evaluation uses DOM inspection, network event matching, and action sequence validation."
   }},
-  "authentication": {{
-    "pre_authenticated": false,
-    "credentials": {{"username": "emma.lopez@gmail.com", "password": "Password.123"}},
-    "description": "Agent must log in with provided credentials."
-  }},
-  "auth_mechanism": {{
-    "type": "form_login",
-    "form_login": {{
-      "login_url": "https://example.test/login",
-      "username_selector": "input[name='email']",
-      "password_selector": "input[name='password']",
-      "submit_selector": "button[type='submit']",
-      "success_url_substring": "/account"
-    }}
-  }},
   "agent_prompt_template": null,
   "site_context": {{
     "platform_name": "E-commerce Store",
     "description": "Online shopping platform where customers browse products and make purchases."
-  }}
-}}
-```
-</example>
-
-<example benchmark="public-site-no-auth">
-A site that affirmatively requires no authentication:
-
-```json
-{{
-  "response_format": {{
-    "requires_structured_output": false,
-    "output_schema": null,
-    "per_task_format_field": null,
-    "description": "Evaluation inspects DOM state directly."
-  }},
-  "authentication": {{
-    "pre_authenticated": false,
-    "credentials": null,
-    "description": "Site is fully public; no login required."
-  }},
-  "auth_mechanism": {{
-    "type": "none",
-    "notes": "Public reference content site; no accounts, no login page."
-  }},
-  "agent_prompt_template": null,
-  "site_context": {{
-    "platform_name": "Reference Docs",
-    "description": "Public documentation portal."
-  }}
-}}
-```
-</example>
-
-<example benchmark="auth-required-but-unidentifiable">
-Auth is clearly required but no mechanism is discoverable from the source:
-
-```json
-{{
-  "response_format": {{
-    "requires_structured_output": false,
-    "output_schema": null,
-    "per_task_format_field": null,
-    "description": "Evaluation inspects DOM state directly."
-  }},
-  "authentication": {{
-    "pre_authenticated": false,
-    "credentials": null,
-    "description": "Login page present but no documented credentials or storage-state artifact."
-  }},
-  "auth_mechanism": {{
-    "type": "unknown",
-    "notes": "Login page at /signin requires credentials; no credentials file, storage-state JSON, setup script, or harness login helper was found. Review required."
-  }},
-  "agent_prompt_template": null,
-  "site_context": {{
-    "platform_name": "Partner Portal",
-    "description": "Third-party service integration portal."
   }}
 }}
 ```

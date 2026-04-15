@@ -269,9 +269,7 @@ async def test_diagnose_one_task_resume_ignores_stale_checkpoint(monkeypatch, tm
     profiles_dir.mkdir()
     (profiles_dir / "BENCHMARK_PROFILE_shopping.json").write_text("{}")
 
-    diagnosis_file = (
-        tmp_path / safe_task_path_component(task["id"]) / "diagnosis.json"
-    )
+    diagnosis_file = tmp_path / safe_task_path_component(task["id"]) / "diagnosis.json"
     diagnosis_file.parent.mkdir(parents=True, exist_ok=True)
     diagnosis_file.write_text(
         json.dumps(
@@ -446,38 +444,6 @@ def test_build_agent_prompt_uses_per_task_format_field_from_instantiation_dict()
     assert prompt is not None
     assert "Per-task format requirement" in prompt
     assert '"name", "state", and "postcode"' in prompt
-
-
-def test_runtime_auth_mechanism_ignores_top_level_authentication_override():
-    task, _ = _prepared_task()
-    task["agent_context"] = {
-        "authentication": {
-            "pre_authenticated": False,
-            "credentials": {"username": "correct", "password": "good-secret"},
-            "description": "Use the benchmark credentials.",
-        },
-        "auth_mechanism": {
-            "type": "http_headers",
-            "http_headers": {
-                "headers": {
-                    "X-Login": "${credentials.username}:${credentials.password}",
-                }
-            },
-        },
-    }
-    task["authentication"] = {
-        "pre_authenticated": False,
-        "credentials": {"username": "rogue", "password": "bad-secret"},
-        "description": "Do not use this.",
-    }
-
-    runtime_auth = phase_3_benign._runtime_auth_mechanism(task)
-
-    assert runtime_auth is not None
-    assert runtime_auth["authentication"]["credentials"] == {
-        "username": "correct",
-        "password": "good-secret",
-    }
 
 
 @pytest.mark.asyncio
@@ -898,7 +864,10 @@ async def test_phase_3_circuit_breaker_skips_diagnosis_loop(monkeypatch, tmp_pat
         and metadata.get("allow_unknown_auth") is True
         for _, metadata in saved_states
     )
-    assert not any(step == "phase_3" and metadata.get("status") == "complete" for step, metadata in saved_states)
+    assert not any(
+        step == "phase_3" and metadata.get("status") == "complete"
+        for step, metadata in saved_states
+    )
 
 
 @pytest.mark.asyncio
@@ -1473,15 +1442,14 @@ async def test_fix_loop_accepts_allowlisted_sql_patch(monkeypatch, tmp_path):
 
 @pytest.mark.asyncio
 async def test_run_task_forwards_benchmark_root_when_auth_mechanism_present(monkeypatch, tmp_path):
-    """Phase 3 run_task passes benchmark_root + task_site when the task declares auth."""
+    """Phase 3 run_task passes benchmark_root + task_site when instance has agent_auth."""
     task, instances = _prepared_task()
-    task = bind_task_to_instance(task, instances[0], instances)
-    task["agent_context"] = {
-        "auth_mechanism": {
-            "type": "storage_state",
-            "storage_state": {"path": "auth/shopping_state.json"},
-        }
+    # Auth comes from the instance, not from task agent_context.
+    instances[0].agent_auth = {
+        "type": "storage_state",
+        "storage_state": {"path": "auth/shopping_state.json"},
     }
+    task = bind_task_to_instance(task, instances[0], instances)
 
     async def fake_reset(task):
         return None
@@ -1525,24 +1493,21 @@ async def test_run_task_forwards_benchmark_root_when_auth_mechanism_present(monk
 
 @pytest.mark.asyncio
 async def test_run_task_forwards_http_header_credentials(monkeypatch, tmp_path):
-    """Phase 3 must pass authentication.credentials through to Browser Use auth."""
+    """Phase 3 must pass instance agent_auth credentials through to Browser Use auth."""
     task, instances = _prepared_task()
-    task = bind_task_to_instance(task, instances[0], instances)
-    task["agent_context"] = {
-        "authentication": {
-            "pre_authenticated": False,
-            "credentials": {"username": "emma.lopez@gmail.com", "password": "Password.123"},
-            "description": "Use benchmark credentials.",
+    # Auth comes from instance config, including credentials for placeholder interpolation.
+    instances[0].agent_auth = {
+        "type": "http_headers",
+        "http_headers": {
+            "headers": {
+                "X-M2-Customer-Auto-Login": "${credentials.username}:${credentials.password}"
+            }
         },
-        "auth_mechanism": {
-            "type": "http_headers",
-            "http_headers": {
-                "headers": {
-                    "X-M2-Customer-Auto-Login": "${credentials.username}:${credentials.password}"
-                }
-            },
+        "authentication": {
+            "credentials": {"username": "emma.lopez@gmail.com", "password": "Password.123"},
         },
     }
+    task = bind_task_to_instance(task, instances[0], instances)
 
     async def fake_reset(task):
         return None
@@ -1579,6 +1544,48 @@ async def test_run_task_forwards_http_header_credentials(monkeypatch, tmp_path):
         "username": "emma.lopez@gmail.com",
         "password": "Password.123",
     }
+    assert task.get("agent_context") in (None, {})
+
+
+@pytest.mark.asyncio
+async def test_run_task_does_not_mark_public_site_pre_authenticated(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    instances[0].agent_auth = {"type": "none"}
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    captured: dict = {}
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            captured.update(kwargs)
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_3_benign, "run_reward_function", fake_run_reward_function)
+
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert captured["auth_mechanism"]["type"] == "none"
+    assert task.get("agent_context") in (None, {})
 
 
 @pytest.mark.asyncio

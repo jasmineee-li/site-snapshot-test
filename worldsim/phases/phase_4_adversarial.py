@@ -31,7 +31,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import tempfile
 import time
 from collections.abc import Callable
@@ -47,6 +46,7 @@ from worldsim.agent_config import (
     bind_task_to_instance,
     cap_tasks_per_site,
     execution_instance_dict,
+    execution_site_instance_dict,
     instances_for_site,
     make_agent_factory,
     resolve_task_inputs,
@@ -56,7 +56,7 @@ from worldsim.agent_config import (
 from worldsim.agent_prompt import build_agent_prompt
 from worldsim.atomic_io import write_json_atomic
 from worldsim.browser_use_agent import AgentRunner
-from worldsim.config import BenchmarkConfig, BenchmarkInstance
+from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_configured_agent_auth
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.phases.phase_2_text_fill import (
@@ -64,7 +64,7 @@ from worldsim.phases.phase_2_text_fill import (
     validate_seed_template_contract,
     validate_text_post_hoc,
 )
-from worldsim.profile_validation import load_and_validate_profile
+from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
 from worldsim.prompt_loading import load_prompt
 from worldsim.resume_metadata import (
     RESULT_FINGERPRINT_KEY,
@@ -75,7 +75,7 @@ from worldsim.resume_metadata import (
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import (
     apply_data_seed_async,
-    collect_sql_seed_runtime_errors,
+    collect_seed_runtime_errors,
     self_contained_adversarial_seed_error,
     validate_data_seed,
 )
@@ -378,21 +378,21 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("--instances JSON file required for Phase 4")
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
-    sql_seed_errors = collect_sql_seed_runtime_errors(
+    seed_runtime_errors = collect_seed_runtime_errors(
         tasks,
         config.instances,
         seed_field="adversarial_data_seed",
     )
-    if sql_seed_errors:
+    if seed_runtime_errors:
         logger.error(
             "Phase 4 seed pre-flight failed:\n%s",
-            "\n".join(f"  - {error}" for error in sql_seed_errors),
+            "\n".join(f"  - {error}" for error in seed_runtime_errors),
         )
         save_state(
             "phase_4",
             status="failed",
             reason="seed_runtime_config_error",
-            seed_runtime_errors=sql_seed_errors,
+            seed_runtime_errors=seed_runtime_errors,
             **state_metadata,
         )
         return 1
@@ -411,6 +411,20 @@ async def run(args: argparse.Namespace) -> int:
     )
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(tasks, profiles_dir)
+    agent_auth_errors = _collect_agent_auth_runtime_errors(config.instances, site_profiles)
+    if agent_auth_errors:
+        logger.error(
+            "Phase 4 agent-auth pre-flight failed:\n%s",
+            "\n".join(f"  - {error}" for error in agent_auth_errors),
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="agent_runtime_config_error",
+            agent_runtime_errors=agent_auth_errors,
+            **state_metadata,
+        )
+        return 1
     eval_context = _phase_4_eval_context(
         instances=config.instances,
         config_url_placeholders=config.url_placeholders,
@@ -472,7 +486,9 @@ async def run(args: argparse.Namespace) -> int:
                 resume=resume,
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
-                site_profile=site_profiles.get(str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))),
+                site_profile=site_profiles.get(
+                    str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))
+                ),
             )
             for result in results
         ],
@@ -517,25 +533,35 @@ async def run(args: argparse.Namespace) -> int:
     errors = sum(1 for r in final_results if r["final_status"] == "error")
     inconclusive = sum(1 for r in final_results if r["final_status"] == "inconclusive")
 
-    save_state(
-        "phase_4",
-        status="complete",
+    summary = {
         **state_metadata,
-        complied=complied,
-        variant_success=variant_success,
-        resistant=resistant,
-        task_broke=broke,
-        invalid=invalid,
-        errors=errors,
-        inconclusive=inconclusive,
-        total=len(final_results),
-    )
+        "complied": complied,
+        "variant_success": variant_success,
+        "resistant": resistant,
+        "task_broke": broke,
+        "invalid": invalid,
+        "errors": errors,
+        "inconclusive": inconclusive,
+        "total": len(final_results),
+    }
+    terminal_status = "complete"
+    terminal_reason: str | None = None
+    return_code = 0
+    if final_results and errors == len(final_results):
+        terminal_status = "failed"
+        terminal_reason = "all_tasks_failed"
+        return_code = 1
+    save_payload = dict(summary)
+    if terminal_reason is not None:
+        save_payload["reason"] = terminal_reason
+    save_state("phase_4", status=terminal_status, **save_payload)
     cost_tracker.log_phase_summary("phase_4")
     cost_tracker.save(state_dir / "cost_report.json")
 
     logger.info(
-        "Phase 4 complete — %d tasks: %d complied, %d variant_success, "
+        "Phase 4 %s — %d tasks: %d complied, %d variant_success, "
         "%d resistant, %d broke, %d invalid, %d error, %d inconclusive",
+        terminal_status,
         len(final_results),
         complied,
         variant_success,
@@ -545,7 +571,7 @@ async def run(args: argparse.Namespace) -> int:
         errors,
         inconclusive,
     )
-    return 0
+    return return_code
 
 
 # ---------------------------------------------------------------------------
@@ -667,6 +693,14 @@ async def run_adversarial_task(
     """
     task_id = task.get("id", "unknown")
 
+    delivery_channel = task.get("delivery_channel")
+    delivery_site = (
+        str(delivery_channel.get("delivery_site", "")).strip()
+        if isinstance(delivery_channel, dict)
+        else ""
+    )
+    seed_site = delivery_site or str(task.get("site", "")).strip()
+
     instance_dict = execution_instance_dict(instance, task)
     if isinstance(site_profile, dict):
         instance_dict["site_profile"] = json.loads(json.dumps(site_profile))
@@ -681,12 +715,24 @@ async def run_adversarial_task(
     adv_seed = task.get("adversarial_data_seed", {})
     validate_data_seed(adv_seed, allow_none=False)
     if adv_seed["mechanism"] not in (None, "none"):
-        await apply_data_seed_async(adv_seed, instance_dict)
+        seed_instance_dict = (
+            execution_site_instance_dict(instance, task, site_name=seed_site)
+            if seed_site and seed_site != str(task.get("site", "")).strip()
+            else instance_dict
+        )
+        if isinstance(site_profile, dict):
+            seed_instance_dict["site_profile"] = json.loads(json.dumps(site_profile))
+        if isinstance(target_surface_id, str) and target_surface_id:
+            seed_instance_dict["seed_target_surface_id"] = target_surface_id
+        await apply_data_seed_async(adv_seed, seed_instance_dict)
 
     # Run agent
+    from worldsim.browser_use_agent import resolve_instance_agent_auth
+
+    _inst_agent_auth = resolve_instance_agent_auth(instance_dict)
     instruction, start_urls = resolve_task_inputs(task, instance_dict)
     site_prompt = build_agent_prompt(
-        task.get("agent_context"),
+        _agent_context_with_instance_auth(task.get("agent_context"), _inst_agent_auth),
         instruction,
         start_urls,
         task=task,
@@ -694,12 +740,11 @@ async def run_adversarial_task(
     run_kwargs: dict[str, Any] = {"start_urls": start_urls}
     if site_prompt is not None:
         run_kwargs["site_prompt"] = site_prompt
-    auth_mechanism = _extract_runtime_auth(task)
-    if auth_mechanism is not None:
-        run_kwargs["auth_mechanism"] = auth_mechanism
-        # Thread benchmark_root + task_site only when auth_mechanism is
-        # declared — they are only meaningful for the storage_state path
-        # resolver / Phase 0d fallback.
+    # Auth from instances.json — single source of truth. No fallback to
+    # Phase 0c LLM-generated auth. If agent_auth is not configured for a site,
+    # the task runs without auth (fail-fast over silent degradation).
+    if _inst_agent_auth is not None:
+        run_kwargs["auth_mechanism"] = _inst_agent_auth
         if benchmark_root is not None:
             run_kwargs["benchmark_root"] = benchmark_root
         site_value = task.get("site")
@@ -855,12 +900,31 @@ async def run_adversarial_task(
     }
 
 
-def _load_site_profiles(tasks: list[dict[str, Any]], profiles_dir: Path) -> dict[str, dict[str, Any]]:
+def _load_site_profiles(
+    tasks: list[dict[str, Any]], profiles_dir: Path
+) -> dict[str, dict[str, Any]]:
     profiles: dict[str, dict[str, Any]] = {}
     for site in sorted({str(task.get("site", "")) for task in tasks if task.get("site")}):
         profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
         profiles[site] = load_and_validate_profile(site, profile_path)
     return profiles
+
+
+def _collect_agent_auth_runtime_errors(
+    instances: list[BenchmarkInstance],
+    site_profiles: dict[str, dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    for instance in instances:
+        profile = site_profiles.get(str(instance.site_name))
+        if not isinstance(profile, dict) or not profile_requires_agent_auth(profile):
+            continue
+        if not has_configured_agent_auth(instance.agent_auth):
+            errors.append(
+                f"site {instance.site_name!r} requires agent_auth in instances.json "
+                "because BENCHMARK_PROFILE has authed_user injection surfaces"
+            )
+    return errors
 
 
 async def _process_adversarial_result(
@@ -1531,7 +1595,10 @@ def _normalize_saved_adversarial_result(
 ) -> dict[str, Any]:
     """Project a saved ``result.json`` sentinel back to the live runtime shape."""
     outcome = payload.get("outcome")
-    normalized: dict[str, Any] = {"task_id": payload.get("task_id"), "trajectory_dir": str(trajectory_dir)}
+    normalized: dict[str, Any] = {
+        "task_id": payload.get("task_id"),
+        "trajectory_dir": str(trajectory_dir),
+    }
     for key in ("outcome", "ecologically_valid", "validity_score", "elapsed", "steps"):
         if key in payload:
             normalized[key] = payload.get(key)
@@ -1930,9 +1997,7 @@ def _effective_adversarial_seed(adversarial_task: dict[str, Any]) -> Any:
             raise ValueError(f"payload_texts[{payload_index}] must be an object")
         payload_errors = validate_text_post_hoc(payload, adversarial_task)
         if payload_errors:
-            raise ValueError(
-                f"payload_texts[{payload_index}] invalid: {'; '.join(payload_errors)}"
-            )
+            raise ValueError(f"payload_texts[{payload_index}] invalid: {'; '.join(payload_errors)}")
     if isinstance(seed_template, dict) and isinstance(payload_texts, list) and payload_texts:
         if "selected_payload_index" not in adversarial_task:
             raise ValueError("selected_payload_index must be present")
@@ -1955,25 +2020,28 @@ def _has_scoreable_agent_output(result: Any) -> bool:
     )
 
 
-def _extract_runtime_auth(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return the runtime auth contract needed by ``BrowserUseAgent``.
-
-    Phase 1 round-trips ``AGENT_CONTEXT`` into each wrapped task under
-    ``agent_context``. Runtime auth needs the machine-readable
-    ``auth_mechanism`` plus, for some mechanism types, the sibling
-    ``authentication.credentials`` block.
-    """
-    agent_context = task.get("agent_context")
+def _agent_context_with_instance_auth(
+    agent_context: Any,
+    instance_agent_auth: dict[str, Any] | None,
+) -> dict[str, Any] | None:
     if not isinstance(agent_context, dict):
-        return None
-    mech = agent_context.get("auth_mechanism")
-    if not isinstance(mech, dict):
-        return None
-    runtime_auth = json.loads(json.dumps(mech))
-    authentication = agent_context.get("authentication")
-    if isinstance(authentication, dict):
-        runtime_auth["authentication"] = json.loads(json.dumps(authentication))
-    return runtime_auth
+        agent_context = {}
+    merged = json.loads(json.dumps(agent_context))
+    if not isinstance(instance_agent_auth, dict):
+        return merged or None
+    if str(instance_agent_auth.get("type", "")).strip() == "none":
+        return merged or None
+    if "authentication" not in merged:
+        authentication = instance_agent_auth.get("authentication")
+        if isinstance(authentication, dict):
+            merged["authentication"] = json.loads(json.dumps(authentication))
+        else:
+            merged["authentication"] = {
+                "pre_authenticated": True,
+                "credentials": None,
+                "description": "Pre-authenticated via deployment config.",
+            }
+    return merged or None
 
 
 def _is_non_interpretable_benign_eval(

@@ -1026,6 +1026,23 @@ def test_materialize_validated_shard_tasks_handles_mixed_legacy_and_v2_output(mo
     assert materialized[1]["delivery_channel"]["mechanism"] == "form"
 
 
+def test_materialize_validated_shard_tasks_appends_delivery_site(monkeypatch):
+    plan_task = _plan_task()
+    profile = _single_surface_profile()
+    profile["injection_surface"][0]["delivery_channels"][0]["delivery_site"] = "shopping_admin"
+    monkeypatch.setattr(phase_2_injections, "_voice_registry", lambda: {"dummy": True})
+    monkeypatch.setattr(
+        phase_2_injections,
+        "derive_length_budget",
+        lambda task, site_profile, registry: {"min": 20, "max": 400, "source": "test"},
+    )
+
+    materialized = phase_2_injections._materialize_validated_shard_tasks([plan_task], profile)
+
+    assert materialized[0]["delivery_channel"]["delivery_site"] == "shopping_admin"
+    assert materialized[0]["sites"] == ["shopping", "shopping_admin"]
+
+
 def test_load_reusable_phase_2_plans_rejects_stale_benign_selection(tmp_path):
     plans_path = tmp_path / "adversarial_plans.json"
     plans_path.write_text(json.dumps([_plan_task()], indent=2))
@@ -1040,6 +1057,52 @@ def test_load_reusable_phase_2_plans_rejects_stale_benign_selection(tmp_path):
     )
 
     assert reusable is None
+
+
+def test_validate_adversarial_task_contract_rejects_unresolved_http_path():
+    task = _finalized_plan_task()
+    task["delivery_channel"] = {
+        "mechanism": "form",
+        "body_field": "detail",
+        "postcondition": _db_row_value(
+            table="reviews",
+            value_column="body",
+            where={"id": {"path_param": "id"}},
+        ),
+    }
+    task["adversarial_data_seed"]["api_calls"][0]["path"] = "/reviews/{id}"
+
+    violation = phase_2_injections._validate_adversarial_task_contract(
+        task,
+        _benign_task(),
+        _single_surface_profile(),
+    )
+
+    assert violation == "adversarial_data_seed api_calls[0].path contains unresolved placeholders"
+
+
+def test_validate_adversarial_task_contract_rejects_placeholder_postcondition_selector():
+    task = _finalized_plan_task()
+    task["delivery_channel"] = {
+        "mechanism": "form",
+        "body_field": "detail",
+        "postcondition": _db_row_value(
+            table="reviews",
+            value_column="body",
+            where={"review_id": {"literal": -1}},
+        ),
+    }
+
+    violation = phase_2_injections._validate_adversarial_task_contract(
+        task,
+        _benign_task(),
+        _single_surface_profile(),
+    )
+
+    assert (
+        violation
+        == "delivery_channel.postcondition.where contains a placeholder literal and must identify the created row concretely"
+    )
 
 
 def test_load_reusable_phase_2_tasks_rejects_duplicate_task_ids(tmp_path):

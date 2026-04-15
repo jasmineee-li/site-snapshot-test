@@ -421,6 +421,27 @@ class TestUnknownAuthGate:
     def test_unknown_auth_sites_empty_when_no_profile_dir(self, tmp_path: Path):
         assert _unknown_auth_sites(tmp_path) == []
 
+    def test_unknown_auth_sites_ignores_unknown_profile_when_instances_supply_agent_auth(
+        self, tmp_path: Path
+    ):
+        phase0c = tmp_path / "phase_0c"
+        self._write_ctx(
+            phase0c / "site_a",
+            {"type": "unknown", "notes": "needs review"},
+        )
+
+        unknown = _unknown_auth_sites(
+            tmp_path,
+            instances=[
+                {
+                    "site_name": "site_a",
+                    "agent_auth": {"type": "storage_state", "storage_state": {"path": "auth/s.json"}},
+                }
+            ],
+        )
+
+        assert unknown == []
+
     def test_unknown_auth_sites_rejects_malformed_context_artifacts(self, tmp_path: Path):
         phase0c = tmp_path / "phase_0c"
         phase0c.mkdir(parents=True)
@@ -518,6 +539,60 @@ class TestUnknownAuthGate:
                 sandbox_model=None,
                 agent_provider=None,
                 allow_unknown_auth=True,
+            )
+        )
+
+        assert rc == 0
+        assert called is True
+
+    def test_dispatch_phase_allows_phase_4_when_instances_supply_agent_auth(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        self._write_ctx(
+            tmp_path / "phase_0c" / "site_a",
+            {"type": "unknown", "notes": "needs review"},
+        )
+        instances_path = tmp_path / "instances.json"
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "demo",
+                    "benchmark_codebase": str(tmp_path),
+                    "instances": [
+                        {
+                            "site_name": "site_a",
+                            "site_url": "http://site-a.test",
+                            "agent_auth": {
+                                "type": "storage_state",
+                                "storage_state": {"path": "auth/state.json"},
+                            },
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        called = False
+
+        async def fake_phase_4_run(args):
+            nonlocal called
+            called = True
+            return 0
+
+        monkeypatch.setattr("worldsim.phases.phase_4_adversarial.run", fake_phase_4_run)
+
+        rc = _dispatch_phase(
+            Namespace(
+                phase="4",
+                benchmark=None,
+                config=None,
+                instances=instances_path,
+                agent_model=None,
+                sandbox_model=None,
+                agent_provider=None,
+                allow_unknown_auth=False,
             )
         )
 

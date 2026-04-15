@@ -43,13 +43,13 @@ from worldsim.agent_config import (
 )
 from worldsim.agent_prompt import build_agent_prompt
 from worldsim.atomic_io import write_json_atomic
-from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
-from worldsim.config import BenchmarkConfig, BenchmarkInstance
+from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent, resolve_instance_agent_auth
+from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_configured_agent_auth
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.fix_validation import validate_fix_patch
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.phase_3_triage import TRIAGE_CACHE_VERSION, triage_failures
-from worldsim.profile_validation import load_and_validate_profile
+from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
 from worldsim.prompt_loading import load_prompt
 from worldsim.resume_metadata import (
     RESULT_FINGERPRINT_KEY,
@@ -57,7 +57,7 @@ from worldsim.resume_metadata import (
     instances_identity,
 )
 from worldsim.rewards import run_reward_function
-from worldsim.seeding import apply_data_seed_async, collect_sql_seed_runtime_errors
+from worldsim.seeding import apply_data_seed_async, collect_seed_runtime_errors
 from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.task_paths import safe_task_path_component
@@ -323,21 +323,21 @@ async def run(args: argparse.Namespace) -> int:
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
     )
-    sql_seed_errors = collect_sql_seed_runtime_errors(
+    seed_runtime_errors = collect_seed_runtime_errors(
         benign_tasks,
         config.instances,
         seed_field="data_seed",
     )
-    if sql_seed_errors:
+    if seed_runtime_errors:
         logger.error(
             "Phase 3 seed pre-flight failed:\n%s",
-            "\n".join(f"  - {error}" for error in sql_seed_errors),
+            "\n".join(f"  - {error}" for error in seed_runtime_errors),
         )
         save_state(
             "phase_3",
             status="failed",
             reason="seed_runtime_config_error",
-            seed_runtime_errors=sql_seed_errors,
+            seed_runtime_errors=seed_runtime_errors,
             **state_metadata,
         )
         return 1
@@ -359,6 +359,20 @@ async def run(args: argparse.Namespace) -> int:
     )
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(benign_tasks, profiles_dir)
+    agent_auth_errors = _collect_agent_auth_runtime_errors(config.instances, site_profiles)
+    if agent_auth_errors:
+        logger.error(
+            "Phase 3 agent-auth pre-flight failed:\n%s",
+            "\n".join(f"  - {error}" for error in agent_auth_errors),
+        )
+        save_state(
+            "phase_3",
+            status="failed",
+            reason="agent_runtime_config_error",
+            agent_runtime_errors=agent_auth_errors,
+            **state_metadata,
+        )
+        return 1
     eval_context = _phase_3_eval_context(
         instances=config.instances,
         config_url_placeholders=config.url_placeholders,
@@ -465,9 +479,7 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     diagnosable_failures = [
-        r
-        for r in failed_tasks
-        if r.get("outcome") != "error" and bool(r.get("triage_escalate"))
+        r for r in failed_tasks if r.get("outcome") != "error" and bool(r.get("triage_escalate"))
     ]
     triaged_agent_limitations = [
         r for r in failed_tasks if r.get("triage_decision") == "agent_limitation"
@@ -716,18 +728,22 @@ async def run_task(
         await apply_data_seed_async(seed, instance_dict)
 
     # Run agent
+    instance_agent_auth = resolve_instance_agent_auth(instance_dict)
     instruction, start_urls = resolve_task_inputs(task, instance_dict)
-    site_prompt = _build_agent_prompt(task.get("agent_context"), instruction, start_urls, task=task)
+    site_prompt = _build_agent_prompt(
+        _agent_context_with_instance_auth(task.get("agent_context"), instance_agent_auth),
+        instruction,
+        start_urls,
+        task=task,
+    )
     run_kwargs: dict[str, Any] = {"start_urls": start_urls}
     if site_prompt is not None:
         run_kwargs["site_prompt"] = site_prompt
-    auth_mechanism = _runtime_auth_mechanism(task)
-    if auth_mechanism is not None:
-        run_kwargs["auth_mechanism"] = auth_mechanism
-        # The ``benchmark_root`` and ``task_site`` kwargs are only meaningful
-        # alongside an ``auth_mechanism`` (they feed the storage_state path
-        # resolver and Phase 0d fallback). Gating them here keeps the surface
-        # narrow for legacy tests / fakes that don't declare auth_mechanism.
+    # Auth from instances.json — single source of truth. No fallback to
+    # Phase 0c LLM-generated auth. If agent_auth is not configured for a site,
+    # the task runs without auth (fail-fast over silent degradation).
+    if instance_agent_auth is not None:
+        run_kwargs["auth_mechanism"] = instance_agent_auth
         if benchmark_root is not None:
             run_kwargs["benchmark_root"] = benchmark_root
         site_value = task.get("site")
@@ -795,45 +811,28 @@ def _has_scoreable_agent_output(result: Any) -> bool:
     )
 
 
-def _extract_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return the ``auth_mechanism`` dict embedded in a task's agent_context, or None.
-
-    Phase 1 round-trips ``AGENT_CONTEXT`` into each wrapped task under
-    ``agent_context``. The ``auth_mechanism`` sub-object is what
-    :func:`worldsim.browser_use_agent._resolve_auth` consumes at runtime.
-    """
-    agent_context = task.get("agent_context")
+def _agent_context_with_instance_auth(
+    agent_context: Any,
+    instance_agent_auth: dict[str, Any] | None,
+) -> dict[str, Any] | None:
     if not isinstance(agent_context, dict):
-        return None
-    mech = agent_context.get("auth_mechanism")
-    return mech if isinstance(mech, dict) else None
-
-
-def _runtime_auth_mechanism(task: dict[str, Any]) -> dict[str, Any] | None:
-    """Return ``auth_mechanism`` merged with ``agent_context.authentication``.
-
-    BrowserUse's auth resolver reads credential placeholders from the auth
-    contract itself, so Phase 3 has to thread the validated
-    ``agent_context.authentication`` block through to the runtime object it
-    hands to ``BrowserUseAgent.run``.
-    """
-    auth_mechanism = _extract_auth_mechanism(task)
-    if auth_mechanism is None:
-        return None
-
-    runtime_auth = json.loads(json.dumps(auth_mechanism))
-
-    authentication = None
-    agent_context = task.get("agent_context")
-    if isinstance(agent_context, dict):
-        nested_auth = agent_context.get("authentication")
-        if isinstance(nested_auth, dict):
-            authentication = nested_auth
-
-    if isinstance(authentication, dict):
-        runtime_auth["authentication"] = json.loads(json.dumps(authentication))
-
-    return runtime_auth
+        agent_context = {}
+    merged = json.loads(json.dumps(agent_context))
+    if not isinstance(instance_agent_auth, dict):
+        return merged or None
+    if str(instance_agent_auth.get("type", "")).strip() == "none":
+        return merged or None
+    if "authentication" not in merged:
+        authentication = instance_agent_auth.get("authentication")
+        if isinstance(authentication, dict):
+            merged["authentication"] = json.loads(json.dumps(authentication))
+        else:
+            merged["authentication"] = {
+                "pre_authenticated": True,
+                "credentials": None,
+                "description": "Pre-authenticated via deployment config.",
+            }
+    return merged or None
 
 
 async def diagnose_failure(
@@ -1108,12 +1107,31 @@ def _with_rejections(result: dict[str, Any], rejections: list[dict[str, Any]]) -
     return result
 
 
-def _load_site_profiles(tasks: list[dict[str, Any]], profiles_dir: Path) -> dict[str, dict[str, Any]]:
+def _load_site_profiles(
+    tasks: list[dict[str, Any]], profiles_dir: Path
+) -> dict[str, dict[str, Any]]:
     profiles: dict[str, dict[str, Any]] = {}
     for site in sorted({str(task.get("site", "")) for task in tasks if task.get("site")}):
         profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
         profiles[site] = load_and_validate_profile(site, profile_path)
     return profiles
+
+
+def _collect_agent_auth_runtime_errors(
+    instances: list[BenchmarkInstance],
+    site_profiles: dict[str, dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    for instance in instances:
+        profile = site_profiles.get(str(instance.site_name))
+        if not isinstance(profile, dict) or not profile_requires_agent_auth(profile):
+            continue
+        if not has_configured_agent_auth(instance.agent_auth):
+            errors.append(
+                f"site {instance.site_name!r} requires agent_auth in instances.json "
+                "because BENCHMARK_PROFILE has authed_user injection surfaces"
+            )
+    return errors
 
 
 def _format_rejection_feedback(errors: list[str], suggested_fix: dict[str, Any]) -> str:

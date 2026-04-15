@@ -105,6 +105,7 @@ Use these tiers consistently:
         {
           "mechanism": "<api|form|upload|sql>",
           "privileged_seed": false,
+          "delivery_site": "<site_name_or_null when the attacker writes through a different site origin>",
           "path_template": "</path/template>",
           "method": "<HTTP method or null>",
           "body_field": "<field name or null>",
@@ -198,6 +199,7 @@ Worked delivery channel examples:
 - `delivery_channels` must be a non-empty ordered array of objects.
 - `mechanism` and `privileged_seed` are required on every `delivery_channels` entry.
 - For `mechanism in {api, form, upload}`: `path_template`, `method`, and `body_field` are required; `table` and `column` MUST be null; `postcondition` is REQUIRED.
+- `delivery_site` is optional. Use it only when the attacker-controlled write must be sent through a different configured site than the victim-facing surface. Example: storefront customer review submission that later appears in the admin review grid should keep the admin surface id but set `delivery_site: "shopping"` on the storefront form channel.
 - For `mechanism = sql`: `table` and `column` are required; `path_template`, `method`, and `body_field` MUST be null; `postcondition` should be null unless a readback check is explicitly needed.
 - For HTTP delivery channels, `postcondition.type` must be `db_row_value`, `postcondition.table` and `postcondition.value_column` must name the DB row to read back, and `postcondition.where` must identify that row using `path_param`, `body_field`, or `literal` sources.
 - The expected value for `db_row_value` is always the channel's own `body_field`. Do not invent a different source.

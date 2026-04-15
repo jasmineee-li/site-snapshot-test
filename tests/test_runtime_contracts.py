@@ -10,6 +10,7 @@ from worldsim.agent_config import (
     RUNTIME_METADATA_KEY,
     bind_task_to_instance,
     cap_tasks_per_site,
+    execution_site_instance_dict,
     execution_instance_dict,
     make_llm,
     prepare_task_for_execution,
@@ -110,6 +111,40 @@ def test_bind_task_to_instance_uses_chosen_primary_instance_metadata():
     ]
 
 
+def test_execution_site_instance_dict_returns_secondary_bound_instance():
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping.test",
+            reset_endpoint="http://shopping.test/init",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab.test",
+            reset_endpoint="http://gitlab.test/init",
+        ),
+    ]
+    task = {
+        "id": "task-secondary",
+        "site": "shopping",
+        "sites": ["shopping", "gitlab"],
+        "instruction": "Visit __SHOPPING__ then __GITLAB__.",
+        "start_urls": ["__SHOPPING__/products", "__GITLAB__/issues"],
+    }
+
+    prepared, missing = prepare_task_for_execution(task, instances)
+
+    assert missing == []
+
+    bound = bind_task_to_instance(prepared, instances[0], instances)
+    instance_dict = execution_site_instance_dict(instances[0], bound, site_name="gitlab")
+
+    assert instance_dict["site_name"] == "gitlab"
+    assert instance_dict["site_url"] == "http://gitlab.test"
+    assert instance_dict["url_placeholders"]["__SHOPPING__"] == "http://shopping.test"
+    assert instance_dict["url_placeholders"]["__GITLAB__"] == "http://gitlab.test"
+
+
 def test_prepare_task_for_execution_reports_missing_sites():
     instances = [BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")]
     task = {
@@ -171,6 +206,56 @@ def test_benchmark_config_accepts_instance_auth_blocks():
         "header_name": "PRIVATE-TOKEN",
         "token_source": "/tmp/token.txt",
     }
+
+
+def test_benchmark_config_accepts_nested_form_login_under_agent_auth_storage_state():
+    config = BenchmarkConfig.model_validate(
+        {
+            "benchmark_name": "WebArena Verified",
+            "instances": [
+                {
+                    "site_name": "map",
+                    "site_url": "http://map.test",
+                    "agent_auth": {
+                        "type": "storage_state",
+                        "storage_state": {
+                            "path": "logs/phase_0d/map/storage_state.json",
+                            "form_login": {
+                                "login_url": "/login",
+                                "username_selector": "input[name='username']",
+                                "password_selector": "input[name='password']",
+                                "submit_selector": "input[type='submit']",
+                                "success_url_substring": "/",
+                            },
+                        },
+                        "authentication": {
+                            "credentials": {"username": "demo", "password": "secret"}
+                        },
+                    },
+                }
+            ],
+            "benchmark_codebase": "/tmp/benchmark",
+        }
+    )
+
+    assert config.instances[0].agent_auth["storage_state"]["form_login"]["login_url"] == "/login"
+
+
+def test_benchmark_config_rejects_malformed_agent_auth():
+    with pytest.raises(ValueError, match="BenchmarkInstance.agent_auth.type"):
+        BenchmarkConfig.model_validate(
+            {
+                "benchmark_name": "WebArena Verified",
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "agent_auth": {"foo": "bar"},
+                    }
+                ],
+                "benchmark_codebase": "/tmp/benchmark",
+            }
+        )
 
 
 def test_benchmark_config_rejects_blank_db_connection():

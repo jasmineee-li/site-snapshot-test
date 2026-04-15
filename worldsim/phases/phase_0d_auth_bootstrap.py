@@ -73,7 +73,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
-from worldsim.config import BenchmarkConfig
+from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
@@ -161,7 +161,24 @@ async def run(args: argparse.Namespace) -> int:
     # own endpoint; but when present, we prefer it.
     site_urls = _load_site_urls(getattr(args, "instances", None))
 
-    site_specs = list(_collect_storage_state_specs(profiles_dir))
+    # Build a map of site_name -> agent_auth from instances.json so Phase 0d
+    # can bootstrap storage_state even when Phase 0c no longer outputs auth.
+    instance_agent_auths: dict[str, dict[str, Any]] = {}
+    instances_path = getattr(args, "instances", None)
+    if instances_path is not None:
+        try:
+            config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+            for inst in config.instances:
+                if has_configured_agent_auth(inst.agent_auth):
+                    instance_agent_auths[inst.site_name] = inst.agent_auth
+        except (OSError, ValueError) as exc:
+            logger.warning(
+                "Phase 0d: failed to load instances.json agent_auth from %s: %s",
+                instances_path,
+                exc,
+            )
+
+    site_specs = list(_collect_storage_state_specs(profiles_dir, instance_agent_auths))
     if not site_specs:
         logger.info(
             "Phase 0d: no sites declare auth_mechanism.type in "
@@ -340,24 +357,32 @@ def _load_site_urls(instances_path: str | Path | None) -> dict[str, str]:
     return {instance.site_name: instance.site_url for instance in config.instances}
 
 
-def _collect_storage_state_specs(profiles_dir: Path):
+def _collect_storage_state_specs(
+    profiles_dir: Path,
+    instance_agent_auths: dict[str, dict[str, Any]] | None = None,
+):
     """Yield one :class:`_SiteSpec` per site that has an actionable auth recipe.
 
     Sites qualify when they declare ``auth_mechanism.type`` of either
     ``storage_state`` (any, with or without a generator) or ``form_login`` —
     the two types Phase 0d can materialize an artifact for. Sites with other
     types (``http_basic``, ``none``, ``unknown``, etc.) are ignored.
+
+    ``instance_agent_auths`` is an optional dict mapping site_name to the
+    ``agent_auth`` block from ``instances.json``. When Phase 0c does not
+    produce ``auth_mechanism``, the instance config is consulted instead.
     """
-    # Phase 0c writes flat AGENT_CONTEXT_<site>.json. Some tests write
-    # AGENT_CONTEXT.json under a site subdir — support both layouts so the
-    # dispatcher is robust to either convention.
+    if instance_agent_auths is None:
+        instance_agent_auths = {}
     seen: set[str] = set()
 
     for path in sorted(profiles_dir.glob("AGENT_CONTEXT_*.json")):
         site_name = path.stem.replace("AGENT_CONTEXT_", "")
         if site_name in seen:
             continue
-        spec = _spec_from_context(site_name, path)
+        spec = _spec_from_context(
+            site_name, path, instance_agent_auth=instance_agent_auths.get(site_name)
+        )
         if spec is not None:
             seen.add(site_name)
             yield spec
@@ -370,7 +395,9 @@ def _collect_storage_state_specs(profiles_dir: Path):
             continue
         if child.name in seen:
             continue
-        spec = _spec_from_context(child.name, nested)
+        spec = _spec_from_context(
+            child.name, nested, instance_agent_auth=instance_agent_auths.get(child.name)
+        )
         if spec is not None:
             seen.add(child.name)
             yield spec
@@ -414,11 +441,19 @@ def _extract_form_login_recipe(mech: dict[str, Any]) -> dict[str, Any] | None:
     return normalized
 
 
-def _spec_from_context(site_name: str, context_path: Path) -> _SiteSpec | None:
+def _spec_from_context(
+    site_name: str,
+    context_path: Path,
+    *,
+    instance_agent_auth: dict[str, Any] | None = None,
+) -> _SiteSpec | None:
     """Parse an AGENT_CONTEXT.json into a _SiteSpec.
 
     Returns ``None`` for sites whose auth_mechanism is not one Phase 0d can
     act on (currently: ``storage_state`` or ``form_login``).
+
+    When *instance_agent_auth* is provided (from ``instances.json``), it takes
+    precedence over any Phase 0c-generated ``auth_mechanism``.
     """
     try:
         data = json.loads(context_path.read_text(encoding="utf-8"))
@@ -428,14 +463,19 @@ def _spec_from_context(site_name: str, context_path: Path) -> _SiteSpec | None:
     if not isinstance(data, dict):
         return None
 
-    mech = data.get("auth_mechanism")
+    # Prefer instance agent_auth (static config) over Phase 0c auth_mechanism.
+    mech = (
+        instance_agent_auth if isinstance(instance_agent_auth, dict) else data.get("auth_mechanism")
+    )
     if not isinstance(mech, dict):
         return None
     mech_type = mech.get("type")
     if mech_type not in ("storage_state", "form_login"):
         return None
 
-    auth_block = data.get("authentication") or {}
+    auth_block = mech.get("authentication") if isinstance(instance_agent_auth, dict) else (
+        mech.get("authentication") or data.get("authentication") or {}
+    )
     credentials = auth_block.get("credentials") if isinstance(auth_block, dict) else None
     form_login_recipe = _extract_form_login_recipe(mech)
 

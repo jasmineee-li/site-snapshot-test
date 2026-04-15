@@ -238,6 +238,111 @@ def test_collect_sql_seed_runtime_errors_deduplicates_by_site_instance():
     ]
 
 
+def test_collect_seed_runtime_errors_reports_missing_http_header_env(monkeypatch):
+    monkeypatch.delenv("WORLDSIM_SHOPPING_AUTO_LOGIN", raising=False)
+
+    errors = seeding.collect_seed_runtime_errors(
+        [
+            {
+                "id": "task-1",
+                "site": "shopping",
+                "delivery_channel": {
+                    "mechanism": "form",
+                    "body_field": "detail",
+                    "postcondition": {"type": "db_row_value"},
+                },
+                "adversarial_data_seed": {
+                    "mechanism": "form",
+                    "api_calls": [{"method": "POST", "path": "/review", "body_form": {"detail": "x"}}],
+                },
+            }
+        ],
+        [
+            {
+                "site_name": "shopping",
+                "site_url": "http://shopping.test",
+                "db_connection": "mysql://user:pass@localhost:3306/shop",
+                "auth": {
+                    "type": "http_headers",
+                    "headers": {"X-Test-Auth": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}},
+                },
+            }
+        ],
+        seed_field="adversarial_data_seed",
+    )
+
+    assert errors == [
+        "site 'shopping' has HTTP-seeded task(s) but instance 'http://shopping.test' "
+        "has invalid auth config: required auth header env var 'WORLDSIM_SHOPPING_AUTO_LOGIN' is not set"
+    ]
+
+
+def test_collect_seed_runtime_errors_reports_missing_bearer_token_source(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    errors = seeding.collect_seed_runtime_errors(
+        [
+            {
+                "id": "task-1",
+                "site": "gitlab",
+                "adversarial_data_seed": {
+                    "mechanism": "api",
+                    "api_calls": [{"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}],
+                },
+            }
+        ],
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://gitlab.test",
+                "auth": {
+                    "type": "bearer_token",
+                    "header_name": "PRIVATE-TOKEN",
+                    "token_source": "logs/phase_0d/gitlab/missing.txt",
+                },
+            }
+        ],
+        seed_field="adversarial_data_seed",
+    )
+
+    assert errors == [
+        "site 'gitlab' has HTTP-seeded task(s) but instance 'http://gitlab.test' has invalid auth config: "
+        f"token_source {(tmp_path / 'logs/phase_0d/gitlab/missing.txt').resolve(strict=False)} does not exist"
+    ]
+
+
+def test_collect_seed_runtime_errors_requires_db_for_http_db_row_verification():
+    errors = seeding.collect_seed_runtime_errors(
+        [
+            {
+                "id": "task-1",
+                "site": "map",
+                "delivery_channel": {
+                    "mechanism": "form",
+                    "body_field": "detail",
+                    "postcondition": {"type": "db_row_value"},
+                },
+                "adversarial_data_seed": {
+                    "mechanism": "form",
+                    "api_calls": [{"method": "POST", "path": "/review", "body_form": {"detail": "x"}}],
+                },
+            }
+        ],
+        [
+            {
+                "site_name": "map",
+                "site_url": "http://map.test",
+            }
+        ],
+        seed_field="adversarial_data_seed",
+    )
+
+    assert errors == [
+        "site 'map' has HTTP-seeded task(s) with db_row_value verification but instance 'http://map.test' "
+        "is not SQL-ready: SQL seed requires instance['db_connection'] must be a non-empty URI string"
+    ]
+
+
 def test_apply_data_seed_resolves_placeholders_and_http_headers(monkeypatch):
     fake_session = _FakeSession([_FakeResponse()])
     monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)

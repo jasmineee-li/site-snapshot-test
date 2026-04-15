@@ -229,3 +229,40 @@ def test_validate_profile_rejects_http_delivery_channel_without_postcondition():
 
     with pytest.raises(ValueError, match="postcondition is required for non-sql delivery channels"):
         validate_profile("shopping", profile)
+
+
+def test_validate_profile_accepts_delivery_site_on_http_channel():
+    profile = {
+        "site_name": "shopping_admin",
+        "data_model": [{"entity": "Review", "fields": [{"name": "body"}]}],
+        "injection_surface": [
+            {
+                "id": "surface-1",
+                "source_field": "Review.body",
+                "rendering_format": "plaintext",
+                "controllable_by_tier": "any_user",
+                "controllability_justification": "Storefront users create content shown in admin.",
+                "delivery_channels": [
+                    {
+                        "mechanism": "form",
+                        "privileged_seed": False,
+                        "delivery_site": "shopping",
+                        "path_template": "/review/product/post/id/{product_id}/",
+                        "method": "POST",
+                        "body_field": "detail",
+                        "table": None,
+                        "column": None,
+                        "postcondition": _db_row_value(
+                            table="review_detail",
+                            value_column="detail",
+                            where={"product_id": {"path_param": "product_id"}},
+                        ),
+                    }
+                ],
+                "compatible_concealments": ["plaintext"],
+            }
+        ],
+        "verification_capabilities": [],
+    }
+
+    validate_profile("shopping_admin", profile)

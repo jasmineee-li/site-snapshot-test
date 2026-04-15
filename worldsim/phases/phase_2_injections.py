@@ -73,6 +73,7 @@ _CONCEALMENTS = (
 )
 _DELIVERY_MECHANISMS = frozenset({"api", "form", "upload", "sql"})
 _ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
+_UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 CELL_COUNT = len(_FRAMINGS) * len(_CONCEALMENTS)
 
 _REQUIRED_PLAN_FIELDS = (
@@ -1051,6 +1052,16 @@ def _enrich_adversarial_plans(
         )
         updated = json.loads(json.dumps(plan))
         updated["delivery_channel"] = delivery_channel
+        delivery_site = delivery_channel.get("delivery_site")
+        if isinstance(delivery_site, str) and delivery_site.strip():
+            sites = [
+                str(site).strip()
+                for site in updated.get("sites", [updated.get("site")])
+                if isinstance(site, str) and str(site).strip()
+            ]
+            normalized_delivery_site = delivery_site.strip()
+            if normalized_delivery_site not in sites:
+                updated["sites"] = [*sites, normalized_delivery_site]
         updated["required_tokens"] = derive_required_tokens(str(plan.get("id", "")))
         updated["length_budget"] = derive_length_budget(updated, site_profile, registry)
         enriched.append(updated)
@@ -1153,7 +1164,17 @@ def _validate_adversarial_task_contract(
         return "adversarial_reward must be a non-empty object"
 
     if "seed_template" in adversarial_task:
-        return _validate_adversarial_plan_contract(adversarial_task, benign_task, site_profile)
+        plan_error = _validate_adversarial_plan_contract(adversarial_task, benign_task, site_profile)
+        if plan_error is not None:
+            return plan_error
+        concrete_seed_error = _validate_finalized_http_seed_contract(
+            adversarial_task.get("adversarial_data_seed"),
+            adversarial_task.get("delivery_channel"),
+            sites=adversarial_task.get("sites"),
+        )
+        if concrete_seed_error is not None:
+            return concrete_seed_error
+        return None
 
     return _validate_legacy_adversarial_task_contract(adversarial_task, benign_task, site_profile)
 
@@ -1254,6 +1275,14 @@ def _validate_legacy_adversarial_task_contract(
     if discriminating_error is not None:
         return discriminating_error
 
+    concrete_seed_error = _validate_finalized_http_seed_contract(
+        adversarial_task.get("adversarial_data_seed"),
+        adversarial_task.get("delivery_channel"),
+        sites=adversarial_task.get("sites"),
+    )
+    if concrete_seed_error is not None:
+        return concrete_seed_error
+
     return None
 
 
@@ -1328,6 +1357,105 @@ def _validate_common_surface_contract(
         if discriminating_error is not None:
             return discriminating_error
 
+    return None
+
+
+def _validate_finalized_http_seed_contract(
+    seed: Any,
+    delivery_channel: Any,
+    *,
+    sites: Any,
+) -> str | None:
+    if not isinstance(seed, dict):
+        return None
+    if seed.get("mechanism") not in {"api", "form"}:
+        return None
+    if not isinstance(delivery_channel, dict):
+        return None
+
+    unresolved = _find_unresolved_http_seed_reference(seed, delivery_channel)
+    if unresolved is not None:
+        return unresolved
+
+    delivery_site = delivery_channel.get("delivery_site")
+    if isinstance(delivery_site, str) and delivery_site.strip():
+        if not isinstance(sites, list) or delivery_site.strip() not in {
+            str(site).strip() for site in sites if isinstance(site, str)
+        }:
+            return "delivery_channel.delivery_site must be included in task.sites"
+    return None
+
+
+def _find_unresolved_http_seed_reference(seed: dict[str, Any], delivery_channel: dict[str, Any]) -> str | None:
+    api_calls = seed.get("api_calls")
+    if not isinstance(api_calls, list):
+        return None
+
+    body_key = "body_form" if seed.get("mechanism") == "form" else "body"
+    required_body_field = delivery_channel.get("body_field")
+    for index, call in enumerate(api_calls):
+        if not isinstance(call, dict):
+            continue
+        path = call.get("path")
+        if isinstance(path, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(path):
+            return f"adversarial_data_seed api_calls[{index}].path contains unresolved placeholders"
+
+        body = call.get(body_key)
+        if not isinstance(body, dict):
+            continue
+        if isinstance(required_body_field, str):
+            value = body.get(required_body_field)
+            if isinstance(value, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(value):
+                return (
+                    "adversarial_data_seed contains unresolved placeholders in the required "
+                    f"body field {required_body_field!r}"
+                )
+
+    postcondition = delivery_channel.get("postcondition")
+    if not isinstance(postcondition, dict) or postcondition.get("type") != "db_row_value":
+        return None
+    where = postcondition.get("where")
+    if not isinstance(where, dict) or not where:
+        return "delivery_channel.postcondition.where must be a non-empty object"
+    for column_name, source in where.items():
+        if not isinstance(source, dict) or len(source) != 1:
+            return f"delivery_channel.postcondition.where[{column_name!r}] must declare exactly one source"
+        source_key, source_value = next(iter(source.items()))
+        if source_key == "literal" and source_value in ("", None, -1):
+            return (
+                "delivery_channel.postcondition.where contains a placeholder literal and must "
+                "identify the created row concretely"
+            )
+        if source_key == "body_field":
+            if not isinstance(source_value, str) or not source_value.strip():
+                return (
+                    f"delivery_channel.postcondition.where[{column_name!r}] body_field must be non-empty"
+                )
+            if all(
+                not isinstance(call, dict)
+                or not isinstance(call.get(body_key), dict)
+                or source_value not in call.get(body_key, {})
+                for call in api_calls
+            ):
+                return (
+                    f"delivery_channel.postcondition.where[{column_name!r}] references missing "
+                    f"body_field {source_value!r}"
+                )
+        if source_key == "path_param":
+            if not isinstance(source_value, str) or not source_value.strip():
+                return (
+                    f"delivery_channel.postcondition.where[{column_name!r}] path_param must be non-empty"
+                )
+            if all(
+                not isinstance(call, dict)
+                or not isinstance(call.get("path"), str)
+                or f"{{{source_value}}}" in str(call.get("path"))
+                for call in api_calls
+            ):
+                return (
+                    f"delivery_channel.postcondition.where[{column_name!r}] path_param {source_value!r} "
+                    "is unresolved in adversarial_data_seed"
+                )
     return None
 
 

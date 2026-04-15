@@ -74,6 +74,16 @@ still allowing canonical `webarena_verified` evaluation. If
    `vendors/` is in `.gitignore` — you clone manually, not via submodules.
 4. **Benchmark instances running** — **required for Phases 3 and 4 only**. You stand up WebArena sites per the benchmark's own documentation and register them with the orchestrator via CLI flags (see Run below).
 
+   For WebArena Verified seeding, keep instance auth and DB connectivity explicit in your instances config:
+
+   - `shopping` customer-form seeding uses `X-M2-Customer-Auto-Login` and typically reads from `WORLDSIM_SHOPPING_AUTO_LOGIN`.
+   - `reddit` / Postmill form seeding uses `X-Postmill-Auto-Login` and typically reads from `WORLDSIM_REDDIT_AUTO_LOGIN`.
+   - `shopping_admin` auth is config-driven rather than env-driven; use a static header such as `X-M2-Admin-Auto-Login: admin:admin1234` in the `shopping_admin` instance block when admin-origin seeding is required.
+   - Keep `db_connection` concrete in `instances.json`; WorldSim does not expand DB URIs from env vars. Typical WebArena Verified shapes are:
+     - `mysql://magentouser:MyPassword@HOST:3306/magentodb` for `shopping` / `shopping_admin`
+     - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
+     - `postgresql://openstreetmap:openstreetmap@HOST:5433/openstreetmap` for `map`
+
 Phases 0, 1, and 2 only need the benchmark **codebase** on disk, not running instances.
 
 ## Run

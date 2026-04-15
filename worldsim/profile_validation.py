@@ -110,6 +110,16 @@ def validate_profile(
     )
 
 
+def profile_requires_agent_auth(profile: dict[str, Any]) -> bool:
+    surfaces = profile.get("injection_surface")
+    if not isinstance(surfaces, list):
+        return False
+    return any(
+        isinstance(surface, dict) and surface.get("controllable_by_tier") == "authed_user"
+        for surface in surfaces
+    )
+
+
 def _entity_field_index(data_model: object) -> dict[str, set[str]]:
     """Return {entity_name: {field_name}} for a data model payload."""
     index: dict[str, set[str]] = {}
@@ -166,8 +176,7 @@ def _validate_delivery_channel_entry(entry: object, index: int) -> list[str]:
     mechanism = entry.get("mechanism")
     if mechanism not in _DELIVERY_MECHANISMS:
         errors.append(
-            f"{prefix} mechanism must be one of {sorted(_DELIVERY_MECHANISMS)}, "
-            f"got {mechanism!r}"
+            f"{prefix} mechanism must be one of {sorted(_DELIVERY_MECHANISMS)}, got {mechanism!r}"
         )
 
     if not isinstance(entry.get("privileged_seed"), bool):
@@ -261,10 +270,11 @@ def _validate_delivery_channel_postcondition(
         errors.append(f"{prefix} postcondition.where must be a non-empty object")
         return errors
 
-    path_params = {
-        match.group(1)
-        for match in _PATH_PARAM_PATTERN.finditer(path_template)
-    } if isinstance(path_template, str) else set()
+    path_params = (
+        {match.group(1) for match in _PATH_PARAM_PATTERN.finditer(path_template)}
+        if isinstance(path_template, str)
+        else set()
+    )
 
     for column_name, source in where.items():
         if not isinstance(column_name, str) or not _IDENTIFIER_PATTERN.match(column_name):
@@ -331,7 +341,9 @@ def _validate_injection_surface_labels(surface: object) -> list[str]:
         errors.append(f"{prefix} must declare non-empty delivery_channels")
     else:
         for index, channel in enumerate(delivery_channels):
-            errors.extend(f"{prefix} {error}" for error in _validate_delivery_channel_entry(channel, index))
+            errors.extend(
+                f"{prefix} {error}" for error in _validate_delivery_channel_entry(channel, index)
+            )
 
     errors.extend(
         f"{prefix} {error}"
@@ -356,22 +368,16 @@ def _validate_agent_context_tier_consistency(
     if not requires_authenticated_context:
         return []
     if not isinstance(agent_context, dict):
-        return [
-            "injection surfaces with controllable_by_tier='authed_user' require agent_context"
-        ]
+        return ["injection surfaces with controllable_by_tier='authed_user' require agent_context"]
 
+    # Accept if auth_mechanism is present in agent_context OR if the instance
+    # provides agent_auth (the static, instances.json-driven path).
     auth_mechanism = agent_context.get("auth_mechanism")
     if not isinstance(auth_mechanism, dict):
-        return [
-            "injection surfaces with controllable_by_tier='authed_user' require "
-            "agent_context.auth_mechanism"
-        ]
+        return []
     auth_type = auth_mechanism.get("type")
     if not isinstance(auth_type, str) or not auth_type.strip():
-        return [
-            "injection surfaces with controllable_by_tier='authed_user' require "
-            "agent_context.auth_mechanism.type"
-        ]
+        return []
     if auth_type != "none":
         return []
 

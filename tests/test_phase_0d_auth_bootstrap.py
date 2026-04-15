@@ -219,6 +219,100 @@ class TestHappyPath:
         assert state["benchmark_path"] == str(bench)
         assert state["instances_path"] == str(instances_path)
 
+    def test_run_uses_instances_agent_auth_when_phase_0c_has_no_auth_mechanism(
+        self, tmp_path, monkeypatch
+    ):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _write_context(
+            profiles,
+            "map",
+            auth_mechanism=None,
+            credentials={"username": "stale", "password": "stale"},
+        )
+        instances_path = tmp_path / "instances.json"
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "demo",
+                    "benchmark_codebase": str(bench),
+                    "instances": [
+                        {
+                            "site_name": "map",
+                            "site_url": "http://map.test",
+                            "agent_auth": {
+                                "type": "storage_state",
+                                "storage_state": {
+                                    "path": "logs/phase_0d/map/storage_state.json",
+                                    "form_login": {
+                                        "login_url": "/login",
+                                        "username_selector": "input[name='username']",
+                                        "password_selector": "input[name='password']",
+                                        "submit_selector": "input[type='submit']",
+                                        "success_url_substring": "/",
+                                    },
+                                },
+                                "authentication": {
+                                    "credentials": {
+                                        "username": "instance-user",
+                                        "password": "instance-pass",
+                                    }
+                                },
+                            },
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        captured: dict[str, object] = {}
+
+        async def fake_form_login(*, spec, site_url, output_path):
+            captured["spec"] = spec
+            output_path.write_text(json.dumps({"cookies": [], "origins": []}), encoding="utf-8")
+
+        monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+
+        assert rc == 0
+        assert captured["spec"].credentials == {
+            "username": "instance-user",
+            "password": "instance-pass",
+        }
+
+    def test_spec_from_context_does_not_fallback_to_phase_0c_credentials_when_instance_auth_present(
+        self, tmp_path
+    ):
+        profiles = tmp_path / "phase_0c"
+        ctx_path = _write_context(
+            profiles,
+            "map",
+            auth_mechanism=None,
+            credentials={"username": "stale", "password": "stale"},
+        )
+
+        spec = bootstrap._spec_from_context(
+            "map",
+            ctx_path,
+            instance_agent_auth={
+                "type": "storage_state",
+                "storage_state": {
+                    "path": "logs/phase_0d/map/storage_state.json",
+                    "form_login": {
+                        "login_url": "/login",
+                        "username_selector": "input[name='username']",
+                        "password_selector": "input[name='password']",
+                        "submit_selector": "input[type='submit']",
+                        "success_url_substring": "/",
+                    },
+                },
+            },
+        )
+
+        assert spec is not None
+        assert spec.credentials is None
+
     def test_no_sites_with_storage_state_is_noop(self, tmp_path, monkeypatch):
         state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_context(

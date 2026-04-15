@@ -76,14 +76,21 @@ _BLOCKED_CALL_HEADER_NAMES = frozenset(
     }
 )
 _CSRF_INPUT_PATTERNS = (
-    re.compile(r'name=["\'](form_key|authenticity_token|csrf_token)["\'][^>]*value=["\']([^"\']+)'),
+    re.compile(
+        r'name=["\'](form_key|authenticity_token|csrf_token|token)["\'][^>]*value=["\']([^"\']+)'
+    ),
     re.compile(
         r'<meta[^>]+name=["\']csrf-token["\'][^>]+content=["\']([^"\']+)["\']',
         re.IGNORECASE,
     ),
 )
+_CSRF_PARAM_META = re.compile(
+    r'<meta[^>]+name=["\']csrf-param["\'][^>]+content=["\']([^"\']+)["\']',
+    re.IGNORECASE,
+)
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
+_UNRESOLVED_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 
 
 def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: Any) -> str | None:
@@ -100,7 +107,9 @@ def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: An
         return None
 
     if not _seed_preserves_prefix(benign_seed, adversarial_seed):
-        return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        return (
+            "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        )
     return None
 
 
@@ -159,7 +168,9 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             body_form = call.get("body_form")
             if mechanism == "form":
                 if not isinstance(body_form, dict) or not body_form:
-                    raise ValueError("form data seed calls must include a non-empty body_form object")
+                    raise ValueError(
+                        "form data seed calls must include a non-empty body_form object"
+                    )
                 if json_body is not None:
                     raise ValueError("form data seed calls must not include JSON body")
             elif body_form is not None:
@@ -194,6 +205,7 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
             execute_sql(stmt, instance["db_connection"])
     elif mechanism in {"api", "form"}:
         with requests.Session() as session:
+            _perform_web_login_if_needed(session, instance, mechanism)
             for call in seed["api_calls"]:
                 _apply_http_seed_call(session, mechanism, call, instance)
     elif mechanism == "state_push":
@@ -210,6 +222,44 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
 async def apply_data_seed_async(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     """Apply a data seed without blocking the event loop."""
     await asyncio.to_thread(apply_data_seed, seed, instance)
+
+
+def _perform_web_login_if_needed(
+    session: requests.Session, instance: dict[str, Any], mechanism: str
+) -> None:
+    """Log in via web form if the effective auth type is ``web_login``.
+
+    Performs a two-step flow: GET the login page to extract a CSRF token,
+    then POST credentials with the token. The resulting session cookies are
+    stored on *session* for subsequent seeding requests.
+    """
+    auth = _effective_auth(instance, mechanism)
+    if not isinstance(auth, dict) or auth.get("type") != "web_login":
+        return
+    site_url = str(instance.get("site_url", "")).rstrip("/")
+    login_path = str(auth.get("login_url", "/login"))
+    login_url = f"{site_url}{login_path}"
+    credentials = auth.get("credentials", {})
+    if not isinstance(credentials, dict) or not credentials:
+        raise RuntimeError(
+            f"web_login auth for {instance.get('site_name', '?')} requires credentials"
+        )
+
+    # GET login page — extract CSRF token from HTML.
+    resp = session.get(login_url, timeout=30, allow_redirects=True)
+    resp.raise_for_status()
+    token_name, token_value = _extract_csrf_token(resp.text)
+
+    login_data: dict[str, str] = {}
+    login_data.update(credentials)
+    if token_name and token_value:
+        login_data[token_name] = token_value
+
+    post_resp = session.post(login_url, data=login_data, timeout=30, allow_redirects=False)
+    if post_resp.status_code not in (200, 302):
+        raise RuntimeError(
+            f"Web login failed for {instance.get('site_name', '?')}: HTTP {post_resp.status_code}"
+        )
 
 
 def execute_sql(statement: str, db_connection: str) -> None:
@@ -256,37 +306,102 @@ def collect_sql_seed_runtime_errors(
     *,
     seed_field: str,
 ) -> list[str]:
-    """Return one error per SQL-incompatible site instance."""
-    sql_task_counts: dict[str, int] = {}
+    """Backward-compatible wrapper for generalized seed-runtime preflight."""
+    return collect_seed_runtime_errors(tasks, instances, seed_field=seed_field)
+
+
+def collect_seed_runtime_errors(
+    tasks: list[dict[str, Any]],
+    instances: list[Any],
+    *,
+    seed_field: str,
+) -> list[str]:
+    """Return deduplicated runtime-configuration errors for selected seeds."""
+    errors: list[str] = []
+    seen: set[str] = set()
+    task_counts: dict[tuple[str, str], int] = {}
+
     for task in tasks:
         if not isinstance(task, dict):
             continue
         seed = task.get(seed_field)
-        if isinstance(seed, dict) and seed.get("mechanism") == "sql":
-            site = str(task.get("site", "")).strip() or "<unknown>"
-            sql_task_counts[site] = sql_task_counts.get(site, 0) + 1
+        if not isinstance(seed, dict):
+            continue
+        mechanism = seed.get("mechanism")
+        if mechanism in (None, "none"):
+            continue
+        seed_site = _task_seed_site(task)
+        count_key = (
+            seed_site,
+            "sql"
+            if mechanism == "sql"
+            else "http_db"
+            if _task_http_seed_requires_db(task, seed)
+            else "http",
+        )
+        task_counts[count_key] = task_counts.get(count_key, 0) + 1
 
-    errors: list[str] = []
-    for site, task_count in sorted(sql_task_counts.items()):
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        seed = task.get(seed_field)
+        if not isinstance(seed, dict):
+            continue
+        mechanism = seed.get("mechanism")
+        if mechanism in (None, "none"):
+            continue
+
+        seed_site = _task_seed_site(task)
         site_instances = [
             instance
             for instance in instances
-            if _instance_value(instance, "site_name") == site
+            if _instance_value(instance, "site_name") == seed_site
         ]
         if not site_instances:
-            errors.append(
-                f"site {site!r} has {task_count} SQL-seeded task(s) but no configured instances"
+            _append_runtime_error(
+                errors,
+                seen,
+                f"site {seed_site!r} has seeded task(s) but no configured instances",
             )
             continue
+
+        requires_db = mechanism == "sql" or _task_http_seed_requires_db(task, seed)
+        requires_http_auth = mechanism in {"api", "form"}
         for instance in site_instances:
             site_url = _instance_value(instance, "site_url") or "<unknown>"
-            try:
-                _require_sql_db_connection(_instance_value(instance, "db_connection"))
-            except RuntimeError as exc:
-                errors.append(
-                    f"site {site!r} has {task_count} SQL-seeded task(s) but instance "
-                    f"{site_url!r} is not SQL-ready: {exc}"
-                )
+            if requires_db:
+                try:
+                    _require_sql_db_connection(_instance_value(instance, "db_connection"))
+                except RuntimeError as exc:
+                    kind_key = "sql" if mechanism == "sql" else "http_db"
+                    task_count = task_counts.get((seed_site, kind_key))
+                    _append_runtime_error(
+                        errors,
+                        seen,
+                        (
+                            f"site {seed_site!r} has "
+                            + (
+                                (
+                                    f"{task_count} SQL-seeded task(s)"
+                                    if task_count
+                                    else "SQL-seeded task(s)"
+                                )
+                                if mechanism == "sql"
+                                else "HTTP-seeded task(s) with db_row_value verification"
+                            )
+                            + f" but instance {site_url!r} is not SQL-ready: {exc}"
+                        ),
+                    )
+            if requires_http_auth:
+                auth_error = _instance_http_seed_auth_runtime_error(instance, mechanism=mechanism)
+                if auth_error is not None:
+                    _append_runtime_error(
+                        errors,
+                        seen,
+                        f"site {seed_site!r} has HTTP-seeded task(s) but instance {site_url!r} "
+                        f"has invalid auth config: {auth_error}",
+                    )
+
     return errors
 
 
@@ -335,6 +450,86 @@ def _instance_value(instance: Any, field: str) -> Any:
     return getattr(instance, field, None)
 
 
+def _append_runtime_error(errors: list[str], seen: set[str], message: str) -> None:
+    if message in seen:
+        return
+    seen.add(message)
+    errors.append(message)
+
+
+def _task_seed_site(task: dict[str, Any]) -> str:
+    delivery_channel = task.get("delivery_channel")
+    if isinstance(delivery_channel, dict):
+        delivery_site = delivery_channel.get("delivery_site")
+        if isinstance(delivery_site, str) and delivery_site.strip():
+            return delivery_site.strip()
+    site = str(task.get("site", "")).strip()
+    return site or "<unknown>"
+
+
+def _task_http_seed_requires_db(task: dict[str, Any], seed: dict[str, Any]) -> bool:
+    if seed.get("mechanism") not in {"api", "form"}:
+        return False
+    delivery_channel = task.get("delivery_channel")
+    if not isinstance(delivery_channel, dict):
+        return False
+    postcondition = delivery_channel.get("postcondition")
+    return isinstance(postcondition, dict) and postcondition.get("type") == "db_row_value"
+
+
+def _instance_http_seed_auth_runtime_error(instance: Any, *, mechanism: str = "form") -> str | None:
+    auth = _effective_auth(
+        instance if isinstance(instance, dict) else {},
+        mechanism,
+    )
+    if not isinstance(auth, dict):
+        return None
+
+    auth_type = str(auth.get("type", "")).strip()
+    if auth_type == "http_headers":
+        headers = auth.get("headers")
+        if not isinstance(headers, dict) or not headers:
+            return "http_headers auth requires a non-empty headers dict"
+        for value in headers.values():
+            try:
+                _resolve_header_value(value)
+            except RuntimeError as exc:
+                return str(exc)
+        return None
+
+    if auth_type == "bearer_token":
+        token = auth.get("token")
+        if isinstance(token, str) and token.strip():
+            return None
+        token_source = auth.get("token_source")
+        if isinstance(token_source, str) and token_source.strip():
+            try:
+                path = _resolve_token_source_path(token_source)
+            except RuntimeError as exc:
+                return str(exc)
+            if not path.exists():
+                return f"token_source {path} does not exist"
+            try:
+                token_text = path.read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                return f"token_source {path} could not be read: {exc}"
+            if not token_text:
+                return f"token_source {path} is empty"
+            return None
+        token_endpoint = auth.get("token_endpoint")
+        if isinstance(token_endpoint, str) and token_endpoint.strip():
+            return None
+        return "bearer_token auth requires token, token_source, or token_endpoint"
+
+    if auth_type == "web_login":
+        credentials = auth.get("credentials")
+        if not isinstance(credentials, dict) or not credentials:
+            return "web_login auth requires a non-empty credentials dict"
+        return None
+
+    return None
+
+
 def _parse_runtime_db_connection(
     db_connection: Any,
     *,
@@ -362,7 +557,7 @@ def _apply_http_seed_call(
     method = str(call["method"]).strip().upper()
     raw_path = str(call["path"])
     url = _resolve_call_url(raw_path, instance)
-    headers = _build_request_headers(instance, call)
+    headers = _build_request_headers(instance, call, mechanism=mechanism)
     json_body = call.get("body")
     form_body = _prepare_form_body(method, url, headers, call.get("body_form"), instance, session)
 
@@ -430,9 +625,26 @@ def _resolve_call_url(raw_path: str, instance: dict[str, Any]) -> str:
     return resolved_url
 
 
-def _build_request_headers(instance: dict[str, Any], call: dict[str, Any]) -> dict[str, str]:
+def _effective_auth(instance: dict[str, Any], mechanism: str) -> dict[str, Any] | None:
+    """Return the auth config for the given seeding mechanism.
+
+    API-mechanism tasks prefer ``api_auth`` (e.g. admin bearer token) over the
+    default ``auth`` (e.g. customer auto-login headers). Form-mechanism tasks
+    always use ``auth``.
+    """
+    if mechanism == "api":
+        api_auth = instance.get("api_auth")
+        if isinstance(api_auth, dict):
+            return api_auth
+    return instance.get("auth")
+
+
+def _build_request_headers(
+    instance: dict[str, Any], call: dict[str, Any], *, mechanism: str = "form"
+) -> dict[str, str]:
     headers: dict[str, str] = {}
-    auth = instance.get("auth")
+    auth = _effective_auth(instance, mechanism)
+    site_url = str(instance.get("site_url", ""))
     auth_header_names: set[str] = set()
     if isinstance(auth, dict):
         auth_type = str(auth.get("type", "")).strip()
@@ -444,7 +656,7 @@ def _build_request_headers(instance: dict[str, Any], call: dict[str, Any]) -> di
                     headers[str(key)] = resolved
                     auth_header_names.add(str(key).lower())
         elif auth_type == "bearer_token":
-            token = _resolve_bearer_token(auth)
+            token = _resolve_bearer_token(auth, site_url=site_url)
             header_name = str(auth.get("header_name") or "Authorization")
             if header_name.lower() == "authorization" and not token.lower().startswith("bearer "):
                 token = f"Bearer {token}"
@@ -460,7 +672,10 @@ def _build_request_headers(instance: dict[str, Any], call: dict[str, Any]) -> di
     return headers
 
 
-def _resolve_bearer_token(auth: dict[str, Any]) -> str:
+_BEARER_API_TOKEN_CACHE: dict[str, str] = {}
+
+
+def _resolve_bearer_token(auth: dict[str, Any], *, site_url: str = "") -> str:
     inline = auth.get("token")
     if isinstance(inline, str) and inline.strip():
         return inline.strip()
@@ -473,7 +688,24 @@ def _resolve_bearer_token(auth: dict[str, Any]) -> str:
             raise RuntimeError(f"token_source {path} is empty")
         return token
 
-    raise RuntimeError("bearer_token auth requires token or token_source")
+    token_endpoint = auth.get("token_endpoint")
+    if isinstance(token_endpoint, str) and token_endpoint.strip():
+        credentials = auth.get("credentials", {})
+        cache_key = f"{site_url}{token_endpoint}:{credentials.get('username', '')}"
+        cached = _BEARER_API_TOKEN_CACHE.get(cache_key)
+        if cached:
+            return cached
+        url = f"{site_url.rstrip('/')}{token_endpoint}"
+        resp = requests.post(url, json=credentials, timeout=30)
+        resp.raise_for_status()
+        token_value = resp.json()
+        token_text = (
+            token_value.strip().strip('"') if isinstance(token_value, str) else str(token_value)
+        )
+        _BEARER_API_TOKEN_CACHE[cache_key] = token_text
+        return token_text
+
+    raise RuntimeError("bearer_token auth requires token, token_source, or token_endpoint")
 
 
 def _resolve_header_value(value: object) -> str:
@@ -486,7 +718,7 @@ def _resolve_header_value(value: object) -> str:
             if not resolved:
                 raise RuntimeError(f"required auth header env var {env_name!r} is not set")
             return resolved
-    raise RuntimeError("auth header values must be strings or {\"from_env\": \"VAR_NAME\"}")
+    raise RuntimeError('auth header values must be strings or {"from_env": "VAR_NAME"}')
 
 
 def _sanitize_call_headers(
@@ -627,7 +859,11 @@ def _extract_csrf_token(html: str) -> tuple[str | None, str | None]:
             return match.group(1), match.group(2)
     meta_match = _CSRF_INPUT_PATTERNS[1].search(html)
     if meta_match:
-        return "csrf_token", meta_match.group(1)
+        # Read csrf-param meta tag for the correct POST parameter name.
+        # Rails sets <meta name="csrf-param" content="authenticity_token">.
+        param_match = _CSRF_PARAM_META.search(html)
+        param_name = param_match.group(1) if param_match else "csrf_token"
+        return param_name, meta_match.group(1)
     return (None, None)
 
 
@@ -657,7 +893,7 @@ def _verify_http_seed_postcondition(
             f"HTTP seed for {raw_path} does not match any registered delivery channel{hint}"
         )
     if len(matches) > 1:
-        surface_ids = sorted({str(surface.get('id', '?')) for surface, _ in matches})
+        surface_ids = sorted({str(surface.get("id", "?")) for surface, _ in matches})
         raise RuntimeError(
             f"HTTP seed for {raw_path} matches multiple delivery channels: {surface_ids}"
         )
@@ -889,10 +1125,7 @@ def _select_db_values(
         where_clause = " AND ".join(
             f"{_quote_identifier(column, scheme)} = %s" for column, _ in predicates
         )
-        query = (
-            f"SELECT {quoted_value_column} FROM {quoted_table} "
-            f"WHERE {where_clause} LIMIT 5"
-        )
+        query = f"SELECT {quoted_value_column} FROM {quoted_table} WHERE {where_clause} LIMIT 5"
         with conn.cursor() as cursor:
             cursor.execute(query, [value for _, value in predicates])
             rows = cursor.fetchall()

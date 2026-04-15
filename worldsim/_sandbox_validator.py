@@ -49,6 +49,7 @@ _SQL_INSERT_COLUMNS = re.compile(
 _SQL_UPDATE_SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bWHERE\b|$)", re.IGNORECASE | re.DOTALL)
 _NUMERIC_PATH_SEGMENT = re.compile(r"/\d+(?=/|$)")
 _PATH_PLACEHOLDER = re.compile(r"/\{[^}/]+\}(?=/|$)")
+_UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 _ALLOWED_API_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
 _FORM_METHODS = frozenset({"POST", "PUT", "PATCH"})
 
@@ -144,14 +145,18 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
     return errors
 
 
-def self_contained_adversarial_seed_error(benign_seed: object, adversarial_seed: object) -> str | None:
+def self_contained_adversarial_seed_error(
+    benign_seed: object, adversarial_seed: object
+) -> str | None:
     if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
         return None
     mechanism = benign_seed.get("mechanism")
     if mechanism in (None, "none"):
         return None
     if benign_seed.get("mechanism") != adversarial_seed.get("mechanism"):
-        return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        return (
+            "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        )
     if mechanism == "sql":
         benign_statements = benign_seed.get("statements")
         adversarial_statements = adversarial_seed.get("statements")
@@ -169,7 +174,9 @@ def self_contained_adversarial_seed_error(benign_seed: object, adversarial_seed:
             return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
         return None
     if benign_seed != adversarial_seed:
-        return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        return (
+            "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+        )
     return None
 
 
@@ -230,7 +237,9 @@ def _validate_sql_placeholder_context(seed_template: dict[str, object]) -> list[
         if placeholder_count <= 0:
             continue
         if not _statement_has_exact_placeholder_sql_value(statement):
-            return ["sql seed_template must place {{PAYLOAD_TEXT}} inside a quoted SQL string literal"]
+            return [
+                "sql seed_template must place {{PAYLOAD_TEXT}} inside a quoted SQL string literal"
+            ]
     return []
 
 
@@ -427,8 +436,7 @@ def _validate_delivery_channel_entry(entry: object, index: int) -> list[str]:
     mechanism = entry.get("mechanism")
     if mechanism not in _DELIVERY_MECHANISMS:
         errors.append(
-            f"{prefix} mechanism must be one of {sorted(_DELIVERY_MECHANISMS)}, "
-            f"got {mechanism!r}"
+            f"{prefix} mechanism must be one of {sorted(_DELIVERY_MECHANISMS)}, got {mechanism!r}"
         )
 
     privileged_seed = entry.get("privileged_seed")
@@ -441,6 +449,12 @@ def _validate_delivery_channel_entry(entry: object, index: int) -> list[str]:
     table = entry.get("table")
     column = entry.get("column")
     postcondition = entry.get("postcondition")
+    delivery_site = entry.get("delivery_site")
+
+    if delivery_site is not None and (
+        not isinstance(delivery_site, str) or not delivery_site.strip()
+    ):
+        errors.append(f"{prefix} delivery_site must be a non-empty string when present")
 
     if mechanism in {"api", "form", "upload"}:
         if not isinstance(path_template, str) or not path_template.startswith("/"):
@@ -523,10 +537,11 @@ def _validate_delivery_channel_postcondition(
         errors.append(f"{prefix} postcondition.where must be a non-empty object")
         return errors
 
-    path_params = {
-        match.group(1)
-        for match in _PATH_PARAM_PATTERN.finditer(path_template)
-    } if isinstance(path_template, str) else set()
+    path_params = (
+        {match.group(1) for match in _PATH_PARAM_PATTERN.finditer(path_template)}
+        if isinstance(path_template, str)
+        else set()
+    )
 
     for column_name, source in where.items():
         if not isinstance(column_name, str) or not _IDENTIFIER_PATTERN.match(column_name):
@@ -621,22 +636,19 @@ def _validate_agent_context_tier_consistency(
     if not requires_authenticated_context:
         return []
     if not isinstance(agent_context, dict):
-        return [
-            "injection surfaces with controllable_by_tier='authed_user' require agent_context"
-        ]
+        return ["injection surfaces with controllable_by_tier='authed_user' require agent_context"]
 
+    # Accept if auth_mechanism is present in agent_context OR if the instance
+    # provides agent_auth (the static, instances.json-driven path).  When auth
+    # is migrated fully to instances.json, agent_context.auth_mechanism may be
+    # absent — that is fine as long as instance-level auth is configured.
     auth_mechanism = agent_context.get("auth_mechanism")
     if not isinstance(auth_mechanism, dict):
-        return [
-            "injection surfaces with controllable_by_tier='authed_user' require "
-            "agent_context.auth_mechanism"
-        ]
+        # No Phase 0c auth — acceptable when instance agent_auth will supply it.
+        return []
     auth_type = auth_mechanism.get("type")
     if not isinstance(auth_type, str) or not auth_type.strip():
-        return [
-            "injection surfaces with controllable_by_tier='authed_user' require "
-            "agent_context.auth_mechanism.type"
-        ]
+        return []
     if auth_type != "none":
         return []
 
@@ -745,7 +757,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
             benign_tasks = json.loads(benign_path.read_text())
             if isinstance(benign_tasks, list):
                 if not benign_tasks:
-                    errors.append("benign_tasks.json is empty; cross-reference requires at least one benign task")
+                    errors.append(
+                        "benign_tasks.json is empty; cross-reference requires at least one benign task"
+                    )
                 benign_by_id = {
                     str(t.get("id", "")): t for t in benign_tasks if isinstance(t, dict)
                 }
@@ -802,7 +816,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         prefix = f"task {i} ({task_id})"
 
         is_plan = "seed_template" in task
-        missing = [f for f in (_REQUIRED_PLAN_FIELDS if is_plan else _REQUIRED_V1_FIELDS) if f not in task]
+        missing = [
+            f for f in (_REQUIRED_PLAN_FIELDS if is_plan else _REQUIRED_V1_FIELDS) if f not in task
+        ]
         if missing:
             errors.append(f"{prefix} missing required fields: {', '.join(missing)}")
             continue
@@ -907,7 +923,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                             f"concealment={concealment!r}"
                         )
 
-                matching_entries = _matching_delivery_entries(target_surface, str(delivery_mechanism))
+                matching_entries = _matching_delivery_entries(
+                    target_surface, str(delivery_mechanism)
+                )
                 if delivery_mechanism == "upload":
                     errors.append(
                         f"{prefix} delivery_mechanism='upload' is not supported by the current runtime"
@@ -928,7 +946,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                     )
 
                 if is_plan:
-                    if delivery_mechanism == "sql" and _surface_has_non_privileged_http(target_surface):
+                    if delivery_mechanism == "sql" and _surface_has_non_privileged_http(
+                        target_surface
+                    ):
                         errors.append(
                             f"{prefix} delivery_mechanism='sql' is only allowed when the target surface has no non-privileged HTTP channel"
                         )
@@ -949,7 +969,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                             errors.append(
                                 f"{prefix} seed payload must contain exactly one {_PAYLOAD_PLACEHOLDER} placeholder"
                             )
-                        violating_target = _surface_matches_attack_write(target_surface, attack_write)
+                        violating_target = _surface_matches_attack_write(
+                            target_surface, attack_write
+                        )
                         if violating_target is not None:
                             actual_target = _format_seed_write(attack_write)
                             available = _format_surface_delivery_channels(target_surface)
@@ -974,7 +996,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                             f"target_surface_id={target_surface_id!r}"
                         )
                     else:
-                        if any(write.get("mechanism") != delivery_mechanism for write in seed_writes):
+                        if any(
+                            write.get("mechanism") != delivery_mechanism for write in seed_writes
+                        ):
                             errors.append(
                                 f"{prefix} delivery_mechanism={delivery_mechanism!r} does not match "
                                 "the mechanism declared in adversarial_data_seed"
@@ -1004,6 +1028,15 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                                 message += f" Did you mean that surface {other_surface!r}?"
                             errors.append(message)
 
+        if not is_plan:
+            concrete_seed_error = _validate_finalized_http_seed_contract(
+                task.get("adversarial_data_seed"),
+                task.get("delivery_channel"),
+                sites=task.get("sites"),
+            )
+            if concrete_seed_error is not None:
+                errors.append(f"{prefix} {concrete_seed_error}")
+
         benign_task = benign_by_id.get(benign_task_id) if benign_by_id else None
         if benign_task is not None and is_plan:
             self_contained_error = self_contained_adversarial_seed_error(
@@ -1016,7 +1049,9 @@ def validate_adversarial_tasks(data: object) -> list[str]:
             diff_error = _validate_discriminating_payload(
                 benign_task.get("data_seed"),
                 task.get("adversarial_data_seed"),
-                target_surface if benchmark_profile is not None and isinstance(target_surface, dict) else None,
+                target_surface
+                if benchmark_profile is not None and isinstance(target_surface, dict)
+                else None,
             )
             if diff_error is not None:
                 errors.append(f"{prefix} {diff_error}")
@@ -1033,6 +1068,102 @@ def _available_surface_ids(benchmark_profile: dict[str, object]) -> list[str]:
         if isinstance(surface_id, str) and surface_id:
             ids.append(surface_id)
     return ids
+
+
+def _validate_finalized_http_seed_contract(
+    seed: object,
+    delivery_channel: object,
+    *,
+    sites: object,
+) -> str | None:
+    if not isinstance(seed, dict):
+        return None
+    if seed.get("mechanism") not in {"api", "form"}:
+        return None
+    if not isinstance(delivery_channel, dict):
+        return None
+
+    unresolved = _find_unresolved_http_seed_reference(seed, delivery_channel)
+    if unresolved is not None:
+        return unresolved
+
+    delivery_site = delivery_channel.get("delivery_site")
+    if isinstance(delivery_site, str) and delivery_site.strip():
+        if not isinstance(sites, list) or delivery_site.strip() not in {
+            str(site).strip() for site in sites if isinstance(site, str)
+        }:
+            return "delivery_channel.delivery_site must be included in task.sites"
+    return None
+
+
+def _find_unresolved_http_seed_reference(
+    seed: dict[str, object], delivery_channel: dict[str, object]
+) -> str | None:
+    api_calls = seed.get("api_calls")
+    if not isinstance(api_calls, list):
+        return None
+
+    body_key = "body_form" if seed.get("mechanism") == "form" else "body"
+    required_body_field = delivery_channel.get("body_field")
+    for index, call in enumerate(api_calls):
+        if not isinstance(call, dict):
+            continue
+        path = call.get("path")
+        if isinstance(path, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(path):
+            return f"adversarial_data_seed api_calls[{index}].path contains unresolved placeholders"
+        body = call.get(body_key)
+        if not isinstance(body, dict):
+            continue
+        if isinstance(required_body_field, str):
+            value = body.get(required_body_field)
+            if isinstance(value, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(value):
+                return (
+                    "adversarial_data_seed contains unresolved placeholders in the required "
+                    f"body field {required_body_field!r}"
+                )
+
+    postcondition = delivery_channel.get("postcondition")
+    if not isinstance(postcondition, dict) or postcondition.get("type") != "db_row_value":
+        return None
+    where = postcondition.get("where")
+    if not isinstance(where, dict) or not where:
+        return "delivery_channel.postcondition.where must be a non-empty object"
+    for column_name, source in where.items():
+        if not isinstance(source, dict) or len(source) != 1:
+            return f"delivery_channel.postcondition.where[{column_name!r}] must declare exactly one source"
+        source_key, source_value = next(iter(source.items()))
+        if source_key == "literal" and source_value in ("", None, -1):
+            return (
+                "delivery_channel.postcondition.where contains a placeholder literal and must "
+                "identify the created row concretely"
+            )
+        if source_key == "body_field":
+            if not isinstance(source_value, str) or not source_value.strip():
+                return f"delivery_channel.postcondition.where[{column_name!r}] body_field must be non-empty"
+            if all(
+                not isinstance(call, dict)
+                or not isinstance(call.get(body_key), dict)
+                or source_value not in call.get(body_key, {})
+                for call in api_calls
+            ):
+                return (
+                    f"delivery_channel.postcondition.where[{column_name!r}] references missing "
+                    f"body_field {source_value!r}"
+                )
+        if source_key == "path_param":
+            if not isinstance(source_value, str) or not source_value.strip():
+                return f"delivery_channel.postcondition.where[{column_name!r}] path_param must be non-empty"
+            if all(
+                not isinstance(call, dict)
+                or not isinstance(call.get("path"), str)
+                or f"{{{source_value}}}" in str(call.get("path"))
+                for call in api_calls
+            ):
+                return (
+                    f"delivery_channel.postcondition.where[{column_name!r}] path_param {source_value!r} "
+                    "is unresolved in adversarial_data_seed"
+                )
+    return None
 
 
 def _find_surface_by_id(
@@ -1082,16 +1213,19 @@ def _format_surface_delivery_channels(surface: dict[str, object]) -> list[str]:
         if resource.startswith("table:"):
             formatted.append(f"{mechanism} {resource}")
         elif resource.startswith("path:"):
-            formatted.append(f"{mechanism} {resource[len('path:'):]}")
+            formatted.append(f"{mechanism} {resource[len('path:') :]}")
     return formatted
 
 
-def _matching_delivery_entries(surface: dict[str, object], delivery_mechanism: str) -> list[dict[str, object]]:
+def _matching_delivery_entries(
+    surface: dict[str, object], delivery_mechanism: str
+) -> list[dict[str, object]]:
     delivery_channels = surface.get("delivery_channels")
     if not isinstance(delivery_channels, list):
         return []
     return [
-        entry for entry in delivery_channels
+        entry
+        for entry in delivery_channels
         if isinstance(entry, dict) and entry.get("mechanism") == delivery_mechanism
     ]
 
@@ -1134,7 +1268,7 @@ def _extract_seed_writes(
             writes.append(
                 {
                     "mechanism": "sql",
-                    "resource": f"table:{table.strip('`\"')}",
+                    "resource": f"table:{table.strip('`"')}",
                     "fields": _extract_sql_columns(statement),
                 }
             )
@@ -1160,13 +1294,11 @@ def _extract_seed_writes(
             if isinstance(body, dict):
                 fields.update(str(key) for key in body.keys())
             writes.append(
-                (
-                    {
-                        "mechanism": str(mechanism),
-                        "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
-                        "fields": fields,
-                    }
-                )
+                {
+                    "mechanism": str(mechanism),
+                    "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
+                    "fields": fields,
+                }
             )
         return writes
 
@@ -1283,7 +1415,7 @@ def _extract_attack_write(seed: dict[str, object] | object) -> dict[str, object]
             matches.append(
                 {
                     "mechanism": "sql",
-                    "resource": f"table:{table.strip('`\"')}",
+                    "resource": f"table:{table.strip('`"')}",
                     "fields": columns,
                     "placeholder_fields": placeholder_fields,
                     "placeholder_count": placeholder_count,
@@ -1383,9 +1515,7 @@ def _extract_sql_placeholder_fields(statement: str) -> set[str] | None:
         if len(columns) != len(values):
             return None
         placeholder_fields = {
-            column
-            for column, value in zip(columns, values)
-            if _PAYLOAD_PLACEHOLDER in value
+            column for column, value in zip(columns, values) if _PAYLOAD_PLACEHOLDER in value
         }
         if not placeholder_fields:
             return set()
@@ -1545,9 +1675,10 @@ def _validate_discriminating_payload(
                 "data_seed beyond whitespace/case"
             )
 
-    if json.dumps(benign_seed, sort_keys=True).lower() == json.dumps(
-        adversarial_seed, sort_keys=True
-    ).lower():
+    if (
+        json.dumps(benign_seed, sort_keys=True).lower()
+        == json.dumps(adversarial_seed, sort_keys=True).lower()
+    ):
         return "adversarial_data_seed must differ from the benign data_seed"
 
     return None

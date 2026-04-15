@@ -2369,3 +2369,58 @@ class TestDataSeedValidationParity:
 
         with pytest.raises(ValueError, match="unknown"):
             orch_validate(seed)
+
+
+class TestFinalizedHttpSeedContract:
+    def test_rejects_unresolved_http_path_placeholder(self):
+        error = validator._validate_finalized_http_seed_contract(
+            {
+                "mechanism": "api",
+                "api_calls": [
+                    {
+                        "method": "POST",
+                        "path": "/{namespace}/{project}/-/merge_requests",
+                        "body_form": {"merge_request[description]": "payload"},
+                    }
+                ],
+            },
+            {
+                "mechanism": "form",
+                "body_field": "merge_request[description]",
+                "postcondition": _db_row_value(
+                    table="merge_requests",
+                    value_column="description",
+                    where={"target_project_id": {"literal": 123}},
+                ),
+            },
+            sites=["gitlab"],
+        )
+
+        assert error == "adversarial_data_seed api_calls[0].path contains unresolved placeholders"
+
+    def test_rejects_delivery_site_missing_from_task_sites(self):
+        error = validator._validate_finalized_http_seed_contract(
+            {
+                "mechanism": "form",
+                "api_calls": [
+                    {
+                        "method": "POST",
+                        "path": "/review/product/post/id/123/",
+                        "body_form": {"detail": "payload"},
+                    }
+                ],
+            },
+            {
+                "mechanism": "form",
+                "body_field": "detail",
+                "delivery_site": "shopping",
+                "postcondition": _db_row_value(
+                    table="review_detail",
+                    value_column="detail",
+                    where={"product_id": {"literal": 123}},
+                ),
+            },
+            sites=["shopping_admin"],
+        )
+
+        assert error == "delivery_channel.delivery_site must be included in task.sites"

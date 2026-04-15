@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
@@ -473,8 +474,16 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     return _dispatch_phase(synthetic)
 
 
-def _unknown_auth_sites(state_dir: Path) -> list[str]:
-    """Return a list of site names whose AGENT_CONTEXT declares unknown auth.
+def _unknown_auth_sites(
+    state_dir: Path, *, instances: list[dict[str, Any]] | None = None
+) -> list[str]:
+    """Return a list of site names whose auth is truly unknown.
+
+    A site is *not* unknown if either:
+    - Phase 0c declared ``auth_mechanism.type`` as something other than
+      ``"unknown"``, OR
+    - ``instances.json`` provides ``agent_auth`` for the site (the static,
+      instances.json-driven path supersedes Phase 0c discovery).
 
     Handles both layouts Phase 0c can produce:
       - flat: ``<state_dir>/phase_0c/AGENT_CONTEXT_<site>.json`` (current)
@@ -485,6 +494,15 @@ def _unknown_auth_sites(state_dir: Path) -> list[str]:
     """
     import json as _json
 
+    # Sites with instance-level agent_auth are never unknown.
+    instance_auth_sites: set[str] = set()
+    if instances:
+        for inst in instances:
+            if isinstance(inst, dict) and has_configured_agent_auth(inst.get("agent_auth")):
+                site_name = inst.get("site_name", "")
+                if site_name:
+                    instance_auth_sites.add(site_name)
+
     profiles_dir = state_dir / "phase_0c"
     if not profiles_dir.exists():
         return []
@@ -492,6 +510,8 @@ def _unknown_auth_sites(state_dir: Path) -> list[str]:
     parse_errors: list[str] = []
 
     def _check(ctx_path: Path, site_name: str) -> None:
+        if site_name in instance_auth_sites:
+            return
         if not ctx_path.exists():
             return
         try:
@@ -577,8 +597,17 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         rc = asyncio.run(phase_2_injections.run(args))
     elif phase in {"3", "4"}:
         allow_unknown = getattr(args, "allow_unknown_auth", False)
+        instances_for_gate: list[dict[str, object]] | None = None
+        instances_path = getattr(args, "instances", None)
+        if instances_path is not None and Path(instances_path).exists():
+            try:
+                config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+                instances_for_gate = [instance.model_dump() for instance in config.instances]
+            except ValueError as exc:
+                print(f"Failed to parse instances config {instances_path}: {exc}", file=sys.stderr)
+                return 1
         try:
-            unknown_sites = _unknown_auth_sites(get_state_dir())
+            unknown_sites = _unknown_auth_sites(get_state_dir(), instances=instances_for_gate)
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 1

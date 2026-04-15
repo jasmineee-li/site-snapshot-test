@@ -396,6 +396,7 @@ def prepare_task_for_execution(
         "reset_endpoints": [],
         "url_placeholders": {},
         "bound_instance": None,
+        "bound_instances": {},
     }
     return prepared, missing_sites
 
@@ -422,12 +423,14 @@ def bind_task_to_instance(
 
     placeholders = merge_placeholder_maps(runtime.get("base_url_placeholders"))
     reset_endpoints: list[str] = []
+    bound_instances: dict[str, dict[str, Any]] = {}
     for site_name in runtime["sites"]:
         site_instance = (
             instance
             if site_name == primary_site
             else _select_binding_instance(site_name, instances)
         )
+        bound_instances[site_name] = site_instance.model_dump()
         placeholders = merge_placeholder_maps(
             placeholders,
             site_instance.url_placeholders,
@@ -442,6 +445,7 @@ def bind_task_to_instance(
         "reset_endpoints": reset_endpoints,
         "url_placeholders": placeholders,
         "bound_instance": instance.model_dump(),
+        "bound_instances": bound_instances,
     }
     return bound_task
 
@@ -474,6 +478,35 @@ def execution_instance_dict(
         instance_dict.get("site_name", instance.site_name)
     )
     return instance_dict
+
+
+def execution_site_instance_dict(
+    instance: BenchmarkInstance,
+    task: dict[str, Any],
+    *,
+    site_name: str,
+) -> dict[str, Any]:
+    """Return an execution instance dict for a specific bound site."""
+    normalized_site = normalize_site_name(site_name)
+    runtime = task.get(RUNTIME_METADATA_KEY, {})
+    bound_instances = runtime.get("bound_instances")
+    if isinstance(bound_instances, dict):
+        bound_instance = bound_instances.get(normalized_site)
+        if isinstance(bound_instance, dict):
+            instance_dict = dict(bound_instance)
+            instance_dict["url_placeholders"] = merge_placeholder_maps(
+                instance_dict.get("url_placeholders"),
+                runtime.get("url_placeholders"),
+            )
+            instance_dict["site_name"] = normalize_site_name(
+                instance_dict.get("site_name", normalized_site)
+            )
+            return instance_dict
+
+    if normalize_site_name(instance.site_name) == normalized_site:
+        return execution_instance_dict(instance, task)
+
+    raise ValueError(f"task is not bound to site {site_name!r}")
 
 
 def resolve_task_inputs(
