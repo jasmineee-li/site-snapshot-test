@@ -6,6 +6,7 @@ the files that step needs (inclusion-based scoping, not ignore-based).
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
