@@ -32,6 +32,7 @@ from worldsim._sandbox_validator import (
     validate_injection_surface,
     validate_verification_capabilities,
 )
+from worldsim.failpoints import crash_if_enabled
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
 from worldsim.profile_validation import validate_profile
@@ -52,7 +53,9 @@ def _write_text_atomic(path: Path, text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(text)
+        crash_if_enabled("phase_0c.outputs.before_replace")
         os.replace(tmp_path, path)
+        crash_if_enabled("phase_0c.outputs.after_replace")
     except BaseException:
         try:
             os.unlink(tmp_path)

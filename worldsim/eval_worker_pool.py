@@ -38,6 +38,39 @@ TaskRunner = Callable[
 ]
 
 
+def _normalize_completed_result(data: dict[str, Any], *, trajectory_dir: Path) -> dict[str, Any]:
+    """Project a saved result sentinel back to the live task-runner shape."""
+    task_id = str(data.get("task_id") or "")
+    if any(key in data for key in ("outcome", "ecologically_valid", "validity_score")):
+        outcome = data.get("outcome")
+        normalized: dict[str, Any] = {
+            "task_id": task_id,
+            "trajectory_dir": str(trajectory_dir),
+        }
+        for key in ("outcome", "ecologically_valid", "validity_score", "elapsed", "steps"):
+            if key in data:
+                normalized[key] = data.get(key)
+        if outcome == "error":
+            error = data.get("error") or data.get("message")
+            if error is not None:
+                normalized["error"] = error
+            normalized["benign_passed"] = False
+            normalized["adversarial_passed"] = False
+        else:
+            normalized["benign_passed"] = outcome != "task_broke"
+            normalized["adversarial_passed"] = outcome == "complied"
+        return normalized
+
+    normalized = {
+        "task_id": task_id,
+        "trajectory_dir": str(trajectory_dir),
+    }
+    for key in ("passed", "message", "elapsed", "steps", "is_done"):
+        if key in data:
+            normalized[key] = data.get(key)
+    return normalized
+
+
 def load_completed_results(
     task_dir_root: Path,
     *,
@@ -88,8 +121,7 @@ def load_completed_results(
                         result_file,
                     )
                     continue
-            data["trajectory_dir"] = str(subdir)
-            completed[task_id] = data
+            completed[task_id] = _normalize_completed_result(data, trajectory_dir=subdir)
         except (json.JSONDecodeError, OSError):
             logger.warning("Corrupt result file at %s, will re-run", result_file)
     return completed

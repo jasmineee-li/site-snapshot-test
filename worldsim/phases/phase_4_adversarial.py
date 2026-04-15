@@ -43,6 +43,7 @@ import requests
 
 from worldsim.agent_config import (
     DEFAULT_MODEL,
+    RUNTIME_METADATA_KEY,
     bind_task_to_instance,
     cap_tasks_per_site,
     execution_instance_dict,
@@ -53,6 +54,7 @@ from worldsim.agent_config import (
     task_reset_endpoints,
 )
 from worldsim.agent_prompt import build_agent_prompt
+from worldsim.atomic_io import write_json_atomic
 from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
@@ -98,6 +100,13 @@ ECOLOGICAL_FIX_MAX_ITERATIONS = 2
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 
 
+def _resume_fingerprint_task(task: dict[str, Any]) -> dict[str, Any]:
+    """Strip execution-local worker binding from initial-result fingerprinting."""
+    normalized = json.loads(json.dumps(task))
+    normalized.pop(RUNTIME_METADATA_KEY, None)
+    return normalized
+
+
 def _phase_4_state_metadata(
     *,
     task_dir_root: Path,
@@ -123,19 +132,13 @@ def _phase_4_state_metadata(
     return metadata
 
 
-def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as handle:
-            json.dump(payload, handle, indent=2)
-        os.replace(tmp_path, path)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+def _write_json_atomic(
+    path: Path,
+    payload: dict[str, Any],
+    *,
+    failpoint_base: str | None = None,
+) -> None:
+    write_json_atomic(path, payload, failpoint_base=failpoint_base)
 
 
 def _fingerprint_payload(*parts: Any) -> str:
@@ -168,7 +171,7 @@ def _phase_4_result_fingerprint(
     eval_context: dict[str, Any],
     site_profile: dict[str, Any] | None,
 ) -> str:
-    return _fingerprint_payload(task, eval_context, site_profile)
+    return _fingerprint_payload(_resume_fingerprint_task(task), eval_context, site_profile)
 
 
 def _phase_4_postprocess_fingerprint(
@@ -459,7 +462,11 @@ async def run(args: argparse.Namespace) -> int:
     # Write results
     output_dir = state_dir / "phase_4"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "results.json").write_text(json.dumps(final_results, indent=2))
+    write_json_atomic(
+        output_dir / "results.json",
+        final_results,
+        failpoint_base="phase_4.outputs.results",
+    )
 
     # Compute summary metrics
     complied = sum(1 for r in final_results if r["final_status"] == "complied")
@@ -592,6 +599,7 @@ async def _postprocess_one_task(
             **processed,
             _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
         },
+        failpoint_base="phase_4.postprocess.checkpoint",
     )
 
     return processed
@@ -1476,6 +1484,31 @@ def _load_json_dict(path: Path) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
+def _normalize_saved_adversarial_result(
+    payload: dict[str, Any],
+    *,
+    trajectory_dir: Path,
+) -> dict[str, Any]:
+    """Project a saved ``result.json`` sentinel back to the live runtime shape."""
+    outcome = payload.get("outcome")
+    normalized: dict[str, Any] = {"task_id": payload.get("task_id"), "trajectory_dir": str(trajectory_dir)}
+    for key in ("outcome", "ecologically_valid", "validity_score", "elapsed", "steps"):
+        if key in payload:
+            normalized[key] = payload.get(key)
+    if outcome == "error":
+        error = payload.get("error") or payload.get("message")
+        if error is not None:
+            normalized["error"] = error
+        if "passed" in payload:
+            normalized["benign_passed"] = False
+            normalized["adversarial_passed"] = False
+    else:
+        if "passed" in payload:
+            normalized["benign_passed"] = bool(payload.get("passed"))
+            normalized["adversarial_passed"] = outcome == "complied"
+    return normalized
+
+
 def _load_saved_variant_result(
     task_dir_root: Path,
     task_id: str,
@@ -1492,8 +1525,7 @@ def _load_saved_variant_result(
     payload = _load_json_dict(result_file)
     if payload is None:
         return None
-    payload["trajectory_dir"] = str(variant_dir)
-    return payload
+    return _normalize_saved_adversarial_result(payload, trajectory_dir=variant_dir)
 
 
 def _variant_changes_seed(original_task: dict[str, Any], variant_task: dict[str, Any]) -> bool:
@@ -1564,7 +1596,11 @@ async def run_strategy_variation(
             _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
             "judge_diagnosis": recommendation,
         }
-        _write_json_atomic(checkpoint_path, checkpoint)
+        _write_json_atomic(
+            checkpoint_path,
+            checkpoint,
+            failpoint_base="phase_4.strategy_variation.checkpoint",
+        )
 
     recommendation_status = str(recommendation.get("status", "ok")).strip().lower()
     strategies, strategy_errors = _normalize_recommended_strategies(recommendation)
@@ -1657,7 +1693,11 @@ async def run_strategy_variation(
         }
         checkpoint["variant_candidates"] = variant_candidates
         checkpoint["variant_generation_errors"] = variant_generation_errors
-        _write_json_atomic(checkpoint_path, checkpoint)
+        _write_json_atomic(
+            checkpoint_path,
+            checkpoint,
+            failpoint_base="phase_4.strategy_variation.checkpoint",
+        )
 
     real_variants = [
         (item.get("variant"), item.get("strategy"))
@@ -1724,7 +1764,11 @@ async def run_strategy_variation(
         "judge_diagnosis": recommendation,
     }
     checkpoint["variant_results"] = variant_results
-    _write_json_atomic(checkpoint_path, checkpoint)
+    _write_json_atomic(
+        checkpoint_path,
+        checkpoint,
+        failpoint_base="phase_4.strategy_variation.checkpoint",
+    )
     return result
 
 
@@ -2052,6 +2096,7 @@ async def _evaluate_variant(
         _write_json_atomic(
             _variant_result_metadata_path(task_dir_root, str(task.get("id", "unknown")), index),
             {_CHECKPOINT_FINGERPRINT_KEY: source_fingerprint},
+            failpoint_base="phase_4.variant.result_metadata",
         )
         return {
             **result,

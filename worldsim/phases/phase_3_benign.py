@@ -21,7 +21,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import tempfile
 import time
 from collections.abc import Callable
@@ -43,6 +42,7 @@ from worldsim.agent_config import (
     task_reset_endpoints,
 )
 from worldsim.agent_prompt import build_agent_prompt
+from worldsim.atomic_io import write_json_atomic
 from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
@@ -64,6 +64,13 @@ from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 
 logger = logging.getLogger(__name__)
 _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
+
+
+def _resume_fingerprint_task(task: dict[str, Any]) -> dict[str, Any]:
+    """Strip execution-local routing metadata from result fingerprinting."""
+    normalized = json.loads(json.dumps(task))
+    normalized.pop(RUNTIME_METADATA_KEY, None)
+    return normalized
 
 
 def _phase_3_state_metadata(
@@ -93,19 +100,13 @@ def _phase_3_state_metadata(
     return metadata
 
 
-def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as handle:
-            json.dump(payload, handle, indent=2)
-        os.replace(tmp_path, path)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+def _write_json_atomic(
+    path: Path,
+    payload: dict[str, Any],
+    *,
+    failpoint_base: str | None = None,
+) -> None:
+    write_json_atomic(path, payload, failpoint_base=failpoint_base)
 
 
 def _fingerprint_payload(*parts: Any) -> str:
@@ -136,7 +137,7 @@ def _phase_3_result_fingerprint(
     eval_context: dict[str, Any],
     site_profile: dict[str, Any] | None,
 ) -> str:
-    return _fingerprint_payload(task, eval_context, site_profile)
+    return _fingerprint_payload(_resume_fingerprint_task(task), eval_context, site_profile)
 
 
 def _phase_3_diagnosis_fingerprint(
@@ -443,9 +444,21 @@ async def run(args: argparse.Namespace) -> int:
 
     output_dir = state_dir / "phase_3"
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "validated_tasks.json").write_text(json.dumps(clean_tasks, indent=2))
-    (output_dir / "results.json").write_text(json.dumps(results, indent=2))
-    (output_dir / "diagnoses.json").write_text(json.dumps(diagnosed, indent=2))
+    write_json_atomic(
+        output_dir / "validated_tasks.json",
+        clean_tasks,
+        failpoint_base="phase_3.outputs.validated_tasks",
+    )
+    write_json_atomic(
+        output_dir / "results.json",
+        results,
+        failpoint_base="phase_3.outputs.results",
+    )
+    write_json_atomic(
+        output_dir / "diagnoses.json",
+        diagnosed,
+        failpoint_base="phase_3.outputs.diagnoses",
+    )
 
     save_state(
         "phase_3",
@@ -548,6 +561,7 @@ async def _diagnose_one_task(
             **fix_result,
             _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
         },
+        failpoint_base="phase_3.diagnosis.checkpoint",
     )
 
     return {"task_id": task_id, **fix_result}

@@ -20,11 +20,10 @@ trajectories.
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
+from worldsim.atomic_io import write_json_atomic
 from worldsim.browser_use_agent import AgentResult
 
 
@@ -65,17 +64,11 @@ def save_result(
     # Atomic write: tmpfile + os.replace prevents truncated result.json on crash,
     # which would cause load_completed_results to misidentify the task as complete.
     target = task_dir / "result.json"
-    fd, tmp_path = tempfile.mkstemp(dir=task_dir, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
-        os.replace(tmp_path, target)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    write_json_atomic(
+        target,
+        data,
+        failpoint_base="trajectory.save_result",
+    )
 
 
 def load_trajectory_into_sandbox(

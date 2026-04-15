@@ -67,13 +67,12 @@ import hashlib
 import inspect
 import json
 import logging
-import os
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig
 from worldsim.state import get_state_dir, save_state
 
@@ -84,19 +83,13 @@ class AuthBootstrapError(RuntimeError):
     """Raised when a ``storage_state`` artifact cannot be produced."""
 
 
-def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, indent=2)
-        os.replace(tmp_path, path)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+def _write_json_atomic(
+    path: Path,
+    payload: dict[str, Any],
+    *,
+    failpoint_base: str | None = None,
+) -> None:
+    write_json_atomic(path, payload, failpoint_base=failpoint_base)
 
 
 @dataclass
@@ -285,6 +278,7 @@ async def run(args: argparse.Namespace) -> int:
                 "agent_context_source": str(spec.agent_context_source),
                 "site_url": site_url,
             },
+            failpoint_base="phase_0d.completion",
         )
         generated.append(spec.site_name)
         logger.info(

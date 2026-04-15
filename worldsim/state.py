@@ -11,10 +11,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from worldsim.atomic_io import write_json_atomic
 
 logger = logging.getLogger(__name__)
 _DEFAULT_STATE_DIR = Path("logs")
@@ -57,19 +58,13 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     }
     # Atomic write: write to a temp file in the same directory, then rename.
     # os.replace is atomic on POSIX when src and dst are on the same filesystem.
-    fd, tmp_path = tempfile.mkstemp(dir=state_dir, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(state, f, indent=2)
-        os.replace(tmp_path, state_file)
-        _write_resume_pointer(state)
-    except BaseException:
-        # Clean up the temp file on failure
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    status = str(metadata.get("status", "unknown")).strip() or "unknown"
+    write_json_atomic(
+        state_file,
+        state,
+        failpoint_base=f"state.save_state.{step}.{status}",
+    )
+    _write_resume_pointer(state)
 
 
 def load_state() -> dict[str, Any] | None:
@@ -88,17 +83,7 @@ def load_state() -> dict[str, Any] | None:
 def _write_resume_pointer(state: dict[str, Any]) -> None:
     """Persist the latest full state snapshot at the default logs location."""
     _DEFAULT_STATE_DIR.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=_DEFAULT_STATE_DIR, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(state, f, indent=2)
-        os.replace(tmp_path, _RESUME_POINTER)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    write_json_atomic(_RESUME_POINTER, state)
 
 
 def _load_resume_pointer() -> dict[str, Any] | None:

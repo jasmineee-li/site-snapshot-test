@@ -20,12 +20,13 @@ import argparse
 import asyncio
 import json
 import logging
+import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-import re
 from typing import Any
 
+from worldsim.atomic_io import write_json_atomic
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
 from worldsim.profile_validation import load_and_validate_profile
@@ -223,21 +224,16 @@ async def run(args: argparse.Namespace) -> int:
         len(all_adversarial),
     )
 
+    # Fail-open: when some shards fail but others produced valid output,
+    # publish what we have. Fully-failed runs still return 1. Downstream
+    # phases read adversarial_tasks.json and can flag the partial state via
+    # the pipeline_state.json `partial=true` + `generation_failures` keys.
     if site_failures:
-        logger.error(
-            "Phase 2: refusing to publish partial results because %d site/shard run(s) failed:\n%s",
+        logger.warning(
+            "Phase 2: %d site/shard run(s) failed — publishing partial results:\n%s",
             len(site_failures),
             "\n".join(f"  - {failure}" for failure in site_failures),
         )
-        save_state(
-            "phase_2",
-            status="failed",
-            reason="site_generation_failures",
-            generation_failures=site_failures,
-            generated_task_count=len(all_adversarial),
-            **state_metadata,
-        )
-        return 1
 
     if not all_adversarial:
         logger.error("Phase 2 produced zero adversarial tasks across all sites")
@@ -245,6 +241,7 @@ async def run(args: argparse.Namespace) -> int:
             "phase_2",
             status="failed",
             reason="no_adversarial_tasks",
+            generation_failures=site_failures,
             **state_metadata,
         )
         return 1
@@ -271,9 +268,17 @@ async def run(args: argparse.Namespace) -> int:
             len(preserved),
             len(all_adversarial),
         )
-        output_path.write_text(json.dumps(merged, indent=2))
+        write_json_atomic(
+            output_path,
+            merged,
+            failpoint_base="phase_2.output.adversarial_tasks",
+        )
     else:
-        output_path.write_text(json.dumps(all_adversarial, indent=2))
+        write_json_atomic(
+            output_path,
+            all_adversarial,
+            failpoint_base="phase_2.output.adversarial_tasks",
+        )
 
     if not all_adversarial:
         logger.error(
@@ -431,6 +436,24 @@ async def _generate_injections_for_site(
         site_profile,
     )
     validated = _select_balanced_subset(validated, cell_targets)
+
+    # Persist this shard's validated output to disk immediately so a later
+    # orchestrator failure (or another shard's failure) cannot discard it.
+    if validated:
+        shards_dir = get_state_dir() / "phase_2" / "shards"
+        shards_dir.mkdir(parents=True, exist_ok=True)
+        shard_path = shards_dir / f"{label}.json"
+        try:
+            shard_path.write_text(json.dumps(validated, indent=2))
+            logger.info(
+                "Phase 2: persisted shard %r output (%d tasks) to %s",
+                label,
+                len(validated),
+                shard_path,
+            )
+        except OSError as exc:
+            logger.warning("Phase 2: failed to persist shard %r output: %s", label, exc)
+
     return SiteInjectionResult(site_name, validated, errors)
 
 
@@ -513,11 +536,11 @@ def _build_cell_targets(
 ) -> dict[str, int]:
     available_cells = _available_cells(site_profile)
     if not available_cells:
-        available_cells = [(framing, concealment) for framing in _FRAMINGS for concealment in _CONCEALMENTS]
+        available_cells = [
+            (framing, concealment) for framing in _FRAMINGS for concealment in _CONCEALMENTS
+        ]
 
-    index_by_task_id = {
-        str(task.get("id", "")): idx for idx, task in enumerate(all_site_tasks)
-    }
+    index_by_task_id = {str(task.get("id", "")): idx for idx, task in enumerate(all_site_tasks)}
     targets = {_cell_key(framing, concealment): 0 for framing, concealment in available_cells}
     for task in site_tasks:
         task_index = index_by_task_id.get(str(task.get("id", "")), 0)
@@ -732,7 +755,9 @@ def _site_profile_supports_attack(
     return False
 
 
-def _find_surface_by_id(site_profile: dict[str, Any], target_surface_id: str) -> dict[str, Any] | None:
+def _find_surface_by_id(
+    site_profile: dict[str, Any], target_surface_id: str
+) -> dict[str, Any] | None:
     for surface in site_profile.get("injection_surface", []):
         if isinstance(surface, dict) and surface.get("id") == target_surface_id:
             return surface
@@ -770,15 +795,18 @@ def _validate_discriminating_payload(
         if adversarial_values and benign_values == adversarial_values:
             return "adversarial_data_seed target field values must differ from benign data_seed beyond whitespace/case"
 
-    if json.dumps(benign_seed, sort_keys=True).lower() == json.dumps(
-        adversarial_seed, sort_keys=True
-    ).lower():
+    if (
+        json.dumps(benign_seed, sort_keys=True).lower()
+        == json.dumps(adversarial_seed, sort_keys=True).lower()
+    ):
         return "adversarial_data_seed must differ from the benign data_seed"
 
     return None
 
 
-def _validate_self_contained_adversarial_seed(benign_seed: Any, adversarial_seed: Any) -> str | None:
+def _validate_self_contained_adversarial_seed(
+    benign_seed: Any, adversarial_seed: Any
+) -> str | None:
     """Require the adversarial seed to preserve the benign seed verbatim before extending it."""
     return self_contained_adversarial_seed_error(benign_seed, adversarial_seed)
 
@@ -856,13 +884,15 @@ def _extract_seed_writes(seed: Any) -> list[dict[str, Any]]:
         for statement in statements:
             if not isinstance(statement, str):
                 continue
-            table_match = re.match(r"^\s*(?:INSERT\s+INTO|UPDATE)\s+([`\"]?[\w.]+[`\"]?)", statement, re.IGNORECASE)
+            table_match = re.match(
+                r"^\s*(?:INSERT\s+INTO|UPDATE)\s+([`\"]?[\w.]+[`\"]?)", statement, re.IGNORECASE
+            )
             if table_match is None:
                 continue
             writes.append(
                 {
                     "mechanism": "sql",
-                    "resource": f"table:{table_match.group(1).strip('`\"')}",
+                    "resource": f"table:{table_match.group(1).strip('`"')}",
                     "fields": _extract_sql_columns(statement),
                 }
             )
@@ -907,11 +937,7 @@ def _surface_matches_write(surface: dict[str, Any], write: dict[str, Any]) -> bo
                 continue
             fields = write.get("fields")
             column = entry.get("column")
-            if (
-                isinstance(fields, set)
-                and isinstance(column, str)
-                and fields == {column}
-            ):
+            if isinstance(fields, set) and isinstance(column, str) and fields == {column}:
                 return True
             continue
         path_template = entry.get("path_template")
@@ -923,7 +949,10 @@ def _surface_matches_write(surface: dict[str, Any], write: dict[str, Any]) -> bo
             or not isinstance(body_field, str)
         ):
             continue
-        if write.get("resource") != f"path:{method.strip().upper()} {_normalize_delivery_path(path_template)}":
+        if (
+            write.get("resource")
+            != f"path:{method.strip().upper()} {_normalize_delivery_path(path_template)}"
+        ):
             continue
         fields = write.get("fields")
         if isinstance(fields, set) and fields == {body_field}:
@@ -987,7 +1016,9 @@ def _select_balanced_subset(
         remaining[cell] -= 1
 
     if not selected:
-        logger.warning("Phase 2: balanced subset selection produced no tasks, keeping all validated tasks")
+        logger.warning(
+            "Phase 2: balanced subset selection produced no tasks, keeping all validated tasks"
+        )
         return validated_tasks
 
     dropped = len(validated_tasks) - len(selected)
