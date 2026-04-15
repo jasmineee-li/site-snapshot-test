@@ -82,6 +82,10 @@ Phases 0, 1, and 2 only need the benchmark **codebase** on disk, not running ins
 # Phase 0 against WebArena Verified (reads the codebase, no running services needed)
 uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
 
+# Phase 2 runs two internal stages sequentially:
+# 2a plan generation in Modal sandboxes, then 2b host-side text fill.
+uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified
+
 # Resume from the last checkpoint after a crash
 uv run python -m worldsim.main resume
 ```
@@ -104,7 +108,7 @@ Five phases:
 |---|-------|--------------|
 | 0 | Reconnaissance | 0a discovers benchmark structure, 0b computes per-site sandbox file maps, 0c profiles each site in parallel |
 | 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
-| 2 | Injection Generation | Produces adversarial data seeds per task |
+| 2 | Injection Generation | Runs 2a plan generation, then 2b text fill sequentially; emits final adversarial tasks with materialized data seeds |
 | 3 | Benign Validation | Runs the agent against benign seeds; diagnoses failures |
 | 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused |
 

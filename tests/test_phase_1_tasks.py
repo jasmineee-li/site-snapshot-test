@@ -11,6 +11,14 @@ from worldsim.phases import phase_1_mode_a, phase_1_mode_b, phase_1_mode_b_valid
 from worldsim.state import load_state
 
 
+def _subparser(parser, name: str):
+    for action in parser._actions:
+        choices = getattr(action, "choices", None)
+        if isinstance(choices, dict) and name in choices:
+            return choices[name]
+    raise AssertionError(f"subparser {name!r} not found")
+
+
 def _manifest(benchmark_root) -> dict:
     return {
         "benchmark_codebase": str(benchmark_root),
@@ -253,6 +261,26 @@ def test_build_parser_accepts_phase_2_text_fill_flags():
     assert args.phase_2b_texts_per_plan == 3
     assert args.phase_2_text_fill_concurrency == 7
     assert args.phase_2_text_model == "anthropic/claude-sonnet-4.5"
+
+
+def test_phase_2_help_mentions_sequential_2a_2b_stages():
+    parser = worldsim_main.build_parser()
+    help_text = " ".join(_subparser(parser, "phase").format_help().split())
+    assert "Phase 2 is one command with two internal stages" in help_text
+    assert "2a planning in Modal sandboxes, then 2b host-side text fill" in help_text
+    assert "there are no separate --phase-2a-only or --phase-2b-only flags" in help_text
+
+
+def test_resume_help_mentions_phase_2_stage_resume():
+    parser = worldsim_main.build_parser()
+    resume_parser = _subparser(parser, "resume")
+    help_text = " ".join(resume_parser.format_help().split())
+    description = " ".join((resume_parser.description or "").split())
+    assert "re-enters the saved internal sub-stage automatically" in description
+    assert "2a planning or 2b text fill" in description
+    assert "There are no separate --phase-2a-only or --phase-2b-only flags" in description
+    assert "Override the saved Phase 2a planning sandbox concurrency on resume." in help_text
+    assert "Override the saved Phase 2b text-fill model on resume." in help_text
 
 
 @pytest.mark.parametrize(

@@ -46,7 +46,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    phase_cmd = subparsers.add_parser("phase", help="Run a specific phase")
+    phase_cmd = subparsers.add_parser(
+        "phase",
+        help="Run a specific phase",
+        description=(
+            "Run a specific pipeline phase. Phase 2 is one command with two "
+            "internal stages: 2a planning in Modal sandboxes, then 2b host-side "
+            "text fill. The command runs those stages sequentially; there are no "
+            "separate --phase-2a-only or --phase-2b-only flags."
+        ),
+    )
     phase_cmd.add_argument(
         "phase",
         choices=["0", "0a", "0b", "0c", "0d", "1", "2", "3", "4"],
@@ -126,38 +135,39 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=None,
         metavar="N",
-        help="Phase 2: cap concurrent sandbox shards to at most N launches. "
-        "Omit to use the phase default.",
+        help="Phase 2a planning: cap concurrent sandbox shards to at most N launches "
+        "while `phase 2` runs 2a then 2b sequentially. Omit to use the phase default.",
     )
     phase_cmd.add_argument(
         "--phase-2-launch-jitter-ms",
         type=_positive_int,
         default=None,
         metavar="MS",
-        help="Phase 2: add up to MS of deterministic per-shard launch jitter "
-        "to smooth burst traffic. Omit to use the phase default.",
+        help="Phase 2a planning: add up to MS of deterministic per-shard launch "
+        "jitter to smooth burst traffic before 2b text fill starts. Omit to use "
+        "the phase default.",
     )
     phase_cmd.add_argument(
         "--phase-2b-texts-per-plan",
         type=_positive_int,
         default=None,
         metavar="N",
-        help="Phase 2: host-side text fill variants to generate per validated plan. "
-        "Defaults to 1.",
+        help="Phase 2b text fill: generate N payload variants per validated 2a plan "
+        "during the sequential `phase 2` run. Defaults to 1.",
     )
     phase_cmd.add_argument(
         "--phase-2-text-fill-concurrency",
         type=_positive_int,
         default=None,
         metavar="N",
-        help="Phase 2: cap concurrent host-side text fill requests to at most N.",
+        help="Phase 2b text fill: cap concurrent host-side text fill requests to at most N.",
     )
     phase_cmd.add_argument(
         "--phase-2-text-model",
         type=str,
         default=None,
         metavar="MODEL",
-        help="Phase 2: model identifier for host-side text fill requests.",
+        help="Phase 2b text fill: model identifier for host-side text fill requests.",
     )
     phase_cmd.add_argument(
         "--allow-unknown-auth",
@@ -167,7 +177,16 @@ def build_parser() -> argparse.ArgumentParser:
         "Default behavior is to refuse unknown-auth tasks so humans review them first.",
     )
 
-    resume_cmd = subparsers.add_parser("resume", help="Resume from the last saved checkpoint")
+    resume_cmd = subparsers.add_parser(
+        "resume",
+        help="Resume from the last saved checkpoint",
+        description=(
+            "Resume from the last saved checkpoint. When resuming Phase 2, WorldSim "
+            "re-enters the saved internal sub-stage automatically: 2a planning or "
+            "2b text fill. There are no separate --phase-2a-only or "
+            "--phase-2b-only flags."
+        ),
+    )
     resume_cmd.add_argument(
         "--benchmark",
         type=Path,
@@ -234,35 +253,35 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=argparse.SUPPRESS,
         metavar="N",
-        help="Override the saved Phase 2 sandbox concurrency on resume.",
+        help="Override the saved Phase 2a planning sandbox concurrency on resume.",
     )
     resume_cmd.add_argument(
         "--phase-2-launch-jitter-ms",
         type=_positive_int,
         default=argparse.SUPPRESS,
         metavar="MS",
-        help="Override the saved Phase 2 launch jitter on resume.",
+        help="Override the saved Phase 2a planning launch jitter on resume.",
     )
     resume_cmd.add_argument(
         "--phase-2b-texts-per-plan",
         type=_positive_int,
         default=argparse.SUPPRESS,
         metavar="N",
-        help="Override the saved Phase 2 texts-per-plan on resume.",
+        help="Override the saved Phase 2b texts-per-plan on resume.",
     )
     resume_cmd.add_argument(
         "--phase-2-text-fill-concurrency",
         type=_positive_int,
         default=argparse.SUPPRESS,
         metavar="N",
-        help="Override the saved Phase 2 text-fill concurrency on resume.",
+        help="Override the saved Phase 2b text-fill concurrency on resume.",
     )
     resume_cmd.add_argument(
         "--phase-2-text-model",
         type=str,
         default=argparse.SUPPRESS,
         metavar="MODEL",
-        help="Override the saved Phase 2 text-fill model on resume.",
+        help="Override the saved Phase 2b text-fill model on resume.",
     )
     resume_cmd.add_argument(
         "--allow-unknown-auth",

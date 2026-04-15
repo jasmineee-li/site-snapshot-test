@@ -23,10 +23,10 @@ For the full handoff, see `docs/handoffs/orchestrator-handoff-phase-2-v2.md`. Su
 
 Phase 2 single-shot design is auth-coupled to OAuth because the prompt asks the model to generate adversarial content text. Proxy-auth paths (OpenRouter) evaluate the prompt under a stricter policy regime and refuse at ~50%. OAuth refuses at ~0% but is rate-limited.
 
-**The refactor splits Phase 2 into two sub-phases mirroring Jasmine's `behavior-gen/pipeline.py` decomposition:**
+**The refactor splits Phase 2 into two internal sub-stages within the single `worldsim phase 2` command, mirroring Jasmine's `behavior-gen/pipeline.py` decomposition:**
 
 - **Phase 2a — Plan.** Pure schema work: `target_surface_id`, `framing`, `concealment`, `delivery_mechanism`, `delivery_channel`, `attack_objective`, `required_tokens`, `length_budget`, `reward_function`. NO payload text. Runs under Claude Code in Modal, OAuth-or-OpenRouter compatible (no refusal because no harm-adjacent content is emitted).
-- **Phase 2b — Text fill.** Parallel structured-output API calls (not Claude Code). Per-plan: one async call that composes UGC in the plan's declared voice with required tokens. Self-healing 3-framing retry loop + OAuth fallback. Empirically: OpenRouter Sonnet 4.5 ACCEPTS 3 of 4 tested framings for UGC composition.
+- **Phase 2b — Text fill.** Parallel structured-output API calls (not Claude Code). Per-plan: one async call that composes UGC in the plan's declared voice with required tokens. Self-healing 3-variant retry loop (`standard`, `creative_writing`, `testing_compliance`) + OAuth fallback. Empirically: OpenRouter Sonnet 4.5 ACCEPTS 3 of 4 tested framings for UGC composition.
 
 Comprehensive spec with acceptance criteria, implementation order, and voice-exemplar design is now in `docs/TODO-adversarial-rigor-mvp.md:639+`. Codex is implementing this next. The new handoff (`2026-04-14-phase-2-v2-handoff.md`) includes a ready-made subagent verification prompt the orchestrator runs before executing anything.
 
@@ -49,8 +49,7 @@ Mechanism unproven; behavior reproducible. Justifies the Phase 2b decomposition 
 
 1. Subagent verification of v2 implementation (6-section checklist in the handoff)
 2. Clean up contaminated state (nuke `logs/phase_2/shards/` — OpenRouter-generated, research-integrity concern)
-3. Phase 2a run → audit plans (≥60 plans, ≥20 cells, 5 sites)
-4. Phase 2b run → audit payloads (≥95% first-attempt success, ≤5% OAuth fallback)
+3. Phase 2 run (2a then 2b sequentially) → audit plans and payloads (≥60 plans, ≥20 cells, 5 sites; ≥95% first-attempt text-fill success, ≤5% OAuth fallback)
 5. Phase 3 gitlab smoke (critical patch-validation checkpoint)
 6. Phase 3 full on Sonnet (~$75, 3–8 hr)
 7. Phase 4 full on Sonnet (~$20–60)

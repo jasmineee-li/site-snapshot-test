@@ -12,6 +12,8 @@ The authoritative technical spec is [`docs/worldsim-v5-technical-specifcation.md
 
 `worldsim/main.py` is the CLI entrypoint — `uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified`. See `--help` for flags.
 
+Phase 2 is a single CLI phase with two internal stages: 2a planning in Modal sandboxes, then 2b host-side text fill. Do not invent split-stage flags unless the code actually adds them.
+
 ## Non-negotiable principles
 
 1. **The orchestrator does not manage environments.** It connects to pre-running benchmark instances the user supplies (`{site_url, db_connection, reset_endpoint}`). Never start, stop, provision, or snapshot them. Data seeding is per-task only, via `apply_data_seed`. Calling `reset_endpoint` between tasks is fine; anything beyond that is out of scope.
