@@ -8,31 +8,6 @@ import pytest
 
 import worldsim.rewards as rewards
 from worldsim.rewards import _db_query_match, _validate_read_only_query, run_reward_function
-from worldsim.seeding import _validate_seed_sql
-
-
-@pytest.mark.parametrize(
-    "statement",
-    [
-        "INSERT INTO products (id, name) VALUES (1, 'demo')",
-        "UPDATE products SET description = 'demo' WHERE product_id = 1",
-    ],
-)
-def test_seed_sql_allows_targeted_insert_and_update(statement):
-    _validate_seed_sql(statement)
-
-
-@pytest.mark.parametrize(
-    "statement",
-    [
-        "DROP TABLE products",
-        "UPDATE products SET description = 'demo'",
-        "INSERT INTO products VALUES (1); DELETE FROM products",
-    ],
-)
-def test_seed_sql_rejects_destructive_or_broad_statements(statement):
-    with pytest.raises(ValueError):
-        _validate_seed_sql(statement)
 
 
 @pytest.mark.parametrize(

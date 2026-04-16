@@ -3,11 +3,15 @@
 Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 3 / Evaluation
 Infrastructure" section.
 
-Three seeding mechanisms are supported, matching the v5 spec:
+Two seeding mechanisms are supported for adversarial content:
 
-- ``sql``: execute a list of SQL statements against ``instance["db_connection"]``
 - ``api``: make a list of HTTP requests against ``instance["site_url"]``
 - ``state_push``: PUT a JSON blob to the instance's ``/api/state`` endpoint
+
+SQL seeding was evaluated and excluded from the methodology because it violates
+the threat model (a regular authenticated user cannot write to the database
+directly). Database read access is retained for postcondition verification and
+reward evaluation.
 
 Each benchmark's Phase 0a manifest declares which mechanism its sites use.
 """
@@ -29,19 +33,6 @@ from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import apply_placeholders, merge_placeholder_maps
 
 logger = logging.getLogger(__name__)
-
-_MULTI_STATEMENT_PATTERN = re.compile(r";(?=(?:[^']|'[^']*')*$)")
-_DISALLOWED_SQL_KEYWORDS = re.compile(
-    r"\b("
-    r"DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|DELETE|REPLACE|MERGE|CALL|DO|EXEC|EXECUTE|"
-    r"BEGIN|COMMIT|ROLLBACK|SAVEPOINT|PREPARE|DEALLOCATE|COPY|LOAD|ATTACH|DETACH|VACUUM"
-    r")\b",
-    re.IGNORECASE,
-)
-# Strip single-quoted SQL string literals (with `''` escape) before keyword
-# scan, so keyword-like words inside a VALUES (...) string literal don't trip
-# the filter. Parity with `worldsim/_sandbox_validator.py`.
-_SQL_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
 
 # Host-side backstop: the real allowlist is in ``worldsim.fix_validation``.
 # This mirrors ``fix_validation.ALLOWED_METHODS`` so destructive verbs
@@ -124,16 +115,6 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             return
         raise ValueError("data seed must declare a non-empty mechanism")
 
-    if mechanism == "sql":
-        statements = seed.get("statements")
-        if not isinstance(statements, list) or not statements:
-            raise ValueError("sql data seed must include a non-empty statements list")
-        for statement in statements:
-            if not isinstance(statement, str):
-                raise ValueError("sql data seed statements must be strings")
-            _validate_seed_sql(statement)
-        return
-
     if mechanism in {"api", "form"}:
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
@@ -199,11 +180,7 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     """
     validate_data_seed(seed)
     mechanism = seed["mechanism"]
-    if mechanism == "sql":
-        _require_sql_db_connection(instance.get("db_connection"))
-        for stmt in seed["statements"]:
-            execute_sql(stmt, instance["db_connection"])
-    elif mechanism in {"api", "form"}:
+    if mechanism in {"api", "form"}:
         with requests.Session() as session:
             _perform_web_login_if_needed(session, instance, mechanism)
             for call in seed["api_calls"]:
@@ -260,44 +237,6 @@ def _perform_web_login_if_needed(
         raise RuntimeError(
             f"Web login failed for {instance.get('site_name', '?')}: HTTP {post_resp.status_code}"
         )
-
-
-def execute_sql(statement: str, db_connection: str) -> None:
-    """Execute one SQL statement against a benchmark database.
-
-    Supports MySQL (WebArena OpenCart). Extend this dispatch when new
-    benchmarks land with different dialects.
-
-    Args:
-        statement: SQL statement to execute.
-        db_connection: Connection string, e.g.
-            ``mysql://user:pass@host:3306/dbname``.
-
-    Raises:
-        ValueError: If the statement matches the destructive SQL blocklist.
-    """
-    _validate_seed_sql(statement)
-
-    parsed = _parse_runtime_db_connection(db_connection, purpose="SQL seed db_connection")
-    conn = _connect_db(parsed)
-    scheme = parsed.scheme.lower()
-
-    if scheme == "mysql":
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute(statement)
-            conn.commit()
-        finally:
-            conn.close()
-    elif scheme in ("postgresql", "postgres"):
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute(statement)
-            conn.commit()
-        finally:
-            conn.close()
-    else:
-        raise RuntimeError(f"SQL seed db_connection uses unsupported scheme {scheme!r}")
 
 
 def collect_sql_seed_runtime_errors(
@@ -406,22 +345,6 @@ def collect_seed_runtime_errors(
                     )
 
     return errors
-
-
-def _validate_seed_sql(statement: str) -> None:
-    """Allow only single-statement INSERT/UPDATE seed mutations."""
-    normalized = statement.strip()
-    if not normalized:
-        raise ValueError("SQL seed statement is empty")
-    if _MULTI_STATEMENT_PATTERN.search(normalized.rstrip(";")):
-        raise ValueError("SQL seed must be a single statement")
-    if _DISALLOWED_SQL_KEYWORDS.search(_SQL_STRING_LITERAL.sub("''", normalized)):
-        raise ValueError(f"SQL seed contains a disallowed keyword: {normalized[:100]}...")
-    first_token = normalized.split(None, 1)[0].upper()
-    if first_token not in {"INSERT", "UPDATE"}:
-        raise ValueError(f"SQL seed must start with INSERT or UPDATE, got {first_token!r}")
-    if first_token == "UPDATE" and " WHERE " not in f" {normalized.upper()} ":
-        raise ValueError("UPDATE seed statements must include a WHERE clause")
 
 
 def _seed_preserves_prefix(benign_value: Any, adversarial_value: Any) -> bool:

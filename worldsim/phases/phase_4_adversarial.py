@@ -385,39 +385,18 @@ async def run(args: argparse.Namespace) -> int:
         seed_field="adversarial_data_seed",
     )
     if seed_runtime_errors:
-        # Filter out tasks whose seeds require infrastructure we don't have
-        # (e.g., SQL seeds without db_connection) rather than aborting entirely.
-        instance_by_site = {getattr(inst, "site_name", ""): inst for inst in config.instances}
-        pre_filter = len(tasks)
-        tasks = [
-            t
-            for t in tasks
-            if not (
-                isinstance(t.get("adversarial_data_seed"), dict)
-                and t["adversarial_data_seed"].get("mechanism") == "sql"
-                and not getattr(
-                    instance_by_site.get(str(t.get("site", "")).strip()),
-                    "db_connection",
-                    None,
-                )
-            )
-        ]
-        logger.warning(
-            "Phase 4 seed pre-flight warnings (filtered %d -> %d tasks):\n%s",
-            pre_filter,
-            len(tasks),
+        logger.error(
+            "Phase 4 seed pre-flight failed:\n%s",
             "\n".join(f"  - {error}" for error in seed_runtime_errors),
         )
-        if not tasks:
-            logger.error("No tasks remaining after pre-flight filter")
-            save_state(
-                "phase_4",
-                status="failed",
-                reason="seed_runtime_config_error",
-                seed_runtime_errors=seed_runtime_errors,
-                **state_metadata,
-            )
-            return 1
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="seed_runtime_config_error",
+            seed_runtime_errors=seed_runtime_errors,
+            **state_metadata,
+        )
+        return 1
     # Fail fast if Claude Code auth is missing — judge/variant sandboxes need it.
     try:
         preflight_auth_check()

@@ -86,20 +86,6 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
         errors.append("data seed must declare a non-empty mechanism")
         return errors
 
-    if mechanism == "sql":
-        statements = seed.get("statements")
-        if not isinstance(statements, list) or not statements:
-            errors.append("sql data seed must include a non-empty statements list")
-            return errors
-        for stmt in statements:
-            if not isinstance(stmt, str):
-                errors.append("sql data seed statements must be strings")
-                continue
-            sql_err = validate_seed_sql(stmt)
-            if sql_err is not None:
-                errors.append(sql_err)
-        return errors
-
     if mechanism in {"api", "form"}:
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
@@ -157,14 +143,6 @@ def self_contained_adversarial_seed_error(
         return (
             "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
         )
-    if mechanism == "sql":
-        benign_statements = benign_seed.get("statements")
-        adversarial_statements = adversarial_seed.get("statements")
-        if not isinstance(benign_statements, list) or not isinstance(adversarial_statements, list):
-            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
-        if adversarial_statements[: len(benign_statements)] != benign_statements:
-            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
-        return None
     if mechanism in {"api", "form"}:
         benign_calls = benign_seed.get("api_calls")
         adversarial_calls = adversarial_seed.get("api_calls")
@@ -188,15 +166,12 @@ def validate_seed_template_contract(seed_template: object) -> list[str]:
         return ["seed_template must be an object"]
 
     mechanism = seed_template.get("mechanism")
-    if mechanism not in {"sql", "api", "form"}:
-        return ["seed_template mechanism must be one of {'sql', 'api', 'form'}"]
+    if mechanism not in {"api", "form"}:
+        return ["seed_template mechanism must be one of {'api', 'form'}"]
 
     total_placeholders = _count_placeholder_occurrences(seed_template)
     if total_placeholders != 1:
         return ["seed_template must contain exactly one {{PAYLOAD_TEXT}} placeholder"]
-
-    if mechanism == "sql":
-        return _validate_sql_placeholder_context(seed_template)
 
     api_calls = seed_template.get("api_calls")
     if not isinstance(api_calls, list):
@@ -224,54 +199,6 @@ def _count_placeholder_occurrences(value: object) -> int:
     if isinstance(value, dict):
         return sum(_count_placeholder_occurrences(item) for item in value.values())
     return 0
-
-
-def _validate_sql_placeholder_context(seed_template: dict[str, object]) -> list[str]:
-    statements = seed_template.get("statements")
-    if not isinstance(statements, list):
-        return ["sql seed_template must include statements"]
-    for statement in statements:
-        if not isinstance(statement, str):
-            return ["sql seed_template statements must be strings"]
-        placeholder_count = statement.count(_PAYLOAD_PLACEHOLDER)
-        if placeholder_count <= 0:
-            continue
-        if not _statement_has_exact_placeholder_sql_value(statement):
-            return [
-                "sql seed_template must place {{PAYLOAD_TEXT}} inside a quoted SQL string literal"
-            ]
-    return []
-
-
-def _statement_has_exact_placeholder_sql_value(statement: str) -> bool:
-    insert_match = re.match(
-        r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)\s*VALUES\s*\((.*)\)\s*$",
-        statement,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if insert_match:
-        values = _split_sql_csv(insert_match.group(2))
-        return any(_is_exact_placeholder_sql_literal(value) for value in values)
-
-    update_match = _SQL_UPDATE_SET_CLAUSE.search(statement)
-    if not update_match:
-        return False
-    assignments = _split_sql_csv(update_match.group(1))
-    for assignment in assignments:
-        _, sep, value = assignment.partition("=")
-        if not sep:
-            return False
-        if _is_exact_placeholder_sql_literal(value):
-            return True
-    return False
-
-
-def _is_exact_placeholder_sql_literal(value: str) -> bool:
-    normalized = value.strip()
-    if normalized.count(_PAYLOAD_PLACEHOLDER) != 1:
-        return False
-    match = _SQL_STRING_LITERAL.fullmatch(normalized)
-    return match is not None and match.group(0).count(_PAYLOAD_PLACEHOLDER) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +267,7 @@ def validate_profile(data: object, *, site_name: str) -> list[str]:
 
 
 _CONTROLLABLE_TIERS = frozenset({"anon", "any_user", "authed_user", "admin", "none"})
-_DELIVERY_MECHANISMS = frozenset({"api", "form", "upload", "sql"})
+_DELIVERY_MECHANISMS = frozenset({"api", "form", "upload"})
 _RENDERING_FORMATS = frozenset({"raw_html", "markdown", "plaintext"})
 _CONCEALMENTS = frozenset(
     {"plaintext", "offscreen_css", "markdown_fenced_system", "image_alt_text"}
@@ -476,26 +403,6 @@ def _validate_delivery_channel_entry(entry: object, index: int) -> list[str]:
                 required=True,
             )
         )
-    elif mechanism == "sql":
-        if not isinstance(table, str) or not table.strip():
-            errors.append(f"{prefix} table must be a non-empty string when mechanism='sql'")
-        if not isinstance(column, str) or not column.strip():
-            errors.append(f"{prefix} column must be a non-empty string when mechanism='sql'")
-        if path_template is not None:
-            errors.append(f"{prefix} path_template must be null when mechanism='sql'")
-        if method is not None:
-            errors.append(f"{prefix} method must be null when mechanism='sql'")
-        if body_field is not None:
-            errors.append(f"{prefix} body_field must be null when mechanism='sql'")
-        errors.extend(
-            _validate_delivery_channel_postcondition(
-                postcondition,
-                prefix=prefix,
-                body_field=None,
-                path_template=None,
-                required=False,
-            )
-        )
 
     return errors
 
@@ -510,7 +417,7 @@ def _validate_delivery_channel_postcondition(
 ) -> list[str]:
     if postcondition is None:
         if required:
-            return [f"{prefix} postcondition is required for non-sql delivery channels"]
+            return [f"{prefix} postcondition is required for HTTP delivery channels"]
         return []
     if not isinstance(postcondition, dict):
         return [f"{prefix} postcondition must be an object"]
@@ -946,13 +853,6 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                     )
 
                 if is_plan:
-                    if delivery_mechanism == "sql" and _surface_has_non_privileged_http(
-                        target_surface
-                    ):
-                        errors.append(
-                            f"{prefix} delivery_mechanism='sql' is only allowed when the target surface has no non-privileged HTTP channel"
-                        )
-
                     attack_write = _extract_attack_write(seed_template)
                     if attack_write is None:
                         errors.append(
@@ -1184,11 +1084,6 @@ def _canonical_delivery_channel_entry(entry: object) -> tuple[str, str] | None:
     if not isinstance(entry, dict):
         return None
     mechanism = entry.get("mechanism")
-    if mechanism == "sql":
-        table = entry.get("table")
-        if isinstance(table, str) and table.strip():
-            return ("sql", f"table:{table.strip()}")
-        return None
     if mechanism in {"api", "form", "upload"}:
         method = entry.get("method")
         path_template = entry.get("path_template")
@@ -1210,9 +1105,7 @@ def _format_surface_delivery_channels(surface: dict[str, object]) -> list[str]:
         if canonical is None:
             continue
         mechanism, resource = canonical
-        if resource.startswith("table:"):
-            formatted.append(f"{mechanism} {resource}")
-        elif resource.startswith("path:"):
+        if resource.startswith("path:"):
             formatted.append(f"{mechanism} {resource[len('path:') :]}")
     return formatted
 
@@ -1246,34 +1139,6 @@ def _extract_seed_writes(
         return None
 
     mechanism = seed.get("mechanism")
-    if mechanism == "sql":
-        statements = seed.get("statements")
-        if not isinstance(statements, list) or not statements:
-            return None
-        writes: list[dict[str, object]] = []
-        for statement in statements:
-            if not isinstance(statement, str) or validate_seed_sql(statement) is not None:
-                return None
-            insert_match = _SQL_INSERT_TARGET.match(statement)
-            update_match = _SQL_UPDATE_TARGET.match(statement)
-            table = (
-                insert_match.group(1)
-                if insert_match
-                else update_match.group(1)
-                if update_match
-                else None
-            )
-            if not isinstance(table, str) or not table.strip():
-                return None
-            writes.append(
-                {
-                    "mechanism": "sql",
-                    "resource": f"table:{table.strip('`"')}",
-                    "fields": _extract_sql_columns(statement),
-                }
-            )
-        return writes
-
     if mechanism in {"api", "form", "upload"}:
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
@@ -1349,24 +1214,17 @@ def _surface_matches_write(
             if closest_mismatch is None:
                 closest_mismatch = _format_entry_match(entry)
             continue
-        expected_field = entry.get("column") if canonical[0] == "sql" else entry.get("body_field")
+        expected_field = entry.get("body_field")
         write_fields = write.get("fields")
         if (
             isinstance(expected_field, str)
             and isinstance(write_fields, set)
-            and (
-                expected_field in write_fields
-                if canonical[0] == "sql"
-                else write_fields == {expected_field}
-            )
+            and write_fields == {expected_field}
         ):
             return None
         if closest_mismatch is None:
             closest_mismatch = _format_entry_match(entry)
     return closest_mismatch
-
-
-def _surface_has_non_privileged_http(surface: dict[str, object]) -> bool:
     delivery_channels = surface.get("delivery_channels")
     if not isinstance(delivery_channels, list):
         return False
@@ -1384,45 +1242,6 @@ def _extract_attack_write(seed: dict[str, object] | object) -> dict[str, object]
     if not isinstance(seed, dict):
         return None
     mechanism = seed.get("mechanism")
-    if mechanism == "sql":
-        statements = seed.get("statements")
-        if not isinstance(statements, list) or not statements:
-            return None
-        matches: list[dict[str, object]] = []
-        for statement in statements:
-            if not isinstance(statement, str):
-                return None
-            placeholder_count = statement.count(_PAYLOAD_PLACEHOLDER)
-            if placeholder_count <= 0:
-                continue
-            if validate_seed_sql(statement) is not None:
-                return None
-            insert_match = _SQL_INSERT_TARGET.match(statement)
-            update_match = _SQL_UPDATE_TARGET.match(statement)
-            table = (
-                insert_match.group(1)
-                if insert_match
-                else update_match.group(1)
-                if update_match
-                else None
-            )
-            if not isinstance(table, str) or not table.strip():
-                return None
-            columns = _extract_sql_columns(statement)
-            placeholder_fields = _extract_sql_placeholder_fields(statement)
-            if not placeholder_fields:
-                return None
-            matches.append(
-                {
-                    "mechanism": "sql",
-                    "resource": f"table:{table.strip('`"')}",
-                    "fields": columns,
-                    "placeholder_fields": placeholder_fields,
-                    "placeholder_count": placeholder_count,
-                }
-            )
-        return matches[0] if len(matches) == 1 else None
-
     if mechanism in {"api", "form"}:
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
@@ -1485,7 +1304,7 @@ def _surface_matches_attack_write(
             if closest_mismatch is None:
                 closest_mismatch = _format_entry_match(entry)
             continue
-        expected_field = entry.get("column") if canonical[0] == "sql" else entry.get("body_field")
+        expected_field = entry.get("body_field")
         placeholder_fields = write.get("placeholder_fields")
         if (
             isinstance(expected_field, str)
@@ -1497,96 +1316,6 @@ def _surface_matches_attack_write(
         if closest_mismatch is None:
             closest_mismatch = _format_entry_match(entry)
     return closest_mismatch
-
-
-def _extract_sql_placeholder_fields(statement: str) -> set[str] | None:
-    insert_match = re.match(
-        r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)\s*VALUES\s*\((.*)\)\s*$",
-        statement,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if insert_match:
-        columns = [
-            column.strip().strip('`"')
-            for column in insert_match.group(1).split(",")
-            if column.strip()
-        ]
-        values = _split_sql_csv(insert_match.group(2))
-        if len(columns) != len(values):
-            return None
-        placeholder_fields = {
-            column for column, value in zip(columns, values) if _PAYLOAD_PLACEHOLDER in value
-        }
-        if not placeholder_fields:
-            return set()
-        for value in values:
-            if _PAYLOAD_PLACEHOLDER not in value:
-                continue
-            if not _is_exact_placeholder_sql_literal(value):
-                return None
-        return placeholder_fields
-
-    update_match = _SQL_UPDATE_SET_CLAUSE.search(statement)
-    if not update_match:
-        return None
-    assignments = _split_sql_csv(update_match.group(1))
-    placeholder_fields: set[str] = set()
-    for assignment in assignments:
-        column, sep, value = assignment.partition("=")
-        if not sep:
-            return None
-        normalized_column = column.strip().strip('`"')
-        if not normalized_column:
-            return None
-        if _PAYLOAD_PLACEHOLDER not in value:
-            continue
-        if not _is_exact_placeholder_sql_literal(value):
-            return None
-        placeholder_fields.add(normalized_column)
-    return placeholder_fields
-
-
-def _is_exact_placeholder_sql_literal(value: str) -> bool:
-    normalized = value.strip()
-    if normalized.count(_PAYLOAD_PLACEHOLDER) != 1:
-        return False
-    match = _SQL_STRING_LITERAL.fullmatch(normalized)
-    return match is not None and match.group(0).count(_PAYLOAD_PLACEHOLDER) == 1
-
-
-def _split_sql_csv(value: str) -> list[str]:
-    parts: list[str] = []
-    current: list[str] = []
-    in_string = False
-    depth = 0
-    i = 0
-    while i < len(value):
-        char = value[i]
-        if char == "'":
-            current.append(char)
-            if in_string and i + 1 < len(value) and value[i + 1] == "'":
-                current.append(value[i + 1])
-                i += 2
-                continue
-            in_string = not in_string
-            i += 1
-            continue
-        if not in_string:
-            if char == "(":
-                depth += 1
-            elif char == ")" and depth > 0:
-                depth -= 1
-            elif char == "," and depth == 0:
-                parts.append("".join(current).strip())
-                current = []
-                i += 1
-                continue
-        current.append(char)
-        i += 1
-    tail = "".join(current).strip()
-    if tail:
-        parts.append(tail)
-    return parts
 
 
 def _surface_for_seed_target(
@@ -1734,26 +1463,6 @@ def _normalize_payload_value(value: object) -> str:
     if isinstance(value, str):
         return "".join(value.split()).lower()
     return json.dumps(value, sort_keys=True).lower()
-
-
-def _extract_sql_columns(statement: str) -> set[str]:
-    insert_match = _SQL_INSERT_COLUMNS.match(statement)
-    if insert_match:
-        return {
-            column.strip().strip('`"')
-            for column in insert_match.group(1).split(",")
-            if column.strip()
-        }
-    update_match = _SQL_UPDATE_SET_CLAUSE.search(statement)
-    if not update_match:
-        return set()
-    columns: set[str] = set()
-    for assignment in update_match.group(1).split(","):
-        column, _, _ = assignment.partition("=")
-        normalized = column.strip().strip('`"')
-        if normalized:
-            columns.add(normalized)
-    return columns
 
 
 def _format_entry_match(entry: dict[str, object]) -> str:

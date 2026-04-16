@@ -151,92 +151,6 @@ def test_validate_data_seed_accepts_form_alias():
     )
 
 
-def test_apply_data_seed_sql_requires_db_connection():
-    with pytest.raises(RuntimeError, match="SQL seed requires instance\\['db_connection'\\]"):
-        seeding.apply_data_seed(
-            {
-                "mechanism": "sql",
-                "statements": ["INSERT INTO products (id) VALUES (1)"],
-            },
-            {
-                "site_name": "shopping",
-                "site_url": "http://shopping.test",
-            },
-        )
-
-
-@pytest.mark.parametrize("db_connection", ["", "   "])
-def test_apply_data_seed_sql_rejects_blank_db_connection(db_connection):
-    with pytest.raises(RuntimeError, match="non-empty URI string"):
-        seeding.apply_data_seed(
-            {
-                "mechanism": "sql",
-                "statements": ["INSERT INTO products (id) VALUES (1)"],
-            },
-            {
-                "site_name": "shopping",
-                "site_url": "http://shopping.test",
-                "db_connection": db_connection,
-            },
-        )
-
-
-def test_apply_data_seed_sql_rejects_unsupported_db_scheme():
-    with pytest.raises(RuntimeError, match="unsupported scheme 'sqlite'"):
-        seeding.apply_data_seed(
-            {
-                "mechanism": "sql",
-                "statements": ["INSERT INTO products (id) VALUES (1)"],
-            },
-            {
-                "site_name": "shopping",
-                "site_url": "http://shopping.test",
-                "db_connection": "sqlite:///tmp/demo.db",
-            },
-        )
-
-
-def test_collect_sql_seed_runtime_errors_deduplicates_by_site_instance():
-    errors = seeding.collect_sql_seed_runtime_errors(
-        [
-            {
-                "id": "task-1",
-                "site": "shopping",
-                "data_seed": {
-                    "mechanism": "sql",
-                    "statements": ["INSERT INTO products (id) VALUES (1)"],
-                },
-            },
-            {
-                "id": "task-2",
-                "site": "shopping",
-                "data_seed": {
-                    "mechanism": "sql",
-                    "statements": ["INSERT INTO products (id) VALUES (2)"],
-                },
-            },
-        ],
-        [
-            {
-                "site_name": "shopping",
-                "site_url": "http://shopping-a.test",
-                "db_connection": None,
-            },
-            {
-                "site_name": "shopping",
-                "site_url": "http://shopping-b.test",
-                "db_connection": "mysql://user:pass@localhost:3306/shop",
-            },
-        ],
-        seed_field="data_seed",
-    )
-
-    assert errors == [
-        "site 'shopping' has 2 SQL-seeded task(s) but instance 'http://shopping-a.test' "
-        "is not SQL-ready: SQL seed requires instance['db_connection'] must be a non-empty URI string"
-    ]
-
-
 def test_collect_seed_runtime_errors_reports_missing_http_header_env(monkeypatch):
     monkeypatch.delenv("WORLDSIM_SHOPPING_AUTO_LOGIN", raising=False)
 
@@ -314,7 +228,12 @@ def test_collect_seed_runtime_errors_reports_missing_bearer_token_source(tmp_pat
     ]
 
 
-def test_collect_seed_runtime_errors_requires_db_for_http_db_row_verification():
+def test_collect_seed_runtime_errors_skips_db_check_for_http_db_row_verification():
+    """HTTP seeds with db_row_value postconditions do NOT require db_connection at pre-flight.
+
+    The runtime gracefully skips DB verification when db_connection is absent
+    (HTTP 2xx confirms the seed landed).
+    """
     errors = seeding.collect_seed_runtime_errors(
         [
             {
@@ -342,10 +261,7 @@ def test_collect_seed_runtime_errors_requires_db_for_http_db_row_verification():
         seed_field="adversarial_data_seed",
     )
 
-    assert errors == [
-        "site 'map' has HTTP-seeded task(s) with db_row_value verification but instance 'http://map.test' "
-        "is not SQL-ready: SQL seed requires instance['db_connection'] must be a non-empty URI string"
-    ]
+    assert errors == []
 
 
 def test_apply_data_seed_resolves_placeholders_and_http_headers(monkeypatch):

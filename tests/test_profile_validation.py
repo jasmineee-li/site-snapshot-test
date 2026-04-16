@@ -227,7 +227,7 @@ def test_validate_profile_rejects_http_delivery_channel_without_postcondition():
         "verification_capabilities": [],
     }
 
-    with pytest.raises(ValueError, match="postcondition is required for non-sql delivery channels"):
+    with pytest.raises(ValueError, match="postcondition is required"):
         validate_profile("shopping", profile)
 
 

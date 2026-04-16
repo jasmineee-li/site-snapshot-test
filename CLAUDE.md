@@ -16,7 +16,7 @@ Phase 2 is a single CLI phase with two internal stages: 2a planning in Modal san
 
 ## Non-negotiable principles
 
-1. **The orchestrator does not manage environments.** It connects to pre-running benchmark instances the user supplies (`{site_url, db_connection, reset_endpoint}`). Never start, stop, provision, or snapshot them. Data seeding is per-task only, via `apply_data_seed`. Calling `reset_endpoint` between tasks is fine; anything beyond that is out of scope.
+1. **The orchestrator does not manage environments.** It connects to pre-running benchmark instances the user supplies (`{site_url, reset_endpoint}`). Never start, stop, provision, or snapshot them. Data seeding is per-task only, via `apply_data_seed` (api/form channels only). SQL seeding is excluded from the evaluation methodology because it violates the threat model (a regular authenticated user cannot write to the database directly). `db_connection` is optional and used only for postcondition verification and reward evaluation. Calling `reset_endpoint` between tasks is fine; anything beyond that is out of scope.
 2. **File routing via inclusion, not ignore.** Modal sandboxes are scoped by which files you `image.add_local_dir`, not by ignore-file patterns. Never rely on ignore patterns for isolation.
 3. **Trajectories flow through disk.** Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`. Judge / diagnosis sandboxes read `history.json` first and load screenshots only when the text log is ambiguous.
 4. **Two gates in Phase 4.** Gate 1 is ecological validity (probe each trajectory ~5× and average P(eval)). Gate 2 is attack effectiveness. Every trajectory passes Gate 1 before conclusions are drawn from Gate 2.

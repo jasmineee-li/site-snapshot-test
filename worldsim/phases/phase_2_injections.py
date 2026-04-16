@@ -53,7 +53,6 @@ logger = logging.getLogger(__name__)
 TASKS_PER_SHARD = 20
 DEFAULT_SANDBOX_CONCURRENCY = 250
 DEFAULT_LAUNCH_JITTER_MS = 750
-_SQL_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
 _FRAMINGS = (
     "authority",
     "urgency",
@@ -71,7 +70,7 @@ _CONCEALMENTS = (
     "markdown_fenced_system",
     "image_alt_text",
 )
-_DELIVERY_MECHANISMS = frozenset({"api", "form", "upload", "sql"})
+_DELIVERY_MECHANISMS = frozenset({"api", "form"})
 _ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
 _UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 CELL_COUNT = len(_FRAMINGS) * len(_CONCEALMENTS)
@@ -1164,7 +1163,9 @@ def _validate_adversarial_task_contract(
         return "adversarial_reward must be a non-empty object"
 
     if "seed_template" in adversarial_task:
-        plan_error = _validate_adversarial_plan_contract(adversarial_task, benign_task, site_profile)
+        plan_error = _validate_adversarial_plan_contract(
+            adversarial_task, benign_task, site_profile
+        )
         if plan_error is not None:
             return plan_error
         concrete_seed_error = _validate_finalized_http_seed_contract(
@@ -1327,9 +1328,6 @@ def _validate_common_surface_contract(
             f"concealment={concealment!r} and delivery_mechanism={delivery_mechanism!r}"
         )
 
-    if delivery_mechanism == "sql" and _surface_has_non_privileged_http(surface):
-        return "delivery_mechanism='sql' is only allowed when the target surface has no non-privileged HTTP channel"
-
     attack_write = _extract_attack_write(seed_payload)
     if attack_write is None:
         return f"seed payload must contain exactly one {PAYLOAD_PLACEHOLDER} placeholder"
@@ -1386,7 +1384,9 @@ def _validate_finalized_http_seed_contract(
     return None
 
 
-def _find_unresolved_http_seed_reference(seed: dict[str, Any], delivery_channel: dict[str, Any]) -> str | None:
+def _find_unresolved_http_seed_reference(
+    seed: dict[str, Any], delivery_channel: dict[str, Any]
+) -> str | None:
     api_calls = seed.get("api_calls")
     if not isinstance(api_calls, list):
         return None
@@ -1428,9 +1428,7 @@ def _find_unresolved_http_seed_reference(seed: dict[str, Any], delivery_channel:
             )
         if source_key == "body_field":
             if not isinstance(source_value, str) or not source_value.strip():
-                return (
-                    f"delivery_channel.postcondition.where[{column_name!r}] body_field must be non-empty"
-                )
+                return f"delivery_channel.postcondition.where[{column_name!r}] body_field must be non-empty"
             if all(
                 not isinstance(call, dict)
                 or not isinstance(call.get(body_key), dict)
@@ -1443,9 +1441,7 @@ def _find_unresolved_http_seed_reference(seed: dict[str, Any], delivery_channel:
                 )
         if source_key == "path_param":
             if not isinstance(source_value, str) or not source_value.strip():
-                return (
-                    f"delivery_channel.postcondition.where[{column_name!r}] path_param must be non-empty"
-                )
+                return f"delivery_channel.postcondition.where[{column_name!r}] path_param must be non-empty"
             if all(
                 not isinstance(call, dict)
                 or not isinstance(call.get("path"), str)
@@ -1482,17 +1478,6 @@ def _site_profile_supports_attack(
             and entry.get("mechanism") == delivery_mechanism
             and entry.get("privileged_seed") is False
         ):
-            return True
-    return False
-
-
-def _surface_has_non_privileged_http(surface: dict[str, Any]) -> bool:
-    for entry in surface.get("delivery_channels", []):
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("privileged_seed") is not False:
-            continue
-        if entry.get("mechanism") in {"api", "form"}:
             return True
     return False
 
@@ -1543,9 +1528,6 @@ def _format_delivery_channels(surface: dict[str, Any]) -> list[str]:
         if not isinstance(entry, dict):
             continue
         mechanism = entry.get("mechanism")
-        if mechanism == "sql":
-            formatted.append(f"sql table:{entry.get('table')} column:{entry.get('column')}")
-            continue
         formatted.append(
             f"{mechanism} {entry.get('method')} {_normalize_delivery_path(str(entry.get('path_template', '')))} field:{entry.get('body_field')}"
         )
@@ -1556,38 +1538,6 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
     if not isinstance(seed, dict):
         return None
     mechanism = seed.get("mechanism")
-    if mechanism == "sql":
-        statements = seed.get("statements")
-        if not isinstance(statements, list):
-            return None
-        matches: list[dict[str, Any]] = []
-        for statement in statements:
-            if not isinstance(statement, str):
-                continue
-            placeholder_count = statement.count(PAYLOAD_PLACEHOLDER)
-            if placeholder_count <= 0:
-                continue
-            table_match = re.match(
-                r"^\s*(?:INSERT\s+INTO|UPDATE)\s+([`\"]?[\w.]+[`\"]?)",
-                statement,
-                re.IGNORECASE,
-            )
-            if table_match is None:
-                continue
-            placeholder_fields = _extract_sql_placeholder_fields(statement)
-            if not placeholder_fields:
-                return None
-            matches.append(
-                {
-                    "mechanism": "sql",
-                    "resource": f"table:{table_match.group(1).strip('`"')}",
-                    "fields": _extract_sql_columns(statement),
-                    "placeholder_fields": placeholder_fields,
-                    "placeholder_count": placeholder_count,
-                }
-            )
-        return matches[0] if len(matches) == 1 else None
-
     if mechanism not in {"api", "form"}:
         return None
     api_calls = seed.get("api_calls")
@@ -1631,16 +1581,6 @@ def _entry_matches_attack_write(entry: dict[str, Any], attack_write: dict[str, A
     mechanism = entry.get("mechanism")
     if mechanism != attack_write.get("mechanism"):
         return False
-    if mechanism == "sql":
-        if attack_write.get("resource") != f"table:{entry.get('table')}":
-            return False
-        column = entry.get("column")
-        placeholder_fields = attack_write.get("placeholder_fields")
-        return (
-            isinstance(column, str)
-            and isinstance(placeholder_fields, set)
-            and placeholder_fields == {column}
-        )
     path_template = entry.get("path_template")
     method = entry.get("method")
     body_field = entry.get("body_field")
@@ -1657,96 +1597,6 @@ def _entry_matches_attack_write(entry: dict[str, Any], attack_write: dict[str, A
         return False
     placeholder_fields = attack_write.get("placeholder_fields")
     return isinstance(placeholder_fields, set) and placeholder_fields == {body_field}
-
-
-def _extract_sql_placeholder_fields(statement: str) -> set[str] | None:
-    insert_match = re.match(
-        r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)\s*VALUES\s*\((.*)\)\s*$",
-        statement,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if insert_match:
-        columns = [
-            column.strip().strip('`"')
-            for column in insert_match.group(1).split(",")
-            if column.strip()
-        ]
-        values = _split_sql_csv(insert_match.group(2))
-        if len(columns) != len(values):
-            return None
-        placeholder_fields = {
-            column for column, value in zip(columns, values) if PAYLOAD_PLACEHOLDER in value
-        }
-        if not placeholder_fields:
-            return set()
-        for value in values:
-            if PAYLOAD_PLACEHOLDER not in value:
-                continue
-            if not _sql_value_is_exact_placeholder_literal(value):
-                return None
-        return placeholder_fields
-
-    update_match = re.search(r"\bSET\b(.*?)(?:\bWHERE\b|$)", statement, re.IGNORECASE | re.DOTALL)
-    if update_match is None:
-        return None
-    assignments = _split_sql_csv(update_match.group(1))
-    placeholder_fields: set[str] = set()
-    for assignment in assignments:
-        column, sep, value = assignment.partition("=")
-        if not sep:
-            return None
-        normalized_column = column.strip().strip('`"')
-        if not normalized_column:
-            return None
-        if PAYLOAD_PLACEHOLDER not in value:
-            continue
-        if not _sql_value_is_exact_placeholder_literal(value):
-            return None
-        placeholder_fields.add(normalized_column)
-    return placeholder_fields
-
-
-def _sql_value_is_exact_placeholder_literal(value: str) -> bool:
-    normalized = value.strip()
-    if normalized.count(PAYLOAD_PLACEHOLDER) != 1:
-        return False
-    match = _SQL_STRING_LITERAL.fullmatch(normalized)
-    return match is not None and match.group(0).count(PAYLOAD_PLACEHOLDER) == 1
-
-
-def _split_sql_csv(value: str) -> list[str]:
-    parts: list[str] = []
-    current: list[str] = []
-    in_string = False
-    depth = 0
-    i = 0
-    while i < len(value):
-        char = value[i]
-        if char == "'":
-            current.append(char)
-            if in_string and i + 1 < len(value) and value[i + 1] == "'":
-                current.append(value[i + 1])
-                i += 2
-                continue
-            in_string = not in_string
-            i += 1
-            continue
-        if not in_string:
-            if char == "(":
-                depth += 1
-            elif char == ")" and depth > 0:
-                depth -= 1
-            elif char == "," and depth == 0:
-                parts.append("".join(current).strip())
-                current = []
-                i += 1
-                continue
-        current.append(char)
-        i += 1
-    tail = "".join(current).strip()
-    if tail:
-        parts.append(tail)
-    return parts
 
 
 def _validate_discriminating_payload(
@@ -1860,27 +1710,6 @@ def _extract_seed_writes(seed: Any) -> list[dict[str, Any]]:
     if not isinstance(seed, dict):
         return []
     mechanism = seed.get("mechanism")
-    if mechanism == "sql":
-        statements = seed.get("statements")
-        if not isinstance(statements, list):
-            return []
-        writes: list[dict[str, Any]] = []
-        for statement in statements:
-            if not isinstance(statement, str):
-                continue
-            table_match = re.match(
-                r"^\s*(?:INSERT\s+INTO|UPDATE)\s+([`\"]?[\w.]+[`\"]?)", statement, re.IGNORECASE
-            )
-            if table_match is None:
-                continue
-            writes.append(
-                {
-                    "mechanism": "sql",
-                    "resource": f"table:{table_match.group(1).strip('`"')}",
-                    "fields": _extract_sql_columns(statement),
-                }
-            )
-        return writes
     if mechanism not in {"api", "form", "upload"}:
         return []
     api_calls = seed.get("api_calls")
@@ -1916,14 +1745,6 @@ def _surface_matches_write(surface: dict[str, Any], write: dict[str, Any]) -> bo
         mechanism = entry.get("mechanism")
         if mechanism != write.get("mechanism"):
             continue
-        if mechanism == "sql":
-            if write.get("resource") != f"table:{entry.get('table')}":
-                continue
-            fields = write.get("fields")
-            column = entry.get("column")
-            if isinstance(fields, set) and isinstance(column, str) and column in fields:
-                return True
-            continue
         path_template = entry.get("path_template")
         method = entry.get("method")
         body_field = entry.get("body_field")
@@ -1942,30 +1763,6 @@ def _surface_matches_write(surface: dict[str, Any], write: dict[str, Any]) -> bo
         if isinstance(fields, set) and fields == {body_field}:
             return True
     return False
-
-
-def _extract_sql_columns(statement: str) -> set[str]:
-    insert_match = re.match(
-        r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)",
-        statement,
-        re.IGNORECASE,
-    )
-    if insert_match:
-        return {
-            column.strip().strip('`"')
-            for column in insert_match.group(1).split(",")
-            if column.strip()
-        }
-    update_match = re.search(r"\bSET\b(.*?)(?:\bWHERE\b|$)", statement, re.IGNORECASE | re.DOTALL)
-    if not update_match:
-        return set()
-    columns: set[str] = set()
-    for assignment in update_match.group(1).split(","):
-        column, _, _ = assignment.partition("=")
-        normalized = column.strip().strip('`"')
-        if normalized:
-            columns.add(normalized)
-    return columns
 
 
 def _normalize_payload_value(value: Any) -> str:

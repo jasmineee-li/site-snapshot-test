@@ -79,7 +79,7 @@ still allowing canonical `webarena_verified` evaluation. If
    - `shopping` customer-form seeding uses `X-M2-Customer-Auto-Login` and typically reads from `WORLDSIM_SHOPPING_AUTO_LOGIN`.
    - `reddit` / Postmill form seeding uses `X-Postmill-Auto-Login` and typically reads from `WORLDSIM_REDDIT_AUTO_LOGIN`.
    - `shopping_admin` auth is config-driven rather than env-driven; use a static header such as `X-M2-Admin-Auto-Login: admin:admin1234` in the `shopping_admin` instance block when admin-origin seeding is required.
-   - Keep `db_connection` concrete in `instances.json`; WorldSim does not expand DB URIs from env vars. Typical WebArena Verified shapes are:
+   - `db_connection` in `instances.json` is optional and used only for postcondition verification and reward evaluation (read-only). Typical WebArena Verified shapes are:
      - `mysql://magentouser:MyPassword@HOST:3306/magentodb` for `shopping` / `shopping_admin`
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
      - `postgresql://openstreetmap:openstreetmap@HOST:5433/openstreetmap` for `map`
@@ -137,7 +137,7 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 │   ├── trajectory.py             # load_trajectory_into_sandbox
 │   ├── browser_use_agent.py      # AgentRunner + BrowserUseAgent
 │   ├── eval_worker_pool.py       # run_eval + staggered_worker
-│   ├── seeding.py                # apply_data_seed (sql/api/state_push)
+│   ├── seeding.py                # apply_data_seed (api/form/state_push)
 │   ├── rewards.py                # run_reward_function dispatcher
 │   ├── prompts/                  # full prompts verbatim from the v5 spec
 │   └── phases/                   # phase_0_recon, phase_1_tasks, ... phase_4_adversarial

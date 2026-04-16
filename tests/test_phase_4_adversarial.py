@@ -1669,7 +1669,8 @@ async def test_phase_4_requires_validated_tasks_file(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_phase_4_run_fails_sql_seed_preflight_without_db_connection(monkeypatch, tmp_path):
+async def test_phase_4_run_fails_on_malformed_sql_seed(monkeypatch, tmp_path):
+    """SQL mechanism seeds are rejected at rebase (validate_data_seed rejects sql)."""
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)
     (tmp_path / "phase_3").mkdir(parents=True)
@@ -1726,12 +1727,6 @@ async def test_phase_4_run_fails_sql_seed_preflight_without_db_connection(monkey
         )
     )
 
-    monkeypatch.setattr(
-        phase_4_adversarial,
-        "preflight_auth_check",
-        lambda: (_ for _ in ()).throw(AssertionError("auth preflight should not run")),
-    )
-
     rc = await phase_4_adversarial.run(
         Namespace(
             instances=instances_path,
@@ -1744,10 +1739,7 @@ async def test_phase_4_run_fails_sql_seed_preflight_without_db_connection(monkey
     assert rc == 1
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "failed"
-    assert state["reason"] == "seed_runtime_config_error"
-    assert any("SQL-seeded task" in error for error in state["seed_runtime_errors"])
-    assert state["instances_path"] == str(instances_path)
-    assert state["agent_model"] == "demo-model"
+    assert state["reason"] == "malformed_adversarial_tasks"
 
 
 @pytest.mark.asyncio
@@ -2054,7 +2046,7 @@ def test_effective_adversarial_seed_rejects_invalid_seed_template_contract():
         },
     }
 
-    with pytest.raises(ValueError, match="quoted SQL string literal"):
+    with pytest.raises(ValueError, match="mechanism"):
         phase_4_adversarial._effective_adversarial_seed(task)
 
 

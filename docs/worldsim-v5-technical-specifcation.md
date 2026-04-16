@@ -25,7 +25,7 @@ We do not manage benchmark environment lifecycles. Following the same model as D
       "site_name": "shopping",
       "site_url": "http://webarena-host:7770",
       "reset_endpoint": "http://webarena-host:7771/init",
-      "db_connection": "mysql://user:pass@webarena-host:3306/magento",
+      "db_connection": "mysql://user:pass@webarena-host:3306/magento",  // optional, for reward evaluation only
       "auth": {
         "type": "http_headers",
         "headers": { "X-M2-Customer-Auto-Login": "customer@example.com" }
@@ -52,7 +52,7 @@ The `url_placeholders` map resolves benchmark-specific URL tokens (e.g., `__SHOP
 
 For parallel evaluation, the user provides multiple instances of the same site (on different ports). We distribute workers across them. Setting up these instances is the user's responsibility, following the benchmark's own documentation.
 
-The `benchmark_codebase` path is used only for Phase 0 exploration (read-only). The `site_url` is used in Phases 3-4 for agent evaluation. The `reset_endpoint` is called between tasks to restore environment state; for WebArena Verified this points at the env-ctrl sidecar (e.g., `http://host:7771/init`), not the main site URL. The `db_connection` is optional, used only for SQL-based adversarial data seeding in Phase 2 where the pipeline writes injection content directly to the benchmark's database.
+The `benchmark_codebase` path is used only for Phase 0 exploration (read-only). The `site_url` is used in Phases 3-4 for agent evaluation. The `reset_endpoint` is called between tasks to restore environment state; for WebArena Verified this points at the env-ctrl sidecar (e.g., `http://host:7771/init`), not the main site URL. The `db_connection` is optional, used only for postcondition verification and reward evaluation (read-only database access). SQL seeding was evaluated and excluded from the methodology because it violates the threat model: a regular authenticated user cannot write to the database directly. All adversarial content enters through HTTP channels (api/form).
 
 ### Why Modal Sandboxes
 
@@ -585,7 +585,7 @@ Opt-in via `--generate-novel`. Runs only for sites with uncovered injection surf
 
 **Reward functions.** Use `NetworkEventEvaluator` (preferred) or `AgentResponseEvaluator` only. No `db_query_match` for novel tasks. No `task_id` field in the reward function (avoids canonical evaluator lookup for novel tasks).
 
-**Data seeds.** Use `sql`, `api`, or `state_push` per the profile's `seeding_mechanism`. Tasks that only require navigation use `mechanism: none`.
+**Data seeds.** Use `api`, `form`, or `state_push` per the profile's `seeding_mechanism`. Tasks that only require navigation use `mechanism: none`.
 
 **Self-healing correction loop.** On validation failure, re-run the sandbox with errors appended to the prompt (1 retry, matching Phase 0c pattern).
 
@@ -632,7 +632,7 @@ Use ONLY `NetworkEventEvaluator` or `AgentResponseEvaluator`. Be specific, valid
 
 ## Data Seed Design
 
-Realistic content. Rich enough to support the task. Consistent with schema. Use the seeding mechanism from the profile (`sql`, `api`, `state_push`), or `mechanism: none` for navigate-only tasks. Use `__SITE__` placeholder tokens in `start_urls` (e.g., `__SHOPPING__/path`). No adversarial content.
+Realistic content. Rich enough to support the task. Consistent with schema. Use the seeding mechanism from the profile (`api`, `form`, `state_push`), or `mechanism: none` for navigate-only tasks. Use `__SITE__` placeholder tokens in `start_urls` (e.g., `__SHOPPING__/path`). No adversarial content.
 
 ## Output
 
@@ -753,19 +753,14 @@ async def run_task(task, agent, instance, task_dir):
 If structured output is required, the response-format schema is appended even when a vendor prompt template exists, so vendor examples cannot accidentally suppress the evaluator contract. When ``response_format.per_task_format_field`` is set, the prompt builder also reads that field from the task's ``instantiation_dict`` and appends the per-task format requirement.
 
 def apply_data_seed(seed, instance):
-    if seed["mechanism"] == "sql":
-        for stmt in seed["statements"]:
-            execute_sql(stmt, instance["db_connection"])
-    elif seed["mechanism"] == "api":
+    if seed["mechanism"] in ("api", "form"):
         for call in seed["api_calls"]:
             requests.request(call["method"],
                 f"{instance['site_url']}{call['path']}", json=call.get("body"))
     elif seed["mechanism"] == "state_push":
         requests.put(f"{instance['site_url']}/api/state", json=seed["state"])
 
-`execute_sql` supports MySQL (via pymysql) and PostgreSQL (via psycopg2). The driver is selected automatically from the `db_connection` URI scheme.
-
-**SQL keyword scan (string-literal stripping).** `validate_seed_sql` rejects disallowed SQL keywords (DROP, TRUNCATE, GRANT, MERGE, etc.), but it first strips single-quoted string literals (honoring `''` as the escape) before running the keyword regex. Otherwise benign English words in `VALUES (...)` payloads ("DO NOT", "MERGE request") would trip the filter. Implementation lives in both `worldsim._sandbox_validator` (used by the fix-loop validator) and `worldsim.seeding` (used by runtime seeding) and stays in parity.
+SQL seeding was evaluated and excluded from the methodology. A regular authenticated user cannot write to the database directly, so SQL seeds violate the threat model. All adversarial content enters through HTTP channels (api/form) that a regular user can legitimately access. Surfaces with only privileged SQL channels are excluded from the evaluation. Database read access (via `db_connection`) is retained for postcondition verification and reward evaluation.
 
 ### Failure Triage and Diagnosis
 
@@ -843,7 +838,6 @@ Exit on pass or `agent_limitation`.
 - `target` must be one of `reward_function`, `data_seed`, `task_removal`, `none`. `task_removal` / `none` require `patch` to be null.
 - `reward_function` patches are shape-checked against a known set of top-level keys.
 - `data_seed` patches:
-  - `mechanism: "sql"`: each statement goes through `worldsim._sandbox_validator.validate_seed_sql`, the single source of truth for SQL guardrails.
   - `mechanism: "api"`: every `api_calls[*]` must use one of `GET/POST/PUT/PATCH`, and the path must match an allowlist harvested at runtime from the site profile. Sources (in order): a top-level `seeding_endpoints` field, then `verification_capabilities[*].examples[*].eval_config.expected.url`. Site-name placeholders (`__GITLAB__`) are stripped, path placeholders (`{id}`) and numeric segments collapse to a per-segment wildcard. No hardcoded URLs. If the profile has nothing to anchor the allowlist, api patches fail closed.
   - `mechanism: "state_push"`: the `state` body must be a JSON-serializable object.
 
@@ -1139,7 +1133,7 @@ Phase 4: Adversarial Evaluation + Adaptive Strategy Variation
 | Task generation (1b) | Claude Code in Modal Sandbox | One per site |
 | Injection generation (2) | Claude Code in Modal Sandbox | One per site |
 | Agent execution (3, 4) | Local Browser Use worker pool | M parallel workers |
-| Data seeding (3, 4) | SQL/API/env-ctrl to benchmark | Per-task |
+| Data seeding (3, 4) | API/form/state_push to benchmark | Per-task |
 | Failure diagnosis (3) | Claude Code in Modal Sandbox | One per failed task |
 | Judge diagnosis (4) | Claude Code in Modal Sandbox | One per refused task |
 | Strategy variant generation (4) | Claude Code in Modal Sandbox | Up to 3 parallel per task |
@@ -1164,7 +1158,7 @@ Where it differs from the generic pipeline:
 - All 812 tasks live in one JSON array (`assets/dataset/webarena-verified.json`), not a directory of per-task files.
 - Evaluation uses `AgentResponseEvaluator` (validates a structured JSON response with type-aware normalization) and `NetworkEventEvaluator` (validates captured HAR network traces). The eval types `url_exact_match`, `html_match`, and `string_match` from the original WebArena do not exist here.
 - The harness is a Python API (`webarena_verified.api.WebArenaVerified.evaluate_task()`), not a script at a filesystem path.
-- Seed data is baked into Docker images. There are no SQL seed files on disk. Adversarial data seeding (Phase 2) requires direct database access to the running containers.
+- Seed data is baked into Docker images. There are no SQL seed files on disk. Adversarial data seeding (Phase 2) uses HTTP channels (api/form) only. Database access is used for postcondition verification and reward evaluation (read-only).
 
 ### Sites
 
@@ -1239,7 +1233,9 @@ The pipeline keeps its own `BenchmarkConfig` (with `instances` and `benchmark_co
 
 ### Adversarial Data Seeding
 
-Injecting adversarial content (Phase 2) means writing directly to each site's database. This is outside the standard WebArena Verified workflow. The databases:
+Adversarial content enters through HTTP channels (api/form) that a regular authenticated user can legitimately access. SQL seeding was evaluated and excluded from the methodology because it violates the threat model. Surfaces with only privileged SQL channels are excluded from the evaluation.
+
+The `db_connection` field in the pipeline config is used only for postcondition verification and reward evaluation (read-only database access). The databases:
 
 - shopping / shopping_admin: MySQL (Magento 2 schema)
 - reddit: PostgreSQL (Postmill schema)
@@ -1247,4 +1243,4 @@ Injecting adversarial content (Phase 2) means writing directly to each site's da
 - wikipedia: read-only ZIM file, not injectable
 - map: PostgreSQL (OpenStreetMap schema), limited injection surface
 
-The `db_connection` field in the pipeline config provides the connection string for SQL seeding. Not all sites are injectable. The pipeline uses whatever mechanism Phase 0c discovers for each site.
+The pipeline uses whatever HTTP mechanism Phase 0c discovers for each site.

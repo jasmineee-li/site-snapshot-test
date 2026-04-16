@@ -12,7 +12,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 _CONTROLLABLE_TIERS = frozenset({"anon", "any_user", "authed_user", "admin", "none"})
-_DELIVERY_MECHANISMS = frozenset({"api", "form", "upload", "sql"})
+_DELIVERY_MECHANISMS = frozenset({"api", "form", "upload"})
 _RENDERING_FORMATS = frozenset({"raw_html", "markdown", "plaintext"})
 _CONCEALMENTS = frozenset(
     {"plaintext", "offscreen_css", "markdown_fenced_system", "image_alt_text"}
@@ -207,26 +207,6 @@ def _validate_delivery_channel_entry(entry: object, index: int) -> list[str]:
                 body_field=body_field,
                 path_template=path_template,
                 required=True,
-            )
-        )
-    elif mechanism == "sql":
-        if not isinstance(table, str) or not table.strip():
-            errors.append(f"{prefix} table must be a non-empty string when mechanism='sql'")
-        if not isinstance(column, str) or not column.strip():
-            errors.append(f"{prefix} column must be a non-empty string when mechanism='sql'")
-        if path_template is not None:
-            errors.append(f"{prefix} path_template must be null when mechanism='sql'")
-        if method is not None:
-            errors.append(f"{prefix} method must be null when mechanism='sql'")
-        if body_field is not None:
-            errors.append(f"{prefix} body_field must be null when mechanism='sql'")
-        errors.extend(
-            _validate_delivery_channel_postcondition(
-                postcondition,
-                prefix=prefix,
-                body_field=None,
-                path_template=None,
-                required=False,
             )
         )
 
