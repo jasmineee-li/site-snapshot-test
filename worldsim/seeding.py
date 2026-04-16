@@ -991,6 +991,21 @@ def _verify_db_row_value_postcondition(
             f"postcondition type {postcondition.get('type')!r}"
         )
 
+    # Graceful skip when the instance has no db_connection. The HTTP 2xx
+    # response already confirmed the seed was accepted by the server. DB
+    # verification is a bonus integrity check, not a hard requirement. This
+    # covers sites where the database port is internal to the container
+    # (e.g. GitLab PostgreSQL on a Unix socket).
+    db_connection = instance.get("db_connection")
+    if not db_connection:
+        logger.warning(
+            "Skipping db_row_value postcondition for %s on surface %r: "
+            "no db_connection configured on instance",
+            raw_path,
+            surface_id,
+        )
+        return
+
     table = postcondition.get("table")
     value_column = postcondition.get("value_column")
     where = postcondition.get("where")

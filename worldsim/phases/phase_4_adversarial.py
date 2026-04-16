@@ -64,6 +64,7 @@ from worldsim.phases.phase_2_text_fill import (
     validate_seed_template_contract,
     validate_text_post_hoc,
 )
+from worldsim.placeholders import merge_placeholder_maps
 from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
 from worldsim.prompt_loading import load_prompt
 from worldsim.resume_metadata import (
@@ -447,6 +448,7 @@ async def run(args: argparse.Namespace) -> int:
             task_dir,
             benchmark_root=benchmark_root,
             sandbox_model=sandbox_model,
+            all_instances=config.instances,
             site_profile=site_profiles.get(str(task.get("site", ""))),
             resume_fingerprint=_phase_4_result_fingerprint(
                 task,
@@ -679,6 +681,7 @@ async def run_adversarial_task(
     *,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    all_instances: list[Any] | None = None,
     site_profile: dict[str, Any] | None = None,
     resume_fingerprint: str | None = None,
 ) -> dict[str, Any]:
@@ -715,11 +718,39 @@ async def run_adversarial_task(
     adv_seed = task.get("adversarial_data_seed", {})
     validate_data_seed(adv_seed, allow_none=False)
     if adv_seed["mechanism"] not in (None, "none"):
-        seed_instance_dict = (
-            execution_site_instance_dict(instance, task, site_name=seed_site)
-            if seed_site and seed_site != str(task.get("site", "")).strip()
-            else instance_dict
-        )
+        if seed_site and seed_site != str(task.get("site", "")).strip():
+            # Cross-site delivery (e.g. shopping_admin task seeding via shopping).
+            # The task may not be bound to the delivery site, so look it up
+            # from the config directly. This avoids the bound_instances
+            # mismatch that occurs when Phase 1 only binds the primary site.
+            try:
+                seed_instance_dict = execution_site_instance_dict(
+                    instance, task, site_name=seed_site
+                )
+            except ValueError:
+                seed_inst = None
+                if all_instances:
+                    seed_inst = next(
+                        (i for i in all_instances if getattr(i, "site_name", None) == seed_site),
+                        None,
+                    )
+                if seed_inst is None:
+                    raise RuntimeError(
+                        f"delivery_site {seed_site!r} not found in bound_instances "
+                        f"or all_instances for task {task.get('id', '?')}"
+                    )
+                # Build the dict directly from the instance config. Do NOT use
+                # execution_instance_dict(seed_inst, task) because the task's
+                # runtime metadata is bound to the primary site, not the
+                # delivery site.
+                runtime = task.get(RUNTIME_METADATA_KEY, {})
+                seed_instance_dict = seed_inst.model_dump()
+                seed_instance_dict["url_placeholders"] = merge_placeholder_maps(
+                    seed_instance_dict.get("url_placeholders"),
+                    runtime.get("url_placeholders"),
+                )
+        else:
+            seed_instance_dict = instance_dict
         if isinstance(site_profile, dict):
             seed_instance_dict["site_profile"] = json.loads(json.dumps(site_profile))
         if isinstance(target_surface_id, str) and target_surface_id:

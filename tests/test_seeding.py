@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import types
-from pathlib import Path
 
 import pytest
 
@@ -253,7 +252,9 @@ def test_collect_seed_runtime_errors_reports_missing_http_header_env(monkeypatch
                 },
                 "adversarial_data_seed": {
                     "mechanism": "form",
-                    "api_calls": [{"method": "POST", "path": "/review", "body_form": {"detail": "x"}}],
+                    "api_calls": [
+                        {"method": "POST", "path": "/review", "body_form": {"detail": "x"}}
+                    ],
                 },
             }
         ],
@@ -287,7 +288,9 @@ def test_collect_seed_runtime_errors_reports_missing_bearer_token_source(tmp_pat
                 "site": "gitlab",
                 "adversarial_data_seed": {
                     "mechanism": "api",
-                    "api_calls": [{"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}],
+                    "api_calls": [
+                        {"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}
+                    ],
                 },
             }
         ],
@@ -324,7 +327,9 @@ def test_collect_seed_runtime_errors_requires_db_for_http_db_row_verification():
                 },
                 "adversarial_data_seed": {
                     "mechanism": "form",
-                    "api_calls": [{"method": "POST", "path": "/review", "body_form": {"detail": "x"}}],
+                    "api_calls": [
+                        {"method": "POST", "path": "/review", "body_form": {"detail": "x"}}
+                    ],
                 },
             }
         ],
@@ -364,13 +369,19 @@ def test_apply_data_seed_resolves_placeholders_and_http_headers(monkeypatch):
             "site_name": "shopping",
             "site_url": "http://shopping.test",
             "url_placeholders": {"__SHOPPING__": "http://shopping.test"},
-            "auth": {"type": "http_headers", "headers": {"X-Test-Auth": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}}},
+            "auth": {
+                "type": "http_headers",
+                "headers": {"X-Test-Auth": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}},
+            },
             "db_connection": "mysql://user:pass@localhost:3306/db",
             "site_profile": _api_postcondition_profile(),
         },
     )
 
-    assert fake_session.calls[0]["url"] == "http://shopping.test/submit?next=http://shopping.test/orders"
+    assert (
+        fake_session.calls[0]["url"]
+        == "http://shopping.test/submit?next=http://shopping.test/orders"
+    )
     assert fake_session.calls[0]["headers"]["X-Test-Auth"] == "demo:user"
 
 
@@ -618,7 +629,10 @@ def test_apply_data_seed_does_not_allow_seed_headers_to_override_auth(monkeypatc
         {
             "site_name": "shopping",
             "site_url": "http://shopping.test",
-            "auth": {"type": "http_headers", "headers": {"X-Test-Auth": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}}},
+            "auth": {
+                "type": "http_headers",
+                "headers": {"X-Test-Auth": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}},
+            },
             "db_connection": "mysql://user:pass@localhost:3306/db",
             "site_profile": _api_postcondition_profile(),
         },
@@ -835,7 +849,9 @@ def test_get_csrf_token_cache_is_path_scoped():
     seeding._CSRF_TOKEN_CACHE.clear()
     instance = {"site_name": "shopping", "site_url": "http://shopping.test"}
 
-    review_token = seeding._get_csrf_token(fake_session, "http://shopping.test/review", {}, instance)
+    review_token = seeding._get_csrf_token(
+        fake_session, "http://shopping.test/review", {}, instance
+    )
     checkout_token = seeding._get_csrf_token(
         fake_session,
         "http://shopping.test/checkout",

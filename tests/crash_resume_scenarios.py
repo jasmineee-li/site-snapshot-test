@@ -308,7 +308,9 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
             [],
         )
 
-    async def fake_fill_texts_for_tasks(tasks, *, texts_per_plan, concurrency, model, registry_path=None):
+    async def fake_fill_texts_for_tasks(
+        tasks, *, texts_per_plan, concurrency, model, registry_path=None
+    ):
         finalized = []
         diagnostics = []
         for task in tasks:
@@ -533,7 +535,9 @@ def _apply_phase_4_mutation(state_dir: Path, mutation: str | None) -> None:
 async def _run_phase_3(mode: str, state_dir: Path, mutation: str | None = None) -> int:
     from worldsim.phases import phase_3_benign
 
-    instances_path = state_dir / "instances.json" if mode == "resume" else _configure_phase_3(state_dir)
+    instances_path = (
+        state_dir / "instances.json" if mode == "resume" else _configure_phase_3(state_dir)
+    )
     if mode == "resume" and mutation == "instances_drift":
         _mutate_instances_path(instances_path, suffix="drift")
     if mode == "resume":
@@ -569,7 +573,7 @@ async def _run_phase_3(mode: str, state_dir: Path, mutation: str | None = None) 
                 network_trace=[],
             )
 
-    phase_3_benign.make_agent_factory = lambda **kwargs: (lambda: FakeAgent())
+    phase_3_benign.make_agent_factory = lambda **kwargs: lambda: FakeAgent()
 
     if mode == "resume":
         state = load_state() or {}
@@ -610,7 +614,9 @@ async def _run_phase_4(
 ) -> int:
     from worldsim.phases import phase_4_adversarial
 
-    instances_path = state_dir / "instances.json" if mode == "resume" else _configure_phase_4(state_dir)
+    instances_path = (
+        state_dir / "instances.json" if mode == "resume" else _configure_phase_4(state_dir)
+    )
     if mode == "resume" and mutation == "instances_drift":
         _mutate_instances_path(instances_path, suffix="drift")
     if mode == "resume":
@@ -667,7 +673,7 @@ async def _run_phase_4(
         async def teardown(self):
             return None
 
-    phase_4_adversarial.make_agent_factory = lambda **kwargs: (lambda: FakeWorkerAgent())
+    phase_4_adversarial.make_agent_factory = lambda **kwargs: lambda: FakeWorkerAgent()
 
     async def fake_run_adversarial_task(
         task,
@@ -677,6 +683,7 @@ async def _run_phase_4(
         *,
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
+        all_instances=None,
         site_profile=None,
         resume_fingerprint=None,
     ):
