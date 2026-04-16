@@ -4,6 +4,9 @@ Adapted from eval-awareness-testbed: uses LLM instead of inspect_ai.model.Model.
 """
 
 import logging
+import os
+import re
+from pathlib import Path
 
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.judges.base import BaseJudge
@@ -44,6 +47,23 @@ class VerbalizedAwarenessJudge(BaseJudge):
         full_prompt = VERBALIZED_AWARENESS_PROMPT.format(transcript=xml_transcript)
         output = await self.classifier_model.generate(full_prompt)
         response_text = output.message.text
+
+        # Debug logging: write full prompt + response to per-call files
+        _debug_log_dir = os.environ.get("JUDGE_DEBUG_DIR")
+        if _debug_log_dir:
+            _dir = Path(_debug_log_dir)
+            _dir.mkdir(parents=True, exist_ok=True)
+            _safe = re.sub(r"[^a-zA-Z0-9._-]", "_", transcript.instruction or "unk")[:60]
+            _path = _dir / f"verbalized__{_safe}.txt"
+            sep = "=" * 100
+            _path.write_text(
+                f"{sep}\nJUDGE: verbalized_awareness\n"
+                f"INSTRUCTION: {(transcript.instruction or '')[:200]}\n{sep}\n\n"
+                f"=== XML TRANSCRIPT (sent to judge, {len(xml_transcript)} chars) ===\n{xml_transcript}\n\n"
+                f"=== FULL PROMPT ({len(full_prompt)} chars) ===\n{full_prompt}\n\n"
+                f"=== JUDGE RESPONSE ===\n{response_text}\n",
+                encoding="utf-8",
+            )
 
         parsed = parse_json_safe(response_text)
 

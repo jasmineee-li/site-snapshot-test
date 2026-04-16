@@ -101,6 +101,37 @@ def _load_step_pickle(step_path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _safe_get(obj: Any, key: str, default: Any = None) -> Any:
+    """Read a field from either a dict-like object or an object with attributes."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _parse_step_index(step_path: Path) -> int:
+    """Extract the numeric index from step_N.pkl.gz filenames."""
+    try:
+        return int(step_path.name.split("_", 1)[1].split(".", 1)[0])
+    except (IndexError, ValueError) as e:
+        raise ValueError(f"Unexpected step filename: {step_path.name}") from e
+
+
+def _extract_agentlab_reasoning(agent_info: Any) -> str:
+    """Prefer hidden assistant reasoning when the backend captured it."""
+    chat_messages = _safe_get(agent_info, "chat_messages")
+    messages = _safe_get(chat_messages, "messages", []) or []
+
+    for message in reversed(messages):
+        reasoning = _safe_get(message, "reasoning", "")
+        if isinstance(reasoning, str) and reasoning:
+            return reasoning
+
+    think = _safe_get(agent_info, "think", "")
+    return think if isinstance(think, str) else str(think or "")
+
+
 def parse_agentlab_trajectory(
     exp_dir: Path,
 ) -> StandardizedTrajectory | None:
@@ -116,7 +147,7 @@ def parse_agentlab_trajectory(
     summary = json.loads(summary_path.read_text())
 
     # Load all steps
-    step_files = sorted(exp_dir.glob("step_*.pkl.gz"), key=lambda p: int(p.stem.split("_")[1]))
+    step_files = sorted(exp_dir.glob("step_*.pkl.gz"), key=_parse_step_index)
     steps = []
     task_instruction = ""
 
@@ -128,17 +159,17 @@ def parse_agentlab_trajectory(
         agent_info = step_data.get("agent_info", {})
         obs = step_data.get("obs", {})
 
-        thought = agent_info.get("think", "")
+        thought = _extract_agentlab_reasoning(agent_info)
         action = step_data.get("action", "")
-        observation = obs.get("axtree_txt", "")[:5000]  # truncate large axtrees
+        observation = (_safe_get(obs, "axtree_txt", "") or "")[:5000]  # truncate large axtrees
 
         # Extract task instruction from first step's goal
-        if not task_instruction and obs.get("goal_object"):
-            goal = obs["goal_object"]
+        goal = _safe_get(obs, "goal_object")
+        if not task_instruction and goal:
             if isinstance(goal, str):
                 task_instruction = goal
-            elif hasattr(goal, "get"):
-                task_instruction = goal.get("text", str(goal))
+            else:
+                task_instruction = _safe_get(goal, "text", str(goal))
 
         steps.append(TrajectoryStep(
             thought=thought,
@@ -201,13 +232,21 @@ def parse_doomarena_trajectory(
     traj.benchmark = "doomarena"
     traj.id = f"doomarena_{exp_dir.name}"
 
-    # Read judge results for attack success rate
-    judge_path = exp_dir / "judge_results.json"
-    if judge_path.exists():
-        judge = json.loads(judge_path.read_text())
-        traj.attack_success = judge.get("overall_success", False)
-        traj.metadata["judge_score"] = judge.get("overall_score")
-        traj.metadata["judge_results"] = judge.get("individual_results", [])
+    # Read attack results — DoomArena writes attack_summary_info.json,
+    # older formats may use judge_results.json
+    for attack_file in ["attack_summary_info.json", "judge_results.json"]:
+        attack_path = exp_dir / attack_file
+        if attack_path.exists():
+            try:
+                attack_data = json.loads(attack_path.read_text())
+                traj.attack_success = attack_data.get(
+                    "attack_successful", attack_data.get("overall_success", False)
+                )
+                traj.metadata["attack_undetected"] = attack_data.get("attack_undetected")
+                traj.metadata["success_filter_results"] = attack_data.get("success_filter_results")
+            except (json.JSONDecodeError, OSError):
+                pass
+            break
 
     # Determine attack type from directory structure
     traj.attack_type = "adversarial"

@@ -11,6 +11,8 @@ Uses the judgePromptEvidenceBoth.txt prompt template with {task}, {reasoning}, {
 """
 
 import logging
+import os
+import re
 from pathlib import Path
 
 from eval_awareness_experiments.judges.base import BaseJudge
@@ -121,6 +123,25 @@ class TestAwarenessSteeringJudge(BaseJudge):
         # Request JSON output
         output = await self.classifier_model.generate_json(formatted)
         response_text = output.message.text
+
+        # Debug logging: write full prompt + response to per-call files
+        _debug_log_dir = os.environ.get("JUDGE_DEBUG_DIR")
+        if _debug_log_dir:
+            _dir = Path(_debug_log_dir)
+            _dir.mkdir(parents=True, exist_ok=True)
+            _safe = re.sub(r"[^a-zA-Z0-9._-]", "_", transcript.instruction or "unk")[:60]
+            _path = _dir / f"tas__{_safe}.txt"
+            sep = "=" * 100
+            _path.write_text(
+                f"{sep}\nJUDGE: test_awareness_steering\n"
+                f"INSTRUCTION: {task[:200]}\n{sep}\n\n"
+                f"=== TASK (sent to judge) ===\n{task}\n\n"
+                f"=== REASONING (sent to judge, {len(reasoning)} chars) ===\n{reasoning}\n\n"
+                f"=== ANSWER (sent to judge) ===\n{answer}\n\n"
+                f"=== FULL PROMPT ({len(formatted)} chars) ===\n{formatted}\n\n"
+                f"=== JUDGE RESPONSE ===\n{response_text}\n",
+                encoding="utf-8",
+            )
 
         parsed = parse_json_safe(response_text)
         if parsed is None:
