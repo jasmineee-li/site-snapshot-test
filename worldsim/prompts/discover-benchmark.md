@@ -20,19 +20,19 @@ Explore by reading:
   "sites": [
     {
       "name": "shopping",
-      "stack": "OpenCart (PHP)",
-      "source_path": "environment_docker/shopping/",
-      "data_seeding": { "mechanism": "sql", "paths": ["docker/shopping/setup/init.sql"] },
-      "database": {"type": "mysql", "version": "5.7"}
+      "stack": "Magento 2 (PHP/MySQL)",
+      "source_path": "src/webarena_verified/environments/",
+      "data_seeding": { "mechanism": "docker_image", "paths": [] },
+      "database": {"type": "mysql"}
     }
   ],
   "evaluation": {
-    "harness_paths": ["evaluation_harness/evaluators.py"],
-    "eval_types": ["url_exact_match", "html_match", "db_query_match", "string_match"],
+    "harness_paths": ["src/webarena_verified/core/evaluation/"],
+    "eval_types": ["AgentResponseEvaluator", "NetworkEventEvaluator"],
     "task_definition_format": "json",
-    "task_definition_paths": ["config_files/"]
+    "task_definition_paths": ["assets/dataset/webarena-verified.json"]
   },
-  "reset": { "mechanism": "docker_restart_and_snapshot", "per_task": true, "estimated_seconds": 20 }
+  "reset": { "mechanism": "env_ctrl_init", "per_task": true, "estimated_seconds": 5 }
 }
 ```
 

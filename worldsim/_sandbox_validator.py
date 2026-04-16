@@ -27,49 +27,11 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Data-seed validation (mirrors worldsim/seeding.py)
 # ---------------------------------------------------------------------------
-
-_MULTI_STATEMENT_PATTERN = re.compile(r";(?=(?:[^']|'[^']*')*$)")
-_DISALLOWED_SQL_KEYWORDS = re.compile(
-    r"\b("
-    r"DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|DELETE|REPLACE|MERGE|CALL|DO|EXEC|EXECUTE|"
-    r"BEGIN|COMMIT|ROLLBACK|SAVEPOINT|PREPARE|DEALLOCATE|COPY|LOAD|ATTACH|DETACH|VACUUM"
-    r")\b",
-    re.IGNORECASE,
-)
-# Matches single-quoted SQL string literals with SQL's `''` escape. We strip
-# these before running the disallowed-keyword check so that keyword-like words
-# ("DO NOT", "MERGE request") appearing inside string values are not flagged.
-_SQL_STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
-_SQL_INSERT_TARGET = re.compile(r"^\s*INSERT\s+INTO\s+([`\"]?[\w.]+[`\"]?)", re.IGNORECASE)
-_SQL_UPDATE_TARGET = re.compile(r"^\s*UPDATE\s+([`\"]?[\w.]+[`\"]?)", re.IGNORECASE)
-_SQL_INSERT_COLUMNS = re.compile(
-    r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)",
-    re.IGNORECASE,
-)
-_SQL_UPDATE_SET_CLAUSE = re.compile(r"\bSET\b(.*?)(?:\bWHERE\b|$)", re.IGNORECASE | re.DOTALL)
 _NUMERIC_PATH_SEGMENT = re.compile(r"/\d+(?=/|$)")
 _PATH_PLACEHOLDER = re.compile(r"/\{[^}/]+\}(?=/|$)")
 _UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 _ALLOWED_API_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
 _FORM_METHODS = frozenset({"POST", "PUT", "PATCH"})
-
-
-def validate_seed_sql(statement: str) -> str | None:
-    """Return an error string if the SQL statement is invalid, else None."""
-    normalized = statement.strip()
-    if not normalized:
-        return "SQL seed statement is empty"
-    if _MULTI_STATEMENT_PATTERN.search(normalized.rstrip(";")):
-        return "SQL seed must be a single statement"
-    if _DISALLOWED_SQL_KEYWORDS.search(_SQL_STRING_LITERAL.sub("''", normalized)):
-        return f"SQL seed contains a disallowed keyword: {normalized[:100]}..."
-
-    first_token = normalized.split(None, 1)[0].upper()
-    if first_token not in {"INSERT", "UPDATE"}:
-        return f"SQL seed must start with INSERT or UPDATE, got {first_token!r}"
-    if first_token == "UPDATE" and " WHERE " not in f" {normalized.upper()} ":
-        return "UPDATE seed statements must include a WHERE clause"
-    return None
 
 
 def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
@@ -1377,17 +1339,6 @@ def _validate_discriminating_payload(
     if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
         return None
 
-    benign_statements = benign_seed.get("statements")
-    adversarial_statements = adversarial_seed.get("statements")
-    if isinstance(benign_statements, list) and isinstance(adversarial_statements, list):
-        if [_normalize_statement(s) for s in benign_statements] == [
-            _normalize_statement(s) for s in adversarial_statements
-        ]:
-            return (
-                "adversarial_data_seed SQL statements must differ from benign data_seed "
-                "beyond whitespace/case"
-            )
-
     if surface is not None:
         adversarial_mechanism = adversarial_seed.get("mechanism")
         benign_values = _extract_target_field_values(benign_seed, surface)
@@ -1411,12 +1362,6 @@ def _validate_discriminating_payload(
         return "adversarial_data_seed must differ from the benign data_seed"
 
     return None
-
-
-def _normalize_statement(statement: object) -> str:
-    if not isinstance(statement, str):
-        return ""
-    return "".join(statement.split()).lower()
 
 
 def _extract_target_field_values(
@@ -1467,8 +1412,6 @@ def _normalize_payload_value(value: object) -> str:
 
 def _format_entry_match(entry: dict[str, object]) -> str:
     mechanism = str(entry.get("mechanism"))
-    if mechanism == "sql":
-        return f"sql table:{entry.get('table')} column:{entry.get('column')}"
     return (
         f"{mechanism} path:{str(entry.get('method')).strip().upper()} "
         f"{_normalize_delivery_path(str(entry.get('path_template')))} "
@@ -1480,11 +1423,6 @@ def _format_seed_write(write: dict[str, object]) -> str:
     mechanism = str(write.get("mechanism"))
     resource = str(write.get("resource"))
     fields = write.get("fields")
-    if mechanism == "sql":
-        field_suffix = ""
-        if isinstance(fields, set) and fields:
-            field_suffix = f" column:{sorted(fields)[0]}"
-        return f"{mechanism} {resource}{field_suffix}"
     field_suffix = ""
     if isinstance(fields, set) and fields:
         field_suffix = f" field:{sorted(fields)[0]}"

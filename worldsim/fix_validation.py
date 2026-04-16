@@ -17,9 +17,9 @@ Contract:
 
     validate_fix_patch(patch, site_profile, site_url) -> list[str]
 
-Returns a list of error strings; empty list means safe to merge. SQL validation
-is delegated to ``worldsim._sandbox_validator.validate_seed_sql`` (single source
-of truth for SQL guardrails).
+Returns a list of error strings; empty list means safe to merge. SQL seed
+patches are rejected because the v5 methodology only permits ``api``, ``form``,
+and ``state_push`` task setup.
 """
 
 from __future__ import annotations
@@ -30,8 +30,6 @@ import re
 from typing import Any
 from urllib.parse import urlparse
 
-from worldsim._sandbox_validator import validate_seed_sql
-
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +37,7 @@ logger = logging.getLogger(__name__)
 # HEAD (probing / info-leak), and OPTIONS (CORS probe) are rejected so
 # diagnosis sandboxes cannot turn fix-patches into reconnaissance tools.
 ALLOWED_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
+FORM_ALLOWED_METHODS = frozenset({"POST", "PUT", "PATCH"})
 
 # Common path placeholders we normalize to a single-segment wildcard when
 # turning profile example URLs into an allowlist regex. Mirrors the set
@@ -134,15 +133,17 @@ def _validate_data_seed_patch(
 ) -> list[str]:
     """Validate a data_seed merge patch against the profile + live origin."""
     errors: list[str] = []
+    if "statements" in patch:
+        return [
+            "sql data seed patches are unsupported; use api, form, state_push, or decline the fix"
+        ]
 
     mechanism = patch.get("mechanism")
     # A merge patch may omit `mechanism` when only tweaking existing fields;
     # in that case infer from present keys.
     if mechanism is None:
-        if "statements" in patch:
-            mechanism = "sql"
-        elif "api_calls" in patch:
-            mechanism = "api"
+        if "api_calls" in patch:
+            mechanism = _infer_http_patch_mechanism(patch.get("api_calls"))
         elif "state" in patch:
             mechanism = "state_push"
         else:
@@ -151,39 +152,28 @@ def _validate_data_seed_patch(
             return errors
 
     if mechanism == "sql":
-        statements = patch.get("statements")
-        if statements is None:
-            errors.append("sql data seed patch must include a 'statements' list")
-            return errors
-        if not isinstance(statements, list) or not statements:
-            errors.append("sql data seed patch 'statements' must be a non-empty list")
-            return errors
-        for idx, stmt in enumerate(statements):
-            if not isinstance(stmt, str):
-                errors.append(f"sql data seed statements[{idx}] must be a string")
-                continue
-            err = validate_seed_sql(stmt)
-            if err is not None:
-                errors.append(f"sql data seed statements[{idx}]: {err}")
+        errors.append(
+            "sql data seed patches are unsupported; use api, form, state_push, or decline the fix"
+        )
         return errors
 
-    if mechanism == "api":
+    if mechanism in {"api", "form"}:
         api_calls = patch.get("api_calls")
         if api_calls is None:
-            errors.append("api data seed patch must include an 'api_calls' list")
+            errors.append(f"{mechanism} data seed patch must include an 'api_calls' list")
             return errors
         if not isinstance(api_calls, list) or not api_calls:
-            errors.append("api data seed patch 'api_calls' must be a non-empty list")
+            errors.append(f"{mechanism} data seed patch 'api_calls' must be a non-empty list")
             return errors
         allowlist = _build_path_allowlist(site_profile)
         if not allowlist:
             errors.append(
-                "api data seed rejected: site profile has no observed API "
-                "endpoints to anchor an allowlist (fail-closed per plan)"
+                f"{mechanism} data seed rejected: site profile has no observed endpoints "
+                "to anchor an allowlist (fail-closed per plan)"
             )
             return errors
         for idx, call in enumerate(api_calls):
-            errors.extend(_validate_api_call(call, idx, allowlist, site_url))
+            errors.extend(_validate_http_call(call, idx, allowlist, site_url, mechanism))
         return errors
 
     if mechanism == "state_push":
@@ -205,15 +195,24 @@ def _validate_data_seed_patch(
 
 
 # ---------------------------------------------------------------------------
-# API-call validation helpers
+# HTTP-call validation helpers
 # ---------------------------------------------------------------------------
 
 
-def _validate_api_call(
+def _infer_http_patch_mechanism(api_calls: Any) -> str:
+    if isinstance(api_calls, list):
+        for call in api_calls:
+            if isinstance(call, dict) and "body_form" in call:
+                return "form"
+    return "api"
+
+
+def _validate_http_call(
     call: Any,
     idx: int,
     allowlist: list[re.Pattern[str]],
     site_url: str,
+    mechanism: str,
 ) -> list[str]:
     """Validate one entry of an `api_calls` list."""
     errors: list[str] = []
@@ -231,6 +230,11 @@ def _validate_api_call(
             errors.append(
                 f"{prefix} method {method!r} not allowed (allowed: {sorted(ALLOWED_METHODS)})"
             )
+        elif mechanism == "form" and up not in FORM_ALLOWED_METHODS:
+            errors.append(
+                f"{prefix} method {method!r} not allowed for form seeds "
+                f"(allowed: {sorted(FORM_ALLOWED_METHODS)})"
+            )
 
     path = call.get("path")
     if not isinstance(path, str) or not path:
@@ -244,11 +248,25 @@ def _validate_api_call(
         errors.extend(_validate_api_path(path, prefix, allowlist, site_url))
 
     body = call.get("body")
+    body_form = call.get("body_form")
+    if mechanism == "form":
+        if not isinstance(body_form, dict) or not body_form:
+            errors.append(f"{prefix} form seeds must include a non-empty body_form object")
+        if body is not None:
+            errors.append(f"{prefix} form seeds must not include a JSON body")
+    else:
+        if body_form is not None:
+            errors.append(f"{prefix} api seeds must use body, not body_form")
     if body is not None:
         try:
             json.dumps(body)
         except (TypeError, ValueError) as exc:
             errors.append(f"{prefix} body must be JSON-serializable: {exc}")
+    if body_form is not None:
+        try:
+            json.dumps(body_form)
+        except (TypeError, ValueError) as exc:
+            errors.append(f"{prefix} body_form must be JSON-serializable: {exc}")
 
     return errors
 

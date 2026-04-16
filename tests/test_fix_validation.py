@@ -1,7 +1,7 @@
 """Unit tests for ``worldsim.fix_validation.validate_fix_patch``.
 
 Covers the allowlist harvesting from ``verification_capabilities``, origin
-and method checks, SQL delegation, and the task-533 regression.
+and method checks, form/api/state_push handling, and the task-533 regression.
 """
 
 from __future__ import annotations
@@ -339,11 +339,11 @@ def test_seeding_endpoints_fallback_used_when_present():
 
 
 # ---------------------------------------------------------------------------
-# SQL delegation
+# Rejection of removed SQL seeding
 # ---------------------------------------------------------------------------
 
 
-def test_sql_insert_accepted():
+def test_sql_insert_rejected():
     errors = validate_fix_patch(
         {
             "target": "data_seed",
@@ -355,67 +355,21 @@ def test_sql_insert_accepted():
         _gitlab_profile(),
         GITLAB_URL,
     )
-    assert errors == []
+    assert any("unsupported" in error and "sql" in error.lower() for error in errors)
 
 
-def test_sql_update_with_where_accepted():
+def test_statements_only_patch_rejected():
     errors = validate_fix_patch(
         {
             "target": "data_seed",
             "patch": {
-                "mechanism": "sql",
                 "statements": ["UPDATE issues SET title = 'x' WHERE id = 5"],
             },
         },
         _gitlab_profile(),
         GITLAB_URL,
     )
-    assert errors == []
-
-
-def test_sql_delete_rejected():
-    errors = validate_fix_patch(
-        {
-            "target": "data_seed",
-            "patch": {
-                "mechanism": "sql",
-                "statements": ["DELETE FROM users WHERE id = 1"],
-            },
-        },
-        _gitlab_profile(),
-        GITLAB_URL,
-    )
-    assert errors
-
-
-def test_sql_drop_rejected():
-    errors = validate_fix_patch(
-        {
-            "target": "data_seed",
-            "patch": {
-                "mechanism": "sql",
-                "statements": ["DROP TABLE users"],
-            },
-        },
-        _gitlab_profile(),
-        GITLAB_URL,
-    )
-    assert errors
-
-
-def test_sql_update_without_where_rejected():
-    errors = validate_fix_patch(
-        {
-            "target": "data_seed",
-            "patch": {
-                "mechanism": "sql",
-                "statements": ["UPDATE users SET admin = true"],
-            },
-        },
-        _gitlab_profile(),
-        GITLAB_URL,
-    )
-    assert errors
+    assert any("unsupported" in error and "sql" in error.lower() for error in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -448,6 +402,48 @@ def test_state_push_with_non_dict_rejected():
     assert any("JSON object" in e for e in errors)
 
 
+def test_form_patch_with_allowlisted_endpoint_accepted():
+    errors = validate_fix_patch(
+        {
+            "target": "data_seed",
+            "patch": {
+                "mechanism": "form",
+                "api_calls": [
+                    {
+                        "method": "POST",
+                        "path": "/primer/design/notes",
+                        "body_form": {"note": "seeded"},
+                    }
+                ],
+            },
+        },
+        _gitlab_profile(),
+        GITLAB_URL,
+    )
+    assert errors == []
+
+
+def test_form_patch_rejects_json_body():
+    errors = validate_fix_patch(
+        {
+            "target": "data_seed",
+            "patch": {
+                "mechanism": "form",
+                "api_calls": [
+                    {
+                        "method": "POST",
+                        "path": "/primer/design/notes",
+                        "body": {"note": "seeded"},
+                    }
+                ],
+            },
+        },
+        _gitlab_profile(),
+        GITLAB_URL,
+    )
+    assert any("body_form" in error for error in errors)
+
+
 # ---------------------------------------------------------------------------
 # Mechanism inference on partial merge patches
 # ---------------------------------------------------------------------------
@@ -460,6 +456,22 @@ def test_merge_patch_without_mechanism_inferred_from_shape():
             "target": "data_seed",
             "patch": {
                 "api_calls": [{"method": "POST", "path": "/api/v4/projects/42/fork"}],
+            },
+        },
+        _gitlab_profile(),
+        GITLAB_URL,
+    )
+    assert errors == []
+
+
+def test_merge_patch_without_mechanism_infers_form_from_body_form():
+    errors = validate_fix_patch(
+        {
+            "target": "data_seed",
+            "patch": {
+                "api_calls": [
+                    {"method": "POST", "path": "/primer/design/notes", "body_form": {"note": "x"}}
+                ],
             },
         },
         _gitlab_profile(),

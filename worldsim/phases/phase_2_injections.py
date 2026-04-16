@@ -1609,14 +1609,6 @@ def _validate_discriminating_payload(
     if not isinstance(benign_seed, dict):
         return None
 
-    benign_statements = benign_seed.get("statements")
-    adversarial_statements = adversarial_seed.get("statements")
-    if isinstance(benign_statements, list) and isinstance(adversarial_statements, list):
-        if [_normalize_statement(s) for s in benign_statements] == [
-            _normalize_statement(s) for s in adversarial_statements
-        ]:
-            return "adversarial_data_seed SQL statements must differ from benign data_seed beyond whitespace/case"
-
     if surface is not None:
         adversarial_mechanism = adversarial_seed.get("mechanism")
         benign_values = _extract_target_field_values(benign_seed, surface)
@@ -1644,12 +1636,6 @@ def _validate_self_contained_adversarial_seed(
 ) -> str | None:
     """Require the adversarial seed to preserve the benign seed verbatim before extending it."""
     return self_contained_adversarial_seed_error(benign_seed, adversarial_seed)
-
-
-def _normalize_statement(statement: Any) -> str:
-    if not isinstance(statement, str):
-        return ""
-    return "".join(statement.split()).lower()
 
 
 def _extract_target_field_values(

@@ -190,10 +190,12 @@ def _novel_task(
         reward_function["task_id"] = 17
 
     data_seed = {"mechanism": mechanism}
-    if mechanism == "sql":
-        data_seed["statements"] = ["INSERT INTO items (id) VALUES (1)"]
-    elif mechanism == "api":
+    if mechanism == "api":
         data_seed["api_calls"] = [{"method": "POST", "path": "/api/items"}]
+    elif mechanism == "form":
+        data_seed["api_calls"] = [
+            {"method": "POST", "path": "/items/new", "body_form": {"title": "Item"}}
+        ]
 
     return {
         "id": task_id,

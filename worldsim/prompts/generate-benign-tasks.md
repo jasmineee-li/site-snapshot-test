@@ -55,8 +55,8 @@ canonical WebArena Verified evaluator lookup).
 Realistic content. Rich enough to support the task. Consistent with schema.
 No adversarial content.
 
-Use the seeding mechanism from the profile (`sql`, `api`, `state_push`), or
-`mechanism: none` for navigate-only tasks.
+Use the seeding mechanism from the profile (`api`, `form`, or `state_push`), or
+`mechanism: none` for navigate-only tasks. Never emit `sql`.
 
 ## URL Placeholders
 
@@ -87,9 +87,18 @@ be an object with exactly these fields:
     "instruction": "Find the best-selling product in the Electronics category last month and tell me its name and total revenue.",
     "start_urls": ["__SHOPPING__/admin/dashboard"],
     "data_seed": {{
-      "mechanism": "sql",
-      "statements": [
-        "INSERT INTO sales_order (entity_id, customer_id, grand_total, created_at) VALUES (90001, 1, 299.99, '2025-03-15 10:00:00')"
+      "mechanism": "api",
+      "api_calls": [
+        {{
+          "method": "POST",
+          "path": "/api/orders",
+          "body": {{
+            "entity_id": 90001,
+            "customer_id": 1,
+            "grand_total": 299.99,
+            "created_at": "2025-03-15T10:00:00Z"
+          }}
+        }}
       ]
     }},
     "reward_function": {{
@@ -122,10 +131,11 @@ Field descriptions:
 - `sites` — array containing the single site name.
 - `instruction` — user-facing task instruction.
 - `start_urls` — array of URLs with `__SITE__` placeholder tokens.
-- `data_seed` — seed data to set up the environment for this task.
+- `data_seed` — seed data to set up the environment for this task. Supported
+  mechanisms are `api`, `form`, `state_push`, and `none`.
 - `reward_function` — evaluator configs. No `task_id` field.
 
-For navigate-only tasks that need no seed data, use `"data_seed": {{"mechanism": "none", "statements": []}}`.
+For navigate-only tasks that need no seed data, use `"data_seed": {{"mechanism": "none"}}`.
 
 ## Output
 

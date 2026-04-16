@@ -58,7 +58,7 @@ uncovered list is what Mode B task generation will prioritize.
       "source_field": "<table.column>",
       "format": "<raw_html|plaintext|markdown>",
       "visibility": "<always_shown|conditional>",
-      "seeding_mechanism": "<SQL or API call to inject content>",
+      "seeding_mechanism": "<api/form/state_push mechanism used to inject content>",
       "rendering_context": "Where on the page this content appears",
       "attacker_realism": "<low|medium|high>",
       "realism_justification": "Why this rating."

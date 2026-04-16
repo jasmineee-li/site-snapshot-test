@@ -690,14 +690,14 @@ async def test_phase_3_run_fails_on_gathered_diagnosis_exception(monkeypatch, tm
 
 
 @pytest.mark.asyncio
-async def test_phase_3_run_fails_sql_seed_preflight_without_db_connection(monkeypatch, tmp_path):
+async def test_phase_3_run_fails_invalid_seed_preflight(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_1").mkdir(parents=True)
     (tmp_path / "phase_1" / "benign_tasks.json").write_text(
         json.dumps(
             [
                 {
-                    "id": "task-sql",
+                    "id": "task-invalid-seed",
                     "site": "shopping",
                     "sites": ["shopping"],
                     "instruction": "Seed the catalog",
@@ -747,7 +747,8 @@ async def test_phase_3_run_fails_sql_seed_preflight_without_db_connection(monkey
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "failed"
     assert state["reason"] == "seed_runtime_config_error"
-    assert any("SQL-seeded task" in error for error in state["seed_runtime_errors"])
+    assert any("invalid data_seed" in error for error in state["seed_runtime_errors"])
+    assert any("unknown data seed mechanism" in error for error in state["seed_runtime_errors"])
     assert state["instances_path"] == str(instances_path)
     assert state["agent_model"] == "demo-model"
     assert state["full_baseline"] is True
@@ -1396,14 +1397,9 @@ async def test_fix_loop_retry_reclassifies_to_agent_limitation(monkeypatch, tmp_
 
 
 @pytest.mark.asyncio
-async def test_fix_loop_accepts_allowlisted_sql_patch(monkeypatch, tmp_path):
-    """A safe UPDATE seed patch passes validation and reaches rerun."""
+async def test_fix_loop_rejects_sql_patch(monkeypatch, tmp_path):
+    """SQL seed patches are rejected before rerun because they are out of scope."""
     task, instances = _gitlab_task_and_instances()
-    # Start with an existing sql seed so the merge patch is valid.
-    task["data_seed"] = {
-        "mechanism": "sql",
-        "statements": ["UPDATE issues SET title = 'old' WHERE id = 1"],
-    }
     profile_path = tmp_path / "profile.json"
     _write_gitlab_profile(profile_path)
 
@@ -1412,16 +1408,19 @@ async def test_fix_loop_accepts_allowlisted_sql_patch(monkeypatch, tmp_path):
             "root_cause": "seed_bug",
             "suggested_fix": {
                 "target": "data_seed",
-                "patch": {"statements": ["UPDATE issues SET title = 'new' WHERE id = 1"]},
+                "patch": {
+                    "mechanism": "sql",
+                    "statements": ["UPDATE issues SET title = 'new' WHERE id = 1"],
+                },
             },
         }
 
-    async def fake_rerun_live_task(task, instance, instances, agent_factory, task_dir, **kwargs):
-        assert task["data_seed"]["statements"] == ["UPDATE issues SET title = 'new' WHERE id = 1"]
-        return {"passed": True, "trajectory_dir": str(task_dir)}
-
     monkeypatch.setattr(phase_3_benign, "diagnose_failure", fake_diagnose_failure)
-    monkeypatch.setattr(phase_3_benign, "_rerun_live_task", fake_rerun_live_task)
+    monkeypatch.setattr(
+        phase_3_benign,
+        "_rerun_live_task",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("rerun should not happen")),
+    )
 
     result = await phase_3_benign.fix_loop(
         task=task,
@@ -1433,8 +1432,10 @@ async def test_fix_loop_accepts_allowlisted_sql_patch(monkeypatch, tmp_path):
         max_iterations=1,
     )
 
-    assert result["action"] == "fixed"
-    assert "rejections" not in result
+    assert result["action"] == "keep_flagged"
+    assert result["patch_rejected"] is True
+    assert any("unsupported" in error and "sql" in error.lower() for error in result["rejection_reasons"])
+    assert result["rejections"][0]["final_action"] == "keep_flagged"
 
 
 # ── benchmark_root / task_site plumbing ──────────────────────────────────

@@ -29,9 +29,9 @@ Classify these as `agent_limitation` (or `too_hard`) and set `suggested_fix.targ
 
 Authentication gaps are infrastructure / agent-capability problems, not task bugs. Do NOT propose an API patch that "creates a session", "logs in", or "adds a user" — those endpoints are almost never on the benchmark's allowlist and will be rejected by the host-side validator.
 
-## When API seed fixes are allowed
+## When seed fixes are allowed
 
-Propose `mechanism: "api"` only when the exact endpoint (method + path) appears in `/workspace/profile/BENCHMARK_PROFILE.json` under `verification_capabilities[*].examples[*].eval_config.expected.url` (or under a top-level `seeding_endpoints` list if present). If the profile does not list the endpoint, prefer `mechanism: "sql"` using one of the `seeding_mechanism` templates from `injection_surface`. When neither is available, decline to emit a fix (`target: "none"`, `patch: null`).
+Propose `mechanism: "api"` or `mechanism: "form"` only when the exact endpoint (method + path) appears in `/workspace/profile/BENCHMARK_PROFILE.json` under `verification_capabilities[*].examples[*].eval_config.expected.url` (or under a top-level `seeding_endpoints` list if present). Use `mechanism: "state_push"` only when the existing task already uses `state_push` and only the state payload needs correction. If the profile does not list a safe HTTP endpoint and the task does not already use `state_push`, decline to emit a fix (`target: "none"`, `patch: null`). Do not propose `sql`.
 
 ## Output
 
@@ -101,25 +101,31 @@ Reward-fix example:
 }
 ```
 
-Seed-fix example (SQL — preferred default):
+Seed-fix example (form):
 
 ```json
 {
   "root_cause": "seed_bug",
-  "explanation": "The task references an issue title that was not inserted by the seed. Using the `issue_title` injection-surface seeding_mechanism from the profile.",
+  "explanation": "The task references a draft note that was not created by the seed. The benchmark profile documents POST /issues/new as a supported endpoint.",
   "suggested_fix": {
     "target": "data_seed",
     "patch": {
-      "mechanism": "sql",
-      "statements": [
-        "UPDATE issues SET title = 'Release 2.0 tracker' WHERE id = 42"
+      "mechanism": "form",
+      "api_calls": [
+        {
+          "method": "POST",
+          "path": "/issues/new",
+          "body_form": {
+            "title": "Release 2.0 tracker"
+          }
+        }
       ]
     }
   }
 }
 ```
 
-Seed-fix example (API — only when the endpoint is in `verification_capabilities`):
+Seed-fix example (API — only when the endpoint is in `verification_capabilities` or `seeding_endpoints`):
 
 ```json
 {

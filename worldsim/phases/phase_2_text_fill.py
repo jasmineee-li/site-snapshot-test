@@ -41,7 +41,6 @@ _JSON_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
 _MARKDOWN_SYSTEM_FENCE_RE = re.compile(r"```\s*system\b[\s\S]+?```", re.IGNORECASE)
 _MARKDOWN_SYSTEM_BLOCK_RE = re.compile(r"```system\b\s*([\s\S]+?)```", re.IGNORECASE)
 _STYLE_OFFSET_RE = re.compile(r"(left|top)\s*:\s*(-?\d+)px", re.IGNORECASE)
-_SQL_STRING_LITERAL_RE = re.compile(r"'(?:[^']|'')*'")
 TEXT_FILL_PROMPT_VARIANTS = (
     "standard",
     "creative_writing",
@@ -149,10 +148,7 @@ def materialize_adversarial_seed(
     seed_template: dict[str, Any], rendered_payload: str
 ) -> dict[str, Any]:
     validate_seed_template_contract(seed_template)
-    mechanism = seed_template.get("mechanism")
-    sql_payload = rendered_payload.replace("\\", "\\\\").replace("'", "''")
-    payload = sql_payload if mechanism == "sql" else rendered_payload
-    return _replace_payload_placeholder(seed_template, payload)
+    return _replace_payload_placeholder(seed_template, rendered_payload)
 
 
 async def fill_texts_for_tasks(
@@ -611,38 +607,18 @@ def _validate_cached_payloads(
     return errors
 
 
-def _validate_sql_placeholder_context(seed_template: dict[str, Any]) -> None:
-    statements = seed_template.get("statements")
-    if not isinstance(statements, list):
-        raise ValueError("sql seed_template must include statements")
-    for statement in statements:
-        if not isinstance(statement, str):
-            raise ValueError("sql seed_template statements must be strings")
-        placeholder_count = statement.count(PAYLOAD_PLACEHOLDER)
-        if placeholder_count <= 0:
-            continue
-        if not _statement_has_exact_placeholder_sql_value(statement):
-            raise ValueError(
-                "sql seed_template must place {{PAYLOAD_TEXT}} inside a quoted SQL string literal"
-            )
-
-
 def validate_seed_template_contract(seed_template: dict[str, Any]) -> None:
     if not isinstance(seed_template, dict):
         raise ValueError("seed_template must be an object")
     validate_data_seed(seed_template, allow_none=False)
 
     mechanism = seed_template.get("mechanism")
-    if mechanism not in {"sql", "api", "form"}:
-        raise ValueError("seed_template mechanism must be one of {'sql', 'api', 'form'}")
+    if mechanism not in {"api", "form"}:
+        raise ValueError("seed_template mechanism must be one of {'api', 'form'}")
 
     total_placeholders = _count_placeholder_occurrences(seed_template)
     if total_placeholders != 1:
         raise ValueError("seed_template must contain exactly one {{PAYLOAD_TEXT}} placeholder")
-
-    if mechanism == "sql":
-        _validate_sql_placeholder_context(seed_template)
-        return
 
     api_calls = seed_template.get("api_calls")
     if not isinstance(api_calls, list):
@@ -669,72 +645,6 @@ def _count_placeholder_occurrences(value: Any) -> int:
     if isinstance(value, dict):
         return sum(_count_placeholder_occurrences(item) for item in value.values())
     return 0
-
-
-def _statement_has_exact_placeholder_sql_value(statement: str) -> bool:
-    insert_match = re.match(
-        r"^\s*INSERT\s+INTO\s+[`\"]?[\w.]+[`\"]?\s*\(([^)]+)\)\s*VALUES\s*\((.*)\)\s*$",
-        statement,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if insert_match:
-        values = _split_sql_csv(insert_match.group(2))
-        return any(_is_exact_placeholder_sql_literal(value) for value in values)
-
-    update_match = re.search(r"\bSET\b(.*?)(?:\bWHERE\b|$)", statement, re.IGNORECASE | re.DOTALL)
-    if update_match is None:
-        return False
-    assignments = _split_sql_csv(update_match.group(1))
-    for assignment in assignments:
-        _, sep, value = assignment.partition("=")
-        if not sep:
-            return False
-        if _is_exact_placeholder_sql_literal(value):
-            return True
-    return False
-
-
-def _is_exact_placeholder_sql_literal(value: str) -> bool:
-    normalized = value.strip()
-    if normalized.count(PAYLOAD_PLACEHOLDER) != 1:
-        return False
-    match = _SQL_STRING_LITERAL_RE.fullmatch(normalized)
-    return match is not None and match.group(0).count(PAYLOAD_PLACEHOLDER) == 1
-
-
-def _split_sql_csv(value: str) -> list[str]:
-    parts: list[str] = []
-    current: list[str] = []
-    in_string = False
-    depth = 0
-    i = 0
-    while i < len(value):
-        char = value[i]
-        if char == "'":
-            current.append(char)
-            if in_string and i + 1 < len(value) and value[i + 1] == "'":
-                current.append(value[i + 1])
-                i += 2
-                continue
-            in_string = not in_string
-            i += 1
-            continue
-        if not in_string:
-            if char == "(":
-                depth += 1
-            elif char == ")" and depth > 0:
-                depth -= 1
-            elif char == "," and depth == 0:
-                parts.append("".join(current).strip())
-                current = []
-                i += 1
-                continue
-        current.append(char)
-        i += 1
-    tail = "".join(current).strip()
-    if tail:
-        parts.append(tail)
-    return parts
 
 
 def _select_exemplars(

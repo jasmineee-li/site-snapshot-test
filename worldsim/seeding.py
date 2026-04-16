@@ -3,9 +3,10 @@
 Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 3 / Evaluation
 Infrastructure" section.
 
-Two seeding mechanisms are supported for adversarial content:
+Supported task-setup mechanisms:
 
 - ``api``: make a list of HTTP requests against ``instance["site_url"]``
+- ``form``: submit a list of form-style HTTP requests against ``instance["site_url"]``
 - ``state_push``: PUT a JSON blob to the instance's ``/api/state`` endpoint
 
 SQL seeding was evaluated and excluded from the methodology because it violates
@@ -172,8 +173,8 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     Args:
         seed: Seed spec with a ``mechanism`` field and mechanism-specific
             extras. See the v5 spec for the field schemas.
-        instance: Benchmark instance dict with ``site_url`` and
-            (for SQL seeding) ``db_connection``.
+        instance: Benchmark instance dict with ``site_url`` and any
+            mechanism-specific auth configuration.
 
     Raises:
         ValueError: If ``seed["mechanism"]`` is unknown.
@@ -239,16 +240,6 @@ def _perform_web_login_if_needed(
         )
 
 
-def collect_sql_seed_runtime_errors(
-    tasks: list[dict[str, Any]],
-    instances: list[Any],
-    *,
-    seed_field: str,
-) -> list[str]:
-    """Backward-compatible wrapper for generalized seed-runtime preflight."""
-    return collect_seed_runtime_errors(tasks, instances, seed_field=seed_field)
-
-
 def collect_seed_runtime_errors(
     tasks: list[dict[str, Any]],
     instances: list[Any],
@@ -258,7 +249,6 @@ def collect_seed_runtime_errors(
     """Return deduplicated runtime-configuration errors for selected seeds."""
     errors: list[str] = []
     seen: set[str] = set()
-    task_counts: dict[tuple[str, str], int] = {}
 
     for task in tasks:
         if not isinstance(task, dict):
@@ -269,25 +259,14 @@ def collect_seed_runtime_errors(
         mechanism = seed.get("mechanism")
         if mechanism in (None, "none"):
             continue
-        seed_site = _task_seed_site(task)
-        count_key = (
-            seed_site,
-            "sql"
-            if mechanism == "sql"
-            else "http_db"
-            if _task_http_seed_requires_db(task, seed)
-            else "http",
-        )
-        task_counts[count_key] = task_counts.get(count_key, 0) + 1
-
-    for task in tasks:
-        if not isinstance(task, dict):
-            continue
-        seed = task.get(seed_field)
-        if not isinstance(seed, dict):
-            continue
-        mechanism = seed.get("mechanism")
-        if mechanism in (None, "none"):
+        try:
+            validate_data_seed(seed, allow_none=True)
+        except ValueError as exc:
+            _append_runtime_error(
+                errors,
+                seen,
+                f"task {task.get('id', '?')!r} has invalid {seed_field}: {exc}",
+            )
             continue
 
         seed_site = _task_seed_site(task)
@@ -304,36 +283,9 @@ def collect_seed_runtime_errors(
             )
             continue
 
-        # SQL seeds genuinely require db_connection. HTTP seeds with db_row_value
-        # postconditions do NOT: the runtime gracefully skips DB verification
-        # when db_connection is absent (HTTP 2xx confirms the seed landed).
-        requires_db = mechanism == "sql"
         requires_http_auth = mechanism in {"api", "form"}
         for instance in site_instances:
             site_url = _instance_value(instance, "site_url") or "<unknown>"
-            if requires_db:
-                try:
-                    _require_sql_db_connection(_instance_value(instance, "db_connection"))
-                except RuntimeError as exc:
-                    kind_key = "sql" if mechanism == "sql" else "http_db"
-                    task_count = task_counts.get((seed_site, kind_key))
-                    _append_runtime_error(
-                        errors,
-                        seen,
-                        (
-                            f"site {seed_site!r} has "
-                            + (
-                                (
-                                    f"{task_count} SQL-seeded task(s)"
-                                    if task_count
-                                    else "SQL-seeded task(s)"
-                                )
-                                if mechanism == "sql"
-                                else "HTTP-seeded task(s) with db_row_value verification"
-                            )
-                            + f" but instance {site_url!r} is not SQL-ready: {exc}"
-                        ),
-                    )
             if requires_http_auth:
                 auth_error = _instance_http_seed_auth_runtime_error(instance, mechanism=mechanism)
                 if auth_error is not None:
@@ -465,13 +417,6 @@ def _parse_runtime_db_connection(
         return parse_supported_db_connection(db_connection, purpose=purpose)
     except ValueError as exc:
         raise RuntimeError(str(exc)) from exc
-
-
-def _require_sql_db_connection(db_connection: Any) -> urllib.parse.ParseResult:
-    return _parse_runtime_db_connection(
-        db_connection,
-        purpose="SQL seed requires instance['db_connection']",
-    )
 
 
 def _apply_http_seed_call(
