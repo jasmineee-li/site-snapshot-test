@@ -120,13 +120,6 @@ def _openrouter_overrides(model: str) -> dict[str, Any]:
     if model in {"gpt-5.4-mini", "openai/gpt-5.4-mini"}:
         return {
             "temperature": None,
-            "extra_body": {
-                "reasoning": {"effort": "none"},
-                "verbosity": "medium",
-                "provider": {
-                    "order": ["openai"],
-                },
-            },
         }
     return {}
 
