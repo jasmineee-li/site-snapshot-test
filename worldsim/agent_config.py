@@ -8,21 +8,29 @@ and ``run_tasks_by_site``.
 Supported providers:
 
 - ``google``      -- ``browser_use.llm.google``      (``ChatGoogle``)
-- ``openai``      -- routed through OpenRouter with BYOK (see below)
+- ``openai``      -- native OpenAI Responses API via ``ChatOpenAIResponses`` (Arm A)
 - ``anthropic``   -- ``browser_use.llm.anthropic``   (``ChatAnthropic``)
-- ``openrouter``  -- ``browser_use.llm.openrouter``  (``ChatOpenRouter``)
+- ``openrouter``  -- ``browser_use.llm.openrouter``  (``ChatOpenRouter``, Arm B)
 
-OpenAI provider and BYOK. The ``openai`` provider alias routes through
-OpenRouter so we get OpenRouter's clean reasoning-separation semantics
-(``message.reasoning`` vs. ``message.content``), which eliminates the
-``<think>`` leakage that native OpenAI Chat Completions produces on
-gpt-5-family reasoning models. Billing flows to the user's own OpenAI key
-via OpenRouter's Bring Your Own Key feature, configured once in the
-OpenRouter dashboard. The per-request ``extra_body.provider.order=["openai"]``
-pin guarantees the OpenAI upstream is used so the BYOK key applies.
+A/B study design. Both arms use the same model (gpt-5.4-mini), the same
+``AgentOutput`` Pydantic schema, and strict structured output. They differ
+only in API surface:
 
-Auth is via the standard env vars: ``GOOGLE_API_KEY``, ``OPENROUTER_API_KEY``
-(used for both ``openai`` and ``openrouter`` providers), ``ANTHROPIC_API_KEY``.
+  Arm A (``--agent-provider openai``): native Responses API.
+    Uses ``OPENAI_API_KEY``.  Calls ``client.responses.parse`` with
+    ``text_format=AgentOutput`` and ``reasoning={"effort": "none"}``.
+    Reasoning is separated into its own output item; content arrives as
+    clean JSON with no ``<think>`` leakage.
+
+  Arm B (``--agent-provider openrouter``): OpenRouter pinned to OpenAI.
+    Uses ``OPENROUTER_API_KEY``.  Calls chat completions with
+    ``response_format=json_schema`` (strict) and
+    ``extra_body.reasoning.exclude=true`` plus
+    ``extra_body.provider.only=["openai"]``.  No fallbacks, no silent
+    dropping of the reasoning flag (``require_parameters=true``).
+
+Auth env vars: ``GOOGLE_API_KEY``, ``OPENAI_API_KEY``, ``ANTHROPIC_API_KEY``,
+``OPENROUTER_API_KEY``.
 """
 
 from __future__ import annotations
@@ -125,32 +133,37 @@ def _normalize_openrouter_model(model: str) -> str:
 
 
 def _openrouter_overrides(model: str) -> dict[str, Any]:
-    """Return OpenRouter-specific overrides for fair-test baselines.
+    """Return OpenRouter-specific overrides for Arm B of the A/B study.
 
-    gpt-5.4-mini emits ``<think>`` reasoning traces in its structured JSON
-    output unless ``reasoning.effort`` is set to ``"none"`` via OpenRouter's
-    provider extensions. Setting temperature to ``None`` lets OpenRouter
-    use the model's default, which is required for reasoning models.
+    For gpt-5.4-mini (and the ``openai/`` prefixed variant):
+    - ``reasoning.effort="none"`` suppresses reasoning token generation.
+    - ``reasoning.exclude=true`` keeps reasoning out of the response body
+      entirely (analogous to Responses API separating it into its own item).
+    - ``provider.only=["openai"]`` pins the OpenAI upstream, no fallbacks.
+    - ``require_parameters=true`` ensures the reasoning flag is not silently
+      dropped if the upstream does not support it.
+    - ``temperature=None`` lets OpenRouter use the model's default (required
+      for reasoning models that reject an explicit temperature).
 
-    ``provider.order=["openai"]`` pins the OpenAI upstream so the user's
-    BYOK OpenAI key (configured in the OpenRouter dashboard) is the one
-    billed.
-
-    Note on ``extra_body`` nesting. Browser Use's ``ChatOpenRouter``
+    Note on ``extra_body`` double-nesting. Browser Use's ``ChatOpenRouter``
     splats its ``extra_body`` field as top-level kwargs to
-    ``client.chat.completions.create``. To land these fields inside the
-    JSON request body (where OpenRouter expects them), we must nest them
-    under a literal ``extra_body`` key so that after the splat the openai
-    SDK sees ``extra_body={...}`` and forwards the contents as body fields.
+    ``client.chat.completions.create``. The openai SDK treats unknown
+    top-level kwargs as an error. To land these fields inside the JSON
+    request body (where OpenRouter expects them), we nest them under a
+    literal ``extra_body`` key so that after the splat the SDK sees
+    ``extra_body={...}`` and forwards the contents as extra body fields.
     """
     if model in {"gpt-5.4-mini", "openai/gpt-5.4-mini"}:
         return {
             "temperature": None,
             "extra_body": {
                 "extra_body": {
-                    "reasoning": {"effort": "none"},
-                    "verbosity": "medium",
-                    "provider": {"order": ["openai"]},
+                    "reasoning": {"effort": "none", "exclude": True},
+                    "provider": {
+                        "only": ["openai"],
+                        "allow_fallbacks": False,
+                        "require_parameters": True,
+                    },
                 },
             },
         }
@@ -178,24 +191,20 @@ def make_llm(
     """
     provider = resolve_provider(model, provider)
 
-    # ``openai`` is an alias that routes through OpenRouter with BYOK. The
-    # user's OpenAI key is configured once in the OpenRouter dashboard; at
-    # call time we pin the OpenAI upstream via ``provider.order`` so that
-    # BYOK key is the one OpenRouter charges. This gives us OpenRouter's
-    # clean ``message.reasoning`` separation (no ``<think>`` leakage) while
-    # the user still pays OpenAI directly.
-    if provider == "openai":
-        provider = "openrouter"
-        model = _normalize_openrouter_model(model)
+    # ``openai`` uses the native Responses API (Arm A of the A/B study).
+    # It requires ``OPENAI_API_KEY`` directly -- no redirect to OpenRouter.
+    # Arm B is explicitly selected with ``provider="openrouter"``.
 
     _PROVIDER_ENV_VARS = {
         "google": "GOOGLE_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
+        # openai intentionally absent: OPENAI_API_KEY is read by ChatOpenAI
+        # automatically from the environment; we do not redirect it.
     }
     provider_key_var = _PROVIDER_ENV_VARS.get(provider)
     anthropic_proxy_ready = provider == "anthropic" and _anthropic_proxy_env() is not None
     if (
-        provider != "openrouter"
+        provider not in ("openrouter", "openai")
         and not anthropic_proxy_ready
         and provider_key_var
         and not os.environ.get(provider_key_var, "").strip()
@@ -224,6 +233,24 @@ def make_llm(
             ) from exc
         return ChatGoogle(model=model, temperature=temperature)
 
+    if provider == "openai":
+        try:
+            from browser_use.llm.openai.chat import ChatOpenAI
+        except ImportError as exc:
+            raise RuntimeError(
+                "browser-use is required for the OpenAI provider. "
+                "Install it with: uv pip install browser-use"
+            ) from exc
+        from worldsim.llm_wrapper import ChatOpenAIResponses, is_reasoning_model
+
+        if is_reasoning_model(model):
+            # Arm A: native Responses API with reasoning={"effort": "none"}.
+            # ChatOpenAIResponses.create reads OPENAI_API_KEY from the
+            # environment automatically via the underlying AsyncOpenAI client.
+            return ChatOpenAIResponses.create(model=model)
+        # Non-reasoning OpenAI models: plain ChatOpenAI with temperature.
+        return ChatOpenAI(model=model, temperature=temperature)
+
     if provider == "anthropic":
         try:
             from browser_use.llm.anthropic.chat import ChatAnthropic
@@ -251,11 +278,9 @@ def make_llm(
                 "browser-use is required for the OpenRouter provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        # ``_openrouter_overrides`` sets ``extra_body.reasoning.effort='none'``
-        # for gpt-5.4-mini so OpenRouter suppresses reasoning tokens server
-        # side and ``message.content`` arrives as clean JSON. It also pins
-        # ``provider.order=["openai"]`` so the user's BYOK OpenAI key is the
-        # one billed.
+        # Arm B: ``_openrouter_overrides`` sets reasoning.exclude=true and
+        # pins provider.only=["openai"] with no fallbacks so the request
+        # always goes to OpenAI and reasoning never appears in content.
         kwargs: dict[str, Any] = {
             "model": model,
             "temperature": temperature,
