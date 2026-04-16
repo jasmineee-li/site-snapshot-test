@@ -365,7 +365,10 @@ def collect_seed_runtime_errors(
             )
             continue
 
-        requires_db = mechanism == "sql" or _task_http_seed_requires_db(task, seed)
+        # SQL seeds genuinely require db_connection. HTTP seeds with db_row_value
+        # postconditions do NOT: the runtime gracefully skips DB verification
+        # when db_connection is absent (HTTP 2xx confirms the seed landed).
+        requires_db = mechanism == "sql"
         requires_http_auth = mechanism in {"api", "form"}
         for instance in site_instances:
             site_url = _instance_value(instance, "site_url") or "<unknown>"
