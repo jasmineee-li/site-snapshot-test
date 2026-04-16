@@ -25,6 +25,9 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+from pydantic import ValidationError
 
 from worldsim._sandbox_validator import (
     validate_agent_context,
@@ -32,9 +35,11 @@ from worldsim._sandbox_validator import (
     validate_injection_surface,
     validate_verification_capabilities,
 )
+from worldsim.config import BenchmarkConfig, BenchmarkInstance, VerificationProxy
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.failpoints import crash_if_enabled
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
+from worldsim.placeholders import normalize_site_name
 from worldsim.profile_validation import validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import get_state_dir, save_state
@@ -68,6 +73,122 @@ def _profile_metadata_path(output_dir: Path, site_name: str) -> Path:
     return output_dir / f"{_PROFILE_METADATA_PREFIX}{site_name}.json"
 
 
+def _phase_0_state_metadata(
+    *,
+    benchmark: Path,
+    sandbox_model: str,
+    instances_path: Path | None,
+) -> dict[str, str]:
+    metadata = {
+        "benchmark_path": str(benchmark),
+        "sandbox_model": sandbox_model,
+    }
+    if instances_path is not None:
+        metadata["instances_path"] = str(Path(instances_path))
+    return metadata
+
+
+def _load_phase_0c_config(
+    instances_path: Path,
+) -> tuple[list[BenchmarkInstance], VerificationProxy | None]:
+    """Load instances and optional verification proxy config from instances.json.
+
+    Returns (instances, verification_proxy). The proxy is None when absent or
+    when its token is empty (disabled).
+    """
+
+    path = Path(instances_path)
+    try:
+        config = BenchmarkConfig.model_validate_json(path.read_text())
+    except (OSError, ValidationError) as exc:
+        raise RuntimeError(f"invalid instances config at {path}: {exc}") from exc
+    proxy = config.verification_proxy
+    # Treat empty token as "proxy not configured".
+    if proxy is not None and not proxy.token.strip():
+        proxy = None
+    return config.instances, proxy
+
+
+def _sanitize_instance_site_url(site_url: str, *, site_name: str) -> str:
+    """Return a normalized live-verification URL safe to pass into sandboxes."""
+    parts = urlsplit(site_url.strip())
+    scheme = parts.scheme.lower()
+    if scheme not in {"http", "https"} or not parts.netloc:
+        raise ValueError(
+            f"site {site_name!r} has unsupported site_url {site_url!r}; expected http(s) base URL"
+        )
+    if parts.username is not None or parts.password is not None:
+        raise ValueError(
+            f"site {site_name!r} site_url must not include credentials when used for Phase 0c"
+        )
+    if parts.query or parts.fragment:
+        raise ValueError(
+            f"site {site_name!r} site_url must not include query or fragment when used for Phase 0c"
+        )
+    hostname = parts.hostname
+    if not hostname:
+        raise ValueError(
+            f"site {site_name!r} has unsupported site_url {site_url!r}; expected http(s) base URL"
+        )
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise ValueError(f"site {site_name!r} has invalid site_url port in {site_url!r}") from exc
+
+    default_port = 80 if scheme == "http" else 443
+    normalized_host = hostname.lower()
+    host_display = f"[{normalized_host}]" if ":" in normalized_host else normalized_host
+    normalized_netloc = host_display
+    if port is not None and port != default_port:
+        normalized_netloc = f"{host_display}:{port}"
+    normalized_path = parts.path.rstrip("/")
+    return urlunsplit((scheme, normalized_netloc, normalized_path, "", ""))
+
+
+def _build_instance_site_url_map(instances: list[BenchmarkInstance] | None) -> dict[str, str]:
+    """Return a stable representative site_url for each site for live verification."""
+    if not instances:
+        return {}
+
+    by_site: dict[str, set[str]] = {}
+    for instance in instances:
+        normalized_site = normalize_site_name(instance.site_name)
+        if not normalized_site:
+            continue
+        sanitized_url = _sanitize_instance_site_url(instance.site_url, site_name=instance.site_name)
+        by_site.setdefault(normalized_site, set()).add(sanitized_url)
+
+    result: dict[str, str] = {}
+    for site_name, site_urls in by_site.items():
+        selected = sorted(site_urls)[0]
+        if len(site_urls) > 1:
+            logger.info(
+                "Phase 0c: site %r has %d configured instance URLs; using %s for live verification",
+                site_name,
+                len(site_urls),
+                selected,
+            )
+        result[site_name] = selected
+    return result
+
+
+def _apply_proxy_to_url(site_url: str, port_offset: int) -> str:
+    """Rewrite a site URL to use the proxy port (real_port + port_offset)."""
+    parts = urlsplit(site_url)
+    try:
+        port = parts.port
+    except ValueError:
+        return site_url
+    if port is None:
+        # No explicit port, cannot apply offset meaningfully.
+        return site_url
+    proxy_port = port + port_offset
+    hostname = parts.hostname or ""
+    host_display = f"[{hostname}]" if ":" in hostname else hostname
+    proxy_netloc = f"{host_display}:{proxy_port}"
+    return urlunsplit((parts.scheme, proxy_netloc, parts.path, parts.query, parts.fragment))
+
+
 def _existing_site_outputs_are_reusable(
     *,
     output_dir: Path,
@@ -75,6 +196,7 @@ def _existing_site_outputs_are_reusable(
     benchmark_root: Path,
     sandbox_model: str,
     manifest_eval_type_set: set[str],
+    instance_site_url: str | None,
 ) -> bool:
     """Return True only when existing site outputs are complete and match this run."""
     profile_path = output_dir / f"BENCHMARK_PROFILE_{site_name}.json"
@@ -116,6 +238,7 @@ def _existing_site_outputs_are_reusable(
         "site_name": site_name,
         "benchmark_root": str(benchmark_root),
         "sandbox_model": sandbox_model,
+        "instance_site_url": instance_site_url,
     }
     for key, expected in expected_metadata.items():
         if metadata.get(key) != expected:
@@ -166,6 +289,11 @@ async def run(
     output_base = get_state_dir()
     manifest = None
     sandbox_map = None
+    state_metadata = _phase_0_state_metadata(
+        benchmark=benchmark,
+        sandbox_model=sandbox_model,
+        instances_path=instances_path,
+    )
 
     # Fail fast if Claude Code auth is missing — 0a and 0c need sandboxes.
     if sub in {"0", "0a", "0c"}:
@@ -177,7 +305,7 @@ async def run(
                 f"phase_{sub}",
                 status="failed",
                 reason="auth_preflight_failed",
-                sandbox_model=sandbox_model,
+                **state_metadata,
             )
             return 1
 
@@ -185,8 +313,7 @@ async def run(
         save_state(
             "phase_0a",
             status="running",
-            benchmark_path=str(benchmark),
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         manifest = await run_phase_0a(
             benchmark,
@@ -197,8 +324,7 @@ async def run(
             "phase_0a",
             status="complete",
             manifest_path=str(output_base / "phase_0a" / "BENCHMARK_MANIFEST.json"),
-            benchmark_path=str(benchmark),
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         cost_tracker.log_phase_summary("phase_0a")
         cost_tracker.save(get_state_dir() / "cost_report.json")
@@ -216,8 +342,7 @@ async def run(
         save_state(
             "phase_0b",
             status="running",
-            benchmark_path=str(benchmark),
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         sandbox_map = compute_sandbox_maps(manifest, benchmark)
         out_dir = output_base / "phase_0b"
@@ -227,8 +352,7 @@ async def run(
             "phase_0b",
             status="complete",
             sandbox_map_path=str(out_dir / "SANDBOX_MAP.json"),
-            benchmark_path=str(benchmark),
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         logger.info("Phase 0b complete — sandbox maps written for %d sites", len(sandbox_map))
         if sub == "0b":
@@ -252,22 +376,14 @@ async def run(
         save_state(
             "phase_0c",
             status="running",
-            benchmark_path=str(benchmark),
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
-        # Load instance configs for connectivity context (site URLs only).
-        instances: list[dict[str, Any]] | None = None
-        if instances_path is not None:
-            try:
-                instances = json.loads(Path(instances_path).read_text()).get("instances", [])
-            except (OSError, json.JSONDecodeError) as exc:
-                logger.warning(
-                    "Phase 0c: could not load instances from %s, proceeding without: %s",
-                    instances_path,
-                    exc,
-                )
-
         try:
+            # Load instance configs and optional proxy for connectivity context.
+            instances: list[BenchmarkInstance] | None = None
+            verification_proxy = None
+            if instances_path is not None:
+                instances, verification_proxy = _load_phase_0c_config(instances_path)
             await run_phase_0c(
                 manifest,
                 sandbox_map,
@@ -275,14 +391,14 @@ async def run(
                 output_base / "phase_0c",
                 sandbox_model=sandbox_model,
                 instances=instances,
+                verification_proxy=verification_proxy,
             )
         except Exception as e:
             save_state(
                 "phase_0c",
                 status="failed",
-                benchmark_path=str(benchmark),
-                sandbox_model=sandbox_model,
                 error=str(e),
+                **state_metadata,
             )
             logger.error("Phase 0c failed: %s", e)
             return 1
@@ -290,8 +406,7 @@ async def run(
             "phase_0c",
             status="complete",
             profiles_dir=str(output_base / "phase_0c"),
-            benchmark_path=str(benchmark),
-            sandbox_model=sandbox_model,
+            **state_metadata,
         )
         cost_tracker.log_phase_summary("phase_0c")
         cost_tracker.save(get_state_dir() / "cost_report.json")
@@ -591,7 +706,8 @@ async def run_phase_0c(
     output_dir: Path,
     timeout: int = 14400,
     sandbox_model: str = "claude-sonnet-4-6",
-    instances: list[dict[str, Any]] | None = None,
+    instances: list[BenchmarkInstance] | None = None,
+    verification_proxy: VerificationProxy | None = None,
 ) -> dict[str, Any]:
     """Profile each site via tiered parallel Modal Sandboxes.
 
@@ -607,8 +723,12 @@ async def run_phase_0c(
 
     Args:
         timeout: Per-sandbox wall-clock timeout in seconds (default: 4 hours).
-        instances: Optional list of instance config dicts from instances.json.
-            When provided, Tier 2 sandboxes receive site URL connectivity info.
+        instances: Optional list of validated benchmark instances. When
+            provided, Tier 2 sandboxes receive one representative site URL per
+            site for live verification.
+        verification_proxy: Optional proxy config. When present, site URLs
+            are rewritten to proxy ports and an auth header is included in
+            the INSTANCE_CONNECTIVITY.json staged into Tier 2 sandboxes.
 
     Returns:
         Dict mapping site name to merged profile outputs.
@@ -620,16 +740,19 @@ async def run_phase_0c(
         for eval_type in manifest.get("evaluation", {}).get("eval_types", [])
         if eval_type
     }
+    instance_urls = _build_instance_site_url_map(instances)
 
     # Skip sites that already have all outputs on disk (supports re-runs).
     sites_to_profile = {}
     for name, files in sandbox_map.items():
+        instance_site_url = instance_urls.get(normalize_site_name(name))
         if _existing_site_outputs_are_reusable(
             output_dir=output_dir,
             site_name=name,
             benchmark_root=benchmark_root,
             sandbox_model=sandbox_model,
             manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=instance_site_url,
         ):
             logger.info("Phase 0c: skipping site %r (profile + agent context already exist)", name)
         else:
@@ -638,16 +761,6 @@ async def run_phase_0c(
     if not sites_to_profile:
         logger.info("Phase 0c: all sites already profiled, nothing to do")
         return {}
-
-    # Build site_name -> site_url lookup from instances config.
-    instance_urls: dict[str, str] = {}
-    if instances:
-        for inst in instances:
-            if isinstance(inst, dict):
-                name = inst.get("site_name", "")
-                url = inst.get("site_url", "")
-                if name and url:
-                    instance_urls[name] = url
 
     raw_results = await asyncio.gather(
         *[
@@ -659,7 +772,8 @@ async def run_phase_0c(
                 manifest=manifest,
                 timeout=timeout,
                 sandbox_model=sandbox_model,
-                site_url=instance_urls.get(name),
+                site_url=instance_urls.get(normalize_site_name(name)),
+                verification_proxy=verification_proxy,
             )
             for name, files in sites_to_profile.items()
         ],
@@ -859,6 +973,7 @@ async def _profile_one_site_tiered(
     timeout: int,
     sandbox_model: str,
     site_url: str | None = None,
+    verification_proxy: VerificationProxy | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
@@ -868,7 +983,9 @@ async def _profile_one_site_tiered(
 
     When *site_url* is provided, a connectivity file is staged into the Tier 2
     sandbox so the LLM can verify mechanical claims against the live instance.
-    Only the URL is passed, not auth credentials.
+    When *verification_proxy* is also provided, the connectivity URL is
+    rewritten to the proxy port and an ``auth_header`` field is included so
+    the sandbox can pass the token in curl requests.
     """
     staging_root, staging_dir = _stage_benchmark_files(file_list, benchmark_root, site_name)
     try:
@@ -961,16 +1078,27 @@ async def _profile_one_site_tiered(
         (inputs_dir / "DATA_MODEL.json").write_text(json.dumps(data_model, indent=2))
         (inputs_dir / "AGENT_CONTEXT.json").write_text(json.dumps(agent_context, indent=2))
 
-        # Stage instance connectivity for live verification (URL only, no creds).
+        # Stage instance connectivity for live verification.
+        # When a verification proxy is configured, rewrite the URL to the
+        # proxy port and include the auth header for curl requests.
         if site_url:
-            connectivity = {"site_name": site_name, "site_url": site_url}
+            effective_url = site_url
+            if verification_proxy is not None:
+                effective_url = _apply_proxy_to_url(site_url, verification_proxy.port_offset)
+            connectivity: dict[str, str] = {
+                "site_name": site_name,
+                "site_url": effective_url,
+            }
+            if verification_proxy is not None:
+                connectivity["auth_header"] = f"X-Worldsim-Token: {verification_proxy.token}"
             (inputs_dir / "INSTANCE_CONNECTIVITY.json").write_text(
                 json.dumps(connectivity, indent=2)
             )
             logger.info(
-                "Phase 0c: site %r tier 2 will have instance connectivity (%s)",
+                "Phase 0c: site %r tier 2 will have instance connectivity (%s%s)",
                 site_name,
-                site_url,
+                effective_url,
+                ", proxied" if verification_proxy else "",
             )
 
         tier2_extra_inputs = {
@@ -1047,6 +1175,7 @@ async def _profile_one_site_tiered(
                     "site_name": site_name,
                     "benchmark_root": str(benchmark_root),
                     "sandbox_model": sandbox_model,
+                    "instance_site_url": site_url,
                 },
                 indent=2,
             ),

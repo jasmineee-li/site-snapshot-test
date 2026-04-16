@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
+from worldsim.config import BenchmarkInstance
 from worldsim.phases import phase_0_recon
 
 VERIFICATION_OUTPUT = "/workspace/output/VERIFICATION_CAPABILITIES.json"
@@ -97,16 +99,6 @@ def _valid_injection_surface(*, source_field: str = "products.description") -> d
                             "where": {"id": {"path_param": "id"}},
                         },
                     },
-                    {
-                        "mechanism": "sql",
-                        "privileged_seed": False,
-                        "path_template": None,
-                        "method": None,
-                        "body_field": None,
-                        "table": "orders",
-                        "column": "detail",
-                        "postcondition": None,
-                    },
                 ],
                 "rendering_context": "Order detail page body copy.",
                 "compatible_concealments": ["plaintext"],
@@ -125,6 +117,19 @@ def _sandbox_json(output_path: str, payload: object) -> dict[str, str | None]:
     return {
         output_path: json.dumps(payload),
         "_summary": None,
+    }
+
+
+def _instances_config(benchmark_root: Path, *, site_url: str = "http://shopping.test") -> dict:
+    return {
+        "benchmark_name": "demo",
+        "benchmark_codebase": str(benchmark_root),
+        "instances": [
+            {
+                "site_name": "shopping",
+                "site_url": site_url,
+            }
+        ],
     }
 
 
@@ -217,7 +222,9 @@ async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_p
             return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
         if "-DE-inject" in label:
             de_attempts += 1
-            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body"))
+            return _sandbox_json(
+                INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body")
+            )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
     monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
@@ -254,7 +261,9 @@ async def test_correction_loop_fixes_invalid_tier_output(monkeypatch, tmp_path):
             de_attempts += 1
             de_prompts.append(kwargs["prompt"])
             source_field = "posts.body" if de_attempts == 1 else "products.description"
-            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface(source_field=source_field))
+            return _sandbox_json(
+                INJECTION_OUTPUT, _valid_injection_surface(source_field=source_field)
+            )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
     monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
@@ -292,7 +301,9 @@ async def test_correction_loop_hard_fails_after_max_retries(monkeypatch, tmp_pat
             return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
         if "-DE-inject" in label:
             de_attempts += 1
-            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body"))
+            return _sandbox_json(
+                INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body")
+            )
         raise AssertionError(f"unexpected sandbox label: {label}")
 
     monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
@@ -404,6 +415,204 @@ async def test_run_phase_0c_reprofiles_when_existing_outputs_are_stale(monkeypat
     assert calls, "stale outputs must be re-profiled instead of silently skipped"
     profile = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
     assert profile["agent_context"]["site_context"]["description"] == "Fresh profile"
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_instance_site_url_changes(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+
+    cached_profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(cached_profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_name,
+                "benchmark_root": str(benchmark_root),
+                "sandbox_model": "claude-sonnet-4-6",
+                "instance_site_url": "http://shopping-v1.test",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    calls: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        calls.append(kwargs["label"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            context = _valid_agent_context()
+            context["site_context"]["description"] = "Fresh instance URL profile"
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, context)
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={site_name: [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+        instances=[BenchmarkInstance(site_name=site_name, site_url="http://shopping-v2.test")],
+    )
+
+    assert site_name in result
+    assert calls, "changing the representative instance URL must invalidate reuse"
+    refreshed = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
+    assert refreshed["agent_context"]["site_context"]["description"] == "Fresh instance URL profile"
+    metadata = json.loads((output_dir / f"PROFILE_METADATA_{site_name}.json").read_text())
+    assert metadata["instance_site_url"] == "http://shopping-v2.test"
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_stages_sanitized_instance_connectivity(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    captured: dict[str, object] = {}
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            connectivity_path = kwargs["site_files"]["/workspace/inputs/INSTANCE_CONNECTIVITY.json"]
+            captured["connectivity"] = json.loads(Path(connectivity_path).read_text())
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+        instances=[BenchmarkInstance(site_name="SHOPPING", site_url="http://shopping.test/")],
+    )
+
+    assert captured["connectivity"] == {
+        "site_name": "shopping",
+        "site_url": "http://shopping.test",
+    }
+
+
+def test_load_phase_0c_instances_rejects_invalid_config_shape(tmp_path):
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="invalid instances config"):
+        phase_0_recon._load_phase_0c_config(instances_path)
+
+
+def test_build_instance_site_url_map_rejects_sensitive_site_urls():
+    with pytest.raises(ValueError, match="must not include credentials"):
+        phase_0_recon._build_instance_site_url_map(
+            [BenchmarkInstance(site_name="shopping", site_url="http://user:pass@shopping.test")]
+        )
+
+
+def test_sanitize_instance_site_url_canonicalizes_equivalent_origins():
+    assert (
+        phase_0_recon._sanitize_instance_site_url(
+            "HTTP://SHOPPING.test:80/",
+            site_name="shopping",
+        )
+        == "http://shopping.test"
+    )
+    assert (
+        phase_0_recon._sanitize_instance_site_url(
+            "https://SHOPPING.test:443/base/",
+            site_name="shopping",
+        )
+        == "https://shopping.test/base"
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(json.dumps(_instances_config(benchmark_root)), encoding="utf-8")
+
+    state_calls: list[tuple[str, dict]] = []
+
+    async def fake_run_phase_0a(*args, **kwargs):
+        return {
+            "sites": [{"name": "shopping"}],
+            "evaluation": {"eval_types": ["NetworkEventEvaluator"]},
+            "benchmark_codebase": str(benchmark_root),
+        }
+
+    async def fake_run_phase_0c(*args, **kwargs):
+        return {"shopping": {"profile": {}, "agent_context": {}}}
+
+    monkeypatch.setattr(phase_0_recon, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_0_recon, "run_phase_0a", fake_run_phase_0a)
+    monkeypatch.setattr(
+        phase_0_recon,
+        "compute_sandbox_maps",
+        lambda manifest, benchmark: {"shopping": [str(source_file)]},
+    )
+    monkeypatch.setattr(phase_0_recon, "run_phase_0c", fake_run_phase_0c)
+    monkeypatch.setattr(phase_0_recon, "get_state_dir", lambda: tmp_path / "state")
+    monkeypatch.setattr(
+        phase_0_recon,
+        "save_state",
+        lambda step, iteration=0, **metadata: state_calls.append((step, metadata)),
+    )
+    monkeypatch.setattr(
+        phase_0_recon.cost_tracker, "log_phase_summary", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(phase_0_recon.cost_tracker, "save", lambda *args, **kwargs: None)
+
+    rc = await phase_0_recon.run(
+        benchmark=benchmark_root,
+        sub="0",
+        instances_path=instances_path,
+    )
+
+    assert rc == 0
+    phase_calls = [call for call in state_calls if call[0].startswith("phase_0")]
+    assert phase_calls
+    assert all(call[1]["instances_path"] == str(instances_path) for call in phase_calls)
+
+
+def test_profile_injection_surface_prompt_uses_read_only_live_verification():
+    prompt_path = (
+        Path(phase_0_recon.__file__).resolve().parents[1]
+        / "prompts"
+        / "profile-injection-surface.md"
+    )
+    prompt = prompt_path.read_text(encoding="utf-8")
+
+    assert (
+        "Do NOT send\n     `POST`, `PUT`, `PATCH`, or `DELETE` requests during profiling." in prompt
+    )
+    assert "Make a minimal POST/PUT" not in prompt
 
 
 @pytest.mark.asyncio

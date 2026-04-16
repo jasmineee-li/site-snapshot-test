@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import merge_placeholder_maps
 
-
 _SEEDING_AUTH_TYPES = frozenset({"none", "http_headers", "bearer_token", "web_login"})
 _AGENT_AUTH_TYPES = frozenset({"none", "unknown", "storage_state", "http_basic", "http_headers"})
 
@@ -74,7 +73,11 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
                 raise ValueError(f"{field_name}.headers keys must be non-empty strings")
             if isinstance(item, str) and item.strip():
                 continue
-            if isinstance(item, dict) and isinstance(item.get("from_env"), str) and item["from_env"].strip():
+            if (
+                isinstance(item, dict)
+                and isinstance(item.get("from_env"), str)
+                and item["from_env"].strip()
+            ):
                 continue
             raise ValueError(
                 f"{field_name}.headers[{key!r}] must be a non-empty string or {{'from_env': 'VAR'}}"
@@ -82,7 +85,9 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
         return value
     if auth_type == "bearer_token":
         header_name = value.get("header_name")
-        if header_name is not None and (not isinstance(header_name, str) or not header_name.strip()):
+        if header_name is not None and (
+            not isinstance(header_name, str) or not header_name.strip()
+        ):
             raise ValueError(f"{field_name}.header_name must be a non-empty string when present")
         token = value.get("token")
         token_source = value.get("token_source")
@@ -105,7 +110,9 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
         login_url = value.get("login_url")
         if not isinstance(login_url, str) or not login_url.strip():
             raise ValueError(f"{field_name}.login_url must be a non-empty string")
-        credentials = _require_string_map(value.get("credentials"), field_name=f"{field_name}.credentials")
+        credentials = _require_string_map(
+            value.get("credentials"), field_name=f"{field_name}.credentials"
+        )
         if "username" not in credentials or "password" not in credentials:
             raise ValueError(
                 f"{field_name}.credentials must include non-empty 'username' and 'password'"
@@ -170,7 +177,9 @@ def _validate_agent_auth_block(value: Any, *, field_name: str) -> dict[str, Any]
         http_headers = value.get("http_headers")
         if not isinstance(http_headers, dict):
             raise ValueError(f"{field_name}.http_headers must be an object")
-        _require_string_map(http_headers.get("headers"), field_name=f"{field_name}.http_headers.headers")
+        _require_string_map(
+            http_headers.get("headers"), field_name=f"{field_name}.http_headers.headers"
+        )
         authentication = value.get("authentication")
         if authentication is not None and not isinstance(authentication, dict):
             raise ValueError(f"{field_name}.authentication must be an object when present")
@@ -236,8 +245,12 @@ class BenchmarkInstance(BaseModel):
 
     @field_validator("auth", "api_auth")
     @classmethod
-    def _validate_seeding_auth(cls, value: dict[str, Any] | None, info: Any) -> dict[str, Any] | None:
-        return _validate_seeding_auth_block(value, field_name=f"BenchmarkInstance.{info.field_name}")
+    def _validate_seeding_auth(
+        cls, value: dict[str, Any] | None, info: Any
+    ) -> dict[str, Any] | None:
+        return _validate_seeding_auth_block(
+            value, field_name=f"BenchmarkInstance.{info.field_name}"
+        )
 
     @field_validator("agent_auth")
     @classmethod
@@ -245,11 +258,37 @@ class BenchmarkInstance(BaseModel):
         return _validate_agent_auth_block(value, field_name=f"BenchmarkInstance.{info.field_name}")
 
 
+class VerificationProxy(BaseModel):
+    """Optional authenticated reverse proxy for Phase 0c live verification.
+
+    When configured, Phase 0c computes proxy URLs by applying port_offset to
+    each site's real port and includes the token as an auth header so Modal
+    sandboxes can reach live instances through a token-gated nginx proxy.
+    Deployed by ``scripts/deploy_benchmark_proxy.sh``.
+    """
+
+    token: str = Field(
+        "",
+        description="Shared secret for X-Worldsim-Token header. Empty string disables proxy auth.",
+    )
+    port_offset: int = Field(
+        10000,
+        description="Added to each site's real port to derive the proxy port. "
+        "E.g. real port 7770 -> proxy port 17770.",
+    )
+
+
 class BenchmarkConfig(BaseModel):
     """Top-level benchmark configuration supplied by the user."""
 
     benchmark_name: str
     instances: list[BenchmarkInstance]
+    verification_proxy: VerificationProxy | None = Field(
+        None,
+        description="Optional authenticated reverse proxy config for Phase 0c. "
+        "When present with a non-empty token, Phase 0c uses proxy URLs and "
+        "injects the X-Worldsim-Token header for live instance verification.",
+    )
     url_placeholders: dict[str, str] = Field(
         default_factory=dict,
         description="Top-level mapping of URL template tokens to live site URLs. "

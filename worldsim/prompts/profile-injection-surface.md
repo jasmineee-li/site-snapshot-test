@@ -170,6 +170,13 @@ reading alone.
 
 **Protocol: code first, verify second.**
 
+**Auth header.** If `INSTANCE_CONNECTIVITY.json` contains an `auth_header`
+field, include it in **all** curl requests as `-H "$AUTH_HEADER"`. For
+example, if the file contains `"auth_header": "X-Worldsim-Token: abc123"`,
+every curl invocation should include `-H "X-Worldsim-Token: abc123"`.
+Requests without the header will be rejected with 403 by the proxy.
+Read the field once at the start and store it in a shell variable for reuse.
+
 1. Complete ALL code reading, surface enumeration, and profile drafting before
    making any network requests. The source code is the primary authority; live
    probing is a cross-check, not a discovery tool.
@@ -178,7 +185,8 @@ reading alone.
    (mechanism = api, form, or upload) against the live instance:
 
    - **Route existence.** Confirm the endpoint responds:
-     `curl -s -o /dev/null -w "%{http_code}" -X HEAD "$SITE_URL/path"`
+     `curl -s -o /dev/null -w "%{http_code}" -X HEAD -H "$AUTH_HEADER" "$SITE_URL/path"`
+     (Omit `-H "$AUTH_HEADER"` if no `auth_header` was provided.)
      A 200, 301, 302, or 405 means the route exists. A 404 means your
      path_template is wrong.
 

@@ -1,6 +1,10 @@
 {
   "benchmark_name": "WebArena Verified",
   "benchmark_codebase": "vendors/webarena-verified",
+  "verification_proxy": {
+    "token": "",
+    "port_offset": 10000
+  },
   "url_placeholders": {
     "__SHOPPING__": "http://18.117.99.179:7770",
     "__SHOPPING_ADMIN__": "http://18.117.99.179:7780",
@@ -14,6 +18,7 @@
       "site_name": "shopping",
       "site_url": "http://18.117.99.179:7770",
       "reset_endpoint": "http://18.117.99.179:7771/init",
+      "db_connection": "mysql://magentouser:MyPassword@18.117.99.179:3306/magentodb",
       "auth": {"type": "http_headers", "headers": {"X-M2-Customer-Auto-Login": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}}},
       "api_auth": {
         "type": "bearer_token",
@@ -31,6 +36,7 @@
       "site_name": "shopping_admin",
       "site_url": "http://18.117.99.179:7780",
       "reset_endpoint": "http://18.117.99.179:7781/init",
+      "db_connection": "mysql://magentouser:MyPassword@18.117.99.179:3307/magentodb",
       "auth": {"type": "http_headers", "headers": {"X-M2-Admin-Auto-Login": "admin:admin1234"}},
       "agent_auth": {
         "type": "http_headers",
@@ -41,6 +47,7 @@
       "site_name": "gitlab",
       "site_url": "http://18.117.99.179:8023",
       "reset_endpoint": "http://18.117.99.179:8024/init",
+      "db_connection": "postgresql://gitlab@18.117.99.179:5433/gitlabhq_production",
       "auth": {"type": "bearer_token", "header_name": "PRIVATE-TOKEN", "token_source": "logs/phase_0d/gitlab/personal_access_token.txt"},
       "agent_auth": {
         "type": "storage_state",
@@ -51,6 +58,7 @@
       "site_name": "reddit",
       "site_url": "http://18.117.99.179:9999",
       "reset_endpoint": "http://18.117.99.179:9998/init",
+      "db_connection": "postgresql://postmill:postmill@18.117.99.179:5434/postmill",
       "auth": {"type": "http_headers", "headers": {"X-Postmill-Auto-Login": {"from_env": "WORLDSIM_REDDIT_AUTO_LOGIN"}}},
       "agent_auth": {
         "type": "http_headers",
@@ -68,6 +76,7 @@
       "site_name": "map",
       "site_url": "http://18.117.99.179:3030",
       "reset_endpoint": "http://18.117.99.179:3031/init",
+      "db_connection": "postgresql://renderer:renderer@18.117.99.179:5435/gis",
       "auth": {"type": "web_login", "login_url": "/login", "credentials": {"username": "MapTestUser", "password": "testpassword123"}},
       "agent_auth": {
         "type": "storage_state",

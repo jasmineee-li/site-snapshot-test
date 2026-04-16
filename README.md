@@ -86,6 +86,52 @@ still allowing canonical `webarena_verified` evaluation. If
 
 Phases 0, 1, and 2 only need the benchmark **codebase** on disk, not running instances.
 
+### Proxy Setup (Phase 0c live verification)
+
+Phase 0c runs LLM-based injection surface discovery in Modal cloud sandboxes. These
+sandboxes can optionally probe live benchmark instances to verify mechanical claims
+(URL existence, required fields, entity IDs). Because Modal sandboxes exit from
+dynamic IPs that the EC2 security group blocks, and opening `0.0.0.0/0` on the real
+ports is insecure (benchmark instances have default credentials), an authenticated
+nginx reverse proxy is deployed on offset ports.
+
+**When to set this up:** only when you want Phase 0c to live-verify profiles against
+running instances. Phase 0c works without it (code-reading only), and Phases 1-2
+never use the proxy.
+
+**Deploy the proxy:**
+
+```bash
+# Uses defaults from env or falls back to built-in WebArena port map.
+./scripts/deploy_benchmark_proxy.sh --host 18.117.99.179
+
+# With explicit arguments:
+./scripts/deploy_benchmark_proxy.sh \
+    --host 18.117.99.179 \
+    --ssh-key ~/.ssh/webarena-key.pem \
+    --port-map scripts/proxy_ports.conf
+```
+
+The script installs nginx on the EC2 instance, generates a random token, writes
+one `server` block per site (proxy port = real port + 10000), and restarts nginx.
+It is idempotent, safe to re-run, and benchmark-agnostic (reads port mappings from
+`scripts/proxy_ports.conf` or a custom file).
+
+**After deploying:** open the proxy ports (17770, 17780, etc.) in the EC2 security
+group for `0.0.0.0/0`. These ports are token-protected. Then copy the token into
+`instances.json`:
+
+```json
+"verification_proxy": {
+  "token": "<token from .proxy_token>",
+  "port_offset": 10000
+}
+```
+
+Phase 0c reads this config, rewrites site URLs to proxy ports, and includes
+`X-Worldsim-Token` in all sandbox curl requests. Without a non-empty token the
+proxy is treated as disabled.
+
 ## Run
 
 ```bash
@@ -146,6 +192,9 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 │   ├── rewards.py                # run_reward_function dispatcher
 │   ├── prompts/                  # full prompts verbatim from the v5 spec
 │   └── phases/                   # phase_0_recon, phase_1_tasks, ... phase_4_adversarial
+├── scripts/
+│   ├── deploy_benchmark_proxy.sh  # authenticated reverse proxy for Phase 0c
+│   └── proxy_ports.conf           # site-to-port mapping for the proxy
 ├── docs/
 │   ├── worldsim-v5-technical-specifcation.md  # canonical technical spec — source of truth
 │   └── webarena-infinity-paper.md             # predecessor research reference

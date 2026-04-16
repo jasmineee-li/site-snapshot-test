@@ -1139,9 +1139,27 @@ Phase 4: Adversarial Evaluation + Adaptive Strategy Variation
 | Strategy variant generation (4) | Claude Code in Modal Sandbox | Up to 3 parallel per task |
 | Cost aggregation | cost_tracker singleton | Single (append after each sandbox) |
 | Ecological validity probing (4) | Modal Sandbox | One per trajectory |
+| Verification proxy (0c) | nginx on EC2 (optional) | One per benchmark host |
 | Validation | Local Python | Single |
 
 The pipeline does not start, stop, or manage benchmark environments. It connects to pre-running instances provided by the user.
+
+### Verification Proxy (Phase 0c)
+
+Phase 0c sandboxes run in Modal and exit from dynamic IPs. To let them probe live benchmark instances without opening the real site ports to `0.0.0.0/0`, an optional authenticated nginx reverse proxy can be deployed on the EC2 host. The proxy listens on offset ports (real port + `port_offset`, default 10000) and requires an `X-Worldsim-Token` header on every request. Unauthenticated requests receive a 403.
+
+Configuration lives in `instances.json` under a top-level `verification_proxy` object:
+
+```json
+"verification_proxy": {
+  "token": "...",
+  "port_offset": 10000
+}
+```
+
+When the token is non-empty, `phase_0_recon._profile_one_site_tiered` rewrites site URLs to proxy ports and includes the token in `INSTANCE_CONNECTIVITY.json` staged into Tier 2 sandboxes. The profiling prompt instructs the LLM to pass the header in all curl requests. When the token is empty or the block is absent, Phase 0c falls back to direct URLs (or code-reading-only if the instance is unreachable).
+
+Deployment is handled by `scripts/deploy_benchmark_proxy.sh`, which is benchmark-agnostic: it reads site-to-port mappings from a config file (`scripts/proxy_ports.conf` for WebArena) and generates one nginx `server` block per site. The script is idempotent and safe to re-run.
 
 ---
 
