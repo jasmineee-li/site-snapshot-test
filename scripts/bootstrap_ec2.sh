@@ -225,6 +225,26 @@ step_compose_up_all() {
 }
 
 # ---------------------------------------------------------------------------
+# Step 6b: configure database access inside running containers
+# ---------------------------------------------------------------------------
+#
+# Container (re)creation resets in-container state. This step grants
+# remote MySQL access (shopping, shopping_admin) and enables PostgreSQL
+# TCP access (GitLab). Reddit and Map already accept TCP by default.
+# Wikipedia has no database (Kiwix ZIM).
+
+step_configure_db_access() {
+    log "Step 6b: configure database access for SQL seeding"
+    if [[ -x "$SCRIPTS_DIR/configure_db_access.sh" ]]; then
+        HOST_IP="$HOST_IP" SSH_KEY="$SSH_KEY" SSH_USER="$SSH_USER" \
+            "$SCRIPTS_DIR/configure_db_access.sh"
+    else
+        echo "    WARN: scripts/configure_db_access.sh not found or not executable"
+        return 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Step 7: patch env-ctrl inside the running containers (on-EC2 mode)
 # ---------------------------------------------------------------------------
 
@@ -351,6 +371,7 @@ main() {
     step_setup_map_data              || echo "    (continuing past step 4 warning)"
     step_setup_wikipedia_zim         || echo "    (continuing past step 5 warning)"
     step_compose_up_all              || echo "    (continuing past step 6 warning)"
+    step_configure_db_access         || echo "    (continuing past step 6b warning)"
     step_patch_containers            || echo "    (continuing past step 7 warning)"
     local verify_rc=0
     step_verify_envctrl              || verify_rc=$?

@@ -92,9 +92,17 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
         token = value.get("token")
         token_source = value.get("token_source")
         token_endpoint = value.get("token_endpoint")
+        token_generator = value.get("token_generator")
         if isinstance(token, str) and token.strip():
             return value
         if isinstance(token_source, str) and token_source.strip():
+            return value
+        if isinstance(token_generator, str) and token_generator.strip():
+            credentials = value.get("credentials")
+            if not isinstance(credentials, dict) or not credentials:
+                raise ValueError(
+                    f"{field_name}.credentials must be a non-empty object when token_generator is set"
+                )
             return value
         if isinstance(token_endpoint, str) and token_endpoint.strip():
             credentials = value.get("credentials")
@@ -104,7 +112,8 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
                 )
             return value
         raise ValueError(
-            f"{field_name} bearer_token auth requires token, token_source, or token_endpoint"
+            f"{field_name} bearer_token auth requires token, token_source, token_generator, "
+            "or token_endpoint"
         )
     if auth_type == "web_login":
         login_url = value.get("login_url")

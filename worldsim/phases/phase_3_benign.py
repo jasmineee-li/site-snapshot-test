@@ -43,6 +43,7 @@ from worldsim.agent_config import (
 )
 from worldsim.agent_prompt import build_agent_prompt
 from worldsim.atomic_io import write_json_atomic
+from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent, resolve_instance_agent_auth
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_configured_agent_auth
 from worldsim.cost_tracker import tracker as cost_tracker
@@ -323,6 +324,21 @@ async def run(args: argparse.Namespace) -> int:
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
     )
+    # Acquire fresh bearer tokens for instances that use runtime generation.
+    token_errors = acquire_tokens_for_instances(config.instances)
+    if token_errors:
+        logger.error(
+            "Phase 3 token acquisition failed:\n%s",
+            "\n".join(f"  - {error}" for error in token_errors),
+        )
+        save_state(
+            "phase_3",
+            status="failed",
+            reason="token_acquisition_failed",
+            token_errors=token_errors,
+            **state_metadata,
+        )
+        return 1
     seed_runtime_errors = collect_seed_runtime_errors(
         benign_tasks,
         config.instances,

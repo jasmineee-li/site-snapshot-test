@@ -7,6 +7,11 @@
 # on the env-ctrl HTTP server can resolve the base_url without it being
 # passed in the request body.
 #
+# Also exposes internal database ports for SQL seeding and postcondition
+# verification (see instances.json db_connection fields). After
+# `docker compose up -d`, run scripts/configure_db_access.sh to grant
+# remote DB access inside the recreated containers.
+#
 # The HOST_IP and ports below must match your instances.json config.
 # Default: EC2 instance at 18.117.99.179 with standard WebArena ports.
 #
@@ -17,21 +22,29 @@ services:
   shopping:
     environment:
       - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_SHOPPING_PORT:-7770}
+    ports:
+      - "${WA_SHOPPING_DB_PORT:-3306}:3306"
 
   shopping_admin:
     environment:
       - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_SHOPPING_ADMIN_PORT:-7780}
+    ports:
+      - "${WA_SHOPPING_ADMIN_DB_PORT:-3307}:3306"
 
   gitlab:
     environment:
       - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_GITLAB_PORT:-8023}
-      # Skip reconfigure on init — the image is pre-configured with the correct
+      # Skip reconfigure on init -- the image is pre-configured with the correct
       # external_url. Reconfigure takes 3-5 minutes and can cause 502 errors.
       - WA_ENV_CTRL_SKIP_RECONFIGURE=true
+    ports:
+      - "${WA_GITLAB_DB_PORT:-5433}:5432"
 
   reddit:
     environment:
       - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_REDDIT_PORT:-9999}
+    ports:
+      - "${WA_REDDIT_DB_PORT:-5434}:5432"
 
   # Wikipedia: upstream am1n3e/webarena-verified-wikipedia:latest is published
   # arm64-only on Docker Hub, which crash-loops on our x86_64 EC2 host with
@@ -39,11 +52,17 @@ services:
   # scripts/build-wikipedia-amd64.sh and pin the compose service to it.
   # platform: linux/amd64 also blocks Docker from ever pulling the arm64
   # manifest if the local image is missing.
+  #
+  # No DB port exposed: Wikipedia uses Kiwix (ZIM file), not a database.
   wikipedia:
     image: worldsim/webarena-verified-wikipedia:amd64
     platform: linux/amd64
     environment:
       - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_WIKIPEDIA_PORT:-8888}
+
+  map:
+    ports:
+      - "${WA_MAP_DB_PORT:-5435}:5432"
 
 # Map volume binding. setup-map-robust.sh extracts to un-prefixed volume names
 # (`webarena-verified-map-*`) via `docker run -v <name>:/volume`, but the
