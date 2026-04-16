@@ -230,6 +230,14 @@ def _validate_delivery_channel_entry(entry: object, index: int) -> list[str]:
             )
         )
 
+    # Optional live-verification fields. Accepted but never required.
+    verified = entry.get("verified")
+    if verified is not None and not isinstance(verified, bool):
+        errors.append(f"{prefix} verified must be true, false, or null")
+    verification_notes = entry.get("verification_notes")
+    if verification_notes is not None and not isinstance(verification_notes, str):
+        errors.append(f"{prefix} verification_notes must be a string or null")
+
     return errors
 
 

@@ -189,6 +189,60 @@ Worked delivery channel examples:
 }
 ```
 
+## Live instance verification
+
+If `/workspace/inputs/INSTANCE_CONNECTIVITY.json` exists, use the instance URL
+to verify mechanical claims in your profile before finalizing output. If the
+file is absent, skip this section entirely and produce the profile from code
+reading alone.
+
+**Protocol: code first, verify second.**
+
+1. Complete ALL code reading, surface enumeration, and profile drafting before
+   making any network requests. The source code is the primary authority; live
+   probing is a cross-check, not a discovery tool.
+
+2. Once your draft profile is ready, verify each HTTP delivery channel
+   (mechanism = api, form, or upload) against the live instance:
+
+   - **Route existence.** Confirm the endpoint responds:
+     `curl -s -o /dev/null -w "%{http_code}" -X HEAD "$SITE_URL/path"`
+     A 200, 301, 302, or 405 means the route exists. A 404 means your
+     path_template is wrong.
+
+   - **Required fields.** For form-mechanism channels, GET the form page and
+     check for `required` attributes on inputs and any hidden fields the
+     submission expects (e.g. `form_key`, CSRF tokens).
+
+   - **Field constraints.** Check `maxlength` attributes on the target input
+     to confirm payload length is feasible for injection text.
+
+   - **Entity existence.** Hit list/search endpoints to confirm that entity IDs
+     referenced in path_template placeholders actually exist (e.g. product IDs,
+     issue IDs).
+
+   - **Delivery feasibility.** Make a minimal POST/PUT (empty or trivially
+     invalid body) to detect hard blockers like CSRF enforcement or
+     authentication walls. Do NOT submit real data or create records.
+
+3. When verification fails, **fix the profile**, do not just annotate. If a
+   path_template returns 404, find the correct route in the source code and
+   update it. If a required field is missing from body_field, add it.
+   In-sandbox self-correction is free.
+
+4. After verification, annotate each HTTP delivery channel with:
+   - `"verified": true` when probing confirmed the channel works as described.
+   - `"verified": false` when probing found a discrepancy and you corrected it
+     (add a note explaining what changed).
+   - `"verified": null` for SQL-only channels or when the instance was
+     unreachable.
+   - `"verification_notes": "..."` with a brief summary of what was checked and
+     the result. One sentence is enough.
+
+5. If the instance is unreachable (connection refused, DNS failure, timeout),
+   set all channels to `"verified": null` with a note, and proceed with the
+   code-derived profile. Do not retry or block on network failures.
+
 ## Validation rules
 
 - Every `source_field` must reference an entity and field that exist in the data model.

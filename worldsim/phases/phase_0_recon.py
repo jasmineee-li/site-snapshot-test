@@ -32,8 +32,8 @@ from worldsim._sandbox_validator import (
     validate_injection_surface,
     validate_verification_capabilities,
 )
-from worldsim.failpoints import crash_if_enabled
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.failpoints import crash_if_enabled
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
 from worldsim.profile_validation import validate_profile
 from worldsim.prompt_loading import load_prompt
@@ -94,8 +94,10 @@ def _existing_site_outputs_are_reusable(
         )
         return False
 
-    if not isinstance(profile, dict) or not isinstance(agent_context, dict) or not isinstance(
-        metadata, dict
+    if (
+        not isinstance(profile, dict)
+        or not isinstance(agent_context, dict)
+        or not isinstance(metadata, dict)
     ):
         logger.warning(
             "Phase 0c: existing outputs for site %r have invalid JSON shape, re-profiling",
@@ -146,6 +148,7 @@ async def run(
     benchmark: Path,
     sub: str = "0",
     sandbox_model: str = "claude-sonnet-4-6",
+    instances_path: Path | None = None,
 ) -> int:
     """Phase 0 entrypoint.
 
@@ -153,6 +156,9 @@ async def run(
         benchmark: Path to the benchmark codebase (e.g.
             ``vendors/webarena-verified``).
         sub: One of ``"0"`` (full phase), ``"0a"``, ``"0b"``, or ``"0c"``.
+        instances_path: Optional path to instances.json. When provided,
+            Phase 0c sandboxes receive instance connectivity info
+            (site URLs only, no credentials).
 
     Returns:
         Process exit code.
@@ -249,6 +255,18 @@ async def run(
             benchmark_path=str(benchmark),
             sandbox_model=sandbox_model,
         )
+        # Load instance configs for connectivity context (site URLs only).
+        instances: list[dict[str, Any]] | None = None
+        if instances_path is not None:
+            try:
+                instances = json.loads(Path(instances_path).read_text()).get("instances", [])
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning(
+                    "Phase 0c: could not load instances from %s, proceeding without: %s",
+                    instances_path,
+                    exc,
+                )
+
         try:
             await run_phase_0c(
                 manifest,
@@ -256,6 +274,7 @@ async def run(
                 benchmark,
                 output_base / "phase_0c",
                 sandbox_model=sandbox_model,
+                instances=instances,
             )
         except Exception as e:
             save_state(
@@ -572,6 +591,7 @@ async def run_phase_0c(
     output_dir: Path,
     timeout: int = 14400,
     sandbox_model: str = "claude-sonnet-4-6",
+    instances: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Profile each site via tiered parallel Modal Sandboxes.
 
@@ -587,6 +607,8 @@ async def run_phase_0c(
 
     Args:
         timeout: Per-sandbox wall-clock timeout in seconds (default: 4 hours).
+        instances: Optional list of instance config dicts from instances.json.
+            When provided, Tier 2 sandboxes receive site URL connectivity info.
 
     Returns:
         Dict mapping site name to merged profile outputs.
@@ -609,15 +631,23 @@ async def run_phase_0c(
             sandbox_model=sandbox_model,
             manifest_eval_type_set=manifest_eval_type_set,
         ):
-            logger.info(
-                "Phase 0c: skipping site %r (profile + agent context already exist)", name
-            )
+            logger.info("Phase 0c: skipping site %r (profile + agent context already exist)", name)
         else:
             sites_to_profile[name] = files
 
     if not sites_to_profile:
         logger.info("Phase 0c: all sites already profiled, nothing to do")
         return {}
+
+    # Build site_name -> site_url lookup from instances config.
+    instance_urls: dict[str, str] = {}
+    if instances:
+        for inst in instances:
+            if isinstance(inst, dict):
+                name = inst.get("site_name", "")
+                url = inst.get("site_url", "")
+                if name and url:
+                    instance_urls[name] = url
 
     raw_results = await asyncio.gather(
         *[
@@ -629,6 +659,7 @@ async def run_phase_0c(
                 manifest=manifest,
                 timeout=timeout,
                 sandbox_model=sandbox_model,
+                site_url=instance_urls.get(name),
             )
             for name, files in sites_to_profile.items()
         ],
@@ -737,9 +768,7 @@ def _render_correction_block(
         "\n\n--- CORRECTION NEEDED ---\n"
         f"The previous attempt for site {site_name} produced an invalid {artifact_name}.\n"
         "Rewrite the output file completely so it satisfies the schema and all cross-reference checks.\n"
-        "Validation errors:\n"
-        + "\n".join(f"  - {error}" for error in errors)
-        + guidance
+        "Validation errors:\n" + "\n".join(f"  - {error}" for error in errors) + guidance
     )
 
 
@@ -829,12 +858,17 @@ async def _profile_one_site_tiered(
     manifest: dict,
     timeout: int,
     sandbox_model: str,
+    site_url: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
     Tier 1 runs three sandboxes in parallel (A: verification capabilities,
     B: data model, C: agent context). Tier 2 runs one sandbox (D+E: injection
     surface + task coverage) with validated Tier 1 outputs as inputs.
+
+    When *site_url* is provided, a connectivity file is staged into the Tier 2
+    sandbox so the LLM can verify mechanical claims against the live instance.
+    Only the URL is passed, not auth credentials.
     """
     staging_root, staging_dir = _stage_benchmark_files(file_list, benchmark_root, site_name)
     try:
@@ -924,24 +958,34 @@ async def _profile_one_site_tiered(
         (inputs_dir / "VERIFICATION_CAPABILITIES.json").write_text(
             json.dumps(verify_caps, indent=2)
         )
-        (inputs_dir / "DATA_MODEL.json").write_text(
-            json.dumps(data_model, indent=2)
-        )
-        (inputs_dir / "AGENT_CONTEXT.json").write_text(
-            json.dumps(agent_context, indent=2)
-        )
+        (inputs_dir / "DATA_MODEL.json").write_text(json.dumps(data_model, indent=2))
+        (inputs_dir / "AGENT_CONTEXT.json").write_text(json.dumps(agent_context, indent=2))
+
+        # Stage instance connectivity for live verification (URL only, no creds).
+        if site_url:
+            connectivity = {"site_name": site_name, "site_url": site_url}
+            (inputs_dir / "INSTANCE_CONNECTIVITY.json").write_text(
+                json.dumps(connectivity, indent=2)
+            )
+            logger.info(
+                "Phase 0c: site %r tier 2 will have instance connectivity (%s)",
+                site_name,
+                site_url,
+            )
 
         tier2_extra_inputs = {
             "/workspace/inputs/VERIFICATION_CAPABILITIES.json": str(
                 inputs_dir / "VERIFICATION_CAPABILITIES.json"
             ),
-            "/workspace/inputs/DATA_MODEL.json": str(
-                inputs_dir / "DATA_MODEL.json"
-            ),
-            "/workspace/inputs/AGENT_CONTEXT.json": str(
-                inputs_dir / "AGENT_CONTEXT.json"
-            ),
+            "/workspace/inputs/DATA_MODEL.json": str(inputs_dir / "DATA_MODEL.json"),
+            "/workspace/inputs/AGENT_CONTEXT.json": str(inputs_dir / "AGENT_CONTEXT.json"),
         }
+
+        # Only stage connectivity file when an instance URL was provided.
+        if site_url:
+            tier2_extra_inputs["/workspace/inputs/INSTANCE_CONNECTIVITY.json"] = str(
+                inputs_dir / "INSTANCE_CONNECTIVITY.json"
+            )
 
         injection_surface = await _run_tier_json_with_retries(
             site_name=site_name,
@@ -1043,6 +1087,5 @@ def _validate_manifest_eval_types(
     if not unknown:
         return []
     return [
-        "verification capabilities reference eval types absent from manifest: "
-        + ", ".join(unknown)
+        "verification capabilities reference eval types absent from manifest: " + ", ".join(unknown)
     ]

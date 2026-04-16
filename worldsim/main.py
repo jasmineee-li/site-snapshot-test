@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
@@ -580,6 +581,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
                 benchmark=args.benchmark,
                 sub=phase,
                 sandbox_model=args.sandbox_model,
+                instances_path=getattr(args, "instances", None),
             )
         )
     elif phase == "0d":
