@@ -32,7 +32,7 @@ echo ""
 
 python -m eval_awareness_experiments.run_doomarena_pipeline \
     --sites reddit shopping shopping_admin gitlab \
-    --tasks-per-site 20 \
+    --tasks-per-site 25 \
     --agent-model "z-ai/glm-5:thinking" \
     --judge-model "anthropic/claude-opus-4.6:thinking" \
     --judges test_awareness_steering verbalized_awareness \
