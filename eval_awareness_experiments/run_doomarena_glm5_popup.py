@@ -285,6 +285,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=10)
     parser.add_argument("--report-port", type=int, default=1234)
     parser.add_argument("--n-jobs", type=int, default=1)
+    parser.add_argument("--avg-step-timeout", type=int, default=60,
+                        help="Per-step timeout (s). Total per task = max_steps × this. "
+                             "Default 60s → 15min at max_steps=15.")
     return parser.parse_args()
 
 
