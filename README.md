@@ -132,6 +132,27 @@ Phase 0c reads this config, rewrites site URLs to proxy ports, and includes
 `X-Worldsim-Token` in all sandbox curl requests. Without a non-empty token the
 proxy is treated as disabled.
 
+### WebArena setup artifact cold storage (S3)
+
+The initial WebArena instance setup downloads ~265GB of tarballs to
+`/home/ubuntu/downloads` on EC2 (nominatim 117GB, osm_tile 39GB, osrm 20GB,
+wikipedia zim 89GB). Once unpacked into Docker volumes they are redundant for
+running benchmarks, but needed if you want to spin up additional instances or
+rebuild from scratch.
+
+These artifacts live in `s3://benchmark-archives/webarena/` in `us-east-2`
+(Standard-IA tier, around $3/month). The IAM user `worldsim-ec2-benchmark-backup`
+has scoped read/write access on this bucket only.
+
+Restore to EC2 with:
+
+```bash
+./scripts/restore_benchmark_archives_from_s3.sh
+```
+
+Restore takes 10-15 min end-to-end (intra-region transfer is free and fast).
+Checksums are verified on pull. Use `--wiki-only` or `--skip-wiki` to subset.
+
 ## Run
 
 ```bash
