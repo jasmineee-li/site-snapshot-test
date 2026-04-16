@@ -195,19 +195,25 @@ def make_llm(
 
     if provider == "openai":
         try:
-            from browser_use.llm.openai.chat import (
-                ChatOpenAI,
-            )
+            from browser_use.llm.openai.chat import ChatOpenAI
         except ImportError as exc:
             raise RuntimeError(
                 "browser-use is required for the OpenAI provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        # Use the clean wrapper that strips <think> tags from structured output.
-        # Safe for all models (no-op when response is already clean JSON).
-        from worldsim.llm_wrapper import ChatOpenAIClean
-
-        return ChatOpenAIClean.create(model=model, temperature=temperature)
+        # Reasoning models (e.g. gpt-5.4-mini) reject temperature and
+        # frequency_penalty; pass reasoning_effort='none' to suppress think-tag
+        # traces at the API level instead of stripping them client-side.
+        _OPENAI_REASONING_MODELS = ["gpt-5.4-mini"]
+        if any(model == rm or model.endswith("/" + rm) for rm in _OPENAI_REASONING_MODELS):
+            return ChatOpenAI(
+                model=model,
+                temperature=None,
+                frequency_penalty=None,
+                reasoning_effort="none",
+                reasoning_models=_OPENAI_REASONING_MODELS,
+            )
+        return ChatOpenAI(model=model, temperature=temperature)
 
     if provider == "anthropic":
         try:
@@ -236,18 +242,15 @@ def make_llm(
                 "browser-use is required for the OpenRouter provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        # Use the clean wrapper that strips <think> tags from structured output.
-        # The extra_body reasoning.effort override suppresses traces at the API
-        # level; the wrapper is defense-in-depth for when that fails.
-        from worldsim.llm_wrapper import ChatOpenRouterClean
-
+        # _openrouter_overrides passes extra_body with reasoning.effort='none'
+        # for gpt-5.4-mini, suppressing think-tag traces at the API level.
         kwargs: dict[str, Any] = {
             "model": model,
             "temperature": temperature,
             "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
         }
         kwargs.update(_openrouter_overrides(model))
-        return ChatOpenRouterClean.create(**kwargs)
+        return ChatOpenRouter(**kwargs)
 
     raise ValueError(f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
 
