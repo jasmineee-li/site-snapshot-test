@@ -8,12 +8,21 @@ and ``run_tasks_by_site``.
 Supported providers:
 
 - ``google``      -- ``browser_use.llm.google``      (``ChatGoogle``)
-- ``openai``      -- ``browser_use.llm.openai``      (``ChatOpenAI``)
+- ``openai``      -- routed through OpenRouter with BYOK (see below)
 - ``anthropic``   -- ``browser_use.llm.anthropic``   (``ChatAnthropic``)
 - ``openrouter``  -- ``browser_use.llm.openrouter``  (``ChatOpenRouter``)
 
-Auth is via the standard env vars: ``GOOGLE_API_KEY``, ``OPENAI_API_KEY``,
-``ANTHROPIC_API_KEY``, ``OPENROUTER_API_KEY``.
+OpenAI provider and BYOK. The ``openai`` provider alias routes through
+OpenRouter so we get OpenRouter's clean reasoning-separation semantics
+(``message.reasoning`` vs. ``message.content``), which eliminates the
+``<think>`` leakage that native OpenAI Chat Completions produces on
+gpt-5-family reasoning models. Billing flows to the user's own OpenAI key
+via OpenRouter's Bring Your Own Key feature, configured once in the
+OpenRouter dashboard. The per-request ``extra_body.provider.order=["openai"]``
+pin guarantees the OpenAI upstream is used so the BYOK key applies.
+
+Auth is via the standard env vars: ``GOOGLE_API_KEY``, ``OPENROUTER_API_KEY``
+(used for both ``openai`` and ``openrouter`` providers), ``ANTHROPIC_API_KEY``.
 """
 
 from __future__ import annotations
@@ -120,16 +129,29 @@ def _openrouter_overrides(model: str) -> dict[str, Any]:
 
     gpt-5.4-mini emits ``<think>`` reasoning traces in its structured JSON
     output unless ``reasoning.effort`` is set to ``"none"`` via OpenRouter's
-    ``extra_body`` provider extensions.  Setting temperature to ``None`` lets
-    OpenRouter use the model's default (required for reasoning models).
+    provider extensions. Setting temperature to ``None`` lets OpenRouter
+    use the model's default, which is required for reasoning models.
+
+    ``provider.order=["openai"]`` pins the OpenAI upstream so the user's
+    BYOK OpenAI key (configured in the OpenRouter dashboard) is the one
+    billed.
+
+    Note on ``extra_body`` nesting. Browser Use's ``ChatOpenRouter``
+    splats its ``extra_body`` field as top-level kwargs to
+    ``client.chat.completions.create``. To land these fields inside the
+    JSON request body (where OpenRouter expects them), we must nest them
+    under a literal ``extra_body`` key so that after the splat the openai
+    SDK sees ``extra_body={...}`` and forwards the contents as body fields.
     """
     if model in {"gpt-5.4-mini", "openai/gpt-5.4-mini"}:
         return {
             "temperature": None,
             "extra_body": {
-                "reasoning": {"effort": "none"},
-                "verbosity": "medium",
-                "provider": {"order": ["openai"]},
+                "extra_body": {
+                    "reasoning": {"effort": "none"},
+                    "verbosity": "medium",
+                    "provider": {"order": ["openai"]},
+                },
             },
         }
     return {}
@@ -156,9 +178,18 @@ def make_llm(
     """
     provider = resolve_provider(model, provider)
 
+    # ``openai`` is an alias that routes through OpenRouter with BYOK. The
+    # user's OpenAI key is configured once in the OpenRouter dashboard; at
+    # call time we pin the OpenAI upstream via ``provider.order`` so that
+    # BYOK key is the one OpenRouter charges. This gives us OpenRouter's
+    # clean ``message.reasoning`` separation (no ``<think>`` leakage) while
+    # the user still pays OpenAI directly.
+    if provider == "openai":
+        provider = "openrouter"
+        model = _normalize_openrouter_model(model)
+
     _PROVIDER_ENV_VARS = {
         "google": "GOOGLE_API_KEY",
-        "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
     }
     provider_key_var = _PROVIDER_ENV_VARS.get(provider)
@@ -176,7 +207,7 @@ def make_llm(
             provider_key_var,
         )
         provider = "openrouter"
-        prefix_map = {"google": "google/", "openai": "openai/", "anthropic": "anthropic/"}
+        prefix_map = {"google": "google/", "anthropic": "anthropic/"}
         prefix = prefix_map.get(resolve_provider(model, None) or "", "")
         if prefix and not model.startswith(prefix):
             model = prefix + model
@@ -192,28 +223,6 @@ def make_llm(
                 "Install it with: uv pip install browser-use"
             ) from exc
         return ChatGoogle(model=model, temperature=temperature)
-
-    if provider == "openai":
-        try:
-            from browser_use.llm.openai.chat import ChatOpenAI
-        except ImportError as exc:
-            raise RuntimeError(
-                "browser-use is required for the OpenAI provider. "
-                "Install it with: uv pip install browser-use"
-            ) from exc
-        # Reasoning models (e.g. gpt-5.4-mini) reject temperature and
-        # frequency_penalty; pass reasoning_effort='none' to suppress think-tag
-        # traces at the API level instead of stripping them client-side.
-        _OPENAI_REASONING_MODELS = ["gpt-5.4-mini"]
-        if any(model == rm or model.endswith("/" + rm) for rm in _OPENAI_REASONING_MODELS):
-            return ChatOpenAI(
-                model=model,
-                temperature=None,
-                frequency_penalty=None,
-                reasoning_effort="none",
-                reasoning_models=_OPENAI_REASONING_MODELS,
-            )
-        return ChatOpenAI(model=model, temperature=temperature)
 
     if provider == "anthropic":
         try:
@@ -242,8 +251,11 @@ def make_llm(
                 "browser-use is required for the OpenRouter provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        # _openrouter_overrides passes extra_body with reasoning.effort='none'
-        # for gpt-5.4-mini, suppressing think-tag traces at the API level.
+        # ``_openrouter_overrides`` sets ``extra_body.reasoning.effort='none'``
+        # for gpt-5.4-mini so OpenRouter suppresses reasoning tokens server
+        # side and ``message.content`` arrives as clean JSON. It also pins
+        # ``provider.order=["openai"]`` so the user's BYOK OpenAI key is the
+        # one billed.
         kwargs: dict[str, Any] = {
             "model": model,
             "temperature": temperature,
