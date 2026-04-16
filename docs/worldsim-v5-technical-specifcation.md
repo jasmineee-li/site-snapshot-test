@@ -167,7 +167,7 @@ async def run_claude_in_sandbox(
 
 **Structured event logging.** The SDK runner inside each sandbox streams NDJSON events to stdout as Claude Code executes. The orchestrator parses these in real time, logging tool calls and text previews. On long-running sandboxes, especially multi-hour Phase 2 and Phase 0c runs, the orchestrator must drain stdout and stderr concurrently. Serial draining can wedge Modal's background stream readers and leave the orchestrator waiting forever even after the sandbox has finished its work. When the run completes, the SDK yields a ``ResultMessage`` with ``total_cost_usd``, ``num_turns``, ``session_id``, ``duration_ms``, and per-model token breakdowns. This metadata is attached to the return dict under the ``"_summary"`` key, giving callers access to cost and usage data without changing the file-based output contract.
 
-**Operational model note.** For MVP operations, WorldSim uses ``claude-sonnet-4-6`` first for smoke tests, long profiling runs, and cost-sensitive pipeline passes. ``claude-opus-4-6`` remains a follow-up option for confirmation runs once the pipeline behavior is stable.
+**Operational model note.** For MVP operations, WorldSim keeps ``claude-sonnet-4-6`` as the default sandbox model for Modal prompt-generation, profiling, and diagnosis passes. For Browser Use agent smoke tests and the default cost-sensitive eval path, use ``gpt-5.4-mini`` via OpenRouter first. ``claude-opus-4-6`` remains a follow-up option for confirmation runs once the pipeline behavior is stable.
 
 ### In-Sandbox Output Validation
 

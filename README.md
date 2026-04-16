@@ -92,6 +92,11 @@ Phases 0, 1, and 2 only need the benchmark **codebase** on disk, not running ins
 # Phase 0 against WebArena Verified (reads the codebase, no running services needed)
 uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
 
+# Phase 3/4 Browser Use agents can use GPT-5.4-mini through OpenRouter
+export OPENROUTER_API_KEY=sk-or-v1-...
+uv run python -m worldsim.main phase 3 --instances instances.json \
+  --agent-provider openrouter --agent-model gpt-5.4-mini
+
 # Phase 2 runs two internal stages sequentially:
 # 2a plan generation in Modal sandboxes, then 2b host-side text fill.
 uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified

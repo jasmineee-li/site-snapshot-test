@@ -91,7 +91,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--agent-model",
         default=DEFAULT_AGENT_MODEL,
         help=f"LLM model name for Browser Use agent (default: {DEFAULT_AGENT_MODEL}). "
-        "Examples: gpt-5.4, claude-sonnet-4-6, gemini-3-flash-preview, gemini-3.1-pro-preview.",
+        "Examples: gpt-5.4, gpt-5.4-mini (with --agent-provider openrouter), "
+        "claude-sonnet-4-6, gemini-3-flash-preview, gemini-3.1-pro-preview.",
     )
     phase_cmd.add_argument(
         "--sandbox-model",
@@ -105,7 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=AGENT_PROVIDER_CHOICES,
         help="LLM provider (default: auto-detect from model name). "
         "Requires the corresponding env var: GOOGLE_API_KEY, OPENAI_API_KEY, "
-        "or ANTHROPIC_API_KEY.",
+        "ANTHROPIC_API_KEY, or OPENROUTER_API_KEY.",
     )
     phase_cmd.add_argument(
         "--full-baseline",

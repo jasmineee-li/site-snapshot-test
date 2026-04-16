@@ -59,8 +59,8 @@ Mechanism unproven; behavior reproducible. Justifies the Phase 2b decomposition 
 2. Clean up contaminated state (nuke `logs/phase_2/shards/` — OpenRouter-generated, research-integrity concern)
 3. Phase 2 run (2a then 2b sequentially) → audit plans and payloads (≥60 plans, ≥20 cells, 5 sites; ≥95% first-attempt text-fill success, ≤5% OAuth fallback)
 5. Phase 3 gitlab smoke (critical patch-validation checkpoint)
-6. Phase 3 full on Sonnet (~$75, 3–8 hr)
-7. Phase 4 full on Sonnet (~$20–60)
+6. Phase 3 full on `gpt-5.4-mini` via OpenRouter (budget TBD after smoke, 3–8 hr)
+7. Phase 4 full on `gpt-5.4-mini` via OpenRouter (budget TBD after smoke)
 8. Per-cell ASR analysis; archive to `logs/paper_run_v1/`; produce `docs/paper_run_v1_summary.md`
 
 ### Cost ledger (sunk, updated)
@@ -356,7 +356,8 @@ model upgrades.
    attack-effectiveness judgments. Budget ~$20-40 on this cohort at
    gemini-3-flash rates, more on Opus.
 2. **Swap to a stronger agent model and rerun Phase 3 on the same 12.** Try
-   `claude-opus-4-6`, `claude-sonnet-4-6`, or `openrouter/openai/gpt-5`. Our
+   `gpt-5.4-mini` via OpenRouter first, then `claude-opus-4-6` or
+   `claude-sonnet-4-6` as comparison paths. Our
    trajectory audits showed multiple tasks where gemini-3-flash got the
    right answer but ignored the JSON schema, so format-following alone should
    flip several passes.

@@ -348,11 +348,12 @@ New optional generator script for gitlab: `scripts/phase_0d/bootstrap_gitlab_pat
 
 ### Goal
 
-Run Phase 3 and Phase 4 against three target models: `claude-sonnet-4-6` (primary MVP smoke), `gemini-3.1-pro-preview` (secondary), `claude-opus-4-6` (final cohort). Sandbox model (for Phase 0c, Phase 2, Phase 3 diagnosis) stays `claude-sonnet-4-6`.
+Run Phase 3 and Phase 4 against three target models: `gpt-5.4-mini` via OpenRouter (primary MVP smoke / golden smoke path), `gemini-3.1-pro-preview` (secondary), `claude-opus-4-6` (final cohort). Sandbox model (for Phase 0c, Phase 2, Phase 3 diagnosis) stays `claude-sonnet-4-6`.
 
 ### Readiness per model
 
-- **claude-sonnet-4-6**: working. Confirmed in `logs/phase_3/20260414_022611/` run (5/12 pass). Routes via Anthropic tool-calling through OpenRouter's `/v1/messages` using `_anthropic_proxy_env` helper at `worldsim/agent_config.py:100-106` (commit c56f473).
+- **gpt-5.4-mini**: working. Explicit OpenRouter support is wired in `worldsim/agent_config.py`; both `gpt-5.4-mini` and `openai/gpt-5.4-mini` resolve to the same OpenRouter path and use the docs-aligned fair-test baseline (`reasoning.effort=none`, `verbosity=medium`, no repo-specific temperature override).
+- **claude-sonnet-4-6**: working. Confirmed in `logs/phase_3/20260414_022611/` run (5/12 pass). Routes via Anthropic tool-calling through OpenRouter's `/v1/messages` using `_anthropic_proxy_env` helper. Keep available as a comparison path, not the golden smoke default.
 - **claude-opus-4-6**: untested but same path. `detect_provider` returns `anthropic` (prefix `claude`), proxy kicks in, `ChatAnthropic(model="claude-opus-4-6", base_url, auth_token)` identical to Sonnet. Quirk: `ChatAnthropic.max_tokens` defaults to 8192 at `.venv/.../browser_use/llm/anthropic/chat.py:40`; Opus can emit more on complex trajectories but MVP smoke should work.
 - **gemini-3.1-pro-preview**: routes via OpenRouter (`google/gemini-3.1-pro-preview`). Risk: OpenRouter path uses OpenAI-style `response_format: json_schema` which Anthropic rejected (commit c56f473); Gemini 3.1 Pro may hit similar schema validation. Smoke will tell us.
 
@@ -370,15 +371,15 @@ Verify OpenRouter pricing at openrouter.ai before committing Opus budget.
 
 ### Smoke test plan
 
-1. LLM-only smoke (~30s, ~$0.001 each):
+1. LLM-only smoke (~30s, cheap):
    ```
    uv run python -c "
    import asyncio
    from worldsim.agent_config import make_llm
    from browser_use.llm.messages import UserMessage
    async def main():
-       for slug in ['gemini-3.1-pro-preview', 'claude-opus-4-6']:
-           llm = make_llm(slug)
+       for slug, provider in [('gpt-5.4-mini', 'openrouter'), ('gemini-3.1-pro-preview', None), ('claude-opus-4-6', None)]:
+           llm = make_llm(slug, provider=provider)
            print(slug, type(llm).__name__)
            r = await llm.ainvoke([UserMessage(content='Reply with: pong')])
            print(' ->', r.completion)
@@ -390,11 +391,12 @@ Verify OpenRouter pricing at openrouter.ai before committing Opus budget.
    uv run python -m worldsim.main phase 3 \
      --benchmark vendors/webarena-verified \
      --instances instances.json \
-     --agent-model gemini-3.1-pro-preview \
+     --agent-provider openrouter \
+     --agent-model gpt-5.4-mini \
      --max-tasks-per-site 1 \
      --sites gitlab
    ```
-   Then repeat with `--agent-model claude-opus-4-6`.
+   Then repeat with `--agent-model gemini-3.1-pro-preview` and `--agent-model claude-opus-4-6` if the golden smoke passes.
 3. Verify per-task `result.json` has `passed`, `final_result` non-null, `network_trace.json` non-empty.
 
 ### CLI flag addition
@@ -469,14 +471,14 @@ Footnote for Jasmine/Max to confirm:
 
 - LLM-only smoke for gemini-3.1-pro-preview and claude-opus-4-6.
 - Single-task Phase 3 smoke for gemini-3.1-pro-preview on gitlab.
-- If smoke passes: Phase 3 full on claude-sonnet-4-6 across all 60 benign tasks. Budget: ~$75. Wall-clock: 3-8 hrs.
+- If smoke passes: Phase 3 full on `gpt-5.4-mini` via OpenRouter across all 60 benign tasks. Re-estimate budget from the smoke run rather than reusing the older Sonnet 4.6 numbers.
 - Triage results. Write `logs/phase_3/validated_tasks.json`.
 
-### Day 5: Phase 4 full on sonnet + triage
+### Day 5: Phase 4 full on GPT-5.4-mini + triage
 
-- Phase 4 full on `claude-sonnet-4-6` against validated cohort. Budget: $20-60. Wall-clock: 1-3 hrs.
+- Phase 4 full on `gpt-5.4-mini` via OpenRouter against validated cohort. Re-estimate budget from the smoke run rather than reusing the older Sonnet 4.6 numbers.
 - First-pass analysis: per-framing ASR, per-concealment ASR, per-site ASR.
-- Decide whether Opus run is justified based on Sonnet results.
+- Decide whether Opus run is justified based on GPT-5.4-mini results.
 
 ## Risks and mitigations
 

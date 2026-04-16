@@ -421,6 +421,54 @@ def test_make_llm_openrouter_model_no_fallback_needed():
         )
 
 
+def test_make_llm_openrouter_normalizes_unprefixed_gpt54_mini():
+    """Explicit OpenRouter provider normalizes GPT-5.4 mini to an OpenRouter slug."""
+    env = _env_without("OPENAI_API_KEY")
+    env["OPENROUTER_API_KEY"] = "or-test-key"
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.openrouter", "ChatOpenRouter"
+    )
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", modules),
+    ):
+        make_llm(model="gpt-5.4-mini", provider="openrouter")
+        mock_chat_cls.assert_called_once_with(
+            model="openai/gpt-5.4-mini",
+            temperature=None,
+            api_key="or-test-key",
+            extra_body={
+                "reasoning": {"effort": "none"},
+                "verbosity": "medium",
+                "provider": {"order": ["openai"]},
+            },
+        )
+
+
+def test_make_llm_openrouter_preserves_prefixed_gpt54_mini():
+    """Explicit OpenRouter provider keeps an already-prefixed GPT-5.4 mini slug."""
+    env = _env_without("OPENAI_API_KEY")
+    env["OPENROUTER_API_KEY"] = "or-test-key"
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.openrouter", "ChatOpenRouter"
+    )
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", modules),
+    ):
+        make_llm(model="openai/gpt-5.4-mini", provider="openrouter")
+        mock_chat_cls.assert_called_once_with(
+            model="openai/gpt-5.4-mini",
+            temperature=None,
+            api_key="or-test-key",
+            extra_body={
+                "reasoning": {"effort": "none"},
+                "verbosity": "medium",
+                "provider": {"order": ["openai"]},
+            },
+        )
+
+
 def test_make_llm_falls_back_to_openrouter_for_openai_model():
     """OpenAI model + no OPENAI_API_KEY + OPENROUTER_API_KEY → OpenRouter."""
     env = _env_without("OPENAI_API_KEY")
@@ -435,6 +483,30 @@ def test_make_llm_falls_back_to_openrouter_for_openai_model():
         llm = make_llm(model="gpt-4o")
         mock_chat_cls.assert_called_once_with(
             model="openai/gpt-4o", temperature=0, api_key="or-test-key"
+        )
+
+
+def test_make_llm_falls_back_to_openrouter_for_gpt54_mini_with_docs_aligned_defaults():
+    """GPT-5.4 mini fallback uses OpenRouter with the fair-test baseline settings."""
+    env = _env_without("OPENAI_API_KEY")
+    env["OPENROUTER_API_KEY"] = "or-test-key"
+    mock_chat_cls, modules = _mock_browser_use_module(
+        "browser_use.llm.openrouter", "ChatOpenRouter"
+    )
+    with (
+        patch.dict(os.environ, env, clear=True),
+        patch.dict("sys.modules", modules),
+    ):
+        make_llm(model="gpt-5.4-mini")
+        mock_chat_cls.assert_called_once_with(
+            model="openai/gpt-5.4-mini",
+            temperature=None,
+            api_key="or-test-key",
+            extra_body={
+                "reasoning": {"effort": "none"},
+                "verbosity": "medium",
+                "provider": {"order": ["openai"]},
+            },
         )
 
 

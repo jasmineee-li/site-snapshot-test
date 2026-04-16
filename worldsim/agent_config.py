@@ -106,6 +106,31 @@ def _anthropic_proxy_env() -> tuple[str, str] | None:
     return (base, auth) if base and auth else None
 
 
+def _normalize_openrouter_model(model: str) -> str:
+    """Normalize known OpenAI-family slugs for explicit OpenRouter usage."""
+    if "/" in model:
+        return model
+    if model.startswith("gpt-"):
+        return f"openai/{model}"
+    return model
+
+
+def _openrouter_overrides(model: str) -> dict[str, Any]:
+    """Return OpenRouter-specific overrides for fair-test baselines."""
+    if model in {"gpt-5.4-mini", "openai/gpt-5.4-mini"}:
+        return {
+            "temperature": None,
+            "extra_body": {
+                "reasoning": {"effort": "none"},
+                "verbosity": "medium",
+                "provider": {
+                    "order": ["openai"],
+                },
+            },
+        }
+    return {}
+
+
 def make_llm(
     model: str = DEFAULT_MODEL,
     provider: str | None = None,
@@ -151,6 +176,8 @@ def make_llm(
         prefix = prefix_map.get(resolve_provider(model, None) or "", "")
         if prefix and not model.startswith(prefix):
             model = prefix + model
+    elif provider == "openrouter":
+        model = _normalize_openrouter_model(model)
 
     if provider == "google":
         try:
@@ -199,11 +226,13 @@ def make_llm(
                 "browser-use is required for the OpenRouter provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        return ChatOpenRouter(
-            model=model,
-            temperature=temperature,
-            api_key=os.environ.get("OPENROUTER_API_KEY", ""),
-        )
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "temperature": temperature,
+            "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
+        }
+        kwargs.update(_openrouter_overrides(model))
+        return ChatOpenRouter(**kwargs)
 
     raise ValueError(f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
 
