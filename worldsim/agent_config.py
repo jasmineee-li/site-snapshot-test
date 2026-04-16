@@ -116,10 +116,21 @@ def _normalize_openrouter_model(model: str) -> str:
 
 
 def _openrouter_overrides(model: str) -> dict[str, Any]:
-    """Return OpenRouter-specific overrides for fair-test baselines."""
+    """Return OpenRouter-specific overrides for fair-test baselines.
+
+    gpt-5.4-mini emits ``<think>`` reasoning traces in its structured JSON
+    output unless ``reasoning.effort`` is set to ``"none"`` via OpenRouter's
+    ``extra_body`` provider extensions.  Setting temperature to ``None`` lets
+    OpenRouter use the model's default (required for reasoning models).
+    """
     if model in {"gpt-5.4-mini", "openai/gpt-5.4-mini"}:
         return {
             "temperature": None,
+            "extra_body": {
+                "reasoning": {"effort": "none"},
+                "verbosity": "medium",
+                "provider": {"order": ["openai"]},
+            },
         }
     return {}
 
@@ -184,13 +195,19 @@ def make_llm(
 
     if provider == "openai":
         try:
-            from browser_use.llm.openai.chat import ChatOpenAI
+            from browser_use.llm.openai.chat import (
+                ChatOpenAI,
+            )
         except ImportError as exc:
             raise RuntimeError(
                 "browser-use is required for the OpenAI provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        return ChatOpenAI(model=model, temperature=temperature)
+        # Use the clean wrapper that strips <think> tags from structured output.
+        # Safe for all models (no-op when response is already clean JSON).
+        from worldsim.llm_wrapper import ChatOpenAIClean
+
+        return ChatOpenAIClean.create(model=model, temperature=temperature)
 
     if provider == "anthropic":
         try:
@@ -219,13 +236,18 @@ def make_llm(
                 "browser-use is required for the OpenRouter provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
+        # Use the clean wrapper that strips <think> tags from structured output.
+        # The extra_body reasoning.effort override suppresses traces at the API
+        # level; the wrapper is defense-in-depth for when that fails.
+        from worldsim.llm_wrapper import ChatOpenRouterClean
+
         kwargs: dict[str, Any] = {
             "model": model,
             "temperature": temperature,
             "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
         }
         kwargs.update(_openrouter_overrides(model))
-        return ChatOpenRouter(**kwargs)
+        return ChatOpenRouterClean.create(**kwargs)
 
     raise ValueError(f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
 
