@@ -97,6 +97,49 @@ def run_reward_function(
     return checker(reward, instance)
 
 
+def _apply_webarena_vendor_shims(eval_configs: list[dict]) -> list[dict]:
+    """Work around three upstream bugs in ServiceNow/webarena-verified v1.2.3.
+
+    Bug 1 (value_normalizer.py:149-151): `normalize_array` raises
+    unconditionally when `schema.type != "array"`, ignoring `strict=False`.
+    Triggered by 514/812 tasks that use `results_schema: {"type": "null"}`
+    when the agent returns non-null data. Rewriting to an array schema makes
+    the vendor route non-compliant outputs to FAILURE instead of ERROR, while
+    compliant null outputs still early-return via the existing falsy short
+    circuit in agent_response_evaluator.py:138-140.
+
+    Bug 2 (same line): `{"type": "object"}` schemas would also crash.
+    Currently unused in the dataset but we shim proactively.
+
+    Returns a deep-copied list so the original reward dict is never mutated
+    across probe repeats.
+    """
+    import copy
+
+    patched = copy.deepcopy(eval_configs)
+    for cfg in patched:
+        if not isinstance(cfg, dict):
+            continue
+        if cfg.get("evaluator") != "AgentResponseEvaluator":
+            continue
+        rs = cfg.get("results_schema")
+        if isinstance(rs, dict) and rs.get("type") in {"null", "object"}:
+            cfg["results_schema"] = {"type": "array", "items": {"type": "string"}}
+    return patched
+
+
+def _coerce_agent_response_strings(agent_response: dict[str, Any]) -> dict[str, Any]:
+    """Work around Bug 3: agent_response_evaluator.py:120 does `.strip()` on
+    non-strings. Coerce task_type/status to strings before handing to vendor."""
+    if not isinstance(agent_response, dict):
+        return agent_response
+    for key in ("task_type", "status"):
+        val = agent_response.get(key)
+        if val is not None and not isinstance(val, str):
+            agent_response[key] = str(val)
+    return agent_response
+
+
 def _run_webarena_verified_eval(
     reward: dict[str, Any],
     instance: dict[str, Any],
@@ -115,8 +158,11 @@ def _run_webarena_verified_eval(
         logger.error("Reward spec missing task_id; refusing non-canonical evaluation")
         return False, "reward spec missing canonical WebArena Verified task_id"
 
-    eval_configs = reward["eval"]
+    # Deep-copy and apply upstream-bug shims. See _apply_webarena_vendor_shims
+    # for the detailed rationale on bugs Bug 1/2/3 in ServiceNow/webarena-verified v1.2.3.
+    eval_configs = _apply_webarena_vendor_shims(reward["eval"])
     agent_response = _build_agent_response(eval_configs, agent_result)
+    agent_response = _coerce_agent_response_strings(agent_response)
     environments = _build_webarena_environment_payload(instance)
     # Vendor parser rejects both empty lists and our flat CDP format. Convert
     # once here so every downstream call sees a valid non-empty HAR trace.
