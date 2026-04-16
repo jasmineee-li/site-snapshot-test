@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import re
 from html.parser import HTMLParser
@@ -22,6 +23,8 @@ import requests
 
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import validate_data_seed
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TEXT_FILL_MODEL = "anthropic/claude-sonnet-4.5"
 DEFAULT_TEXT_FILL_CONCURRENCY = 20
@@ -88,15 +91,105 @@ def derive_required_tokens(task_id: str) -> list[dict[str, str]]:
     ]
 
 
-def resolve_site_kind(registry: dict[str, Any], site: str, target_surface_id: str) -> str:
-    surfaces = registry.get("surface_site_kinds")
-    if not isinstance(surfaces, dict):
-        raise ValueError("voice exemplar registry missing surface_site_kinds object")
-    key = f"{site}:{target_surface_id}"
-    site_kind = surfaces.get(key)
-    if not isinstance(site_kind, str) or not site_kind.strip():
-        raise ValueError(f"no voice exemplar mapping for surface {key!r}")
-    return site_kind
+# ---------------------------------------------------------------------------
+# Source-field suffix -> semantic category pattern matching
+# ---------------------------------------------------------------------------
+# Maps the trailing field name from a source_field like "Entity.field" to a
+# semantic category that determines length budget. The site determines which
+# voice exemplar bank to use.
+_SUFFIX_TO_CATEGORY: list[tuple[tuple[str, ...], str]] = [
+    (("title", "name"), "short_title"),
+    (("description", "body", "detail", "sidebar"), "long_body"),
+    (("note", "comment", "message"), "comment"),
+    (("bio", "biography"), "user_profile"),
+    (("nickname", "username", "firstname", "lastname", "email"), "identifier"),
+    (("content",), "code_content"),
+]
+
+_CATEGORY_LENGTH_BUDGETS: dict[str, dict[str, int]] = {
+    "short_title": {"min": 16, "max": 100},
+    "long_body": {"min": 80, "max": 1500},
+    "comment": {"min": 40, "max": 800},
+    "user_profile": {"min": 40, "max": 600},
+    "identifier": {"min": 4, "max": 60},
+    "code_content": {"min": 40, "max": 2000},
+}
+
+# site -> site_kind used for voice exemplar selection
+_SITE_TO_SITE_KIND: dict[str, str] = {
+    "shopping": "marketplace_review",
+    "shopping_admin": "admin_backoffice",
+    "gitlab": "developer_collab",
+    "reddit": "forum_ugc",
+    "map": "map_ugc",
+}
+
+
+def _classify_source_field(source_field: str) -> str:
+    """Derive a semantic category from a source_field suffix.
+
+    Accepts formats like ``Entity.field`` or ``entity.field_name``.  Falls
+    back to ``long_body`` when no suffix pattern matches so that tasks are
+    never dropped.
+    """
+    if "." not in source_field:
+        logger.warning(
+            "source_field %r has no dot-separated suffix, defaulting to long_body",
+            source_field,
+        )
+        return "long_body"
+    _, _, suffix = source_field.rpartition(".")
+    suffix_lower = suffix.lower()
+    # Check each suffix group; a field like "short_description" should match
+    # "description" via endswith, while "title" matches exactly.
+    for suffixes, category in _SUFFIX_TO_CATEGORY:
+        for candidate in suffixes:
+            if suffix_lower == candidate or suffix_lower.endswith(f"_{candidate}"):
+                return category
+    logger.warning(
+        "source_field %r suffix %r matched no pattern, defaulting to long_body",
+        source_field,
+        suffix,
+    )
+    return "long_body"
+
+
+def resolve_site_kind(
+    registry: dict[str, Any],
+    site: str,
+    target_surface_id: str,
+    *,
+    source_field: str | None = None,
+) -> str:
+    """Resolve the voice exemplar site_kind for a given surface.
+
+    Uses the ``source_field`` suffix to determine the semantic category, then
+    maps the site to an existing voice exemplar bank.  Falls back gracefully
+    when ``source_field`` is absent or has no dot separator.
+    """
+    # Determine which voice exemplar bank to use based on site
+    site_kind = _SITE_TO_SITE_KIND.get(site)
+    if site_kind is None:
+        # Unknown site: pick a reasonable default
+        logger.warning(
+            "no site_kind mapping for site %r, defaulting to marketplace_review",
+            site,
+        )
+        site_kind = "marketplace_review"
+    # Validate it exists in registry
+    site_kinds = registry.get("site_kinds")
+    if isinstance(site_kinds, dict) and site_kind in site_kinds:
+        return site_kind
+    # Last-resort: return the first available site_kind
+    if isinstance(site_kinds, dict) and site_kinds:
+        fallback = next(iter(site_kinds))
+        logger.warning(
+            "site_kind %r missing from registry, using %r",
+            site_kind,
+            fallback,
+        )
+        return fallback
+    raise ValueError("voice exemplar registry has no site_kinds entries")
 
 
 def derive_length_budget(
@@ -105,15 +198,20 @@ def derive_length_budget(
     registry: dict[str, Any],
 ) -> dict[str, Any]:
     source = "fallback_default"
+    # Resolve source_field from the site profile surface, or use the task-level value
+    resolved_source_field: str | None = task.get("source_field")
+    surface = _find_surface_by_id(site_profile, str(task.get("target_surface_id", "")))
+    if isinstance(surface, dict) and resolved_source_field is None:
+        resolved_source_field = surface.get("source_field")
     exemplar_budget = _exemplar_length_budget(
         registry,
         site=str(task.get("site", "")),
         target_surface_id=str(task.get("target_surface_id", "")),
+        source_field=resolved_source_field,
     )
     max_chars: int | None = None
-    surface = _find_surface_by_id(site_profile, str(task.get("target_surface_id", "")))
     if isinstance(surface, dict):
-        source_field = surface.get("source_field")
+        source_field = resolved_source_field
         if isinstance(source_field, str) and "." in source_field:
             entity_name, _, field_name = source_field.partition(".")
             field_type = _field_type(site_profile, entity_name, field_name)
@@ -250,6 +348,7 @@ async def _generate_single_payload(
         registry,
         site=str(task.get("site", "")),
         target_surface_id=str(task.get("target_surface_id", "")),
+        source_field=task.get("source_field"),
     )
     exemplars = _select_exemplars(
         registry,
@@ -676,8 +775,21 @@ def _exemplar_length_budget(
     *,
     site: str,
     target_surface_id: str,
+    source_field: str | None = None,
 ) -> dict[str, Any] | None:
-    site_kind = resolve_site_kind(registry, site, target_surface_id)
+    # Prefer category-based budget from source_field pattern matching
+    if isinstance(source_field, str) and source_field.strip():
+        category = _classify_source_field(source_field)
+        cat_budget = _CATEGORY_LENGTH_BUDGETS.get(category)
+        if cat_budget is not None:
+            return dict(cat_budget)
+    # Fall back to the exemplar payload's length_budget
+    site_kind = resolve_site_kind(
+        registry,
+        site,
+        target_surface_id,
+        source_field=source_field,
+    )
     payload = _load_site_kind_payload(registry, site_kind)
     budget = payload.get("length_budget")
     return budget if isinstance(budget, dict) else None

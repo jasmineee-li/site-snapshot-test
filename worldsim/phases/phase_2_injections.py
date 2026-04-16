@@ -1051,6 +1051,17 @@ def _enrich_adversarial_plans(
         )
         updated = json.loads(json.dumps(plan))
         updated["delivery_channel"] = delivery_channel
+        # Propagate source_field from the site profile onto the task so that
+        # downstream voice/budget resolution can pattern-match on it without
+        # needing the full site_profile.
+        surface = _find_surface_by_id(
+            site_profile,
+            str(plan.get("target_surface_id", "")),
+        )
+        if isinstance(surface, dict):
+            sf = surface.get("source_field")
+            if isinstance(sf, str) and sf.strip():
+                updated["source_field"] = sf
         delivery_site = delivery_channel.get("delivery_site")
         if isinstance(delivery_site, str) and delivery_site.strip():
             sites = [

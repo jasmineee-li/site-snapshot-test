@@ -385,3 +385,210 @@ async def test_fill_one_task_regenerates_when_cached_payload_is_invalid(monkeypa
     assert diag["status"] == "ok"
     assert finalized["payload_texts"][0]["rendered_payload"] == regenerated["rendered_payload"]
     assert any(error["error"] == "cached_payload_invalid" for error in diag["attempts"])
+
+
+# ---------------------------------------------------------------------------
+# _classify_source_field pattern matching
+# ---------------------------------------------------------------------------
+
+
+class TestClassifySourceField:
+    def test_title_suffix(self):
+        assert phase_2_text_fill._classify_source_field("issues.title") == "short_title"
+
+    def test_name_suffix(self):
+        assert phase_2_text_fill._classify_source_field("products.name") == "short_title"
+
+    def test_compound_short_description(self):
+        assert phase_2_text_fill._classify_source_field("products.short_description") == "long_body"
+
+    def test_body_suffix(self):
+        assert phase_2_text_fill._classify_source_field("submissions.body") == "long_body"
+
+    def test_detail_suffix(self):
+        assert phase_2_text_fill._classify_source_field("reviews.detail") == "long_body"
+
+    def test_sidebar_suffix(self):
+        assert phase_2_text_fill._classify_source_field("forums.sidebar") == "long_body"
+
+    def test_note_suffix(self):
+        assert phase_2_text_fill._classify_source_field("notes.note") == "comment"
+
+    def test_comment_suffix(self):
+        assert phase_2_text_fill._classify_source_field("changeset_tags.comment") == "comment"
+
+    def test_message_suffix(self):
+        assert phase_2_text_fill._classify_source_field("commits.message") == "comment"
+
+    def test_bio_suffix(self):
+        assert phase_2_text_fill._classify_source_field("users.bio") == "user_profile"
+
+    def test_biography_suffix(self):
+        assert phase_2_text_fill._classify_source_field("users.biography") == "user_profile"
+
+    def test_nickname_suffix(self):
+        assert phase_2_text_fill._classify_source_field("reviews.nickname") == "identifier"
+
+    def test_username_suffix(self):
+        assert phase_2_text_fill._classify_source_field("users.username") == "identifier"
+
+    def test_firstname_suffix(self):
+        assert phase_2_text_fill._classify_source_field("customers.firstname") == "identifier"
+
+    def test_lastname_suffix(self):
+        assert phase_2_text_fill._classify_source_field("customers.lastname") == "identifier"
+
+    def test_email_suffix(self):
+        assert phase_2_text_fill._classify_source_field("customers.email") == "identifier"
+
+    def test_content_suffix(self):
+        assert (
+            phase_2_text_fill._classify_source_field("repository_files.content") == "code_content"
+        )
+
+    def test_unknown_suffix_defaults_to_long_body(self):
+        assert phase_2_text_fill._classify_source_field("foo.unknown_field") == "long_body"
+
+    def test_no_dot_defaults_to_long_body(self):
+        assert phase_2_text_fill._classify_source_field("HTTP query parameter 'q'") == "long_body"
+
+    def test_description_suffix(self):
+        assert phase_2_text_fill._classify_source_field("projects.description") == "long_body"
+
+    def test_url_suffix_defaults_to_long_body(self):
+        assert phase_2_text_fill._classify_source_field("submissions.url") == "long_body"
+
+    def test_street_suffix_defaults_to_long_body(self):
+        assert phase_2_text_fill._classify_source_field("order_addresses.street") == "long_body"
+
+
+# ---------------------------------------------------------------------------
+# resolve_site_kind with source_field
+# ---------------------------------------------------------------------------
+
+
+class TestResolveSiteKind:
+    def test_shopping_maps_to_marketplace_review(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        kind = phase_2_text_fill.resolve_site_kind(
+            registry,
+            "shopping",
+            "anything",
+            source_field="reviews.detail",
+        )
+        assert kind == "marketplace_review"
+
+    def test_gitlab_maps_to_developer_collab(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        kind = phase_2_text_fill.resolve_site_kind(
+            registry,
+            "gitlab",
+            "anything",
+            source_field="issues.title",
+        )
+        assert kind == "developer_collab"
+
+    def test_reddit_maps_to_forum_ugc(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        kind = phase_2_text_fill.resolve_site_kind(
+            registry,
+            "reddit",
+            "anything",
+            source_field="comments.body",
+        )
+        assert kind == "forum_ugc"
+
+    def test_map_maps_to_map_ugc(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        kind = phase_2_text_fill.resolve_site_kind(
+            registry,
+            "map",
+            "anything",
+            source_field="notes.note",
+        )
+        assert kind == "map_ugc"
+
+    def test_shopping_admin_maps_to_admin_backoffice(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        kind = phase_2_text_fill.resolve_site_kind(
+            registry,
+            "shopping_admin",
+            "anything",
+            source_field="reviews.title",
+        )
+        assert kind == "admin_backoffice"
+
+    def test_unknown_site_falls_back_gracefully(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        kind = phase_2_text_fill.resolve_site_kind(
+            registry,
+            "unknown_site",
+            "anything",
+            source_field="foo.title",
+        )
+        # Should not raise, should return a valid site_kind
+        assert kind in registry["site_kinds"]
+
+    def test_no_source_field_still_resolves(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        kind = phase_2_text_fill.resolve_site_kind(
+            registry,
+            "shopping",
+            "anything",
+        )
+        assert kind == "marketplace_review"
+
+
+# ---------------------------------------------------------------------------
+# _exemplar_length_budget with source_field category budgets
+# ---------------------------------------------------------------------------
+
+
+class TestExemplarLengthBudgetWithSourceField:
+    def test_title_field_gets_short_budget(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        budget = phase_2_text_fill._exemplar_length_budget(
+            registry,
+            site="shopping",
+            target_surface_id="x",
+            source_field="issues.title",
+        )
+        assert budget is not None
+        assert budget["min"] == 16
+        assert budget["max"] == 100
+
+    def test_body_field_gets_long_budget(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        budget = phase_2_text_fill._exemplar_length_budget(
+            registry,
+            site="shopping",
+            target_surface_id="x",
+            source_field="reviews.detail",
+        )
+        assert budget is not None
+        assert budget["min"] == 80
+        assert budget["max"] == 1500
+
+    def test_identifier_field_gets_narrow_budget(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        budget = phase_2_text_fill._exemplar_length_budget(
+            registry,
+            site="shopping",
+            target_surface_id="x",
+            source_field="customers.email",
+        )
+        assert budget is not None
+        assert budget["min"] == 4
+        assert budget["max"] == 60
+
+    def test_no_source_field_falls_back_to_exemplar_payload(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        budget = phase_2_text_fill._exemplar_length_budget(
+            registry,
+            site="shopping",
+            target_surface_id="x",
+        )
+        # Falls back to the marketplace_review.json length_budget
+        assert budget is not None
+        assert "min" in budget
+        assert "max" in budget
