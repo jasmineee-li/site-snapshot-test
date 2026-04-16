@@ -19,6 +19,12 @@ env/
 .env.local
 .env.*.local
 
+# Benchmark host secrets (EC2 instance id, proxy token, AWS creds)
+.benchmark_host_id
+.proxy_token
+aws-credentials
+aws-credentials.*
+
 # Modal
 .modal/
 

@@ -1,0 +1,146 @@
+# scale_config.yml - source of truth for the r5.8xlarge 30-replica scale-out.
+#
+# Read by scripts/generate_compose_scale.py, which emits:
+#   - docker-compose.yml (scale or smoke variant)
+#   - proxy_ports.conf   (nginx port map for deploy_benchmark_proxy.sh)
+#   - instances.json.fragment ("instances" array for instances.json)
+#
+# Port scheme (per docs/migration/r5-8xlarge-scale-migration-plan.md section 2):
+#   real_web_port    = site.real_port_base + 10*i             (i = replica index)
+#   real_envctrl_port = real_web_port + 1
+#   proxy_port       = real_web_port + proxy_port_offset       (default 10000)
+#
+# shopping_admin is rebased from 7780 to 7810 so its +10 stride does not
+# collide with shopping replicas. All other sites keep their original bases.
+#
+# All real ports are 127.0.0.1-only on the host; only proxy ports are
+# reachable from the internet (token-auth via nginx).
+
+network:
+  name: worldsim-bench
+  subnet: 172.20.0.0/20          # 4094 IPs, first 10 reserved for infra
+
+proxy_port_offset: 10000         # proxy_port = real_port + this
+
+# Smoke-test override for Phase C: first replica (index 0) of each site.
+# The generator emits compose.smoke.yml from this subset when --mode smoke.
+smoke_test_replicas:
+  shopping: 1
+  shopping_admin: 1
+  gitlab: 1
+  reddit: 1
+  map: 1
+  wikipedia: 1
+
+# Per-site configuration. Volume mount paths MUST match the vendor
+# docker-compose at vendors/webarena-verified/docker-compose.yml.
+sites:
+
+  shopping:
+    image: am1n3e/webarena-verified-shopping:latest
+    replicas: 4
+    real_port_base: 7770          # container web 80 -> host 7770,7780,7790,7800
+    container_web_port: 80
+    port_step: 10
+    mem_limit: 6g
+    shm_size: 512m
+    environment:
+      # WA_ENV_CTRL_EXTERNAL_SITE_URL is injected per-replica by the
+      # generator using the final host IP and real web port.
+      - WA_ENV_CTRL_SKIP_RECONFIGURE: "true"
+    db_port_base: 3306            # container MySQL -> host 3306,3307,3308,3309
+    db_port_step: 1
+
+  shopping_admin:
+    image: am1n3e/webarena-verified-shopping_admin:latest
+    replicas: 4
+    # Rebased from 7780 to 7810 to avoid +10 collision with shopping at 7770.
+    # Shopping uses 7770..7800; shopping_admin uses 7810..7840.
+    real_port_base: 7810
+    container_web_port: 80
+    port_step: 10
+    mem_limit: 4g
+    shm_size: 512m
+    db_port_base: 3310
+    db_port_step: 1
+
+  gitlab:
+    image: am1n3e/webarena-verified-gitlab:latest
+    replicas: 8
+    real_port_base: 8023           # gitlab exposes on container port 8023
+    container_web_port: 8023
+    port_step: 10                  # 8023,8033,8043,...,8093
+    mem_limit: 16g
+    shm_size: 2g
+    # Bind-mount tuned gitlab.rb (generator references scripts/gitlab.rb.tuned
+    # which is scp'd to /home/ubuntu/gitlab.rb on the host).
+    gitlab_rb_host_path: /home/ubuntu/gitlab.rb
+    gitlab_rb_container_path: /etc/gitlab/gitlab.rb
+    environment:
+      - WA_ENV_CTRL_SKIP_RECONFIGURE: "true"
+    db_port_base: 5433
+    db_port_step: 1
+
+  reddit:
+    image: am1n3e/webarena-verified-reddit:latest
+    replicas: 4
+    real_port_base: 9900           # rebased from 9999 to get a clean +10 run
+    container_web_port: 80
+    port_step: 10                  # 9900,9910,9920,9930
+    mem_limit: 4g
+    shm_size: 512m
+    db_port_base: 5450
+    db_port_step: 1
+
+  map:
+    image: am1n3e/webarena-verified-map:latest
+    platform: linux/amd64
+    replicas: 4
+    real_port_base: 3030
+    container_web_port: 8080       # map listens on 8080 inside the container
+    port_step: 10                  # 3030,3040,3050,3060
+    mem_limit: 12g
+    shm_size: 512m
+    db_port_base: 5460
+    db_port_step: 1
+
+    # Shared read-only volumes (mounted N times, single on-disk copy). These
+    # are hydrated once in Phase B.2 and never written to. Mount paths are
+    # copied verbatim from vendors/webarena-verified/docker-compose.yml.
+    shared_ro_volumes:
+      - volume_name: webarena-verified-map-tile-db_shared
+        container_path: /data/database
+      - volume_name: webarena-verified-map-routing-car_shared
+        container_path: /data/routing/car
+      - volume_name: webarena-verified-map-routing-bike_shared
+        container_path: /data/routing/bike
+      - volume_name: webarena-verified-map-routing-foot_shared
+        container_path: /data/routing/foot
+      - volume_name: webarena-verified-map-nominatim-flatnode_shared
+        container_path: /data/nominatim/flatnode
+      - volume_name: webarena-verified-map-tiles_shared
+        container_path: /data/tiles
+      - volume_name: webarena-verified-map-style_shared
+        container_path: /data/style
+
+    # Per-replica writable volumes (each replica gets its own copy). Names
+    # are expanded to <volume_name_prefix>_<i>. Hydrated by Phase B.3.
+    per_replica_volumes:
+      - volume_name_prefix: webarena-verified-map-nominatim-db
+        container_path: /data/nominatim/postgres
+      - volume_name_prefix: webarena-verified-map-website-db
+        container_path: /var/lib/postgresql/14/main
+
+  wikipedia:
+    image: worldsim/webarena-verified-wikipedia:amd64
+    platform: linux/amd64
+    replicas: 6
+    real_port_base: 8888
+    container_web_port: 8080       # Kiwix listens on 8080 inside the container
+    port_step: 10                  # 8888,8898,8908,8918,8928,8938
+    mem_limit: 2g
+    shm_size: 256m
+
+    shared_ro_volumes:
+      - volume_name: webarena-verified-wikipedia-data_shared
+        container_path: /data

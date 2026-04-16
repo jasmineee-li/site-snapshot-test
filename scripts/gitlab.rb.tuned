@@ -1,0 +1,29 @@
+# gitlab.rb.tuned - tuned gitlab settings bind-mounted into each replica.
+#
+# Bind-mounted at /etc/gitlab/gitlab.rb inside the container (see scale_config.yml).
+# Cuts per-replica runtime memory from ~4.3GB baseline to ~2.3GB by trimming
+# unicorn/puma workers, sidekiq concurrency, postgres shared_buffers, and
+# disabling prometheus monitoring. Target: 8 replicas x ~2.3GB = ~18GB on the
+# r5.8xlarge's 256GB, leaving plenty of headroom.
+#
+# Do NOT edit without re-validating per-replica OOM on the new host. Source of
+# truth for this file is scripts/gitlab.rb.tuned in the worldsim repo; scp it
+# to /home/ubuntu/gitlab.rb on the benchmark host before `docker compose up`.
+
+# Web worker count: default is 2..4 workers depending on CPU; pin to 2.
+# unicorn is the older name; gitlab 15+ uses puma. Set both so the tuning
+# survives a gitlab image bump. Unknown keys are ignored silently by gitlab.
+unicorn['worker_processes'] = 2
+puma['worker_processes'] = 2
+
+# Sidekiq (background jobs). Default is 50; most of our tasks never touch
+# background queues, so drop hard.
+sidekiq['concurrency'] = 5
+
+# PostgreSQL: default shared_buffers is ~25% of system RAM detected inside
+# the container (which under docker reports host RAM!). Pin small since each
+# replica has its own postgres process.
+postgresql['shared_buffers'] = "256MB"
+
+# Prometheus monitoring stack eats ~500MB per replica and we do not query it.
+prometheus_monitoring['enable'] = false

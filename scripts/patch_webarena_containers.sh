@@ -25,6 +25,16 @@
 #   # /home/ubuntu/wa_envctrl_patcher.py to be present (scp'd first).
 #   ./scripts/patch_webarena_containers.sh --on-ec2 [HOST_IP]
 #
+#   # Scale mode (r5.8xlarge 30-replica) -- target a single container by name
+#   # and explicit port. Used to patch `webarena-verified-shopping_0` etc.
+#   # The site file is inferred from the container's site prefix
+#   # (shopping / shopping_admin / gitlab / reddit).
+#   ./scripts/patch_webarena_containers.sh --on-ec2 \
+#       --container webarena-verified-shopping_0 \
+#       --site shopping \
+#       --port 7770 \
+#       [HOST_IP]
+#
 #   HOST_IP defaults to the EC2 instance IP from instances.json.
 #
 # Idempotent: safe to run multiple times. The Python patcher invoked inside
@@ -40,13 +50,50 @@ COMPOSE_DIR="$REPO_ROOT/vendors/webarena-verified"
 OVERRIDE_SRC="$REPO_ROOT/scripts/webarena-compose-override.yml"
 
 ON_EC2=0
-if [[ "${1:-}" == "--on-ec2" ]]; then
-    ON_EC2=1
-    shift
-fi
+SINGLE_CONTAINER=""
+SINGLE_SITE=""
+SINGLE_PORT=""
+HOST_IP_ARG=""
+
+# Positional HOST_IP argument is preserved for backward compatibility with
+# bootstrap_ec2.sh. New scale-mode flags (--container/--site/--port) target a
+# single replica container when the old well-known name set no longer applies.
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --on-ec2)
+            ON_EC2=1
+            shift
+            ;;
+        --container)
+            SINGLE_CONTAINER="$2"
+            shift 2
+            ;;
+        --site)
+            SINGLE_SITE="$2"
+            shift 2
+            ;;
+        --port)
+            SINGLE_PORT="$2"
+            shift 2
+            ;;
+        -h|--help)
+            sed -n '1,40p' "$0"
+            exit 0
+            ;;
+        -*)
+            echo "ERROR: unknown flag $1" >&2
+            exit 1
+            ;;
+        *)
+            # First positional = HOST_IP (legacy behaviour).
+            HOST_IP_ARG="$1"
+            shift
+            ;;
+    esac
+done
 
 # Default to the EC2 IP from instances.json
-HOST_IP="${1:-18.117.99.179}"
+HOST_IP="${HOST_IP_ARG:-18.117.99.179}"
 
 # --- Step 1: Deploy docker-compose.override.yml (only off-EC2 workflow) ---
 
@@ -101,6 +148,25 @@ declare -A SITE_PORTS=(
     ["webarena-verified-reddit"]="9999"
     ["webarena-verified-gitlab"]="8023"
 )
+
+# Scale mode override: if --container/--site/--port are given, replace the
+# default 4-container table with a single entry for the named replica so
+# generate_compose_scale-produced containers can be patched one-at-a-time.
+if [[ -n "$SINGLE_CONTAINER" ]]; then
+    if [[ -z "$SINGLE_SITE" || -z "$SINGLE_PORT" ]]; then
+        echo "ERROR: --container requires --site and --port" >&2
+        exit 1
+    fi
+    case "$SINGLE_SITE" in
+        shopping|shopping_admin|reddit|gitlab) ;;
+        *)
+            echo "ERROR: --site must be one of shopping, shopping_admin, reddit, gitlab" >&2
+            exit 1
+            ;;
+    esac
+    SITE_FILES=( ["$SINGLE_CONTAINER"]="${SINGLE_SITE}.py" )
+    SITE_PORTS=( ["$SINGLE_CONTAINER"]="$SINGLE_PORT" )
+fi
 
 echo ""
 echo "==> Patching running containers (adds env-var fallback to _init if missing)"
