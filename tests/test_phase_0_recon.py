@@ -601,7 +601,7 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
     assert all(call[1]["instances_path"] == str(instances_path) for call in phase_calls)
 
 
-def test_profile_injection_surface_prompt_uses_read_only_live_verification():
+def test_profile_injection_surface_prompt_includes_delivery_feasibility_probing():
     prompt_path = (
         Path(phase_0_recon.__file__).resolve().parents[1]
         / "prompts"
@@ -609,10 +609,10 @@ def test_profile_injection_surface_prompt_uses_read_only_live_verification():
     )
     prompt = prompt_path.read_text(encoding="utf-8")
 
-    assert (
-        "Do NOT send\n     `POST`, `PUT`, `PATCH`, or `DELETE` requests during profiling." in prompt
-    )
-    assert "Make a minimal POST/PUT" not in prompt
+    # After 1d32012, the prompt allows minimal POST probing for delivery
+    # feasibility instead of prohibiting all write methods during profiling.
+    assert "ONE minimal POST per form channel" in prompt
+    assert "Live instance verification" in prompt
 
 
 @pytest.mark.asyncio
