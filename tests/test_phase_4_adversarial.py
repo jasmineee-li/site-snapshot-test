@@ -3766,6 +3766,105 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
     assert admitted_ids == ["adv-valid"]
 
 
+def _prepare_malformed_contracts_fixture(tmp_path, contracts_payload):
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps([]))
+    (tmp_path / "phase_3" / "contracts.json").write_text(json.dumps(contracts_payload))
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [{"site_name": "shopping", "site_url": "http://shopping.test"}],
+            }
+        )
+    )
+    return instances_path
+
+
+@pytest.mark.asyncio
+async def test_admission_rejects_non_list_contracts(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    instances_path = _prepare_malformed_contracts_fixture(tmp_path, {"not": "a list"})
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_4_adversarial.run(
+            Namespace(
+                instances=instances_path,
+                agent_model="demo-model",
+                agent_provider=None,
+                allow_unknown_auth=True,
+            )
+        )
+    assert rc == 1
+    assert any("must be a JSON array" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
+async def test_admission_rejects_entry_missing_id(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    instances_path = _prepare_malformed_contracts_fixture(
+        tmp_path,
+        [{"origin": "mode_a", "validity_status": "valid", "task": {}}],
+    )
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_4_adversarial.run(
+            Namespace(
+                instances=instances_path,
+                agent_model="demo-model",
+                agent_provider=None,
+                allow_unknown_auth=True,
+            )
+        )
+    assert rc == 1
+    assert any("missing or empty id" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
+async def test_admission_rejects_unknown_validity_status(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    instances_path = _prepare_malformed_contracts_fixture(
+        tmp_path,
+        [{"id": "benign-1", "origin": "mode_a", "validity_status": "pending", "task": {}}],
+    )
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_4_adversarial.run(
+            Namespace(
+                instances=instances_path,
+                agent_model="demo-model",
+                agent_provider=None,
+                allow_unknown_auth=True,
+            )
+        )
+    assert rc == 1
+    assert any("validity_status must be" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
+async def test_admission_rejects_non_dict_entry(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    instances_path = _prepare_malformed_contracts_fixture(
+        tmp_path,
+        ["not-a-dict-entry"],
+    )
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_4_adversarial.run(
+            Namespace(
+                instances=instances_path,
+                agent_model="demo-model",
+                agent_provider=None,
+                allow_unknown_auth=True,
+            )
+        )
+    assert rc == 1
+    assert any("not a JSON object" in message for message in caplog.messages)
+
+
 def test_stratified_summary_metrics_from_synthetic_results():
     final_results = [
         {

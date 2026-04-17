@@ -444,11 +444,52 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Phase 3 contracts.json not found at %s — run phase 3 first", contracts_path)
         return 1
     contract_entries = json.loads(contracts_path.read_text())
-    valid_contracts_by_id = {
-        str(entry["id"]): entry
-        for entry in contract_entries
-        if entry.get("validity_status") == "valid"
-    }
+    if not isinstance(contract_entries, list):
+        logger.error(
+            "Phase 3 contracts.json at %s must be a JSON array, got %s",
+            contracts_path,
+            type(contract_entries).__name__,
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="malformed_contracts",
+            **state_metadata,
+        )
+        return 1
+    contract_errors: list[str] = []
+    valid_contracts_by_id: dict[str, dict[str, Any]] = {}
+    for index, entry in enumerate(contract_entries):
+        if not isinstance(entry, dict):
+            contract_errors.append(f"entry {index}: not a JSON object")
+            continue
+        entry_id = entry.get("id")
+        if not isinstance(entry_id, str) or not entry_id.strip():
+            contract_errors.append(f"entry {index}: missing or empty id")
+            continue
+        status = entry.get("validity_status")
+        if status not in ("valid", "invalid"):
+            contract_errors.append(
+                f"entry {index} ({entry_id}): validity_status must be 'valid' or 'invalid', "
+                f"got {status!r}"
+            )
+            continue
+        if status == "valid":
+            valid_contracts_by_id[str(entry_id)] = entry
+    if contract_errors:
+        logger.error(
+            "Phase 3 contracts.json at %s is malformed:\n%s",
+            contracts_path,
+            "\n".join(f"  - {msg}" for msg in contract_errors),
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="malformed_contracts",
+            malformed_contracts=contract_errors,
+            **state_metadata,
+        )
+        return 1
     tasks: list[dict[str, Any]] = []
     rebase_errors: list[str] = []
     skipped_invalid = 0
