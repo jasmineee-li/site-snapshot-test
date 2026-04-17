@@ -51,7 +51,17 @@
       "auth": {"type": "bearer_token", "header_name": "PRIVATE-TOKEN", "token_generator": "gitlab_pat", "credentials": {"username": "byteblaze", "password": "hello1234"}},
       "agent_auth": {
         "type": "storage_state",
-        "storage_state": {"path": "logs/phase_0d/gitlab/storage_state.json"}
+        "storage_state": {
+          "path": "logs/phase_0d/gitlab/storage_state.json",
+          "form_login": {
+            "login_url": "/users/sign_in",
+            "username_selector": "input[name='user[login]']",
+            "password_selector": "input[name='user[password]']",
+            "submit_selector": "input[type='submit'][name='commit']",
+            "success_url_substring": "/"
+          }
+        },
+        "authentication": {"credentials": {"username": "byteblaze", "password": "hello1234"}}
       }
     },
     {

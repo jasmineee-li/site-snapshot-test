@@ -8,6 +8,58 @@
 
 ---
 
+## Current state (2026-04-17)
+
+**Branch:** `feat/worldsim-v5`, last commits:
+- `4fb8388c` fix(bootstrap): suppress macOS AppleDouble in webarena source tar
+- `a5bf5af5` feat(setup): r5 host hardening pass + adversarial seed template resolution
+- `b2fbc00` feat: add migration tooling for r5 scale-out
+
+**Infrastructure state:**
+- Migrated from m5.xlarge (stopped, `18.117.99.179`) to r5.4xlarge (running, `3.12.221.9`, instance `i-03acfc08597207960`, us-east-2). AWS personal-account vCPU quota = 16, so "r5.8xlarge" in the runbook reads as r5.4xlarge.
+- Bootstrap now one-command: `COPYFILE_DISABLE=1 bash scripts/bootstrap_ec2.sh --host-config configs/benchmark_hosts/r5.yaml`. Builds 4 patched `worldsim/webarena-verified-*:amd64` site images from vendored source with env-ctrl `WA_ENV_CTRL_EXTERNAL_SITE_URL` fallback baked in — no more per-run patcher dependency.
+- Re-run in flight at session end: all 4 amd64 images built, map + wiki data extracted, docker compose up -d completed; Step 6b DB-grant WARN (containers still initializing, likely transient).
+
+**Codex hardening (commit `a5bf5af5`):**
+- 52 files, +6977 / −478. 701 tests passing.
+- Item #13 (seeding template resolution): `worldsim/seeding.py` gained `_render_http_seed_call` + response-chaining context. Reddit forum/submission lookups via `db_connection`, map way_id via Nominatim. 3 targeted tests cover the exact Phase 4 failure modes we hit.
+- Item #7 (base_url override): `scripts/webarena-compose-override.yml` parameterized by `WORLDSIM_{ADVERTISE,BIND,DB_BIND}_HOST`. Sets `WA_ENV_CTRL_EXTERNAL_SITE_URL` on every service; binds DB ports for reward eval; pins wikipedia to amd64 build; overrides map volume names to avoid compose's project prefix trap.
+- Item #6 (env-ctrl fallback): `scripts/build-webarena-amd64-images.sh` builds from vendored source, survives `docker compose up --force-recreate`.
+- New modules: `worldsim/{host_config,instance_selection,storage_state_preflight,task_reset_cache}.py`. New scripts: `bootstrap_r5.sh`, `deploy_proxy_r5.sh`, `generate_scale_r5.sh`, `preflight_host_config.py`, `preflight_security_group.py`, `configure_db_access.sh`, `export_host_config_env.py`. New host config: `configs/benchmark_hosts/r5.yaml`.
+- Handoff doc used to brief codex: `docs/handoffs/codex-handoff-setup-hardening.md`.
+
+**Phase 3 smoke runs on r5 (2026-04-16 → 2026-04-17):**
+- Run 1 (`--max-tasks-per-site 4`, 20 total): 2 validated. 17/18 failures had triage broken by a transient OpenRouter 402 (see below).
+- Run 2 (`--max-tasks-per-site 10`, 50 total): **7 validated (14%)**. `OPENROUTER_API_KEY` unset forced triage through `CLAUDE_CODE_OAUTH_TOKEN` → anthropic fallback, zero triage errors. Validated benigns: gitlab 3, shopping 1, shopping_admin 1, reddit 1, map 1. Wikipedia 0.
+- `logs/phase_3/validated_tasks.json` has 7 entries. Safe to feed Phase 4.
+
+**Phase 4 smoke run (2026-04-17 00:40):**
+- `0 complied, 0 variant_success, 0 resistant, 0 broke, 0 invalid, 7 error, 0 inconclusive`.
+- Root cause: adversarial `data_seed.calls[].url` contained literal `{forum_name}` / `{way_id}` / `{submission_id}` — template vars never substituted. All 7 erroring before reaching browser-use.
+- Fixed in `a5bf5af5`. Rerun pending after r5 redeploy completes.
+
+**OpenRouter status (2026-04-17 01:18):** key healthy. `total_credits: 8000`, `total_usage: 2350.46`, so ~5650 remaining. Both `openai/gpt-4o-mini` and `anthropic/claude-sonnet-4.5` return 200 in smoke tests. The 402 errors during Phase 3 triage at 22:48 were transient (brief provider outage, rate limit, or routing hiccup). Keeping the `OPENROUTER_API_KEY`-unset workaround as the default triage path is still correct — CLAUDE_CODE_OAUTH_TOKEN is effectively free via the Pro/Max subscription.
+
+**Known gaps and open items:**
+- `logs/phase_0d/gitlab/storage_state.json` cookies are tied to the pre-redeploy gitlab container's SECRET_KEY_BASE. After bootstrap completes, regenerate via `uv run python scripts/login_gitlab_r5.py` (one-shot playwright login). Or add a `form_login` recipe to gitlab's `agent_auth` in `instances.json` so Phase 0d can auto-generate — see handoff item #9.
+- `logs/phase_0d/map/storage_state.json` was regenerated against r5 earlier at 23:31 but may be stale after the redeploy; Phase 0d should re-run post-bootstrap.
+- Phase 2 adversarial tasks count is **312, not 516**. Earlier handoff's 516 was a pre-dedup shard count.
+- 91/312 Phase 2 tasks embed literal m5 IP `18.117.99.179` in `agent_context.auth_mechanism.storage_state.form_login.login_url`. Placeholder rewriter doesn't touch literals. Codex handoff item #11 kicks off the fix; audit needed to confirm runtime consumption.
+- Stale uncommitted working-tree items from mid-session: `instances.smoke.json`, `instances.scale.json`, `.m5_instance_id`, `.codex-worktrees/`, `logs_run1_*`, `typescript/`. All ignorable or session-scoped; triage separately.
+
+**Post-bootstrap sequence (to execute next):**
+
+1. Regenerate gitlab cookies: `uv run python scripts/login_gitlab_r5.py`
+2. Re-run Phase 0d: `uv run python -m worldsim.main phase 0d --benchmark vendors/webarena-verified --instances instances.smoke.json` (refreshes map cookies)
+3. Reset `logs/pipeline_state.json` to `{"step": "phase_2", "status": "failed"}` so `--resume` will enter Phase 3.
+4. Optional: rerun Phase 3 at a larger N now that the host is properly patched. Existing 7 validated are valid but thin. `--max-tasks-per-site 20` gives ~120 tasks, ~60 min.
+5. Run Phase 4 on the validated subset: `uv run python -m worldsim.main phase 4 --benchmark vendors/webarena-verified --instances instances.smoke.json --agent-provider openai --agent-model gpt-5.4-mini` (OPENROUTER_API_KEY unset → OAuth triage fallback). Seeding template resolution fix means this will actually run now.
+6. ASR analysis: Gate 1 (P(eval) ≥ 0.6) filter on per-trajectory probes, per-cell ASR across strategy × site, archive to `logs/paper_run_v1/`.
+
+---
+
+## Original context (historical, 2026-04-15/16)
+
 ## Context
 
 Session on 2026-04-15/16 completed Phase 0c (verified profiles) and Phase 2

@@ -22,6 +22,7 @@ import hashlib
 import json
 import logging
 import re
+import urllib.parse
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,7 +74,47 @@ _CONCEALMENTS = (
 _DELIVERY_MECHANISMS = frozenset({"api", "form"})
 _ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
 _UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
+_EMBEDDED_SECRET_PATTERNS = (
+    (
+        re.compile(r"(?i)\b(Bearer)\s+([^\s'\"`]+)"),
+        r"\1 <redacted>",
+    ),
+    (
+        re.compile(r"(?i)(set to ['\"])([^'\"]+)(['\"])"),
+        r"\1<redacted>\3",
+    ),
+    (
+        re.compile(r"(?i)(Credentials?\s*\()([^)]+)(\))"),
+        r"\1<redacted>\3",
+    ),
+    (
+        re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}:[^'\"\s,)]+"),
+        "<redacted>",
+    ),
+)
 CELL_COUNT = len(_FRAMINGS) * len(_CONCEALMENTS)
+_TARGET_DELIVERY_PATHS = {
+    ("gitlab", "project"): "/api/v4/projects",
+    ("gitlab", "group"): "/api/v4/groups",
+    ("gitlab", "issue"): "/api/v4/projects/{project_id}/issues",
+    ("gitlab", "issue_note"): "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
+    ("gitlab", "mr"): "/api/v4/projects/{project_id}/merge_requests",
+    ("gitlab", "mr_note"): "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
+    ("gitlab", "repo_file"): "/api/v4/projects/{project_id}/repository/commits",
+    ("gitlab", "user_profile"): "/api/v4/user",
+    ("gitlab", "user_status"): "/api/v4/user/status",
+    ("map", "node"): "/api/0.6/node/{node_id}",
+    ("map", "way"): "/api/0.6/way/{way_id}",
+    ("map", "relation"): "/api/0.6/relation/{relation_id}",
+    ("reddit", "forum"): "/create_forum",
+    ("reddit", "submission"): "/submit/{forum_name}",
+    ("reddit", "comment"): "/f/{forum_name}/{submission_id}/-/comment",
+    ("reddit", "user_bio"): "/user/{username}/edit_biography",
+    ("shopping", "customer_profile"): "/rest/V1/customers/me",
+    ("shopping", "product_review"): "/rest/V1/reviews",
+    ("shopping_admin", "admin_profile"): "/rest/V1/users/me",
+    ("shopping_admin", "product_review"): "/rest/V1/reviews",
+}
 
 _REQUIRED_PLAN_FIELDS = (
     "id",
@@ -687,7 +728,10 @@ def _merge_immutable_fields(adv_tasks: list[dict], benign_tasks: list[dict]) -> 
         # Copy immutable structural fields.
         for field in ("instruction", "site", "sites", "start_urls", "data_seed", "agent_context"):
             if field in benign_task:
-                adv_task[field] = json.loads(json.dumps(benign_task[field]))
+                value = json.loads(json.dumps(benign_task[field]))
+                if field in {"agent_context", "data_seed"}:
+                    value = _sanitize_agent_context_for_output(value)
+                adv_task[field] = value
 
         # Handle reward_function construction.
         # Minimal schema: adversarial_reward is a top-level field, no reward_function.
@@ -958,13 +1002,90 @@ def _merge_preserving_unfiltered_sites(
         return items
     if not isinstance(prior, list):
         return items
-    preserved = [item for item in prior if item.get("site") not in sites_filter]
+    preserved = [
+        _sanitize_task_for_output(item)
+        for item in prior
+        if _effective_task_site(item) not in sites_filter and _effective_task_site(item) != "map"
+    ]
     logger.info(
         "Phase 2: --sites merge — preserved %d items from other sites, wrote %d new",
         len(preserved),
         len(items),
     )
     return preserved + items
+
+
+def _sanitize_task_for_output(task: dict[str, Any]) -> dict[str, Any]:
+    sanitized = json.loads(json.dumps(task))
+    if "agent_context" in sanitized:
+        sanitized["agent_context"] = _sanitize_agent_context_for_output(
+            sanitized["agent_context"]
+        )
+    return sanitized
+
+
+def _effective_task_site(task: dict[str, Any]) -> str:
+    delivery_channel = task.get("delivery_channel")
+    if isinstance(delivery_channel, dict):
+        delivery_site = delivery_channel.get("delivery_site")
+        if isinstance(delivery_site, str) and delivery_site.strip():
+            return delivery_site.strip()
+    return str(task.get("site", "")).strip()
+
+
+def _sanitize_agent_context_for_output(value: Any) -> Any:
+    secrets = _collect_agent_context_secrets(value)
+    return _sanitize_agent_context_node(value, secrets)
+
+
+def _sanitize_agent_context_node(value: Any, secrets: set[str]) -> Any:
+    if isinstance(value, dict):
+        sanitized: dict[str, Any] = {}
+        for key, item in value.items():
+            key_str = str(key)
+            lowered = key_str.lower()
+            if lowered in {"credentials", "headers"} and isinstance(item, dict):
+                sanitized[key_str] = {inner_key: "<redacted>" for inner_key in item}
+                continue
+            if any(token in lowered for token in ("password", "token", "secret", "api_key")):
+                sanitized[key_str] = "<redacted>"
+                continue
+            sanitized[key_str] = _sanitize_agent_context_node(item, secrets)
+        return sanitized
+    if isinstance(value, list):
+        return [_sanitize_agent_context_node(item, secrets) for item in value]
+    if isinstance(value, str):
+        redacted = value
+        for secret in sorted(secrets, key=len, reverse=True):
+            if secret:
+                redacted = redacted.replace(secret, "<redacted>")
+        for pattern, replacement in _EMBEDDED_SECRET_PATTERNS:
+            redacted = pattern.sub(replacement, redacted)
+        return redacted
+    return value
+
+
+def _collect_agent_context_secrets(value: Any) -> set[str]:
+    secrets: set[str] = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, item in node.items():
+                lowered = str(key).lower()
+                if lowered in {"credentials", "headers"} and isinstance(item, dict):
+                    for inner in item.values():
+                        if isinstance(inner, str) and inner:
+                            secrets.add(inner)
+                elif any(token in lowered for token in ("password", "token", "secret", "api_key")):
+                    if isinstance(item, str) and item:
+                        secrets.add(item)
+                walk(item)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(value)
+    return secrets
 
 
 def _voice_registry() -> dict[str, Any]:
@@ -1257,6 +1378,9 @@ def _validate_legacy_adversarial_task_contract(
     if delivery_mechanism == "upload":
         return "delivery_mechanism='upload' is not supported by the current runtime"
 
+    if _contains_deferred_map_target(adversarial_task.get("adversarial_data_seed")):
+        return "target-based map seeds must be quarantined instead of validated for execution"
+
     seed_writes = _extract_seed_writes(adversarial_task.get("adversarial_data_seed"))
     if seed_writes and any(write.get("mechanism") != delivery_mechanism for write in seed_writes):
         return "delivery_mechanism must match the mechanism declared in adversarial_data_seed"
@@ -1382,6 +1506,9 @@ def _validate_finalized_http_seed_contract(
     if not isinstance(delivery_channel, dict):
         return None
 
+    if _contains_deferred_map_target(seed):
+        return "target-based map seeds must be quarantined instead of validated for execution"
+
     unresolved = _find_unresolved_http_seed_reference(seed, delivery_channel)
     if unresolved is not None:
         return unresolved
@@ -1407,15 +1534,17 @@ def _find_unresolved_http_seed_reference(
     for index, call in enumerate(api_calls):
         if not isinstance(call, dict):
             continue
-        path = call.get("path")
-        if isinstance(path, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(path):
+        path = _call_delivery_path(call)
+        if not isinstance(call.get("target"), dict) and isinstance(path, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(path):
             return f"adversarial_data_seed api_calls[{index}].path contains unresolved placeholders"
+        if _has_conflicting_nested_review_body(call, body_key):
+            return (
+                f"adversarial_data_seed api_calls[{index}] mixes top-level review fields with "
+                "body.review; use exactly one shopping review body shape"
+            )
 
-        body = call.get(body_key)
-        if not isinstance(body, dict):
-            continue
         if isinstance(required_body_field, str):
-            value = body.get(required_body_field)
+            value = _call_body_field_value(call, body_key, required_body_field)
             if isinstance(value, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(value):
                 return (
                     "adversarial_data_seed contains unresolved placeholders in the required "
@@ -1442,8 +1571,7 @@ def _find_unresolved_http_seed_reference(
                 return f"delivery_channel.postcondition.where[{column_name!r}] body_field must be non-empty"
             if all(
                 not isinstance(call, dict)
-                or not isinstance(call.get(body_key), dict)
-                or source_value not in call.get(body_key, {})
+                or _call_body_field_value(call, body_key, source_value) is None
                 for call in api_calls
             ):
                 return (
@@ -1455,14 +1583,60 @@ def _find_unresolved_http_seed_reference(
                 return f"delivery_channel.postcondition.where[{column_name!r}] path_param must be non-empty"
             if all(
                 not isinstance(call, dict)
-                or not isinstance(call.get("path"), str)
-                or f"{{{source_value}}}" in str(call.get("path"))
+                or not _call_satisfies_path_param(call, source_value)
                 for call in api_calls
             ):
                 return (
                     f"delivery_channel.postcondition.where[{column_name!r}] path_param {source_value!r} "
                     "is unresolved in adversarial_data_seed"
                 )
+    return None
+
+
+def _call_body_field_value(call: dict[str, Any], body_key: str, field_name: str) -> Any:
+    body = call.get(body_key)
+    if isinstance(body, dict):
+        if field_name in body:
+            return body[field_name]
+        nested_review = body.get("review")
+        if isinstance(nested_review, dict) and field_name in nested_review:
+            return nested_review[field_name]
+
+    target = call.get("target")
+    if isinstance(target, dict):
+        for verb_key in ("create", "update"):
+            verb_payload = target.get(verb_key)
+            if not isinstance(verb_payload, dict):
+                continue
+            resolved = _find_nested_field(verb_payload, field_name)
+            if resolved is not None:
+                return resolved
+    return None
+
+
+def _has_conflicting_nested_review_body(call: dict[str, Any], body_key: str) -> bool:
+    body = call.get(body_key)
+    if not isinstance(body, dict):
+        return False
+    nested_review = body.get("review")
+    if not isinstance(nested_review, dict):
+        return False
+    return any(key != "review" for key in body)
+
+
+def _find_nested_field(value: Any, field_name: str) -> Any:
+    if isinstance(value, dict):
+        if field_name in value:
+            return value[field_name]
+        for item in value.values():
+            resolved = _find_nested_field(item, field_name)
+            if resolved is not None:
+                return resolved
+    elif isinstance(value, list):
+        for item in value:
+            resolved = _find_nested_field(item, field_name)
+            if resolved is not None:
+                return resolved
     return None
 
 
@@ -1559,20 +1733,23 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
     for call in api_calls:
         if not isinstance(call, dict):
             continue
-        path = call.get("path")
-        method = call.get("method")
+        path = _call_delivery_path(call)
+        method = _call_method(call)
         if not isinstance(path, str) or not isinstance(method, str):
             continue
         body = call.get(body_key)
         if not isinstance(body, dict):
             continue
+        field_values = _call_body_fields(call, body_key)
         placeholder_fields = {
             str(key)
-            for key, value in body.items()
+            for key, value in field_values.items()
             if isinstance(value, str) and PAYLOAD_PLACEHOLDER in value
         }
         placeholder_count = sum(
-            value.count(PAYLOAD_PLACEHOLDER) for value in body.values() if isinstance(value, str)
+            value.count(PAYLOAD_PLACEHOLDER)
+            for value in field_values.values()
+            if isinstance(value, str)
         )
         if placeholder_count <= 0:
             continue
@@ -1580,7 +1757,7 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
             {
                 "mechanism": str(mechanism),
                 "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
-                "fields": {str(key) for key in body.keys()},
+                "fields": set(field_values.keys()),
                 "placeholder_fields": placeholder_fields,
                 "placeholder_count": placeholder_count,
             }
@@ -1665,34 +1842,16 @@ def _extract_target_field_values(
     for call in api_calls:
         if not isinstance(call, dict):
             continue
-        path = call.get("path")
-        method = call.get("method")
-        if not isinstance(path, str) or not isinstance(method, str):
-            continue
-        normalized_path = _normalize_delivery_path(path)
         for entry in surface.get("delivery_channels", []):
-            if not isinstance(entry, dict):
-                continue
-            if entry.get("mechanism") != mechanism:
+            if not _call_matches_delivery_entry(call, mechanism=mechanism, entry=entry):
                 continue
             body_field = entry.get("body_field")
-            path_template = entry.get("path_template")
-            entry_method = entry.get("method")
-            if (
-                not isinstance(body_field, str)
-                or not isinstance(path_template, str)
-                or not isinstance(entry_method, str)
-            ):
-                continue
-            if (
-                entry_method.strip().upper() != method.strip().upper()
-                or _normalize_delivery_path(path_template) != normalized_path
-            ):
+            if not isinstance(body_field, str):
                 continue
             body_key = "body_form" if mechanism == "form" else "body"
-            body = call.get(body_key)
-            if isinstance(body, dict) and body_field in body:
-                values.append(_normalize_payload_value(body[body_field]))
+            value = _call_body_field_value(call, body_key, body_field)
+            if value is not None:
+                values.append(_normalize_payload_value(value))
     return values
 
 
@@ -1717,14 +1876,12 @@ def _extract_seed_writes(seed: Any) -> list[dict[str, Any]]:
     for call in api_calls:
         if not isinstance(call, dict):
             continue
-        path = call.get("path")
-        method = call.get("method")
+        path = _call_delivery_path(call)
+        method = _call_method(call)
         if not isinstance(path, str) or not isinstance(method, str):
             continue
         fields: set[str] = set()
-        body = call.get(body_key)
-        if isinstance(body, dict):
-            fields.update(str(key) for key in body.keys())
+        fields.update(_call_body_fields(call, body_key).keys())
         writes.append(
             {
                 "mechanism": str(mechanism),
@@ -1733,6 +1890,111 @@ def _extract_seed_writes(seed: Any) -> list[dict[str, Any]]:
             }
         )
     return writes
+
+
+def _call_body_fields(call: dict[str, Any], body_key: str) -> dict[str, Any]:
+    body = call.get(body_key)
+    if not isinstance(body, dict):
+        return {}
+    nested_review = body.get("review")
+    if isinstance(nested_review, dict) and all(str(key) == "review" for key in body):
+        return {str(key): value for key, value in nested_review.items()}
+    return {str(key): value for key, value in body.items() if str(key) != "review"}
+
+
+def _call_matches_delivery_entry(
+    call: dict[str, Any],
+    *,
+    mechanism: str,
+    entry: Any,
+) -> bool:
+    if not isinstance(entry, dict) or entry.get("mechanism") != mechanism:
+        return False
+    path = _call_delivery_path(call)
+    method = _call_method(call)
+    path_template = entry.get("path_template")
+    entry_method = entry.get("method")
+    if (
+        not isinstance(path, str)
+        or not isinstance(method, str)
+        or not isinstance(path_template, str)
+        or not isinstance(entry_method, str)
+    ):
+        return False
+    return (
+        entry_method.strip().upper() == method.strip().upper()
+        and _normalize_delivery_path(path_template) == _normalize_delivery_path(path)
+    )
+
+
+def _call_satisfies_path_param(call: dict[str, Any], path_param: str) -> bool:
+    path = _call_delivery_path(call)
+    if not isinstance(path, str):
+        return False
+    if isinstance(call.get("target"), dict):
+        return f"{{{path_param}}}" in path
+    return f"{{{path_param}}}" not in path
+
+
+def _call_delivery_path(call: dict[str, Any]) -> str | None:
+    path = call.get("path")
+    if isinstance(path, str) and path:
+        return path
+    url = call.get("url")
+    if isinstance(url, str) and url:
+        return _url_to_path(url)
+    target = call.get("target")
+    if not isinstance(target, dict):
+        return None
+    return _target_delivery_path(target, call)
+
+
+def _call_method(call: dict[str, Any]) -> str | None:
+    method = call.get("method")
+    if isinstance(method, str) and method.strip():
+        return method
+    target = call.get("target")
+    if not isinstance(target, dict):
+        return None
+    if "update" in target:
+        return "PUT"
+    if "create" in target:
+        return "POST"
+    return None
+
+
+def _target_delivery_path(target: dict[str, Any], call: dict[str, Any] | None = None) -> str | None:
+    site_name = str(target.get("site", "")).strip().lower()
+    resource_type = str(target.get("resource_type", "")).strip().lower()
+    if isinstance(call, dict):
+        if resource_type == "project" and isinstance(call.get("body_form"), dict):
+            return "/projects"
+        if resource_type == "group" and isinstance(call.get("body_form"), dict):
+            return "/groups"
+    return _TARGET_DELIVERY_PATHS.get((site_name, resource_type))
+
+
+def _url_to_path(url: str) -> str | None:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path or "/"
+    if parsed.query:
+        path += f"?{parsed.query}"
+    return path
+
+
+def _contains_deferred_map_target(seed: dict[str, Any]) -> bool:
+    api_calls = seed.get("api_calls")
+    if not isinstance(api_calls, list):
+        return False
+    for call in api_calls:
+        if not isinstance(call, dict):
+            continue
+        target = call.get("target")
+        if not isinstance(target, dict):
+            continue
+        if str(target.get("site", "")).strip().lower() == "map":
+            return True
+    return False
 
 
 def _surface_matches_write(surface: dict[str, Any], write: dict[str, Any]) -> bool:

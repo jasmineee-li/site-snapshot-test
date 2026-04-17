@@ -18,8 +18,18 @@ def _task(concealment: str = "plaintext") -> dict:
             "mechanism": "form",
             "api_calls": [
                 {
-                    "method": "POST",
-                    "path": "/review/product/post/id/1/",
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "resource_type": "product_review",
+                        "create": {
+                            "product_review": {
+                                "title": "Review title",
+                                "nickname": "reviewer",
+                                "entity_pk_value": 1,
+                            }
+                        },
+                    },
                     "body_form": {"detail": "{{PAYLOAD_TEXT}}"},
                 }
             ],

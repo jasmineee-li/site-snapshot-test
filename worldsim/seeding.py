@@ -25,6 +25,7 @@ import os
 import re
 import urllib.parse
 import weakref
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,7 @@ import requests
 
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import apply_placeholders, merge_placeholder_maps
+from worldsim.seed_resolvers import get_resolver
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,18 @@ _UNRESOLVED_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 _FORMAT_TOKEN_PATTERN = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_\.]*)\}(?!\})")
 
 
+@dataclass(frozen=True)
+class PreparedSeedCall:
+    method: str
+    raw_path: str
+    url: str
+    headers: dict[str, str]
+    json_body: Any
+    body_form: Any
+    rendered_call: dict[str, Any]
+    context_additions: dict[str, Any]
+
+
 def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: Any) -> str | None:
     """Return an error when an adversarial seed drops benign setup state.
 
@@ -121,6 +135,8 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
         api_calls = seed.get("api_calls")
         if not isinstance(api_calls, list) or not api_calls:
             raise ValueError(f"{mechanism} data seed must include a non-empty api_calls list")
+        saw_target = False
+        saw_legacy = False
         # Belt-and-suspenders: reject destructive/probing HTTP methods here
         # even when the upstream Phase 3 validator was bypassed. The
         # authoritative allowlist (path, origin) lives in
@@ -130,23 +146,67 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             if not isinstance(call, dict):
                 raise ValueError("api data seed calls must be objects")
             method = call.get("method")
-            path = call.get("path")
-            if not isinstance(method, str) or not method.strip():
-                raise ValueError("api data seed calls must include a method")
-            if method.strip().upper() not in _ALLOWED_API_METHODS:
-                raise ValueError(
-                    f"{mechanism} data seed method {method!r} not allowed "
-                    f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
-                )
-            if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
-                raise ValueError(
-                    f"form data seed method {method!r} not allowed "
-                    f"(allowed: {sorted(_FORM_METHODS)})"
-                )
-            if not isinstance(path, str) or not path.startswith("/"):
-                raise ValueError(
-                    f"{mechanism} data seed calls must include a path starting with '/'"
-                )
+            target = call.get("target")
+            if isinstance(target, dict):
+                saw_target = True
+                site_name = target.get("site")
+                resource_type = target.get("resource_type")
+                has_create = "create" in target
+                has_update = "update" in target
+                if not isinstance(site_name, str) or not site_name.strip():
+                    raise ValueError("targeted data seed calls must include target.site")
+                if not isinstance(resource_type, str) or not resource_type.strip():
+                    raise ValueError("targeted data seed calls must include target.resource_type")
+                if has_create == has_update:
+                    raise ValueError(
+                        "targeted data seed calls must include exactly one of target.create or target.update"
+                    )
+                verb_payload = target.get("create") if has_create else target.get("update")
+                verb_name = "create" if has_create else "update"
+                if not isinstance(verb_payload, dict):
+                    raise ValueError(
+                        f"targeted data seed calls must include target.{verb_name} as an object"
+                    )
+                if method is not None:
+                    if not isinstance(method, str) or not method.strip():
+                        raise ValueError("targeted data seed call method must be a non-empty string")
+                    if method.strip().upper() not in _ALLOWED_API_METHODS:
+                        raise ValueError(
+                            f"{mechanism} data seed method {method!r} not allowed "
+                            f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
+                        )
+                    if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
+                        raise ValueError(
+                            f"form data seed method {method!r} not allowed "
+                            f"(allowed: {sorted(_FORM_METHODS)})"
+                        )
+            else:
+                saw_legacy = True
+                if not isinstance(method, str) or not method.strip():
+                    raise ValueError("api data seed calls must include a method")
+                if method.strip().upper() not in _ALLOWED_API_METHODS:
+                    raise ValueError(
+                        f"{mechanism} data seed method {method!r} not allowed "
+                        f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
+                    )
+                if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
+                    raise ValueError(
+                        f"form data seed method {method!r} not allowed "
+                        f"(allowed: {sorted(_FORM_METHODS)})"
+                    )
+                raw_ref = _call_reference(call)
+                if not isinstance(raw_ref, str) or not raw_ref.strip():
+                    raise ValueError(
+                        f"{mechanism} data seed calls must include a path starting with '/' or a url"
+                    )
+                if not (
+                    raw_ref.startswith("/")
+                    or raw_ref.startswith("http://")
+                    or raw_ref.startswith("https://")
+                ):
+                    raise ValueError(
+                        f"{mechanism} data seed calls must include a path starting with '/' or a url"
+                    )
             json_body = call.get("body")
             body_form = call.get("body_form")
             if mechanism == "form":
@@ -158,6 +218,10 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
                     raise ValueError("form data seed calls must not include JSON body")
             elif body_form is not None:
                 raise ValueError("api data seed calls must use body, not body_form")
+        if saw_target and saw_legacy:
+            raise ValueError(
+                "mixed legacy and target-based api_calls are not supported; use one shape per seed"
+            )
         return
 
     if mechanism == "state_push":
@@ -187,8 +251,14 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
         with requests.Session() as session:
             _perform_web_login_if_needed(session, instance, mechanism)
             for call in seed["api_calls"]:
-                rendered_call = _render_http_seed_call(call, seed_context=seed_context)
-                response = _apply_http_seed_call(session, mechanism, rendered_call, instance)
+                prepared_call = _prepare_http_seed_call(
+                    call,
+                    instance,
+                    mechanism=mechanism,
+                    seed_context=seed_context,
+                )
+                _merge_seed_context(seed_context, prepared_call.context_additions)
+                response = _apply_http_seed_call(session, mechanism, prepared_call, instance)
                 _merge_seed_context(seed_context, _extract_response_seed_context(response))
     elif mechanism == "state_push":
         resp = requests.put(
@@ -214,7 +284,26 @@ def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[
 
     task = instance.get("seed_task")
     if isinstance(task, dict):
+        task_id = str(task.get("id") or "").strip()
+        if task_id:
+            context["task_id"] = task_id
+        instruction = str(task.get("instruction", "")).strip()
+        if instruction:
+            context["instruction"] = instruction
+        topic = str(task.get("topic") or instruction).strip()
+        if topic:
+            context["topic"] = topic
+        intent = str(task.get("intent") or instruction).strip()
+        if intent:
+            context["intent"] = intent
+        benign_task_id = task.get("benign_task_id")
+        if benign_task_id not in (None, ""):
+            context["benign_task_id"] = str(benign_task_id)
         _merge_seed_context(context, _derive_task_seed_context(task, seed, instance))
+    context.setdefault("task_id", "task")
+    context.setdefault("instruction", "")
+    context.setdefault("topic", context.get("task_id", "task"))
+    context.setdefault("intent", context.get("instruction") or context.get("topic") or "task")
     return context
 
 
@@ -274,6 +363,40 @@ def _render_http_seed_call(
     return rendered
 
 
+def preflight_http_seed_calls(seed: dict[str, Any], instance: dict[str, Any]) -> list[str]:
+    """Resolve HTTP calls without firing mutations.
+
+    Legacy concrete-path seeds may depend on response-derived placeholders from
+    earlier calls. Those chains remain validated at real execution time only.
+    """
+    validate_data_seed(seed, allow_none=False)
+    mechanism = str(seed.get("mechanism", "")).strip().lower()
+    if mechanism not in {"api", "form"}:
+        return []
+
+    seed_context = _build_seed_context(seed, instance)
+    preflight_instance = dict(instance)
+    preflight_instance["seed_resolver_dry_run"] = True
+    errors: list[str] = []
+    for index, call in enumerate(seed.get("api_calls", [])):
+        if not isinstance(call, dict):
+            continue
+        if not isinstance(call.get("target"), dict) and _seed_placeholder_names(call):
+            continue
+        try:
+            prepared_call = _prepare_http_seed_call(
+                call,
+                preflight_instance,
+                mechanism=mechanism,
+                seed_context=seed_context,
+            )
+        except Exception as exc:
+            errors.append(f"api_calls[{index}]: {exc}")
+            continue
+        _merge_seed_context(seed_context, prepared_call.context_additions)
+    return errors
+
+
 def _render_seed_value(value: Any, seed_context: dict[str, Any]) -> Any:
     if isinstance(value, str):
         whole_match = _FORMAT_TOKEN_PATTERN.fullmatch(value)
@@ -317,16 +440,152 @@ def _lookup_seed_context_value(seed_context: dict[str, Any], key: str) -> Any:
     return current
 
 
+def _prepare_http_seed_call(
+    call: dict[str, Any],
+    instance: dict[str, Any],
+    *,
+    mechanism: str,
+    seed_context: dict[str, Any],
+) -> PreparedSeedCall:
+    target = call.get("target")
+    if isinstance(target, dict):
+        rendered_target = _render_seed_value(target, seed_context)
+        if not isinstance(rendered_target, dict):
+            raise RuntimeError("rendered seed target must be an object")
+        unresolved_target = sorted(_seed_placeholder_names(rendered_target))
+        if unresolved_target:
+            raise RuntimeError(
+                "seed target has unresolved template placeholders: "
+                + ", ".join(unresolved_target)
+            )
+        target_site = str(rendered_target.get("site", "")).strip().lower()
+        target_benchmark = str(rendered_target.get("benchmark") or "webarena_verified").strip().lower()
+        instance_site = str(instance.get("site_name", "")).strip().lower()
+        if target_site and instance_site and target_site != instance_site:
+            raise RuntimeError(
+                f"target.site {target_site!r} does not match bound seed instance site {instance_site!r}"
+            )
+        has_create = "create" in rendered_target
+        has_update = "update" in rendered_target
+        if has_create == has_update:
+            raise RuntimeError("target must have exactly one of {create, update}")
+        rendered_method = _render_seed_value(
+            call.get("method") or ("PUT" if has_update else "POST"),
+            seed_context,
+        )
+        method = str(rendered_method).strip().upper()
+        resolver = get_resolver(target_benchmark, target_site or instance_site)
+        resolver_target = dict(rendered_target)
+        resolver_target["method"] = method
+        resolver_target["mechanism"] = mechanism
+        resolver_target["body"] = call.get("body")
+        resolver_target["body_form"] = call.get("body_form")
+        if has_create:
+            resolved = resolver.create(resolver_target, instance, seed_context)
+        else:
+            resolved = resolver.update(resolver_target, instance, seed_context)
+        method = str(resolved.method).strip().upper()
+        next_context = dict(seed_context)
+        _merge_seed_context(next_context, resolved.context_additions)
+        rendered_call = _render_http_seed_call(
+            {**call, "method": method},
+            seed_context=next_context,
+        )
+        effective_call = dict(rendered_call)
+        if resolved.body is not None:
+            body_key = "body_form" if mechanism == "form" else "body"
+            effective_call[body_key] = _render_seed_value(resolved.body, next_context)
+        if resolved.headers:
+            merged_headers = dict(effective_call.get("headers") or {})
+            merged_headers.update(resolved.headers)
+            effective_call["headers"] = merged_headers
+        url = resolved.url
+        concrete_path = urllib.parse.urlparse(url).path
+        if urllib.parse.urlparse(url).query:
+            concrete_path += f"?{urllib.parse.urlparse(url).query}"
+        effective_call["path"] = concrete_path
+        raw_path = _format_target_descriptor(rendered_target)
+        context_additions = dict(resolved.context_additions)
+        instance_origin = _origin_for_url(str(instance["site_url"]))
+        if _origin_for_url(url) != instance_origin:
+            raise RuntimeError(
+                f"HTTP seed target must stay on origin {instance_origin!r}, got {url!r}"
+            )
+    else:
+        rendered_call = _render_http_seed_call(call, seed_context=seed_context)
+        method = str(rendered_call["method"]).strip().upper()
+        raw_path = _call_reference(rendered_call)
+        if raw_path is None:
+            raise RuntimeError("rendered legacy seed call must include path or url")
+        context_additions = {}
+        effective_call = dict(rendered_call)
+        url = _resolve_call_url(raw_path, instance)
+        effective_call.setdefault("path", _concrete_call_path(url))
+
+    headers = _build_request_headers(instance, effective_call, mechanism=mechanism)
+    return PreparedSeedCall(
+        method=method,
+        raw_path=raw_path,
+        url=url,
+        headers=headers,
+        json_body=effective_call.get("body"),
+        body_form=effective_call.get("body_form"),
+        rendered_call=effective_call,
+        context_additions=context_additions,
+    )
+
+
+def _format_target_descriptor(target: dict[str, Any]) -> str:
+    site_name = str(target.get("site", "")).strip() or "unknown"
+    resource_type = str(target.get("resource_type", "")).strip() or "unknown"
+    if "create" in target:
+        return f"target:{site_name}:{resource_type}:create"
+    if "update" in target:
+        return f"target:{site_name}:{resource_type}:update"
+    return f"target:{site_name}:{resource_type}"
+
+
+def _call_reference(call: dict[str, Any]) -> str | None:
+    raw_path = call.get("path")
+    if isinstance(raw_path, str) and raw_path.strip():
+        return raw_path
+    raw_url = call.get("url")
+    if isinstance(raw_url, str) and raw_url.strip():
+        return raw_url
+    return None
+
+
+def _concrete_call_path(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    path = parsed.path or "/"
+    if parsed.query:
+        path += f"?{parsed.query}"
+    return path
+
+
 def _extract_response_seed_context(response: requests.Response) -> dict[str, Any]:
+    flattened: dict[str, Any] = {}
+    _extract_location_seed_context(flattened, response)
     try:
         payload = response.json()
     except ValueError:
-        return {}
+        return flattened
     if not isinstance(payload, dict):
-        return {}
-    flattened: dict[str, Any] = {}
+        return flattened
     _flatten_response_payload(flattened, payload)
     return flattened
+
+
+def _extract_location_seed_context(flattened: dict[str, Any], response: requests.Response) -> None:
+    location = response.headers.get("Location")
+    if not isinstance(location, str) or not location.strip():
+        return
+    parsed = urllib.parse.urlparse(location)
+    path = parsed.path or location
+    match = re.search(r"/f/([^/]+)/(\d+)(?:/|$)", path)
+    if match:
+        flattened.setdefault("forum_name", match.group(1))
+        flattened.setdefault("submission_id", match.group(2))
 
 
 def _flatten_response_payload(
@@ -730,7 +989,9 @@ def _task_seed_site(task: dict[str, Any]) -> str:
     if isinstance(delivery_channel, dict):
         delivery_site = delivery_channel.get("delivery_site")
         if isinstance(delivery_site, str) and delivery_site.strip():
-            return delivery_site.strip()
+            normalized = delivery_site.strip()
+            if normalized.lower() != "none":
+                return normalized
     site = str(task.get("site", "")).strip()
     return site or "<unknown>"
 
@@ -819,15 +1080,15 @@ def _parse_runtime_db_connection(
 def _apply_http_seed_call(
     session: requests.Session,
     mechanism: str,
-    call: dict[str, Any],
+    call: PreparedSeedCall,
     instance: dict[str, Any],
 ) -> requests.Response:
-    method = str(call["method"]).strip().upper()
-    raw_path = str(call["path"])
-    url = _resolve_call_url(raw_path, instance)
-    headers = _build_request_headers(instance, call, mechanism=mechanism)
-    json_body = call.get("body")
-    form_body = _prepare_form_body(method, url, headers, call.get("body_form"), instance, session)
+    method = call.method
+    raw_path = call.raw_path
+    url = call.url
+    headers = dict(call.headers)
+    json_body = call.json_body
+    form_body = _prepare_form_body(method, url, headers, call.body_form, instance, session)
 
     response = _request_with_context(
         session,
@@ -845,7 +1106,7 @@ def _apply_http_seed_call(
             method,
             url,
             headers,
-            call.get("body_form"),
+            call.body_form,
             instance,
             session,
             force_refresh=True,
@@ -872,7 +1133,7 @@ def _apply_http_seed_call(
 
     _verify_http_seed_postcondition(
         mechanism=mechanism,
-        call=call,
+        call=call.rendered_call,
         instance=instance,
         raw_path=raw_path,
     )
@@ -1252,6 +1513,9 @@ def _extract_http_body(call: dict[str, Any]) -> dict[str, Any]:
     for body_key in ("body_form", "body"):
         body = call.get(body_key)
         if isinstance(body, dict):
+            nested_review = body.get("review")
+            if isinstance(nested_review, dict):
+                return nested_review
             return body
     return {}
 
@@ -1521,7 +1785,7 @@ def _request_with_context(
             allow_redirects=False,
         )
         if 300 <= response.status_code < 400:
-            location = response.headers.get("Location")
+            location = "<present>" if response.headers.get("Location") else "<missing>"
             raise RuntimeError(
                 f"HTTP seed request for {method} {raw_path} returned redirect "
                 f"status={response.status_code} location={location!r}"

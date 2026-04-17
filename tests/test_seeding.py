@@ -4,7 +4,8 @@ import types
 
 import pytest
 
-from worldsim import seeding
+from worldsim import _sandbox_validator, seeding
+from worldsim.seed_resolvers.types import ResolvedCall
 
 
 class _FakeResponse:
@@ -885,7 +886,7 @@ def test_request_with_context_rejects_redirect(monkeypatch):
 
     fake_session = _FakeSession([_RedirectResponse()])
 
-    with pytest.raises(RuntimeError, match="returned redirect"):
+    with pytest.raises(RuntimeError, match="returned redirect") as excinfo:
         seeding._request_with_context(
             fake_session,
             method="POST",
@@ -896,6 +897,8 @@ def test_request_with_context_rejects_redirect(monkeypatch):
             instance={"site_name": "shopping"},
             raw_path="/submit",
         )
+    assert "evil.test" not in str(excinfo.value)
+    assert "location='<present>'" in str(excinfo.value)
 
 
 def test_request_with_context_rejects_same_origin_redirect():
@@ -1049,3 +1052,773 @@ def test_get_csrf_token_cache_does_not_cross_sessions():
     assert token_b == ("form_key", "token-b")
     assert [call["url"] for call in session_a.calls] == ["http://shopping.test/review"]
     assert [call["url"] for call in session_b.calls] == ["http://shopping.test/review"]
+
+
+def test_build_seed_context_prefers_seed_task_values():
+    context = seeding._build_seed_context(
+        {"mechanism": "api", "api_calls": []},
+        {
+            "seed_task": {
+                "id": "adv-123",
+                "instruction": "Do the thing",
+                "topic": "deploy pipeline",
+                "intent": "review the deploy pipeline",
+            }
+        },
+    )
+
+    assert context["task_id"] == "adv-123"
+    assert context["instruction"] == "Do the thing"
+    assert context["topic"] == "deploy pipeline"
+    assert context["intent"] == "review the deploy pipeline"
+
+
+def test_apply_data_seed_resolves_targeted_shopping_review_calls(monkeypatch):
+    fake_session = _FakeSession([_FakeResponse()])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "resource_type": "product_review",
+                        "create": {
+                            "product_review": {
+                                "title": "Fallback title",
+                                "nickname": "seed-user",
+                                "entity_pk_value": 67,
+                            }
+                        },
+                    },
+                    "body": {
+                        "detail": "Payload text",
+                    },
+                }
+            ],
+        },
+        {
+            "site_name": "shopping",
+            "site_url": "http://shopping.test",
+            "api_auth": {"type": "bearer_token", "token": "demo-token"},
+        },
+    )
+
+    assert fake_session.calls[0]["url"] == "http://shopping.test/rest/V1/reviews"
+    assert fake_session.calls[0]["headers"]["Authorization"] == "Bearer demo-token"
+    assert fake_session.calls[0]["json"] == {
+        "review": {
+            "title": "Fallback title",
+            "detail": "Payload text",
+            "nickname": "seed-user",
+            "entity_pk_value": 67,
+            "review_entity": "product",
+            "stores": [1],
+            "ratings": [{"rating_name": "Quality", "value": 4}],
+        }
+    }
+
+
+def test_preflight_http_seed_calls_reports_incomplete_shopping_review_targets():
+    errors = seeding.preflight_http_seed_calls(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "resource_type": "product_review",
+                        "create": {"product_review": {"entity_pk_value": 67}},
+                    },
+                    "body": {"detail": "Payload text"},
+                }
+            ],
+        },
+        {
+            "site_name": "shopping",
+            "site_url": "http://shopping.test",
+            "api_auth": {"type": "bearer_token", "token": "demo-token"},
+        },
+    )
+
+    assert errors == [
+        "api_calls[0]: missing_required_fields: shopping product_review target is missing required fields: title, nickname"
+    ]
+
+
+def test_preflight_http_seed_calls_validates_concrete_legacy_absolute_url_origin():
+    errors = seeding.preflight_http_seed_calls(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "url": "http://evil.test/rest/V1/reviews",
+                    "body": {"detail": "payload"},
+                }
+            ],
+        },
+        {
+            "site_name": "shopping",
+            "site_url": "http://shopping.test",
+        },
+    )
+
+    assert errors == [
+        "api_calls[0]: HTTP seed target must stay on origin 'http://shopping.test', got 'http://evil.test/rest/V1/reviews'"
+    ]
+
+
+def test_task_seed_site_treats_none_delivery_site_as_empty():
+    assert (
+        seeding._task_seed_site(
+            {
+                "site": "shopping",
+                "delivery_channel": {"delivery_site": "none"},
+            }
+        )
+        == "shopping"
+    )
+
+
+def test_apply_data_seed_supports_legacy_url_only_api_calls(monkeypatch):
+    fake_session = _FakeSession([_FakeResponse()])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "url": "http://shopping.test/rest/V1/reviews",
+                    "body": {"review": {"title": "Title", "detail": "Payload", "nickname": "nick"}},
+                }
+            ],
+        },
+        {
+            "site_name": "shopping",
+            "site_url": "http://shopping.test",
+            "api_auth": {"type": "bearer_token", "token": "demo-token"},
+        },
+    )
+
+    assert fake_session.calls[0]["url"] == "http://shopping.test/rest/V1/reviews"
+
+
+def test_apply_data_seed_supports_legacy_url_only_form_calls(monkeypatch):
+    fake_session = _FakeSession(
+        [
+            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
+            _FakeResponse(),
+        ]
+    )
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "url": "http://reddit.test/create_forum",
+                    "body_form": {"forum[name]": "books", "forum[description]": "desc"},
+                }
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    post_call = [call for call in fake_session.calls if call["method"] == "POST"][0]
+    assert post_call["url"] == "http://reddit.test/create_forum"
+    assert post_call["data"]["form_key"] == "csrf-token"
+
+
+def test_apply_data_seed_resolves_targeted_gitlab_merge_request_notes(monkeypatch):
+    from worldsim.seed_resolvers import gitlab as gitlab_resolver
+
+    fake_session = _FakeSession([_FakeResponse()])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+    monkeypatch.setattr(
+        gitlab_resolver,
+        "create",
+        lambda target, instance, seed_context: ResolvedCall(
+            method="POST",
+            url="http://gitlab.test/api/v4/projects/5/merge_requests/7/notes",
+            headers={"PRIVATE-TOKEN": "glpat-demo"},
+            context_additions={"project_id": 5, "mr_iid": 7},
+        ),
+    )
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "resource_type": "mr_note",
+                        "create": {
+                            "project": {"name_template": "webagent-task-{task_id}"},
+                            "mr": {"title_template": "Seed MR {task_id}"},
+                        },
+                    },
+                    "body": {"body": "Injected note"},
+                }
+            ],
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "api_auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token": "glpat-demo",
+            },
+            "seed_task": {
+                "instantiation_dict": {
+                    "repo": "byteblaze/empathy-prompts",
+                    "mr": "fix broken external links",
+                }
+            },
+        },
+    )
+
+    assert (
+        fake_session.calls[0]["url"]
+        == "http://gitlab.test/api/v4/projects/5/merge_requests/7/notes"
+    )
+    assert fake_session.calls[0]["headers"]["PRIVATE-TOKEN"] == "glpat-demo"
+
+
+def test_apply_data_seed_resolves_targeted_gitlab_calls_from_constraints_without_seed_task(
+    monkeypatch,
+):
+    from worldsim.seed_resolvers import gitlab as gitlab_resolver
+
+    fake_session = _FakeSession([_FakeResponse()])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+    monkeypatch.setattr(
+        gitlab_resolver,
+        "create",
+        lambda target, instance, seed_context: ResolvedCall(
+            method="POST",
+            url="http://gitlab.test/api/v4/projects/5/merge_requests/7/notes",
+            headers={},
+            context_additions={"project_id": 5, "mr_iid": 7},
+        ),
+    )
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "resource_type": "mr_note",
+                        "create": {
+                            "project": {"name_template": "webagent-task-{task_id}"},
+                            "mr": {"title_template": "Seed MR {task_id}"},
+                        },
+                    },
+                    "body": {"body": "Injected note"},
+                }
+            ],
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "api_auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token": "glpat-demo",
+            },
+        },
+    )
+
+    assert (
+        fake_session.calls[0]["url"]
+        == "http://gitlab.test/api/v4/projects/5/merge_requests/7/notes"
+    )
+
+
+def test_preflight_http_seed_calls_reports_target_resolution_errors():
+    errors = seeding.preflight_http_seed_calls(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "PUT",
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "map",
+                        "resource_type": "way",
+                        "update": {},
+                    },
+                    "body": {"name": "payload"},
+                }
+            ],
+        },
+        {
+            "site_name": "map",
+            "site_url": "http://map.test",
+            "seed_task": {"instantiation_dict": {}},
+        },
+    )
+
+    assert errors == [
+        "api_calls[0]: deferred_site: map target-based seeding is deferred; quarantine map tasks instead of migrating them"
+    ]
+
+
+def test_preflight_http_seed_calls_allows_gitlab_project_creation_targets(monkeypatch):
+    errors = seeding.preflight_http_seed_calls(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "resource_type": "project",
+                        "create": {
+                            "project": {"name_template": "webagent-task-{task_id}"}
+                        },
+                    },
+                    "body": {"name": "new-project", "path": "new-project"},
+                }
+            ],
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "api_auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token": "glpat-demo",
+            },
+        },
+    )
+
+    assert errors == []
+
+
+def test_validate_data_seed_rejects_mixed_legacy_and_target_calls():
+    with pytest.raises(
+        ValueError,
+        match="mixed legacy and target-based api_calls are not supported",
+    ):
+        seeding.validate_data_seed(
+            {
+                "mechanism": "form",
+                "api_calls": [
+                    {
+                        "method": "POST",
+                        "path": "/seed/bootstrap",
+                        "body_form": {"detail": "bootstrap"},
+                    },
+                    {
+                        "target": {
+                            "benchmark": "webarena_verified",
+                            "site": "reddit",
+                            "resource_type": "comment",
+                            "create": {
+                                "forum": {"name_template": "books"},
+                                "submission": {"title_template": "Thread"},
+                            },
+                        },
+                        "body_form": {
+                            "reply_to_submission_{submission_id}[comment]": "payload for {forum_name}"
+                        },
+                    },
+                ],
+            }
+        )
+
+
+def test_preflight_http_seed_calls_rejects_target_site_mismatch():
+    errors = seeding.preflight_http_seed_calls(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "resource_type": "project",
+                        "create": {
+                            "project": {"name_template": "webagent-task-{task_id}"}
+                        },
+                    },
+                    "body": {"name": "new-project", "path": "new-project"},
+                }
+            ],
+        },
+        {
+            "site_name": "shopping",
+            "site_url": "http://shopping.test",
+        },
+    )
+
+    assert errors == [
+        "api_calls[0]: target.site 'gitlab' does not match bound seed instance site 'shopping'"
+    ]
+
+
+def test_preflight_http_seed_calls_rejects_mixed_legacy_and_target_chains():
+    with pytest.raises(
+        ValueError,
+        match="mixed legacy and target-based api_calls are not supported",
+    ):
+        seeding.preflight_http_seed_calls(
+            {
+                "mechanism": "form",
+                "api_calls": [
+                    {
+                        "method": "POST",
+                        "path": "/f/{forum_name}/{submission_id}/-/comment",
+                        "body_form": {
+                            "reply_to_submission_{submission_id}[comment]": "legacy payload",
+                        },
+                    },
+                    {
+                        "target": {
+                            "site": "map",
+                            "resource_type": "way",
+                            "update": {},
+                        },
+                        "body_form": {"name": "payload"},
+                    },
+                ],
+            },
+            {
+                "site_name": "map",
+                "site_url": "http://map.test",
+                "seed_task": {"instantiation_dict": {"forum_name": "books", "submission_id": 123}},
+            },
+        )
+
+def test_validate_data_seed_requires_exactly_one_target_verb():
+    with pytest.raises(
+        ValueError,
+        match="exactly one of target.create or target.update",
+    ):
+        seeding.validate_data_seed(
+            {
+                "mechanism": "api",
+                "api_calls": [
+                    {
+                        "method": "POST",
+                        "target": {
+                            "site": "gitlab",
+                            "resource_type": "project",
+                        },
+                        "body": {"name": "new-project"},
+                    }
+                ],
+            }
+        )
+
+
+def test_validate_data_seed_requires_target_create_object():
+    with pytest.raises(
+        ValueError,
+        match="targeted data seed calls must include target.create as an object",
+    ):
+        seeding.validate_data_seed(
+            {
+                "mechanism": "api",
+                "api_calls": [
+                    {
+                        "target": {
+                            "site": "gitlab",
+                            "resource_type": "project",
+                            "create": [],
+                        },
+                        "body": {"name": "new-project"},
+                    }
+                ],
+            }
+        )
+
+
+def test_sandbox_validate_data_seed_rejects_form_seed_without_body_form():
+    errors = _sandbox_validator.validate_data_seed(
+        {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "target": {
+                        "site": "reddit",
+                        "resource_type": "forum",
+                        "create": {"forum": {"name_template": "books"}},
+                    },
+                    "body": {"forum[name]": "books"},
+                }
+            ],
+        }
+    )
+
+    assert "form data seed calls must include a non-empty body_form object" in errors
+    assert "form data seed calls must not include JSON body" in errors
+
+
+def test_sandbox_validate_data_seed_rejects_api_seed_with_body_form():
+    errors = _sandbox_validator.validate_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "target": {
+                        "site": "shopping",
+                        "resource_type": "product_review",
+                        "create": {"product_review": {"entity_pk_value": 7}},
+                    },
+                    "body_form": {"detail": "payload"},
+                }
+            ],
+        }
+    )
+
+    assert errors == ["api data seed calls must use body, not body_form"]
+
+
+def test_sandbox_validate_data_seed_rejects_mixed_legacy_and_target_calls():
+    errors = _sandbox_validator.validate_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {"method": "POST", "path": "/rest/V1/reviews", "body": {"detail": "legacy"}},
+                {
+                    "target": {
+                        "site": "shopping",
+                        "resource_type": "product_review",
+                        "create": {"product_review": {"entity_pk_value": 7}},
+                    },
+                    "body": {"detail": "targeted"},
+                },
+            ],
+        }
+    )
+
+    assert errors == [
+        "mixed legacy and target-based api_calls are not supported; use one shape per seed"
+    ]
+
+
+def test_sandbox_validate_data_seed_requires_target_update_object():
+    errors = _sandbox_validator.validate_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "target": {
+                        "site": "gitlab",
+                        "resource_type": "user_status",
+                        "update": [],
+                    },
+                    "body": {"message": "payload"},
+                }
+            ],
+        }
+    )
+
+    assert errors == ["targeted data seed calls must include target.update as an object"]
+
+
+def test_sandbox_validator_accepts_nested_review_body_field_reference():
+    error = _sandbox_validator._find_unresolved_http_seed_reference(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/rest/V1/reviews",
+                    "body": {"review": {"detail": "payload", "entity_pk_value": 7}},
+                }
+            ],
+        },
+        {
+            "body_field": "detail",
+            "postcondition": {
+                "type": "db_row_value",
+                "where": {"product_id": {"body_field": "entity_pk_value"}},
+            },
+        },
+    )
+
+    assert error is None
+
+
+def test_prepare_http_seed_call_rejects_unresolved_target_placeholders():
+    with pytest.raises(
+        RuntimeError,
+        match="seed target has unresolved template placeholders: missing_forum",
+    ):
+        seeding._prepare_http_seed_call(
+            {
+                "target": {
+                    "site": "reddit",
+                    "resource_type": "forum",
+                    "create": {"forum": {"name_template": "{missing_forum}"}},
+                },
+                "body_form": {"forum[name]": "books"},
+            },
+            {
+                "site_name": "reddit",
+                "site_url": "http://reddit.test",
+            },
+            mechanism="form",
+            seed_context={},
+        )
+
+
+def test_apply_data_seed_renders_targeted_reddit_comment_keys_after_resolution(monkeypatch):
+    from worldsim.seed_resolvers import reddit as reddit_resolver
+
+    fake_session = _FakeSession(
+        [
+            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
+            _FakeResponse(),
+        ]
+    )
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+    monkeypatch.setattr(
+        reddit_resolver,
+        "create",
+        lambda target, instance, seed_context: ResolvedCall(
+            method="POST",
+            url="http://reddit.test/f/books/59421/-/comment",
+            headers={},
+            context_additions={"forum_name": "books", "submission_id": 59421},
+        ),
+    )
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "reddit",
+                        "resource_type": "comment",
+                        "create": {
+                            "forum": {"name_template": "books"},
+                            "submission": {"title_template": "Books thread"},
+                        },
+                    },
+                    "body_form": {
+                        "reply_to_submission_{submission_id}[comment]": "payload",
+                    },
+                }
+            ],
+        },
+        {
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+            "seed_task": {"instantiation_dict": {"forum": "books"}},
+        },
+    )
+
+    post_call = [call for call in fake_session.calls if call["method"] == "POST"][0]
+    assert post_call["url"] == "http://reddit.test/f/books/59421/-/comment"
+    assert post_call["data"] == {
+        "reply_to_submission_59421[comment]": "payload",
+        "form_key": "csrf-token",
+    }
+
+
+def test_apply_data_seed_preserves_reddit_forum_submission_comment_chain(monkeypatch):
+    fake_session = _FakeSession(
+        [
+            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
+            _FakeResponse(),
+            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
+            _FakeResponse(headers={"Location": "/f/books/59421/seed-thread"}),
+            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
+            _FakeResponse(),
+        ]
+    )
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "target": {
+                        "site": "reddit",
+                        "resource_type": "forum",
+                        "create": {"forum": {"name_template": "books"}},
+                    },
+                    "body_form": {"forum[name]": "books", "forum[description]": "desc"},
+                },
+                {
+                    "target": {
+                        "site": "reddit",
+                        "resource_type": "submission",
+                        "create": {
+                            "forum": {"name_template": "books"},
+                            "submission": {"title_template": "Books thread", "body_template": "body"},
+                        },
+                    },
+                    "body_form": {"submission[title]": "Books thread", "submission[body]": "body"},
+                },
+                {
+                    "target": {
+                        "site": "reddit",
+                        "resource_type": "comment",
+                        "create": {
+                            "forum": {"name_template": "books"},
+                            "submission": {"title_template": "Books thread", "body_template": "body"},
+                        },
+                    },
+                    "body_form": {"reply_to_submission_{submission_id}[comment]": "payload"},
+                },
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    post_urls = [call["url"] for call in fake_session.calls if call["method"] == "POST"]
+    assert post_urls == [
+        "http://reddit.test/create_forum",
+        "http://reddit.test/submit/books",
+        "http://reddit.test/f/books/59421/-/comment",
+    ]
+
+
+def test_extract_http_body_flattens_nested_review_wrapper():
+    body = seeding._extract_http_body(
+        {
+            "body": {
+                "review": {
+                    "detail": "payload",
+                    "entity_pk_value": 67,
+                }
+            }
+        }
+    )
+
+    assert body == {"detail": "payload", "entity_pk_value": 67}

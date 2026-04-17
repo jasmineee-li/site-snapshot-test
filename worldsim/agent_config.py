@@ -44,6 +44,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkInstance
@@ -532,7 +533,71 @@ def bind_task_to_instance(
         "bound_instance": instance.model_dump(),
         "bound_instances": bound_instances,
     }
-    return bound_task
+    return _rewrite_task_bound_origins(bound_task, bound_instances=bound_instances, instances=instances)
+
+
+def _rewrite_task_bound_origins(
+    task: dict[str, Any],
+    *,
+    bound_instances: dict[str, dict[str, Any]],
+    instances: list[BenchmarkInstance],
+) -> dict[str, Any]:
+    origin_mapping: dict[str, str] = {}
+    for site_name, bound_payload in bound_instances.items():
+        new_site_url = bound_payload.get("site_url")
+        if not isinstance(new_site_url, str) or not new_site_url.strip():
+            continue
+        new_origin = _origin_for_url(new_site_url)
+        for candidate in instances_for_site(instances, site_name):
+            old_origin = _origin_for_url(candidate.site_url)
+            if old_origin and old_origin != new_origin:
+                origin_mapping[old_origin] = new_origin
+    if not origin_mapping:
+        return task
+    return _rewrite_nested_origins(task, origin_mapping)
+
+
+def _rewrite_nested_origins(value: Any, origin_mapping: dict[str, str]) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _rewrite_nested_origins(item, origin_mapping)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_rewrite_nested_origins(item, origin_mapping) for item in value]
+    if isinstance(value, str):
+        return _rewrite_string_origin(value, origin_mapping)
+    return value
+
+
+def _rewrite_string_origin(value: str, origin_mapping: dict[str, str]) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme and parsed.netloc:
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        replacement = origin_mapping.get(origin)
+        if replacement:
+            replacement_parts = urlsplit(replacement)
+            return urlunsplit(
+                (
+                    replacement_parts.scheme,
+                    replacement_parts.netloc,
+                    parsed.path,
+                    parsed.query,
+                    parsed.fragment,
+                )
+            )
+    rewritten = value
+    for old_origin, new_origin in origin_mapping.items():
+        if old_origin in rewritten:
+            rewritten = rewritten.replace(old_origin, new_origin)
+    return rewritten
+
+
+def _origin_for_url(url: str) -> str:
+    parsed = urlsplit(str(url))
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def execution_instance_dict(

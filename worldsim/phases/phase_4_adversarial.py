@@ -34,9 +34,11 @@ import logging
 import tempfile
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -79,6 +81,7 @@ from worldsim.rewards import run_reward_function
 from worldsim.seeding import (
     apply_data_seed_async,
     collect_seed_runtime_errors,
+    preflight_http_seed_calls,
     self_contained_adversarial_seed_error,
     validate_data_seed,
 )
@@ -115,6 +118,46 @@ REVISED_TASK_OUTPUT = "/workspace/output/revised_task.json"
 VARIANT_TASK_OUTPUT = "/workspace/output/variant_task.json"
 ECOLOGICAL_FIX_MAX_ITERATIONS = 2
 PLACEMENT_FIX_MAX_ITERATIONS = 2
+
+
+@dataclass(frozen=True)
+class SeedPreflightMismatch:
+    call_index: int
+    site: str
+    resource_type: str
+    kind: str
+    detail: str
+
+    @property
+    def message(self) -> str:
+        return self.detail
+
+
+@dataclass(frozen=True)
+class PreflightReport:
+    ok: bool
+    mismatches: tuple[SeedPreflightMismatch, ...]
+
+
+@dataclass(frozen=True)
+class BaseStateProbeResult:
+    ok: bool
+    mismatch: SeedPreflightMismatch | None = None
+
+
+def _serialize_preflight_mismatch_records(
+    mismatches: tuple[SeedPreflightMismatch, ...] | list[SeedPreflightMismatch],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "call_index": mismatch.call_index,
+            "site": mismatch.site,
+            "resource_type": mismatch.resource_type,
+            "kind": mismatch.kind,
+            "detail": mismatch.detail,
+        }
+        for mismatch in mismatches
+    ]
 
 
 def _resume_fingerprint_task(task: dict[str, Any]) -> dict[str, Any]:
@@ -180,7 +223,10 @@ def _delivery_site_name(delivery_channel: Any) -> str:
         return ""
     delivery_site = delivery_channel.get("delivery_site")
     if isinstance(delivery_site, str):
-        return delivery_site.strip()
+        normalized = delivery_site.strip()
+        if normalized.lower() == "none":
+            return ""
+        return normalized
     return ""
 
 
@@ -224,6 +270,35 @@ def _phase_4_result_fingerprint(
     site_profile: dict[str, Any] | None,
 ) -> str:
     return _fingerprint_payload(_resume_fingerprint_task(task), eval_context, site_profile)
+
+
+def _seed_target_site(task: dict[str, Any]) -> str:
+    delivery_channel = task.get("delivery_channel")
+    delivery_site = _delivery_site_name(delivery_channel)
+    return delivery_site or str(task.get("site", "")).strip()
+
+
+def _seed_target_sites(tasks: list[dict[str, Any]]) -> list[str]:
+    sites: set[str] = set()
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        seed = task.get("adversarial_data_seed")
+        if not _seed_uses_target_calls(seed):
+            continue
+        site_name = _seed_target_site(task)
+        if site_name:
+            sites.add(site_name)
+    return sorted(sites)
+
+
+def _seed_uses_target_calls(seed: Any) -> bool:
+    if not isinstance(seed, dict):
+        return False
+    api_calls = seed.get("api_calls")
+    if not isinstance(api_calls, list):
+        return False
+    return any(isinstance(call, dict) and isinstance(call.get("target"), dict) for call in api_calls)
 
 
 def _phase_4_postprocess_fingerprint(
@@ -507,6 +582,7 @@ async def run(args: argparse.Namespace) -> int:
     )
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(tasks, profiles_dir)
+    seed_probe_cache: dict[tuple[str, str, str], BaseStateProbeResult] = {}
     agent_auth_errors = _collect_agent_auth_runtime_errors(config.instances, site_profiles)
     if agent_auth_errors:
         logger.error(
@@ -518,6 +594,24 @@ async def run(args: argparse.Namespace) -> int:
             status="failed",
             reason="agent_runtime_config_error",
             agent_runtime_errors=agent_auth_errors,
+            **state_metadata,
+        )
+        return 1
+    infrastructure_errors = _probe_seed_base_state_for_task_targets(
+        tasks,
+        config.instances,
+        cache=seed_probe_cache,
+    )
+    if infrastructure_errors:
+        logger.error(
+            "Phase 4 seed base-state probe failed:\n%s",
+            "\n".join(f"  - {error}" for error in infrastructure_errors),
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="infrastructure_failed",
+            infrastructure_errors=infrastructure_errors,
             **state_metadata,
         )
         return 1
@@ -550,6 +644,8 @@ async def run(args: argparse.Namespace) -> int:
         }
         if callable_accepts_keyword(run_adversarial_task, "reset_cache"):
             run_kwargs["reset_cache"] = reset_cache
+        if callable_accepts_keyword(run_adversarial_task, "seed_probe_cache"):
+            run_kwargs["seed_probe_cache"] = seed_probe_cache
         return await run_adversarial_task(
             task,
             agent,
@@ -633,6 +729,9 @@ async def run(args: argparse.Namespace) -> int:
     resistant = sum(1 for r in final_results if r["final_status"] == "resistant")
     broke = sum(1 for r in final_results if r["final_status"] == "task_broke")
     invalid = sum(1 for r in final_results if r["final_status"] == "ecologically_invalid")
+    seed_preflight_mismatch = sum(
+        1 for r in final_results if r["final_status"] == "seed_preflight_mismatch"
+    )
     errors = sum(1 for r in final_results if r["final_status"] == "error")
     inconclusive = sum(1 for r in final_results if r["final_status"] == "inconclusive")
 
@@ -643,6 +742,7 @@ async def run(args: argparse.Namespace) -> int:
         "resistant": resistant,
         "task_broke": broke,
         "invalid": invalid,
+        "seed_preflight_mismatch": seed_preflight_mismatch,
         "errors": errors,
         "inconclusive": inconclusive,
         "total": len(final_results),
@@ -650,7 +750,7 @@ async def run(args: argparse.Namespace) -> int:
     terminal_status = "complete"
     terminal_reason: str | None = None
     return_code = 0
-    if final_results and errors == len(final_results):
+    if final_results and errors + seed_preflight_mismatch == len(final_results):
         terminal_status = "failed"
         terminal_reason = "all_tasks_failed"
         return_code = 1
@@ -663,7 +763,7 @@ async def run(args: argparse.Namespace) -> int:
 
     logger.info(
         "Phase 4 %s — %d tasks: %d complied, %d variant_success, "
-        "%d resistant, %d broke, %d invalid, %d error, %d inconclusive",
+        "%d resistant, %d broke, %d invalid, %d seed_preflight_mismatch, %d error, %d inconclusive",
         terminal_status,
         len(final_results),
         complied,
@@ -671,6 +771,7 @@ async def run(args: argparse.Namespace) -> int:
         resistant,
         broke,
         invalid,
+        seed_preflight_mismatch,
         errors,
         inconclusive,
     )
@@ -786,6 +887,7 @@ async def run_adversarial_task(
     site_profile: dict[str, Any] | None = None,
     reset_cache: TaskResetCache | None = None,
     resume_fingerprint: str | None = None,
+    seed_probe_cache: dict[tuple[str, str], BaseStateProbeResult] | None = None,
 ) -> dict[str, Any]:
     """Run one adversarial task: reset -> seed adversarial data -> agent -> evaluate.
 
@@ -810,11 +912,36 @@ async def run_adversarial_task(
     if isinstance(target_surface_id, str) and target_surface_id:
         instance_dict["seed_target_surface_id"] = target_surface_id
 
-    adv_seed = task.get("adversarial_data_seed", {})
-    validate_data_seed(adv_seed, allow_none=False)
+    raw_adv_seed = task.get("adversarial_data_seed")
+    if not isinstance(raw_adv_seed, dict):
+        mismatch_records = [
+            {
+                "call_index": -1,
+                "site": str(seed_site).strip() or str(task.get("site", "")).strip() or "unknown",
+                "resource_type": "unknown",
+                "kind": "resolver_error",
+                "detail": "data seed must be an object",
+            }
+        ]
+        return {
+            "task_id": task_id,
+            "outcome": "seed_preflight_mismatch",
+            "error": "data seed must be an object",
+            "ecologically_valid": False,
+            "validity_score": None,
+            "benign_passed": False,
+            "adversarial_passed": False,
+            "seed_preflight_mismatches": ["data seed must be an object"],
+            "seed_preflight_mismatch_records": mismatch_records,
+            "trajectory_dir": str(task_dir),
+            "elapsed": 0.0,
+            "steps": 0,
+        }
+    adv_seed = raw_adv_seed
+    adv_seed_mechanism = adv_seed.get("mechanism")
     seed_instance_dict = instance_dict
     reset_cache_bindings: list[dict[str, Any]] = []
-    if adv_seed["mechanism"] not in (None, "none") and seed_site and seed_site != str(
+    if adv_seed_mechanism not in (None, "none") and seed_site and seed_site != str(
         task.get("site", "")
     ).strip():
         try:
@@ -847,22 +974,63 @@ async def run_adversarial_task(
     should_reset = True
     if reset_cache is not None:
         should_reset = reset_cache.should_reset(task, extra_bindings=reset_cache_bindings)
-    if should_reset:
-        await _reset_task_environment(task)
-        if reset_cache is not None:
-            reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
 
     # Seed adversarial data
     task_likely_mutated = False
     try:
-        if adv_seed["mechanism"] not in (None, "none"):
+        if adv_seed_mechanism not in (None, "none"):
             task_likely_mutated = True
             if isinstance(site_profile, dict):
                 seed_instance_dict["site_profile"] = json.loads(json.dumps(site_profile))
             seed_instance_dict["seed_task"] = json.loads(json.dumps(task))
             if isinstance(target_surface_id, str) and target_surface_id:
                 seed_instance_dict["seed_target_surface_id"] = target_surface_id
+            try:
+                preflight_seed = raw_adv_seed if raw_adv_seed is not None else adv_seed
+                preflight = await preflight_adversarial_seed(
+                    preflight_seed,
+                    seed_instance_dict,
+                    base_state_cache=seed_probe_cache,
+                )
+            except ValueError as exc:
+                preflight = PreflightReport(
+                    ok=False,
+                    mismatches=(
+                        SeedPreflightMismatch(
+                            call_index=0,
+                            site=str(seed_instance_dict.get("site_name", "")).strip() or "unknown",
+                            resource_type="unknown",
+                            kind="resolver_error",
+                            detail=str(exc),
+                        ),
+                    ),
+                )
+            if not preflight.ok:
+                mismatch_lines = [mismatch.message for mismatch in preflight.mismatches]
+                mismatch_records = _serialize_preflight_mismatch_records(preflight.mismatches)
+                return {
+                    "task_id": task_id,
+                    "outcome": "seed_preflight_mismatch",
+                    "error": "; ".join(mismatch_lines),
+                    "ecologically_valid": False,
+                    "validity_score": None,
+                    "benign_passed": False,
+                    "adversarial_passed": False,
+                    "seed_preflight_mismatches": mismatch_lines,
+                    "seed_preflight_mismatch_records": mismatch_records,
+                    "trajectory_dir": str(task_dir),
+                    "elapsed": 0.0,
+                    "steps": 0,
+                }
+            if should_reset:
+                await _reset_task_environment(task)
+                if reset_cache is not None:
+                    reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
             await apply_data_seed_async(adv_seed, seed_instance_dict)
+        elif should_reset:
+            await _reset_task_environment(task)
+            if reset_cache is not None:
+                reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
 
         # Run agent
         from worldsim.browser_use_agent import resolve_instance_agent_auth
@@ -1091,6 +1259,13 @@ async def _process_adversarial_result(
     site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
+    if initial_result.get("outcome") == "seed_preflight_mismatch":
+        return _build_phase_4_result(
+            task_id=task.get("id", "unknown"),
+            initial_result=initial_result,
+            current_result=initial_result,
+            final_status="seed_preflight_mismatch",
+        )
     if initial_result.get("outcome") == "error" or initial_result.get("error"):
         return _build_phase_4_result(
             task_id=task.get("id", "unknown"),
@@ -2423,3 +2598,244 @@ def _build_phase_4_result(
         "final_status": final_status,
         "successful_strategy": successful_strategy,
     }
+
+
+async def preflight_adversarial_seed(
+    adv_seed: dict[str, Any],
+    instance: dict[str, Any],
+    *,
+    base_state_cache: dict[tuple[str, str, str], BaseStateProbeResult] | None = None,
+) -> PreflightReport:
+    try:
+        errors = await asyncio.to_thread(preflight_http_seed_calls, adv_seed, instance)
+    except Exception as exc:
+        errors = [str(exc)]
+    task = instance.get("seed_task")
+    if isinstance(task, dict):
+        delivery_channel = task.get("delivery_channel")
+        if isinstance(delivery_channel, dict) and isinstance(delivery_channel.get("path_template"), str):
+            from worldsim.phases import phase_2_injections as phase_2_contracts
+
+            try:
+                contract_error = phase_2_contracts._validate_finalized_http_seed_contract(
+                    adv_seed,
+                    delivery_channel,
+                    sites=task.get("sites"),
+                )
+            except Exception as exc:
+                errors.append(str(exc))
+            else:
+                if contract_error is not None:
+                    errors.append(contract_error)
+    mismatches = tuple(_preflight_mismatch_from_error(adv_seed, instance, message) for message in errors)
+    if mismatches:
+        return PreflightReport(ok=False, mismatches=mismatches)
+    if _seed_uses_target_calls(adv_seed):
+        base_state = _probe_seed_base_state(instance, cache=base_state_cache)
+        if not base_state.ok and base_state.mismatch is not None:
+            return PreflightReport(ok=False, mismatches=(base_state.mismatch,))
+    return PreflightReport(ok=True, mismatches=())
+
+
+def _preflight_mismatch_from_error(
+    seed: dict[str, Any],
+    instance: dict[str, Any],
+    message: str,
+) -> SeedPreflightMismatch:
+    call_index = _preflight_call_index(message)
+    site_name = str(instance.get("site_name", "")).strip() or "unknown"
+    resource_type = "unknown"
+    if call_index >= 0:
+        api_calls = seed.get("api_calls")
+        if isinstance(api_calls, list) and call_index < len(api_calls):
+            call = api_calls[call_index]
+            if isinstance(call, dict):
+                target = call.get("target")
+                if isinstance(target, dict):
+                    target_site = str(target.get("site", "")).strip()
+                    target_type = str(target.get("resource_type", "")).strip()
+                    if target_site:
+                        site_name = target_site
+                    if target_type:
+                        resource_type = target_type
+    kind = "resolver_error"
+    lowered = message.lower()
+    if "unresolved template placeholders" in lowered or "unresolved placeholders" in lowered:
+        kind = "template_render_failed"
+    elif "auth" in lowered and ("missing" in lowered or "requires" in lowered):
+        kind = "auth_missing"
+    return SeedPreflightMismatch(
+        call_index=call_index,
+        site=site_name,
+        resource_type=resource_type,
+        kind=kind,
+        detail=message,
+    )
+
+
+def _preflight_call_index(message: str) -> int:
+    prefix, _, _ = message.partition(":")
+    if prefix.startswith("api_calls[") and prefix.endswith("]"):
+        index_text = prefix[len("api_calls[") : -1]
+        if index_text.isdigit():
+            return int(index_text)
+    return -1
+
+
+def _probe_seed_base_state_for_task_targets(
+    tasks: list[dict[str, Any]],
+    instances: list[BenchmarkInstance],
+    *,
+    cache: dict[tuple[str, str, str], BaseStateProbeResult] | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    seen_cache_keys: set[tuple[str, str, str]] = set()
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        seed = task.get("adversarial_data_seed")
+        if not _seed_uses_target_calls(seed):
+            continue
+        seed_site = _seed_target_site(task)
+        if not seed_site:
+            continue
+        try:
+            instance = select_task_site_instance(task, seed_site, instances)
+        except ValueError:
+            errors.append(f"base-state probe could not find configured instance for site {seed_site!r}")
+            continue
+        instance_dict = instance.model_dump()
+        cache_key = _probe_seed_cache_key(instance_dict)
+        if cache_key in seen_cache_keys:
+            continue
+        seen_cache_keys.add(cache_key)
+        result = _probe_seed_base_state(instance_dict, cache=cache)
+        if not result.ok and result.mismatch is not None:
+            errors.append(result.mismatch.message)
+    return errors
+
+
+def _probe_seed_base_state(
+    instance: dict[str, Any],
+    *,
+    cache: dict[tuple[str, str, str], BaseStateProbeResult] | None = None,
+) -> BaseStateProbeResult:
+    site_name, site_url, cache_key = _probe_seed_cache_parts(instance)
+    if cache is not None and cache_key in cache:
+        return cache[cache_key]
+    if not site_name or not site_url:
+        result = BaseStateProbeResult(
+            ok=False,
+            mismatch=SeedPreflightMismatch(
+                call_index=-1,
+                site=site_name or "unknown",
+                resource_type="base_state",
+                kind="base_state_missing",
+                detail="instance is missing site_name or site_url for base-state probe",
+            ),
+        )
+        if cache is not None:
+            cache[cache_key] = result
+        return result
+    try:
+        if site_name == "gitlab":
+            _probe_seed_api_endpoint(instance, path="/api/v4/user")
+        elif site_name in {"shopping", "shopping_admin"}:
+            _probe_seed_api_endpoint(instance, path="/rest/V1/store/storeConfigs")
+        elif site_name == "reddit":
+            username = _reddit_probe_username(instance)
+            _probe_seed_form_endpoint(instance, path=f"/user/{quote(username)}/edit_biography")
+        else:
+            result = BaseStateProbeResult(ok=True)
+            if cache is not None:
+                cache[cache_key] = result
+            return result
+    except RuntimeError as exc:
+        detail = str(exc)
+        kind = "auth_missing" if "auth" in detail.lower() or "credentials" in detail.lower() else "base_state_missing"
+        result = BaseStateProbeResult(
+            ok=False,
+            mismatch=SeedPreflightMismatch(
+                call_index=-1,
+                site=site_name,
+                resource_type="base_state",
+                kind=kind,
+                detail=detail,
+            ),
+        )
+    else:
+        result = BaseStateProbeResult(ok=True)
+    if cache is not None:
+        cache[cache_key] = result
+    return result
+
+
+def _probe_seed_api_endpoint(instance: dict[str, Any], *, path: str) -> None:
+    from worldsim import seeding as seeding_module
+
+    try:
+        headers = seeding_module._build_request_headers(instance, {}, mechanism="api")
+    except Exception as exc:
+        raise RuntimeError(str(exc)) from exc
+    response = requests.get(
+        f"{str(instance.get('site_url', '')).rstrip('/')}{path}",
+        headers=headers,
+        timeout=15,
+        allow_redirects=False,
+    )
+    if 300 <= response.status_code < 400:
+        raise RuntimeError(f"auth probe failed for {path}: HTTP {response.status_code} redirect")
+    if response.status_code in {401, 403}:
+        raise RuntimeError(f"auth probe failed for {path}: HTTP {response.status_code}")
+    if response.status_code >= 400:
+        raise RuntimeError(f"base-state probe failed for {path}: HTTP {response.status_code}")
+
+
+def _probe_seed_form_endpoint(instance: dict[str, Any], *, path: str) -> None:
+    from worldsim import seeding as seeding_module
+
+    try:
+        with requests.Session() as session:
+            seeding_module._perform_web_login_if_needed(session, instance, "form")
+            headers = seeding_module._build_request_headers(instance, {}, mechanism="form")
+            response = session.get(
+                f"{str(instance.get('site_url', '')).rstrip('/')}{path}",
+                headers=headers,
+                timeout=15,
+                allow_redirects=False,
+            )
+    except Exception as exc:
+        raise RuntimeError(str(exc)) from exc
+    if 300 <= response.status_code < 400:
+        raise RuntimeError(f"auth probe failed for {path}: HTTP {response.status_code} redirect")
+    if response.status_code in {401, 403}:
+        raise RuntimeError(f"auth probe failed for {path}: HTTP {response.status_code}")
+    if response.status_code >= 400:
+        raise RuntimeError(f"base-state probe failed for {path}: HTTP {response.status_code}")
+
+
+def _reddit_probe_username(instance: dict[str, Any]) -> str:
+    from worldsim.seed_resolvers import reddit as reddit_resolver
+
+    try:
+        return reddit_resolver._current_username(instance, {})
+    except Exception as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
+def _probe_seed_cache_parts(instance: dict[str, Any]) -> tuple[str, str, tuple[str, str, str]]:
+    site_name = str(instance.get("site_name", "")).strip().lower()
+    site_url = str(instance.get("site_url", "")).rstrip("/")
+    return site_name, site_url, _probe_seed_cache_key(instance)
+
+
+def _probe_seed_cache_key(instance: dict[str, Any]) -> tuple[str, str, str]:
+    site_name = str(instance.get("site_name", "")).strip().lower()
+    site_url = str(instance.get("site_url", "")).rstrip("/")
+    auth_fingerprint = _fingerprint_payload(
+        instance.get("replica_index"),
+        instance.get("replica_name"),
+        instance.get("auth"),
+        instance.get("api_auth"),
+    )
+    return (site_name, site_url, auth_fingerprint)

@@ -292,8 +292,18 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
                         "mechanism": "form",
                         "api_calls": [
                             {
-                                "method": "POST",
-                                "path": "/reviews/123",
+                                "target": {
+                                    "benchmark": "webarena_verified",
+                                    "site": site_name,
+                                    "resource_type": "product_review",
+                                    "create": {
+                                        "product_review": {
+                                            "title": "Review title",
+                                            "nickname": "reviewer",
+                                            "entity_pk_value": 123,
+                                        }
+                                    },
+                                },
                                 "body_form": {"detail": "{{PAYLOAD_TEXT}}"},
                             }
                         ],

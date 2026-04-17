@@ -121,3 +121,93 @@ def test_multi_site_secondary_binding_is_deterministic_per_task() -> None:
     assert bound_c["_worldsim_runtime"]["bound_instances"]["gitlab"]["site_url"] == (
         "http://gitlab-1.test"
     )
+
+
+def test_bind_task_to_instance_rewrites_host_bound_auth_urls() -> None:
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-new.test:8033",
+            reset_endpoint="http://gitlab-new.test:8034/init",
+            replica_index=1,
+            replica_name="gitlab_1",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-old.test:8023",
+            reset_endpoint="http://gitlab-old.test:8024/init",
+            replica_index=0,
+            replica_name="gitlab_0",
+        ),
+    ]
+
+    bound = bind_task_to_instance(
+        {
+            "id": "task-host-rewrite",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Do the thing",
+            "start_urls": ["__GITLAB__"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {"eval": []},
+            "agent_context": {
+                "auth_mechanism": {
+                    "type": "storage_state",
+                    "storage_state": {
+                        "path": "logs/phase_0d/gitlab/storage_state.json",
+                        "form_login": {
+                            "login_url": "http://gitlab-old.test:8023/users/sign_in",
+                        },
+                    },
+                }
+            },
+        },
+        instances[0],
+        instances,
+    )
+
+    login_url = bound["agent_context"]["auth_mechanism"]["storage_state"]["form_login"]["login_url"]
+    assert login_url == "http://gitlab-new.test:8033/users/sign_in"
+
+
+def test_bind_task_to_instance_rewrites_host_bound_auth_scope_patterns() -> None:
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-new.test:8033",
+            reset_endpoint="http://gitlab-new.test:8034/init",
+            replica_index=1,
+            replica_name="gitlab_1",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-old.test:8023",
+            reset_endpoint="http://gitlab-old.test:8024/init",
+            replica_index=0,
+            replica_name="gitlab_0",
+        ),
+    ]
+
+    bound = bind_task_to_instance(
+        {
+            "id": "task-host-rewrite-pattern",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Do the thing",
+            "start_urls": ["__GITLAB__"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {"eval": []},
+            "agent_context": {
+                "auth_mechanism": {
+                    "type": "http_headers",
+                    "scope_url_pattern": "^http://gitlab-old.test:8023/.*$",
+                    "headers": {"Authorization": "Bearer demo"},
+                }
+            },
+        },
+        instances[0],
+        instances,
+    )
+
+    scope = bound["agent_context"]["auth_mechanism"]["scope_url_pattern"]
+    assert scope == "^http://gitlab-new.test:8033/.*$"

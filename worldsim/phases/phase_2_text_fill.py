@@ -727,6 +727,10 @@ def validate_seed_template_contract(seed_template: dict[str, Any]) -> None:
     for call in api_calls:
         if not isinstance(call, dict):
             raise ValueError(f"{mechanism} seed_template api_calls entries must be objects")
+        if not isinstance(call.get("target"), dict):
+            raise ValueError(
+                "seed_template api_calls must use target-based calls; concrete path/url is execution back-compat only"
+            )
         body = call.get(expected_body_key)
         if isinstance(body, dict):
             placeholder_count += _count_placeholder_occurrences(body)
