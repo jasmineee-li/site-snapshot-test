@@ -18,8 +18,8 @@ Phase 2 is a single CLI phase with two internal stages: 2a planning in Modal san
 
 1. **The orchestrator does not manage environments.** It connects to pre-running benchmark instances the user supplies (`{site_url, reset_endpoint}`). Never start, stop, provision, or snapshot them. Data seeding is per-task only, via `apply_data_seed` (api/form channels only). SQL seeding is excluded from the evaluation methodology because it violates the threat model (a regular authenticated user cannot write to the database directly). `db_connection` is optional and used only for postcondition verification and reward evaluation. Calling `reset_endpoint` between tasks is fine; anything beyond that is out of scope.
 2. **File routing via inclusion, not ignore.** Modal sandboxes are scoped by which files you `image.add_local_dir`, not by ignore-file patterns. Never rely on ignore patterns for isolation.
-3. **Trajectories flow through disk.** Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`. Judge / diagnosis sandboxes read `history.json` first and load screenshots only when the text log is ambiguous.
-4. **Two gates in Phase 4.** Gate 1 is ecological validity (probe each trajectory ~5× and average P(eval)). Gate 2 is attack effectiveness. Every trajectory passes Gate 1 before conclusions are drawn from Gate 2.
+3. **Trajectories flow through disk.** Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`. Judge sandboxes read `history.json` first and load screenshots only when the text log is ambiguous.
+4. **Two gates in Phase 4.** Gate 1 is ecological validity (probe each trajectory ~5× and average P(eval)). Gate 2 is attack effectiveness. Every trajectory passes Gate 1 before conclusions are drawn from Gate 2. Baseline capability (benign-under-attack) is reported as a Phase 4 byproduct, never used to filter tasks before Phase 4.
 
 ## Integration test requirement
 
@@ -30,7 +30,7 @@ If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, or `worldsim/phase
 - Do not generate or serve web applications. v5 connects to external environments.
 - Do not `import` from `AgentLab/`. The new package has zero runtime dependency on it.
 - Do not reintroduce BrowserGym or the `agent-browser` CLI — predecessor runner, gone.
-- Do not modify Phase 3's reward functions or benign tasks during Phase 4. Phase 4 only varies adversarial strategy; the benign task and reward function are invariant across variants.
+- Do not modify benign task contracts or reward functions during Phase 4. Phase 4 only varies adversarial strategy; the contracts emitted by Phase 3 are invariant across variants.
 - Do not manage benchmark environment lifecycles (starting, stopping, snapshotting). `reset_endpoint` between tasks is the one exception.
 
 <important if="you are stuck on Modal image setup, secret wiring, sandbox lifecycle, or Claude Code invocation flags">
@@ -47,6 +47,6 @@ Read them, understand the mechanic, then retype the equivalent in `worldsim/`. N
 - Agent evaluation runs locally via Browser Use in an async worker pool with staggered start (`STAGGER_DELAY = 5`).
 - Results default to `./logs/`; override with `WORLDSIM_STATE_DIR`.
 - `--resume` reads `logs/pipeline_state.json` and skips completed phases.
-- Prerequisites (Modal token, Claude Code auth, benchmark clone, running WebArena for Phases 3–4): see `README.md`. Do not duplicate them into code or configs.
+- Prerequisites (Modal token, Claude Code auth, benchmark clone, running WebArena for Phase 4): see `README.md`. Phase 3 is agent-free and needs no live instances. Do not duplicate prerequisites into code or configs.
 - Claude Code auth inside the sandbox supports **both** `CLAUDE_CODE_OAUTH_TOKEN` (Pro/Max subscription) and `ANTHROPIC_API_KEY` (API credits). OAuth wins when both are set — see `worldsim/modal_sandbox.py:_build_claude_secrets`. Never hard-code which one; always let `_build_claude_secrets` decide.
 </important>

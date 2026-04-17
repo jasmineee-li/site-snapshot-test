@@ -72,7 +72,7 @@ still allowing canonical `webarena_verified` evaluation. If
    ```
 
    `vendors/` is in `.gitignore` — you clone manually, not via submodules.
-4. **Benchmark instances running** — **required for Phases 3 and 4 only**. You stand up WebArena sites per the benchmark's own documentation and register them with the orchestrator via CLI flags (see Run below).
+4. **Benchmark instances running** — **required for Phase 4 only**. Phase 3 is an agent-free contract validity gate and does not touch live instances. You stand up WebArena sites per the benchmark's own documentation and register them with the orchestrator via CLI flags (see Run below).
 
    For WebArena Verified seeding, keep instance auth and DB connectivity explicit in your instances config:
 
@@ -189,9 +189,13 @@ compose stack to the local amd64 tags plus the correct
 # Phase 0 against WebArena Verified (reads the codebase, no running services needed)
 uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
 
-# Phase 3/4 Browser Use agents can use GPT-5.4-mini through OpenRouter
+# Phase 3 runs a cheap, agent-free contract validity check and emits
+# phase_3/contracts.json for Phase 4 to admit.
+uv run python -m worldsim.main phase 3
+
+# Phase 4 Browser Use agents can use GPT-5.4-mini through OpenRouter
 export OPENROUTER_API_KEY=sk-or-v1-...
-uv run python -m worldsim.main phase 3 --instances instances.json \
+uv run python -m worldsim.main phase 4 --instances instances.json \
   --agent-provider openrouter --agent-model gpt-5.4-mini
 
 # Phase 2 runs two internal stages sequentially:
@@ -221,8 +225,8 @@ Five phases:
 | 0 | Reconnaissance | 0a discovers benchmark structure, 0b computes per-site sandbox file maps, 0c profiles each site in parallel |
 | 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
 | 2 | Injection Generation | Runs 2a plan generation, then 2b text fill sequentially; emits final adversarial tasks with materialized data seeds |
-| 3 | Benign Validation | Runs the agent against benign seeds; triages obvious non-benchmark failures first, then diagnoses only escalated failures |
-| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused |
+| 3 | Contract Validity Gate | Agent-free schema check over every benign contract (reward function, start URLs, data seed) and every adversarial task's benign reference; writes `phase_3/contracts.json` |
+| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused; reports baseline capability as a byproduct |
 
 The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). Every module in `worldsim/` implements a section of that spec.
 

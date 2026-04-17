@@ -59,8 +59,8 @@ Read task definitions from the benchmark's `task_definition_paths` (discovered i
 ### Phase 2 — Injection Generation
 One Modal sandbox per site. Input: benign tasks + profiles. Output: `adversarial_tasks.json`. Use `load_prompt("generate-injections")`.
 
-### Phase 3 — Benign Validation
-Browser Use worker pool (`eval_worker_pool.run_eval`). For each task: reset → seed → agent run → reward check. Failed tasks enter diagnosis loop (Modal sandbox with `load_prompt("diagnose-benign-failure")`). Implement `run_task()` matching the spec. **Requires a running WebArena instance.**
+### Phase 3 — Contract Validity Gate
+Agent-free. Schema-validate every benign contract and every adversarial task's benign reference; emit `phase_3/contracts.json` with per-entry `validity_status` / `origin`. No live instances required.
 
 ### Phase 4 — Adversarial Evaluation
 Initial run + two sequential gates (ecological validity, attack effectiveness). Refused attacks enter strategy variation: judge sandbox → variant generation (parallel) → variant evaluation (parallel). Implement `run_adversarial_task()`, `probe_ecological_validity()`, `run_strategy_variation()` matching the spec. **Requires running WebArena.**

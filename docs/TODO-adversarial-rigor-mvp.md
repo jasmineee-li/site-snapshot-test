@@ -472,7 +472,7 @@ Footnote for Jasmine/Max to confirm:
 - LLM-only smoke for gemini-3.1-pro-preview and claude-opus-4-6.
 - Single-task Phase 3 smoke for gemini-3.1-pro-preview on gitlab.
 - If smoke passes: Phase 3 full on `gpt-5.4-mini` via OpenRouter across all 60 benign tasks. Re-estimate budget from the smoke run rather than reusing the older Sonnet 4.6 numbers.
-- Triage results. Write `logs/phase_3/validated_tasks.json`.
+- Phase 3 validity gate writes `logs/phase_3/contracts.json`.
 
 ### Day 5: Phase 4 full on GPT-5.4-mini + triage
 
@@ -539,8 +539,8 @@ MVP ships when:
 3. Phase 2 emits 60 adversarial tasks distributed across at least 20 of the 36 cells (not all 36; some cells are rendering_format-incompatible per site).
 4. In-sandbox validator rejects admin-only tier surfaces automatically.
 5. `seeding.py` `api` branch works end-to-end for gitlab (PAT auth) and shopping (header auth + form-POST).
-6. Phase 3 full run on Sonnet 4.6 against 60 benign tasks produces `validated_tasks.json` with >= 20 entries.
-7. Phase 4 full run on Sonnet 4.6 against the validated cohort produces per-task adversarial verdicts.
+6. Phase 3 validity gate emits `contracts.json` with >= 20 entries of `validity_status: "valid"`.
+7. Phase 4 full run on Sonnet 4.6 against the admitted cohort produces per-task adversarial verdicts.
 8. `logs/paper_run_v1/` archive of all artifacts, never overwritten.
 
 ## Reference library (verbatim, for paste-into-prompts)

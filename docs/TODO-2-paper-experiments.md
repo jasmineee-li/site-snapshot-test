@@ -202,7 +202,7 @@ New file `docs/PREREGISTRATION.md`. Sections:
 - Stopping rules: no interim peeks. Pipeline runs to completion unless all 4 models OOM or Phase 3 rejects > 50 percent of tasks.
 - Finding vs null definitions: any pre-registered hypothesis rejected at corrected alpha with effect above threshold.
 - Multiple-comparison correction: Bonferroni within each contribution family.
-- Exclusions: Phase 3 benign-failure trajectories excluded from ASR denominator, reported separately as capability metric (`docs/worldsim-v5-full-specification.md:210`).
+- Exclusions: Phase 3 invalid-contract entries (`validity_status: "invalid"` in `contracts.json`) never reach Phase 4. Baseline capability is reported from Phase 4's `capability_benign_under_attack` as a nuisance variable for calibration, not used to filter ASR.
 
 Commit as `docs/PREREGISTRATION.md` with dated signature block at top. Tag as `preregistration-v1` in git before the first paper-grade run.
 
@@ -229,13 +229,11 @@ Run the MVP pipeline against 3-4 target models, producing the per-model panel da
 Once MVP cross-check lands and Phase 0c + Phase 2 are regenerated:
 
 1. **LLM-only smokes**: gemini-3.1-pro-preview and claude-opus-4-6 to verify OpenRouter/Anthropic routing works end-to-end for all 3 models. Commands in `docs/TODO-adversarial-rigor-mvp.md:368-377`.
-2. **Phase 3 full on Sonnet 4.6**: 60 benign tasks. ~$75 + 3-8 hrs wall-clock. Baseline model.
-3. **Phase 3 full on Gemini 3.1 Pro**: same cohort. Use as speed comparison. ~$50 + 4-10 hrs.
-4. **Phase 3 full on Opus 4.6**: same cohort. Cost-gated (only if Sonnet results look good). ~$370 + 5-10 hrs.
-5. **Phase 4 full for each**: against validated benign cohort. Times three models = 3 runs. ~$200-400 total + 5-15 hrs.
-6. **Phase 5 post-hoc**: run the 3-signal probe battery over all Phase 4 trajectories. ~$200-500.
+2. **Phase 3 validity gate**: one run, agent-free, seconds to complete. Produces `contracts.json`.
+3. **Phase 4 full per model**: Sonnet 4.6, Gemini 3.1 Pro, Opus 4.6 (cost-gated). Three runs against the admitted cohort. ~$200-400 total + 5-15 hrs per run.
+4. **Phase 5 post-hoc**: run the 3-signal probe battery over all Phase 4 trajectories. ~$200-500.
 
-Operational note: Phase 3 now emits `triage.json` in addition to `results.json` / `diagnoses.json`. Use it when auditing capability failures versus benchmark-side failures, but do not treat it as a new experimental variable; it is an efficiency and traceability improvement inside the benign-validation pipeline.
+Operational note: baseline capability now comes out of Phase 4's `capability_benign_under_attack` field (ecologically valid trajectories only), not a separate Phase 3 pass.
 
 ### Why
 - Contribution 1 reports ASR per model. Single-model results are not publishable.

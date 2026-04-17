@@ -80,16 +80,16 @@ echo "    Phase 3 exit code: $PHASE3_EXIT"
 echo "    Finished at $(date)"
 
 # Check Phase 3 results
-if [ -f "$LOG_DIR/phase_3/validated_tasks.json" ]; then
-    VALIDATED=$(uv run python3 -c "import json; print(len(json.load(open('$LOG_DIR/phase_3/validated_tasks.json'))))")
-    echo "    Validated benign tasks: $VALIDATED"
-    if [ "$VALIDATED" -eq 0 ]; then
-        echo "ERROR: Zero validated tasks. Phase 4 cannot run."
+if [ -f "$LOG_DIR/phase_3/contracts.json" ]; then
+    VALID=$(uv run python3 -c "import json; print(sum(1 for e in json.load(open('$LOG_DIR/phase_3/contracts.json')) if e.get('validity_status') == 'valid'))")
+    echo "    Valid contracts: $VALID"
+    if [ "$VALID" -eq 0 ]; then
+        echo "ERROR: Zero valid contracts. Phase 4 cannot run."
         echo "Check $LOG_DIR/phase_3_run_${TIMESTAMP}.log for details."
         exit 1
     fi
 else
-    echo "ERROR: validated_tasks.json not found after Phase 3"
+    echo "ERROR: contracts.json not found after Phase 3"
     exit 1
 fi
 

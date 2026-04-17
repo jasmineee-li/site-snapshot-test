@@ -1,12 +1,10 @@
 # WorldSim v5 -- Current Progress
 
-Last updated: 2026-04-15
+Last updated: 2026-04-17
 
-## 2026-04-15 update (newest first)
+## 2026-04-17 update
 
-- **Phase 3 conservative triage gate landed.** Benign failures now pass through a cheap host-side triage layer before the expensive diagnosis sandbox. High-precision rules short-circuit obvious `infra_error` and `agent_limitation` cases (auth/session walls, clear off-site drift); unresolved cases can use a sanitized host-side model triage call for advisory metadata, but only deterministic rules are allowed to suppress deep diagnosis.
-- **New Phase 3 artifacts.** `logs/phase_3/triage.json` records the per-failure triage decision, confidence, reason, source, and `escalate` bit. Failed per-task `result.json` files now also carry additive `triage_*` metadata so audit/replay can reconstruct why a task was or was not escalated.
-- **Rigor preserved.** The triage layer cannot mutate tasks or propose patches. Benchmark mutations still happen only through the existing structured diagnosis prompt plus host-side `validate_fix_patch`, so the validated benign cohort semantics are unchanged.
+- **Phase 3 restructured to agent-free contract validity gate.** Following the WebArena-Infinity three-layer test model, Phase 3 no longer runs the target agent; it schema-validates contracts and emits `phase_3/contracts.json`. Phase 4 admits every `validity_status: "valid"` entry, and baseline capability is reported as Phase 4's `capability_benign_under_attack` on ecologically valid trajectories. The earlier triage / diagnosis / fix-loop machinery and `validated_tasks.json` / `diagnoses.json` / `triage.json` are gone; progress notes below describing them are historical.
 
 ## 2026-04-14 evening session update (newest first)
 
@@ -239,10 +237,7 @@ logs_run1_no_tiered_site_discovery_and_missing_benchmark_specific_task_template/
   phase_2/
     adversarial_tasks.json
   phase_3/
-    triage.json
-    diagnoses.json
-    results.json
-    validated_tasks.json
+    contracts.json
 ```
 
 Golden path status:
@@ -470,7 +465,6 @@ All 14 prompts in `worldsim/prompts/`:
 | `profile-injection-surface.md` | Phase 0c Tier 2 |
 | `generate-benign-tasks.md` | Phase 1 Mode B |
 | `generate-injections.md` | Phase 2 |
-| `diagnose-benign-failure.md` | Phase 3 |
 | `probe-ecological-validity.md` | Phase 4 Gate 1 |
 | `judge-adversarial-failure.md` | Phase 4 Gate 2 |
 | `fix-ecological-validity.md` | Phase 4 validity-fix loop |
