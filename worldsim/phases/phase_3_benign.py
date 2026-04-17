@@ -48,13 +48,19 @@ def _filter_tasks_by_sites(
 
 
 def _classify_origin(task: dict[str, Any]) -> str:
+    # Mode B ids are enforced as `novel_<site>_<n>` at generation
+    # (phase_1_mode_b_validation). Seed shape is not a reliable signal: a Mode B
+    # navigate-only task legitimately carries `mechanism: "none"`.
+    task_id = str(task.get("id", "")).strip()
+    if task_id.startswith("novel_"):
+        return "mode_b"
     seed = task.get("data_seed") or {}
     mechanism = seed.get("mechanism") if isinstance(seed, dict) else None
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
     has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
-    if mechanism in (None, "none") and not has_editor_calls:
-        return "mode_a"
-    return "mode_b"
+    if mechanism not in (None, "none") or has_editor_calls:
+        return "mode_b"
+    return "mode_a"
 
 
 def _validate_benign_task(task: dict[str, Any]) -> list[str]:

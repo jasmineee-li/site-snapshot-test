@@ -84,6 +84,11 @@ def test_classify_origin_mode_b_editor_calls():
     assert phase_3_benign._classify_origin(_mode_b_task()) == "mode_b"
 
 
+def test_classify_origin_mode_b_navigate_only_via_id_prefix():
+    task = _mode_a_task("novel_shopping_1")
+    assert phase_3_benign._classify_origin(task) == "mode_b"
+
+
 def test_validate_benign_task_passes_on_well_formed_contract():
     assert phase_3_benign._validate_benign_task(_mode_a_task()) == []
 
