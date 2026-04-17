@@ -723,20 +723,34 @@ def validate_seed_template_contract(seed_template: dict[str, Any]) -> None:
     if not isinstance(api_calls, list):
         raise ValueError(f"{mechanism} seed_template must include api_calls")
     expected_body_key = "body_form" if mechanism == "form" else "body"
+    # Post-item-#14 the attacker payload lives in target.create.<resource>.<field>
+    # (resolver-consumed). Pre-item-#14 it lived in call[expected_body_key].<field>.
+    # Accept either location, but require exactly one placeholder across the
+    # union of (body, target.create) per api_call set. This keeps the invariant
+    # "the injection text has one canonical render point per seed" while
+    # tolerating the contract change item #14 introduced.
     placeholder_count = 0
     for call in api_calls:
         if not isinstance(call, dict):
             raise ValueError(f"{mechanism} seed_template api_calls entries must be objects")
-        if not isinstance(call.get("target"), dict):
+        target = call.get("target")
+        if not isinstance(target, dict):
             raise ValueError(
                 "seed_template api_calls must use target-based calls; concrete path/url is execution back-compat only"
             )
         body = call.get(expected_body_key)
         if isinstance(body, dict):
             placeholder_count += _count_placeholder_occurrences(body)
+        create_spec = target.get("create")
+        if isinstance(create_spec, dict):
+            placeholder_count += _count_placeholder_occurrences(create_spec)
+        update_spec = target.get("update")
+        if isinstance(update_spec, dict):
+            placeholder_count += _count_placeholder_occurrences(update_spec)
     if placeholder_count != 1:
         raise ValueError(
-            f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one {expected_body_key} field"
+            f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one "
+            f"{expected_body_key} field or target.{{create|update}} field"
         )
 
 
