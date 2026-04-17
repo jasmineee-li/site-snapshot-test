@@ -47,6 +47,9 @@ _CSRF_TOKEN_CACHE: weakref.WeakKeyDictionary[
     dict[tuple[str, str], tuple[str | None, str | None]],
 ] = weakref.WeakKeyDictionary()
 _REDDIT_TABLE_NAME_CACHE: dict[tuple[str, str], str] = {}
+_REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
+    r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
+)
 _BLOCKED_CALL_HEADER_NAMES = frozenset(
     {
         "authorization",
@@ -1132,6 +1135,45 @@ def _editor_call_http_mechanism(call: Any) -> str | None:
     return "api"
 
 
+def _editor_delivery_key(call: Any) -> tuple[str, str] | None:
+    if not isinstance(call, dict):
+        return None
+    site_name = str(call.get("site") or "").strip().lower()
+    method_name = str(call.get("method") or "").strip()
+    if not site_name or not method_name or not isinstance(call.get("args"), dict):
+        return None
+    return (site_name, method_name)
+
+
+def _editor_arg_name(call: Any, canonical_name: str) -> str | None:
+    editor_key = _editor_delivery_key(call)
+    if editor_key == ("reddit", "create_comment") and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
+        canonical_name
+    ):
+        return "body"
+    aliases = {
+        ("gitlab", "create_issue"): {"body": "body_template", "description": "body_template"},
+        ("gitlab", "create_issue_note"): {"body": "note_body"},
+        ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
+        ("gitlab", "create_mr_note"): {"body": "note_body"},
+        ("gitlab", "update_user_status"): {"message": "message"},
+        ("gitlab", "update_user_profile"): {
+            "bio": "bio",
+            "name": "name",
+            "user[bio]": "bio",
+            "user[name]": "name",
+        },
+        ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
+        ("reddit", "create_comment"): {"body": "body"},
+        ("reddit", "update_user_bio"): {"bio": "bio_text"},
+        ("shopping", "create_product_review"): {"detail": "detail", "title": "title"},
+        ("shopping", "update_customer_profile"): {"value": "value"},
+        ("shopping_admin", "update_admin_profile"): {"value": "value"},
+    }.get(editor_key, {})
+    arg_name = aliases.get(canonical_name)
+    return str(arg_name) if isinstance(arg_name, str) else None
+
+
 def _validate_untrusted_selector_args(site_name: str, args: dict[str, Any]) -> None:
     if site_name != "gitlab":
         return
@@ -1703,6 +1745,9 @@ def _entry_matches_http_call(
 
 
 def _extract_http_body(call: dict[str, Any]) -> dict[str, Any]:
+    editor_args = call.get("args")
+    if isinstance(editor_args, dict):
+        return editor_args
     for body_key in ("body_form", "body"):
         body = call.get(body_key)
         if isinstance(body, dict):
@@ -1780,6 +1825,7 @@ def _verify_db_row_value_postcondition(
                 _resolve_postcondition_source(
                     source,
                     body=body,
+                    call=call,
                     path_params=path_params,
                     raw_path=raw_path,
                     surface_id=surface_id,
@@ -1826,6 +1872,7 @@ def _resolve_postcondition_source(
     source: object,
     *,
     body: dict[str, Any],
+    call: dict[str, Any],
     path_params: dict[str, str],
     raw_path: str,
     surface_id: str,
@@ -1843,12 +1890,17 @@ def _resolve_postcondition_source(
             )
         return path_params[source_value]
     if source_key == "body_field":
-        if not isinstance(source_value, str) or source_value not in body:
+        resolved_field = source_value
+        if isinstance(source_value, str) and source_value not in body:
+            alias = _editor_arg_name(call, source_value)
+            if alias and alias in body:
+                resolved_field = alias
+        if not isinstance(resolved_field, str) or resolved_field not in body:
             raise RuntimeError(
                 f"HTTP seed for {raw_path} on surface {surface_id!r} references missing "
                 f"body_field {source_value!r} in postcondition"
             )
-        return body[source_value]
+        return body[resolved_field]
     if source_key == "literal":
         return source_value
     raise RuntimeError(

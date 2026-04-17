@@ -2235,7 +2235,7 @@ class TestFinalizedHttpSeedContract:
 
         assert error == "adversarial_data_seed api_calls[0].path contains unresolved placeholders"
 
-    def test_rejects_delivery_site_missing_from_task_sites(self):
+    def test_accepts_cross_site_delivery_outside_task_sites(self):
         error = validator._validate_finalized_http_seed_contract(
             {
                 "mechanism": "form",
@@ -2260,4 +2260,35 @@ class TestFinalizedHttpSeedContract:
             sites=["shopping_admin"],
         )
 
-        assert error == "delivery_channel.delivery_site must be included in task.sites"
+        assert error is None
+
+    def test_accepts_reddit_legacy_dynamic_comment_field_for_editor_calls(self):
+        error = validator._validate_finalized_http_seed_contract(
+            {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "reddit",
+                        "method": "create_comment",
+                        "args": {
+                            "forum_name": "books",
+                            "submission_id": "42",
+                            "body": "payload",
+                        },
+                    }
+                ],
+            },
+            {
+                "mechanism": "form",
+                "body_field": "reply_to_submission_{submission_id}[comment]",
+                "postcondition": _db_row_value(
+                    table="comment",
+                    value_column="body",
+                    where={"body": {"body_field": "reply_to_submission_{submission_id}[comment]"}},
+                ),
+            },
+            sites=["reddit"],
+        )
+
+        assert error is None

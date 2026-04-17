@@ -68,6 +68,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pytest.ini_options]
+addopts = "-m 'not integration'"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [

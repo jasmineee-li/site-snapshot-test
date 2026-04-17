@@ -88,6 +88,12 @@ def run_reward_function(
     if eval_type is None:
         return False, "Reward spec has neither 'eval' array nor 'type' field"
 
+    if eval_type == "NetworkEventEvaluator":
+        return _eval_network_event(reward, network_trace, instance)
+    if eval_type == "AgentResponseEvaluator":
+        agent_response = _build_agent_response([reward], agent_result)
+        return _eval_agent_response(reward, agent_response)
+
     checker = _CHECKERS.get(eval_type)
     if checker is None:
         raise NotImplementedError(

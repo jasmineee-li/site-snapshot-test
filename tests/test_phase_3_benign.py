@@ -19,6 +19,18 @@ from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
 
+@pytest.fixture(autouse=True)
+def _clear_triage_model_credentials(monkeypatch):
+    for key in (
+        "OPENROUTER_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "ANTHROPIC_BASE_URL",
+        "CLAUDE_CODE_OAUTH_TOKEN",
+        "ANTHROPIC_API_KEY",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+
 def _prepared_task() -> tuple[dict, list[BenchmarkInstance]]:
     instances = [
         BenchmarkInstance(

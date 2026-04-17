@@ -120,6 +120,62 @@ def test_migrate_task_rewrites_seed_template_and_adversarial_seed():
     }
 
 
+def test_migrate_task_rewrites_reddit_postcondition_body_field_to_editor_alias():
+    task = {
+        "id": "reddit-1",
+        "site": "reddit",
+        "delivery_channel": {
+            "mechanism": "form",
+            "body_field": "reply_to_submission_{submission_id}[comment]",
+            "postcondition": {
+                "type": "db_row_value",
+                "table": "comment",
+                "value_column": "body",
+                "where": {
+                    "body": {"body_field": "reply_to_submission_{submission_id}[comment]"}
+                },
+            },
+        },
+        "seed_template": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "args": {
+                        "forum_name": "books",
+                        "submission_id": "{submission_id}",
+                        "body": "{{PAYLOAD_TEXT}}",
+                    },
+                }
+            ],
+        },
+        "adversarial_data_seed": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "args": {
+                        "forum_name": "books",
+                        "submission_id": "42",
+                        "body": "payload",
+                    },
+                }
+            ],
+        },
+    }
+
+    migrated = _MODULE.migrate_task(task)
+
+    assert migrated["delivery_channel"]["body_field"] == "body"
+    assert migrated["delivery_channel"]["postcondition"]["where"]["body"] == {
+        "body_field": "body"
+    }
+
+
 def test_migrate_seed_rejects_mixed_target_and_legacy_api_calls():
     seed = {
         "mechanism": "api",

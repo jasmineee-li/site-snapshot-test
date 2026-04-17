@@ -2320,6 +2320,7 @@ def _rebase_adversarial_task(
     rebuilt["id"] = adversarial_task.get("id", benign_task.get("id"))
     rebuilt["benign_task_id"] = adversarial_task["benign_task_id"]
     rebuilt["adversarial_data_seed"] = json.loads(json.dumps(adversarial_data_seed))
+    rebuilt["sites"] = _merged_task_sites(benign_task, adversarial_task)
     rebuilt["reward_function"] = {
         "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
         "adversarial_reward": json.loads(json.dumps(adversarial_reward)),
@@ -2342,6 +2343,24 @@ def _rebase_adversarial_task(
             continue
         rebuilt[key] = json.loads(json.dumps(value))
     return rebuilt
+
+
+def _merged_task_sites(*tasks: dict[str, Any]) -> list[str]:
+    merged: list[str] = []
+    for task in tasks:
+        for raw_site in task.get("sites", []):
+            site_name = str(raw_site).strip()
+            if site_name and site_name not in merged:
+                merged.append(site_name)
+        primary_site = str(task.get("site", "")).strip()
+        if primary_site and primary_site not in merged:
+            merged.append(primary_site)
+        delivery_channel = task.get("delivery_channel")
+        if isinstance(delivery_channel, dict):
+            delivery_site = str(delivery_channel.get("delivery_site") or "").strip()
+            if delivery_site and delivery_site.lower() != "none" and delivery_site not in merged:
+                merged.append(delivery_site)
+    return merged
 
 
 def _effective_adversarial_seed(adversarial_task: dict[str, Any]) -> Any:

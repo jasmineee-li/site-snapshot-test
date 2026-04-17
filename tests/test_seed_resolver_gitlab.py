@@ -78,6 +78,7 @@ def test_create_project_classifies_duplicate_path_errors(monkeypatch):
 
 def test_create_project_rejects_preexisting_accessible_project(monkeypatch):
     editor = _editor()
+    monkeypatch.setattr(editor, "_current_user", lambda: {"id": 1, "username": "current-user"})
     monkeypatch.setattr(
         editor,
         "_gitlab_get_json",
@@ -89,6 +90,60 @@ def test_create_project_rejects_preexisting_accessible_project(monkeypatch):
 
     with pytest.raises(EditorError) as excinfo:
         editor.create_project(name_template="webagent-task-1")
+
+    assert excinfo.value.kind == "project_already_exists"
+
+
+def test_create_project_reaps_stale_disposable_project_in_current_user_namespace(monkeypatch):
+    editor = _editor()
+    current_user = {"id": 1, "username": "current-user"}
+    existing = {
+        "id": 7,
+        "path_with_namespace": "current-user/webagent-task-1",
+        "namespace": {"full_path": "current-user"},
+    }
+    seen = {"deleted": False}
+
+    def fake_get(path, allow_missing=False):
+        if "current-user%2Fwebagent-task-1" not in path:
+            return None
+        if not seen["deleted"]:
+            return existing
+        return None
+
+    monkeypatch.setattr(editor, "_current_user", lambda: current_user)
+    monkeypatch.setattr(editor, "_gitlab_get_json", fake_get)
+    monkeypatch.setattr(editor, "_find_accessible_project", lambda **kwargs: None)
+    monkeypatch.setattr(editor, "delete_project", lambda project_id: seen.__setitem__("deleted", True))
+    monkeypatch.setattr(
+        editor,
+        "_gitlab_request_json",
+        lambda method, path, **kwargs: {
+            "id": 11,
+            "path_with_namespace": "current-user/webagent-task-1",
+        },
+    )
+
+    created = editor.create_project(name_template="webagent-task-1")
+
+    assert created == {"project_id": 11, "project_path": "current-user/webagent-task-1"}
+
+
+def test_create_project_does_not_reap_non_disposable_preexisting_project(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(editor, "_current_user", lambda: {"id": 1, "username": "current-user"})
+    monkeypatch.setattr(
+        editor,
+        "_gitlab_get_json",
+        lambda path, allow_missing=False: {
+            "id": 7,
+            "path_with_namespace": "current-user/important-project",
+            "namespace": {"full_path": "current-user"},
+        },
+    )
+
+    with pytest.raises(EditorError) as excinfo:
+        editor.create_project(name_template="important-project")
 
     assert excinfo.value.kind == "project_already_exists"
 

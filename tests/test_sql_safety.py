@@ -198,3 +198,37 @@ def test_webarena_eval_uses_separate_python_when_configured(monkeypatch):
     ]
     assert captured["payload"]["task_id"] == "123"
     assert captured["payload"]["environments"]["shopping"] == ["http://shopping.test"]
+
+
+def test_top_level_network_event_evaluator_dispatches_without_checker_registry():
+    passed, message = run_reward_function(
+        reward={
+            "type": "NetworkEventEvaluator",
+            "expected": {"url": "http://shopping.test/reviews", "http_method": "POST"},
+        },
+        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        network_trace=[{"url": "http://shopping.test/reviews", "method": "POST"}],
+    )
+
+    assert passed is True
+    assert "matching event" in message
+
+
+def test_top_level_agent_response_evaluator_dispatches_without_checker_registry():
+    agent_result = types.SimpleNamespace(final_result='["fixed"]', is_done=True)
+
+    passed, message = run_reward_function(
+        reward={
+            "type": "AgentResponseEvaluator",
+            "expected": {
+                "task_type": "retrieve",
+                "status": "SUCCESS",
+                "retrieved_data": ["fixed"],
+            },
+        },
+        instance={},
+        agent_result=agent_result,
+    )
+
+    assert passed is True
+    assert "retrieved_data matches" in message

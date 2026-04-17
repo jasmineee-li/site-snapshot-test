@@ -90,6 +90,9 @@ _EDITOR_BODY_FIELD_ALIASES = {
     ("shopping", "update_customer_profile"): {"value": "value"},
     ("shopping_admin", "update_admin_profile"): {"value": "value"},
 }
+_REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
+    r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
+)
 _KNOWN_EDITOR_SITES = frozenset(site_name for site_name, _method_name in _EDITOR_DELIVERY_PATHS)
 
 
@@ -1133,12 +1136,6 @@ def _validate_finalized_http_seed_contract(
     if unresolved is not None:
         return unresolved
 
-    delivery_site = delivery_channel.get("delivery_site")
-    if isinstance(delivery_site, str) and delivery_site.strip():
-        if not isinstance(sites, list) or delivery_site.strip() not in {
-            str(site).strip() for site in sites if isinstance(site, str)
-        }:
-            return "delivery_channel.delivery_site must be included in task.sites"
     return None
 
 
@@ -1882,6 +1879,11 @@ def _editor_arg_alias_pairs(call: dict[str, object]) -> list[tuple[str, str]]:
 
 
 def _editor_arg_name(call: dict[str, object], canonical_name: str) -> str | None:
+    editor_key = _editor_delivery_key(call)
+    if editor_key == ("reddit", "create_comment") and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
+        canonical_name
+    ):
+        return "body"
     for canonical, arg_name in _editor_arg_alias_pairs(call):
         if canonical == canonical_name:
             return arg_name

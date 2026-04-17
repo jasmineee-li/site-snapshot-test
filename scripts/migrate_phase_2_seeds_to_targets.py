@@ -9,6 +9,28 @@ from typing import Any
 
 DEFAULT_PATH = Path("logs/phase_2/adversarial_tasks.json")
 DEFAULT_QUARANTINE = Path("logs/phase_2/adversarial_tasks.map_quarantine.json")
+_REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
+    r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
+)
+_EDITOR_BODY_FIELD_ALIASES: dict[tuple[str, str], dict[str, str]] = {
+    ("gitlab", "create_issue"): {"body": "body_template", "description": "body_template"},
+    ("gitlab", "create_issue_note"): {"body": "note_body"},
+    ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
+    ("gitlab", "create_mr_note"): {"body": "note_body"},
+    ("gitlab", "update_user_status"): {"message": "message"},
+    ("gitlab", "update_user_profile"): {
+        "bio": "bio",
+        "name": "name",
+        "user[bio]": "bio",
+        "user[name]": "name",
+    },
+    ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
+    ("reddit", "create_comment"): {"body": "body"},
+    ("reddit", "update_user_bio"): {"bio": "bio_text"},
+    ("shopping", "create_product_review"): {"detail": "detail", "title": "title"},
+    ("shopping", "update_customer_profile"): {"value": "value"},
+    ("shopping_admin", "update_admin_profile"): {"value": "value"},
+}
 _EMBEDDED_SECRET_PATTERNS = (
     (
         re.compile(r"(?i)\b(Bearer)\s+([^\s'\"`]+)"),
@@ -403,7 +425,70 @@ def migrate_task(task: dict[str, Any]) -> dict[str, Any]:
         seed = migrated.get(field_name)
         if isinstance(seed, dict):
             migrated[field_name] = migrate_seed(seed)
+    _rewrite_delivery_channel_body_fields(migrated)
     return _sanitize_task_for_output(migrated)
+
+
+def _rewrite_delivery_channel_body_fields(task: dict[str, Any]) -> None:
+    delivery_channel = task.get("delivery_channel")
+    if not isinstance(delivery_channel, dict):
+        return
+
+    candidate_calls: list[dict[str, Any]] = []
+    for field_name in ("seed_template", "adversarial_data_seed"):
+        seed = task.get(field_name)
+        if not isinstance(seed, dict):
+            continue
+        editor_calls = seed.get("editor_calls")
+        if not isinstance(editor_calls, list):
+            continue
+        for call in editor_calls:
+            if isinstance(call, dict):
+                candidate_calls.append(call)
+
+    if not candidate_calls:
+        return
+
+    body_field = delivery_channel.get("body_field")
+    rewritten = _canonical_editor_body_field(candidate_calls, body_field)
+    if isinstance(rewritten, str):
+        delivery_channel["body_field"] = rewritten
+
+    postcondition = delivery_channel.get("postcondition")
+    where = postcondition.get("where") if isinstance(postcondition, dict) else None
+    if not isinstance(where, dict):
+        return
+    for source in where.values():
+        if not isinstance(source, dict) or len(source) != 1 or "body_field" not in source:
+            continue
+        source["body_field"] = _canonical_editor_body_field(candidate_calls, source["body_field"])
+
+
+def _canonical_editor_body_field(candidate_calls: list[dict[str, Any]], raw_field: Any) -> Any:
+    if not isinstance(raw_field, str) or not raw_field.strip():
+        return raw_field
+    for call in candidate_calls:
+        args = call.get("args")
+        if not isinstance(args, dict):
+            continue
+        if raw_field in args:
+            return raw_field
+        alias = _editor_arg_name(call, raw_field)
+        if alias and alias in args:
+            return alias
+    return raw_field
+
+
+def _editor_arg_name(call: dict[str, Any], canonical_name: str) -> str | None:
+    site_name = str(call.get("site") or "").strip().lower()
+    method_name = str(call.get("method") or "").strip()
+    if (site_name, method_name) == ("reddit", "create_comment") and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
+        canonical_name
+    ):
+        return "body"
+    aliases = _EDITOR_BODY_FIELD_ALIASES.get((site_name, method_name), {})
+    arg_name = aliases.get(canonical_name)
+    return str(arg_name) if isinstance(arg_name, str) else None
 
 
 def main() -> int:

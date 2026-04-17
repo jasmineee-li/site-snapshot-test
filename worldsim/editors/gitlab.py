@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import requests
@@ -129,14 +130,16 @@ class GitlabEditor(BaseSiteEditor):
         cached = self._created_projects_by_path.get(project_path.lower())
         if isinstance(cached, dict):
             return dict(cached)
+        current_user = self._current_user()
         project = self._gitlab_get_json(
             f"/api/v4/projects/{self._quote(project_path)}",
             allow_missing=True,
         )
         if isinstance(project, dict):
-            raise self._preexisting_project_error(project_path)
-
-        current_user = self._current_user()
+            if self._should_reap_preexisting_project(project_path, project, current_user=current_user):
+                self._reap_preexisting_project(project_path, project)
+            else:
+                raise self._preexisting_project_error(project_path)
         leaf_name = project_path.split("/")[-1]
         project = self._find_accessible_project(
             current_user=current_user,
@@ -144,7 +147,10 @@ class GitlabEditor(BaseSiteEditor):
             expected_path=project_path,
         )
         if isinstance(project, dict):
-            raise self._preexisting_project_error(project_path)
+            if self._should_reap_preexisting_project(project_path, project, current_user=current_user):
+                self._reap_preexisting_project(project_path, project)
+            else:
+                raise self._preexisting_project_error(project_path)
         try:
             project = self._gitlab_request_json(
                 "POST",
@@ -159,7 +165,33 @@ class GitlabEditor(BaseSiteEditor):
             )
         except EditorError as exc:
             if exc.kind == "request_failed":
-                raise self._classify_project_create_error(exc, project_path) from exc
+                classified = self._classify_project_create_error(exc, project_path)
+                if classified.kind == "project_already_exists":
+                    existing = self._gitlab_get_json(
+                        f"/api/v4/projects/{self._quote(project_path)}",
+                        allow_missing=True,
+                    )
+                    if isinstance(existing, dict) and self._should_reap_preexisting_project(
+                        project_path,
+                        existing,
+                        current_user=current_user,
+                    ):
+                        self._reap_preexisting_project(project_path, existing)
+                        project = self._gitlab_request_json(
+                            "POST",
+                            "/api/v4/projects",
+                            json_body={
+                                "name": leaf_name,
+                                "path": leaf_name,
+                                "description": str(description_template or "").strip(),
+                                "initialize_with_readme": True,
+                                "visibility": "private",
+                            },
+                        )
+                    else:
+                        raise classified from exc
+                else:
+                    raise classified from exc
             raise
         if not isinstance(project, dict):
             raise EditorError("invalid_project_create", "gitlab project create returned invalid payload")
@@ -917,6 +949,46 @@ class GitlabEditor(BaseSiteEditor):
         return EditorError(
             "project_already_exists",
             f"gitlab project path {project_path!r} already exists outside this seed session",
+        )
+
+    def _should_reap_preexisting_project(
+        self,
+        project_path: str,
+        project: dict[str, Any],
+        *,
+        current_user: dict[str, Any],
+    ) -> bool:
+        normalized_path = project_path.strip().lower()
+        actual_path = self._project_path_with_namespace(project).strip().lower()
+        if not normalized_path or actual_path != normalized_path:
+            return False
+        leaf_name = normalized_path.rsplit("/", 1)[-1]
+        if not leaf_name.startswith("webagent-task-"):
+            return False
+        namespace = project.get("namespace")
+        namespace_path = ""
+        if isinstance(namespace, dict):
+            namespace_path = str(namespace.get("full_path") or namespace.get("path") or "").strip().lower()
+        current_username = str(current_user.get("username") or "").strip().lower()
+        expected_namespace = normalized_path.rsplit("/", 1)[0] if "/" in normalized_path else ""
+        return bool(current_username and namespace_path == current_username and expected_namespace == current_username)
+
+    def _reap_preexisting_project(self, project_path: str, project: dict[str, Any]) -> None:
+        project_id = project.get("id")
+        if project_id in (None, ""):
+            raise self._preexisting_project_error(project_path)
+        self.delete_project(project_id)
+        for _ in range(20):
+            lingering = self._gitlab_get_json(
+                f"/api/v4/projects/{self._quote(project_path)}",
+                allow_missing=True,
+            )
+            if lingering is None:
+                return
+            time.sleep(0.25)
+        raise EditorError(
+            "project_cleanup_failed",
+            f"stale gitlab project path {project_path!r} could not be deleted before reseeding",
         )
 
     def _classify_gitlab_request_error(self, method: str, path: str, exc: EditorError) -> EditorError:

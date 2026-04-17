@@ -1886,6 +1886,42 @@ def test_validate_finalized_http_seed_contract_rejects_conflicting_nested_shoppi
     assert "mixes top-level review fields with body.review" in error
 
 
+def test_validate_finalized_http_seed_contract_accepts_reddit_legacy_dynamic_comment_field():
+    seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "forum_name": "books",
+                    "submission_id": "42",
+                    "body": "payload",
+                },
+            }
+        ],
+    }
+    delivery_channel = {
+        "mechanism": "form",
+        "delivery_site": "reddit",
+        "body_field": "reply_to_submission_{submission_id}[comment]",
+        "postcondition": _db_row_value(
+            table="comment",
+            value_column="body",
+            where={"body": {"body_field": "reply_to_submission_{submission_id}[comment]"}},
+        ),
+    }
+
+    error = phase_2_injections._validate_finalized_http_seed_contract(
+        seed,
+        delivery_channel,
+        sites=["reddit"],
+    )
+
+    assert error is None
+
+
 def test_validate_adversarial_task_contract_accepts_nested_review_body_shape():
     benign_seed = {
         "mechanism": "api",

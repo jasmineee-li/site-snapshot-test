@@ -502,6 +502,26 @@ def test_rebase_adversarial_task_uses_validated_benign_contract():
     assert rebuilt["agent_context"] == validated_benign["agent_context"]
 
 
+def test_rebase_adversarial_task_preserves_cross_site_delivery_sites():
+    task, _ = _prepared_adv_task()
+    validated_benign = json.loads(json.dumps(task))
+    validated_benign["site"] = "shopping_admin"
+    validated_benign["sites"] = ["shopping_admin"]
+
+    stale_adversarial = json.loads(json.dumps(task))
+    stale_adversarial["site"] = "shopping_admin"
+    stale_adversarial["sites"] = ["shopping_admin", "shopping"]
+    stale_adversarial["delivery_channel"] = {"delivery_site": "shopping"}
+    stale_adversarial["reward_function"]["adversarial_reward"] = {"type": "db_query_match"}
+
+    rebuilt = phase_4_adversarial._rebase_adversarial_task(
+        stale_adversarial,
+        validated_benign,
+    )
+
+    assert rebuilt["sites"] == ["shopping_admin", "shopping"]
+
+
 def test_rebase_adversarial_task_rejects_non_self_contained_seed():
     task, _ = _prepared_adv_task()
     validated_benign = json.loads(json.dumps(task))

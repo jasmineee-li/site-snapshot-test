@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -38,9 +39,7 @@ def run_scenario(
         env["WORLDSIM_FAILPOINTS"] = failpoint
     return subprocess.run(
         [
-            "uv",
-            "run",
-            "python",
+            sys.executable,
             "-m",
             SCENARIO_MODULE,
             "--scenario",
