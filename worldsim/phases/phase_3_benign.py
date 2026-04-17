@@ -134,6 +134,12 @@ async def run(args: argparse.Namespace) -> int:
         else:
             logger.warning("Phase 3: adversarial_tasks.json is not an array, ignoring")
 
+    if sites_filter_raw and adversarial_tasks:
+        benign_site_set = {str(task.get("site", "")).strip() for task in benign_tasks}
+        adversarial_tasks = [
+            adv for adv in adversarial_tasks if str(adv.get("site", "")).strip() in benign_site_set
+        ]
+
     benign_by_id = {str(task.get("id", "")): task for task in benign_tasks if task.get("id")}
 
     contracts: list[dict[str, Any]] = []

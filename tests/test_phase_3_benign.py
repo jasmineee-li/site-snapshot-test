@@ -189,3 +189,18 @@ async def test_run_reports_adversarial_reference_errors(state_dir, caplog):
         rc = await phase_3_benign.run(Namespace(sites=None))
     assert rc == 0
     assert any("adversarial task(s)" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
+async def test_run_sites_filter_also_filters_adversarial_tasks(state_dir, caplog):
+    benign = [_mode_a_task("task-shop", site="shopping", sites=["shopping"])]
+    # Adversarial task on a site that --sites excludes. Its benign_task_id
+    # would otherwise look orphaned because the benign pass filtered the
+    # referent out.
+    adversarial = [_adversarial_task("adv-reddit", "task-reddit", site="reddit")]
+    _write_phase_outputs(state_dir, benign_tasks=benign, adversarial_tasks=adversarial)
+
+    with caplog.at_level("WARNING"):
+        rc = await phase_3_benign.run(Namespace(sites="shopping"))
+    assert rc == 0
+    assert not any("adversarial task(s)" in message for message in caplog.messages)
