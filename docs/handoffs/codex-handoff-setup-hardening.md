@@ -310,14 +310,42 @@ Field semantics:
 
 - `target.benchmark` — dispatch key into the resolver registry. Default `"webarena_verified"` when absent (back-compat). Required when multi-benchmark mode is active (see §14.9).
 - `target.site` — in-benchmark site identifier (`gitlab`, `shopping`, `shopping_admin`, `reddit`, `map`).
-- `target.resource_type` — the **leaf** resource being created for the attack. Resolver walks parents implicitly (to create an `mr_note`, first get-or-create a `project`, then create an `mr`, then create the `mr_note`).
-- `target.create.<resource>` — creation parameters for each resource type in the chain. Template strings support `{task_id}`, `{topic}`, `{intent}`, and any key previously written into `seed_context` by earlier calls.
-- `body` — the attacker-controlled payload, POSTed to the URL the resolver returns. Kept separate from `target.create` so it's unambiguous which text is the injection.
+- `target.resource_type` — the **leaf** resource being created (or updated, for singletons — see below). For create-chain targets, resolver walks parents implicitly (to create an `mr_note`, first get-or-create a `project`, then create an `mr`, then create the `mr_note`).
+- `target.create.<resource>` — creation parameters for each resource type in the chain. Required for collection-type resources. Template strings support `{task_id}`, `{topic}`, `{intent}`, and any key previously written into `seed_context` by earlier calls.
+- `target.update` — present (even if an empty dict) for **singleton** resources that already exist per-user and are modified rather than created (user profile fields, user status, bio). Mutually exclusive with `target.create`. Singleton resolvers do PUT/PATCH on the known URL derived from the authenticated user's context; no parent walk, no get-or-create.
+- `body` — the attacker-controlled payload, POST/PUT/PATCHed to the URL the resolver returns. Kept separate from `target.create` / `target.update` so it's unambiguous which text is the injection.
+
+**Dispatch rule in `_apply_http_seed_call`:**
+
+```python
+target = call["target"]
+if "create" in target and "update" in target:
+    raise SeedError("target must have exactly one of {create, update}")
+if "create" in target:
+    resolved = resolver.create(target, instance, seed_context)
+elif "update" in target:
+    resolved = resolver.update(target, instance, seed_context)
+else:
+    raise SeedError("target missing both create and update")
+```
+
+Two verbs, mutually exclusive, exhaustive. Why separate verbs rather than overloading `create` + "resolver secretly knows `user_status` is a singleton and PUTs instead of POSTs": semantic clarity. The data tells you which threat-model class an attack belongs to (attacker materializes new content vs attacker modifies their own singleton) without reading resolver code.
+
+**Singleton resource types in scope (small list, per site):**
+
+- **gitlab**: `user_status` (PUT `/api/v4/user/status`), `user_profile` (PUT `/api/v4/user` — name, bio, location fields)
+- **shopping**: `customer_profile` (PUT `/rest/V1/customers/me`)
+- **shopping_admin**: `admin_profile` (PUT `/rest/V1/users/me` or equivalent)
+- **reddit**: `user_bio` (PATCH postmill's equivalent endpoint — codex confirms the exact path while implementing)
+- **map**: `osm_user_description` (PUT `/api/0.6/user/preferences` or the OSM-website equivalent — codex confirms)
+
+Per-site singleton count: 1–2. Each adds ~25–50 LOC to its site resolver. Total singleton-path addition across all sites: ~50–100 LOC.
 
 **Explicitly NOT in the target descriptor:**
 
-- No `constraints`, `select`, `mr_state`, or any other find-style field. If a benchmark needs to target existing content, that's a different research question handled outside this contract.
+- No `constraints`, `select`, `mr_state`, or any other find-style field. If a benchmark needs to target existing non-singleton content (modify someone else's MR), that's a different research question handled outside this contract.
 - No raw `url`. Legacy `{url, body}` calls keep working via a back-compat branch (§14.8) but no new task should be written in that shape.
+- No other verbs beyond `create` and `update`. If a future attack surface doesn't fit either, that's a handoff-level design conversation, not a resolver implementation decision.
 
 **Resolver contract:**
 
@@ -331,15 +359,23 @@ class ResolvedCall:
     body: Any                          # if resolver synthesizes body from target.create; else None and executor uses call.body
     context_additions: dict[str, Any]  # intermediate IDs to write into seed_context, e.g. {"project_id": 193, "mr_iid": 4}
 
-# Each site module exports:
-def resolve(
+# Each site module exports TWO entry points:
+def create(
+    target: dict[str, Any],
+    instance: dict[str, Any],
+    seed_context: dict[str, Any],
+) -> ResolvedCall: ...
+
+def update(
     target: dict[str, Any],
     instance: dict[str, Any],
     seed_context: dict[str, Any],
 ) -> ResolvedCall: ...
 ```
 
-Resolver responsibilities:
+A site that has no singletons in scope can raise `ResolverError("unsupported_op", "<site> has no singleton resource types")` from its `update()` stub. Preferable to omitting the entry point — keeps the contract uniform and the error explicit.
+
+**Resolver responsibilities (create path):**
 
 1. Read `target.create` chain, walk from root to leaf.
 2. For each non-leaf node: call `get_or_create_<type>()` — GET by deterministic name first, POST if absent.
@@ -347,6 +383,13 @@ Resolver responsibilities:
 4. Write every resolved ID into `context_additions` (`project_id`, `mr_iid`, `issue_iid`, etc.) so reward evaluation can find what it evaluated.
 5. All HTTP calls use the resolver's own auth (from `instance.api_auth` / `instance.agent_auth`, tokens already acquired by `worldsim/auth_tokens.py:acquire_tokens_for_instances`).
 6. Raise `ResolverError(kind, detail)` on unrecoverable failure. The executor turns that into a `seed_preflight_mismatch` result.
+
+**Resolver responsibilities (update path — singletons):**
+
+1. Map `resource_type` to the known singleton URL for the authenticated user (e.g., `user_status` → `/api/v4/user/status`).
+2. Return `ResolvedCall(method="PUT" or "PATCH", url=..., headers={auth...}, body=None, context_additions={})`. The executor uses `call.body` as the PUT/PATCH body.
+3. No parent walk, no get-or-create — the singleton is by definition the authenticated user's own resource and exists from account creation.
+4. If the singleton endpoint doesn't exist on the authenticated user (e.g., OAuth token has insufficient scope), raise `ResolverError("singleton_unavailable", "<site> <resource_type> not accessible with current auth")`.
 
 ### 14.5 Refactor, not rebuild — disposition of codex's existing 534 LOC
 
@@ -363,12 +406,13 @@ Codex's `worldsim/seed_resolvers/` package stays, but the internals change subst
 - The `_CACHE` dict keyed on constraints — redundant under pure-create (each task creates its own, so caching across variants is trivial and keyed differently).
 - Constraint-validation helpers.
 
-**Add (~400 LOC new):**
+**Add (~400 LOC new for create path + ~75 LOC for singleton update path):**
 - `create.<resource>` chain walker — given `target.create`, recurse through parent resource types, get-or-create each.
 - Per-site `_create_<type>()` functions that POST a new resource and return the ID. For gitlab: `_create_project`, `_create_mr`, `_create_mr_note`, `_create_issue`, `_create_issue_note`. For reddit: `_create_forum_if_missing`, `_create_submission`, `_create_comment`. For shopping: `_create_product_review` (already close — just strip the constraint code). For map: `_create_node`, `_create_way`, `_create_changeset` (map OSM needs an active changeset — the resolver opens/closes one per task).
 - Template renderer for `name_template` / `title_template` / `body_template` using `task_id`, `topic`, `intent`, and `seed_context`.
+- Per-site `update()` entry point and `_update_<singleton>()` helpers. Roughly 1–2 singletons per site × 5 sites × ~25 LOC each. gitlab: `_update_user_status`, `_update_user_profile`. shopping / shopping_admin: `_update_customer_profile` / `_update_admin_profile`. reddit: `_update_user_bio`. map: `_update_osm_user_description`. A site with no singletons in scope has a stub `update()` that raises `ResolverError("unsupported_op", ...)`.
 
-Net: ~534 – 350 + 400 = **~580 LOC in the resolver package.** With migration (~200 LOC), preflight wiring (~150 LOC including tests), and test additions (~600 LOC), total new work is **~1200 LOC across 2-3 days focused.** Less than half of the original estimate.
+Net: ~534 – 350 + 400 + 75 = **~660 LOC in the resolver package.** With migration (~220 LOC — slightly more for singleton URL patterns), preflight wiring (~150 LOC including tests), and test additions (~650 LOC — add one singleton test per site), total new work is **~1280 LOC across 2-3 days focused.** Still well under half of the original estimate.
 
 ### 14.6 Preflight
 
@@ -488,7 +532,8 @@ Write `scripts/migrate_phase_2_seeds_to_targets.py` and run it once as part of t
 3. For each task's `adversarial_data_seed.calls`, pattern-match the URL against known route templates per site:
 
 ```python
-PATTERNS = {
+# Create-op patterns (collection POSTs)
+CREATE_PATTERNS = {
     "gitlab": [
         (r"^/api/v4/projects/\d+/merge_requests/\d+/notes$", "mr_note"),
         (r"^/api/v4/projects/\d+/issues/\d+/notes$",         "issue_note"),
@@ -501,7 +546,21 @@ PATTERNS = {
     "shopping_admin": [...],
     "map":      [...],
 }
+
+# Update-op patterns (singleton PUT/PATCH)
+UPDATE_PATTERNS = {
+    "gitlab": [
+        (("PUT", r"^/api/v4/user/status$"), "user_status"),
+        (("PUT", r"^/api/v4/user$"),        "user_profile"),
+    ],
+    "shopping":       [(("PUT", r"^/rest/V1/customers/me$"), "customer_profile")],
+    "shopping_admin": [(("PUT", r"^/rest/V1/users/me$"),     "admin_profile")],
+    "reddit":         [...],  # codex confirms postmill's bio endpoint at implementation time
+    "map":            [...],  # codex confirms OSM user-description endpoint at implementation time
+}
 ```
+
+Dispatcher logic: for each call, try `UPDATE_PATTERNS` first (method + URL must both match). If no update match, try `CREATE_PATTERNS` (URL only; method is assumed POST for creates). If neither matches, log and leave the call in legacy shape.
 
 4. Emit a `target` dict with `create` subtree populated from task context:
    - `project.name_template = "webagent-task-{task_id}"`
@@ -519,14 +578,14 @@ URLs that don't match any pattern: log, skip, leave legacy shape — executor's 
 
 New test files under `tests/`:
 
-1. `tests/test_seed_resolver_gitlab.py` — mocked HTTP via `responses` or `monkeypatch` on `requests`. Cases: create project, get-or-create project (pre-existing), create MR, create mr_note chain, create issue + issue_note chain, ResolverError on auth missing.
-2. `tests/test_seed_resolver_reddit.py` — similar, for forum/submission/comment chains.
-3. `tests/test_seed_resolver_shopping.py` — product_review body shape + POST mock.
-4. `tests/test_seed_resolver_shopping_admin.py` — cms_block, product creation.
-5. `tests/test_seed_resolver_map.py` — OSM changeset open/edit/close, node and way creation.
-6. `tests/test_seed_preflight.py` — base-state probe, per-variant dry-run, `seed_preflight_mismatch` result shape.
-7. `tests/test_migrate_phase_2_seeds.py` — migration script produces correct target shape for each known URL pattern; legacy shape preserved for unknown patterns.
-8. `tests/test_seed_contract_backcompat.py` — `_apply_http_seed_call` handles both legacy `{url, body}` and new `{target, body}` shapes.
+1. `tests/test_seed_resolver_gitlab.py` — mocked HTTP via `responses` or `monkeypatch` on `requests`. Create path: create project, get-or-create project (pre-existing), create MR, create mr_note chain, create issue + issue_note chain, ResolverError on auth missing. Update path: `user_status` PUT, `user_profile` PUT, ResolverError on singleton with insufficient scope.
+2. `tests/test_seed_resolver_reddit.py` — create path: forum/submission/comment chains. Update path: `user_bio` PATCH.
+3. `tests/test_seed_resolver_shopping.py` — create path: product_review. Update path: `customer_profile` PUT.
+4. `tests/test_seed_resolver_shopping_admin.py` — create path: cms_block, product. Update path: `admin_profile` PUT.
+5. `tests/test_seed_resolver_map.py` — create path: OSM changeset open/edit/close, node and way creation. Update path: `osm_user_description`.
+6. `tests/test_seed_preflight.py` — base-state probe, per-variant dry-run for both create and update targets, `seed_preflight_mismatch` result shape.
+7. `tests/test_migrate_phase_2_seeds.py` — migration script produces correct `{create: ...}` or `{update: ...}` target shape for each known URL+method pattern; legacy shape preserved for unknown patterns; idempotency (re-run is no-op).
+8. `tests/test_seed_contract_backcompat.py` — `_apply_http_seed_call` handles legacy `{url, body}`, new `{target: {create: ...}, body}`, and new `{target: {update: ...}, body}`. Exactly-one-of rule enforced.
 
 Integration tests (marked `@pytest.mark.integration`, skipped in default CI, run locally against a live stack before shipping):
 - One per site, creating + deleting a real resource end-to-end.
