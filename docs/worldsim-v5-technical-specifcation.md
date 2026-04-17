@@ -52,6 +52,14 @@ The `url_placeholders` map resolves benchmark-specific URL tokens (e.g., `__SHOP
 
 For parallel evaluation, the user provides multiple instances of the same site (on different ports). We distribute workers across them. Setting up these instances is the user's responsibility, following the benchmark's own documentation.
 
+Three instances-config variants are checked in at the repo root and selected via `--instances`:
+
+- `instances.json`: the full 6-site WebArena Verified host list, one instance per site. Default for normal runs.
+- `instances.scale.json`: high-parallelism layout with multiple instances per site for Phase 4 worker fan-out.
+- `instances.smoke.json`: a reduced 4-site subset used for smoke tests and CI dry-runs.
+
+All three follow the schema shown above; they differ only in the number and addressing of instances.
+
 The `benchmark_codebase` path is used only for Phase 0 exploration (read-only). The `site_url` is used in Phase 4 for agent evaluation. The `reset_endpoint` is called between tasks to restore environment state; for WebArena Verified this points at the env-ctrl sidecar (e.g., `http://host:7771/init`), not the main site URL. The `db_connection` is optional, used only for postcondition verification and reward evaluation (read-only database access). SQL seeding was evaluated and excluded from the methodology because it violates the threat model: a regular authenticated user cannot write to the database directly. All adversarial content enters through HTTP channels (api/form).
 
 ### Why Modal Sandboxes
@@ -94,13 +102,17 @@ async def run_claude_in_sandbox(
     site_files: dict[str, str],   # {remote_path: local_path}
     prompt: str,
     output_paths: list[str],      # files to collect after execution
-    timeout: int = 3600,
+    timeout: int = 14400,
     model: str = "claude-sonnet-4-6",
     volumes: dict[str, modal.Volume] | None = None,
+    label: str = "",
 ) -> dict[str, str | None]:
     """Run Claude Code in an isolated Modal Sandbox with only the specified files.
     Returns a dict mapping output_path -> file contents, plus a "_summary" key
     with cost, token usage, session ID, and tool-call metadata from the SDK.
+    The optional `label` is prefixed to every log line emitted by this sandbox
+    (typically phase name + site + shard index), making multi-sandbox logs
+    readable when dozens of Phase 2a shards stream concurrently.
     """
     image = base_image
     for remote_path, local_path in site_files.items():
@@ -109,10 +121,13 @@ async def run_claude_in_sandbox(
             image = image.add_local_file(local_path, remote_path=remote_path)
         elif local.is_dir():
             image = image.add_local_dir(local_path, remote_path=str(Path(remote_path).parent))
-    # Stage the prompt and SDK runner script into the sandbox.
-    image = image.add_local_file(prompt_tmp_path, remote_path="/workspace/_prompt.txt")
+    # Stage the SDK runner and validator into the sandbox. The prompt itself is
+    # written straight to the sandbox filesystem after creation, which avoids
+    # re-hashing a per-call mount.
     image = image.add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py")
+    image = image.add_local_file(_VALIDATOR_PATH, remote_path="/workspace/_validate.py")
     sandbox = await modal.Sandbox.create.aio(app=app, image=image, timeout=timeout)
+    await sandbox.filesystem.write_text.aio(prompt, "/workspace/_prompt.txt")
     claude_ps = await sandbox.exec.aio(
         "python", "/workspace/_sdk_runner.py", model,
         secrets=_build_claude_secrets(),
@@ -167,7 +182,13 @@ async def run_claude_in_sandbox(
 
 **Structured event logging.** The SDK runner inside each sandbox streams NDJSON events to stdout as Claude Code executes. The orchestrator parses these in real time, logging tool calls and text previews. On long-running sandboxes, especially multi-hour Phase 2 and Phase 0c runs, the orchestrator must drain stdout and stderr concurrently. Serial draining can wedge Modal's background stream readers and leave the orchestrator waiting forever even after the sandbox has finished its work. When the run completes, the SDK yields a ``ResultMessage`` with ``total_cost_usd``, ``num_turns``, ``session_id``, ``duration_ms``, and per-model token breakdowns. This metadata is attached to the return dict under the ``"_summary"`` key, giving callers access to cost and usage data without changing the file-based output contract.
 
-**Operational model note.** For MVP operations, WorldSim keeps ``claude-sonnet-4-6`` as the default sandbox model for Modal prompt-generation, profiling, and diagnosis passes. For Browser Use agent smoke tests and the default cost-sensitive eval path, use ``gpt-5.4-mini`` via OpenRouter first. ``claude-opus-4-6`` remains a follow-up option for confirmation runs once the pipeline behavior is stable.
+**Operational model note.** There are three independent model knobs in the pipeline and they default to different providers:
+
+- **Sandbox model** (Modal prompt-generation, profiling, Phase 2a planning, Phase 4 judge + variant generation): `claude-sonnet-4-6`, set via `--sandbox-model`. Bump to `claude-opus-4-6` for confirmation runs once pipeline behavior is stable.
+- **Agent model** (Browser Use evaluation in Phase 4): `gemini-3-flash-preview` on Google, set via `--agent-model` and `--agent-provider` (`google | openai | anthropic | openrouter`). Provider auto-detects from the model name when `--agent-provider` is omitted. Each provider requires its own API key env var (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`).
+- **Phase 2b text-fill model** (host-side payload-text generation): independently configurable via `--phase-2-text-model`; falls back to a default derived from the sandbox model family when unset.
+
+This split exists so the agent-under-test can be swapped without touching the sandbox or text-fill generation stack, and vice versa.
 
 ### In-Sandbox Output Validation
 
@@ -216,11 +237,53 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 ### CLI Flags
 
-Selected flags on `uv run python -m worldsim.main phase <id> ...`:
+`worldsim.main` exposes three subcommands: `phase <id>`, `resume`, and `rescore-phase-3`. The `resume` subcommand mirrors every flag below so that a crashed run can be restarted with either the saved values or an override. `resume` reads the saved step from `logs/pipeline_state.json`, applies the two-branch logic from the State Persistence section, and then dispatches exactly as if you had typed `phase <id>` with the stored arguments.
 
-- `--sites <site[,site...]>` (Phase 2, Phase 3 filter, Phase 4). Restrict to the listed sites. Other sites' existing entries in `adversarial_tasks.json` are preserved on merge, so partial reruns do not wipe earlier results.
-- `--max-tasks-per-site <N>` (Phase 2, Phase 4). Deterministic seeded sampler caps each site to N tasks. Phase 3 is agent-free and validates every contract; no cap applies.
-- `--allow-unknown-auth` (Phase 4). Bypass the safety gate that otherwise refuses to run when any site in `instances.json` declares `agent_auth.type: "unknown"`. The default gate enumerates offending sites and returns exit 2.
+**Paths and configs (all phases)**:
+
+- `--benchmark <path>`: path to the benchmark codebase. Required for Phase 0 (`0`, `0a`, `0b`, `0c`, `0d`). Phase 1 can infer it from `benchmark_codebase` in the manifest.
+- `--config <path>`: override the `BENCHMARK_MANIFEST.json` path. Default is the manifest under `logs/phase_0a/`.
+- `--instances <path>`: `BenchmarkConfig` JSON (see Prerequisites). Required for Phase 4; optional for Phase 0c/0d (lets the profiler connect to live hosts and supplies `agent_auth` for bootstrap).
+
+**Model selection**:
+
+- `--agent-model <name>` (default `gemini-3-flash-preview`): LLM used by Browser Use in Phase 4.
+- `--agent-provider {google,openai,anthropic,openrouter}`: provider for the agent model. Auto-detected when omitted.
+- `--sandbox-model <name>` (default `claude-sonnet-4-6`): Claude model used inside every Modal sandbox (Phase 0c, Phase 1 Mode B, Phase 2a, Phase 4 judge / variant generation, ecological validity probes).
+
+**Phase 1**:
+
+- `--generate-novel`: also run Mode B on sites with uncovered injection surfaces.
+
+**Phase 2**:
+
+- `--phase-2-sandbox-concurrency <N>`: cap on concurrent Phase 2a planning sandboxes across all sites. Defaults to a conservative in-code value tuned for Modal burst limits.
+- `--phase-2-launch-jitter-ms <MS>`: deterministic per-shard launch jitter, used to smooth burst traffic when many sandbox shards would otherwise start in the same tick.
+- `--phase-2b-texts-per-plan <N>` (default 1): number of payload-text variants Phase 2b generates per validated 2a plan. The first variant is selected by default; additional variants survive on disk for offline comparison.
+- `--phase-2-text-fill-concurrency <N>`: cap on concurrent host-side text-fill API calls during Phase 2b.
+- `--phase-2-text-model <name>`: host-side text-fill model, independent of `--sandbox-model`.
+
+**Phase 2c (feasibility verification)**:
+
+- `--skip-feasibility`: skip Phase 2c for fast dev iteration. Emits a warning; resulting tasks are tagged `feasibility.status: "unverified"`.
+- `--feasibility-only`: re-run Phase 2c against an existing `adversarial_tasks.json` without regenerating. Equivalent to `phase 2c` as a standalone invocation.
+- `--feasibility-host-config <path>` (default `configs/benchmark_hosts/r5.yaml`): dev host used for the verification POSTs. Must not be a production host.
+- `--feasibility-concurrency <N>` (default 10): concurrent verification tasks. Drop to 1 when diagnosing interactions between parallel resources.
+- `--feasibility-retry-count <N>` (default 1): retries on 5xx or transport-level failures. 4xx failures never retry (the rejection is the answer).
+
+**Filters and caps (Phase 2, 3, 4)**:
+
+- `--sites <site[,site...]>`: restrict to the listed sites. Other sites' existing entries in `adversarial_tasks.json` are preserved on merge, so partial reruns do not wipe earlier results.
+- `--max-tasks-per-site <N>`: deterministic seeded sampler caps each site to N tasks (Phase 2, Phase 4). Phase 3 is agent-free and validates every contract; no cap applies.
+
+**Phase 4 safety gates**:
+
+- `--allow-unknown-auth`: bypass the safety gate that otherwise refuses to run when any site in `instances.json` declares `agent_auth.type: "unknown"`. The default gate enumerates offending sites and returns exit 2.
+- `--skip-host-bound-storage-state-auth`: when a `storage_state` artifact was minted against a different host (e.g. a stale EC2 IP), skip agent auth for that site instead of failing. Default behavior is to fail fast and ask the operator to re-run Phase 0d.
+
+**Post-hoc utility**:
+
+- `rescore-phase-3 --phase-3-dir <path> [--instances <path>]`: re-score an existing Phase 3 run with the current agent-response transform, without re-running the pipeline. Used after changing reward normalization rules.
 
 ### Per-Task Resume (Phase 4)
 
@@ -535,7 +598,7 @@ async def run_phase_0c(manifest, sandbox_map, benchmark_root, output_dir):
 
 **Purpose.** Materialize a `storage_state` artifact for every site whose `agent_auth.type` is `storage_state` or `form_login` in `instances.json`. Runs once between Phase 0c and Phase 3. No LLM sandboxes.
 
-**Implementation.** `worldsim/phases/phase_0d_auth_bootstrap.py`. Reads `agent_auth` from `instances.json` via `BenchmarkConfig`. Per-site dispatch (first match wins):
+**Implementation.** `worldsim/phases/phase_0d_auth_bootstrap.py` (a separate module from `phase_0_recon.py`, invoked by the `phase 0d` command). Reads `agent_auth` from `instances.json` via `BenchmarkConfig`. Per-site dispatch (first match wins):
 
 1. `agent_auth.storage_state.generator_script` is declared: import the script as an in-process module and invoke `generate(credentials, site_url, output_path)`. The callable may be sync or async; it must write non-empty JSON at `output_path`.
 2. A `form_login` recipe is declared (top-level or nested under `storage_state`): run the built-in Playwright bootstrapper. Launches headless Chromium, navigates to `login_url` (resolved against the live `site_url` when relative), fills the declared selectors with credentials from `agent_auth`, clicks submit, waits for `success_url_substring` in the final URL, and dumps `context.storage_state()` to the output path.
@@ -554,6 +617,8 @@ async def run_phase_0c(manifest, sandbox_map, benchmark_root, output_dir):
 **CLI.** `uv run python -m worldsim.main phase 0d --benchmark vendors/<benchmark> [--instances instances.json]`. The `--instances` flag is optional; when present, the bootstrapper passes the site's live `site_url` to generators.
 
 **Non-goals.** Phase 0d does not manage benchmark environment lifecycles. It does not cope with CAPTCHA / OTP / SSO flows (use a `pre_auth_script` or a hand-written `generator_script` for those). It does not implement `per_task_refresh` (runtime raises `NotImplementedError` if a site sets it true).
+
+**Host drift escape hatch.** `storage_state` artifacts are bound to the host IP where they were minted (cookies carry domain scope). When the dev host's IP rotates between Phase 0d and Phase 4, the stale artifact becomes unusable. `--skip-host-bound-storage-state-auth` on Phase 4 lets the operator skip agent auth for the affected site instead of failing the whole run; re-running `phase 0d` against the new host is the long-term fix.
 
 ---
 

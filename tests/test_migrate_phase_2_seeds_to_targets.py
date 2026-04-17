@@ -131,9 +131,7 @@ def test_migrate_task_rewrites_reddit_postcondition_body_field_to_editor_alias()
                 "type": "db_row_value",
                 "table": "comment",
                 "value_column": "body",
-                "where": {
-                    "body": {"body_field": "reply_to_submission_{submission_id}[comment]"}
-                },
+                "where": {"body": {"body_field": "reply_to_submission_{submission_id}[comment]"}},
             },
         },
         "seed_template": {
@@ -170,10 +168,13 @@ def test_migrate_task_rewrites_reddit_postcondition_body_field_to_editor_alias()
 
     migrated = _MODULE.migrate_task(task)
 
+    # body_field still gets rewritten to the canonical editor-arg name.
     assert migrated["delivery_channel"]["body_field"] == "body"
-    assert migrated["delivery_channel"]["postcondition"]["where"]["body"] == {
-        "body_field": "body"
-    }
+    # DB-level postcondition was retired with the editor pivot (commit
+    # 54888173). The migrator now strips `delivery_channel.postcondition`
+    # entirely for editor-mechanism seeds so validators don't choke on
+    # body_field references to response-derived columns.
+    assert "postcondition" not in migrated["delivery_channel"]
 
 
 def test_migrate_seed_rejects_mixed_target_and_legacy_api_calls():

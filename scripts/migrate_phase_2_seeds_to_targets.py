@@ -17,13 +17,23 @@ _EDITOR_BODY_FIELD_ALIASES: dict[tuple[str, str], dict[str, str]] = {
         "name": "name_template",
         "path": "path_template",
         "description": "description_template",
+        "project[name]": "name_template",
+        "project[path]": "path_template",
+        "project[description]": "description_template",
     },
     ("gitlab", "create_group"): {
         "name": "name_template",
         "path": "path_template",
         "description": "description_template",
+        "group[name]": "name_template",
+        "group[path]": "path_template",
+        "group[description]": "description_template",
     },
-    ("gitlab", "create_issue"): {"body": "body_template", "description": "body_template"},
+    ("gitlab", "create_issue"): {
+        "title": "title_template",
+        "body": "body_template",
+        "description": "body_template",
+    },
     ("gitlab", "create_issue_note"): {"body": "note_body"},
     ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_mr_note"): {"body": "note_body"},
@@ -45,7 +55,12 @@ _EDITOR_BODY_FIELD_ALIASES: dict[tuple[str, str], dict[str, str]] = {
         "forum[name]": "name_template",
         "forum[description]": "description_template",
     },
-    ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
+    ("reddit", "create_submission"): {
+        "title": "title_template",
+        "body": "body_template",
+        "submission[title]": "title_template",
+        "submission[body]": "body_template",
+    },
     ("reddit", "create_comment"): {"body": "body"},
     ("reddit", "update_user_bio"): {"bio": "bio_text"},
     ("shopping", "create_product_review"): {"detail": "detail", "title": "title"},
@@ -475,14 +490,14 @@ def _rewrite_delivery_channel_body_fields(task: dict[str, Any]) -> None:
     if isinstance(rewritten, str):
         delivery_channel["body_field"] = rewritten
 
-    postcondition = delivery_channel.get("postcondition")
-    where = postcondition.get("where") if isinstance(postcondition, dict) else None
-    if not isinstance(where, dict):
-        return
-    for source in where.values():
-        if not isinstance(source, dict) or len(source) != 1 or "body_field" not in source:
-            continue
-        source["body_field"] = _canonical_editor_body_field(candidate_calls, source["body_field"])
+    # DB-level postcondition verification was retired with the editor pivot
+    # (commit 54888173). The `delivery_channel.postcondition` stanza still
+    # lingers on migrated tasks and makes validators fail on body_field
+    # references to response-derived columns (namespace_id, etc.) or
+    # unsupported-field attacks (user[username], availability). Drop it here;
+    # HTTP 2xx is the postcondition under the pivot, Phase 2c will verify
+    # physical feasibility.
+    delivery_channel.pop("postcondition", None)
 
 
 def _canonical_editor_body_field(candidate_calls: list[dict[str, Any]], raw_field: Any) -> Any:

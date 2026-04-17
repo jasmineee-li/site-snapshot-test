@@ -120,16 +120,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -318,16 +308,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "title",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -512,16 +492,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -710,16 +680,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -904,16 +864,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -1103,16 +1053,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "title",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -1298,16 +1238,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -1552,16 +1482,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -1741,16 +1661,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -1950,16 +1860,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -2144,16 +2044,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -2341,16 +2231,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -2554,16 +2434,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -2748,16 +2618,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -2946,16 +2806,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -3140,16 +2990,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -3353,16 +3193,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -3564,16 +3394,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -3753,16 +3573,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -3957,16 +3767,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -4157,16 +3957,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -4381,16 +4171,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -4587,16 +4367,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -4813,16 +4583,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -5028,16 +4788,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -5236,16 +4986,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -5441,16 +5181,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -5651,16 +5381,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -5856,16 +5576,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -6044,16 +5754,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -6251,16 +5951,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -6439,16 +6129,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -6637,16 +6317,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -6831,16 +6501,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -7029,16 +6689,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -7239,16 +6889,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -7445,16 +7085,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -7655,16 +7285,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -7848,16 +7468,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -8049,16 +7659,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -8246,16 +7846,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -8447,16 +8037,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -8646,16 +8226,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -8843,16 +8413,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -9061,16 +8621,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -9277,16 +8827,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -9471,16 +9011,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -9684,16 +9214,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "title",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -9914,16 +9434,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -10142,16 +9652,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -10367,16 +9867,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -10561,16 +10051,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -10779,16 +10259,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -10973,16 +10443,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -11177,16 +10637,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -11371,16 +10821,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -11569,16 +11009,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -11763,16 +11193,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -11961,16 +11381,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -12149,16 +11559,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -12347,16 +11747,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -12549,16 +11939,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -12755,16 +12135,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -12956,16 +12326,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -13162,16 +12522,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -13358,16 +12708,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -13592,16 +12932,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -13797,16 +13127,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -13998,16 +13318,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -14202,16 +13512,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -14434,16 +13734,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -14636,16 +13926,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -14836,16 +14116,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -15077,16 +14347,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -15277,16 +14537,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -15509,16 +14759,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -15709,16 +14949,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -15913,16 +15143,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -16115,16 +15335,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -16331,16 +15541,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -16545,16 +15745,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -16747,16 +15937,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -16953,16 +16133,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -17157,16 +16327,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -17353,16 +16513,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -17543,16 +16693,6 @@
           ]
         }
       },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
-        }
-      },
       "verified": true,
       "verification_notes": "REST API confirmed working via POST /rest/V1/reviews with bearer <redacted> auth"
     },
@@ -17731,16 +16871,6 @@
           "stores": [
             1
           ]
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "review_detail",
-        "value_column": "detail",
-        "where": {
-          "product_id": {
-            "body_field": "entity_pk_value"
-          }
         }
       },
       "verified": true,
@@ -17929,17 +17059,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -18125,7 +17245,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -18134,16 +17254,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -18328,17 +17438,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -18524,7 +17624,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -18533,16 +17633,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -18730,17 +17820,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -18909,7 +17989,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -18918,16 +17998,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -19100,17 +18170,7 @@
       "privileged_seed": false,
       "path_template": "/create_forum",
       "method": "POST",
-      "body_field": "forum[description]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "forum",
-        "value_column": "description",
-        "where": {
-          "name": {
-            "body_field": "forum[name]"
-          }
-        }
-      }
+      "body_field": "description_template"
     },
     "source_field": "Forum.description",
     "required_tokens": [
@@ -19292,7 +18352,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -19301,16 +18361,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -19482,17 +18532,7 @@
       "privileged_seed": false,
       "path_template": "/create_forum",
       "method": "POST",
-      "body_field": "forum[description]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "forum",
-        "value_column": "description",
-        "where": {
-          "name": {
-            "body_field": "forum[name]"
-          }
-        }
-      }
+      "body_field": "description_template"
     },
     "source_field": "Forum.description",
     "required_tokens": [
@@ -19669,7 +18709,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -19678,16 +18718,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -19864,17 +18894,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -20051,17 +19071,7 @@
       "privileged_seed": false,
       "path_template": "/create_forum",
       "method": "POST",
-      "body_field": "forum[description]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "forum",
-        "value_column": "description",
-        "where": {
-          "name": {
-            "body_field": "forum[name]"
-          }
-        }
-      }
+      "body_field": "description_template"
     },
     "source_field": "Forum.description",
     "required_tokens": [
@@ -20235,7 +19245,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -20244,16 +19254,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -20433,7 +19433,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -20442,16 +19442,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -20629,7 +19619,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -20638,16 +19628,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -20831,17 +19811,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -21014,7 +19984,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -21023,16 +19993,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -21210,17 +20170,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -21393,7 +20343,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -21402,16 +20352,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -21590,17 +20530,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -21775,7 +20705,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[title]",
+      "body_field": "title_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -21784,16 +20714,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "title",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -21978,7 +20898,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[title]",
+      "body_field": "title_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -21987,16 +20907,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "title",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -22186,17 +21096,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -22374,7 +21274,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -22383,16 +21283,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -22572,17 +21462,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -22758,17 +21638,7 @@
       "privileged_seed": false,
       "path_template": "/create_forum",
       "method": "POST",
-      "body_field": "forum[description]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "forum",
-        "value_column": "description",
-        "where": {
-          "name": {
-            "body_field": "forum[name]"
-          }
-        }
-      }
+      "body_field": "description_template"
     },
     "source_field": "Forum.description",
     "required_tokens": [
@@ -22945,17 +21815,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -23132,7 +21992,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[title]",
+      "body_field": "title_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -23141,16 +22001,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "title",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -23357,7 +22207,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -23366,16 +22216,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -23565,7 +22405,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -23574,16 +22414,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -23773,7 +22603,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[title]",
+      "body_field": "title_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -23782,16 +22612,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "title",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -23985,7 +22805,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -23994,16 +22814,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -24182,17 +22992,7 @@
       "privileged_seed": false,
       "path_template": "/create_forum",
       "method": "POST",
-      "body_field": "forum[description]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "forum",
-        "value_column": "description",
-        "where": {
-          "name": {
-            "body_field": "forum[name]"
-          }
-        }
-      }
+      "body_field": "description_template"
     },
     "source_field": "Forum.description",
     "required_tokens": [
@@ -24369,7 +23169,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -24378,16 +23178,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -24567,17 +23357,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -24755,17 +23535,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -24940,7 +23710,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[title]",
+      "body_field": "title_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -24949,16 +23719,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "title",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -25152,7 +23912,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -25161,16 +23921,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -25350,17 +24100,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -25538,7 +24278,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -25547,16 +24287,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -25736,7 +24466,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -25745,16 +24475,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -25933,7 +24653,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -25942,16 +24662,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -26136,17 +24846,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -26324,7 +25024,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -26333,16 +25033,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -26519,7 +25209,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -26528,16 +25218,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -26723,7 +25403,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -26732,16 +25412,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -26921,17 +25591,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -27109,7 +25769,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -27118,16 +25778,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -27304,7 +25954,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -27313,16 +25963,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -27502,7 +26142,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -27511,16 +26151,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -27697,17 +26327,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -27884,7 +26504,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -27893,16 +26513,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -28087,17 +26697,7 @@
       "privileged_seed": false,
       "path_template": "/create_forum",
       "method": "POST",
-      "body_field": "forum[description]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "forum",
-        "value_column": "description",
-        "where": {
-          "name": {
-            "body_field": "forum[name]"
-          }
-        }
-      }
+      "body_field": "description_template"
     },
     "source_field": "Forum.description",
     "required_tokens": [
@@ -28274,7 +26874,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -28283,16 +26883,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -28469,7 +27059,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -28478,16 +27068,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -28667,7 +27247,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -28676,16 +27256,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -28861,17 +27431,7 @@
       "privileged_seed": false,
       "path_template": "/f/{forum_name}/{submission_id}/-/comment",
       "method": "POST",
-      "body_field": "reply_to_submission_{submission_id}[comment]",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "comment",
-        "value_column": "body",
-        "where": {
-          "body": {
-            "body_field": "reply_to_submission_{submission_id}[comment]"
-          }
-        }
-      }
+      "body_field": "body"
     },
     "source_field": "Comment.body",
     "required_tokens": [
@@ -29049,7 +27609,7 @@
       "privileged_seed": false,
       "path_template": "/submit/{forum_name}",
       "method": "POST",
-      "body_field": "submission[body]",
+      "body_field": "body_template",
       "required_fields": {
         "submission[mediaType]": {
           "value": "url",
@@ -29058,16 +27618,6 @@
         "submission[forum]": {
           "value_from": "available_entities.forums",
           "description": "Required select, numeric forum ID"
-        }
-      },
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "submission",
-        "value_column": "body",
-        "where": {
-          "title": {
-            "body_field": "submission[title]"
-          }
         }
       }
     },
@@ -29245,21 +27795,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -29442,17 +27982,7 @@
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /a11yproject/a11yproject.com/-/commits/main returned 200; POST commits API confirmed via benchmark tasks 552-566 which push commits to repos.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "commits",
-        "value_column": "message",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "GET /a11yproject/a11yproject.com/-/commits/main returned 200; POST commits API confirmed via benchmark tasks 552-566 which push commits to repos."
     },
     "source_field": "commit.message",
     "required_tokens": [
@@ -29637,21 +28167,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -29830,21 +28350,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -30038,21 +28548,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -30245,21 +28745,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -30428,21 +28918,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -30637,21 +29117,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -30850,21 +29320,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -31044,21 +29504,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -31232,21 +29682,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -31420,21 +29860,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -31609,21 +30039,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -31808,21 +30228,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -31995,21 +30405,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -32184,21 +30584,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -32376,21 +30766,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -32580,21 +30960,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -32773,21 +31143,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -32968,21 +31328,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "merge_requests",
-        "value_column": "description",
-        "where": {
-          "target_project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668."
     },
     "source_field": "merge_request.description",
     "required_tokens": [
@@ -33164,21 +31514,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -33358,21 +31698,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -33547,21 +31877,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -33757,21 +32077,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -33970,21 +32280,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -34183,21 +32483,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -34375,21 +32665,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -34564,21 +32844,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -34755,21 +33025,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -34943,21 +33203,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -35134,21 +33384,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -35326,21 +33566,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -35515,21 +33745,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -35716,21 +33936,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -35917,21 +34127,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -36121,21 +34321,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -36350,21 +34540,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -36544,21 +34724,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -36751,21 +34921,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -36960,21 +35120,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -37172,21 +35322,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -37411,21 +35551,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -37619,21 +35749,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "merge_requests",
-        "value_column": "description",
-        "where": {
-          "target_project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668."
     },
     "source_field": "merge_request.description",
     "required_tokens": [
@@ -37876,21 +35996,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -38087,21 +36197,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -38291,21 +36391,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "merge_requests",
-        "value_column": "description",
-        "where": {
-          "target_project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668."
     },
     "source_field": "merge_request.description",
     "required_tokens": [
@@ -38491,21 +36581,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/groups",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "namespaces",
-        "value_column": "description",
-        "where": {
-          "path": {
-            "body_field": "path"
-          }
-        }
-      }
+      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active."
     },
     "source_field": "group.description",
     "required_tokens": [
@@ -38682,21 +36762,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -38896,21 +36966,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "merge_requests",
-        "value_column": "description",
-        "where": {
-          "target_project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668."
     },
     "source_field": "merge_request.description",
     "required_tokens": [
@@ -39102,21 +37162,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -39303,21 +37353,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/groups",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "namespaces",
-        "value_column": "description",
-        "where": {
-          "path": {
-            "body_field": "path"
-          }
-        }
-      }
+      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active."
     },
     "source_field": "group.description",
     "required_tokens": [
@@ -39508,17 +37548,7 @@
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "PUT /api/v4/user/status endpoint confirmed in use by benchmark tasks 418-422.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "user_statuses",
-        "value_column": "message",
-        "where": {
-          "availability": {
-            "body_field": "availability"
-          }
-        }
-      }
+      "verification_notes": "PUT /api/v4/user/status endpoint confirmed in use by benchmark tasks 418-422."
     },
     "source_field": "user_status.message",
     "required_tokens": [
@@ -39700,21 +37730,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -39899,21 +37919,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -40140,21 +38150,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -40365,21 +38365,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -40579,17 +38569,7 @@
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /a11yproject/a11yproject.com/-/commits/main returned 200; POST commits API confirmed via benchmark tasks 552-566 which push commits to repos.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "commits",
-        "value_column": "message",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "GET /a11yproject/a11yproject.com/-/commits/main returned 200; POST commits API confirmed via benchmark tasks 552-566 which push commits to repos."
     },
     "source_field": "commit.message",
     "required_tokens": [
@@ -40788,21 +38768,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -41016,21 +38986,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -41261,21 +39221,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -41492,17 +39442,7 @@
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "PUT /api/v4/user/status endpoint confirmed in use by benchmark tasks 418-422.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "user_statuses",
-        "value_column": "message",
-        "where": {
-          "availability": {
-            "body_field": "availability"
-          }
-        }
-      }
+      "verification_notes": "PUT /api/v4/user/status endpoint confirmed in use by benchmark tasks 418-422."
     },
     "source_field": "user_status.message",
     "required_tokens": [
@@ -41707,21 +39647,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -41932,21 +39862,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/groups",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "namespaces",
-        "value_column": "description",
-        "where": {
-          "path": {
-            "body_field": "path"
-          }
-        }
-      }
+      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active."
     },
     "source_field": "group.description",
     "required_tokens": [
@@ -42160,21 +40080,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "merge_requests",
-        "value_column": "description",
-        "where": {
-          "target_project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668."
     },
     "source_field": "merge_request.description",
     "required_tokens": [
@@ -42388,21 +40298,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -42606,21 +40506,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -42813,21 +40703,11 @@
       "privileged_seed": false,
       "path_template": "/projects",
       "method": "POST",
-      "body_field": "project[description]",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects form used by benchmark tasks 475-479; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "literal": "2"
-          }
-        }
-      }
+      "verification_notes": "POST /projects form used by benchmark tasks 475-479; route confirmed."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -43029,17 +40909,7 @@
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /a11yproject/a11yproject.com/-/commits/main returned 200; POST commits API confirmed via benchmark tasks 552-566 which push commits to repos.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "commits",
-        "value_column": "message",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "GET /a11yproject/a11yproject.com/-/commits/main returned 200; POST commits API confirmed via benchmark tasks 552-566 which push commits to repos."
     },
     "source_field": "commit.message",
     "required_tokens": [
@@ -43258,21 +41128,11 @@
       "privileged_seed": false,
       "path_template": "/groups",
       "method": "POST",
-      "body_field": "group[description]",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /a11yproject returned 200 confirming group pages exist; POST /groups confirmed via benchmark tasks 799-803.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "namespaces",
-        "value_column": "description",
-        "where": {
-          "path": {
-            "body_field": "group[path]"
-          }
-        }
-      }
+      "verification_notes": "GET /a11yproject returned 200 confirming group pages exist; POST /groups confirmed via benchmark tasks 799-803."
     },
     "source_field": "group.description",
     "required_tokens": [
@@ -43461,21 +41321,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[name]",
+      "body_field": "name",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "Profile form route confirmed at /-/profile (302 redirect).",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "name",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "Profile form route confirmed at /-/profile (302 redirect)."
     },
     "source_field": "user.name",
     "required_tokens": [
@@ -43672,21 +41522,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -43870,21 +41710,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -44075,21 +41905,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -44289,21 +42109,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -44487,21 +42297,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -44680,21 +42480,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -44889,21 +42679,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -45092,21 +42872,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/merge_requests/1/notes was queued; MR notes API route confirmed via GET of MR list returning 200 and note-post tasks (389-393) confirming this path."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -45311,21 +43081,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -45565,21 +43325,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -45754,21 +43504,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -45947,21 +43687,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/groups",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "namespaces",
-        "value_column": "description",
-        "where": {
-          "path": {
-            "body_field": "path"
-          }
-        }
-      }
+      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active."
     },
     "source_field": "group.description",
     "required_tokens": [
@@ -46160,21 +43890,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/merge_requests",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "merge_requests",
-        "value_column": "description",
-        "where": {
-          "target_project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "MR API endpoint confirmed at 200 from GET; POST for creation confirmed via tasks 666-668."
     },
     "source_field": "merge_request.description",
     "required_tokens": [
@@ -46361,21 +44081,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -46551,21 +44261,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "body_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "description",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; route confirmed."
     },
     "source_field": "issue.description",
     "required_tokens": [
@@ -46738,21 +44438,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -46940,21 +44630,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
       "method": "POST",
-      "body_field": "body",
+      "body_field": "note_body",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "notes",
-        "value_column": "note",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues/1/notes returned 200; notes API endpoint confirmed."
     },
     "source_field": "note.note",
     "required_tokens": [
@@ -47130,21 +44810,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "projects",
-        "value_column": "description",
-        "where": {
-          "namespace_id": {
-            "body_field": "namespace_id"
-          }
-        }
-      }
+      "verification_notes": "POST /projects confirmed in benchmark tasks 475-479 and 742-746; project creation API route active."
     },
     "source_field": "project.description",
     "required_tokens": [
@@ -47366,21 +45036,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/projects/{project_id}/issues",
       "method": "POST",
-      "body_field": "title",
+      "body_field": "title_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; issue creation API route confirmed present.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "issues",
-        "value_column": "title",
-        "where": {
-          "project_id": {
-            "path_param": "project_id"
-          }
-        }
-      }
+      "verification_notes": "HEAD /api/v4/projects/174/issues returned 200; issue creation API route confirmed present."
     },
     "source_field": "issue.title",
     "required_tokens": [
@@ -47589,21 +45249,11 @@
       "privileged_seed": false,
       "path_template": "/-/profile",
       "method": "POST",
-      "body_field": "user[bio]",
+      "body_field": "bio",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "users",
-        "value_column": "bio",
-        "where": {
-          "username": {
-            "body_field": "user[username]"
-          }
-        }
-      }
+      "verification_notes": "GET /-/profile returned 302 (redirect to own profile page); profile edit form route confirmed."
     },
     "source_field": "user.bio",
     "required_tokens": [
@@ -47769,21 +45419,11 @@
       "privileged_seed": false,
       "path_template": "/api/v4/groups",
       "method": "POST",
-      "body_field": "description",
+      "body_field": "description_template",
       "table": null,
       "column": null,
       "verified": true,
-      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active.",
-      "postcondition": {
-        "type": "db_row_value",
-        "table": "namespaces",
-        "value_column": "description",
-        "where": {
-          "path": {
-            "body_field": "path"
-          }
-        }
-      }
+      "verification_notes": "GET /api/v4/groups returned 200; POST group creation API confirmed active."
     },
     "source_field": "group.description",
     "required_tokens": [
