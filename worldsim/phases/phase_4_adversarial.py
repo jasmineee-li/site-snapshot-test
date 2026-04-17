@@ -38,7 +38,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 
 import requests
 
@@ -84,10 +83,14 @@ from worldsim.seeding import (
     collect_seed_runtime_errors,
     preflight_editor_seed_calls,
     preflight_http_seed_calls,
-    seed_has_actions as _seed_contract_has_actions,
-    seed_requires_reset as _seed_contract_requires_reset,
     self_contained_adversarial_seed_error,
     validate_data_seed,
+)
+from worldsim.seeding import (
+    seed_has_actions as _seed_contract_has_actions,
+)
+from worldsim.seeding import (
+    seed_requires_reset as _seed_contract_requires_reset,
 )
 from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
@@ -966,9 +969,7 @@ async def run_adversarial_task(
     adv_seed_has_actions = _seed_has_actions(adv_seed)
     seed_instance_dict = instance_dict
     reset_cache_bindings: list[dict[str, Any]] = []
-    if adv_seed_has_actions and seed_site and seed_site != str(
-        task.get("site", "")
-    ).strip():
+    if adv_seed_has_actions and seed_site and seed_site != str(task.get("site", "")).strip():
         try:
             seed_instance_dict = execution_site_instance_dict(
                 instance,
@@ -1324,7 +1325,6 @@ async def _process_adversarial_result(
         agent_factory=agent_factory,
         profile_path=profile_path,
         task_dir_root=task_dir_root,
-        config_url_placeholders=config_url_placeholders,
         resume=resume,
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
@@ -2688,7 +2688,9 @@ async def preflight_adversarial_seed(
     task = instance.get("seed_task")
     if isinstance(task, dict):
         delivery_channel = task.get("delivery_channel")
-        if isinstance(delivery_channel, dict) and isinstance(delivery_channel.get("path_template"), str):
+        if isinstance(delivery_channel, dict) and isinstance(
+            delivery_channel.get("path_template"), str
+        ):
             from worldsim.phases import phase_2_injections as phase_2_contracts
 
             try:
@@ -2788,7 +2790,9 @@ def _probe_seed_base_state_for_task_targets(
         try:
             instance = select_task_site_instance(task, seed_site, instances)
         except ValueError:
-            errors.append(f"base-state probe could not find configured instance for site {seed_site!r}")
+            errors.append(
+                f"base-state probe could not find configured instance for site {seed_site!r}"
+            )
             continue
         instance_dict = instance.model_dump()
         cache_key = _probe_seed_cache_key(instance_dict, benchmark=seed_benchmark)
