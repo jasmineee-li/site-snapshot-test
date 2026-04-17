@@ -85,7 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--instances",
         type=Path,
         help="JSON file with BenchmarkConfig (site_url, db_connection, "
-        "reset_endpoint). Required for Phases 3-4.",
+        "reset_endpoint). Required for Phase 4.",
     )
     phase_cmd.add_argument(
         "--agent-model",
@@ -97,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
     phase_cmd.add_argument(
         "--sandbox-model",
         default=DEFAULT_SANDBOX_MODEL,
-        help="Claude sandbox model for Phase 3-4 diagnosis/judge/fix steps "
+        help="Claude sandbox model for Phase 4 judge and variant steps "
         f"(default: {DEFAULT_SANDBOX_MODEL}).",
     )
     phase_cmd.add_argument(
@@ -109,17 +109,11 @@ def build_parser() -> argparse.ArgumentParser:
         "ANTHROPIC_API_KEY, or OPENROUTER_API_KEY.",
     )
     phase_cmd.add_argument(
-        "--full-baseline",
-        action="store_true",
-        help="Phase 3: validate all benign tasks, not just adversarial-paired ones. "
-        "Produces baseline capability metric.",
-    )
-    phase_cmd.add_argument(
         "--max-tasks-per-site",
         type=_positive_int,
         default=None,
         metavar="N",
-        help="Phases 3-4: cap tasks to at most N per site for smoke testing. "
+        help="Phase 4: cap tasks to at most N per site for smoke testing. "
         "Selection is deterministic (fixed seed). Omit for full runs. "
         "Use `resume --max-tasks-per-site N` to keep the cap, or omit it on "
         "resume to process all remaining tasks.",
@@ -176,14 +170,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-unknown-auth",
         action="store_true",
         default=False,
-        help="Phase 3-4: proceed even when a site's auth_mechanism.type is 'unknown'. "
+        help="Phase 4: proceed even when a site's auth_mechanism.type is 'unknown'. "
         "Default behavior is to refuse unknown-auth tasks so humans review them first.",
     )
     phase_cmd.add_argument(
         "--skip-host-bound-storage-state-auth",
         action="store_true",
         default=False,
-        help="Phase 3-4: when a storage_state artifact was minted for a different host "
+        help="Phase 4: when a storage_state artifact was minted for a different host "
         "(for example an old EC2 IP), skip agent auth for that site instead of failing. "
         "Default behavior is to fail fast and ask you to re-run Phase 0d.",
     )
@@ -237,13 +231,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=argparse.SUPPRESS,
         help="Override saved Phase 1 state to enable Mode B novel task generation.",
-    )
-    resume_cmd.add_argument(
-        "--full-baseline",
-        action="store_true",
-        default=argparse.SUPPRESS,
-        help="Phase 3: validate all benign tasks, not just adversarial-paired ones. "
-        "Produces baseline capability metric.",
     )
     resume_cmd.add_argument(
         "--max-tasks-per-site",
@@ -419,7 +406,6 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     sandbox_model = getattr(args, "sandbox_model", None)
     agent_provider = getattr(args, "agent_provider", None)
     generate_novel = getattr(args, "generate_novel", None)
-    full_baseline = getattr(args, "full_baseline", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites = getattr(args, "sites", None)
     phase_2_sandbox_concurrency = getattr(args, "phase_2_sandbox_concurrency", None)
@@ -443,8 +429,6 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_provider = state.get("agent_provider")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
-    if full_baseline is None:
-        full_baseline = state.get("full_baseline", False)
     if sites is None:
         sites = state.get("sites")
     if phase_2_sandbox_concurrency is None:
@@ -464,13 +448,9 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     allow_unknown_auth = getattr(args, "allow_unknown_auth", None)
     if allow_unknown_auth is None:
         allow_unknown_auth = state.get("allow_unknown_auth", False)
-    skip_host_bound_storage_state_auth = getattr(
-        args, "skip_host_bound_storage_state_auth", None
-    )
+    skip_host_bound_storage_state_auth = getattr(args, "skip_host_bound_storage_state_auth", None)
     if skip_host_bound_storage_state_auth is None:
-        skip_host_bound_storage_state_auth = state.get(
-            "skip_host_bound_storage_state_auth", False
-        )
+        skip_host_bound_storage_state_auth = state.get("skip_host_bound_storage_state_auth", False)
 
     synthetic = argparse.Namespace(
         command="phase",
@@ -483,7 +463,6 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         generate_novel=generate_novel,
-        full_baseline=full_baseline,
         max_tasks_per_site=max_tasks_per_site,
         sites=sites,
         phase_2_sandbox_concurrency=phase_2_sandbox_concurrency,

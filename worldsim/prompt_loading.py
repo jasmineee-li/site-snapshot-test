@@ -30,9 +30,9 @@ def load_prompt(name: str, *, validation_command: str | None = None) -> str:
 
         load_prompt("generate-benign-tasks").format(num_tasks=30)
 
-    For templates containing ``|`` (e.g. ``{pass|fail}`` in
-    ``diagnose-benign-failure.md``), use ``str.replace()`` instead of
-    ``str.format()`` since ``|`` is invalid in format specs.
+    For templates containing ``|`` (e.g. ``{pass|fail}``), use
+    ``str.replace()`` instead of ``str.format()`` since ``|`` is invalid
+    in format specs.
 
     Args:
         name: Stem of a file under ``worldsim/prompts/`` (no extension).
