@@ -10,6 +10,7 @@ from worldsim.failpoints import FAILPOINT_EXIT_CODE
 @pytest.mark.parametrize(
     "failpoint",
     [
+        "phase_3.outputs.contracts.before_replace",
         "phase_3.outputs.contracts.after_replace",
     ],
 )
