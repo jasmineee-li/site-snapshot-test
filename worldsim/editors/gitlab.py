@@ -1,0 +1,934 @@
+from __future__ import annotations
+
+from typing import Any
+
+import requests
+
+from .base import BaseSiteEditor, EditorError
+
+
+class GitlabEditor(BaseSiteEditor):
+    site_name = "gitlab"
+    supported_methods = frozenset(
+        {
+            "create_project",
+            "create_group",
+            "create_issue",
+            "create_issue_note",
+            "create_mr",
+            "create_mr_note",
+            "create_repo_file",
+            "update_user_status",
+            "update_user_profile",
+        }
+    )
+
+    def __init__(self, instance: dict[str, Any], session: requests.Session) -> None:
+        super().__init__(instance, session)
+        self._profile_form_session_prepared = False
+        self._created_projects_by_path: dict[str, dict[str, Any]] = {}
+
+    @classmethod
+    def probe_base_state(cls, instance: dict[str, Any]) -> None:
+        with requests.Session() as session:
+            editor = cls(instance, session)
+            editor._current_user()
+
+    def validate_args(self, method_name: str, args: dict[str, Any]) -> None:
+        validators = {
+            "create_project": lambda: self._require_args(args, "name_template"),
+            "create_group": lambda: self._require_args(args, "name_template"),
+            "create_issue": lambda: self._validate_issue_args(args),
+            "create_issue_note": lambda: self._validate_issue_note_args(args),
+            "create_mr": lambda: self._validate_merge_request_args(args),
+            "create_mr_note": lambda: self._validate_merge_request_note_args(args),
+            "create_repo_file": lambda: self._validate_repo_file_args(args),
+            "update_user_status": lambda: self._require_args(args, "message"),
+            "update_user_profile": lambda: self._validate_user_profile_args(args),
+        }
+        validator = validators.get(method_name)
+        if validator is None:
+            raise EditorError("unsupported_method", f"unsupported gitlab editor method {method_name!r}")
+        validator()
+        self._current_user()
+
+    def preview_context(self, method_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        if method_name == "create_project":
+            name_template = str(args.get("name_template") or "").strip() or "webagent-task"
+            preview = self._preview_project_context(
+                name_template=name_template,
+                path_template=args.get("path_template"),
+            )
+            return {"project_id": 0, **preview}
+        if method_name == "create_group":
+            group_path = self._slugify(str(args.get("path_template") or args.get("name_template") or "group"))
+            return {"group_id": 0, "group_path": group_path}
+        if method_name == "create_issue":
+            return {
+                **self.preview_context(
+                    "create_project",
+                    {
+                        "name_template": args.get("project_name_template") or "webagent-task",
+                        "path_template": args.get("project_path_template"),
+                    },
+                ),
+                "issue_iid": 1,
+            }
+        if method_name == "create_issue_note":
+            return {
+                **self.preview_context(
+                    "create_issue",
+                    {
+                        "project_name_template": args.get("project_name_template"),
+                        "project_path_template": args.get("project_path_template"),
+                    },
+                ),
+                "note_id": 1,
+            }
+        if method_name == "create_mr":
+            return {
+                **self.preview_context(
+                    "create_project",
+                    {
+                        "name_template": args.get("project_name_template") or "webagent-task",
+                        "path_template": args.get("project_path_template"),
+                    },
+                ),
+                "mr_iid": 1,
+            }
+        if method_name == "create_mr_note":
+            return {
+                **self.preview_context(
+                    "create_mr",
+                    {
+                        "project_name_template": args.get("project_name_template"),
+                        "project_path_template": args.get("project_path_template"),
+                    },
+                ),
+                "note_id": 1,
+            }
+        if method_name == "create_repo_file":
+            return self.preview_context(
+                "create_project",
+                {
+                    "name_template": args.get("project_name_template") or "webagent-task",
+                    "path_template": args.get("project_path_template"),
+                },
+            )
+        return {}
+
+    def create_project(
+        self,
+        *,
+        name_template: str,
+        description_template: str | None = None,
+        path_template: str | None = None,
+    ) -> dict[str, Any]:
+        preview = self._preview_project_context(name_template=name_template, path_template=path_template)
+        project_path = preview["project_path"]
+        cached = self._created_projects_by_path.get(project_path.lower())
+        if isinstance(cached, dict):
+            return dict(cached)
+        project = self._gitlab_get_json(
+            f"/api/v4/projects/{self._quote(project_path)}",
+            allow_missing=True,
+        )
+        if isinstance(project, dict):
+            raise self._preexisting_project_error(project_path)
+
+        current_user = self._current_user()
+        leaf_name = project_path.split("/")[-1]
+        project = self._find_accessible_project(
+            current_user=current_user,
+            leaf_name=leaf_name,
+            expected_path=project_path,
+        )
+        if isinstance(project, dict):
+            raise self._preexisting_project_error(project_path)
+        try:
+            project = self._gitlab_request_json(
+                "POST",
+                "/api/v4/projects",
+                json_body={
+                    "name": leaf_name,
+                    "path": leaf_name,
+                    "description": str(description_template or "").strip(),
+                    "initialize_with_readme": True,
+                    "visibility": "private",
+                },
+            )
+        except EditorError as exc:
+            if exc.kind == "request_failed":
+                raise self._classify_project_create_error(exc, project_path) from exc
+            raise
+        if not isinstance(project, dict):
+            raise EditorError("invalid_project_create", "gitlab project create returned invalid payload")
+        project_id = project.get("id")
+        if project_id in (None, ""):
+            raise EditorError("invalid_project_create", "gitlab project create missing id")
+        result = {
+            "project_id": project_id,
+            "project_path": str(project.get("path_with_namespace") or project_path),
+        }
+        self._created_projects_by_path[project_path.lower()] = dict(result)
+        self._push_cleanup(lambda project_id=project_id: self.delete_project(project_id))
+        return result
+
+    def create_group(
+        self,
+        *,
+        name_template: str,
+        description_template: str | None = None,
+        path_template: str | None = None,
+    ) -> dict[str, Any]:
+        group_path = self._slugify(path_template or name_template)
+        groups = self._gitlab_request_json(
+            "GET",
+            "/api/v4/groups",
+            params={"search": group_path, "per_page": 100},
+        )
+        if isinstance(groups, list):
+            for group in groups:
+                if not isinstance(group, dict):
+                    continue
+                if str(group.get("path", "")).strip().lower() == group_path.lower():
+                    return {"group_id": group["id"], "group_path": str(group.get("full_path") or group_path)}
+        created = self._gitlab_request_json(
+            "POST",
+            "/api/v4/groups",
+            json_body={
+                "name": str(name_template).strip(),
+                "path": group_path,
+                "description": str(description_template or "").strip(),
+            },
+        )
+        if not isinstance(created, dict) or created.get("id") in (None, ""):
+            raise EditorError("invalid_group_create", "gitlab group create returned invalid payload")
+        group_id = created["id"]
+        self._push_cleanup(lambda group_id=group_id: self.delete_group(group_id))
+        return {"group_id": group_id, "group_path": str(created.get("full_path") or group_path)}
+
+    def create_issue(
+        self,
+        *,
+        title_template: str,
+        body_template: str | None = None,
+        project_id: Any | None = None,
+        project_name_template: str | None = None,
+        project_path_template: str | None = None,
+        project_description_template: str | None = None,
+    ) -> dict[str, Any]:
+        project = self._ensure_project(
+            project_id=project_id,
+            project_name_template=project_name_template,
+            project_path_template=project_path_template,
+            project_description_template=project_description_template,
+        )
+        title = str(title_template).strip()
+        description = str(body_template or "").strip()
+        existing = self._find_existing_issue(project_id=project["project_id"], title=title, description=description)
+        if isinstance(existing, dict):
+            return {
+                "project_id": project["project_id"],
+                "project_path": project["project_path"],
+                "issue_iid": existing["iid"],
+            }
+        issue = self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project['project_id']}/issues",
+            json_body={"title": title, "description": description},
+        )
+        if not isinstance(issue, dict) or issue.get("iid") in (None, ""):
+            raise EditorError("invalid_issue_create", "gitlab issue create returned invalid payload")
+        issue_iid = issue["iid"]
+        self._push_cleanup(
+            lambda project_id=project["project_id"], issue_iid=issue_iid: self._close_issue(project_id, issue_iid)
+        )
+        return {
+            "project_id": project["project_id"],
+            "project_path": project["project_path"],
+            "issue_iid": issue_iid,
+        }
+
+    def create_issue_note(
+        self,
+        *,
+        note_body: str,
+        project_id: Any | None = None,
+        project_name_template: str | None = None,
+        project_path_template: str | None = None,
+        project_description_template: str | None = None,
+        issue_iid: Any | None = None,
+        issue_title_template: str | None = None,
+        issue_body_template: str | None = None,
+    ) -> dict[str, Any]:
+        project = self._ensure_project(
+            project_id=project_id,
+            project_name_template=project_name_template,
+            project_path_template=project_path_template,
+            project_description_template=project_description_template,
+        )
+        issue = self._ensure_issue(
+            project_id=project["project_id"],
+            issue_iid=issue_iid,
+            title_template=issue_title_template,
+            body_template=issue_body_template,
+        )
+        note = self._find_existing_issue_note(project["project_id"], issue["issue_iid"], note_body)
+        if isinstance(note, dict):
+            return {**project, "issue_iid": issue["issue_iid"], "note_id": note["id"]}
+        created = self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project['project_id']}/issues/{issue['issue_iid']}/notes",
+            json_body={"body": str(note_body)},
+        )
+        if not isinstance(created, dict) or created.get("id") in (None, ""):
+            raise EditorError("invalid_issue_note_create", "gitlab issue note create returned invalid payload")
+        note_id = created["id"]
+        self._push_cleanup(
+            lambda project_id=project["project_id"], issue_iid=issue["issue_iid"], note_id=note_id: self._delete_issue_note(project_id, issue_iid, note_id)
+        )
+        return {**project, "issue_iid": issue["issue_iid"], "note_id": note_id}
+
+    def create_mr(
+        self,
+        *,
+        title_template: str,
+        source_branch: str,
+        body_template: str | None = None,
+        target_branch: str | None = None,
+        project_id: Any | None = None,
+        project_name_template: str | None = None,
+        project_path_template: str | None = None,
+        project_description_template: str | None = None,
+    ) -> dict[str, Any]:
+        project = self._ensure_project(
+            project_id=project_id,
+            project_name_template=project_name_template,
+            project_path_template=project_path_template,
+            project_description_template=project_description_template,
+        )
+        payload = {
+            "title": str(title_template).strip(),
+            "description": str(body_template or "").strip(),
+            "source_branch": str(source_branch).strip(),
+            "target_branch": str(target_branch or project.get("default_branch") or "main").strip() or "main",
+        }
+        existing = self._find_existing_merge_request(project["project_id"], payload)
+        if isinstance(existing, dict):
+            return {**project, "mr_iid": existing["iid"]}
+        self._ensure_branch_and_commit(project["project_id"], payload)
+        created = self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project['project_id']}/merge_requests",
+            json_body=payload,
+        )
+        if not isinstance(created, dict) or created.get("iid") in (None, ""):
+            raise EditorError("invalid_merge_request_create", "gitlab merge request create returned invalid payload")
+        mr_iid = created["iid"]
+        self._push_cleanup(
+            lambda project_id=project["project_id"], mr_iid=mr_iid: self._close_merge_request(project_id, mr_iid)
+        )
+        return {**project, "mr_iid": mr_iid}
+
+    def create_mr_note(
+        self,
+        *,
+        note_body: str,
+        project_id: Any | None = None,
+        project_name_template: str | None = None,
+        project_path_template: str | None = None,
+        project_description_template: str | None = None,
+        mr_iid: Any | None = None,
+        mr_title_template: str | None = None,
+        mr_body_template: str | None = None,
+        source_branch: str | None = None,
+        target_branch: str | None = None,
+    ) -> dict[str, Any]:
+        project = self._ensure_project(
+            project_id=project_id,
+            project_name_template=project_name_template,
+            project_path_template=project_path_template,
+            project_description_template=project_description_template,
+        )
+        merge_request = self._ensure_merge_request(
+            project_id=project["project_id"],
+            mr_iid=mr_iid,
+            title_template=mr_title_template,
+            body_template=mr_body_template,
+            source_branch=source_branch,
+            target_branch=target_branch,
+        )
+        note = self._find_existing_mr_note(project["project_id"], merge_request["mr_iid"], note_body)
+        if isinstance(note, dict):
+            return {**project, "mr_iid": merge_request["mr_iid"], "note_id": note["id"]}
+        created = self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project['project_id']}/merge_requests/{merge_request['mr_iid']}/notes",
+            json_body={"body": str(note_body)},
+        )
+        if not isinstance(created, dict) or created.get("id") in (None, ""):
+            raise EditorError("invalid_mr_note_create", "gitlab MR note create returned invalid payload")
+        note_id = created["id"]
+        self._push_cleanup(
+            lambda project_id=project["project_id"], mr_iid=merge_request["mr_iid"], note_id=note_id: self._delete_mr_note(project_id, mr_iid, note_id)
+        )
+        return {**project, "mr_iid": merge_request["mr_iid"], "note_id": note_id}
+
+    def create_repo_file(
+        self,
+        *,
+        branch: str,
+        path: str,
+        content: str,
+        commit_message: str | None = None,
+        project_id: Any | None = None,
+        project_name_template: str | None = None,
+        project_path_template: str | None = None,
+        project_description_template: str | None = None,
+    ) -> dict[str, Any]:
+        project = self._ensure_project(
+            project_id=project_id,
+            project_name_template=project_name_template,
+            project_path_template=project_path_template,
+            project_description_template=project_description_template,
+        )
+        branch_name = str(branch).strip()
+        file_path = str(path).strip()
+        current = self._gitlab_get_file_content(project["project_id"], file_path=file_path, ref=branch_name)
+        action = "create" if current is None else "update"
+        if current == content:
+            return {**project}
+        payload = {
+            "branch": branch_name,
+            "commit_message": str(commit_message or f"Seed {file_path}").strip(),
+            "actions": [{"action": action, "file_path": file_path, "content": str(content)}],
+        }
+        commit = self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project['project_id']}/repository/commits",
+            json_body=payload,
+        )
+        if not isinstance(commit, dict):
+            raise EditorError("invalid_repo_file_commit", "gitlab repo file commit returned invalid payload")
+        if action == "create":
+            self._push_cleanup(
+                lambda project_id=project["project_id"], branch_name=branch_name, file_path=file_path: self._delete_repo_file(project_id, branch_name, file_path)
+            )
+        else:
+            original_content = str(current)
+            self._push_cleanup(
+                lambda project_id=project["project_id"], branch_name=branch_name, file_path=file_path, original_content=original_content: self._restore_repo_file(project_id, branch_name, file_path, original_content)
+            )
+        return {**project, "commit_id": commit.get("id") or commit.get("short_id")}
+
+    def update_user_status(self, *, message: str, emoji: str | None = None) -> dict[str, Any]:
+        self._gitlab_request_json(
+            "PUT",
+            "/api/v4/user/status",
+            json_body={"message": str(message), "emoji": str(emoji or "")},
+        )
+        return {}
+
+    def update_user_profile(self, *, bio: str | None = None, name: str | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if bio is not None:
+            payload["bio"] = str(bio)
+        if name is not None:
+            payload["name"] = str(name)
+        if not payload:
+            raise EditorError("invalid_args", "gitlab user profile update requires bio or name")
+        try:
+            self._gitlab_request_json("PUT", "/api/v4/user", json_body=payload)
+            return {}
+        except EditorError as exc:
+            if not (exc.kind == "request_failed" and "HTTP 404" in exc.detail):
+                raise
+        self._ensure_profile_form_session()
+
+        def build_form_submission() -> tuple[str, dict[str, Any], bool]:
+            form = self._fetch_form_state(
+                "/-/profile",
+                action_contains="/-/profile",
+                required_fields=("authenticity_token", "user[id]"),
+            )
+            form_payload = dict(form.get("fields", {}))
+            if bio is not None:
+                form_payload["user[bio]"] = str(bio)
+            if name is not None:
+                form_payload["user[name]"] = str(name)
+            return str(form.get("action") or "/-/profile"), form_payload, False
+
+        action, form_payload, multipart = build_form_submission()
+        self._submit_exact_form(
+            action,
+            form_payload,
+            multipart=multipart,
+            refresh_on_rejection=build_form_submission,
+        )
+        return {}
+
+    def _ensure_profile_form_session(self) -> None:
+        if self._profile_form_session_prepared:
+            return
+        credentials = self._profile_form_credentials()
+        if credentials is None:
+            raise EditorError(
+                "auth_missing",
+                "gitlab profile form update requires username/password credentials in auth or api_auth",
+            )
+        try:
+            from worldsim import seeding as seeding_module
+
+            login_path = "/users/sign_in"
+            login_url = f"{self._site_url()}{login_path}"
+            response = self.session.get(
+                login_url,
+                headers=self._build_headers(mechanism="form"),
+                timeout=30,
+                allow_redirects=True,
+            )
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            raise EditorError(
+                "request_failed",
+                f"gitlab editor form GET /users/sign_in returned HTTP {response.status_code}",
+            ) from exc
+        token_name, token_value = seeding_module._extract_csrf_token(response.text)
+        login_data = {
+            "user[login]": credentials["username"],
+            "user[password]": credentials["password"],
+        }
+        if token_name and token_value:
+            login_data[token_name] = token_value
+        response = self.session.post(
+            login_url,
+            headers=self._build_headers(mechanism="form"),
+            data=login_data,
+            timeout=30,
+            allow_redirects=False,
+        )
+        if response.status_code in {401, 403, 422}:
+            raise EditorError(
+                "auth_missing",
+                f"gitlab editor form POST /users/sign_in returned HTTP {response.status_code}",
+            )
+        if response.status_code >= 400:
+            raise EditorError(
+                "request_failed",
+                f"gitlab editor form POST /users/sign_in returned HTTP {response.status_code}",
+            )
+        if response.status_code == 200 and "user[password]" in response.text.lower():
+            raise EditorError("auth_missing", "gitlab profile form login did not establish a session")
+        self._profile_form_session_prepared = True
+
+    def _validate_user_profile_args(self, args: dict[str, Any]) -> None:
+        if args.get("bio") in (None, "") and args.get("name") in (None, ""):
+            raise EditorError("invalid_args", "gitlab user profile update requires bio or name")
+
+    def _validate_issue_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "title_template")
+        self._require_any_selector(args, "project_id", "project_name_template")
+
+    def _validate_issue_note_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "note_body")
+        self._require_any_selector(args, "project_id", "project_name_template")
+        self._require_any_selector(args, "issue_iid", "issue_title_template")
+
+    def _validate_merge_request_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "title_template", "source_branch")
+        self._require_any_selector(args, "project_id", "project_name_template")
+
+    def _validate_merge_request_note_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "note_body")
+        self._require_any_selector(args, "project_id", "project_name_template")
+        self._require_any_selector(args, "mr_iid", "mr_title_template")
+
+    def _validate_repo_file_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "branch", "path", "content")
+        self._require_any_selector(args, "project_id", "project_name_template")
+
+    @staticmethod
+    def _require_any_selector(args: dict[str, Any], *selectors: str) -> None:
+        if any(args.get(selector) not in (None, "") for selector in selectors):
+            return
+        raise EditorError(
+            "invalid_args",
+            " or ".join(selectors) + " is required",
+        )
+
+    def delete_project(self, project_id: Any) -> None:
+        self._api_request_response("DELETE", f"/api/v4/projects/{project_id}", allow_missing=True)
+
+    def delete_group(self, group_id: Any) -> None:
+        self._api_request_response("DELETE", f"/api/v4/groups/{group_id}", allow_missing=True)
+
+    def _current_user(self) -> dict[str, Any]:
+        cached = getattr(self, "_current_user_cache", None)
+        if isinstance(cached, dict):
+            return cached
+        payload = self._gitlab_request_json("GET", "/api/v4/user")
+        if not isinstance(payload, dict):
+            raise EditorError("invalid_current_user", "gitlab current-user probe returned invalid payload")
+        self._current_user_cache = payload
+        return payload
+
+    def _gitlab_request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        allow_missing: bool = False,
+    ) -> Any:
+        try:
+            return self._api_request_json(
+                method,
+                path,
+                json_body=json_body,
+                params=params,
+                allow_missing=allow_missing,
+            )
+        except EditorError as exc:
+            if exc.kind == "request_failed":
+                raise self._classify_gitlab_request_error(method, path, exc) from exc
+            raise
+
+    def _gitlab_get_json(self, path: str, *, allow_missing: bool = False) -> Any:
+        return self._gitlab_request_json("GET", path, allow_missing=allow_missing)
+
+    def _find_accessible_project(
+        self,
+        *,
+        current_user: dict[str, Any],
+        leaf_name: str,
+        expected_path: str,
+    ) -> dict[str, Any] | None:
+        user_id = current_user.get("id")
+        search_paths: list[tuple[str, dict[str, Any]]] = []
+        if user_id not in (None, ""):
+            search_paths.append(
+                (
+                    f"/api/v4/users/{self._quote(user_id)}/projects",
+                    {"search": leaf_name, "per_page": 100, "simple": True},
+                )
+            )
+        search_paths.append(
+            (
+                "/api/v4/projects",
+                {"search": leaf_name, "membership": True, "per_page": 100, "simple": True},
+            )
+        )
+        for path, params in search_paths:
+            projects = self._gitlab_request_json("GET", path, params=params)
+            if not isinstance(projects, list):
+                continue
+            for project in projects:
+                if not isinstance(project, dict):
+                    continue
+                project_path = self._project_path_with_namespace(project)
+                if project_path and project_path.lower() == expected_path.lower():
+                    return project
+        return None
+
+    def _ensure_project(
+        self,
+        *,
+        project_id: Any | None,
+        project_name_template: str | None,
+        project_path_template: str | None,
+        project_description_template: str | None,
+    ) -> dict[str, Any]:
+        if project_id not in (None, ""):
+            project = self._gitlab_get_json(f"/api/v4/projects/{self._quote(project_id)}")
+            if isinstance(project, dict):
+                return {
+                    "project_id": project["id"],
+                    "project_path": str(project.get("path_with_namespace") or ""),
+                    "default_branch": str(project.get("default_branch") or "main"),
+                }
+        if not project_name_template:
+            raise EditorError("invalid_args", "project_name_template or project_id is required")
+        created = self.create_project(
+            name_template=project_name_template,
+            path_template=project_path_template,
+            description_template=project_description_template,
+        )
+        project = self._gitlab_get_json(f"/api/v4/projects/{self._quote(created['project_id'])}")
+        return {
+            "project_id": created["project_id"],
+            "project_path": created["project_path"],
+            "default_branch": str((project or {}).get("default_branch") or "main"),
+        }
+
+    def _ensure_issue(
+        self,
+        *,
+        project_id: Any,
+        issue_iid: Any | None,
+        title_template: str | None,
+        body_template: str | None,
+    ) -> dict[str, Any]:
+        if issue_iid not in (None, ""):
+            issue = self._gitlab_get_json(
+                f"/api/v4/projects/{project_id}/issues/{self._quote(issue_iid)}",
+                allow_missing=True,
+            )
+            if isinstance(issue, dict):
+                return {"issue_iid": issue["iid"]}
+        if not title_template:
+            raise EditorError("invalid_args", "issue_title_template or issue_iid is required")
+        created = self.create_issue(
+            project_id=project_id,
+            title_template=title_template,
+            body_template=body_template,
+        )
+        return {"issue_iid": created["issue_iid"]}
+
+    def _ensure_merge_request(
+        self,
+        *,
+        project_id: Any,
+        mr_iid: Any | None,
+        title_template: str | None,
+        body_template: str | None,
+        source_branch: str | None,
+        target_branch: str | None,
+    ) -> dict[str, Any]:
+        if mr_iid not in (None, ""):
+            merge_request = self._gitlab_get_json(
+                f"/api/v4/projects/{project_id}/merge_requests/{self._quote(mr_iid)}",
+                allow_missing=True,
+            )
+            if isinstance(merge_request, dict):
+                return {"mr_iid": merge_request["iid"]}
+        if not title_template or not source_branch:
+            raise EditorError("invalid_args", "mr_title_template and source_branch are required")
+        created = self.create_mr(
+            project_id=project_id,
+            title_template=title_template,
+            body_template=body_template,
+            source_branch=source_branch,
+            target_branch=target_branch,
+        )
+        return {"mr_iid": created["mr_iid"]}
+
+    def _find_existing_issue(
+        self,
+        project_id: Any,
+        *,
+        title: str,
+        description: str,
+    ) -> dict[str, Any] | None:
+        issues = self._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{project_id}/issues",
+            params={"state": "opened", "search": title, "per_page": 20},
+        )
+        if not isinstance(issues, list):
+            return None
+        for issue in issues:
+            if (
+                isinstance(issue, dict)
+                and str(issue.get("title", "")).strip() == title
+                and str(issue.get("description", "")).strip() == description
+            ):
+                return issue
+        return None
+
+    def _find_existing_merge_request(self, project_id: Any, payload: dict[str, Any]) -> dict[str, Any] | None:
+        merge_requests = self._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{project_id}/merge_requests",
+            params={"state": "opened", "search": payload["title"], "per_page": 20},
+        )
+        if not isinstance(merge_requests, list):
+            return None
+        for merge_request in merge_requests:
+            if not isinstance(merge_request, dict):
+                continue
+            if (
+                str(merge_request.get("title", "")).strip() == str(payload["title"]).strip()
+                and str(merge_request.get("description", "")).strip() == str(payload["description"]).strip()
+                and str(merge_request.get("source_branch", "")).strip() == str(payload["source_branch"]).strip()
+                and str(merge_request.get("target_branch", "")).strip() == str(payload["target_branch"]).strip()
+            ):
+                return merge_request
+        return None
+
+    def _find_existing_issue_note(self, project_id: Any, issue_iid: Any, body: str) -> dict[str, Any] | None:
+        notes = self._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
+            params={"per_page": 100},
+        )
+        if not isinstance(notes, list):
+            return None
+        for note in notes:
+            if isinstance(note, dict) and str(note.get("body", "")).strip() == str(body).strip():
+                return note
+        return None
+
+    def _find_existing_mr_note(self, project_id: Any, mr_iid: Any, body: str) -> dict[str, Any] | None:
+        notes = self._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
+            params={"per_page": 100},
+        )
+        if not isinstance(notes, list):
+            return None
+        for note in notes:
+            if isinstance(note, dict) and str(note.get("body", "")).strip() == str(body).strip():
+                return note
+        return None
+
+    def _ensure_branch_and_commit(self, project_id: Any, payload: dict[str, Any]) -> None:
+        source_branch = str(payload.get("source_branch") or "").strip()
+        target_branch = str(payload.get("target_branch") or "main").strip() or "main"
+        try:
+            self._gitlab_request_json(
+                "POST",
+                f"/api/v4/projects/{project_id}/repository/branches",
+                json_body={"branch": source_branch, "ref": target_branch},
+            )
+        except EditorError as exc:
+            if exc.kind != "branch_exists":
+                raise
+        file_path = f"seed-{source_branch.replace('/', '-')}.md"
+        content = f"Seed branch for {source_branch}\n"
+        current = self._gitlab_get_file_content(project_id, file_path=file_path, ref=source_branch)
+        if current == content:
+            return
+        action = "create" if current is None else "update"
+        self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project_id}/repository/commits",
+            json_body={
+                "branch": source_branch,
+                "commit_message": f"Seed branch {source_branch}",
+                "actions": [{"action": action, "file_path": file_path, "content": content}],
+            },
+        )
+
+    def _gitlab_get_file_content(self, project_id: Any, *, file_path: str, ref: str) -> str | None:
+        response = self._api_request_response(
+            "GET",
+            f"/api/v4/projects/{project_id}/repository/files/{self._quote(file_path)}/raw",
+            params={"ref": ref},
+            allow_missing=True,
+        )
+        if response is None:
+            return None
+        return response.text
+
+    def _delete_issue_note(self, project_id: Any, issue_iid: Any, note_id: Any) -> None:
+        self._api_request_response(
+            "DELETE",
+            f"/api/v4/projects/{project_id}/issues/{issue_iid}/notes/{note_id}",
+            allow_missing=True,
+        )
+
+    def _delete_mr_note(self, project_id: Any, mr_iid: Any, note_id: Any) -> None:
+        self._api_request_response(
+            "DELETE",
+            f"/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes/{note_id}",
+            allow_missing=True,
+        )
+
+    def _close_issue(self, project_id: Any, issue_iid: Any) -> None:
+        self._gitlab_request_json(
+            "PUT",
+            f"/api/v4/projects/{project_id}/issues/{issue_iid}",
+            json_body={"state_event": "close"},
+        )
+
+    def _close_merge_request(self, project_id: Any, mr_iid: Any) -> None:
+        self._gitlab_request_json(
+            "PUT",
+            f"/api/v4/projects/{project_id}/merge_requests/{mr_iid}",
+            json_body={"state_event": "close"},
+        )
+
+    def _delete_repo_file(self, project_id: Any, branch: str, file_path: str) -> None:
+        self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project_id}/repository/commits",
+            json_body={
+                "branch": branch,
+                "commit_message": f"Delete {file_path}",
+                "actions": [{"action": "delete", "file_path": file_path}],
+            },
+        )
+
+    def _restore_repo_file(self, project_id: Any, branch: str, file_path: str, content: str) -> None:
+        self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{project_id}/repository/commits",
+            json_body={
+                "branch": branch,
+                "commit_message": f"Restore {file_path}",
+                "actions": [{"action": "update", "file_path": file_path, "content": content}],
+            },
+        )
+
+    def _preview_project_context(self, *, name_template: str, path_template: str | None) -> dict[str, Any]:
+        leaf_path = self._slugify(path_template or name_template)
+        username = self.current_username_preview(self.instance)
+        project_path = f"{username}/{leaf_path}" if username and "/" not in leaf_path else leaf_path
+        return {"project_path": project_path}
+
+    def _profile_form_credentials(self) -> dict[str, str] | None:
+        for auth_name in ("auth", "api_auth"):
+            auth = self.instance.get(auth_name)
+            if not isinstance(auth, dict):
+                continue
+            candidate = auth.get("credentials") if isinstance(auth.get("credentials"), dict) else auth
+            if not isinstance(candidate, dict):
+                continue
+            username = candidate.get("username")
+            password = candidate.get("password")
+            if isinstance(username, str) and username.strip() and isinstance(password, str) and password:
+                return {"username": username.strip(), "password": password}
+        return None
+
+    def _project_path_with_namespace(self, project: dict[str, Any]) -> str:
+        direct = str(project.get("path_with_namespace") or "").strip()
+        if direct:
+            return direct
+        namespace = project.get("namespace")
+        if isinstance(namespace, dict):
+            namespace_path = str(namespace.get("full_path") or namespace.get("path") or "").strip()
+            leaf = str(project.get("path") or "").strip()
+            if namespace_path and leaf:
+                return f"{namespace_path}/{leaf}"
+        return ""
+
+    def _classify_project_create_error(self, exc: EditorError, project_path: str) -> EditorError:
+        detail = exc.detail.lower()
+        kind = "project_create_failed"
+        if "has already been taken" in detail:
+            kind = "project_already_exists"
+        elif "can contain only" in detail or "is invalid" in detail:
+            kind = "invalid_project_path"
+        return EditorError(kind, f"gitlab rejected project create for {project_path!r}: {exc.detail}")
+
+    def _preexisting_project_error(self, project_path: str) -> EditorError:
+        return EditorError(
+            "project_already_exists",
+            f"gitlab project path {project_path!r} already exists outside this seed session",
+        )
+
+    def _classify_gitlab_request_error(self, method: str, path: str, exc: EditorError) -> EditorError:
+        detail = exc.detail.lower()
+        if path.endswith("/repository/branches") and "already exists" in detail:
+            return EditorError("branch_exists", exc.detail)
+        return exc
+
+    @staticmethod
+    def _slugify(value: str) -> str:
+        slug = "".join(ch.lower() if ch.isalnum() else "-" for ch in str(value).strip())
+        while "--" in slug:
+            slug = slug.replace("--", "-")
+        slug = slug.strip("-")
+        return slug or "webagent-task"

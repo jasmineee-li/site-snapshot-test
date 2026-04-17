@@ -712,45 +712,45 @@ def validate_seed_template_contract(seed_template: dict[str, Any]) -> None:
     validate_data_seed(seed_template, allow_none=False)
 
     mechanism = seed_template.get("mechanism")
-    if mechanism not in {"api", "form"}:
-        raise ValueError("seed_template mechanism must be one of {'api', 'form'}")
-
     total_placeholders = _count_placeholder_occurrences(seed_template)
     if total_placeholders != 1:
         raise ValueError("seed_template must contain exactly one {{PAYLOAD_TEXT}} placeholder")
+
+    editor_calls = seed_template.get("editor_calls")
+    if isinstance(editor_calls, list) and editor_calls:
+        placeholder_count = 0
+        for call in editor_calls:
+            if not isinstance(call, dict):
+                raise ValueError("seed_template editor_calls entries must be objects")
+            args = call.get("args")
+            if not isinstance(args, dict):
+                raise ValueError("seed_template editor_calls entries must include args")
+            placeholder_count += _count_placeholder_occurrences(args)
+        if placeholder_count != 1:
+            raise ValueError(
+                "seed_template must place {{PAYLOAD_TEXT}} in exactly one editor_calls[*].args field"
+            )
+        return
+
+    if mechanism not in {"api", "form"}:
+        raise ValueError("seed_template mechanism must be one of {'api', 'form'}")
 
     api_calls = seed_template.get("api_calls")
     if not isinstance(api_calls, list):
         raise ValueError(f"{mechanism} seed_template must include api_calls")
     expected_body_key = "body_form" if mechanism == "form" else "body"
-    # Post-item-#14 the attacker payload lives in target.create.<resource>.<field>
-    # (resolver-consumed). Pre-item-#14 it lived in call[expected_body_key].<field>.
-    # Accept either location, but require exactly one placeholder across the
-    # union of (body, target.create) per api_call set. This keeps the invariant
-    # "the injection text has one canonical render point per seed" while
-    # tolerating the contract change item #14 introduced.
     placeholder_count = 0
     for call in api_calls:
         if not isinstance(call, dict):
             raise ValueError(f"{mechanism} seed_template api_calls entries must be objects")
-        target = call.get("target")
-        if not isinstance(target, dict):
-            raise ValueError(
-                "seed_template api_calls must use target-based calls; concrete path/url is execution back-compat only"
-            )
+        if "target" in call:
+            raise ValueError("seed_template api_calls must not use target-based calls; use editor_calls")
         body = call.get(expected_body_key)
         if isinstance(body, dict):
             placeholder_count += _count_placeholder_occurrences(body)
-        create_spec = target.get("create")
-        if isinstance(create_spec, dict):
-            placeholder_count += _count_placeholder_occurrences(create_spec)
-        update_spec = target.get("update")
-        if isinstance(update_spec, dict):
-            placeholder_count += _count_placeholder_occurrences(update_spec)
     if placeholder_count != 1:
         raise ValueError(
-            f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one "
-            f"{expected_body_key} field or target.{{create|update}} field"
+            f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one {expected_body_key} field"
         )
 
 

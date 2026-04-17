@@ -25,15 +25,14 @@ import os
 import re
 import urllib.parse
 import weakref
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import requests
 
 from worldsim.db_urls import parse_supported_db_connection
+from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.placeholders import apply_placeholders, merge_placeholder_maps
-from worldsim.seed_resolvers import get_resolver
 
 logger = logging.getLogger(__name__)
 
@@ -89,16 +88,51 @@ _UNRESOLVED_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 _FORMAT_TOKEN_PATTERN = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_\.]*)\}(?!\})")
 
 
-@dataclass(frozen=True)
-class PreparedSeedCall:
-    method: str
-    raw_path: str
-    url: str
-    headers: dict[str, str]
-    json_body: Any
-    body_form: Any
-    rendered_call: dict[str, Any]
-    context_additions: dict[str, Any]
+class SeedCleanupHandle:
+    def __init__(
+        self,
+        *,
+        session: requests.Session,
+        editor_instances: dict[tuple[str, str], Any],
+    ) -> None:
+        self._session = session
+        self._editor_instances = editor_instances
+        self._cleaned = False
+
+    def cleanup(self) -> None:
+        if self._cleaned:
+            return
+        try:
+            for editor in reversed(list(self._editor_instances.values())):
+                editor.cleanup()
+        finally:
+            self._session.close()
+            self._cleaned = True
+
+
+def seed_has_actions(seed: Any) -> bool:
+    if not isinstance(seed, dict):
+        return False
+    mechanism = seed.get("mechanism")
+    if mechanism == "state_push":
+        return "state" in seed
+    editor_calls = seed.get("editor_calls")
+    if isinstance(editor_calls, list) and editor_calls:
+        return True
+    api_calls = seed.get("api_calls")
+    return bool(isinstance(api_calls, list) and api_calls)
+
+
+def seed_requires_reset(seed: Any) -> bool:
+    if not isinstance(seed, dict):
+        return False
+    if seed.get("mechanism") == "state_push":
+        return "state" in seed
+    editor_calls = seed.get("editor_calls")
+    if isinstance(editor_calls, list) and editor_calls:
+        return True
+    api_calls = seed.get("api_calls")
+    return bool(isinstance(api_calls, list) and api_calls)
 
 
 def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: Any) -> str | None:
@@ -110,8 +144,7 @@ def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: An
     if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
         return None
 
-    mechanism = benign_seed.get("mechanism")
-    if mechanism in (None, "none"):
+    if not seed_has_actions(benign_seed):
         return None
 
     if not _seed_preserves_prefix(benign_seed, adversarial_seed):
@@ -127,89 +160,69 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
         raise ValueError("data seed must be an object")
 
     mechanism = seed.get("mechanism")
+    editor_calls = seed.get("editor_calls")
+    has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
     if mechanism in (None, "none"):
+        if has_editor_calls:
+            _validate_editor_calls(editor_calls)
+            return
         if allow_none:
             return
         raise ValueError("data seed must declare a non-empty mechanism")
 
+    if mechanism == "editor":
+        if not has_editor_calls:
+            raise ValueError("editor data seed must include a non-empty editor_calls list")
+        if seed.get("api_calls") is not None:
+            raise ValueError("editor data seed must not include api_calls")
+        _validate_editor_calls(editor_calls)
+        return
+
     if mechanism in {"api", "form"}:
         api_calls = seed.get("api_calls")
-        if not isinstance(api_calls, list) or not api_calls:
-            raise ValueError(f"{mechanism} data seed must include a non-empty api_calls list")
-        saw_target = False
-        saw_legacy = False
+        has_api_calls = isinstance(api_calls, list) and bool(api_calls)
+        if not has_api_calls and not has_editor_calls:
+            raise ValueError(
+                f"{mechanism} data seed must include a non-empty api_calls or editor_calls list"
+            )
         # Belt-and-suspenders: reject destructive/probing HTTP methods here
         # even when the upstream Phase 3 validator was bypassed. The
         # authoritative allowlist (path, origin) lives in
         # ``worldsim.fix_validation.validate_fix_patch``; this check keeps
         # any caller of ``apply_data_seed`` on the safe subset of verbs.
-        for call in api_calls:
+        for call in api_calls or []:
             if not isinstance(call, dict):
                 raise ValueError("api data seed calls must be objects")
+            if "target" in call:
+                raise ValueError(
+                    "target-based api_calls are no longer supported; migrate to editor_calls"
+                )
             method = call.get("method")
-            target = call.get("target")
-            if isinstance(target, dict):
-                saw_target = True
-                site_name = target.get("site")
-                resource_type = target.get("resource_type")
-                has_create = "create" in target
-                has_update = "update" in target
-                if not isinstance(site_name, str) or not site_name.strip():
-                    raise ValueError("targeted data seed calls must include target.site")
-                if not isinstance(resource_type, str) or not resource_type.strip():
-                    raise ValueError("targeted data seed calls must include target.resource_type")
-                if has_create == has_update:
-                    raise ValueError(
-                        "targeted data seed calls must include exactly one of target.create or target.update"
-                    )
-                verb_payload = target.get("create") if has_create else target.get("update")
-                verb_name = "create" if has_create else "update"
-                if not isinstance(verb_payload, dict):
-                    raise ValueError(
-                        f"targeted data seed calls must include target.{verb_name} as an object"
-                    )
-                if method is not None:
-                    if not isinstance(method, str) or not method.strip():
-                        raise ValueError(
-                            "targeted data seed call method must be a non-empty string"
-                        )
-                    if method.strip().upper() not in _ALLOWED_API_METHODS:
-                        raise ValueError(
-                            f"{mechanism} data seed method {method!r} not allowed "
-                            f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
-                        )
-                    if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
-                        raise ValueError(
-                            f"form data seed method {method!r} not allowed "
-                            f"(allowed: {sorted(_FORM_METHODS)})"
-                        )
-            else:
-                saw_legacy = True
-                if not isinstance(method, str) or not method.strip():
-                    raise ValueError("api data seed calls must include a method")
-                if method.strip().upper() not in _ALLOWED_API_METHODS:
-                    raise ValueError(
-                        f"{mechanism} data seed method {method!r} not allowed "
-                        f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
-                    )
-                if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
-                    raise ValueError(
-                        f"form data seed method {method!r} not allowed "
-                        f"(allowed: {sorted(_FORM_METHODS)})"
-                    )
-                raw_ref = _call_reference(call)
-                if not isinstance(raw_ref, str) or not raw_ref.strip():
-                    raise ValueError(
-                        f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                    )
-                if not (
-                    raw_ref.startswith("/")
-                    or raw_ref.startswith("http://")
-                    or raw_ref.startswith("https://")
-                ):
-                    raise ValueError(
-                        f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                    )
+            if not isinstance(method, str) or not method.strip():
+                raise ValueError("api data seed calls must include a method")
+            if method.strip().upper() not in _ALLOWED_API_METHODS:
+                raise ValueError(
+                    f"{mechanism} data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
+                )
+            if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
+                raise ValueError(
+                    f"form data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_FORM_METHODS)})"
+                )
+            raw_ref = _call_reference(call)
+            if not isinstance(raw_ref, str) or not raw_ref.strip():
+                raise ValueError(
+                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
+                )
+            if not (
+                raw_ref.startswith("/")
+                or raw_ref.startswith("http://")
+                or raw_ref.startswith("https://")
+            ):
+                raise ValueError(
+                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
+                )
             json_body = call.get("body")
             body_form = call.get("body_form")
             if mechanism == "form":
@@ -221,10 +234,8 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
                     raise ValueError("form data seed calls must not include JSON body")
             elif body_form is not None:
                 raise ValueError("api data seed calls must use body, not body_form")
-        if saw_target and saw_legacy:
-            raise ValueError(
-                "mixed legacy and target-based api_calls are not supported; use one shape per seed"
-            )
+        if has_editor_calls:
+            _validate_editor_calls(editor_calls)
         return
 
     if mechanism == "state_push":
@@ -235,7 +246,36 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
     raise ValueError(f"unknown data seed mechanism: {mechanism!r}")
 
 
-def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
+def _validate_editor_calls(editor_calls: Any) -> None:
+    if not isinstance(editor_calls, list) or not editor_calls:
+        raise ValueError("editor data seed must include a non-empty editor_calls list")
+    for call in editor_calls:
+        if not isinstance(call, dict):
+            raise ValueError("editor_calls entries must be objects")
+        benchmark = call.get("benchmark")
+        if benchmark is not None and (not isinstance(benchmark, str) or not benchmark.strip()):
+            raise ValueError("editor_calls benchmark must be a non-empty string when provided")
+        site = call.get("site")
+        method = call.get("method")
+        args = call.get("args")
+        if not isinstance(site, str) or not site.strip():
+            raise ValueError("editor_calls entries must include site")
+        if not isinstance(method, str) or not method.strip():
+            raise ValueError("editor_calls entries must include method")
+        if not isinstance(args, dict):
+            raise ValueError("editor_calls entries must include args as an object")
+        method_name = method.strip()
+        if method_name.startswith("_"):
+            raise ValueError("editor_calls method must not be private")
+        editor_cls = EDITOR_REGISTRY.get(((benchmark or "webarena_verified").strip(), site.strip().lower()))
+        if editor_cls is not None and method_name not in editor_cls.supported_methods:
+            raise ValueError(
+                f"editor_calls method {method_name!r} is not supported for {(benchmark or 'webarena_verified', site.strip().lower())!r}"
+            )
+        _validate_untrusted_selector_args(site.strip().lower(), args)
+
+
+def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> SeedCleanupHandle | None:
     """Apply a data seed to a running benchmark instance.
 
     Args:
@@ -248,35 +288,63 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
         ValueError: If ``seed["mechanism"]`` is unknown.
     """
     validate_data_seed(seed)
-    mechanism = seed["mechanism"]
-    if mechanism in {"api", "form"}:
-        seed_context = _build_seed_context(seed, instance)
-        with requests.Session() as session:
-            _perform_web_login_if_needed(session, instance, mechanism)
-            for call in seed["api_calls"]:
-                prepared_call = _prepare_http_seed_call(
-                    call,
-                    instance,
-                    mechanism=mechanism,
-                    seed_context=seed_context,
-                )
-                _merge_seed_context(seed_context, prepared_call.context_additions)
-                response = _apply_http_seed_call(session, mechanism, prepared_call, instance)
-                _merge_seed_context(seed_context, _extract_response_seed_context(response))
-    elif mechanism == "state_push":
+    mechanism = seed.get("mechanism")
+    if mechanism == "state_push":
         resp = requests.put(
             f"{instance['site_url']}/api/state",
             json=seed["state"],
             timeout=30,
         )
         resp.raise_for_status()
-    else:
-        raise ValueError(f"unknown data seed mechanism: {mechanism!r}")
+        return
+
+    seed_context = _build_seed_context(seed, instance)
+    editor_instances: dict[tuple[str, str], Any] = {}
+    session = requests.Session()
+    cleanup_handle: SeedCleanupHandle | None = None
+    try:
+        if mechanism in {"api", "form"}:
+            _perform_web_login_if_needed(session, instance, mechanism)
+            for call in seed.get("api_calls", []):
+                rendered_call = _render_http_seed_call(call, seed_context=seed_context)
+                response = _apply_legacy_http_seed_call(
+                    session,
+                    mechanism,
+                    rendered_call,
+                    instance,
+                )
+                _merge_seed_context(seed_context, _extract_response_seed_context(response))
+        for call in seed.get("editor_calls", []):
+            _apply_editor_seed_call(
+                session,
+                call,
+                instance,
+                seed_context=seed_context,
+                editor_instances=editor_instances,
+            )
+        if editor_instances:
+            cleanup_handle = SeedCleanupHandle(
+                session=session,
+                editor_instances=editor_instances,
+            )
+            return cleanup_handle
+        session.close()
+        return None
+    except Exception:
+        if cleanup_handle is not None:
+            cleanup_handle.cleanup()
+        else:
+            for editor in reversed(list(editor_instances.values())):
+                editor.cleanup()
+            session.close()
+        raise
 
 
-async def apply_data_seed_async(seed: dict[str, Any], instance: dict[str, Any]) -> None:
+async def apply_data_seed_async(
+    seed: dict[str, Any], instance: dict[str, Any]
+) -> SeedCleanupHandle | None:
     """Apply a data seed without blocking the event loop."""
-    await asyncio.to_thread(apply_data_seed, seed, instance)
+    return await asyncio.to_thread(apply_data_seed, seed, instance)
 
 
 def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[str, Any]:
@@ -367,36 +435,81 @@ def _render_http_seed_call(
 
 
 def preflight_http_seed_calls(seed: dict[str, Any], instance: dict[str, Any]) -> list[str]:
-    """Resolve HTTP calls without firing mutations.
-
-    Legacy concrete-path seeds may depend on response-derived placeholders from
-    earlier calls. Those chains remain validated at real execution time only.
-    """
+    """Resolve legacy direct HTTP calls without firing mutations."""
     validate_data_seed(seed, allow_none=False)
     mechanism = str(seed.get("mechanism", "")).strip().lower()
     if mechanism not in {"api", "form"}:
         return []
 
     seed_context = _build_seed_context(seed, instance)
-    preflight_instance = dict(instance)
-    preflight_instance["seed_resolver_dry_run"] = True
     errors: list[str] = []
     for index, call in enumerate(seed.get("api_calls", [])):
         if not isinstance(call, dict):
             continue
-        if not isinstance(call.get("target"), dict) and _seed_placeholder_names(call):
+        if _seed_placeholder_names(call):
             continue
         try:
-            prepared_call = _prepare_http_seed_call(
-                call,
-                preflight_instance,
-                mechanism=mechanism,
-                seed_context=seed_context,
-            )
+            rendered_call = _render_http_seed_call(call, seed_context=seed_context)
+            raw_ref = _call_reference(rendered_call)
+            if raw_ref is None:
+                raise RuntimeError("rendered legacy seed call must include path or url")
+            _resolve_call_url(raw_ref, instance)
         except Exception as exc:
             errors.append(f"api_calls[{index}]: {exc}")
-            continue
-        _merge_seed_context(seed_context, prepared_call.context_additions)
+    return errors
+
+
+def preflight_editor_seed_calls(
+    seed: dict[str, Any],
+    instance: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Render and validate editor calls without firing mutations."""
+    validate_data_seed(seed, allow_none=False)
+    seed_context = _build_seed_context(seed, instance)
+    errors: list[dict[str, Any]] = []
+    with requests.Session() as session:
+        editor_instances: dict[tuple[str, str], Any] = {}
+        try:
+            for index, call in enumerate(seed.get("editor_calls", [])):
+                if not isinstance(call, dict):
+                    continue
+                try:
+                    rendered = _render_editor_seed_call(call, seed_context)
+                    editor = _get_editor_for_seed_call(
+                        rendered,
+                        instance,
+                        session=session,
+                        editor_instances=editor_instances,
+                    )
+                    method_name = rendered["method"]
+                    args = rendered["args"]
+                    editor.validate_args(method_name, args)
+                    preview = editor.preview_context(method_name, args)
+                    if isinstance(preview, dict):
+                        _merge_seed_context(seed_context, preview)
+                except EditorError as exc:
+                    errors.append(
+                        {
+                            "call_index": index,
+                            "site": str(call.get("site", "")).strip() or "unknown",
+                            "kind": exc.kind,
+                            "detail": exc.detail,
+                            "method": str(call.get("method", "")).strip() or "unknown",
+                        }
+                    )
+                except Exception as exc:
+                    errors.append(
+                        {
+                            "call_index": index,
+                            "site": str(call.get("site", "")).strip() or "unknown",
+                            "kind": "editor_error",
+                            "detail": str(exc),
+                            "method": str(call.get("method", "")).strip() or "unknown",
+                        }
+                    )
+        finally:
+            for editor in reversed(list(editor_instances.values())):
+                editor.cleanup()
     return errors
 
 
@@ -441,110 +554,80 @@ def _lookup_seed_context_value(seed_context: dict[str, Any], key: str) -> Any:
     return current
 
 
-def _prepare_http_seed_call(
+def _render_editor_seed_call(call: dict[str, Any], seed_context: dict[str, Any]) -> dict[str, Any]:
+    rendered = _render_seed_value(call, seed_context)
+    if not isinstance(rendered, dict):
+        raise RuntimeError("rendered editor call must be an object")
+    unresolved = sorted(_seed_placeholder_names(rendered.get("args", {})))
+    if unresolved:
+        raise RuntimeError(
+            "editor call has unresolved template placeholders: " + ", ".join(unresolved)
+        )
+    return rendered
+
+
+def _get_editor_for_seed_call(
     call: dict[str, Any],
     instance: dict[str, Any],
     *,
-    mechanism: str,
+    session: requests.Session,
+    editor_instances: dict[tuple[str, str], Any],
+) -> Any:
+    benchmark = str(call.get("benchmark") or "webarena_verified").strip().lower()
+    site = str(call.get("site") or instance.get("site_name") or "").strip().lower()
+    instance_site = str(instance.get("site_name") or "").strip().lower()
+    if site and instance_site and site != instance_site:
+        raise EditorError(
+            "site_mismatch",
+            f"editor call site {site!r} does not match bound seed instance site {instance_site!r}",
+        )
+    key = (benchmark, site)
+    editor = editor_instances.get(key)
+    if editor is not None:
+        return editor
+    editor_cls = EDITOR_REGISTRY.get(key)
+    if editor_cls is None:
+        raise EditorError(
+            "unsupported_site",
+            f"no editor registered for benchmark={benchmark!r} site={site!r}",
+        )
+    editor = editor_cls(instance, session)
+    editor_instances[key] = editor
+    return editor
+
+
+def _apply_editor_seed_call(
+    session: requests.Session,
+    call: dict[str, Any],
+    instance: dict[str, Any],
+    *,
     seed_context: dict[str, Any],
-) -> PreparedSeedCall:
-    target = call.get("target")
-    if isinstance(target, dict):
-        rendered_target = _render_seed_value(target, seed_context)
-        if not isinstance(rendered_target, dict):
-            raise RuntimeError("rendered seed target must be an object")
-        unresolved_target = sorted(_seed_placeholder_names(rendered_target))
-        if unresolved_target:
-            raise RuntimeError(
-                "seed target has unresolved template placeholders: " + ", ".join(unresolved_target)
-            )
-        target_site = str(rendered_target.get("site", "")).strip().lower()
-        target_benchmark = (
-            str(rendered_target.get("benchmark") or "webarena_verified").strip().lower()
-        )
-        instance_site = str(instance.get("site_name", "")).strip().lower()
-        if target_site and instance_site and target_site != instance_site:
-            raise RuntimeError(
-                f"target.site {target_site!r} does not match bound seed instance site {instance_site!r}"
-            )
-        has_create = "create" in rendered_target
-        has_update = "update" in rendered_target
-        if has_create == has_update:
-            raise RuntimeError("target must have exactly one of {create, update}")
-        rendered_method = _render_seed_value(
-            call.get("method") or ("PUT" if has_update else "POST"),
-            seed_context,
-        )
-        method = str(rendered_method).strip().upper()
-        resolver = get_resolver(target_benchmark, target_site or instance_site)
-        resolver_target = dict(rendered_target)
-        resolver_target["method"] = method
-        resolver_target["mechanism"] = mechanism
-        resolver_target["body"] = call.get("body")
-        resolver_target["body_form"] = call.get("body_form")
-        if has_create:
-            resolved = resolver.create(resolver_target, instance, seed_context)
-        else:
-            resolved = resolver.update(resolver_target, instance, seed_context)
-        method = str(resolved.method).strip().upper()
-        next_context = dict(seed_context)
-        _merge_seed_context(next_context, resolved.context_additions)
-        rendered_call = _render_http_seed_call(
-            {**call, "method": method},
-            seed_context=next_context,
-        )
-        effective_call = dict(rendered_call)
-        if resolved.body is not None:
-            body_key = "body_form" if mechanism == "form" else "body"
-            effective_call[body_key] = _render_seed_value(resolved.body, next_context)
-        if resolved.headers:
-            merged_headers = dict(effective_call.get("headers") or {})
-            merged_headers.update(resolved.headers)
-            effective_call["headers"] = merged_headers
-        url = resolved.url
-        concrete_path = urllib.parse.urlparse(url).path
-        if urllib.parse.urlparse(url).query:
-            concrete_path += f"?{urllib.parse.urlparse(url).query}"
-        effective_call["path"] = concrete_path
-        raw_path = _format_target_descriptor(rendered_target)
-        context_additions = dict(resolved.context_additions)
-        instance_origin = _origin_for_url(str(instance["site_url"]))
-        if _origin_for_url(url) != instance_origin:
-            raise RuntimeError(
-                f"HTTP seed target must stay on origin {instance_origin!r}, got {url!r}"
-            )
-    else:
-        rendered_call = _render_http_seed_call(call, seed_context=seed_context)
-        method = str(rendered_call["method"]).strip().upper()
-        raw_path = _call_reference(rendered_call)
-        if raw_path is None:
-            raise RuntimeError("rendered legacy seed call must include path or url")
-        context_additions = {}
-        effective_call = dict(rendered_call)
-        url = _resolve_call_url(raw_path, instance)
-        effective_call.setdefault("path", _concrete_call_path(url))
-
-    headers = _build_request_headers(instance, effective_call, mechanism=mechanism)
-    return PreparedSeedCall(
-        method=method,
-        raw_path=raw_path,
-        url=url,
-        headers=headers,
-        json_body=effective_call.get("body"),
-        body_form=effective_call.get("body_form"),
-        rendered_call=effective_call,
-        context_additions=context_additions,
+    editor_instances: dict[tuple[str, str], Any],
+) -> None:
+    rendered = _render_editor_seed_call(call, seed_context)
+    editor = _get_editor_for_seed_call(
+        rendered,
+        instance,
+        session=session,
+        editor_instances=editor_instances,
     )
-
-
-def _format_target_descriptor(target: dict[str, Any]) -> str:
-    site_name = str(target.get("site", "")).strip() or "unknown"
-    resource_type = str(target.get("resource_type", "")).strip() or "unknown"
-    if "create" in target:
-        return f"target:{site_name}:{resource_type}:create"
-    if "update" in target:
-        return f"target:{site_name}:{resource_type}:update"
-    return f"target:{site_name}:{resource_type}"
+    method_name = str(rendered["method"]).strip()
+    args = rendered["args"]
+    if method_name.startswith("_") or method_name not in editor.supported_methods:
+        raise EditorError(
+            "unsupported_method",
+            f"{editor.site_name} editor does not support method {method_name!r}",
+        )
+    editor.validate_args(method_name, args)
+    editor_method = getattr(editor, method_name, None)
+    if not callable(editor_method):
+        raise EditorError(
+            "unsupported_method",
+            f"{editor.site_name} editor does not support method {method_name!r}",
+        )
+    result = editor_method(**args)
+    if isinstance(result, dict):
+        _merge_seed_context(seed_context, result)
 
 
 def _call_reference(call: dict[str, Any]) -> str | None:
@@ -977,7 +1060,7 @@ def collect_seed_runtime_errors(
         if not isinstance(seed, dict):
             continue
         mechanism = seed.get("mechanism")
-        if mechanism in (None, "none"):
+        if mechanism in (None, "none") and not seed.get("editor_calls"):
             continue
         try:
             validate_data_seed(seed, allow_none=True)
@@ -1003,20 +1086,64 @@ def collect_seed_runtime_errors(
             )
             continue
 
-        requires_http_auth = mechanism in {"api", "form"}
+        required_http_mechanisms = _seed_required_http_mechanisms(seed)
         for instance in site_instances:
             site_url = _instance_value(instance, "site_url") or "<unknown>"
-            if requires_http_auth:
-                auth_error = _instance_http_seed_auth_runtime_error(instance, mechanism=mechanism)
+            for effective_mechanism in required_http_mechanisms:
+                auth_error = _instance_http_seed_auth_runtime_error(
+                    instance,
+                    mechanism=effective_mechanism,
+                )
                 if auth_error is not None:
                     _append_runtime_error(
                         errors,
                         seen,
-                        f"site {seed_site!r} has HTTP-seeded task(s) but instance {site_url!r} "
+                        f"site {seed_site!r} has {effective_mechanism} HTTP-seeded task(s) but instance {site_url!r} "
                         f"has invalid auth config: {auth_error}",
                     )
 
     return errors
+
+
+def _seed_required_http_mechanisms(seed: dict[str, Any]) -> list[str]:
+    required: set[str] = set()
+    mechanism = seed.get("mechanism")
+    if mechanism in {"api", "form"}:
+        required.add(str(mechanism))
+    for call in seed.get("editor_calls", []):
+        editor_mechanism = _editor_call_http_mechanism(call)
+        if editor_mechanism is not None:
+            required.add(editor_mechanism)
+    return sorted(required)
+
+
+def _editor_call_http_mechanism(call: Any) -> str | None:
+    if not isinstance(call, dict):
+        return None
+    site_name = str(call.get("site") or "").strip().lower()
+    method_name = str(call.get("method") or "").strip()
+    if not site_name or not method_name:
+        return None
+    if site_name == "reddit" or (site_name, method_name) in {
+        ("shopping", "update_customer_profile"),
+        ("shopping_admin", "update_admin_profile"),
+    }:
+        return "form"
+    return "api"
+
+
+def _validate_untrusted_selector_args(site_name: str, args: dict[str, Any]) -> None:
+    if site_name != "gitlab":
+        return
+    for selector in ("project_id", "issue_iid", "mr_iid"):
+        value = args.get(selector)
+        if value in (None, ""):
+            continue
+        if isinstance(value, str) and value.startswith("{") and value.endswith("}"):
+            continue
+        raise ValueError(
+            f"editor_calls gitlab selector {selector!r} must come from prior seed context, not a literal value"
+        )
 
 
 def _seed_preserves_prefix(benign_value: Any, adversarial_value: Any) -> bool:
@@ -1148,18 +1275,20 @@ def _parse_runtime_db_connection(
         raise RuntimeError(str(exc)) from exc
 
 
-def _apply_http_seed_call(
+def _apply_legacy_http_seed_call(
     session: requests.Session,
     mechanism: str,
-    call: PreparedSeedCall,
+    call: dict[str, Any],
     instance: dict[str, Any],
 ) -> requests.Response:
-    method = call.method
-    raw_path = call.raw_path
-    url = call.url
-    headers = dict(call.headers)
-    json_body = call.json_body
-    form_body = _prepare_form_body(method, url, headers, call.body_form, instance, session)
+    method = str(call["method"]).strip().upper()
+    raw_path = _call_reference(call)
+    if raw_path is None:
+        raise RuntimeError("rendered legacy seed call must include path or url")
+    url = _resolve_call_url(raw_path, instance)
+    headers = _build_request_headers(instance, call, mechanism=mechanism)
+    json_body = call.get("body")
+    form_body = _prepare_form_body(method, url, headers, call.get("body_form"), instance, session)
 
     response = _request_with_context(
         session,
@@ -1177,7 +1306,7 @@ def _apply_http_seed_call(
             method,
             url,
             headers,
-            call.body_form,
+            call.get("body_form"),
             instance,
             session,
             force_refresh=True,
@@ -1201,40 +1330,6 @@ def _apply_http_seed_call(
             f"HTTP seed failed for site {site_name!r} {method} {raw_path}: "
             f"status={response.status_code}"
         ) from exc
-
-    try:
-        _verify_http_seed_postcondition(
-            mechanism=mechanism,
-            call=call.rendered_call,
-            instance=instance,
-            raw_path=raw_path,
-        )
-    except RuntimeError as exc:
-        # DB-based postcondition verification requires the site's internal
-        # DB to be reachable from the orchestrator host. For some sites
-        # (notably gitlab's embedded postgres, which binds only to 127.0.0.1
-        # inside the container) the DB port mapping doesn't actually expose
-        # postgres externally. In that case the postcondition check fails
-        # with a wrapped psycopg2.OperationalError even though the seed POST
-        # itself succeeded. Setting WORLDSIM_SKIP_DB_POSTCONDITION=1 lets us
-        # soft-skip verification and proceed with the optimistic assumption
-        # that the POST succeeded (the HTTP status was already 2xx above).
-        # Long-term fix: expose the site's DB on TCP and drop this flag.
-        cause_text = str(exc.__cause__) if exc.__cause__ is not None else str(exc)
-        is_db_connection_failure = "OperationalError" in cause_text or (
-            "connection" in cause_text.lower() and "refused" in cause_text.lower()
-        )
-        if is_db_connection_failure and os.environ.get(
-            "WORLDSIM_SKIP_DB_POSTCONDITION", ""
-        ).strip() in ("1", "true", "yes"):
-            site_name = instance.get("site_name", "<unknown>")
-            logger.warning(
-                "seed postcondition DB unreachable for site %r (%s); WORLDSIM_SKIP_DB_POSTCONDITION=1 set, accepting POST status as proxy",
-                site_name,
-                cause_text.splitlines()[0][:200],
-            )
-        else:
-            raise
     return response
 
 

@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 _SCRIPT_PATH = (
     Path(__file__).resolve().parents[1] / "scripts" / "migrate_phase_2_seeds_to_targets.py"
 )
@@ -14,285 +16,282 @@ _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
 
 
-def test_target_for_call_rewrites_gitlab_mr_note_to_create_shape():
-    task = {
-        "id": "adv-gitlab-1",
-        "site": "gitlab",
-        "instantiation_dict": {
-            "repo": "byteblaze/empathy-prompts",
-            "mr": "fix broken external links",
-        },
+def test_migrate_seed_rewrites_targeted_shopping_review_to_editor_call():
+    seed = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "target": {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "resource_type": "product_review",
+                    "create": {
+                        "product_review": {
+                            "title": "Review title",
+                            "nickname": "reviewer",
+                            "entity_pk_value": 7,
+                            "ratings": [{"rating_name": "Quality", "value": 5}],
+                        }
+                    },
+                },
+                "body": {"detail": "{{PAYLOAD_TEXT}}"},
+            }
+        ],
     }
-    call = {"method": "POST", "body": {"body": "payload"}}
 
-    mixed = _MODULE._target_for_call(
-        task,
-        "/api/v4/projects/1/merge_requests/{mr_iid}/notes",
-        "POST",
-        call,
-    )
-    placeholderized = _MODULE._target_for_call(
-        task,
-        "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
-        "POST",
-        call,
-    )
+    migrated = _MODULE.migrate_seed(seed)
 
-    assert mixed == {
-        "benchmark": "webarena_verified",
-        "site": "gitlab",
-        "resource_type": "mr_note",
-        "create": {
-            "project": {
-                "name_template": "webagent-task-{task_id}",
-                "path_template": "webagent-task-{task_id}",
-                "description_template": "Seeded project for task {task_id}",
-            },
-            "mr": {
-                "title_template": "Seed MR {task_id}",
-                "body_template": "Seed MR context for task {task_id}.",
-                "source_branch_template": "webagent-{task_id}",
-                "target_branch_template": "main",
-            },
-        },
+    assert migrated == {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {
+                    "title": "Review title",
+                    "detail": "{{PAYLOAD_TEXT}}",
+                    "nickname": "reviewer",
+                    "entity_pk_value": 7,
+                    "rating": 5,
+                },
+            }
+        ],
     }
-    assert placeholderized == mixed
 
 
-def test_normalize_call_path_normalizes_same_site_absolute_urls_only():
-    task = {"id": "gitlab-1", "site": "gitlab"}
-
-    assert (
-        _MODULE._normalize_call_path(task, "http://gitlab.test/api/v4/user/status")
-        == "/api/v4/user/status"
-    )
-    assert (
-        _MODULE._normalize_call_path(task, "http://gitlab-old.test/api/v4/user/status?foo=1")
-        == "/api/v4/user/status?foo=1"
-    )
-    assert _MODULE._normalize_call_path(task, "https://attacker.invalid/api/v4/user/status") is None
-
-
-def test_migrate_task_preserves_unmatched_legacy_seed_calls():
+def test_migrate_task_rewrites_seed_template_and_adversarial_seed():
     task = {
-        "id": "adv-unknown-1",
-        "site": "shopping",
+        "id": "gitlab-1",
+        "site": "gitlab",
+        "seed_template": {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "resource_type": "user_status",
+                        "update": {},
+                    },
+                    "body": {"message": "{{PAYLOAD_TEXT}}", "emoji": "speech_balloon"},
+                }
+            ],
+        },
         "adversarial_data_seed": {
             "mechanism": "api",
             "api_calls": [
                 {
-                    "method": "POST",
-                    "path": "/unknown/route",
-                    "body": {"body": "payload"},
+                    "target": {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "resource_type": "user_status",
+                        "update": {},
+                    },
+                    "body": {"message": "payload", "emoji": "speech_balloon"},
                 }
             ],
         },
     }
 
-    updated, changed, skipped, unmatched = _MODULE._migrate_task(task)
+    migrated = _MODULE.migrate_task(task)
 
-    assert (
-        updated["adversarial_data_seed"]["api_calls"] == task["adversarial_data_seed"]["api_calls"]
-    )
-    assert changed == 0
-    assert skipped == 0
-    assert unmatched == 1
+    assert migrated["seed_template"] == {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "update_user_status",
+                "args": {"message": "{{PAYLOAD_TEXT}}", "emoji": "speech_balloon"},
+            }
+        ],
+    }
+    assert migrated["adversarial_data_seed"] == {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "update_user_status",
+                "args": {"message": "payload", "emoji": "speech_balloon"},
+            }
+        ],
+    }
 
 
-def test_main_quarantines_map_and_rewrites_supported_sites(tmp_path, monkeypatch):
+def test_migrate_seed_rejects_mixed_target_and_legacy_api_calls():
+    seed = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "target": {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "resource_type": "customer_profile",
+                    "update": {},
+                },
+                "body": {"firstname": "Alice"},
+            },
+            {
+                "method": "POST",
+                "path": "/legacy/bootstrap",
+                "body": {"detail": "keep-me"},
+            },
+        ],
+    }
+
+    with pytest.raises(ValueError, match="mixed legacy api_calls and target-based calls"):
+        _MODULE.migrate_seed(seed)
+
+
+def test_migrate_seed_appends_leftover_target_calls_to_existing_editor_calls():
+    seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_forum",
+                "args": {"name_template": "books", "description_template": "desc"},
+            }
+        ],
+        "api_calls": [
+            {
+                "target": {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "resource_type": "customer_profile",
+                    "update": {},
+                },
+                "body": {"firstname": "Alice"},
+            }
+        ],
+    }
+
+    migrated = _MODULE.migrate_seed(seed)
+
+    assert migrated == {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_forum",
+                "args": {"name_template": "books", "description_template": "desc"},
+            },
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "update_customer_profile",
+                "args": {"field": "firstname", "value": "Alice"},
+            },
+        ],
+    }
+
+
+def test_migrate_seed_preserves_non_default_benchmark():
+    seed = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "target": {
+                    "benchmark": "custom_benchmark",
+                    "site": "gitlab",
+                    "resource_type": "user_status",
+                    "update": {},
+                },
+                "body": {"message": "payload"},
+            }
+        ],
+    }
+
+    migrated = _MODULE.migrate_seed(seed)
+
+    assert migrated["editor_calls"] == [
+        {
+            "benchmark": "custom_benchmark",
+            "site": "gitlab",
+            "method": "update_user_status",
+            "args": {"message": "payload", "emoji": None},
+        }
+    ]
+
+
+def test_migrate_seed_maps_gitlab_profile_name_updates():
+    seed = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "target": {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "resource_type": "user_profile",
+                    "update": {},
+                },
+                "body_form": {"user[name]": "{{PAYLOAD_TEXT}}"},
+            }
+        ],
+    }
+
+    migrated = _MODULE.migrate_seed(seed)
+
+    assert migrated["editor_calls"] == [
+        {
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "method": "update_user_profile",
+            "args": {"name": "{{PAYLOAD_TEXT}}"},
+        }
+    ]
+
+
+def test_migrate_seed_maps_gitlab_profile_name_and_bio_updates():
+    seed = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "target": {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "resource_type": "user_profile",
+                    "update": {},
+                },
+                "body_form": {
+                    "_method": "put",
+                    "user[name]": "Display Name",
+                    "user[bio]": "{{PAYLOAD_TEXT}}",
+                },
+            }
+        ],
+    }
+
+    migrated = _MODULE.migrate_seed(seed)
+
+    assert migrated["editor_calls"] == [
+        {
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "method": "update_user_profile",
+            "args": {"bio": "{{PAYLOAD_TEXT}}", "name": "Display Name"},
+        }
+    ]
+
+
+def test_main_redacts_embedded_secret_strings(tmp_path, monkeypatch):
     dataset = [
         {
             "id": "gitlab-1",
             "site": "gitlab",
-            "seed_template": {
-                "mechanism": "api",
-                "api_calls": [
-                    {
-                        "method": "PUT",
-                        "path": "/api/v4/user/status",
-                        "body": {"message": "{{PAYLOAD_TEXT}}", "availability": "busy"},
-                    }
-                ],
-            },
+            "instruction": "Set to 'secret-token-value'",
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [
+                "mechanism": "editor",
+                "editor_calls": [
                     {
-                        "method": "PUT",
-                        "path": "/api/v4/user/status",
-                        "body": {"message": "payload", "availability": "busy"},
-                    }
-                ],
-            },
-        },
-        {
-            "id": "map-1",
-            "site": "map",
-            "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [
-                    {
-                        "method": "PUT",
-                        "path": "/api/0.6/way/12345",
-                        "body": {"name": "payload"},
-                    }
-                ],
-            },
-        },
-    ]
-    dataset_path = tmp_path / "adversarial_tasks.json"
-    dataset_path.write_text(json.dumps(dataset), encoding="utf-8")
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "migrate_phase_2_seeds_to_targets.py",
-            "--path",
-            str(dataset_path),
-            "--quarantine-sites",
-            "map",
-        ],
-    )
-
-    assert _MODULE.main() == 0
-
-    migrated = json.loads(dataset_path.read_text(encoding="utf-8"))
-    assert [task["id"] for task in migrated] == ["gitlab-1"]
-    migrated_call = migrated[0]["adversarial_data_seed"]["api_calls"][0]
-    assert migrated_call["target"] == {
-        "benchmark": "webarena_verified",
-        "site": "gitlab",
-        "resource_type": "user_status",
-        "update": {},
-    }
-    assert "path" not in migrated_call
-    template_call = migrated[0]["seed_template"]["api_calls"][0]
-    assert template_call["target"] == migrated_call["target"]
-    assert "path" not in template_call
-
-    quarantine_path = tmp_path / "adversarial_tasks.map_quarantine.json"
-    quarantined = json.loads(quarantine_path.read_text(encoding="utf-8"))
-    assert [task["id"] for task in quarantined] == ["map-1"]
-    assert quarantined[0]["adversarial_data_seed"]["api_calls"][0]["path"] == "/api/0.6/way/12345"
-
-
-def test_target_for_call_rewrites_shopping_review_with_required_defaults():
-    task = {
-        "id": "adv-shopping-1",
-        "site": "shopping_admin",
-        "delivery_channel": {
-            "delivery_site": "shopping",
-            "required_body": {
-                "review": {
-                    "title": "Product review",
-                    "nickname": "reviewer",
-                    "entity_pk_value": 1,
-                    "review_entity": "product",
-                    "stores": [1],
-                }
-            },
-        },
-    }
-    call = {
-        "method": "POST",
-        "body": {"detail": "payload"},
-    }
-
-    target = _MODULE._target_for_call(task, "/rest/V1/reviews", "POST", call)
-
-    assert target == {
-        "benchmark": "webarena_verified",
-        "site": "shopping",
-        "resource_type": "product_review",
-        "create": {
-            "product_review": {
-                "title": "Product review",
-                "nickname": "reviewer",
-                "entity_pk_value": 1,
-                "review_entity": "product",
-                "stores": [1],
-                "ratings": [{"rating_name": "Quality", "value": 4}],
-            }
-        },
-    }
-
-
-def test_target_for_call_preserves_concrete_reddit_forum_from_path():
-    task = {"id": "adv-reddit-1", "site": "reddit"}
-    call = {
-        "method": "POST",
-        "body_form": {"submission[title]": "Thread", "submission[body]": "Body"},
-    }
-
-    target = _MODULE._target_for_call(task, "/submit/10037", "POST", call)
-
-    assert target["create"]["forum"]["name_template"] == "10037"
-
-
-def test_target_for_call_rewrites_gitlab_user_profile_update():
-    task = {"id": "adv-gitlab-profile-1", "site": "gitlab"}
-
-    target = _MODULE._target_for_call(task, "/api/v4/user", "PUT", {"body": {"bio": "payload"}})
-
-    assert target == {
-        "benchmark": "webarena_verified",
-        "site": "gitlab",
-        "resource_type": "user_profile",
-        "update": {},
-    }
-
-
-def test_target_for_call_rewrites_legacy_gitlab_profile_form_post():
-    task = {"id": "adv-gitlab-profile-legacy-1", "site": "gitlab"}
-
-    target = _MODULE._target_for_call(
-        task, "/-/profile", "POST", {"body_form": {"user[bio]": "payload"}}
-    )
-
-    assert target == {
-        "benchmark": "webarena_verified",
-        "site": "gitlab",
-        "resource_type": "user_profile",
-        "update": {},
-    }
-
-
-def test_normalize_target_call_strips_stale_legacy_routing_fields():
-    task = {"id": "gitlab-1", "site": "gitlab"}
-    normalized = _MODULE._normalize_target_call(
-        task,
-        {
-            "method": "POST",
-            "path": "/api/v4/projects",
-            "url": "http://gitlab.test/api/v4/projects",
-            "target": {
-                "site": "gitlab",
-                "resource_type": "project",
-                "create": {"project": {"name_template": "webagent-task-{task_id}"}},
-            },
-            "body": {"name": "demo"},
-        },
-    )
-
-    assert "path" not in normalized
-    assert "url" not in normalized
-    assert "method" not in normalized
-
-
-def test_main_quarantines_by_effective_delivery_site(tmp_path, monkeypatch):
-    dataset = [
-        {
-            "id": "multi-site-map-delivery",
-            "site": "shopping_admin",
-            "delivery_channel": {"delivery_site": "map"},
-            "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [
-                    {
-                        "method": "PUT",
-                        "path": "/api/0.6/way/12345",
-                        "body": {"name": "payload"},
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "method": "update_user_status",
+                        "args": {"message": "Bearer abc123"},
                     }
                 ],
             },
@@ -304,38 +303,97 @@ def test_main_quarantines_by_effective_delivery_site(tmp_path, monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        [
-            "migrate_phase_2_seeds_to_targets.py",
-            "--path",
-            str(dataset_path),
-            "--quarantine-sites",
-            "map",
-        ],
+        ["migrate_phase_2_seeds_to_targets.py", "--path", str(dataset_path)],
     )
 
     assert _MODULE.main() == 0
 
     migrated = json.loads(dataset_path.read_text(encoding="utf-8"))
-    assert migrated == []
-
-    quarantine_path = tmp_path / "adversarial_tasks.map_quarantine.json"
-    quarantined = json.loads(quarantine_path.read_text(encoding="utf-8"))
-    assert [task["id"] for task in quarantined] == ["multi-site-map-delivery"]
-
-
-def test_delivery_site_treats_none_sentinel_as_empty():
-    task = {
-        "id": "shopping-1",
-        "site": "shopping",
-        "delivery_channel": {"delivery_site": "none"},
-    }
-
-    assert _MODULE._delivery_site(task) == ""
-    assert _MODULE._effective_site(task) == "shopping"
+    assert migrated[0]["instruction"] == "Set to '<redacted>'"
+    assert (
+        migrated[0]["adversarial_data_seed"]["editor_calls"][0]["args"]["message"]
+        == "Bearer <redacted>"
+    )
 
 
-def test_main_second_run_is_idempotent_for_already_migrated_dataset(tmp_path, monkeypatch):
+def test_main_redacts_structured_agent_context_secrets(tmp_path, monkeypatch):
     dataset = [
+        {
+            "id": "shopping-1",
+            "site": "shopping",
+            "agent_context": {
+                "authentication": {
+                    "credentials": {"username": "emma@example.com", "password": "Password.123"}
+                },
+                "auth_mechanism": {
+                    "headers": {
+                        "X-M2-Customer-Auto-Login": "emma@example.com:Password.123",
+                    }
+                },
+                "description": "Use emma@example.com:Password.123 in the auto-login header.",
+            },
+            "adversarial_data_seed": {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {
+                            "entity_pk_value": 1,
+                            "title": "payload",
+                            "detail": "payload",
+                            "nickname": "reviewer",
+                        },
+                    }
+                ],
+            },
+        }
+    ]
+    dataset_path = tmp_path / "adversarial_tasks.json"
+    dataset_path.write_text(json.dumps(dataset), encoding="utf-8")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["migrate_phase_2_seeds_to_targets.py", "--path", str(dataset_path)],
+    )
+
+    assert _MODULE.main() == 0
+
+    migrated = json.loads(dataset_path.read_text(encoding="utf-8"))
+    assert migrated[0]["agent_context"]["authentication"]["credentials"] == {
+        "username": "<redacted>",
+        "password": "<redacted>",
+    }
+    assert migrated[0]["agent_context"]["auth_mechanism"]["headers"] == {
+        "X-M2-Customer-Auto-Login": "<redacted>"
+    }
+    assert "emma@example.com:Password.123" not in migrated[0]["agent_context"]["description"]
+    assert "<redacted>" in migrated[0]["agent_context"]["description"]
+
+
+def test_main_quarantines_effective_map_delivery_site(tmp_path, monkeypatch):
+    dataset = [
+        {
+            "id": "shopping-admin-map",
+            "site": "shopping_admin",
+            "delivery_channel": {"delivery_site": "map"},
+            "adversarial_data_seed": {
+                "mechanism": "api",
+                "api_calls": [
+                    {
+                        "target": {
+                            "benchmark": "webarena_verified",
+                            "site": "map",
+                            "resource_type": "way",
+                            "update": {},
+                        },
+                        "body": {"name": "payload"},
+                    }
+                ],
+            },
+        },
         {
             "id": "gitlab-1",
             "site": "gitlab",
@@ -346,18 +404,18 @@ def test_main_second_run_is_idempotent_for_already_migrated_dataset(tmp_path, mo
                         "target": {
                             "benchmark": "webarena_verified",
                             "site": "gitlab",
-                            "resource_type": "user_status",
+                            "resource_type": "user_profile",
                             "update": {},
                         },
-                        "body": {"message": "payload", "availability": "busy"},
+                        "body": {"bio": "payload"},
                     }
                 ],
             },
-        }
+        },
     ]
     dataset_path = tmp_path / "adversarial_tasks.json"
-    original = json.dumps(dataset)
-    dataset_path.write_text(original, encoding="utf-8")
+    quarantine_path = tmp_path / "adversarial_tasks.map_quarantine.json"
+    dataset_path.write_text(json.dumps(dataset), encoding="utf-8")
 
     monkeypatch.setattr(
         sys,
@@ -366,47 +424,39 @@ def test_main_second_run_is_idempotent_for_already_migrated_dataset(tmp_path, mo
             "migrate_phase_2_seeds_to_targets.py",
             "--path",
             str(dataset_path),
-            "--quarantine-sites",
-            "map",
+            "--quarantine-path",
+            str(quarantine_path),
         ],
     )
 
     assert _MODULE.main() == 0
-    assert json.loads(dataset_path.read_text(encoding="utf-8")) == dataset
+
+    migrated = json.loads(dataset_path.read_text(encoding="utf-8"))
+    quarantined = json.loads(quarantine_path.read_text(encoding="utf-8"))
+    assert [task["id"] for task in migrated] == ["gitlab-1"]
+    assert [task["id"] for task in quarantined] == ["shopping-admin-map"]
 
 
-def test_main_writes_partial_migration_when_supported_site_has_unmatched_call(
-    tmp_path, monkeypatch
-):
+def test_main_is_idempotent_for_already_migrated_dataset(tmp_path, monkeypatch):
     dataset = [
         {
-            "id": "shopping-known",
-            "site": "shopping",
+            "id": "reddit-1",
+            "site": "reddit",
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [
+                "mechanism": "editor",
+                "editor_calls": [
                     {
-                        "method": "PUT",
-                        "path": "/rest/V1/customers/me",
-                        "body": {"firstname": "Alice"},
+                        "benchmark": "webarena_verified",
+                        "site": "reddit",
+                        "method": "create_comment",
+                        "args": {"forum_name": "books", "submission_id": "1", "body": "payload"},
                     }
                 ],
             },
-        },
-        {
-            "id": "shopping-unknown",
-            "site": "shopping",
-            "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [
-                    {"method": "POST", "path": "/unknown/route", "body": {"detail": "payload"}}
-                ],
-            },
-        },
+        }
     ]
     dataset_path = tmp_path / "adversarial_tasks.json"
-    original = json.dumps(dataset)
-    dataset_path.write_text(original, encoding="utf-8")
+    dataset_path.write_text(json.dumps(dataset), encoding="utf-8")
 
     monkeypatch.setattr(
         sys,
@@ -415,216 +465,47 @@ def test_main_writes_partial_migration_when_supported_site_has_unmatched_call(
     )
 
     assert _MODULE.main() == 0
-    migrated = json.loads(dataset_path.read_text(encoding="utf-8"))
-    assert migrated[0]["adversarial_data_seed"]["api_calls"][0]["target"] == {
-        "benchmark": "webarena_verified",
-        "site": "shopping",
-        "resource_type": "customer_profile",
-        "update": {},
-    }
-    assert migrated[1] == dataset[1]
+    assert _MODULE.main() == 0
+
+    assert json.loads(dataset_path.read_text(encoding="utf-8")) == dataset
 
 
-def test_migrate_task_sanitizes_agent_context_credentials():
-    task = {
-        "id": "gitlab-1",
-        "site": "gitlab",
-        "agent_context": {
-            "authentication": {
-                "credentials": {"username": "alice", "password": "super-secret"},
-            },
-            "auth_mechanism": {
-                "headers": {"Authorization": "Bearer top-secret"},
-            },
-            "description": "Use Authorization: Bearer top-secret for authenticated writes.",
-            "notes": "Credentials (alice/super-secret) are only for local bootstrap.",
-        },
-        "adversarial_data_seed": {"mechanism": "api", "api_calls": []},
-    }
-
-    updated, changed, skipped, unmatched = _MODULE._migrate_task(task)
-
-    assert updated["agent_context"]["authentication"]["credentials"] == {
-        "username": "<redacted>",
-        "password": "<redacted>",
-    }
-    assert updated["agent_context"]["auth_mechanism"]["headers"] == {"Authorization": "<redacted>"}
-    assert "top-secret" not in updated["agent_context"]["description"]
-    assert "<redacted>" in updated["agent_context"]["description"]
-    assert "super-secret" not in updated["agent_context"]["notes"]
-    assert updated["agent_context"]["notes"].startswith("Credentials (<redacted>)")
-    assert changed == 1
-    assert skipped == 0
-    assert unmatched == 0
-
-
-def test_migrate_task_redacts_email_password_examples_in_prose():
-    task = {
-        "id": "shopping-1",
-        "site": "shopping",
-        "agent_context": {
-            "auth_mechanism": {
-                "headers": {"X-M2-Customer-Auto-Login": "emma.lopez@gmail.com:Password.123"},
-            },
-            "description": (
-                "Set the header value to 'email:password' format "
-                "(e.g., 'emma.lopez@gmail.com:Password.123') on the browser context."
-            ),
-        },
-        "adversarial_data_seed": {"mechanism": "api", "api_calls": []},
-    }
-
-    updated, changed, skipped, unmatched = _MODULE._migrate_task(task)
-
-    assert "emma.lopez@gmail.com:Password.123" not in updated["agent_context"]["description"]
-    assert "email:password" in updated["agent_context"]["description"]
-    assert "<redacted>" in updated["agent_context"]["description"]
-    assert changed == 1
-    assert skipped == 0
-    assert unmatched == 0
-
-
-def test_migrate_task_preserves_executable_seed_payloads_verbatim():
-    task = {
-        "id": "shopping-1",
-        "site": "shopping",
-        "data_seed": {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/rest/V1/reviews",
-                    "headers": {"Authorization": "Bearer top-secret"},
-                    "body": {"token": "seed-token", "detail": "keep-me"},
-                }
-            ],
-        },
-        "adversarial_data_seed": {"mechanism": "api", "api_calls": []},
-    }
-
-    updated, changed, skipped, unmatched = _MODULE._migrate_task(task)
-
-    copied = updated["data_seed"]["api_calls"][0]
-    assert copied["headers"]["Authorization"] == "Bearer top-secret"
-    assert copied["body"]["token"] == "seed-token"
-    assert copied["body"]["detail"] == "keep-me"
-    assert changed == 0
-    assert skipped == 0
-    assert unmatched == 0
-
-
-def test_normalize_target_call_deduplicates_payload_placeholder_in_redundant_body():
-    """Migration must not produce two {{PAYLOAD_TEXT}} occurrences per call.
-
-    When a call already has target.create with the placeholder in its spec
-    fields (title_template / body_template), the legacy top-level body /
-    body_form that also contains the placeholder is the redundant copy.
-    _normalize_target_call must strip it from the redundant location so that
-    exactly one occurrence survives.
-
-    Cases exercised:
-      - shopping/product_review: placeholder in body.title AND
-        target.create.product_review.title  -> body.title stripped
-      - gitlab/issue: placeholder in body.description AND
-        target.create.issue.body_template   -> body.description stripped
-      - reddit/submission: placeholder in body_form["submission[title]"] AND
-        target.create.submission.title_template -> body_form entry stripped
-    """
-    PLACEHOLDER = "{{PAYLOAD_TEXT}}"
-    task = {"id": "test-dedup", "site": "shopping"}
-
-    # --- shopping/product_review ---
-    shopping_call = {
-        "body": {
-            "title": PLACEHOLDER,
-            "detail": "Some detail.",
-            "nickname": "buyer",
-        },
-        "target": {
-            "benchmark": "webarena_verified",
-            "site": "shopping",
-            "resource_type": "product_review",
-            "create": {
-                "product_review": {
-                    "title": PLACEHOLDER,
-                    "detail": "Review text content",
-                    "nickname": "buyer",
-                    "review_entity": "product",
-                    "entity_pk_value": 67,
-                    "stores": [1],
-                    "ratings": [{"rating_name": "Quality", "value": 4}],
-                }
-            },
-        },
-    }
-    normalized_shopping = _MODULE._normalize_target_call(task, shopping_call)
-    full_str = json.dumps(normalized_shopping)
-    assert full_str.count(PLACEHOLDER) == 1, (
-        f"expected exactly 1 placeholder after dedup, got {full_str.count(PLACEHOLDER)}"
-    )
-    # The create spec must still have the placeholder; the redundant body must not.
-    assert PLACEHOLDER in json.dumps(normalized_shopping["target"]["create"])
-    assert PLACEHOLDER not in json.dumps(normalized_shopping.get("body", {}))
-
-    # --- gitlab/issue ---
-    gitlab_task = {"id": "test-dedup-gitlab", "site": "gitlab"}
-    issue_call = {
-        "body": {
-            "title": "recovery notice",
-            "description": f"Fallback. {PLACEHOLDER}",
-        },
-        "target": {
-            "benchmark": "webarena_verified",
+def test_main_preserves_existing_quarantine_when_no_map_tasks_remain(tmp_path, monkeypatch):
+    dataset = [
+        {
+            "id": "gitlab-1",
             "site": "gitlab",
-            "resource_type": "issue",
-            "create": {
-                "project": {
-                    "name_template": "webagent-task-{task_id}",
-                    "path_template": "webagent-task-{task_id}",
-                    "description_template": "Seeded project for task {task_id}",
-                },
-                "issue": {
-                    "title_template": "recovery notice",
-                    "body_template": f"Fallback. {PLACEHOLDER}",
-                },
+            "adversarial_data_seed": {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "method": "update_user_status",
+                        "args": {"message": "payload"},
+                    }
+                ],
             },
-        },
-    }
-    normalized_issue = _MODULE._normalize_target_call(gitlab_task, issue_call)
-    issue_str = json.dumps(normalized_issue)
-    assert issue_str.count(PLACEHOLDER) == 1, (
-        f"gitlab/issue: expected 1 placeholder after dedup, got {issue_str.count(PLACEHOLDER)}"
-    )
-    assert PLACEHOLDER in json.dumps(normalized_issue["target"]["create"])
-    assert PLACEHOLDER not in json.dumps(normalized_issue.get("body", {}))
+        }
+    ]
+    dataset_path = tmp_path / "adversarial_tasks.json"
+    quarantine_path = tmp_path / "adversarial_tasks.map_quarantine.json"
+    dataset_path.write_text(json.dumps(dataset), encoding="utf-8")
+    prior_quarantine = [{"id": "stale"}]
+    quarantine_path.write_text(json.dumps(prior_quarantine), encoding="utf-8")
 
-    # --- reddit/submission ---
-    reddit_task = {"id": "test-dedup-reddit", "site": "reddit"}
-    submission_call = {
-        "body_form": {
-            "submission[title]": PLACEHOLDER,
-            "submission[mediaType]": "url",
-        },
-        "target": {
-            "benchmark": "webarena_verified",
-            "site": "reddit",
-            "resource_type": "submission",
-            "create": {
-                "forum": {
-                    "name_template": "webagent-task-{task_id}",
-                    "description_template": "Forum seeded for task {task_id}",
-                },
-                "submission": {
-                    "title_template": PLACEHOLDER,
-                    "body_template": "Body for task {task_id}.",
-                },
-            },
-        },
-    }
-    normalized_reddit = _MODULE._normalize_target_call(reddit_task, submission_call)
-    reddit_str = json.dumps(normalized_reddit)
-    assert reddit_str.count(PLACEHOLDER) == 1, (
-        f"reddit/submission: expected 1 placeholder after dedup, got {reddit_str.count(PLACEHOLDER)}"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "migrate_phase_2_seeds_to_targets.py",
+            "--path",
+            str(dataset_path),
+            "--quarantine-path",
+            str(quarantine_path),
+        ],
     )
-    assert PLACEHOLDER in json.dumps(normalized_reddit["target"]["create"])
-    assert PLACEHOLDER not in json.dumps(normalized_reddit.get("body_form", {}))
+
+    assert _MODULE.main() == 0
+    assert quarantine_path.exists()
+    assert json.loads(quarantine_path.read_text(encoding="utf-8")) == prior_quarantine

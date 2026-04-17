@@ -1831,6 +1831,141 @@ async def test_run_task_reset_cache_skips_second_read_only_reset(monkeypatch, tm
 
 
 @pytest.mark.asyncio
+async def test_run_task_editor_only_seed_without_mechanism_still_runs_and_marks_reset_cache_dirty(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_task()
+    task["data_seed"] = {
+        "mechanism": "none",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 7, "detail": "payload"},
+            }
+        ],
+    }
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    reset_calls: list[str] = []
+    cleanup_calls: list[str] = []
+
+    async def fake_reset(task):
+        reset_calls.append(task["id"])
+
+    class _FakeCleanup:
+        def cleanup(self) -> None:
+            cleanup_calls.append("cleanup")
+
+    async def fake_apply_seed(seed, instance):
+        return _FakeCleanup()
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[{"method": "GET", "url": "http://shopping.test/orders"}],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_3_benign, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_3_benign, "run_reward_function", fake_run_reward_function)
+
+    reset_cache = phase_3_benign.TaskResetCache()
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path / "first",
+        reset_cache=reset_cache,
+    )
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path / "second",
+        reset_cache=reset_cache,
+    )
+
+    assert reset_calls == ["task-1", "task-1"]
+    assert cleanup_calls == ["cleanup", "cleanup"]
+
+
+@pytest.mark.asyncio
+async def test_run_task_marks_reset_cache_dirty_when_seed_cleanup_fails(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    task["data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 7, "detail": "payload"},
+            }
+        ],
+    }
+    task = bind_task_to_instance(task, instances[0], instances)
+    reset_calls: list[str] = []
+
+    class _FakeCleanup:
+        def cleanup(self) -> None:
+            raise RuntimeError("cleanup boom")
+
+    async def fake_apply_seed(seed, instance):
+        return _FakeCleanup()
+
+    async def fake_reset(task):
+        reset_calls.append(task["id"])
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[{"method": "GET", "url": "http://shopping.test/orders"}],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_3_benign, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_3_benign, "run_reward_function", fake_run_reward_function)
+
+    reset_cache = phase_3_benign.TaskResetCache()
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path / "first",
+        reset_cache=reset_cache,
+    )
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path / "second",
+        reset_cache=reset_cache,
+    )
+
+    assert reset_calls == ["task-1", "task-1"]
+
+
+@pytest.mark.asyncio
 async def test_run_task_persists_resume_fingerprint(monkeypatch, tmp_path):
     task, instances = _prepared_task()
     task = bind_task_to_instance(task, instances[0], instances)

@@ -495,7 +495,7 @@ def test_load_cached_novel_tasks_rejects_missing_embedded_agent_context(tmp_path
 def test_validate_generated_novel_task_contract(task, expected):
     if task["data_seed"]["mechanism"] == "api":
         task["data_seed"]["api_calls"] = []
-        expected = "invalid data_seed: api data seed must include a non-empty api_calls list"
+        expected = "invalid data_seed: api data seed must include a non-empty api_calls or editor_calls list"
 
     problem = phase_1_mode_b_validation.validate_generated_novel_task(
         task,

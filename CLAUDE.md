@@ -23,7 +23,7 @@ Phase 2 is a single CLI phase with two internal stages: 2a planning in Modal san
 
 ## Integration test requirement
 
-If a PR changes `worldsim/seed_resolvers/**`, `worldsim/seeding.py`, or `worldsim/phases/phase_4_adversarial.py`, run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack before shipping and include the output in the PR description. Unit tests alone are not sufficient for resolver or Phase 4 integration changes.
+If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, or `worldsim/phases/phase_4_adversarial.py`, run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack before shipping and include the output in the PR description. Unit tests alone are not sufficient for editor or Phase 4 integration changes.
 
 ## What NOT to do
 

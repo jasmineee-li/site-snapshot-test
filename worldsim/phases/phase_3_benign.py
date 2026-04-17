@@ -58,7 +58,12 @@ from worldsim.resume_metadata import (
     instances_identity,
 )
 from worldsim.rewards import run_reward_function
-from worldsim.seeding import apply_data_seed_async, collect_seed_runtime_errors
+from worldsim.seeding import (
+    apply_data_seed_async,
+    collect_seed_runtime_errors,
+    seed_has_actions,
+    seed_requires_reset,
+)
 from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.storage_state_preflight import (
@@ -821,97 +826,107 @@ async def run_task(
             reset_cache.mark_clean(task)
 
     task_likely_mutated = False
+    seed_cleanup = None
     try:
-        # Seed data (Mode A tasks have mechanism "none" — skip)
-        seed = task.get("data_seed", {})
-        if seed.get("mechanism") not in (None, "none"):
-            task_likely_mutated = True
-            await apply_data_seed_async(seed, instance_dict)
+        try:
+            # Seed data (Mode A tasks have mechanism "none" — skip)
+            seed = task.get("data_seed", {})
+            if seed_has_actions(seed):
+                task_likely_mutated = seed_requires_reset(seed)
+                seed_cleanup = await apply_data_seed_async(seed, instance_dict)
 
-        # Run agent
-        instance_agent_auth = resolve_instance_agent_auth(instance_dict)
-        instruction, start_urls = resolve_task_inputs(task, instance_dict)
-        site_prompt = _build_agent_prompt(
-            _agent_context_with_instance_auth(task.get("agent_context"), instance_agent_auth),
-            instruction,
-            start_urls,
-            task=task,
-        )
-        run_kwargs: dict[str, Any] = {"start_urls": start_urls}
-        if site_prompt is not None:
-            run_kwargs["site_prompt"] = site_prompt
-        # Auth from instances.json — single source of truth. No fallback to
-        # Phase 0c LLM-generated auth. If agent_auth is not configured for a site,
-        # the task runs without auth (fail-fast over silent degradation).
-        if instance_agent_auth is not None:
-            run_kwargs["auth_mechanism"] = instance_agent_auth
-            if benchmark_root is not None:
-                run_kwargs["benchmark_root"] = benchmark_root
-            site_value = task.get("site")
-            if isinstance(site_value, str) and site_value:
-                run_kwargs["task_site"] = site_value
-        result = await agent.run(
-            instruction,
-            instance.site_url,
-            task_dir,
-            **run_kwargs,
-        )
-    except Exception:
+            # Run agent
+            instance_agent_auth = resolve_instance_agent_auth(instance_dict)
+            instruction, start_urls = resolve_task_inputs(task, instance_dict)
+            site_prompt = _build_agent_prompt(
+                _agent_context_with_instance_auth(task.get("agent_context"), instance_agent_auth),
+                instruction,
+                start_urls,
+                task=task,
+            )
+            run_kwargs: dict[str, Any] = {"start_urls": start_urls}
+            if site_prompt is not None:
+                run_kwargs["site_prompt"] = site_prompt
+            # Auth from instances.json — single source of truth. No fallback to
+            # Phase 0c LLM-generated auth. If agent_auth is not configured for a site,
+            # the task runs without auth (fail-fast over silent degradation).
+            if instance_agent_auth is not None:
+                run_kwargs["auth_mechanism"] = instance_agent_auth
+                if benchmark_root is not None:
+                    run_kwargs["benchmark_root"] = benchmark_root
+                site_value = task.get("site")
+                if isinstance(site_value, str) and site_value:
+                    run_kwargs["task_site"] = site_value
+            result = await agent.run(
+                instruction,
+                instance.site_url,
+                task_dir,
+                **run_kwargs,
+            )
+        except Exception:
+            if reset_cache is not None:
+                reset_cache.mark_dirty(task)
+            raise
+
+        task_likely_mutated = task_likely_mutated or result_likely_mutated_state(task, result)
         if reset_cache is not None:
-            reset_cache.mark_dirty(task)
-        raise
+            if task_likely_mutated:
+                reset_cache.mark_dirty(task)
+            else:
+                reset_cache.mark_clean(task)
 
-    task_likely_mutated = task_likely_mutated or result_likely_mutated_state(task, result)
-    if reset_cache is not None:
-        if task_likely_mutated:
-            reset_cache.mark_dirty(task)
-        else:
-            reset_cache.mark_clean(task)
+        if result.status != "success" and not _has_scoreable_agent_output(result):
+            message = f"agent run {result.status}: " + (
+                result.errors[-1] if result.errors else "no additional error details"
+            )
+            extra: dict[str, Any] = {}
+            if resume_fingerprint is not None:
+                extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+            save_result(task_dir, task, result, False, message, **extra)
+            return {
+                "task_id": task_id,
+                "passed": False,
+                "outcome": "error",
+                "message": message,
+                "elapsed": result.elapsed,
+                "steps": result.steps,
+                "is_done": result.is_done,
+                "trajectory_dir": str(task_dir),
+            }
 
-    if result.status != "success" and not _has_scoreable_agent_output(result):
-        message = f"agent run {result.status}: " + (
-            result.errors[-1] if result.errors else "no additional error details"
+        # Evaluate with reward function (offloaded to thread to avoid blocking
+        # the event loop when the subprocess evaluator path is used).
+        passed, message = await asyncio.to_thread(
+            run_reward_function,
+            reward=task["reward_function"],
+            instance=instance_dict,
+            agent_result=result,
+            network_trace=result.network_trace,
         )
+
+        # Save trajectory artifacts
         extra: dict[str, Any] = {}
         if resume_fingerprint is not None:
             extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
-        save_result(task_dir, task, result, False, message, **extra)
+        save_result(task_dir, task, result, passed, message, **extra)
+
         return {
             "task_id": task_id,
-            "passed": False,
-            "outcome": "error",
+            "passed": passed,
             "message": message,
             "elapsed": result.elapsed,
             "steps": result.steps,
             "is_done": result.is_done,
             "trajectory_dir": str(task_dir),
         }
-
-    # Evaluate with reward function (offloaded to thread to avoid blocking
-    # the event loop when the subprocess evaluator path is used).
-    passed, message = await asyncio.to_thread(
-        run_reward_function,
-        reward=task["reward_function"],
-        instance=instance_dict,
-        agent_result=result,
-        network_trace=result.network_trace,
-    )
-
-    # Save trajectory artifacts
-    extra: dict[str, Any] = {}
-    if resume_fingerprint is not None:
-        extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
-    save_result(task_dir, task, result, passed, message, **extra)
-
-    return {
-        "task_id": task_id,
-        "passed": passed,
-        "message": message,
-        "elapsed": result.elapsed,
-        "steps": result.steps,
-        "is_done": result.is_done,
-        "trajectory_dir": str(task_dir),
-    }
+    finally:
+        if seed_cleanup is not None:
+            try:
+                await asyncio.to_thread(seed_cleanup.cleanup)
+            except Exception:
+                logger.exception("seed cleanup failed for task %s", task_id)
+                if reset_cache is not None:
+                    reset_cache.mark_dirty(task)
 
 
 def _has_scoreable_agent_output(result: Any) -> bool:

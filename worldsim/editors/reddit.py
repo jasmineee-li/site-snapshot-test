@@ -1,0 +1,273 @@
+from __future__ import annotations
+
+import re
+from typing import Any
+
+import requests
+
+from .base import BaseSiteEditor, EditorError
+
+_SUBMISSION_ID_RE = re.compile(r"/f/[^/]+/(\d+)(?:/|$)")
+
+
+class RedditEditor(BaseSiteEditor):
+    site_name = "reddit"
+    supported_methods = frozenset(
+        {
+            "create_forum",
+            "create_submission",
+            "create_comment",
+            "update_user_bio",
+        }
+    )
+
+    @classmethod
+    def probe_base_state(cls, instance: dict[str, Any]) -> None:
+        username = cls._resolve_current_username(instance)
+        with requests.Session() as session:
+            editor = cls(instance, session)
+            editor._form_get(f"/user/{cls._quote(username)}/edit_biography")
+
+    def validate_args(self, method_name: str, args: dict[str, Any]) -> None:
+        validators = {
+            "create_forum": lambda: self._require_args(args, "name_template"),
+            "create_submission": lambda: self._require_args(args, "forum_name", "title_template"),
+            "create_comment": lambda: self._require_args(
+                args, "forum_name", "submission_id", "body"
+            ),
+            "update_user_bio": lambda: self._require_args(args, "bio_text"),
+        }
+        validator = validators.get(method_name)
+        if validator is None:
+            raise EditorError(
+                "unsupported_method", f"unsupported reddit editor method {method_name!r}"
+            )
+        self._resolve_current_username(self.instance)
+        validator()
+
+    def preview_context(self, method_name: str, args: dict[str, Any]) -> dict[str, Any]:
+        if method_name == "create_forum":
+            return {"forum_name": str(args.get("name_template") or "").strip()}
+        if method_name == "create_submission":
+            forum_name = str(args.get("forum_name") or "").strip()
+            submission_id = args.get("submission_id") or "1"
+            return {
+                "forum_name": forum_name,
+                "submission_id": str(submission_id),
+                "submission_url": f"{self._site_url()}/f/{forum_name}/{submission_id}",
+            }
+        if method_name == "create_comment":
+            return {
+                "forum_name": str(args.get("forum_name") or "").strip(),
+                "submission_id": str(args.get("submission_id") or ""),
+            }
+        return {}
+
+    def create_forum(
+        self,
+        *,
+        name_template: str,
+        description_template: str | None = None,
+    ) -> dict[str, Any]:
+        forum_name = str(name_template).strip()
+        existing = self._forum_exists(forum_name)
+        if existing:
+            return {"forum_name": forum_name}
+
+        def build_form_submission() -> tuple[str, dict[str, Any], bool]:
+            form = self._fetch_form_state(
+                "/create_forum",
+                required_fields=(
+                    "forum[name]",
+                    "forum[title]",
+                    "forum[description]",
+                    "forum[sidebar]",
+                    "forum[_token]",
+                ),
+            )
+            payload = dict(form.get("fields", {}))
+            description = str(description_template or f"Forum for {forum_name}").strip()
+            payload["forum[name]"] = forum_name
+            payload["forum[title]"] = forum_name
+            payload["forum[description]"] = description
+            payload["forum[sidebar]"] = description
+            return str(form.get("action") or "/create_forum"), payload, False
+
+        action, payload, multipart = build_form_submission()
+        self._submit_exact_form(
+            action,
+            payload,
+            multipart=multipart,
+            refresh_on_rejection=build_form_submission,
+        )
+        return {"forum_name": forum_name}
+
+    def create_submission(
+        self,
+        *,
+        forum_name: str,
+        title_template: str,
+        body_template: str | None = None,
+    ) -> dict[str, Any]:
+        submit_path = f"/submit/{forum_name}"
+
+        def build_form_submission() -> tuple[str, dict[str, Any], bool]:
+            form = self._fetch_form_state(
+                submit_path,
+                required_fields=("submission[_token]", "submission[forum]", "submission[title]"),
+            )
+            payload = dict(form.get("fields", {}))
+            payload["submission[title]"] = str(title_template).strip()
+            if body_template is not None:
+                payload["submission[body]"] = str(body_template).strip()
+            # Some Postmill submit forms omit the default media type field even
+            # though the backend still requires it for text posts.
+            payload.setdefault("submission[mediaType]", "url")
+            payload["submission[forum]"] = self._resolve_forum_id(form, forum_name)
+            return str(form.get("action") or submit_path), payload, self._is_multipart_form(form)
+
+        action, payload, multipart = build_form_submission()
+        response = self._submit_exact_form(
+            action,
+            payload,
+            multipart=multipart,
+            refresh_on_rejection=build_form_submission,
+        )
+        submission_id = self._extract_submission_id(response)
+        return {
+            "forum_name": forum_name,
+            "submission_id": submission_id,
+            "submission_url": f"{self._site_url()}/f/{forum_name}/{submission_id}",
+        }
+
+    def create_comment(
+        self, *, submission_id: Any, body: str, forum_name: str | None = None
+    ) -> dict[str, Any]:
+        resolved_forum = str(forum_name or "").strip()
+        if not resolved_forum:
+            raise EditorError("invalid_args", "forum_name is required for reddit comments")
+        comment_path = f"/f/{resolved_forum}/{submission_id}"
+        form_name = f"reply_to_submission_{submission_id}[comment]"
+
+        def build_form_submission() -> tuple[str, dict[str, Any], bool]:
+            form = self._fetch_form_state(
+                comment_path,
+                action_contains=f"/f/{resolved_forum}/{submission_id}/-/comment",
+                required_fields=(form_name, f"reply_to_submission_{submission_id}[_token]"),
+            )
+            payload = dict(form.get("fields", {}))
+            payload[form_name] = str(body)
+            return str(form.get("action") or comment_path), payload, False
+
+        action, payload, multipart = build_form_submission()
+        response = self._submit_exact_form(
+            action,
+            payload,
+            multipart=multipart,
+            refresh_on_rejection=build_form_submission,
+        )
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        comment_id = None
+        if isinstance(payload, dict):
+            comment_id = payload.get("id") or payload.get("comment_id")
+        return {
+            "forum_name": resolved_forum,
+            "submission_id": str(submission_id),
+            "comment_id": comment_id,
+        }
+
+    def update_user_bio(self, *, bio_text: str) -> dict[str, Any]:
+        username = self._resolve_current_username(self.instance)
+        edit_path = f"/user/{self._quote(username)}/edit_biography"
+
+        def build_form_submission() -> tuple[str, dict[str, Any], bool]:
+            form = self._fetch_form_state(
+                edit_path,
+                required_fields=("user_biography[biography]", "user_biography[_token]"),
+            )
+            payload = dict(form.get("fields", {}))
+            payload["user_biography[biography]"] = str(bio_text)
+            return str(form.get("action") or edit_path), payload, False
+
+        action, payload, multipart = build_form_submission()
+        self._submit_exact_form(
+            action,
+            payload,
+            multipart=multipart,
+            refresh_on_rejection=build_form_submission,
+        )
+        return {}
+
+    @classmethod
+    def _resolve_current_username(cls, instance: dict[str, Any]) -> str:
+        for source in (
+            cls._nested_lookup(instance.get("auth"), ("credentials", "username")),
+            cls._nested_lookup(instance.get("auth"), ("username",)),
+            cls._nested_lookup(instance.get("api_auth"), ("credentials", "username")),
+            cls._nested_lookup(instance.get("api_auth"), ("username",)),
+            cls._nested_lookup(
+                instance.get("agent_auth"), ("authentication", "credentials", "username")
+            ),
+            cls._nested_lookup(instance.get("agent_auth"), ("credentials", "username")),
+            cls._nested_lookup(instance.get("agent_auth"), ("username",)),
+        ):
+            if isinstance(source, str) and source.strip():
+                return source.strip()
+        raise EditorError(
+            "missing_username", "reddit editor requires auth credentials with a username"
+        )
+
+    def _forum_exists(self, forum_name: str) -> bool:
+        response = self._form_get(f"/f/{self._quote(forum_name)}", allow_missing=True)
+        return response is not None and response.status_code == 200
+
+    def _extract_submission_id(self, response: requests.Response) -> str:
+        location = response.headers.get("Location", "")
+        match = _SUBMISSION_ID_RE.search(location)
+        if match:
+            return match.group(1)
+        if response.headers.get("Content-Type", "").startswith("text/html"):
+            raise EditorError(
+                "submission_id_missing",
+                "reddit submission create did not redirect to a submission page",
+            )
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise EditorError(
+                "submission_id_missing",
+                "reddit submission create response did not include a parseable submission id",
+            ) from exc
+        if isinstance(payload, dict):
+            submission_id = payload.get("id") or payload.get("submission_id")
+            if submission_id not in (None, ""):
+                return str(submission_id)
+        raise EditorError(
+            "submission_id_missing",
+            "reddit submission create response did not include a submission id",
+        )
+
+    @staticmethod
+    def _is_multipart_form(form: dict[str, Any]) -> bool:
+        enctype = str(form.get("enctype") or "").lower()
+        return "multipart/form-data" in enctype
+
+    @staticmethod
+    def _resolve_forum_id(form: dict[str, Any], forum_name: str) -> str:
+        select_options = form.get("select_options", {})
+        forum_options = select_options.get("submission[forum]")
+        if isinstance(forum_options, list):
+            for option in forum_options:
+                if not isinstance(option, dict):
+                    continue
+                if str(option.get("data-name") or "").strip() == forum_name:
+                    value = str(option.get("value") or "").strip()
+                    if value:
+                        return value
+        raise EditorError(
+            "forum_id_missing",
+            f"reddit submission form did not expose a forum id for {forum_name!r}",
+        )

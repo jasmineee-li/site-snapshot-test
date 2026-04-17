@@ -1,5 +1,7 @@
 # Codex handoff — WorldSim v5 setup hardening + adversarial seeding fix
 
+> Superseded note: item #14 and its resolver-based implementation guidance are replaced by `docs/handoffs/codex-handoff-phase-4-integration-round2.md`. Keep this document as historical context only when the two handoffs conflict.
+
 **Branch to base off:** `feat/worldsim-v5`
 **Target branch:** `codex/setup-hardening` (you create it)
 **Date:** 2026-04-17

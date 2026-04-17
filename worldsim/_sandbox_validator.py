@@ -47,11 +47,50 @@ _TARGET_DELIVERY_PATHS = {
     ("reddit", "submission"): "/submit/{forum_name}",
     ("reddit", "comment"): "/f/{forum_name}/{submission_id}/-/comment",
     ("reddit", "user_bio"): "/user/{username}/edit_biography",
-    ("shopping", "customer_profile"): "/rest/V1/customers/me",
+    ("shopping", "customer_profile"): "/customer/account/editpost/",
     ("shopping", "product_review"): "/rest/V1/reviews",
-    ("shopping_admin", "admin_profile"): "/rest/V1/users/me",
+    ("shopping_admin", "admin_profile"): "/admin/admin/user/save/",
     ("shopping_admin", "product_review"): "/rest/V1/reviews",
 }
+_EDITOR_DELIVERY_PATHS = {
+    ("gitlab", "create_project"): ("POST", "/api/v4/projects"),
+    ("gitlab", "create_group"): ("POST", "/api/v4/groups"),
+    ("gitlab", "create_issue"): ("POST", "/api/v4/projects/{project_id}/issues"),
+    ("gitlab", "create_issue_note"): ("POST", "/api/v4/projects/{project_id}/issues/{issue_iid}/notes"),
+    ("gitlab", "create_mr"): ("POST", "/api/v4/projects/{project_id}/merge_requests"),
+    ("gitlab", "create_mr_note"): ("POST", "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes"),
+    ("gitlab", "create_repo_file"): ("POST", "/api/v4/projects/{project_id}/repository/commits"),
+    ("gitlab", "update_user_status"): ("PUT", "/api/v4/user/status"),
+    ("gitlab", "update_user_profile"): ("PUT", "/api/v4/user"),
+    ("reddit", "create_forum"): ("POST", "/create_forum"),
+    ("reddit", "create_submission"): ("POST", "/submit/{forum_name}"),
+    ("reddit", "create_comment"): ("POST", "/f/{forum_name}/{submission_id}/-/comment"),
+    ("reddit", "update_user_bio"): ("POST", "/user/{username}/edit_biography"),
+    ("shopping", "create_product_review"): ("POST", "/rest/V1/reviews"),
+    ("shopping", "update_customer_profile"): ("POST", "/customer/account/editpost/"),
+    ("shopping_admin", "create_product_review"): ("POST", "/rest/V1/reviews"),
+    ("shopping_admin", "update_admin_profile"): ("POST", "/admin/admin/user/save/"),
+}
+_EDITOR_BODY_FIELD_ALIASES = {
+    ("gitlab", "create_issue"): {"body": "body_template", "description": "body_template"},
+    ("gitlab", "create_issue_note"): {"body": "note_body"},
+    ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
+    ("gitlab", "create_mr_note"): {"body": "note_body"},
+    ("gitlab", "update_user_status"): {"message": "message"},
+    ("gitlab", "update_user_profile"): {
+        "bio": "bio",
+        "name": "name",
+        "user[bio]": "bio",
+        "user[name]": "name",
+    },
+    ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
+    ("reddit", "create_comment"): {"body": "body"},
+    ("reddit", "update_user_bio"): {"bio": "bio_text"},
+    ("shopping", "create_product_review"): {"detail": "detail", "title": "title"},
+    ("shopping", "update_customer_profile"): {"value": "value"},
+    ("shopping_admin", "update_admin_profile"): {"value": "value"},
+}
+_KNOWN_EDITOR_SITES = frozenset(site_name for site_name, _method_name in _EDITOR_DELIVERY_PATHS)
 
 
 def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
@@ -62,85 +101,63 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
         return errors
 
     mechanism = seed.get("mechanism")
+    editor_calls = seed.get("editor_calls")
+    has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
     if mechanism in (None, "none"):
+        if has_editor_calls:
+            errors.extend(_validate_editor_calls(editor_calls))
+            return errors
         if allow_none:
             return errors
         errors.append("data seed must declare a non-empty mechanism")
         return errors
 
+    if mechanism == "editor":
+        if not has_editor_calls:
+            return ["editor data seed must include a non-empty editor_calls list"]
+        if seed.get("api_calls") is not None:
+            return ["editor data seed must not include api_calls"]
+        return _validate_editor_calls(editor_calls)
+
     if mechanism in {"api", "form"}:
         api_calls = seed.get("api_calls")
-        if not isinstance(api_calls, list) or not api_calls:
-            errors.append(f"{mechanism} data seed must include a non-empty api_calls list")
+        has_api_calls = isinstance(api_calls, list) and bool(api_calls)
+        if not has_api_calls and not has_editor_calls:
+            errors.append(f"{mechanism} data seed must include a non-empty api_calls or editor_calls list")
             return errors
-        saw_target = False
-        saw_legacy = False
-        for call in api_calls:
+        for call in api_calls or []:
             if not isinstance(call, dict):
                 errors.append(f"{mechanism} data seed calls must be objects")
                 continue
+            if "target" in call:
+                errors.append("target-based api_calls are no longer supported; migrate to editor_calls")
+                continue
             method = call.get("method")
-            target = call.get("target")
-            if isinstance(target, dict):
-                saw_target = True
-                site_name = target.get("site")
-                resource_type = target.get("resource_type")
-                has_create = "create" in target
-                has_update = "update" in target
-                if not isinstance(site_name, str) or not site_name.strip():
-                    errors.append("targeted data seed calls must include target.site")
-                if not isinstance(resource_type, str) or not resource_type.strip():
-                    errors.append("targeted data seed calls must include target.resource_type")
-                if has_create == has_update:
-                    errors.append(
-                        "targeted data seed calls must include exactly one of target.create or target.update"
-                    )
-                verb_payload = target.get("create") if has_create else target.get("update")
-                verb_name = "create" if has_create else "update"
-                if not isinstance(verb_payload, dict):
-                    errors.append(
-                        f"targeted data seed calls must include target.{verb_name} as an object"
-                    )
-                if method is not None:
-                    if not isinstance(method, str) or not method.strip():
-                        errors.append("targeted data seed call method must be a non-empty string")
-                    elif method.strip().upper() not in _ALLOWED_API_METHODS:
-                        errors.append(
-                            f"{mechanism} data seed method {method!r} not allowed "
-                            f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
-                        )
-                    elif mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
-                        errors.append(
-                            f"form data seed method {method!r} not allowed "
-                            f"(allowed: {sorted(_FORM_METHODS)})"
-                        )
-            else:
-                saw_legacy = True
-                if not isinstance(method, str) or not method.strip():
-                    errors.append(f"{mechanism} data seed calls must include a method")
-                elif method.strip().upper() not in _ALLOWED_API_METHODS:
-                    errors.append(
-                        f"{mechanism} data seed method {method!r} not allowed "
-                        f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
-                    )
-                elif mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
-                    errors.append(
-                        f"form data seed method {method!r} not allowed "
-                        f"(allowed: {sorted(_FORM_METHODS)})"
-                    )
-                raw_ref = _call_reference(call)
-                if not isinstance(raw_ref, str) or not raw_ref.strip():
-                    errors.append(
-                        f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                    )
-                elif not (
-                    raw_ref.startswith("/")
-                    or raw_ref.startswith("http://")
-                    or raw_ref.startswith("https://")
-                ):
-                    errors.append(
-                        f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                    )
+            if not isinstance(method, str) or not method.strip():
+                errors.append(f"{mechanism} data seed calls must include a method")
+            elif method.strip().upper() not in _ALLOWED_API_METHODS:
+                errors.append(
+                    f"{mechanism} data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
+                )
+            elif mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
+                errors.append(
+                    f"form data seed method {method!r} not allowed "
+                    f"(allowed: {sorted(_FORM_METHODS)})"
+                )
+            raw_ref = _call_reference(call)
+            if not isinstance(raw_ref, str) or not raw_ref.strip():
+                errors.append(
+                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
+                )
+            elif not (
+                raw_ref.startswith("/")
+                or raw_ref.startswith("http://")
+                or raw_ref.startswith("https://")
+            ):
+                errors.append(
+                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
+                )
             body = call.get("body")
             body_form = call.get("body_form")
             if mechanism == "form":
@@ -150,10 +167,8 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
                     errors.append("form data seed calls must not include JSON body")
             elif body_form is not None:
                 errors.append("api data seed calls must use body, not body_form")
-        if saw_target and saw_legacy:
-            errors.append(
-                "mixed legacy and target-based api_calls are not supported; use one shape per seed"
-            )
+        if has_editor_calls:
+            errors.extend(_validate_editor_calls(editor_calls))
         return errors
 
     if mechanism == "state_push":
@@ -170,26 +185,48 @@ def self_contained_adversarial_seed_error(
 ) -> str | None:
     if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
         return None
-    mechanism = benign_seed.get("mechanism")
-    if mechanism in (None, "none"):
+    if not _seed_has_actions(benign_seed):
         return None
-    if benign_seed.get("mechanism") != adversarial_seed.get("mechanism"):
-        return (
-            "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
-        )
-    if mechanism in {"api", "form"}:
-        benign_calls = benign_seed.get("api_calls")
-        adversarial_calls = adversarial_seed.get("api_calls")
-        if not isinstance(benign_calls, list) or not isinstance(adversarial_calls, list):
-            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
-        if adversarial_calls[: len(benign_calls)] != benign_calls:
-            return "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
-        return None
-    if benign_seed != adversarial_seed:
+    if not _seed_preserves_prefix(benign_seed, adversarial_seed):
         return (
             "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
         )
     return None
+
+
+def _seed_preserves_prefix(benign_value: object, adversarial_value: object) -> bool:
+    if isinstance(benign_value, dict):
+        if not isinstance(adversarial_value, dict):
+            return False
+        for key, benign_item in benign_value.items():
+            if key not in adversarial_value:
+                return False
+            if not _seed_preserves_prefix(benign_item, adversarial_value[key]):
+                return False
+        return True
+
+    if isinstance(benign_value, list):
+        if not isinstance(adversarial_value, list) or len(adversarial_value) < len(benign_value):
+            return False
+        return all(
+            _seed_preserves_prefix(benign_item, adversarial_value[index])
+            for index, benign_item in enumerate(benign_value)
+        )
+
+    return benign_value == adversarial_value
+
+
+def _seed_has_actions(seed: object) -> bool:
+    if not isinstance(seed, dict):
+        return False
+    mechanism = seed.get("mechanism")
+    if mechanism == "state_push":
+        return "state" in seed
+    editor_calls = seed.get("editor_calls")
+    if isinstance(editor_calls, list) and editor_calls:
+        return True
+    api_calls = seed.get("api_calls")
+    return bool(isinstance(api_calls, list) and api_calls)
 
 
 def validate_seed_template_contract(seed_template: object) -> list[str]:
@@ -199,13 +236,29 @@ def validate_seed_template_contract(seed_template: object) -> list[str]:
     if not isinstance(seed_template, dict):
         return ["seed_template must be an object"]
 
-    mechanism = seed_template.get("mechanism")
-    if mechanism not in {"api", "form"}:
-        return ["seed_template mechanism must be one of {'api', 'form'}"]
-
     total_placeholders = _count_placeholder_occurrences(seed_template)
     if total_placeholders != 1:
         return ["seed_template must contain exactly one {{PAYLOAD_TEXT}} placeholder"]
+
+    editor_calls = seed_template.get("editor_calls")
+    if isinstance(editor_calls, list) and editor_calls:
+        placeholder_count = 0
+        for call in editor_calls:
+            if not isinstance(call, dict):
+                return ["seed_template editor_calls entries must be objects"]
+            args = call.get("args")
+            if not isinstance(args, dict):
+                return ["seed_template editor_calls entries must include args"]
+            placeholder_count += _count_placeholder_occurrences(args)
+        if placeholder_count != 1:
+            return [
+                "seed_template must place {{PAYLOAD_TEXT}} in exactly one editor_calls[*].args field"
+            ]
+        return []
+
+    mechanism = seed_template.get("mechanism")
+    if mechanism not in {"api", "form"}:
+        return ["seed_template mechanism must be one of {'api', 'form'}"]
 
     api_calls = seed_template.get("api_calls")
     if not isinstance(api_calls, list):
@@ -215,18 +268,54 @@ def validate_seed_template_contract(seed_template: object) -> list[str]:
     for call in api_calls:
         if not isinstance(call, dict):
             return [f"{mechanism} seed_template api_calls entries must be objects"]
-        if not isinstance(call.get("target"), dict):
-            return [
-                "seed_template api_calls must use target-based calls; concrete path/url is execution back-compat only"
-            ]
+        if "target" in call:
+            return ["seed_template api_calls must not use target-based calls; use editor_calls"]
         body = call.get(expected_body_key)
         if isinstance(body, dict):
             placeholder_count += _count_placeholder_occurrences(body)
     if placeholder_count != 1:
-        return [
-            f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one {expected_body_key} field"
-        ]
+        return [f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one {expected_body_key} field"]
     return []
+
+
+def _validate_editor_calls(editor_calls: object) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(editor_calls, list) or not editor_calls:
+        return ["editor data seed must include a non-empty editor_calls list"]
+    for call in editor_calls:
+        if not isinstance(call, dict):
+            errors.append("editor_calls entries must be objects")
+            continue
+        benchmark = call.get("benchmark")
+        if benchmark is not None and (not isinstance(benchmark, str) or not benchmark.strip()):
+            errors.append("editor_calls benchmark must be a non-empty string when provided")
+        site_name = str(call.get("site") or "").strip().lower()
+        if not site_name:
+            errors.append("editor_calls entries must include site")
+        method_name = str(call.get("method") or "").strip()
+        if not method_name:
+            errors.append("editor_calls entries must include method")
+        elif method_name.startswith("_"):
+            errors.append("editor_calls method must not be private")
+        else:
+            benchmark_name = str(call.get("benchmark") or "webarena_verified").strip() or "webarena_verified"
+            if site_name in _KNOWN_EDITOR_SITES and (site_name, method_name) not in _EDITOR_DELIVERY_PATHS:
+                errors.append(
+                    f"editor_calls method {method_name!r} is not supported for {(benchmark_name, site_name)!r}"
+                )
+        if not isinstance(call.get("args"), dict):
+            errors.append("editor_calls entries must include args as an object")
+            continue
+        for selector in ("project_id", "issue_iid", "mr_iid"):
+            value = call["args"].get(selector)
+            if site_name != "gitlab" or value in (None, ""):
+                continue
+            if isinstance(value, str) and value.startswith("{") and value.endswith("}"):
+                continue
+            errors.append(
+                f"editor_calls gitlab selector {selector!r} must come from prior seed context, not a literal value"
+            )
+    return errors
 
 
 def _count_placeholder_occurrences(value: object) -> int:
@@ -891,6 +980,14 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                     )
 
                 if is_plan:
+                    expected_seed_site = _effective_task_site(merged)
+                    site_mismatch = _validate_editor_seed_sites(
+                        task.get("seed_template"),
+                        expected_site=expected_seed_site,
+                        field_name="seed_template",
+                    )
+                    if site_mismatch is not None:
+                        errors.append(f"{prefix} {site_mismatch}")
                     attack_write = _extract_attack_write(seed_template)
                     if attack_write is None:
                         errors.append(
@@ -941,6 +1038,14 @@ def validate_adversarial_tasks(data: object) -> list[str]:
                                 f"{prefix} delivery_mechanism={delivery_mechanism!r} does not match "
                                 "the mechanism declared in adversarial_data_seed"
                             )
+                        expected_seed_site = _effective_task_site(merged)
+                        site_mismatch = _validate_editor_seed_sites(
+                            task.get("adversarial_data_seed"),
+                            expected_site=expected_seed_site,
+                            field_name="adversarial_data_seed",
+                        )
+                        if site_mismatch is not None:
+                            errors.append(f"{prefix} {site_mismatch}")
                         violating_target = next(
                             (
                                 seed_write
@@ -1016,7 +1121,7 @@ def _validate_finalized_http_seed_contract(
 ) -> str | None:
     if not isinstance(seed, dict):
         return None
-    if seed.get("mechanism") not in {"api", "form"}:
+    if seed.get("mechanism") not in {"api", "form"} and not seed.get("editor_calls"):
         return None
     if not isinstance(delivery_channel, dict):
         return None
@@ -1040,25 +1145,28 @@ def _validate_finalized_http_seed_contract(
 def _find_unresolved_http_seed_reference(
     seed: dict[str, object], delivery_channel: dict[str, object]
 ) -> str | None:
-    api_calls = seed.get("api_calls")
-    if not isinstance(api_calls, list):
+    calls = _seed_calls(seed)
+    if not calls:
         return None
 
-    body_key = "body_form" if seed.get("mechanism") == "form" else "body"
     required_body_field = delivery_channel.get("body_field")
-    for index, call in enumerate(api_calls):
+    for index, call in enumerate(calls):
         if not isinstance(call, dict):
             continue
         path = _call_delivery_path(call)
-        if not isinstance(call.get("target"), dict) and isinstance(path, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(path):
+        if (
+            isinstance(path, str)
+            and not isinstance(call.get("args"), dict)
+            and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(path)
+        ):
             return f"adversarial_data_seed api_calls[{index}].path contains unresolved placeholders"
-        if _has_conflicting_nested_review_body(call, body_key):
+        if _has_conflicting_nested_review_body(call, _call_body_key(seed, call)):
             return (
                 f"adversarial_data_seed api_calls[{index}] mixes top-level review fields with "
                 "body.review; use exactly one shopping review body shape"
             )
         if isinstance(required_body_field, str):
-            value = _call_body_field_value(call, body_key, required_body_field)
+            value = _call_body_field_value(call, _call_body_key(seed, call), required_body_field)
             if isinstance(value, str) and _UNRESOLVED_HTTP_TEMPLATE_TOKEN.search(value):
                 return (
                     "adversarial_data_seed contains unresolved placeholders in the required "
@@ -1085,8 +1193,8 @@ def _find_unresolved_http_seed_reference(
                 return f"delivery_channel.postcondition.where[{column_name!r}] body_field must be non-empty"
             if all(
                 not isinstance(call, dict)
-                or _call_body_field_value(call, body_key, source_value) is None
-                for call in api_calls
+                or _call_body_field_value(call, _call_body_key(seed, call), source_value) is None
+                for call in calls
             ):
                 return (
                     f"delivery_channel.postcondition.where[{column_name!r}] references missing "
@@ -1098,7 +1206,7 @@ def _find_unresolved_http_seed_reference(
             if all(
                 not isinstance(call, dict)
                 or not _call_satisfies_path_param(call, source_value)
-                for call in api_calls
+                for call in calls
             ):
                 return (
                     f"delivery_channel.postcondition.where[{column_name!r}] path_param {source_value!r} "
@@ -1108,6 +1216,14 @@ def _find_unresolved_http_seed_reference(
 
 
 def _call_body_field_value(call: dict[str, object], body_key: str, field_name: str) -> object | None:
+    editor_args = call.get("args")
+    if isinstance(editor_args, dict):
+        if field_name in editor_args:
+            return editor_args[field_name]
+        alias = _editor_arg_name(call, field_name)
+        if alias and alias in editor_args:
+            return editor_args[alias]
+        return _find_nested_field(editor_args, field_name)
     body = call.get(body_key)
     if isinstance(body, dict):
         if field_name in body:
@@ -1115,16 +1231,6 @@ def _call_body_field_value(call: dict[str, object], body_key: str, field_name: s
         nested_review = body.get("review")
         if isinstance(nested_review, dict) and field_name in nested_review:
             return nested_review[field_name]
-
-    target = call.get("target")
-    if isinstance(target, dict):
-        for verb_key in ("create", "update"):
-            verb_payload = target.get(verb_key)
-            if not isinstance(verb_payload, dict):
-                continue
-            resolved = _find_nested_field(verb_payload, field_name)
-            if resolved is not None:
-                return resolved
     return None
 
 
@@ -1225,35 +1331,33 @@ def _extract_seed_writes(
 ) -> list[dict[str, object]] | None:
     if not isinstance(seed, dict):
         return None
-
-    mechanism = seed.get("mechanism")
-    if mechanism in {"api", "form", "upload"}:
-        api_calls = seed.get("api_calls")
-        if not isinstance(api_calls, list) or not api_calls:
+    calls = _seed_calls(seed)
+    if not calls:
+        return None
+    writes: list[dict[str, object]] = []
+    for call in calls:
+        if not isinstance(call, dict):
             return None
-        writes: list[dict[str, object]] = []
-        body_key = "body_form" if mechanism == "form" else "body"
-        for call in api_calls:
-            if not isinstance(call, dict):
-                return None
-            method = _call_method(call)
-            path = _call_delivery_path(call)
-            if not isinstance(method, str) or not method.strip():
-                return None
-            if not isinstance(path, str):
-                return None
-            fields: set[str] = set()
-            fields.update(_call_body_fields(call, body_key).keys())
-            writes.append(
-                {
-                    "mechanism": str(mechanism),
-                    "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
-                    "fields": fields,
-                }
-            )
-        return writes
-
-    return None
+        method = _call_method(call)
+        path = _call_delivery_path(call)
+        mechanism = _call_delivery_mechanism(seed, call)
+        if not isinstance(method, str) or not method.strip():
+            return None
+        if not isinstance(path, str) or not isinstance(mechanism, str):
+            return None
+        body_key = _call_body_key(seed, call)
+        fields: set[str] = set()
+        fields.update(_call_body_fields(call, body_key).keys())
+        writes.append(
+            {
+                "site": _call_site(call),
+                "mechanism": mechanism,
+                "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
+                "fields": fields,
+                "field_mode": "contains" if isinstance(call.get("args"), dict) else "exact",
+            }
+        )
+    return writes
 
 
 def _extract_seed_target(seed: dict[str, object] | object) -> tuple[str, str] | None:
@@ -1296,6 +1400,13 @@ def _surface_matches_write(
         canonical = _canonical_delivery_channel_entry(entry)
         if canonical is None:
             continue
+        delivery_site = entry.get("delivery_site")
+        write_site = write.get("site")
+        if isinstance(delivery_site, str) and delivery_site.strip():
+            if write_site not in (None, "", delivery_site.strip()):
+                if closest_mismatch is None:
+                    closest_mismatch = _format_entry_match(entry)
+                continue
         if canonical != (write.get("mechanism"), write.get("resource")):
             if closest_mismatch is None:
                 closest_mismatch = _format_entry_match(entry)
@@ -1305,9 +1416,12 @@ def _surface_matches_write(
         if (
             isinstance(expected_field, str)
             and isinstance(write_fields, set)
-            and write_fields == {expected_field}
         ):
-            return None
+            field_mode = write.get("field_mode")
+            if field_mode == "contains" and expected_field in write_fields:
+                return None
+            if field_mode != "contains" and write_fields == {expected_field}:
+                return None
         if closest_mismatch is None:
             closest_mismatch = _format_entry_match(entry)
     return closest_mismatch
@@ -1327,56 +1441,57 @@ def _surface_matches_write(
 def _extract_attack_write(seed: dict[str, object] | object) -> dict[str, object] | None:
     if not isinstance(seed, dict):
         return None
-    mechanism = seed.get("mechanism")
-    if mechanism in {"api", "form"}:
-        api_calls = seed.get("api_calls")
-        if not isinstance(api_calls, list) or not api_calls:
+    calls = _seed_calls(seed)
+    if not calls:
+        return None
+    matches: list[dict[str, object]] = []
+    for call in calls:
+        if not isinstance(call, dict):
             return None
-        matches: list[dict[str, object]] = []
-        body_key = "body_form" if mechanism == "form" else "body"
-        for call in api_calls:
-            if not isinstance(call, dict):
-                return None
-            method = _call_method(call)
-            path = _call_delivery_path(call)
-            if not isinstance(method, str) or not method.strip():
-                return None
-            if not isinstance(path, str):
-                return None
-            body = call.get(body_key)
-            if not isinstance(body, dict):
-                continue
-            field_values = _call_body_fields(call, body_key)
-            placeholder_fields = {
-                str(key)
-                for key, value in field_values.items()
-                if isinstance(value, str) and _PAYLOAD_PLACEHOLDER in value
+        method = _call_method(call)
+        path = _call_delivery_path(call)
+        mechanism = _call_delivery_mechanism(seed, call)
+        if not isinstance(method, str) or not isinstance(path, str) or not isinstance(mechanism, str):
+            continue
+        body_key = _call_body_key(seed, call)
+        body = call.get(body_key)
+        if not isinstance(body, dict):
+            continue
+        field_entries = _call_body_field_entries(call, body_key)
+        field_values = _call_body_fields(call, body_key)
+        placeholder_fields_by_source: dict[str, set[str]] = {}
+        placeholder_counts_by_source: dict[str, int] = {}
+        for field_name, value, source_name in field_entries:
+            if isinstance(value, str) and _PAYLOAD_PLACEHOLDER in value:
+                placeholder_fields_by_source.setdefault(source_name, set()).add(field_name)
+                placeholder_counts_by_source.setdefault(
+                    source_name, value.count(_PAYLOAD_PLACEHOLDER)
+                )
+        placeholder_fields: set[str] = set()
+        for source_name, field_names in placeholder_fields_by_source.items():
+            aliased_fields = {field_name for field_name in field_names if field_name != source_name}
+            placeholder_fields.update(aliased_fields or field_names)
+        placeholder_count = sum(placeholder_counts_by_source.values())
+        if placeholder_count <= 0:
+            continue
+        matches.append(
+            {
+                "mechanism": mechanism,
+                "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
+                "fields": set(field_values.keys()),
+                "placeholder_fields": placeholder_fields,
+                "placeholder_count": placeholder_count,
             }
-            placeholder_count = sum(
-                value.count(_PAYLOAD_PLACEHOLDER)
-                for value in field_values.values()
-                if isinstance(value, str)
-            )
-            if placeholder_count <= 0:
-                continue
-            matches.append(
-                {
-                    "mechanism": str(mechanism),
-                    "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
-                    "fields": set(field_values.keys()),
-                    "placeholder_fields": placeholder_fields,
-                    "placeholder_count": placeholder_count,
-                }
-            )
-        return matches[0] if len(matches) == 1 else None
-
-    return None
+        )
+    return matches[0] if len(matches) == 1 else None
 
 
 def _call_satisfies_path_param(call: dict[str, object], path_param: str) -> bool:
     path = _call_delivery_path(call)
     if not isinstance(path, str):
         return False
+    if isinstance(call.get("args"), dict):
+        return f"{{{path_param}}}" in path
     if isinstance(call.get("target"), dict):
         return f"{{{path_param}}}" in path
     return f"{{{path_param}}}" not in path
@@ -1389,6 +1504,12 @@ def _call_delivery_path(call: dict[str, object]) -> str | None:
     url = call.get("url")
     if isinstance(url, str) and url:
         return _url_to_path(url)
+    editor_key = _editor_delivery_key(call)
+    if editor_key is not None:
+        binding = _EDITOR_DELIVERY_PATHS.get(editor_key)
+        if binding is None:
+            return None
+        return binding[1]
     target = call.get("target")
     if not isinstance(target, dict):
         return None
@@ -1406,6 +1527,12 @@ def _call_reference(call: dict[str, object]) -> str | None:
 
 
 def _call_method(call: dict[str, object]) -> str | None:
+    editor_key = _editor_delivery_key(call)
+    if editor_key is not None:
+        binding = _EDITOR_DELIVERY_PATHS.get(editor_key)
+        if binding is None:
+            return None
+        return binding[0]
     method = call.get("method")
     if isinstance(method, str) and method.strip():
         return method
@@ -1428,12 +1555,11 @@ def _url_to_path(url: str) -> str | None:
 
 
 def _contains_deferred_map_target(seed: dict[str, object]) -> bool:
-    api_calls = seed.get("api_calls")
-    if not isinstance(api_calls, list):
-        return False
-    for call in api_calls:
+    for call in _seed_calls(seed):
         if not isinstance(call, dict):
             continue
+        if str(call.get("site", "")).strip().lower() == "map":
+            return True
         target = call.get("target")
         if not isinstance(target, dict):
             continue
@@ -1478,7 +1604,7 @@ def _surface_matches_attack_write(
         if (
             isinstance(expected_field, str)
             and isinstance(placeholder_fields, set)
-            and placeholder_fields == {expected_field}
+            and expected_field in placeholder_fields
             and write.get("placeholder_count") == 1
         ):
             return None
@@ -1577,24 +1703,23 @@ def _extract_target_field_values(
 ) -> list[str]:
     if not isinstance(seed, dict):
         return []
-    mechanism = seed.get("mechanism")
-    if mechanism not in {"api", "form", "upload"}:
-        return []
-    api_calls = seed.get("api_calls")
-    seed_targets = _extract_seed_targets(seed)
-    if not isinstance(api_calls, list) or seed_targets is None:
+    calls = _seed_calls(seed)
+    if not calls:
         return []
     values: list[str] = []
-    for call, seed_target in zip(api_calls, seed_targets):
+    for call in calls:
         if not isinstance(call, dict):
             continue
-        for entry in _matching_delivery_entries(surface, seed_target[0]):
-            if _canonical_delivery_channel_entry(entry) != seed_target:
+        mechanism = _call_delivery_mechanism(seed, call)
+        if mechanism not in {"api", "form", "upload"}:
+            continue
+        for entry in surface.get("delivery_channels", []):
+            if not _call_matches_delivery_entry(call, mechanism=mechanism, entry=entry):
                 continue
             body_field = entry.get("body_field")
             if not isinstance(body_field, str) or not body_field:
                 continue
-            body_key = "body_form" if seed_target[0] == "form" else "body"
+            body_key = _call_body_key(seed, call)
             value = _call_body_field_value(call, body_key, body_field)
             if value is not None:
                 values.append(_normalize_payload_value(value))
@@ -1611,6 +1736,42 @@ def _seed_matches_surface_channel(
     return any(_surface_matches_write(surface, write) is None for write in writes)
 
 
+def _validate_editor_seed_sites(
+    seed: object, *, expected_site: str, field_name: str = "adversarial_data_seed"
+) -> str | None:
+    if not isinstance(seed, dict) or not expected_site:
+        return None
+    for index, call in enumerate(_seed_calls(seed)):
+        if not isinstance(call, dict) or not isinstance(call.get("args"), dict):
+            continue
+        site_name = _call_site(call)
+        if site_name and site_name != expected_site:
+            return (
+                f"{field_name} editor_calls[{index}].site {site_name!r} "
+                f"must match delivery site {expected_site!r}"
+            )
+    return None
+
+
+def _effective_task_site(task: dict[str, object]) -> str:
+    delivery_channel = task.get("delivery_channel")
+    if isinstance(delivery_channel, dict):
+        delivery_site = delivery_channel.get("delivery_site")
+        if isinstance(delivery_site, str) and delivery_site.strip():
+            return delivery_site.strip()
+    site_name = task.get("site")
+    if isinstance(site_name, str):
+        return site_name.strip()
+    return ""
+
+
+def _call_site(call: dict[str, object]) -> str | None:
+    site_name = call.get("site")
+    if isinstance(site_name, str) and site_name.strip():
+        return site_name.strip()
+    return None
+
+
 def _normalize_payload_value(value: object) -> str:
     if isinstance(value, str):
         return "".join(value.split()).lower()
@@ -1618,13 +1779,128 @@ def _normalize_payload_value(value: object) -> str:
 
 
 def _call_body_fields(call: dict[str, object], body_key: str) -> dict[str, object]:
+    return {
+        field_name: value
+        for field_name, value, _source_name in _call_body_field_entries(call, body_key)
+    }
+
+
+def _call_body_field_entries(
+    call: dict[str, object], body_key: str
+) -> list[tuple[str, object, str]]:
+    editor_args = call.get("args")
+    if isinstance(editor_args, dict):
+        editor_key = _editor_delivery_key(call)
+        if editor_key in {
+            ("shopping", "update_customer_profile"),
+            ("shopping_admin", "update_admin_profile"),
+        }:
+            field_name = str(editor_args.get("field") or "").strip()
+            if field_name:
+                return [(field_name, editor_args.get("value"), "value")]
+        fields = [(str(key), value, str(key)) for key, value in editor_args.items()]
+        field_names = {field_name for field_name, _value, _source_name in fields}
+        for canonical_name, arg_name in _editor_arg_alias_pairs(call):
+            if arg_name in editor_args and canonical_name not in field_names:
+                fields.append((canonical_name, editor_args[arg_name], arg_name))
+                field_names.add(canonical_name)
+        dynamic_field = editor_args.get("field")
+        if isinstance(dynamic_field, str) and dynamic_field.strip() and "value" in editor_args:
+            fields.append((dynamic_field.strip(), editor_args["value"], "value"))
+        return fields
     body = call.get(body_key)
     if not isinstance(body, dict):
-        return {}
+        return []
     nested_review = body.get("review")
     if isinstance(nested_review, dict) and all(str(key) == "review" for key in body):
-        return {str(key): value for key, value in nested_review.items()}
-    return {str(key): value for key, value in body.items() if str(key) != "review"}
+        return [(str(key), value, str(key)) for key, value in nested_review.items()]
+    return [
+        (str(key), value, str(key))
+        for key, value in body.items()
+        if str(key) != "review"
+    ]
+
+
+def _seed_calls(seed: dict[str, object]) -> list[dict[str, object]]:
+    calls: list[dict[str, object]] = []
+    api_calls = seed.get("api_calls")
+    if isinstance(api_calls, list):
+        calls.extend(call for call in api_calls if isinstance(call, dict))
+    editor_calls = seed.get("editor_calls")
+    if isinstance(editor_calls, list):
+        calls.extend(call for call in editor_calls if isinstance(call, dict))
+    return calls
+
+
+def _call_body_key(seed: dict[str, object], call: dict[str, object]) -> str:
+    if isinstance(call.get("args"), dict):
+        return "args"
+    return "body_form" if seed.get("mechanism") == "form" else "body"
+
+
+def _call_matches_delivery_entry(
+    call: dict[str, object],
+    *,
+    mechanism: str,
+    entry: object,
+) -> bool:
+    if not isinstance(entry, dict) or entry.get("mechanism") != mechanism:
+        return False
+    path = _call_delivery_path(call)
+    method = _call_method(call)
+    path_template = entry.get("path_template")
+    entry_method = entry.get("method")
+    if (
+        not isinstance(path, str)
+        or not isinstance(method, str)
+        or not isinstance(path_template, str)
+        or not isinstance(entry_method, str)
+    ):
+        return False
+    return (
+        entry_method.strip().upper() == method.strip().upper()
+        and _normalize_delivery_path(path_template) == _normalize_delivery_path(path)
+    )
+
+
+def _editor_delivery_key(call: dict[str, object]) -> tuple[str, str] | None:
+    site_name = str(call.get("site", "")).strip().lower()
+    method_name = str(call.get("method", "")).strip()
+    if site_name and method_name and isinstance(call.get("args"), dict):
+        return (site_name, method_name)
+    return None
+
+
+def _editor_arg_alias_pairs(call: dict[str, object]) -> list[tuple[str, str]]:
+    editor_key = _editor_delivery_key(call)
+    if editor_key is None:
+        return []
+    aliases = _EDITOR_BODY_FIELD_ALIASES.get(editor_key)
+    if not isinstance(aliases, dict):
+        return []
+    return [(str(canonical), str(arg_name)) for canonical, arg_name in aliases.items()]
+
+
+def _editor_arg_name(call: dict[str, object], canonical_name: str) -> str | None:
+    for canonical, arg_name in _editor_arg_alias_pairs(call):
+        if canonical == canonical_name:
+            return arg_name
+    return None
+
+
+def _call_delivery_mechanism(seed: dict[str, object], call: dict[str, object]) -> str | None:
+    editor_key = _editor_delivery_key(call)
+    if editor_key is not None:
+        if editor_key[0] == "reddit" or editor_key in {
+            ("shopping", "update_customer_profile"),
+            ("shopping_admin", "update_admin_profile"),
+        }:
+            return "form"
+        return "api"
+    mechanism = seed.get("mechanism")
+    if isinstance(mechanism, str) and mechanism in {"api", "form"}:
+        return mechanism
+    return None
 
 
 def _format_entry_match(entry: dict[str, object]) -> str:

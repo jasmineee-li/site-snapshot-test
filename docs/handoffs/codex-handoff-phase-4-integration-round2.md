@@ -312,74 +312,96 @@ Per the inventory agent's full breakdown:
 
 ## 7. Migration plan
 
-Order of operations (and recommended commit structure):
+Land the whole pivot as **one commit at the end**, after pytest and the live
+integration tests are both green. Don't split into staged commits — the pivot
+is an atomic architecture swap and partial states don't run cleanly. Work
+directly in the tree, verify, then commit once.
 
-### Commit 1: `feat(editors): introduce editors/ package with BaseSiteEditor + EditorError`
-- Add `worldsim/editors/__init__.py`, `base.py` with `BaseSiteEditor`, `EditorError`, `EDITOR_REGISTRY` (empty dict initially).
-- Unit tests for `BaseSiteEditor.cleanup` (stack drains LIFO, per-op exceptions logged not raised).
-- No behavior change — new code, unused.
+Do the work in this order (no commits between steps):
 
-### Commit 2: `feat(editors): implement GitlabEditor + ShoppingEditor + ShoppingAdminEditor + RedditEditor`
-- All four editors with full method coverage per §4.
-- Port reusable HTTP helpers from `seed_resolvers/gitlab.py` etc. into editor private methods or `editors/_http.py` shared module.
-- Port `_auth_username` / `_nested_lookup` from reddit.py; move into `RedditEditor`.
-- Register editors in `EDITOR_REGISTRY`.
-- Unit tests per-editor, matching existing `test_seed_resolver_*.py` coverage (see §8).
-- Still no behavior change — editors exist but nothing calls them.
+1. **Add `worldsim/editors/` package.** `__init__.py` exports
+   `EDITOR_REGISTRY`; `base.py` defines `BaseSiteEditor` + `EditorError` +
+   the cleanup-stack protocol. Then implement `gitlab.py`, `shopping.py`,
+   `shopping_admin.py` (subclasses `ShoppingEditor`), `reddit.py` with full
+   method coverage per §4. Port reusable HTTP/auth helpers out of the old
+   `seed_resolvers/` modules as you go — either into editor private methods
+   or a shared `editors/_http.py`. Port reddit's `_auth_username` /
+   `_nested_lookup` with the 7-path lookup intact.
 
-### Commit 3: `feat(seeding): dispatch via editors, delete resolver package, delete DB postcondition`
-- Rewrite `_apply_http_seed_call` to instantiate editor from `editor_calls[*]` shape, call method, stack cleanup.
-- Delete `_verify_http_seed_postcondition`, `_verify_db_row_value_postcondition`, `_select_db_values`, `_extract_path_params`, `_resolve_postcondition_source`.
-- Delete `worldsim/seed_resolvers/` entirely.
-- Update `validate_data_seed` for new shape.
-- Update `phase_4_adversarial.preflight_adversarial_seed` to call `editor.validate_args` and `editor.probe_base_state`.
-- Delete `_preflight_mismatch_from_error` (no more regex classification).
-- Tests stay green at each step.
+2. **Rewrite `worldsim/seeding.py` to dispatch via editors.** New
+   `_apply_http_seed_call` instantiates editor from `editor_calls[*]` shape,
+   invokes the named method, stacks cleanup. Delete
+   `_verify_http_seed_postcondition`, `_verify_db_row_value_postcondition`,
+   `_select_db_values`, `_extract_path_params`,
+   `_resolve_postcondition_source` — all DB-postcondition machinery goes.
+   Update `validate_data_seed` for the new shape.
 
-### Commit 4: `feat(phase2): migrate adversarial_tasks.json to editor_calls[] shape`
-- New `scripts/migrate_phase_2_to_editor_calls.py` (~150 LOC).
-- One-shot rewrite of `logs/phase_2/adversarial_tasks.json` from `target.create.<resource>` shape to `editor_calls[*]` shape.
-- Mapping table per resource_type → editor.method:
-  - `product_review` → `shopping.create_product_review` (or shopping_admin)
-  - `issue` → `gitlab.create_issue`
-  - `issue_note` → `gitlab.create_issue_note`
-  - `mr` → `gitlab.create_mr`
-  - `mr_note` → `gitlab.create_mr_note`
-  - `project` → `gitlab.create_project`
-  - `group` → `gitlab.create_group`
-  - `repo_file` → `gitlab.create_repo_file`
-  - `user_status` → `gitlab.update_user_status`
-  - `user_profile` → `gitlab.update_user_profile`
-  - `forum` → `reddit.create_forum`
-  - `submission` → `reddit.create_submission`
-  - `comment` → `reddit.create_comment`
-- Idempotent (detect already-migrated via presence of `editor_calls` key).
-- Rewrite `adversarial_tasks.json` in place. **No `.bak` file** — git is the backup.
-- Delete old migration scripts (`migrate_phase_2_seeds_to_targets.py`, `fix_migration_payload_duplication.py`).
-- Update `tests/test_migrate_*` to match new script; delete obsolete ones.
+3. **Rewrite Phase 4 preflight.** In
+   `worldsim/phases/phase_4_adversarial.py`, replace the regex-classifier
+   preflight with direct calls to `editor.validate_args` and
+   `editor.probe_base_state`. Delete `_preflight_mismatch_from_error`.
 
-### Commit 5: `feat(phase2): update Phase 2 generator to emit editor_calls shape`
-- Rewrite the Phase 2 sandbox prompt in `worldsim/phases/phase_2_injections.py` + `phase_2_text_fill.py` to emit `editor_calls[*]` directly.
-- Update `_validate_finalized_http_seed_contract` accordingly (~60 LOC).
-- Phase 2 tests update.
+4. **Delete `worldsim/seed_resolvers/` entirely.** All 7 files. Same commit.
 
-### Commit 6: `test(integration): add scripts/run_integration_tests.sh + per-site live tests`
-- `scripts/run_integration_tests.sh` reads `configs/benchmark_hosts/*.yaml`, exports `LIVE_INSTANCE_URL_<site>` env vars, runs `uv run pytest -m integration tests/integration/`.
-- `tests/integration/test_gitlab_editor_live.py` — auth probe, create_project idempotency (run twice, second reuses), create_issue, create_mr_note chain, update_user_status, cleanup.
-- `tests/integration/test_reddit_editor_live.py` — create_forum, create_submission, create_comment, update_user_bio.
-- `tests/integration/test_shopping_editor_live.py` — create_product_review, update_customer_profile.
-- `tests/integration/test_shopping_admin_editor_live.py` — update_admin_profile.
-- Each test cleans up its resources. Run on r5 from your local; include summary in the PR description.
+5. **Migrate the dataset.** Replace `scripts/migrate_phase_2_seeds_to_targets
+   .py` with (or rewrite it as) a one-shot editor-calls rewriter (~150 LOC).
+   Run it once against `logs/phase_2/adversarial_tasks.json` to convert all
+   236 in-scope tasks from `target.create.<resource>` shape to
+   `editor_calls[*]` shape. Commit the rewritten JSON — no `.bak`, git is
+   the backup. Delete `scripts/fix_migration_payload_duplication.py`.
+   Mapping table per resource_type → editor.method:
+   - `product_review` → `shopping.create_product_review` (or shopping_admin)
+   - `issue` → `gitlab.create_issue`
+   - `issue_note` → `gitlab.create_issue_note`
+   - `mr` → `gitlab.create_mr`
+   - `mr_note` → `gitlab.create_mr_note`
+   - `project` → `gitlab.create_project`
+   - `group` → `gitlab.create_group`
+   - `repo_file` → `gitlab.create_repo_file`
+   - `user_status` → `gitlab.update_user_status`
+   - `user_profile` → `gitlab.update_user_profile`
+   - `forum` → `reddit.create_forum`
+   - `submission` → `reddit.create_submission`
+   - `comment` → `reddit.create_comment`
+   Migrator must be idempotent (detect `editor_calls` key → no-op). Update
+   `tests/test_migrate_*` accordingly.
 
-### Commit 7: `docs: supersede item #14 handoff with editor-pivot reference`
-- Update `docs/handoffs/codex-handoff-setup-hardening.md` §14 to note "superseded by docs/handoffs/codex-handoff-phase-4-integration-round2.md".
-- Keep `docs/handoffs/codex-handoff-setup-hardening-research.md` as the research anchor.
+6. **Update the Phase 2 generator.** Rewrite the sandbox prompt in
+   `worldsim/phases/phase_2_injections.py` + `phase_2_text_fill.py` to emit
+   `editor_calls[*]` directly. Slim `_validate_finalized_http_seed_contract`
+   (~60 LOC). Update Phase 2 tests.
+
+7. **Update unit tests.** Rename/rewrite `tests/test_seed_resolver_*.py` as
+   per-editor tests with the same coverage surface. Keep
+   `tests/test_seed_preflight.py` but update for the new error taxonomy.
+   Update `tests/test_seeding.py` and `tests/test_phase_4_adversarial.py`.
+
+8. **Add live integration tests.** `scripts/run_integration_tests.sh` reads
+   `configs/benchmark_hosts/*.yaml`, exports `LIVE_INSTANCE_URL_<site>` env
+   vars, runs `uv run pytest -m integration tests/integration/`. Add
+   `tests/integration/test_<site>_editor_live.py` per §8 coverage
+   requirements. Each test cleans up its resources.
+
+9. **Update docs.** In `docs/handoffs/codex-handoff-setup-hardening.md`, mark
+   §14 superseded by this handoff. Keep
+   `docs/handoffs/codex-handoff-setup-hardening-research.md` as the research
+   anchor.
+
+**Before committing:** `uv run pytest tests/ -q` green, then
+`scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5
+.yaml` green against the live r5 stack. Capture the integration-test output
+for the commit message.
+
+**Commit message:** summarize the pivot (WASP-style editor architecture,
+resolver package + DB postcondition deleted), list file-level changes
+(editors/ added, seed_resolvers/ deleted, migrations, tests), paste the
+integration-test summary, cite this handoff + the superseded item #14.
 
 ---
 
 ## 8. Integration tests — the durable fix
 
-Per the new `CLAUDE.md` section, any PR touching `worldsim/seed_resolvers/**` (or its editor-era replacement `worldsim/editors/**`), `worldsim/seeding.py`, or `worldsim/phases/phase_4_adversarial.py` must run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` and paste the output in the PR description.
+Per the new `CLAUDE.md` section, any change touching `worldsim/editors/**`, `worldsim/seeding.py`, or `worldsim/phases/phase_4_adversarial.py` must run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` and include the output in the commit message (or PR description, if opened).
 
 Minimum coverage per editor:
 1. `probe_base_state` returns cleanly.
@@ -395,7 +417,7 @@ Integration tests catch exactly the class of bug that bit us tonight: assumption
 
 ## 9. Acceptance criteria
 
-1. `uv run pytest tests/ -q` — all green after all 7 commits land.
+1. `uv run pytest tests/ -q` — all green before the pivot commit lands.
 2. `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` — all editor integration tests pass against live r5 stack.
 3. Demo Phase 4 run:
    ```
@@ -409,9 +431,9 @@ Integration tests catch exactly the class of bug that bit us tonight: assumption
    Expected summary: `Phase 4 complete — 6 tasks: N complied, M variant_success, K resistant, ... 0 error, 0 seed_preflight_mismatch` (N + M + K > 0).
 4. No `WORLDSIM_SKIP_DB_POSTCONDITION` env var needed. No DB connection from orchestrator during seed apply.
 5. `scripts/cleanup_webagent_test_resources.sh` (new) — sweeps `webagent-task-*`-named resources from r5 containers between runs.
-6. PR description includes:
-   - `pytest tests/` output (all green)
-   - `scripts/run_integration_tests.sh` output (all green)
+6. Commit message includes:
+   - `pytest tests/` output summary (all green)
+   - `scripts/run_integration_tests.sh` output summary (all green)
    - Demo Phase 4 summary line
    - Before/after LOC diff per the §6 table
    - Cross-reference to this handoff and the superseded item #14
@@ -433,7 +455,7 @@ The inventory flagged WASP's own weaknesses. Carry these improvements through:
 
 ## 11. What this pivot costs
 
-- **~4 days focused codex work** (commits 2, 3, 5 are the heavy ones; commits 1, 4, 6, 7 are scaffolding).
+- **~4 days focused codex work**, landing as one atomic commit after pytest and live integration tests are both green.
 - **Writes off some of tonight's investment** in the resolver package, but preserves:
   - Auth-token acquisition (`worldsim/auth_tokens.py`)
   - HTTP/CSRF/auth header helpers (`seeding.py`)

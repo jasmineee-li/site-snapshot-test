@@ -1,18 +1,14 @@
-#!/usr/bin/env python3
-"""Rewrite legacy Phase 2 seed calls to target.create|target.update and quarantine map."""
-
 from __future__ import annotations
 
 import argparse
 import json
 import re
-import urllib.parse
+import tempfile
 from pathlib import Path
 from typing import Any
 
-DEFAULT_QUARANTINE_SITES = ("map",)
-_PAYLOAD_PLACEHOLDER = "{{PAYLOAD_TEXT}}"
-_PAYLOAD_PLACEHOLDER_RE = re.compile(r"\{\{PAYLOAD_TEXT\}\}")
+DEFAULT_PATH = Path("logs/phase_2/adversarial_tasks.json")
+DEFAULT_QUARANTINE = Path("logs/phase_2/adversarial_tasks.map_quarantine.json")
 _EMBEDDED_SECRET_PATTERNS = (
     (
         re.compile(r"(?i)\b(Bearer)\s+([^\s'\"`]+)"),
@@ -33,572 +29,364 @@ _EMBEDDED_SECRET_PATTERNS = (
 )
 
 
+def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
+    target = call.get("target")
+    if not isinstance(target, dict):
+        raise ValueError("call is missing target")
+    benchmark = str(target.get("benchmark") or "webarena_verified").strip() or "webarena_verified"
+    site = str(target.get("site", "")).strip().lower()
+    resource_type = str(target.get("resource_type", "")).strip().lower()
+    create_spec = target.get("create") if isinstance(target.get("create"), dict) else {}
+    update_spec = target.get("update") if isinstance(target.get("update"), dict) else {}
+    body = call.get("body") if isinstance(call.get("body"), dict) else {}
+    body_form = call.get("body_form") if isinstance(call.get("body_form"), dict) else {}
+
+    if site == "shopping" and resource_type == "product_review":
+        review = (
+            create_spec.get("product_review")
+            if isinstance(create_spec.get("product_review"), dict)
+            else {}
+        )
+        rating_value = 4
+        ratings = review.get("ratings")
+        if isinstance(ratings, list) and ratings and isinstance(ratings[0], dict):
+            rating_value = int(ratings[0].get("value") or 4)
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_product_review",
+            "args": {
+                "title": body.get("title", review.get("title")),
+                "detail": body.get("detail", review.get("detail")),
+                "nickname": body.get("nickname", review.get("nickname")),
+                "entity_pk_value": body.get("entity_pk_value", review.get("entity_pk_value")),
+                "rating": rating_value,
+            },
+        }
+
+    if site == "shopping" and resource_type == "customer_profile":
+        field, value = next(iter(body.items()), (None, None))
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "update_customer_profile",
+            "args": {
+                "field": field,
+                "value": value,
+            },
+        }
+
+    if site == "reddit" and resource_type == "forum":
+        forum = create_spec.get("forum") if isinstance(create_spec.get("forum"), dict) else {}
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_forum",
+            "args": {
+                "name_template": body_form.get("forum[name]", forum.get("name_template")),
+                "description_template": body_form.get(
+                    "forum[description]",
+                    forum.get("description_template"),
+                ),
+            },
+        }
+
+    if site == "reddit" and resource_type == "submission":
+        forum = create_spec.get("forum") if isinstance(create_spec.get("forum"), dict) else {}
+        submission = (
+            create_spec.get("submission") if isinstance(create_spec.get("submission"), dict) else {}
+        )
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_submission",
+            "args": {
+                "forum_name": forum.get("name_template", "{forum_name}"),
+                "title_template": body_form.get(
+                    "submission[title]", submission.get("title_template")
+                ),
+                "body_template": body_form.get("submission[body]", submission.get("body_template")),
+            },
+        }
+
+    if site == "reddit" and resource_type == "comment":
+        forum = create_spec.get("forum") if isinstance(create_spec.get("forum"), dict) else {}
+        comment_body = next(
+            (value for key, value in body_form.items() if key.startswith("reply_to_submission_")),
+            None,
+        )
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_comment",
+            "args": {
+                "forum_name": forum.get("name_template", "{forum_name}"),
+                "submission_id": "{submission_id}",
+                "body": comment_body,
+            },
+        }
+
+    if site == "gitlab" and resource_type == "project":
+        project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_project",
+            "args": {
+                "name_template": body.get("name", project.get("name_template")),
+                "path_template": body.get("path", project.get("path_template")),
+                "description_template": body.get(
+                    "description", project.get("description_template")
+                ),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "group":
+        group = create_spec.get("group") if isinstance(create_spec.get("group"), dict) else {}
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_group",
+            "args": {
+                "name_template": body.get("name", group.get("name_template")),
+                "path_template": body.get("path", group.get("path_template")),
+                "description_template": body.get("description", group.get("description_template")),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "issue":
+        project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_issue",
+            "args": {
+                "project_name_template": project.get("name_template"),
+                "project_path_template": project.get("path_template"),
+                "project_description_template": project.get("description_template"),
+                "title_template": body.get("title"),
+                "body_template": body.get("description", body.get("body")),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "issue_note":
+        project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        issue = create_spec.get("issue") if isinstance(create_spec.get("issue"), dict) else {}
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_issue_note",
+            "args": {
+                "project_name_template": project.get("name_template"),
+                "project_path_template": project.get("path_template"),
+                "project_description_template": project.get("description_template"),
+                "issue_title_template": issue.get("title_template"),
+                "issue_body_template": issue.get("body_template"),
+                "note_body": body.get("body"),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "mr":
+        project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_mr",
+            "args": {
+                "project_name_template": project.get("name_template"),
+                "project_path_template": project.get("path_template"),
+                "project_description_template": project.get("description_template"),
+                "title_template": body.get("title"),
+                "body_template": body.get("description"),
+                "source_branch": body.get("source_branch"),
+                "target_branch": body.get("target_branch"),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "mr_note":
+        project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        merge_request = create_spec.get("mr") if isinstance(create_spec.get("mr"), dict) else {}
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_mr_note",
+            "args": {
+                "project_name_template": project.get("name_template"),
+                "project_path_template": project.get("path_template"),
+                "project_description_template": project.get("description_template"),
+                "mr_title_template": merge_request.get("title_template"),
+                "mr_body_template": merge_request.get("body_template"),
+                "source_branch": merge_request.get("source_branch_template"),
+                "target_branch": merge_request.get("target_branch_template"),
+                "note_body": body.get("body"),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "repo_file":
+        project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        action = {}
+        actions = body.get("actions")
+        if isinstance(actions, list) and actions and isinstance(actions[0], dict):
+            action = actions[0]
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "create_repo_file",
+            "args": {
+                "project_name_template": project.get("name_template"),
+                "project_path_template": project.get("path_template"),
+                "project_description_template": project.get("description_template"),
+                "branch": body.get("branch"),
+                "path": action.get("file_path"),
+                "content": action.get("content"),
+                "commit_message": body.get("commit_message"),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "user_status":
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "update_user_status",
+            "args": {
+                "message": body.get("message"),
+                "emoji": body.get("emoji"),
+            },
+        }
+
+    if site == "gitlab" and resource_type == "user_profile":
+        args: dict[str, Any] = {}
+        if "user[bio]" in body_form or "bio" in body:
+            args["bio"] = body_form.get("user[bio]", body.get("bio"))
+        if "user[name]" in body_form or "name" in body:
+            args["name"] = body_form.get("user[name]", body.get("name"))
+        if args:
+            return {
+                "benchmark": benchmark,
+                "site": site,
+                "method": "update_user_profile",
+                "args": args,
+            }
+        raise ValueError("unsupported gitlab user_profile payload for migration")
+
+    if site == "shopping_admin" and resource_type == "admin_profile":
+        field, value = next(iter(body.items()), (None, None))
+        return {
+            "benchmark": benchmark,
+            "site": site,
+            "method": "update_admin_profile",
+            "args": {
+                "field": field,
+                "value": value,
+            },
+        }
+
+    raise ValueError(f"unsupported target resource for migration: {(site, resource_type)!r}")
+
+
+def _effective_delivery_site(task: dict[str, Any]) -> str:
+    delivery_channel = task.get("delivery_channel")
+    if isinstance(delivery_channel, dict):
+        delivery_site = str(delivery_channel.get("delivery_site") or "").strip().lower()
+        if delivery_site and delivery_site != "none":
+            return delivery_site
+    return str(task.get("site") or "").strip().lower()
+
+
+def migrate_seed(seed: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(seed, dict):
+        return seed
+    api_calls = seed.get("api_calls")
+    existing_editor_calls = (
+        list(seed.get("editor_calls", [])) if isinstance(seed.get("editor_calls"), list) else []
+    )
+    if not isinstance(api_calls, list):
+        return seed
+    editor_calls: list[dict[str, Any]] = list(existing_editor_calls)
+    preserved_api_calls: list[dict[str, Any]] = []
+    converted = 0
+    for call in api_calls:
+        if not isinstance(call, dict):
+            continue
+        target = call.get("target")
+        if not isinstance(target, dict):
+            preserved_api_calls.append(call)
+            continue
+        editor_calls.append(_editor_call_from_target_call(call))
+        converted += 1
+    if converted and preserved_api_calls:
+        raise ValueError("mixed legacy api_calls and target-based calls cannot be migrated safely")
+    if seed.get("mechanism") == "editor" and preserved_api_calls:
+        raise ValueError("editor seeds must not retain legacy api_calls after migration")
+    if converted:
+        seed["editor_calls"] = editor_calls
+        seed["api_calls"] = preserved_api_calls
+        if not preserved_api_calls:
+            seed.pop("api_calls")
+        if seed.get("mechanism") in (None, "api", "form") and "api_calls" not in seed:
+            seed["mechanism"] = "editor"
+    elif existing_editor_calls and not preserved_api_calls:
+        seed.pop("api_calls", None)
+    return seed
+
+
+def migrate_task(task: dict[str, Any]) -> dict[str, Any]:
+    migrated = json.loads(json.dumps(task))
+    for field_name in ("seed_template", "adversarial_data_seed"):
+        seed = migrated.get(field_name)
+        if isinstance(seed, dict):
+            migrated[field_name] = migrate_seed(seed)
+    return _sanitize_task_for_output(migrated)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--path",
-        type=Path,
-        default=Path("logs/phase_2/adversarial_tasks.json"),
-        help="Path to the Phase 2 adversarial task dataset.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Print the migration summary without writing changes.",
-    )
-    parser.add_argument(
-        "--quarantine-sites",
-        default=",".join(DEFAULT_QUARANTINE_SITES),
-        help="Comma-separated site names to quarantine out of the main dataset.",
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--path", type=Path, default=DEFAULT_PATH)
+    parser.add_argument("--quarantine-path", type=Path, default=DEFAULT_QUARANTINE)
     args = parser.parse_args()
 
-    tasks = json.loads(args.path.read_text(encoding="utf-8"))
-    if not isinstance(tasks, list):
-        raise SystemExit(f"{args.path} must contain a JSON list of tasks")
-
-    quarantine_sites = {
-        site.strip().lower() for site in str(args.quarantine_sites).split(",") if site.strip()
-    }
-
-    migrated_main: list[dict[str, Any]] = []
-    quarantined_by_site: dict[str, list[dict[str, Any]]] = {site: [] for site in quarantine_sites}
-    changed = 0
-    skipped = 0
-    unmatched = 0
-    quarantined = 0
-
-    for task in tasks:
-        site_name = _effective_site(task)
-        if site_name in quarantine_sites:
-            quarantined_by_site.setdefault(site_name, []).append(_sanitize_task_for_output(task))
-            quarantined += 1
+    data = json.loads(args.path.read_text())
+    migrated: list[dict[str, Any]] = []
+    quarantined: list[dict[str, Any]] = []
+    for task in data:
+        if not isinstance(task, dict):
             continue
-        updated_task, task_changed, task_skipped, task_unmatched = _migrate_task(task)
-        migrated_main.append(updated_task)
-        changed += task_changed
-        skipped += task_skipped
-        unmatched += task_unmatched
+        if _effective_delivery_site(task) == "map":
+            quarantined.append(_sanitize_task_for_output(task))
+            continue
+        migrated.append(migrate_task(task))
 
-    if changed == 0 and unmatched == 0 and quarantined == 0:
-        print("migrate_phase_2_seeds_to_targets: already migrated, nothing to do")
-        return 0
-
+    _atomic_write_json(args.path, migrated)
+    if quarantined:
+        _atomic_write_json(args.quarantine_path, quarantined)
     print(
-        "migrate_phase_2_seeds_to_targets: "
-        f"changed={changed} skipped={skipped} unmatched_calls={unmatched} quarantined={quarantined}"
+        f"migrated {len(migrated)} tasks to editor_calls"
+        + (f", quarantined {len(quarantined)} map tasks" if quarantined else "")
     )
-    for site_name, items in sorted(quarantined_by_site.items()):
-        if items:
-            print(
-                f"quarantine: site={site_name} count={len(items)} "
-                f"path={_quarantine_path(args.path, site_name)}"
-            )
-
-    if unmatched:
-        print(
-            "migrate_phase_2_seeds_to_targets: keeping unmatched tasks in legacy form; "
-            "main dataset will be written partially migrated"
-        )
-
-    if args.dry_run:
-        return 0
-
-    pending_writes: list[tuple[Path, list[dict[str, Any]]]] = []
-    for site_name, items in sorted(quarantined_by_site.items()):
-        if items:
-            pending_writes.append((_quarantine_path(args.path, site_name), items))
-    pending_writes.append((args.path, migrated_main))
-
-    temp_paths: list[tuple[Path, Path]] = []
-    for final_path, payload in pending_writes:
-        temp_path = final_path.with_name(f"{final_path.name}.tmp")
-        temp_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        temp_paths.append((final_path, temp_path))
-
-    for final_path, temp_path in temp_paths[:-1]:
-        temp_path.replace(final_path)
-        print(f"wrote {final_path}")
-    final_path, temp_path = temp_paths[-1]
-    temp_path.replace(final_path)
-    print(f"updated {final_path}")
     return 0
-
-
-def _quarantine_path(path: Path, site_name: str) -> Path:
-    suffix = path.suffix or ".json"
-    stem = path.name[: -len(suffix)] if path.name.endswith(suffix) else path.name
-    return path.with_name(f"{stem}.{site_name}_quarantine{suffix}")
-
-
-def _migrate_task(task: dict[str, Any]) -> tuple[dict[str, Any], int, int, int]:
-    updated = json.loads(json.dumps(task))
-    changed = 0
-    unmatched = 0
-    skipped = 0
-    saw_unmatched = False
-
-    for seed_key in ("seed_template", "adversarial_data_seed"):
-        seed = updated.get(seed_key)
-        if not isinstance(seed, dict):
-            if seed_key == "adversarial_data_seed":
-                skipped += 1
-            continue
-        api_calls = seed.get("api_calls")
-        if not isinstance(api_calls, list):
-            if seed_key == "adversarial_data_seed":
-                skipped += 1
-            continue
-
-        rewritten_calls: list[dict[str, Any]] = []
-        seed_changed = 0
-        seed_unmatched = 0
-        for call in api_calls:
-            migrated_call, call_changed, call_unmatched = _migrate_call(updated, call)
-            rewritten_calls.append(migrated_call)
-            seed_changed += int(call_changed)
-            seed_unmatched += int(call_unmatched)
-        seed["api_calls"] = rewritten_calls
-        changed += seed_changed
-        unmatched += seed_unmatched
-        if seed_unmatched:
-            saw_unmatched = True
-
-    if saw_unmatched:
-        updated = json.loads(json.dumps(task))
-
-    updated = _sanitize_task_for_output(updated)
-    return updated, int(changed > 0 or updated != task), skipped, unmatched
-
-
-def _migrate_call(task: dict[str, Any], call: dict[str, Any]) -> tuple[dict[str, Any], bool, bool]:
-    if not isinstance(call, dict):
-        return call, False, True
-    if isinstance(call.get("target"), dict):
-        normalized_call = _normalize_target_call(task, call)
-        return normalized_call, normalized_call != call, False
-
-    path = call.get("path") or call.get("url")
-    method = str(call.get("method") or "").strip().upper()
-    if not isinstance(path, str) or not path.strip() or not method:
-        return call, False, True
-
-    normalized_path = _normalize_call_path(task, path.strip())
-    if not isinstance(normalized_path, str):
-        print(
-            f"unmatched: task={task.get('id', '?')} method={method} "
-            f"path={path.strip()!r} reason=off_origin_or_untrusted_absolute_url"
-        )
-        return call, False, True
-
-    target = _target_for_call(task, normalized_path, method, call)
-    if target is None:
-        print(f"unmatched: task={task.get('id', '?')} method={method} path={normalized_path!r}")
-        return call, False, True
-
-    migrated = {key: value for key, value in call.items() if key not in {"path", "url", "method"}}
-    migrated["target"] = target
-    return migrated, True, False
-
-
-def _target_for_call(
-    task: dict[str, Any], path: str, method: str, call: dict[str, Any]
-) -> dict[str, Any] | None:
-    delivery_site = _delivery_site(task)
-    site_name = delivery_site or str(task.get("site", "")).strip()
-
-    update_target = _update_target_for_call(task, path, method, call, site_name=site_name)
-    if update_target is not None:
-        return update_target
-
-    create_target = _create_target_for_call(task, path, method, call, site_name=site_name)
-    if create_target is not None:
-        return create_target
-
-    return None
-
-
-def _create_target_for_call(
-    task: dict[str, Any], path: str, method: str, call: dict[str, Any], *, site_name: str
-) -> dict[str, Any] | None:
-    if method != "POST":
-        return None
-
-    body = call.get("body")
-    body_form = call.get("body_form")
-    task_id = "{task_id}"
-
-    if path == "/rest/V1/reviews":
-        review_spec = _shopping_review_spec(task, call)
-        return _target(
-            site_name or "shopping", "product_review", create={"product_review": review_spec}
-        )
-
-    if path == "/create_forum":
-        return _target(
-            "reddit",
-            "forum",
-            create={
-                "forum": {
-                    "name_template": _reddit_forum_name(task, path=path),
-                    "description_template": f"Forum seeded for task {task_id}",
-                }
-            },
-        )
-
-    if re.fullmatch(r"/submit/[^/]+|/submit/\{forum_name\}", path):
-        return _target(
-            "reddit",
-            "submission",
-            create={
-                "forum": {
-                    "name_template": _reddit_forum_name(task, path=path),
-                    "description_template": f"Forum seeded for task {task_id}",
-                },
-                "submission": {
-                    "title_template": _reddit_submission_title(call),
-                    "body_template": _reddit_submission_body(call),
-                },
-            },
-        )
-
-    if re.fullmatch(r"/f/[^/]+/\d+/-/comment|/f/\{forum_name\}/\{submission_id\}/-/comment", path):
-        return _target(
-            "reddit",
-            "comment",
-            create={
-                "forum": {
-                    "name_template": _reddit_forum_name(task, path=path),
-                    "description_template": f"Forum seeded for task {task_id}",
-                },
-                "submission": {
-                    "title_template": _expected_reddit_post_title(task) or f"Submission {task_id}",
-                    "body_template": _expected_reddit_post_body(task),
-                },
-            },
-        )
-
-    if path == "/api/v4/projects":
-        return _target(
-            "gitlab",
-            "project",
-            create={
-                "project": {
-                    "name_template": _gitlab_project_name(task, body=body, body_form=body_form),
-                    "path_template": _gitlab_project_path(task, body=body, body_form=body_form),
-                }
-            },
-        )
-
-    if path == "/api/v4/groups":
-        return _target(
-            "gitlab",
-            "group",
-            create={
-                "group": {
-                    "name_template": _gitlab_group_name(body),
-                    "path_template": _gitlab_group_path(body),
-                }
-            },
-        )
-
-    if path == "/projects":
-        return _target(
-            "gitlab",
-            "project",
-            create={
-                "project": {
-                    "name_template": _gitlab_project_name(task, body=body, body_form=body_form),
-                    "path_template": _gitlab_project_path(task, body=body, body_form=body_form),
-                }
-            },
-        )
-
-    if path == "/groups":
-        return _target(
-            "gitlab",
-            "group",
-            create={
-                "group": {
-                    "name_template": _gitlab_group_name(body, body_form=body_form),
-                    "path_template": _gitlab_group_path(body, body_form=body_form),
-                }
-            },
-        )
-
-    if re.fullmatch(r"/api/v4/projects/(?:\d+|\{project_id\})/issues", path):
-        return _target(
-            "gitlab",
-            "issue",
-            create={
-                "project": _gitlab_project_spec(task),
-                "issue": {
-                    "title_template": _gitlab_issue_title(body),
-                    "body_template": _gitlab_issue_body(body),
-                },
-            },
-        )
-
-    if re.fullmatch(
-        r"/api/v4/projects/(?:\d+|\{project_id\})/issues/(?:\d+|\{issue_iid\})/notes", path
-    ):
-        return _target(
-            "gitlab",
-            "issue_note",
-            create={
-                "project": _gitlab_project_spec(task),
-                "issue": {
-                    "title_template": f"Seed issue {task_id}",
-                    "body_template": f"Seed issue context for task {task_id}.",
-                },
-            },
-        )
-
-    if re.fullmatch(r"/api/v4/projects/(?:\d+|\{project_id\})/merge_requests", path):
-        return _target(
-            "gitlab",
-            "mr",
-            create={
-                "project": _gitlab_project_spec(task),
-                "mr": {
-                    "title_template": _gitlab_mr_title(body),
-                    "body_template": _gitlab_mr_body(body),
-                    "source_branch_template": _gitlab_mr_source_branch(body),
-                    "target_branch_template": _gitlab_mr_target_branch(body),
-                },
-            },
-        )
-
-    if re.fullmatch(
-        r"/api/v4/projects/(?:\d+|\{project_id\})/merge_requests/(?:\d+|\{mr_iid\})/notes", path
-    ):
-        return _target(
-            "gitlab",
-            "mr_note",
-            create={
-                "project": _gitlab_project_spec(task),
-                "mr": {
-                    "title_template": f"Seed MR {task_id}",
-                    "body_template": f"Seed MR context for task {task_id}.",
-                    "source_branch_template": f"webagent-{task_id}",
-                    "target_branch_template": "main",
-                },
-            },
-        )
-
-    if re.fullmatch(r"/api/v4/projects/(?:\d+|\{project_id\})/repository/commits", path):
-        return _target(
-            "gitlab",
-            "repo_file",
-            create={"project": _gitlab_project_spec(task)},
-        )
-
-    return None
-
-
-def _update_target_for_call(
-    task: dict[str, Any], path: str, method: str, call: dict[str, Any], *, site_name: str
-) -> dict[str, Any] | None:
-    if (method == "PUT" and path == "/api/v4/user") or (method == "POST" and path == "/-/profile"):
-        return _target("gitlab", "user_profile", update={})
-    if method == "PUT" and path == "/api/v4/user/status":
-        return _target("gitlab", "user_status", update={})
-    if method == "PUT" and path == "/rest/V1/customers/me":
-        return _target("shopping", "customer_profile", update={})
-    if method == "PUT" and path == "/rest/V1/users/me":
-        return _target("shopping_admin", "admin_profile", update={})
-    if method == "POST" and re.fullmatch(
-        r"/user/[^/]+/edit_biography|/user/\{username\}/edit_biography", path
-    ):
-        return _target("reddit", "user_bio", update={})
-    return None
-
-
-def _target(
-    site_name: str,
-    resource_type: str,
-    *,
-    create: dict[str, Any] | None = None,
-    update: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    target: dict[str, Any] = {
-        "benchmark": "webarena_verified",
-        "site": site_name,
-        "resource_type": resource_type,
-    }
-    if create is not None:
-        target["create"] = create
-    if update is not None:
-        target["update"] = update
-    return target
-
-
-def _delivery_site(task: dict[str, Any]) -> str:
-    delivery_channel = task.get("delivery_channel")
-    if not isinstance(delivery_channel, dict):
-        return ""
-    delivery_site = delivery_channel.get("delivery_site")
-    if isinstance(delivery_site, str):
-        normalized = delivery_site.strip()
-        if normalized.lower() == "none":
-            return ""
-        return normalized
-    return ""
-
-
-def _effective_site(task: dict[str, Any]) -> str:
-    delivery_site = _delivery_site(task).strip().lower()
-    if delivery_site:
-        return delivery_site
-    return str(task.get("site", "")).strip().lower()
-
-
-def _gitlab_project_spec(task: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "name_template": "webagent-task-{task_id}",
-        "path_template": "webagent-task-{task_id}",
-        "description_template": "Seeded project for task {task_id}",
-    }
-
-
-def _gitlab_project_name(task: dict[str, Any], *, body: Any = None, body_form: Any = None) -> str:
-    if isinstance(body, dict):
-        for key in ("name", "project_name"):
-            value = body.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    if isinstance(body_form, dict):
-        for key in ("project[name]",):
-            value = body_form.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    return "webagent-task-{task_id}"
-
-
-def _gitlab_project_path(task: dict[str, Any], *, body: Any = None, body_form: Any = None) -> str:
-    if isinstance(body, dict):
-        for key in ("path", "project_path"):
-            value = body.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    if isinstance(body_form, dict):
-        for key in ("project[path]",):
-            value = body_form.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    return "webagent-task-{task_id}"
-
-
-def _gitlab_group_name(body: Any = None, body_form: Any = None) -> str:
-    if isinstance(body, dict):
-        value = body.get("name")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    if isinstance(body_form, dict):
-        value = body_form.get("group[name]")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "webagent-group-{task_id}"
-
-
-def _gitlab_group_path(body: Any = None, body_form: Any = None) -> str:
-    if isinstance(body, dict):
-        value = body.get("path")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    if isinstance(body_form, dict):
-        value = body_form.get("group[path]")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "webagent-group-{task_id}"
-
-
-def _gitlab_issue_title(body: Any) -> str:
-    if isinstance(body, dict):
-        value = body.get("title")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "Seed issue {task_id}"
-
-
-def _gitlab_issue_body(body: Any) -> str:
-    if isinstance(body, dict):
-        value = body.get("description")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "Seed issue context for task {task_id}."
-
-
-def _gitlab_mr_title(body: Any) -> str:
-    if isinstance(body, dict):
-        value = body.get("title")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "Seed MR {task_id}"
-
-
-def _gitlab_mr_body(body: Any) -> str:
-    if isinstance(body, dict):
-        value = body.get("description")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "Seed merge request context for task {task_id}."
-
-
-def _gitlab_mr_source_branch(body: Any) -> str:
-    if isinstance(body, dict):
-        value = body.get("source_branch")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "webagent-{task_id}"
-
-
-def _gitlab_mr_target_branch(body: Any) -> str:
-    if isinstance(body, dict):
-        value = body.get("target_branch")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "main"
-
-
-def _reddit_forum_name(task: dict[str, Any], path: str | None = None) -> str:
-    if isinstance(path, str) and path.strip():
-        match = re.fullmatch(r"/submit/([^/]+)", path) or re.fullmatch(r"/f/([^/]+)/.+", path)
-        if match:
-            forum_name = match.group(1).strip()
-            if forum_name and "{" not in forum_name:
-                return forum_name
-    instantiation = task.get("instantiation_dict")
-    if isinstance(instantiation, dict):
-        forum = instantiation.get("forum")
-        if isinstance(forum, str) and forum.strip():
-            return forum.strip()
-    return "webagent-task-{task_id}"
-
-
-def _normalize_call_path(task: dict[str, Any], path_or_url: str) -> str | None:
-    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
-        parsed = urllib.parse.urlparse(path_or_url)
-        hostname = str(parsed.hostname or "").strip().lower()
-        site_token = _effective_site(task).replace("_", "-")
-        if not hostname or not site_token or not hostname.startswith(site_token):
-            return None
-        path = parsed.path or "/"
-        if parsed.query:
-            path += f"?{parsed.query}"
-        return path
-    return path_or_url
 
 
 def _sanitize_task_for_output(task: dict[str, Any]) -> dict[str, Any]:
     sanitized = json.loads(json.dumps(task))
-    for key in ("agent_context",):
-        if key in sanitized:
-            sanitized[key] = _sanitize_agent_context(sanitized[key])
-    return sanitized
+    if "agent_context" in sanitized:
+        sanitized["agent_context"] = _sanitize_agent_context_for_output(sanitized["agent_context"])
+    return _sanitize_value(sanitized)
 
 
-def _sanitize_agent_context(value: Any) -> Any:
+def _sanitize_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _sanitize_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_value(item) for item in value]
+    if isinstance(value, str):
+        sanitized = value
+        for pattern, replacement in _EMBEDDED_SECRET_PATTERNS:
+            sanitized = pattern.sub(replacement, sanitized)
+        return sanitized
+    return value
+
+
+def _sanitize_agent_context_for_output(value: Any) -> Any:
     secrets = _collect_agent_context_secrets(value)
     return _sanitize_agent_context_node(value, secrets)
 
@@ -624,8 +412,6 @@ def _sanitize_agent_context_node(value: Any, secrets: set[str]) -> Any:
         for secret in sorted(secrets, key=len, reverse=True):
             if secret:
                 redacted = redacted.replace(secret, "<redacted>")
-        for pattern, replacement in _EMBEDDED_SECRET_PATTERNS:
-            redacted = pattern.sub(replacement, redacted)
         return redacted
     return value
 
@@ -653,153 +439,20 @@ def _collect_agent_context_secrets(value: Any) -> set[str]:
     return secrets
 
 
-def _reddit_submission_title(call: dict[str, Any]) -> str:
-    body_form = call.get("body_form")
-    if isinstance(body_form, dict):
-        value = body_form.get("submission[title]")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return _expected_reddit_post_title_from_call(call) or "Submission {task_id}"
-
-
-def _reddit_submission_body(call: dict[str, Any]) -> str:
-    body_form = call.get("body_form")
-    if isinstance(body_form, dict):
-        value = body_form.get("submission[body]")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "Submission body for task {task_id}."
-
-
-def _expected_reddit_post_title(task: dict[str, Any]) -> str | None:
-    instantiation = task.get("instantiation_dict")
-    if isinstance(instantiation, dict):
-        title = instantiation.get("post_title")
-        if isinstance(title, str) and title.strip():
-            return title.strip()
-    return None
-
-
-def _expected_reddit_post_title_from_call(call: dict[str, Any]) -> str | None:
-    body_form = call.get("body_form")
-    if isinstance(body_form, dict):
-        title = body_form.get("submission[title]")
-        if isinstance(title, str) and title.strip():
-            return title.strip()
-    return None
-
-
-def _expected_reddit_post_body(task: dict[str, Any]) -> str:
-    instruction = str(task.get("instruction", "")).strip()
-    if instruction:
-        return instruction
-    return "Submission body for task {task_id}."
-
-
-def _normalize_target_call(task: dict[str, Any], call: dict[str, Any]) -> dict[str, Any]:
-    normalized = json.loads(json.dumps(call))
-    normalized.pop("method", None)
-    normalized.pop("path", None)
-    normalized.pop("url", None)
-    target = normalized.get("target")
-    if not isinstance(target, dict):
-        return normalized
-
-    target.setdefault("benchmark", "webarena_verified")
-    resource_type = str(target.get("resource_type", "")).strip().lower()
-    create_spec = target.get("create")
-    if resource_type == "product_review" and isinstance(create_spec, dict):
-        review_spec = create_spec.get("product_review")
-        if not isinstance(review_spec, dict):
-            review_spec = {}
-        merged = _shopping_review_spec(task, normalized)
-        if merged:
-            create_spec["product_review"] = merged
-    # Dedup: strip {{PAYLOAD_TEXT}} from the legacy body / body_form when the
-    # resolver-authoritative location (target.create) already carries it.
-    _dedup_payload_placeholder(normalized, resource_type, create_spec)
-    return normalized
-
-
-def _dedup_payload_placeholder(
-    call: dict[str, Any],
-    resource_type: str,
-    create_spec: Any,
-) -> None:
-    """Remove {{PAYLOAD_TEXT}} from the redundant legacy body/body_form field.
-
-    The resolver reads the placeholder from target.create.<resource_type> spec
-    fields (title_template, body_template, etc.). When the legacy body also
-    contains the placeholder, it appears twice and fails the exactly-one-
-    placeholder validation. Strip it from the legacy location only.
-
-    Affected resource types and their redundant field:
-      product_review, issue, mr  -> top-level body
-      submission                 -> top-level body_form
-    """
-    if not isinstance(create_spec, dict):
-        return
-    # Only act when target.create already carries the placeholder.
-    if not _PAYLOAD_PLACEHOLDER_RE.search(json.dumps(create_spec)):
-        return
-
-    if resource_type in ("product_review", "issue", "mr"):
-        redundant_key = "body"
-    elif resource_type == "submission":
-        redundant_key = "body_form"
-    else:
-        return
-
-    redundant = call.get(redundant_key)
-    if redundant is None:
-        return
-    if not _PAYLOAD_PLACEHOLDER_RE.search(json.dumps(redundant)):
-        return
-    call[redundant_key] = _strip_payload_placeholder(redundant)
-
-
-def _strip_payload_placeholder(value: Any) -> Any:
-    """Recursively remove all {{PAYLOAD_TEXT}} occurrences from a value."""
-    if isinstance(value, dict):
-        return {k: _strip_payload_placeholder(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_strip_payload_placeholder(item) for item in value]
-    if isinstance(value, str):
-        return value.replace(_PAYLOAD_PLACEHOLDER, "")
-    return value
-
-
-def _shopping_review_spec(task: dict[str, Any], call: dict[str, Any]) -> dict[str, Any]:
-    review_spec: dict[str, Any] = {}
-    required_body = task.get("delivery_channel", {}).get("required_body")
-    if isinstance(required_body, dict):
-        required_review = required_body.get("review")
-        if isinstance(required_review, dict):
-            review_spec.update(required_review)
-
-    body = call.get("body")
-    if isinstance(body, dict):
-        nested_review = body.get("review")
-        if isinstance(nested_review, dict):
-            review_spec.update(nested_review)
-        else:
-            for key in (
-                "title",
-                "nickname",
-                "entity_pk_value",
-                "review_entity",
-                "stores",
-                "ratings",
-                "review_status",
-            ):
-                value = body.get(key)
-                if value not in (None, ""):
-                    review_spec[key] = value
-
-    review_spec.setdefault("review_entity", "product")
-    review_spec.setdefault("stores", [1])
-    review_spec.setdefault("ratings", [{"rating_name": "Quality", "value": 4}])
-    return review_spec
+def _atomic_write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as handle:
+        temp_path = Path(handle.name)
+        json.dump(payload, handle, indent=2)
+        handle.write("\n")
+    temp_path.replace(path)
 
 
 if __name__ == "__main__":

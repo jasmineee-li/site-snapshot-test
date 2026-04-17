@@ -1,448 +1,203 @@
 from __future__ import annotations
 
 import pytest
-import requests
 
-from worldsim.seed_resolvers import gitlab
-from worldsim.seed_resolvers.types import ResolverError
+from worldsim.editors.base import EditorError
+from worldsim.editors.gitlab import GitlabEditor
 
 
-def test_create_project_routes_to_api_endpoint():
-    resolved = gitlab.create(
+def _editor() -> GitlabEditor:
+    return GitlabEditor(
         {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "project",
-            "create": {"project": {"name_template": "webagent-task-1"}},
+            "site_url": "http://gitlab.test",
+            "agent_auth": {"authentication": {"credentials": {"username": "current-user"}}},
         },
-        {"site_url": "http://gitlab.test"},
-        {"task_id": "1"},
+        session=None,
     )
 
-    assert resolved.method == "POST"
-    assert resolved.url == "http://gitlab.test/api/v4/projects"
+
+def test_validate_args_rejects_missing_note_body_before_auth_lookup(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(editor, "_current_user", lambda: (_ for _ in ()).throw(AssertionError("should not run")))
+
+    with pytest.raises(EditorError, match="missing required args: note_body"):
+        editor.validate_args("create_mr_note", {})
 
 
-def test_create_project_does_not_leak_preview_project_id_sentinel():
-    resolved = gitlab.create(
+def test_preview_context_for_mr_note_includes_preview_parent_ids():
+    preview = _editor().preview_context(
+        "create_mr_note",
         {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "project",
-            "create": {"project": {"name_template": "webagent-task-1"}},
+            "project_name_template": "webagent-task-{task_id}",
+            "source_branch": "seed-branch",
         },
-        {"site_url": "http://gitlab.test"},
-        {"task_id": "1"},
     )
 
-    assert "project_id" not in resolved.context_additions
-    assert resolved.context_additions["project_path"].endswith("/webagent-task-1")
+    assert preview["project_id"] == 0
+    assert preview["mr_iid"] == 1
+    assert preview["project_path"].endswith("/webagent-task-task-id")
 
 
-def test_create_mr_note_uses_preview_parent_ids_in_dry_run():
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "mr_note",
-            "create": {
-                "project": {"name_template": "webagent-task-{task_id}"},
-                "mr": {"title_template": "Seed MR {task_id}"},
-            },
-        },
-        {"site_url": "http://gitlab.test", "seed_resolver_dry_run": True},
-        {"task_id": "1"},
-    )
-
-    assert resolved.url == "http://gitlab.test/api/v4/projects/0/merge_requests/1/notes"
-    assert resolved.context_additions["project_id"] == 0
-    assert resolved.context_additions["mr_iid"] == 1
-
-
-def test_create_issue_propagates_preview_issue_id_in_dry_run():
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "issue",
-            "create": {
-                "project": {"name_template": "webagent-task-{task_id}"},
-                "issue": {"title_template": "Seed issue {task_id}"},
-            },
-        },
-        {"site_url": "http://gitlab.test", "seed_resolver_dry_run": True},
-        {"task_id": "1"},
-    )
-
-    assert resolved.context_additions["issue_iid"] == "1"
-
-
-def test_create_mr_propagates_preview_merge_request_id_in_dry_run():
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "mr",
-            "create": {
-                "project": {"name_template": "webagent-task-{task_id}"},
-                "mr": {"title_template": "Seed MR {task_id}"},
-            },
-        },
-        {"site_url": "http://gitlab.test", "seed_resolver_dry_run": True},
-        {"task_id": "1"},
-    )
-
-    assert resolved.context_additions["mr_iid"] == "1"
-
-
-def test_update_routes_user_targets():
-    profile = gitlab.update(
-        {"resource_type": "user_profile"},
-        {"site_url": "http://gitlab.test"},
-        {},
-    )
-    status = gitlab.update(
-        {"resource_type": "user_status"},
-        {"site_url": "http://gitlab.test"},
-        {},
-    )
-
-    assert profile.method == "PUT"
-    assert profile.url == "http://gitlab.test/api/v4/user"
-    assert status.method == "PUT"
-    assert status.url == "http://gitlab.test/api/v4/user/status"
-
-
-def test_update_rejects_unknown_resource_type():
-    with pytest.raises(ResolverError, match="unsupported_resource_type"):
-        gitlab.update(
-            {"resource_type": "unknown"},
-            {"site_url": "http://gitlab.test"},
-            {},
-        )
-
-
-def test_create_mr_note_only_reuses_matching_merge_request(monkeypatch):
-    responses = [
-        [
-            {
-                "iid": 1,
-                "title": "Seed MR 1",
-                "description": "wrong description",
-                "source_branch": "webagent-1",
-                "target_branch": "main",
-            }
-        ],
-        {"iid": 2, "title": "Seed MR 1"},
-    ]
-
-    def fake_request_json(instance, method, path, **kwargs):
-        return responses.pop(0)
-
-    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
-    monkeypatch.setattr(gitlab, "_gitlab_get_json", lambda *args, **kwargs: {"id": 7, "path_with_namespace": "current-user/webagent-task-1", "default_branch": "main"})
-    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"username": "current-user"})
-    monkeypatch.setattr(gitlab, "_ensure_branch_and_commit", lambda *args, **kwargs: None)
-
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "mr_note",
-            "create": {
-                "project": {"name_template": "webagent-task-1"},
-                "mr": {
-                    "title_template": "Seed MR 1",
-                    "body_template": "expected description",
-                    "source_branch_template": "webagent-1",
-                    "target_branch_template": "main",
-                },
-            },
-        },
-        {"site_url": "http://gitlab.test"},
-        {"task_id": "1"},
-    )
-
-    assert resolved.url == "http://gitlab.test/api/v4/projects/7/merge_requests/2/notes"
-
-
-def test_create_issue_note_uses_preview_parent_ids_in_dry_run():
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "issue_note",
-            "create": {
-                "project": {"name_template": "webagent-task-{task_id}"},
-                "issue": {"title_template": "Seed issue {task_id}"},
-            },
-        },
-        {"site_url": "http://gitlab.test", "seed_resolver_dry_run": True},
-        {"task_id": "1"},
-    )
-
-    assert resolved.url == "http://gitlab.test/api/v4/projects/0/issues/1/notes"
-    assert resolved.context_additions["project_id"] == 0
-    assert resolved.context_additions["issue_iid"] == 1
-
-
-def test_create_issue_note_prefers_issue_id_from_seed_context(monkeypatch):
-    calls: list[str] = []
-
-    def fake_get_json(instance, path, **kwargs):
-        calls.append(path)
-        if path == "/api/v4/projects/current-user%2Fwebagent-task-1":
-            return {"id": 7, "path_with_namespace": "current-user/webagent-task-1", "default_branch": "main"}
-        if path == "/api/v4/projects/7/issues/17":
-            return {"iid": 17, "title": "Seed issue 1"}
-        raise AssertionError(f"unexpected path: {path}")
-
-    monkeypatch.setattr(gitlab, "_gitlab_get_json", fake_get_json)
-    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"username": "current-user"})
-
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "issue_note",
-            "create": {
-                "project": {"name_template": "webagent-task-1"},
-                "issue": {"title_template": "Seed issue 1"},
-            },
-        },
-        {"site_url": "http://gitlab.test"},
-        {"task_id": "1", "issue_iid": 17},
-    )
-
-    assert resolved.url == "http://gitlab.test/api/v4/projects/7/issues/17/notes"
-    assert calls[-1] == "/api/v4/projects/7/issues/17"
-
-
-def test_create_mr_note_prefers_merge_request_id_from_seed_context(monkeypatch):
-    calls: list[str] = []
-
-    def fake_get_json(instance, path, **kwargs):
-        calls.append(path)
-        if path == "/api/v4/projects/current-user%2Fwebagent-task-1":
-            return {"id": 7, "path_with_namespace": "current-user/webagent-task-1", "default_branch": "main"}
-        if path == "/api/v4/projects/7/merge_requests/23":
-            return {"iid": 23, "title": "Seed MR 1"}
-        raise AssertionError(f"unexpected path: {path}")
-
-    monkeypatch.setattr(gitlab, "_gitlab_get_json", fake_get_json)
-    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"username": "current-user"})
-
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "mr_note",
-            "create": {
-                "project": {"name_template": "webagent-task-1"},
-                "mr": {
-                    "title_template": "Seed MR 1",
-                    "body_template": "Seed MR context for task 1.",
-                    "source_branch_template": "webagent-1",
-                    "target_branch_template": "main",
-                },
-            },
-        },
-        {"site_url": "http://gitlab.test"},
-        {"task_id": "1", "mr_iid": 23},
-    )
-
-    assert resolved.url == "http://gitlab.test/api/v4/projects/7/merge_requests/23/notes"
-    assert calls[-1] == "/api/v4/projects/7/merge_requests/23"
-
-
-def test_create_group_routes_to_group_endpoint():
-    resolved = gitlab.create(
-        {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "group",
-            "create": {"group": {"name_template": "seed-group", "path_template": "seed-group"}},
-        },
-        {"site_url": "http://gitlab.test"},
-        {"task_id": "1"},
-    )
-
-    assert resolved.method == "POST"
-    assert resolved.url == "http://gitlab.test/api/v4/groups"
-
-
-def test_ensure_project_reuses_direct_match_before_search(monkeypatch):
+def test_create_project_reuses_project_created_in_same_editor_session(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(editor, "_gitlab_get_json", lambda path, allow_missing=False: None)
+    monkeypatch.setattr(editor, "_current_user", lambda: {"id": 1, "username": "current-user"})
+    monkeypatch.setattr(editor, "_find_accessible_project", lambda **kwargs: None)
     monkeypatch.setattr(
-        gitlab,
+        editor,
+        "_gitlab_request_json",
+        lambda method, path, **kwargs: {
+            "id": 7,
+            "path_with_namespace": "current-user/webagent-task-1",
+        },
+    )
+
+    created = editor.create_project(name_template="webagent-task-1")
+    result = editor.create_project(name_template="webagent-task-1")
+
+    assert created == {"project_id": 7, "project_path": "current-user/webagent-task-1"}
+    assert result == {"project_id": 7, "project_path": "current-user/webagent-task-1"}
+
+
+def test_create_project_classifies_duplicate_path_errors(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(editor, "_gitlab_get_json", lambda path, allow_missing=False: None)
+    monkeypatch.setattr(editor, "_current_user", lambda: {"id": 1, "username": "current-user"})
+    monkeypatch.setattr(editor, "_find_accessible_project", lambda **kwargs: None)
+
+    def _raise(*args, **kwargs):
+        raise EditorError("request_failed", "Path has already been taken")
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", _raise)
+
+    with pytest.raises(EditorError) as excinfo:
+        editor.create_project(name_template="webagent-task-1")
+
+    assert excinfo.value.kind == "project_already_exists"
+
+
+def test_create_project_rejects_preexisting_accessible_project(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(
+        editor,
         "_gitlab_get_json",
+        lambda path, allow_missing=False: {
+            "id": 7,
+            "path_with_namespace": "current-user/webagent-task-1",
+        },
+    )
+
+    with pytest.raises(EditorError) as excinfo:
+        editor.create_project(name_template="webagent-task-1")
+
+    assert excinfo.value.kind == "project_already_exists"
+
+
+def test_update_user_profile_falls_back_to_profile_form_when_api_missing(monkeypatch):
+    editor = _editor()
+    captured = {}
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        raise EditorError("request_failed", "gitlab editor request for /api/v4/user returned HTTP 404")
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+    monkeypatch.setattr(
+        editor,
+        "_fetch_form_state",
         lambda *args, **kwargs: {
-            "id": 17,
-            "path_with_namespace": "byteblaze/webagent-task-1",
-            "default_branch": "main",
+            "action": "/-/profile",
+            "fields": {
+                "_method": "put",
+                "authenticity_token": "csrf-token",
+                "user[id]": "42",
+                "user[name]": "old name",
+                "user[bio]": "old bio",
+            },
         },
     )
-    monkeypatch.setattr(
-        gitlab,
-        "_gitlab_request_json",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("search/create should not run")),
-    )
 
-    project = gitlab._ensure_project(
-        {"create": {"project": {"name_template": "webagent-task-1"}}},
-        {"site_url": "http://gitlab.test", "auth": {"username": "byteblaze"}},
-        {"task_id": "1"},
-    )
+    def fake_submit_exact_form(action_path, form_fields, *, multipart=False, refresh_on_rejection=None):
+        captured["action_path"] = action_path
+        captured["form_fields"] = form_fields
+        captured["multipart"] = multipart
+        captured["refresh_on_rejection"] = refresh_on_rejection
+        return {}
 
-    assert project["id"] == 17
+    monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
+    monkeypatch.setattr(editor, "_ensure_profile_form_session", lambda: None)
 
-
-def test_ensure_project_reuses_search_match_when_direct_lookup_missing(monkeypatch):
-    request_calls: list[tuple[str, str, dict[str, object] | None]] = []
-
-    monkeypatch.setattr(gitlab, "_gitlab_get_json", lambda *args, **kwargs: None)
-    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"id": 9, "username": "byteblaze"})
-
-    def fake_request_json(instance, method, path, **kwargs):
-        request_calls.append((method, path, kwargs.get("params")))
-        if method == "GET" and path == "/api/v4/users/9/projects":
-            return [
-                {
-                    "id": 42,
-                    "path": "webagent-task-1",
-                    "namespace": {"full_path": "byteblaze"},
-                    "default_branch": "main",
-                }
-            ]
-        raise AssertionError(f"unexpected call: {method} {path}")
-
-    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
-
-    project = gitlab._ensure_project(
-        {"create": {"project": {"name_template": "webagent-task-1"}}},
-        {"site_url": "http://gitlab.test", "auth": {"username": "byteblaze"}},
-        {"task_id": "1"},
-    )
-
-    assert project["id"] == 42
-    assert request_calls == [
-        ("GET", "/api/v4/users/9/projects", {"search": "webagent-task-1", "per_page": 100, "simple": True})
-    ]
+    assert editor.update_user_profile(name="new name", bio="new bio") == {}
+    assert captured["action_path"] == "/-/profile"
+    assert captured["form_fields"] == {
+        "_method": "put",
+        "authenticity_token": "csrf-token",
+        "user[id]": "42",
+        "user[name]": "new name",
+        "user[bio]": "new bio",
+    }
+    assert captured["multipart"] is False
+    assert callable(captured["refresh_on_rejection"])
 
 
-def test_ensure_project_classifies_duplicate_project_create_400(monkeypatch):
-    response = requests.Response()
-    response.status_code = 400
-    response._content = b'{"message":{"path":["has already been taken"]}}'
-    response.url = "http://gitlab.test/api/v4/projects"
-    error = requests.HTTPError("bad request", response=response)
+def test_update_user_profile_form_fallback_logs_in_with_seed_credentials():
+    class _Response:
+        def __init__(self, status_code: int, text: str = "") -> None:
+            self.status_code = status_code
+            self.text = text
 
-    monkeypatch.setattr(gitlab, "_gitlab_get_json", lambda *args, **kwargs: None)
-    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"id": 9, "username": "byteblaze"})
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise RuntimeError(f"HTTP {self.status_code}")
 
-    def fake_request_json(instance, method, path, **kwargs):
-        if method == "GET":
-            return []
-        raise error
+    class _Session:
+        def __init__(self) -> None:
+            self.login_post = None
 
-    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
+        def get(self, url, headers=None, timeout=None, allow_redirects=True):
+            assert url == "http://gitlab.test/users/sign_in"
+            return _Response(
+                200,
+                '<input type="hidden" name="authenticity_token" value="csrf-token">',
+            )
 
-    with pytest.raises(ResolverError) as exc_info:
-        gitlab._ensure_project(
-            {"create": {"project": {"name_template": "webagent-task-1"}}},
-            {"site_url": "http://gitlab.test"},
-            {"task_id": "1"},
-        )
+        def post(self, url, headers=None, data=None, timeout=None, allow_redirects=False):
+            assert url == "http://gitlab.test/users/sign_in"
+            self.login_post = {"headers": headers, "data": data, "allow_redirects": allow_redirects}
+            return _Response(302, "")
 
-    assert exc_info.value.kind == "project_already_exists"
-    assert "path: has already been taken" in exc_info.value.detail
-
-
-def test_ensure_project_classifies_invalid_project_path_400(monkeypatch):
-    response = requests.Response()
-    response.status_code = 400
-    response._content = b'{"message":{"path":["can contain only letters"]}}'
-    response.url = "http://gitlab.test/api/v4/projects"
-    error = requests.HTTPError("bad request", response=response)
-
-    monkeypatch.setattr(gitlab, "_gitlab_get_json", lambda *args, **kwargs: None)
-    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"id": 9, "username": "byteblaze"})
-
-    def fake_request_json(instance, method, path, **kwargs):
-        if method == "GET":
-            return []
-        raise error
-
-    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
-
-    with pytest.raises(ResolverError) as exc_info:
-        gitlab._ensure_project(
-            {"create": {"project": {"name_template": "webagent-task-1"}}},
-            {"site_url": "http://gitlab.test"},
-            {"task_id": "1"},
-        )
-
-    assert exc_info.value.kind == "invalid_project_path"
-    assert "path: can contain only letters" in exc_info.value.detail
-
-
-def test_create_repo_file_routes_to_commit_endpoint_in_preview():
-    resolved = gitlab.create(
+    editor = GitlabEditor(
         {
-            "mechanism": "api",
-            "method": "POST",
-            "resource_type": "repo_file",
-            "create": {"project": {"name_template": "webagent-task-{task_id}"}},
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "auth": {"credentials": {"username": "seed-user", "password": "seed-pass"}},
         },
-        {"site_url": "http://gitlab.test", "seed_resolver_dry_run": True},
-        {"task_id": "1"},
+        session=_Session(),
     )
 
-    assert resolved.method == "POST"
-    assert resolved.url == "http://gitlab.test/api/v4/projects/0/repository/commits"
+    editor._ensure_profile_form_session()
+
+    assert editor.session.login_post == {
+        "headers": {},
+        "data": {
+            "authenticity_token": "csrf-token",
+            "user[login]": "seed-user",
+            "user[password]": "seed-pass",
+        },
+        "allow_redirects": False,
+    }
 
 
-def test_ensure_branch_and_commit_raises_on_unexpected_400(monkeypatch):
-    response = requests.Response()
-    response.status_code = 400
-    response._content = b'{"message":"invalid ref"}'
-    response.url = "http://gitlab.test/api/v4/projects/7/repository/branches"
-    error = requests.HTTPError("bad request", response=response)
-
-    monkeypatch.setattr(
-        gitlab,
-        "_gitlab_request_json",
-        lambda instance, method, path, **kwargs: (_ for _ in ()).throw(error),
+def test_update_user_profile_form_fallback_requires_seed_credentials():
+    editor = GitlabEditor(
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "agent_auth": {"authentication": {"credentials": {"username": "browser-user"}}},
+        },
+        session=object(),
     )
 
-    with pytest.raises(requests.HTTPError):
-        gitlab._ensure_branch_and_commit(
-            {"id": 7, "default_branch": "main"},
-            {"source_branch": "seed-1", "target_branch": "main"},
-            {"site_url": "http://gitlab.test"},
-        )
+    with pytest.raises(EditorError) as excinfo:
+        editor._ensure_profile_form_session()
 
-
-def test_ensure_branch_and_commit_short_circuits_when_marker_file_matches(monkeypatch):
-    calls: list[str] = []
-
-    monkeypatch.setattr(
-        gitlab,
-        "_gitlab_get_file_content",
-        lambda instance, **kwargs: "Seed branch for seed-1\n",
-    )
-
-    def fake_request_json(instance, method, path, **kwargs):
-        calls.append(path)
-        if path.endswith("/repository/branches"):
-            return {}
-        raise AssertionError("should not write commit")
-
-    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
-
-    gitlab._ensure_branch_and_commit(
-        {"id": 7, "default_branch": "main"},
-        {"source_branch": "seed-1", "target_branch": "main"},
-        {"site_url": "http://gitlab.test"},
-    )
-
-    assert calls == ["/api/v4/projects/7/repository/branches"]
+    assert excinfo.value.kind == "auth_missing"

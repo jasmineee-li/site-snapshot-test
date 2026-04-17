@@ -1,35 +1,80 @@
 from __future__ import annotations
 
-from worldsim.seed_resolvers import shopping_admin
+from worldsim.editors.base import BaseSiteEditor
+from worldsim.editors.shopping_admin import ShoppingAdminEditor
 
 
-def test_create_review_uses_admin_site_origin():
-    resolved = shopping_admin.create(
-        {
-            "method": "POST",
-            "resource_type": "product_review",
-            "create": {
-                "product_review": {
-                    "title": "Fallback title",
-                    "nickname": "fallback-user",
-                    "entity_pk_value": 67,
-                }
+def test_update_admin_profile_writes_expected_payload(monkeypatch):
+    editor = ShoppingAdminEditor({"site_url": "http://shopping-admin.test"}, session=None)
+    captured = {}
+
+    monkeypatch.setattr(
+        editor,
+        "_fetch_form_state",
+        lambda *args, **kwargs: {
+            "action": "/admin/admin/user/save/",
+            "fields": {
+                "form_key": "xyz789",
+                "username": "admin",
+                "email": "admin@example.com",
             },
-            "body": {"detail": "Payload text"},
         },
-        {"site_url": "http://shopping-admin.test"},
-        {},
     )
 
-    assert resolved.url == "http://shopping-admin.test/rest/V1/reviews"
+    def fake_submit_exact_form(action_path, form_fields, *, multipart=False, refresh_on_rejection=None):
+        captured["action_path"] = action_path
+        captured["form_fields"] = form_fields
+        captured["multipart"] = multipart
+        captured["refresh_on_rejection"] = refresh_on_rejection
+        return {}
+
+    monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
+
+    assert editor.update_admin_profile(field="firstname", value="Alice") == {}
+    assert captured["action_path"] == "/admin/admin/user/save/"
+    assert captured["form_fields"] == {
+        "form_key": "xyz789",
+        "username": "admin",
+        "email": "admin@example.com",
+        "firstname": "Alice",
+    }
+    assert captured["multipart"] is False
+    assert callable(captured["refresh_on_rejection"])
 
 
-def test_update_admin_profile_routes_to_admin_profile_endpoint():
-    resolved = shopping_admin.update(
-        {"resource_type": "admin_profile"},
-        {"site_url": "http://shopping-admin.test"},
-        {},
-    )
+def test_cleanup_runs_lifo_and_clears_stack():
+    editor = BaseSiteEditor.__new__(BaseSiteEditor)
+    editor.site_name = "test"
+    editor._cleanup_stack = []
+    order: list[str] = []
 
-    assert resolved.method == "PUT"
-    assert resolved.url == "http://shopping-admin.test/rest/V1/users/me"
+    BaseSiteEditor._push_cleanup(editor, lambda: order.append("first"))
+    BaseSiteEditor._push_cleanup(editor, lambda: order.append("second"))
+    BaseSiteEditor.cleanup(editor)
+
+    assert order == ["second", "first"]
+    assert editor._cleanup_stack == []
+
+
+def test_cleanup_raises_when_any_cleanup_op_fails():
+    editor = BaseSiteEditor.__new__(BaseSiteEditor)
+    editor.site_name = "test"
+    editor._cleanup_stack = []
+    order: list[str] = []
+
+    def fail() -> None:
+        order.append("second")
+        raise RuntimeError("boom")
+
+    BaseSiteEditor._push_cleanup(editor, lambda: order.append("first"))
+    BaseSiteEditor._push_cleanup(editor, fail)
+
+    try:
+        BaseSiteEditor.cleanup(editor)
+    except Exception as exc:
+        assert "cleanup failed" in str(exc)
+    else:
+        raise AssertionError("cleanup should have raised")
+
+    assert order == ["second", "first"]
+    assert editor._cleanup_stack == []
