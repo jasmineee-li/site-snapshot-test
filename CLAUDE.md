@@ -21,6 +21,10 @@ Phase 2 is a single CLI phase with two internal stages: 2a planning in Modal san
 3. **Trajectories flow through disk.** Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`. Judge / diagnosis sandboxes read `history.json` first and load screenshots only when the text log is ambiguous.
 4. **Two gates in Phase 4.** Gate 1 is ecological validity (probe each trajectory ~5× and average P(eval)). Gate 2 is attack effectiveness. Every trajectory passes Gate 1 before conclusions are drawn from Gate 2.
 
+## Integration test requirement
+
+If a PR changes `worldsim/seed_resolvers/**`, `worldsim/seeding.py`, or `worldsim/phases/phase_4_adversarial.py`, run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack before shipping and include the output in the PR description. Unit tests alone are not sufficient for resolver or Phase 4 integration changes.
+
 ## What NOT to do
 
 - Do not generate or serve web applications. v5 connects to external environments.
