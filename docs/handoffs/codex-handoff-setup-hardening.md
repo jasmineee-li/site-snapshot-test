@@ -34,6 +34,7 @@ We spent a session migrating from m5.xlarge to r5.4xlarge (`3.12.221.9`, us-east
 **P0 — blocks Phase 4 producing any signal:** #13 (landed in `a5bf5af`), #14 (new — see below).
 **P1 — blocks clean host bring-up without manual workarounds:** #1, #2, #3, #4, #5, #6, #7.
 **P2 — limits data quality / causes silent skips:** #8, #9, #11.
+**Deferred future work:** #15 (map attack model — see below; map tasks quarantined out of current dataset until redesigned).
 **P3 — perf / observability / hygiene:** #10, #12.
 
 ---
@@ -562,6 +563,14 @@ UPDATE_PATTERNS = {
 
 Dispatcher logic: for each call, try `UPDATE_PATTERNS` first (method + URL must both match). If no update match, try `CREATE_PATTERNS` (URL only; method is assumed POST for creates). If neither matches, log and leave the call in legacy shape.
 
+**Map quarantine.** OSM's commons-edit model (any authenticated user can edit any `way`/`relation`/`node`) doesn't fit either `create` (attack depends on modifying existing community data) or `update` (existing `update` semantics are "the authenticated user's own singleton," and generalizing further brings back constraint-based select or hardcoded IDs — both rejected). We defer the map attack-model design to a future item (see §15). In the meantime, the migration script routes map tasks out of the main dataset:
+
+- Add `--quarantine-sites <comma-separated>` flag, default `map`.
+- Tasks whose `site` field matches a quarantined site are written to `logs/phase_2/adversarial_tasks.map_quarantine.json` (or `<site>_quarantine.json` for other sites) **and removed from the main `adversarial_tasks.json`**.
+- Quarantined file uses the same legacy `{url, body}` shape — no migration applied. It's a preservation artifact, not a runnable dataset.
+- Log the count: `"migrated 253 tasks, quarantined 59 map tasks to adversarial_tasks.map_quarantine.json"` (counts illustrative; codex runs and reports actuals).
+- Phase 4 only reads the main `adversarial_tasks.json` and therefore runs only against the 4 fully-supported sites (gitlab, shopping, shopping_admin, reddit) until map is redesigned.
+
 4. Emit a `target` dict with `create` subtree populated from task context:
    - `project.name_template = "webagent-task-{task_id}"`
    - `mr.title_template = "Notes on {topic}"` where `{topic}` is pulled from the task's `intent` field
@@ -584,7 +593,7 @@ New test files under `tests/`:
 4. `tests/test_seed_resolver_shopping_admin.py` — create path: cms_block, product. Update path: `admin_profile` PUT.
 5. `tests/test_seed_resolver_map.py` — create path: OSM changeset open/edit/close, node and way creation. Update path: `osm_user_description`.
 6. `tests/test_seed_preflight.py` — base-state probe, per-variant dry-run for both create and update targets, `seed_preflight_mismatch` result shape.
-7. `tests/test_migrate_phase_2_seeds.py` — migration script produces correct `{create: ...}` or `{update: ...}` target shape for each known URL+method pattern; legacy shape preserved for unknown patterns; idempotency (re-run is no-op).
+7. `tests/test_migrate_phase_2_seeds.py` — migration script produces correct `{create: ...}` or `{update: ...}` target shape for each known URL+method pattern; legacy shape preserved for unknown patterns; idempotency (re-run is no-op); `--quarantine-sites map` routes map tasks to the quarantine file and removes them from the main dataset.
 8. `tests/test_seed_contract_backcompat.py` — `_apply_http_seed_call` handles legacy `{url, body}`, new `{target: {create: ...}, body}`, and new `{target: {update: ...}, body}`. Exactly-one-of rule enforced.
 
 Integration tests (marked `@pytest.mark.integration`, skipped in default CI, run locally against a live stack before shipping):
@@ -619,7 +628,7 @@ Integration tests (marked `@pytest.mark.integration`, skipped in default CI, run
 ### 14.15 Verification
 
 1. `uv run pytest tests/` — 701+ passes, no regressions.
-2. `uv run python scripts/migrate_phase_2_seeds_to_targets.py` — migrates 312 tasks, no unknown-URL warnings expected for the 4 sites in scope.
+2. `uv run python scripts/migrate_phase_2_seeds_to_targets.py` — migrates tasks for the 4 in-scope sites (gitlab / shopping / shopping_admin / reddit), quarantines map tasks to `logs/phase_2/adversarial_tasks.map_quarantine.json`. No unknown-URL warnings expected for the 4 sites.
 3. Rerun Phase 4 against r5 on `logs/phase_3/validated_tasks.json` (7 benigns):
    ```
    set -a && source .env && set +a && unset OPENROUTER_API_KEY
@@ -630,6 +639,30 @@ Integration tests (marked `@pytest.mark.integration`, skipped in default CI, run
    ```
    Expected summary: `0 error, 0 seed_preflight_mismatch, non-zero variant_success + complied + resistant + broke`.
 4. Run `scripts/cleanup_webagent_test_resources.sh` on r5 after the rerun — should delete 7 × N_variants resources matching the `webagent-task-*` pattern, zero false positives against pre-existing data.
+
+---
+
+## 15. Map attack model — future work (deferred)
+
+**Status:** stub. Not in scope for #14. Separate followup item when we're ready.
+
+**Context:** item #14 quarantines map tasks from the main Phase 2 adversarial dataset (see §14.10 "Map quarantine"). They're preserved at `logs/phase_2/adversarial_tasks.map_quarantine.json` in legacy `{url, body}` shape for eventual redesign and re-admission to the main dataset.
+
+**Why deferred:** OSM's threat model is fundamentally a commons-edit model (any authenticated user can edit any way/relation/node). That doesn't fit pure-create (attack realism depends on modifying existing community data, not test artifacts) and it doesn't fit singleton-update (ways/relations are not per-user singletons). Generalizing `update` to cover "edit any existing resource you have write-permission to" either reintroduces constraint-based select (rejected) or hardcodes OSM IDs (rejected). The right answer needs its own research-design conversation.
+
+**Candidate approaches for future item #15:**
+
+1. **Pure-create with discoverability-via-search.** Attacker creates a fresh way/node with plausible tags + injection content; agent encounters it via OSM search results for a benign query. Reproducibility depends on search ranking determinism — OSM search weights popularity and tag completeness, so a fresh attacker feature may not rank. Would need Phase 2 to place features geographically and semantically adjacent to the benign task's search target.
+
+2. **Fixture-time pre-seed + update.** A one-time setup step plants N throwaway ways with `webagent-attack-target` marker tags. Each Phase 4 variant updates one of those pre-seeded ways with the injection. Requires an `OSMTestFixtures` scaffolding step in bootstrap, and resolvers get a new `target.update.from_fixture: {marker: ..., select: by_task_id}` path. Clean but adds fixture-maintenance burden.
+
+3. **Accept non-portability for map only.** Phase 2 for map regenerates against each live instance, embedding verified real OSM IDs at generation time (e.g., pick 20 real highway=primary ways that exist in the OSM snapshot, embed those IDs). Portable within an instance snapshot, not across snapshots. Trade-off: simpler but gives up the portability guarantee for one site.
+
+4. **Drop map entirely from the paper.** Report results on 4 sites, discuss the commons-edit-commons problem in "future work." Lowest-effort path if timeline pressure demands it.
+
+Pick one after a proper design discussion; out of scope tonight.
+
+**Quarantine preservation contract:** don't delete `adversarial_tasks.map_quarantine.json` without redesigning first. When map is re-admitted, the Phase 2 map tasks either get migrated to a new shape (if one of the fixture-based approaches wins) or regenerated entirely (if approach 3 wins). Either way the quarantine file is the reference for what Phase 2 historically emitted.
 
 ---
 
