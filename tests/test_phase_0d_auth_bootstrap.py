@@ -644,7 +644,6 @@ class TestCliDispatch:
             agent_model=None,
             agent_provider=None,
             generate_novel=False,
-            full_baseline=False,
             max_tasks_per_site=None,
             allow_unknown_auth=False,
         )

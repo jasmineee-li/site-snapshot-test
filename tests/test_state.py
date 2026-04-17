@@ -6,7 +6,6 @@ from argparse import Namespace
 from worldsim import main as worldsim_main
 from worldsim.browser_use_agent import AgentResult
 from worldsim.eval_worker_pool import load_completed_results
-from worldsim.phase_3_triage import TRIAGE_CACHE_VERSION
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.state import get_state_dir, load_state, save_state
 from worldsim.trajectory import save_result
@@ -98,7 +97,9 @@ def test_load_state_supports_legacy_resume_pointer(monkeypatch, tmp_path):
     assert state["status"] == "running"
 
 
-def test_load_state_prefers_authoritative_state_file_over_stale_resume_mirror(monkeypatch, tmp_path):
+def test_load_state_prefers_authoritative_state_file_over_stale_resume_mirror(
+    monkeypatch, tmp_path
+):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
     custom_logs.mkdir(parents=True, exist_ok=True)
@@ -233,35 +234,6 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
     assert rc == 0
     assert captured["phase"] == "4"
     assert captured["agent_model"] == "gpt-5.4"
-
-
-def test_dispatch_resume_restores_failed_phase_3_full_baseline(monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)
-    custom_logs = tmp_path / "custom-logs"
-    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
-    save_state(
-        "phase_3",
-        status="failed",
-        reason="diagnosis_exception",
-        instances_path="/tmp/instances.json",
-        full_baseline=True,
-    )
-    monkeypatch.delenv("WORLDSIM_STATE_DIR")
-
-    captured = {}
-
-    def fake_dispatch_phase(args):
-        captured["phase"] = args.phase
-        captured["full_baseline"] = args.full_baseline
-        return 0
-
-    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
-
-    rc = worldsim_main._dispatch_resume(Namespace())
-
-    assert rc == 0
-    assert captured["phase"] == "3"
-    assert captured["full_baseline"] is True
 
 
 def test_dispatch_resume_does_not_restore_saved_task_cap_by_default(monkeypatch, tmp_path):
@@ -592,35 +564,6 @@ def test_load_completed_results_finds_valid_results(tmp_path):
     assert completed["99"]["passed"] is False
     # trajectory_dir is reconstructed from the subdirectory path
     assert completed["42"]["trajectory_dir"] == str(task_dir)
-
-
-def test_load_completed_results_preserves_triage_metadata(tmp_path):
-    from worldsim.task_paths import safe_task_path_component
-
-    task_dir = tmp_path / safe_task_path_component("42")
-    task_dir.mkdir()
-    (task_dir / "result.json").write_text(
-        json.dumps(
-            {
-                "task_id": "42",
-                "passed": False,
-                "message": "reward mismatch",
-                "triage_decision": "agent_limitation",
-                "triage_likely_root_cause": "agent_limitation",
-                "triage_confidence": 0.99,
-                "triage_reason": "Clear login wall.",
-                "triage_source": "rules",
-                "triage_escalate": False,
-                "triage_cache_version": TRIAGE_CACHE_VERSION,
-            }
-        )
-    )
-
-    completed = load_completed_results(tmp_path)
-
-    assert completed["42"]["triage_decision"] == "agent_limitation"
-    assert completed["42"]["triage_escalate"] is False
-    assert completed["42"]["triage_cache_version"] == TRIAGE_CACHE_VERSION
 
 
 def test_load_completed_results_skips_corrupt_files(tmp_path):

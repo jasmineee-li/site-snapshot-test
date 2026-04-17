@@ -18,7 +18,7 @@ _DROP_KEYS = {
     "task_dir_root",
     "timestamp",
     "trajectory_dir",
-    "validated_tasks_path",
+    "contracts_path",
 }
 
 
@@ -63,11 +63,7 @@ def load_json(path: Path) -> Any:
 
 def normalize(value: Any) -> Any:
     if isinstance(value, dict):
-        items = {
-            key: normalize(val)
-            for key, val in value.items()
-            if key not in _DROP_KEYS
-        }
+        items = {key: normalize(val) for key, val in value.items() if key not in _DROP_KEYS}
         return {key: items[key] for key in sorted(items)}
     if isinstance(value, list):
         normalized = [normalize(item) for item in value]

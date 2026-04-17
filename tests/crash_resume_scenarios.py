@@ -221,7 +221,18 @@ def _configure_phase_4(state_dir: Path) -> Path:
             },
         },
     }
-    _write_json(state_dir / "phase_3" / "validated_tasks.json", [benign_task])
+    _write_json(
+        state_dir / "phase_3" / "contracts.json",
+        [
+            {
+                "id": benign_task["id"],
+                "origin": "mode_a",
+                "validity_status": "valid",
+                "validity_errors": [],
+                "task": benign_task,
+            }
+        ],
+    )
     _write_json(
         state_dir / "phase_2" / "adversarial_tasks.json",
         [
@@ -509,10 +520,12 @@ def _phase_task_dir_root(state_dir: Path, phase: str) -> Path:
 
 
 def _apply_phase_3_mutation(state_dir: Path, mutation: str | None) -> None:
-    if mutation != "corrupt_result":
+    if mutation == "corrupt_result":
+        _write_text(state_dir / "phase_3" / "contracts.json", "{bad-json")
         return
-    task_dir_root = _phase_task_dir_root(state_dir, "phase_3")
-    _write_text(task_dir_root / "task-1" / "result.json", "{bad-json")
+    if mutation is None:
+        return
+    raise ValueError(f"unknown phase 3 mutation {mutation!r}")
 
 
 def _apply_phase_4_mutation(state_dir: Path, mutation: str | None) -> None:
@@ -541,74 +554,12 @@ def _apply_phase_4_mutation(state_dir: Path, mutation: str | None) -> None:
 async def _run_phase_3(mode: str, state_dir: Path, mutation: str | None = None) -> int:
     from worldsim.phases import phase_3_benign
 
-    instances_path = (
-        state_dir / "instances.json" if mode == "resume" else _configure_phase_3(state_dir)
-    )
-    if mode == "resume" and mutation == "instances_drift":
-        _mutate_instances_path(instances_path, suffix="drift")
-    if mode == "resume":
+    if mode != "resume":
+        _configure_phase_3(state_dir)
+    else:
         _apply_phase_3_mutation(state_dir, mutation)
-    phase_3_benign.preflight_auth_check = lambda: None
-    phase_3_benign._reset_task_environment = _async_noop
-    phase_3_benign.run_reward_function = lambda *args, **kwargs: (True, "ok")
-    invocation_log = state_dir / "phase_3_invocations.json"
 
-    class FakeAgent:
-        async def setup(self, server_url):
-            return None
-
-        async def teardown(self):
-            return None
-
-        async def run(self, instruction, server_url, task_dir, **kwargs):
-            _append_event(
-                invocation_log,
-                {
-                    "instruction": instruction,
-                    "server_url": server_url,
-                    "task_dir": str(task_dir),
-                },
-            )
-            return AgentResult(
-                elapsed=0.1,
-                steps=1,
-                is_done=True,
-                final_result=f"done:{instruction}",
-                status="success",
-                errors=[],
-                network_trace=[],
-            )
-
-    phase_3_benign.make_agent_factory = lambda **kwargs: lambda: FakeAgent()
-
-    if mode == "resume":
-        state = load_state() or {}
-        return await phase_3_benign.run(
-            Namespace(
-                instances=state.get("instances_path"),
-                agent_model=state.get("agent_model"),
-                agent_provider=state.get("agent_provider"),
-                full_baseline=state.get("full_baseline", False),
-                resume=True,
-                benchmark=state.get("benchmark_path"),
-                sandbox_model=state.get("sandbox_model"),
-                allow_unknown_auth=state.get("allow_unknown_auth", False),
-                max_tasks_per_site=None,
-            )
-        )
-    return await phase_3_benign.run(
-        Namespace(
-            instances=instances_path,
-            agent_model="demo-model",
-            agent_provider=None,
-            full_baseline=False,
-            resume=False,
-            benchmark=None,
-            sandbox_model="claude-sonnet-4-6",
-            allow_unknown_auth=False,
-            max_tasks_per_site=None,
-        )
-    )
+    return await phase_3_benign.run(Namespace(sites=None))
 
 
 async def _run_phase_4(

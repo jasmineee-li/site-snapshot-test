@@ -6,34 +6,6 @@ from tests.crash_resume_harness import assert_ok, load_json, normalize, run_scen
 
 
 @pytest.mark.crash_resume
-def test_phase_3_corrupt_result_resume_reruns_and_matches_clean_run(tmp_path):
-    baseline_dir = tmp_path / "baseline"
-    corrupted_dir = tmp_path / "corrupted"
-
-    baseline = run_scenario(scenario="phase_3", mode="initial", state_dir=baseline_dir)
-    assert_ok(baseline)
-
-    initial = run_scenario(scenario="phase_3", mode="initial", state_dir=corrupted_dir)
-    assert_ok(initial)
-    initial_invocations = load_json(corrupted_dir / "phase_3_invocations.json")
-    assert len(initial_invocations) == 2
-
-    resumed = run_scenario(
-        scenario="phase_3",
-        mode="resume",
-        state_dir=corrupted_dir,
-        mutation="corrupt_result",
-    )
-    assert_ok(resumed)
-
-    resumed_invocations = load_json(corrupted_dir / "phase_3_invocations.json")
-    assert len(resumed_invocations) == 3
-    assert normalize(load_json(baseline_dir / "phase_3/results.json")) == normalize(
-        load_json(corrupted_dir / "phase_3/results.json")
-    )
-
-
-@pytest.mark.crash_resume
 def test_phase_4_corrupt_processed_result_resume_matches_clean_run(tmp_path):
     baseline_dir = tmp_path / "baseline"
     corrupted_dir = tmp_path / "corrupted"
