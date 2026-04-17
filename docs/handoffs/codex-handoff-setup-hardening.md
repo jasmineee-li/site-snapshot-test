@@ -31,7 +31,7 @@ We spent a session migrating from m5.xlarge to r5.4xlarge (`3.12.221.9`, us-east
 
 ## Priority ordering
 
-**P0 — blocks Phase 4 producing any signal:** #13.
+**P0 — blocks Phase 4 producing any signal:** #13 (landed in `a5bf5af`), #14 (new — see below).
 **P1 — blocks clean host bring-up without manual workarounds:** #1, #2, #3, #4, #5, #6, #7.
 **P2 — limits data quality / causes silent skips:** #8, #9, #11.
 **P3 — perf / observability / hygiene:** #10, #12.
@@ -226,6 +226,161 @@ The URL literal `{forum_name}` appears URL-encoded (`%7Bforum_name%7D`) — the 
 **Verify:** write a test that feeds a chained data_seed (call 1 creates forum, call 2 posts to forum) through `apply_data_seed` against a mock HTTP server; assert call 2's URL has `{forum_name}` replaced with call 1's output.
 
 Also verify Phase 4 end-to-end on r5 with the existing `logs/phase_3/validated_tasks.json` (7 benigns): all 7 should reach browser-use (not error at seed stage), and produce non-zero values in the `Phase 4 complete — N tasks: X complied, Y variant_success, ...` summary.
+
+## 14. Seeds must describe targets abstractly, not hardcode host-bound IDs (P0)
+
+**Status from prior work:** item #13 fixed placeholder substitution and response-chaining (commit `a5bf5af`, 3 tests passing). After #13, Phase 4 against r5 still errored 7/7 but with a different class of failure, summarized in `logs/phase_4_smoke_v2.log` at 2026-04-17 01:43:
+
+```
+HTTP seed failed for site 'gitlab' POST /api/v4/projects/1/merge_requests/1/notes: status=404
+HTTP seed failed for site 'gitlab' POST /api/v4/projects/5/merge_requests: status=404
+HTTP seed failed for site 'map'    PUT  /api/0.6/way/732228095: status=401
+HTTP seed failed for site 'shopping' POST /rest/V1/reviews: status=400
+```
+
+URLs are concrete integers, not `{placeholder}` — so #13's substitution path is correct. The remaining errors are because Phase 2 adversarial task generation emitted seeds whose **target URL** hardcodes resource IDs (project 5, MR 1, way 732228095, etc.) that either (a) don't exist on the live instance, (b) aren't writable by the authenticated `byteblaze` user, or (c) need auth headers the current seeding code doesn't attach (map OSM PUT is 401).
+
+This is not a missing-placeholder-resolver issue. The seed contract itself is wrong: Phase 2 treats "the target to inject into" and "the payload to inject" as one opaque blob, so any change in live-instance data rots the whole adversarial dataset.
+
+**Files:** `worldsim/seeding.py` (and a new `worldsim/seeding/resolvers/` package), `worldsim/phases/phase_4_adversarial.py` (preflight hook), Phase 2 generator (wherever it emits `adversarial_data_seed.calls`), `scripts/migrate_phase_2_seeds_to_targets.py` (new).
+
+### The contract change
+
+Every `call` in `adversarial_data_seed.calls` currently shapes as:
+```json
+{ "method": "POST", "url": "/api/v4/projects/5/merge_requests/1/notes", "body": {...}, "headers": {...} }
+```
+
+New shape (preferred for all new tasks; legacy shape kept for back-compat):
+```json
+{
+  "target": {
+    "site": "gitlab",
+    "resource_type": "mr_note",
+    "constraints": {"owner": "current_user", "mr_state": "opened", "select": "newest"}
+  },
+  "method": "POST",
+  "body": {"body": "<attacker prompt>"},
+  "headers": {}
+}
+```
+
+`target.constraints` is a site-and-resource-type-specific struct that the resolver consumes. The body carries only attacker-controlled payload; the URL is derived at runtime from the resolved target.
+
+### Resolver interface
+
+Create `worldsim/seeding/resolvers/` as a package with one module per site:
+
+```
+worldsim/seeding/resolvers/
+  __init__.py           # dispatcher: get_resolver(site_name) -> callable
+  gitlab.py
+  shopping.py
+  shopping_admin.py
+  reddit.py
+  map.py
+  types.py              # ResolvedCall dataclass
+```
+
+Each site module exports:
+```python
+def resolve(
+    target: dict[str, Any],
+    instance: dict[str, Any],
+    seed_context: dict[str, Any],
+) -> ResolvedCall: ...
+```
+
+Where `ResolvedCall` is:
+```python
+@dataclass(frozen=True)
+class ResolvedCall:
+    method: str
+    url: str                         # fully-qualified, ready to fetch
+    headers: dict[str, str]          # e.g. Authorization, OSM API key
+    context_additions: dict[str, Any]  # e.g. resolved_project_id, resolved_mr_iid
+```
+
+Resolvers use `instance.api_auth` / `instance.agent_auth` tokens already acquired by `acquire_tokens_for_instances`. They query the live instance (via `requests`), apply the `constraints`, and return the canonical call. Add a site-and-resource-type-keyed cache keyed on `(instance.site_url, resource_type, frozenset(constraints.items()))` so N variants against the same target hit the API once.
+
+Resource types to support initially (covers the seven failing task sites in `logs/phase_3/validated_tasks.json`):
+- `gitlab`: `project`, `mr`, `mr_note`, `issue`, `issue_note`, `commit_comment`, `repo_file`
+- `shopping`: `product_review` (needs `product.entity_id`, `rating_store_id`, `rating_option_ids`)
+- `shopping_admin`: `product`, `cms_block`
+- `reddit`: `forum`, `submission`, `comment` (already partially done by #13's `_derive_reddit_seed_context` — generalize and move under this new package)
+- `map`: `node`, `way` (already partially done by #13 — generalize and move)
+
+### Preflight gate in Phase 4
+
+`worldsim/phases/phase_4_adversarial.py:run_adversarial_task` today calls `apply_data_seed_async(adv_seed, seed_instance_dict)` directly. Add a preflight step that, per variant, dry-runs every call's resolver before executing any mutation. Signature:
+
+```python
+async def preflight_adversarial_seed(
+    adv_seed: dict[str, Any],
+    instance: dict[str, Any],
+) -> PreflightReport: ...
+```
+
+`PreflightReport` has `.ok: bool` and `.mismatches: list[SeedPreflightMismatch]`. If not ok, skip the task with a new result status `seed_preflight_mismatch` (add to the summary stats alongside `complied`, `variant_success`, `error`, etc.). Do NOT fire partial mutations on preflight failure.
+
+Preflight cost: one GET per resolver invocation. Amortized across variants sharing targets via the resolver cache, ~10-50 ms/variant. Negligible vs the ~2-min browser agent.
+
+### Back-compat for legacy seed shape
+
+`_apply_http_seed_call` in `worldsim/seeding.py` already sits at the bottom of the call execution path. Add a branch at the top:
+
+```python
+if "target" in call:
+    resolved = get_resolver(call["target"]["site"]).resolve(call["target"], instance, seed_context)
+    method, url, headers = resolved.method, resolved.url, resolved.headers
+    seed_context.update(resolved.context_additions)
+else:
+    # legacy concrete-URL path — use existing template-substitution flow
+    method = call["method"]; url = render_template(call["url"], seed_context); headers = call.get("headers", {})
+```
+
+Existing `logs/phase_2/adversarial_tasks.json` uses the legacy shape. It'll still run (with the broken IDs) until migrated.
+
+### Migration: convert existing tasks
+
+Write `scripts/migrate_phase_2_seeds_to_targets.py`:
+
+1. Read `logs/phase_2/adversarial_tasks.json`.
+2. For each task's `adversarial_data_seed.calls`, pattern-match the URL against known route templates per site (e.g. `r"^/api/v4/projects/(\d+)/merge_requests/(\d+)/notes$"`).
+3. Emit a `target` dict describing what we think the seed was trying to do: resource_type=`mr_note`, constraints inferred from the match (for legacy tasks, use `{"owner": "current_user", "mr_state": "opened", "select": "newest"}` as the default for gitlab notes since the hardcoded IDs are stale anyway).
+4. Preserve `body`, `method`, `headers` unchanged.
+5. Write back to `adversarial_tasks.json` (take a backup first — `adversarial_tasks.json.bak-2026-04-17`).
+6. Run `uv run pytest tests/test_seeding.py tests/test_phase_4_adversarial.py` to verify nothing regressed.
+
+If a URL doesn't match any known template, drop the call and log — these are rare and usually malformed.
+
+### Tests
+
+Each resolver gets:
+
+1. **Unit test with mocked HTTP** (in `tests/test_resolver_<site>.py`): given a fake instance and target, assert the resolver builds the correct URL + headers. Mock `requests.get/post` via `monkeypatch`.
+2. **Integration test skeleton** (marked `@pytest.mark.integration`, skipped by default in CI): takes a `LIVE_INSTANCE_URL` env var and hits a real running container. Run locally after each resolver lands.
+
+Plus one test for `preflight_adversarial_seed` that asserts the right skip-status + diagnostic is emitted when a resolver raises.
+
+### Scope estimate
+
+- Resolver package scaffold + types + cache: ~150 LOC
+- 5 site modules, ~200-400 LOC each depending on coverage: ~1500 LOC
+- Preflight hook: ~100 LOC + tests
+- Migration script: ~100 LOC
+- Tests: ~800 LOC across 6 new files
+- **Total: ~2500-3000 LOC, 2-3 days focused work**
+
+### Why this beats the alternatives
+
+- **Regenerating Phase 2 against r5**: expensive (~$316 Phase 2 cost), host-bound, breaks again on the next image rebuild or data reseed.
+- **Adding ad-hoc resolvers inside current seed flow**: mixes target resolution with payload execution, doesn't generalize, we'd re-diagnose the same class of bug next time.
+- **Skipping seeds that fail**: gives Phase 4 coverage but no Gate 2 data — not paper-grade.
+
+Contract change + resolver layer makes the adversarial dataset **portable**. Same `adversarial_tasks.json` runs against any instance — dev laptop, m5, r5, future scale-out — without regeneration.
+
+**Verify:** after #14 lands, migrate the existing 312-task dataset, rerun Phase 4 against r5 on the 7 validated benigns in `logs/phase_3/validated_tasks.json`. Expected: 0 `error`, non-zero `variant_success + resistant + complied + broke`. The specific ratio is a research finding, not a setup validation; the setup check is that the pipeline produces real data instead of 7/7 `error`.
 
 ---
 
