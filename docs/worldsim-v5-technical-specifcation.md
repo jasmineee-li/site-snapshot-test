@@ -721,7 +721,7 @@ For each benign task:
 - `reward_function` must be a non-empty object.
 - `start_urls` must be a non-empty list of strings.
 - `data_seed` must pass `validate_data_seed(..., allow_none=True)` (Mode A tasks carry `mechanism: "none"`; Mode B tasks carry editor/api/form mechanisms with populated `editor_calls` / `api_calls`).
-- `origin` is classified as `mode_a` when the seed has no editor calls and a `none`/missing mechanism, else `mode_b`.
+- `origin` is classified as `mode_b` when the task id matches `^novel_<site>_<n>$` (the id contract Phase 1 Mode B generation enforces), else `mode_a`. The id prefix is authoritative; Mode A tasks carry the benchmark's raw task id. Seed shape is not a reliable discriminator — Mode B navigate-only tasks carry `mechanism: "none"` just like Mode A. A task with a non-`novel_` id but a non-trivial seed falls back to `mode_b`.
 
 For each adversarial task:
 
