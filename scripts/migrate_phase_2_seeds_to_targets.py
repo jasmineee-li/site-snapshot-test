@@ -29,6 +29,25 @@ _EMBEDDED_SECRET_PATTERNS = (
 )
 
 
+def _prefer_placeholder(*values: Any) -> Any:
+    """Pick the first value containing ``{{PAYLOAD_TEXT}}``; fall back to
+    the first non-empty string; else ``None``. Used when a seed carries
+    both a rendered body and a templated version — the templated one is
+    canonical for seed_template, the rendered one is canonical for
+    adversarial_data_seed. Whichever holds the placeholder is the
+    right source to preserve across migration."""
+    for v in values:
+        if isinstance(v, str) and "{{PAYLOAD_TEXT}}" in v:
+            return v
+    for v in values:
+        if isinstance(v, str) and v:
+            return v
+    for v in values:
+        if v is not None:
+            return v
+    return None
+
+
 def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
     target = call.get("target")
     if not isinstance(target, dict):
@@ -56,8 +75,8 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
             "site": site,
             "method": "create_product_review",
             "args": {
-                "title": body.get("title", review.get("title")),
-                "detail": body.get("detail", review.get("detail")),
+                "title": _prefer_placeholder(body.get("title"), review.get("title")),
+                "detail": _prefer_placeholder(body.get("detail"), review.get("detail")),
                 "nickname": body.get("nickname", review.get("nickname")),
                 "entity_pk_value": body.get("entity_pk_value", review.get("entity_pk_value")),
                 "rating": rating_value,
@@ -83,9 +102,11 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
             "site": site,
             "method": "create_forum",
             "args": {
-                "name_template": body_form.get("forum[name]", forum.get("name_template")),
-                "description_template": body_form.get(
-                    "forum[description]",
+                "name_template": _prefer_placeholder(
+                    body_form.get("forum[name]"), forum.get("name_template")
+                ),
+                "description_template": _prefer_placeholder(
+                    body_form.get("forum[description]"),
                     forum.get("description_template"),
                 ),
             },
@@ -102,16 +123,21 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
             "method": "create_submission",
             "args": {
                 "forum_name": forum.get("name_template", "{forum_name}"),
-                "title_template": body_form.get(
-                    "submission[title]", submission.get("title_template")
+                "title_template": _prefer_placeholder(
+                    body_form.get("submission[title]"), submission.get("title_template")
                 ),
-                "body_template": body_form.get("submission[body]", submission.get("body_template")),
+                "body_template": _prefer_placeholder(
+                    body_form.get("submission[body]"), submission.get("body_template")
+                ),
             },
         }
 
     if site == "reddit" and resource_type == "comment":
         forum = create_spec.get("forum") if isinstance(create_spec.get("forum"), dict) else {}
-        comment_body = next(
+        comment_create = (
+            create_spec.get("comment") if isinstance(create_spec.get("comment"), dict) else {}
+        )
+        comment_body_form = next(
             (value for key, value in body_form.items() if key.startswith("reply_to_submission_")),
             None,
         )
@@ -122,7 +148,11 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
             "args": {
                 "forum_name": forum.get("name_template", "{forum_name}"),
                 "submission_id": "{submission_id}",
-                "body": comment_body,
+                "body": _prefer_placeholder(
+                    comment_body_form,
+                    comment_create.get("body_template"),
+                    comment_create.get("body"),
+                ),
             },
         }
 
@@ -133,10 +163,20 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
             "site": site,
             "method": "create_project",
             "args": {
-                "name_template": body.get("name", project.get("name_template")),
-                "path_template": body.get("path", project.get("path_template")),
-                "description_template": body.get(
-                    "description", project.get("description_template")
+                "name_template": _prefer_placeholder(
+                    body.get("name"),
+                    body_form.get("project[name]"),
+                    project.get("name_template"),
+                ),
+                "path_template": _prefer_placeholder(
+                    body.get("path"),
+                    body_form.get("project[path]"),
+                    project.get("path_template"),
+                ),
+                "description_template": _prefer_placeholder(
+                    body.get("description"),
+                    body_form.get("project[description]"),
+                    project.get("description_template"),
                 ),
             },
         }
@@ -148,14 +188,27 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
             "site": site,
             "method": "create_group",
             "args": {
-                "name_template": body.get("name", group.get("name_template")),
-                "path_template": body.get("path", group.get("path_template")),
-                "description_template": body.get("description", group.get("description_template")),
+                "name_template": _prefer_placeholder(
+                    body.get("name"),
+                    body_form.get("group[name]"),
+                    group.get("name_template"),
+                ),
+                "path_template": _prefer_placeholder(
+                    body.get("path"),
+                    body_form.get("group[path]"),
+                    group.get("path_template"),
+                ),
+                "description_template": _prefer_placeholder(
+                    body.get("description"),
+                    body_form.get("group[description]"),
+                    group.get("description_template"),
+                ),
             },
         }
 
     if site == "gitlab" and resource_type == "issue":
         project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        issue = create_spec.get("issue") if isinstance(create_spec.get("issue"), dict) else {}
         return {
             "benchmark": benchmark,
             "site": site,
@@ -164,8 +217,13 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
                 "project_name_template": project.get("name_template"),
                 "project_path_template": project.get("path_template"),
                 "project_description_template": project.get("description_template"),
-                "title_template": body.get("title"),
-                "body_template": body.get("description", body.get("body")),
+                "title_template": _prefer_placeholder(
+                    body.get("title"), issue.get("title_template")
+                ),
+                "body_template": _prefer_placeholder(
+                    body.get("description", body.get("body")),
+                    issue.get("body_template"),
+                ),
             },
         }
 
@@ -188,6 +246,7 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
 
     if site == "gitlab" and resource_type == "mr":
         project = create_spec.get("project") if isinstance(create_spec.get("project"), dict) else {}
+        merge_request = create_spec.get("mr") if isinstance(create_spec.get("mr"), dict) else {}
         return {
             "benchmark": benchmark,
             "site": site,
@@ -196,10 +255,18 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
                 "project_name_template": project.get("name_template"),
                 "project_path_template": project.get("path_template"),
                 "project_description_template": project.get("description_template"),
-                "title_template": body.get("title"),
-                "body_template": body.get("description"),
-                "source_branch": body.get("source_branch"),
-                "target_branch": body.get("target_branch"),
+                "title_template": _prefer_placeholder(
+                    body.get("title"), merge_request.get("title_template")
+                ),
+                "body_template": _prefer_placeholder(
+                    body.get("description"), merge_request.get("body_template")
+                ),
+                "source_branch": body.get(
+                    "source_branch", merge_request.get("source_branch_template")
+                ),
+                "target_branch": body.get(
+                    "target_branch", merge_request.get("target_branch_template")
+                ),
             },
         }
 
