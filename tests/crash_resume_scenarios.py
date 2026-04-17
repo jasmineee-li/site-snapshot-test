@@ -172,26 +172,7 @@ def _configure_phase_3(state_dir: Path) -> Path:
             },
         ],
     )
-    _write_json(
-        state_dir / "phase_0c" / "BENCHMARK_PROFILE_shopping.json",
-        _minimal_profile("shopping"),
-    )
-    instances_path = state_dir / "instances.json"
-    _write_json(
-        instances_path,
-        {
-            "benchmark_name": "demo",
-            "benchmark_codebase": str(state_dir),
-            "instances": [
-                {
-                    "site_name": "shopping",
-                    "site_url": "http://shopping.test",
-                    "reset_endpoint": "http://shopping.test/init",
-                }
-            ],
-        },
-    )
-    return instances_path
+    return state_dir / "phase_1" / "benign_tasks.json"
 
 
 def _configure_phase_4(state_dir: Path) -> Path:
