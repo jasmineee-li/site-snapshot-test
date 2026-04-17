@@ -22,8 +22,8 @@ import hashlib
 import json
 import logging
 import re
-import urllib.parse
 import tempfile
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -119,9 +119,15 @@ _EDITOR_DELIVERY_PATHS = {
     ("gitlab", "create_project"): ("POST", "/api/v4/projects"),
     ("gitlab", "create_group"): ("POST", "/api/v4/groups"),
     ("gitlab", "create_issue"): ("POST", "/api/v4/projects/{project_id}/issues"),
-    ("gitlab", "create_issue_note"): ("POST", "/api/v4/projects/{project_id}/issues/{issue_iid}/notes"),
+    ("gitlab", "create_issue_note"): (
+        "POST",
+        "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
+    ),
     ("gitlab", "create_mr"): ("POST", "/api/v4/projects/{project_id}/merge_requests"),
-    ("gitlab", "create_mr_note"): ("POST", "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes"),
+    ("gitlab", "create_mr_note"): (
+        "POST",
+        "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
+    ),
     ("gitlab", "create_repo_file"): ("POST", "/api/v4/projects/{project_id}/repository/commits"),
     ("gitlab", "update_user_status"): ("PUT", "/api/v4/user/status"),
     ("gitlab", "update_user_profile"): ("PUT", "/api/v4/user"),
@@ -135,16 +141,37 @@ _EDITOR_DELIVERY_PATHS = {
     ("shopping_admin", "update_admin_profile"): ("POST", "/admin/admin/user/save/"),
 }
 _EDITOR_BODY_FIELD_ALIASES = {
+    ("gitlab", "create_project"): {
+        "name": "name_template",
+        "path": "path_template",
+        "description": "description_template",
+    },
+    ("gitlab", "create_group"): {
+        "name": "name_template",
+        "path": "path_template",
+        "description": "description_template",
+    },
     ("gitlab", "create_issue"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_issue_note"): {"body": "note_body"},
     ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_mr_note"): {"body": "note_body"},
+    ("gitlab", "create_repo_file"): {
+        "path": "path",
+        "content": "content",
+        "commit_message": "commit_message",
+    },
     ("gitlab", "update_user_status"): {"message": "message"},
     ("gitlab", "update_user_profile"): {
         "bio": "bio",
         "name": "name",
         "user[bio]": "bio",
         "user[name]": "name",
+    },
+    ("reddit", "create_forum"): {
+        "name": "name_template",
+        "description": "description_template",
+        "forum[name]": "name_template",
+        "forum[description]": "description_template",
     },
     ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
     ("reddit", "create_comment"): {"body": "body"},
@@ -1059,9 +1086,7 @@ def _merge_preserving_unfiltered_sites(
 def _sanitize_task_for_output(task: dict[str, Any]) -> dict[str, Any]:
     sanitized = json.loads(json.dumps(task))
     if "agent_context" in sanitized:
-        sanitized["agent_context"] = _sanitize_agent_context_for_output(
-            sanitized["agent_context"]
-        )
+        sanitized["agent_context"] = _sanitize_agent_context_for_output(sanitized["agent_context"])
     return sanitized
 
 
@@ -1636,8 +1661,7 @@ def _find_unresolved_http_seed_reference(
             if not isinstance(source_value, str) or not source_value.strip():
                 return f"delivery_channel.postcondition.where[{column_name!r}] path_param must be non-empty"
             if all(
-                not isinstance(call, dict)
-                or not _call_satisfies_path_param(call, source_value)
+                not isinstance(call, dict) or not _call_satisfies_path_param(call, source_value)
                 for call in calls
             ):
                 return (
@@ -1782,7 +1806,11 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
         path = _call_delivery_path(call)
         method = _call_method(call)
         call_mechanism = _call_delivery_mechanism(seed, call)
-        if not isinstance(path, str) or not isinstance(method, str) or not isinstance(call_mechanism, str):
+        if (
+            not isinstance(path, str)
+            or not isinstance(method, str)
+            or not isinstance(call_mechanism, str)
+        ):
             continue
         body_key = _call_body_key(seed, call)
         body = call.get(body_key)
@@ -1927,7 +1955,11 @@ def _extract_seed_writes(seed: Any) -> list[dict[str, Any]]:
         path = _call_delivery_path(call)
         method = _call_method(call)
         mechanism = _call_delivery_mechanism(seed, call)
-        if not isinstance(path, str) or not isinstance(method, str) or not isinstance(mechanism, str):
+        if (
+            not isinstance(path, str)
+            or not isinstance(method, str)
+            or not isinstance(mechanism, str)
+        ):
             continue
         body_key = _call_body_key(seed, call)
         fields: set[str] = set()
@@ -1945,7 +1977,10 @@ def _extract_seed_writes(seed: Any) -> list[dict[str, Any]]:
 
 
 def _call_body_fields(call: dict[str, Any], body_key: str) -> dict[str, Any]:
-    return {field_name: value for field_name, value, _source_name in _call_body_field_entries(call, body_key)}
+    return {
+        field_name: value
+        for field_name, value, _source_name in _call_body_field_entries(call, body_key)
+    }
 
 
 def _call_body_field_entries(call: dict[str, Any], body_key: str) -> list[tuple[str, Any, str]]:
@@ -1975,11 +2010,7 @@ def _call_body_field_entries(call: dict[str, Any], body_key: str) -> list[tuple[
     nested_review = body.get("review")
     if isinstance(nested_review, dict) and all(str(key) == "review" for key in body):
         return [(str(key), value, str(key)) for key, value in nested_review.items()]
-    return [
-        (str(key), value, str(key))
-        for key, value in body.items()
-        if str(key) != "review"
-    ]
+    return [(str(key), value, str(key)) for key, value in body.items() if str(key) != "review"]
 
 
 def _seed_calls(seed: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2018,10 +2049,9 @@ def _call_matches_delivery_entry(
         or not isinstance(entry_method, str)
     ):
         return False
-    return (
-        entry_method.strip().upper() == method.strip().upper()
-        and _normalize_delivery_path(path_template) == _normalize_delivery_path(path)
-    )
+    return entry_method.strip().upper() == method.strip().upper() and _normalize_delivery_path(
+        path_template
+    ) == _normalize_delivery_path(path)
 
 
 def _call_satisfies_path_param(call: dict[str, Any], path_param: str) -> bool:

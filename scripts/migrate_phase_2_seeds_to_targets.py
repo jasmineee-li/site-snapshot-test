@@ -13,16 +13,37 @@ _REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
     r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
 )
 _EDITOR_BODY_FIELD_ALIASES: dict[tuple[str, str], dict[str, str]] = {
+    ("gitlab", "create_project"): {
+        "name": "name_template",
+        "path": "path_template",
+        "description": "description_template",
+    },
+    ("gitlab", "create_group"): {
+        "name": "name_template",
+        "path": "path_template",
+        "description": "description_template",
+    },
     ("gitlab", "create_issue"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_issue_note"): {"body": "note_body"},
     ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_mr_note"): {"body": "note_body"},
+    ("gitlab", "create_repo_file"): {
+        "path": "path",
+        "content": "content",
+        "commit_message": "commit_message",
+    },
     ("gitlab", "update_user_status"): {"message": "message"},
     ("gitlab", "update_user_profile"): {
         "bio": "bio",
         "name": "name",
         "user[bio]": "bio",
         "user[name]": "name",
+    },
+    ("reddit", "create_forum"): {
+        "name": "name_template",
+        "description": "description_template",
+        "forum[name]": "name_template",
+        "forum[description]": "description_template",
     },
     ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
     ("reddit", "create_comment"): {"body": "body"},
@@ -482,9 +503,10 @@ def _canonical_editor_body_field(candidate_calls: list[dict[str, Any]], raw_fiel
 def _editor_arg_name(call: dict[str, Any], canonical_name: str) -> str | None:
     site_name = str(call.get("site") or "").strip().lower()
     method_name = str(call.get("method") or "").strip()
-    if (site_name, method_name) == ("reddit", "create_comment") and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
-        canonical_name
-    ):
+    if (site_name, method_name) == (
+        "reddit",
+        "create_comment",
+    ) and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(canonical_name):
         return "body"
     aliases = _EDITOR_BODY_FIELD_ALIASES.get((site_name, method_name), {})
     arg_name = aliases.get(canonical_name)

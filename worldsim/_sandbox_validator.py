@@ -56,9 +56,15 @@ _EDITOR_DELIVERY_PATHS = {
     ("gitlab", "create_project"): ("POST", "/api/v4/projects"),
     ("gitlab", "create_group"): ("POST", "/api/v4/groups"),
     ("gitlab", "create_issue"): ("POST", "/api/v4/projects/{project_id}/issues"),
-    ("gitlab", "create_issue_note"): ("POST", "/api/v4/projects/{project_id}/issues/{issue_iid}/notes"),
+    ("gitlab", "create_issue_note"): (
+        "POST",
+        "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
+    ),
     ("gitlab", "create_mr"): ("POST", "/api/v4/projects/{project_id}/merge_requests"),
-    ("gitlab", "create_mr_note"): ("POST", "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes"),
+    ("gitlab", "create_mr_note"): (
+        "POST",
+        "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
+    ),
     ("gitlab", "create_repo_file"): ("POST", "/api/v4/projects/{project_id}/repository/commits"),
     ("gitlab", "update_user_status"): ("PUT", "/api/v4/user/status"),
     ("gitlab", "update_user_profile"): ("PUT", "/api/v4/user"),
@@ -72,16 +78,37 @@ _EDITOR_DELIVERY_PATHS = {
     ("shopping_admin", "update_admin_profile"): ("POST", "/admin/admin/user/save/"),
 }
 _EDITOR_BODY_FIELD_ALIASES = {
+    ("gitlab", "create_project"): {
+        "name": "name_template",
+        "path": "path_template",
+        "description": "description_template",
+    },
+    ("gitlab", "create_group"): {
+        "name": "name_template",
+        "path": "path_template",
+        "description": "description_template",
+    },
     ("gitlab", "create_issue"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_issue_note"): {"body": "note_body"},
     ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_mr_note"): {"body": "note_body"},
+    ("gitlab", "create_repo_file"): {
+        "path": "path",
+        "content": "content",
+        "commit_message": "commit_message",
+    },
     ("gitlab", "update_user_status"): {"message": "message"},
     ("gitlab", "update_user_profile"): {
         "bio": "bio",
         "name": "name",
         "user[bio]": "bio",
         "user[name]": "name",
+    },
+    ("reddit", "create_forum"): {
+        "name": "name_template",
+        "description": "description_template",
+        "forum[name]": "name_template",
+        "forum[description]": "description_template",
     },
     ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
     ("reddit", "create_comment"): {"body": "body"},
@@ -126,14 +153,18 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
         api_calls = seed.get("api_calls")
         has_api_calls = isinstance(api_calls, list) and bool(api_calls)
         if not has_api_calls and not has_editor_calls:
-            errors.append(f"{mechanism} data seed must include a non-empty api_calls or editor_calls list")
+            errors.append(
+                f"{mechanism} data seed must include a non-empty api_calls or editor_calls list"
+            )
             return errors
         for call in api_calls or []:
             if not isinstance(call, dict):
                 errors.append(f"{mechanism} data seed calls must be objects")
                 continue
             if "target" in call:
-                errors.append("target-based api_calls are no longer supported; migrate to editor_calls")
+                errors.append(
+                    "target-based api_calls are no longer supported; migrate to editor_calls"
+                )
                 continue
             method = call.get("method")
             if not isinstance(method, str) or not method.strip():
@@ -277,7 +308,9 @@ def validate_seed_template_contract(seed_template: object) -> list[str]:
         if isinstance(body, dict):
             placeholder_count += _count_placeholder_occurrences(body)
     if placeholder_count != 1:
-        return [f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one {expected_body_key} field"]
+        return [
+            f"{mechanism} seed_template must place {{PAYLOAD_TEXT}} in exactly one {expected_body_key} field"
+        ]
     return []
 
 
@@ -301,8 +334,13 @@ def _validate_editor_calls(editor_calls: object) -> list[str]:
         elif method_name.startswith("_"):
             errors.append("editor_calls method must not be private")
         else:
-            benchmark_name = str(call.get("benchmark") or "webarena_verified").strip() or "webarena_verified"
-            if site_name in _KNOWN_EDITOR_SITES and (site_name, method_name) not in _EDITOR_DELIVERY_PATHS:
+            benchmark_name = (
+                str(call.get("benchmark") or "webarena_verified").strip() or "webarena_verified"
+            )
+            if (
+                site_name in _KNOWN_EDITOR_SITES
+                and (site_name, method_name) not in _EDITOR_DELIVERY_PATHS
+            ):
                 errors.append(
                     f"editor_calls method {method_name!r} is not supported for {(benchmark_name, site_name)!r}"
                 )
@@ -1201,8 +1239,7 @@ def _find_unresolved_http_seed_reference(
             if not isinstance(source_value, str) or not source_value.strip():
                 return f"delivery_channel.postcondition.where[{column_name!r}] path_param must be non-empty"
             if all(
-                not isinstance(call, dict)
-                or not _call_satisfies_path_param(call, source_value)
+                not isinstance(call, dict) or not _call_satisfies_path_param(call, source_value)
                 for call in calls
             ):
                 return (
@@ -1212,7 +1249,9 @@ def _find_unresolved_http_seed_reference(
     return None
 
 
-def _call_body_field_value(call: dict[str, object], body_key: str, field_name: str) -> object | None:
+def _call_body_field_value(
+    call: dict[str, object], body_key: str, field_name: str
+) -> object | None:
     editor_args = call.get("args")
     if isinstance(editor_args, dict):
         if field_name in editor_args:
@@ -1410,10 +1449,7 @@ def _surface_matches_write(
             continue
         expected_field = entry.get("body_field")
         write_fields = write.get("fields")
-        if (
-            isinstance(expected_field, str)
-            and isinstance(write_fields, set)
-        ):
+        if isinstance(expected_field, str) and isinstance(write_fields, set):
             field_mode = write.get("field_mode")
             if field_mode == "contains" and expected_field in write_fields:
                 return None
@@ -1448,7 +1484,11 @@ def _extract_attack_write(seed: dict[str, object] | object) -> dict[str, object]
         method = _call_method(call)
         path = _call_delivery_path(call)
         mechanism = _call_delivery_mechanism(seed, call)
-        if not isinstance(method, str) or not isinstance(path, str) or not isinstance(mechanism, str):
+        if (
+            not isinstance(method, str)
+            or not isinstance(path, str)
+            or not isinstance(mechanism, str)
+        ):
             continue
         body_key = _call_body_key(seed, call)
         body = call.get(body_key)
@@ -1811,11 +1851,7 @@ def _call_body_field_entries(
     nested_review = body.get("review")
     if isinstance(nested_review, dict) and all(str(key) == "review" for key in body):
         return [(str(key), value, str(key)) for key, value in nested_review.items()]
-    return [
-        (str(key), value, str(key))
-        for key, value in body.items()
-        if str(key) != "review"
-    ]
+    return [(str(key), value, str(key)) for key, value in body.items() if str(key) != "review"]
 
 
 def _seed_calls(seed: dict[str, object]) -> list[dict[str, object]]:
@@ -1854,10 +1890,9 @@ def _call_matches_delivery_entry(
         or not isinstance(entry_method, str)
     ):
         return False
-    return (
-        entry_method.strip().upper() == method.strip().upper()
-        and _normalize_delivery_path(path_template) == _normalize_delivery_path(path)
-    )
+    return entry_method.strip().upper() == method.strip().upper() and _normalize_delivery_path(
+        path_template
+    ) == _normalize_delivery_path(path)
 
 
 def _editor_delivery_key(call: dict[str, object]) -> tuple[str, str] | None:
