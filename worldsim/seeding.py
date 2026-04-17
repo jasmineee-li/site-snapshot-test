@@ -36,10 +36,9 @@ from worldsim.placeholders import apply_placeholders, merge_placeholder_maps
 
 logger = logging.getLogger(__name__)
 
-# Host-side backstop: the real allowlist is in ``worldsim.fix_validation``.
-# This mirrors ``fix_validation.ALLOWED_METHODS`` so destructive verbs
-# (DELETE) and probing verbs (HEAD, OPTIONS) are blocked at the lowest
-# layer too.
+# Destructive (DELETE) and probing (HEAD, OPTIONS) HTTP verbs are blocked:
+# data seeding must stay within verbs a regular authenticated user would emit
+# via the site's forms or API, per the threat model.
 _ALLOWED_API_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
 _FORM_METHODS = frozenset({"POST", "PUT", "PATCH"})
 _CSRF_TOKEN_CACHE: weakref.WeakKeyDictionary[
@@ -188,11 +187,6 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             raise ValueError(
                 f"{mechanism} data seed must include a non-empty api_calls or editor_calls list"
             )
-        # Belt-and-suspenders: reject destructive/probing HTTP methods here
-        # even when the upstream Phase 3 validator was bypassed. The
-        # authoritative allowlist (path, origin) lives in
-        # ``worldsim.fix_validation.validate_fix_patch``; this check keeps
-        # any caller of ``apply_data_seed`` on the safe subset of verbs.
         for call in api_calls or []:
             if not isinstance(call, dict):
                 raise ValueError("api data seed calls must be objects")
@@ -270,7 +264,9 @@ def _validate_editor_calls(editor_calls: Any) -> None:
         method_name = method.strip()
         if method_name.startswith("_"):
             raise ValueError("editor_calls method must not be private")
-        editor_cls = EDITOR_REGISTRY.get(((benchmark or "webarena_verified").strip(), site.strip().lower()))
+        editor_cls = EDITOR_REGISTRY.get(
+            ((benchmark or "webarena_verified").strip(), site.strip().lower())
+        )
         if editor_cls is not None and method_name not in editor_cls.supported_methods:
             raise ValueError(
                 f"editor_calls method {method_name!r} is not supported for {(benchmark or 'webarena_verified', site.strip().lower())!r}"

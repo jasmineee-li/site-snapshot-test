@@ -40,11 +40,7 @@ def _read_json(path: Path) -> Any:
 
 
 def _load_benign_tasks(state_dir: Path) -> dict[str, dict[str, Any]]:
-    """Return a task_id -> task_dict mapping from ``logs/phase_1/benign_tasks.json``.
-
-    Falls back to ``phase_3_dir/validated_tasks.json`` if the phase_1 file is
-    absent (e.g. running against an archived directory that was relocated).
-    """
+    """Return a task_id -> task_dict mapping from ``logs/phase_1/benign_tasks.json``."""
     phase_1 = state_dir / "phase_1" / "benign_tasks.json"
     if phase_1.exists():
         data = _read_json(phase_1)
