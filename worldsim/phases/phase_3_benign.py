@@ -140,7 +140,28 @@ async def run(args: argparse.Namespace) -> int:
             adv for adv in adversarial_tasks if str(adv.get("site", "")).strip() in benign_site_set
         ]
 
-    benign_by_id = {str(task.get("id", "")): task for task in benign_tasks if task.get("id")}
+    benign_by_id: dict[str, dict[str, Any]] = {}
+    duplicate_ids: list[str] = []
+    for task in benign_tasks:
+        task_id = str(task.get("id", "")).strip()
+        if not task_id:
+            continue
+        if task_id in benign_by_id:
+            duplicate_ids.append(task_id)
+            continue
+        benign_by_id[task_id] = task
+    if duplicate_ids:
+        logger.error(
+            "Phase 3: benign task ids are not unique across Mode A and Mode B: %s",
+            ", ".join(sorted(set(duplicate_ids))),
+        )
+        save_state(
+            "phase_3",
+            status="failed",
+            reason="duplicate_benign_ids",
+            duplicate_benign_ids=sorted(set(duplicate_ids)),
+        )
+        return 1
 
     contracts: list[dict[str, Any]] = []
     valid_count = 0

@@ -192,6 +192,20 @@ async def test_run_reports_adversarial_reference_errors(state_dir, caplog):
 
 
 @pytest.mark.asyncio
+async def test_run_rejects_duplicate_benign_ids(state_dir, caplog):
+    benign = [
+        _mode_a_task("shared-id"),
+        _mode_b_task("shared-id"),
+    ]
+    _write_phase_outputs(state_dir, benign_tasks=benign)
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_3_benign.run(Namespace(sites=None))
+    assert rc == 1
+    assert any("not unique" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
 async def test_run_sites_filter_also_filters_adversarial_tasks(state_dir, caplog):
     benign = [_mode_a_task("task-shop", site="shopping", sites=["shopping"])]
     # Adversarial task on a site that --sites excludes. Its benign_task_id
