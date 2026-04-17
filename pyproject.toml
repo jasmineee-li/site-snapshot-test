@@ -72,4 +72,5 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "crash_resume: focused crash/resume and resume-drift differential tests",
+    "integration: live environment tests for resolvers, seeding, and Phase 4 runtime integration",
 ]

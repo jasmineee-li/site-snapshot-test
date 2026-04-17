@@ -412,6 +412,7 @@ def test_apply_data_seed_derives_reddit_submission_placeholders_from_task_contex
     monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
     monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
     seeding._CSRF_TOKEN_CACHE.clear()
+    seeding._REDDIT_TABLE_NAME_CACHE.clear()
 
     class _LookupCursor:
         def __init__(self):
@@ -424,7 +425,15 @@ def test_apply_data_seed_derives_reddit_submission_placeholders_from_task_contex
             return False
 
         def execute(self, query, params=None):
-            if params == ["Books", "Books", "Books"]:
+            if "to_regclass" in query and params == ["forums"]:
+                self._result = ("forums",)
+            elif "to_regclass" in query and params == ["forum"]:
+                self._result = None
+            elif "to_regclass" in query and params == ["submissions"]:
+                self._result = ("submissions",)
+            elif "to_regclass" in query and params == ["submission"]:
+                self._result = None
+            elif params == ["Books", "Books", "Books"]:
                 self._result = (10067, "books", "Books")
             elif params == ["Best place for a foot rub?", "books", "books"]:
                 self._result = (50001,)
@@ -485,6 +494,95 @@ def test_apply_data_seed_derives_reddit_submission_placeholders_from_task_contex
     post_call = [call for call in fake_session.calls if call["method"] == "POST"][0]
     assert post_call["url"] == "http://reddit.test/f/books/50001/-/comment"
     assert post_call["data"]["reply_to_submission_50001[comment]"] == "ok"
+
+
+def test_resolve_reddit_forum_supports_plural_table_name(monkeypatch):
+    seeding._REDDIT_TABLE_NAME_CACHE.clear()
+
+    class _LookupCursor:
+        def __init__(self):
+            self._result = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def execute(self, query, params=None):
+            if "to_regclass" in query and params == ["forums"]:
+                self._result = ("forums",)
+            elif "to_regclass" in query and params == ["forum"]:
+                self._result = None
+            elif params == ["Books", "Books", "Books"]:
+                self._result = (10067, "books", "Books")
+            else:
+                self._result = None
+
+        def fetchone(self):
+            return self._result
+
+    class _LookupConnection:
+        def cursor(self):
+            return _LookupCursor()
+
+        def rollback(self):
+            return None
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(seeding, "_connect_db", lambda parsed: _LookupConnection())
+
+    forum = seeding._resolve_reddit_forum(
+        {"instantiation_dict": {"forum": "Books"}},
+        {"db_connection": "postgresql://user:pass@localhost:5432/reddit"},
+    )
+
+    assert forum == {"id": 10067, "name": "books", "title": "Books"}
+
+
+def test_resolve_reddit_forum_raises_clear_error_when_no_table_matches(monkeypatch):
+    seeding._REDDIT_TABLE_NAME_CACHE.clear()
+
+    class _LookupCursor:
+        def __init__(self):
+            self._result = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def execute(self, query, params=None):
+            if query in {"BEGIN", "SET TRANSACTION READ ONLY"}:
+                self._result = None
+            elif "to_regclass" in query:
+                self._result = None
+            else:
+                raise AssertionError("table lookup should fail before the query runs")
+
+        def fetchone(self):
+            return self._result
+
+    class _LookupConnection:
+        def cursor(self):
+            return _LookupCursor()
+
+        def rollback(self):
+            return None
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(seeding, "_connect_db", lambda parsed: _LookupConnection())
+
+    with pytest.raises(RuntimeError, match="reddit schema table resolution failed"):
+        seeding._resolve_reddit_forum(
+            {"instantiation_dict": {"forum": "Books"}},
+            {"db_connection": "postgresql://user:pass@localhost:5432/reddit"},
+        )
 
 
 def test_apply_data_seed_loads_bearer_token_from_file(monkeypatch, tmp_path):

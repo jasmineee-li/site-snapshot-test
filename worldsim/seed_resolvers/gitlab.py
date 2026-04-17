@@ -146,22 +146,33 @@ def _ensure_project(
 
     current_user = _current_user(instance)
     leaf_name = project_path.split("/")[-1]
+    project = _find_accessible_project(
+        instance,
+        current_user=current_user,
+        leaf_name=leaf_name,
+        expected_path=project_path,
+    )
+    if isinstance(project, dict):
+        return project
     create_spec = _create_spec(target).get("project")
     description = ""
     if isinstance(create_spec, dict):
         description = str(create_spec.get("description_template") or "").strip()
-    project = _gitlab_request_json(
-        instance,
-        "POST",
-        "/api/v4/projects",
-        json_body={
-            "name": leaf_name,
-            "path": leaf_name,
-            "description": description,
-            "initialize_with_readme": True,
-            "visibility": "private",
-        },
-    )
+    try:
+        project = _gitlab_request_json(
+            instance,
+            "POST",
+            "/api/v4/projects",
+            json_body={
+                "name": leaf_name,
+                "path": leaf_name,
+                "description": description,
+                "initialize_with_readme": True,
+                "visibility": "private",
+            },
+        )
+    except requests.HTTPError as exc:
+        raise _classify_project_create_error(exc, project_path) from exc
     if not isinstance(project, dict):
         raise ResolverError("invalid_project_create", "gitlab project create returned invalid payload")
     path_with_namespace = str(project.get("path_with_namespace") or "").strip()
@@ -171,6 +182,85 @@ def _ensure_project(
         project_path = f"{current_user['username'].strip()}/{leaf_name}"
         project["path_with_namespace"] = project_path
     return project
+
+
+def _find_accessible_project(
+    instance: dict[str, Any],
+    *,
+    current_user: dict[str, Any],
+    leaf_name: str,
+    expected_path: str,
+) -> dict[str, Any] | None:
+    user_id = current_user.get("id")
+    search_paths: list[tuple[str, dict[str, Any]]] = []
+    if user_id not in (None, ""):
+        search_paths.append(
+            (
+                f"/api/v4/users/{quote(str(user_id), safe='')}/projects",
+                {"search": leaf_name, "per_page": 100, "simple": True},
+            )
+        )
+    search_paths.append(
+        (
+            "/api/v4/projects",
+            {"search": leaf_name, "membership": True, "per_page": 100, "simple": True},
+        )
+    )
+    for path, params in search_paths:
+        projects = _gitlab_request_json(instance, "GET", path, params=params)
+        match = _match_project_by_path(projects, expected_path)
+        if match is not None:
+            return match
+    return None
+
+
+def _match_project_by_path(projects: Any, expected_path: str) -> dict[str, Any] | None:
+    normalized_expected = expected_path.strip().lower()
+    if not isinstance(projects, list):
+        return None
+    for project in projects:
+        if not isinstance(project, dict):
+            continue
+        path_with_namespace = _project_path_with_namespace(project)
+        if path_with_namespace and path_with_namespace.lower() == normalized_expected:
+            return project
+    return None
+
+
+def _project_path_with_namespace(project: dict[str, Any]) -> str:
+    direct = str(project.get("path_with_namespace") or "").strip()
+    if direct:
+        return direct
+    namespace = project.get("namespace")
+    if isinstance(namespace, dict):
+        namespace_path = str(namespace.get("full_path") or namespace.get("path") or "").strip()
+        leaf = str(project.get("path") or "").strip()
+        if namespace_path and leaf:
+            return f"{namespace_path}/{leaf}"
+    return ""
+
+
+def _classify_project_create_error(exc: requests.HTTPError, project_path: str) -> ResolverError:
+    response = exc.response
+    if response is None:
+        return ResolverError(
+            "project_create_failed",
+            f"gitlab rejected project create for {project_path!r}: {exc}",
+        )
+
+    message = _gitlab_error_message(response)
+    kind = "project_create_failed"
+    if response.status_code == 400:
+        if _gitlab_error_contains(response, "has already been taken"):
+            kind = "project_already_exists"
+        elif _gitlab_error_contains(response, "can contain only") or _gitlab_error_contains(
+            response, "is invalid"
+        ):
+            kind = "invalid_project_path"
+    return ResolverError(
+        kind,
+        f"gitlab rejected project create for {project_path!r}: {message}",
+    )
 
 
 def _ensure_issue(
@@ -439,12 +529,27 @@ def _slugify(value: str) -> str:
 
 
 def _current_username_preview(instance: dict[str, Any]) -> str:
-    auth = instance.get("auth")
-    if isinstance(auth, dict):
-        username = auth.get("username")
-        if isinstance(username, str) and username.strip():
-            return username.strip()
+    for source in (
+        _nested_lookup(instance.get("auth"), ("credentials", "username")),
+        _nested_lookup(instance.get("auth"), ("username",)),
+        _nested_lookup(instance.get("api_auth"), ("credentials", "username")),
+        _nested_lookup(instance.get("api_auth"), ("username",)),
+        _nested_lookup(instance.get("agent_auth"), ("authentication", "credentials", "username")),
+        _nested_lookup(instance.get("agent_auth"), ("credentials", "username")),
+        _nested_lookup(instance.get("agent_auth"), ("username",)),
+    ):
+        if isinstance(source, str) and source.strip():
+            return source.strip()
     return "current-user"
+
+
+def _nested_lookup(value: Any, path: tuple[str, ...]) -> Any:
+    current = value
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
 
 
 def _current_user(instance: dict[str, Any]) -> dict[str, Any]:
@@ -515,6 +620,37 @@ def _gitlab_error_contains(response: requests.Response, needle: str) -> bool:
     needle = needle.lower()
     body = response.text or ""
     return needle in body.lower()
+
+
+def _gitlab_error_message(response: requests.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        message = _flatten_gitlab_error_payload(payload.get("message"))
+        if message:
+            return message
+    body = (response.text or "").strip()
+    if body:
+        return body
+    return f"HTTP {response.status_code}"
+
+
+def _flatten_gitlab_error_payload(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        parts = [_flatten_gitlab_error_payload(item) for item in value]
+        return "; ".join(part for part in parts if part)
+    if isinstance(value, dict):
+        parts: list[str] = []
+        for key, item in value.items():
+            flattened = _flatten_gitlab_error_payload(item)
+            if flattened:
+                parts.append(f"{key}: {flattened}")
+        return "; ".join(parts)
+    return ""
 
 
 def _gitlab_get_file_content(

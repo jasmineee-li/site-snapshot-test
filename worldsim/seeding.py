@@ -47,6 +47,7 @@ _CSRF_TOKEN_CACHE: weakref.WeakKeyDictionary[
     requests.Session,
     dict[tuple[str, str], tuple[str | None, str | None]],
 ] = weakref.WeakKeyDictionary()
+_REDDIT_TABLE_NAME_CACHE: dict[tuple[str, str], str] = {}
 _BLOCKED_CALL_HEADER_NAMES = frozenset(
     {
         "authorization",
@@ -657,7 +658,16 @@ def _resolve_reddit_forum(task: dict[str, Any], instance: dict[str, Any]) -> dic
     try:
         scheme = parsed.scheme.lower()
         _configure_read_only_connection(conn, scheme)
-        forum_table = _quote_identifier("forum", scheme)
+        forum_table = _quote_identifier(
+            _resolve_reddit_table_name(
+                conn,
+                scheme,
+                db_connection,
+                logical_name="forum",
+                candidates=("forums", "forum"),
+            ),
+            scheme,
+        )
         name_col = _quote_identifier("name", scheme)
         title_col = _quote_identifier("title", scheme)
         id_col = _quote_identifier("id", scheme)
@@ -725,8 +735,26 @@ def _resolve_reddit_submission_id(
     try:
         scheme = parsed.scheme.lower()
         _configure_read_only_connection(conn, scheme)
-        submission_table = _quote_identifier("submission", scheme)
-        forum_table = _quote_identifier("forum", scheme)
+        submission_table = _quote_identifier(
+            _resolve_reddit_table_name(
+                conn,
+                scheme,
+                db_connection,
+                logical_name="submission",
+                candidates=("submissions", "submission"),
+            ),
+            scheme,
+        )
+        forum_table = _quote_identifier(
+            _resolve_reddit_table_name(
+                conn,
+                scheme,
+                db_connection,
+                logical_name="forum",
+                candidates=("forums", "forum"),
+            ),
+            scheme,
+        )
         submission_id_col = _quote_identifier("id", scheme)
         forum_id_col = _quote_identifier("forum_id", scheme)
         timestamp_col = _quote_identifier("timestamp", scheme)
@@ -766,6 +794,44 @@ def _resolve_reddit_submission_id(
     if isinstance(row, (list, tuple)):
         return row[0] if row else None
     return row
+
+
+def _resolve_reddit_table_name(
+    conn: Any,
+    scheme: str,
+    db_connection: str,
+    *,
+    logical_name: str,
+    candidates: tuple[str, ...],
+) -> str:
+    cache_key = (db_connection, logical_name)
+    cached = _REDDIT_TABLE_NAME_CACHE.get(cache_key)
+    if cached:
+        return cached
+    if scheme not in ("postgresql", "postgres"):
+        resolved = candidates[0]
+        _REDDIT_TABLE_NAME_CACHE[cache_key] = resolved
+        return resolved
+
+    with conn.cursor() as cursor:
+        for candidate in candidates:
+            cursor.execute("SELECT to_regclass(%s)", [candidate])
+            row = cursor.fetchone()
+            resolved = None
+            if isinstance(row, dict):
+                resolved = row.get("to_regclass")
+            elif isinstance(row, (list, tuple)):
+                resolved = row[0] if row else None
+            else:
+                resolved = row
+            if resolved not in (None, ""):
+                _REDDIT_TABLE_NAME_CACHE[cache_key] = candidate
+                return candidate
+
+    tried = ", ".join(candidates)
+    raise RuntimeError(
+        f"reddit schema table resolution failed for logical table {logical_name!r} (tried: {tried})"
+    )
 
 
 def _expected_reddit_post_title(reward_function: dict[str, Any]) -> str | None:

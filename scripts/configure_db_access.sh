@@ -90,8 +90,10 @@ SSH_OPTS=(
     -o ServerAliveInterval=30
     -o ConnectTimeout=15
 )
+FAILURES=0
 
 log() { printf '\n==> %s\n' "$*"; }
+record_failure() { FAILURES=$((FAILURES + 1)); }
 
 ssh_host() { ssh "${SSH_OPTS[@]}" "$SSH_USER@$HOST_IP" "$@"; }
 
@@ -107,7 +109,9 @@ for_each_container() {
     while IFS= read -r container; do
         [[ -z "$container" ]] && continue
         found=1
-        "$callback" "$container"
+        if ! "$callback" "$container"; then
+            record_failure
+        fi
     done < <(list_matching_containers "$pattern")
     if [[ "$found" -eq 0 ]]; then
         echo "    WARN: no containers matched pattern $pattern"
@@ -148,9 +152,11 @@ FLUSH PRIVILEGES;
 grant_mysql_remote() {
     local container="$1"
     log "$container: granting magentouser@% remote access"
-    ssh_host "docker exec $container bash -c 'mysql -u root -p1234567890 mysql -e \"$MYSQL_GRANT_SQL\"'" \
-        && echo "    OK" \
-        || echo "    WARN: grant failed (container may still be starting)"
+    if ! printf '%s\n' "$MYSQL_GRANT_SQL" | ssh_host "docker exec -i $container bash -lc 'mysql -u root -p1234567890 mysql'"; then
+        echo "    FAIL: grant failed"
+        return 1
+    fi
+    echo "    OK"
 }
 
 # ---------------------------------------------------------------------------
@@ -160,7 +166,7 @@ grant_mysql_remote() {
 configure_gitlab_postgres() {
     local container="$1"
     log "$container: configuring PostgreSQL for TCP access"
-    ssh_host "docker exec $container bash -lc '
+    if ! ssh_host "docker exec $container bash -lc '
 ALLOWED_CIDRS=\"${GITLAB_DB_ALLOWED_CIDRS}\"
 IFS=, read -ra cidrs <<< \"\$ALLOWED_CIDRS\"
 
@@ -184,7 +190,11 @@ sleep 3
 
 # Verify TCP connectivity
 su - gitlab-psql -s /bin/sh -c \"/opt/gitlab/embedded/bin/psql -h 127.0.0.1 -U gitlab -d gitlabhq_production -c \\\"SELECT 1 as test\\\"\" 2>&1
-' " && echo "    OK" || echo "    WARN: GitLab PostgreSQL config failed"
+' "; then
+        echo "    FAIL: GitLab PostgreSQL config failed"
+        return 1
+    fi
+    echo "    OK"
 }
 
 # ---------------------------------------------------------------------------
@@ -196,8 +206,12 @@ verify_mysql_connection() {
     local host_port
     host_port="$(host_port_for "$container" 3306)"
     echo "  ${container} MySQL (${host_port:-unknown}):"
-    ssh_host "docker exec $container bash -c 'mysql -u magentouser -pMyPassword -h 127.0.0.1 magentodb -e \"SELECT 1\" 2>&1'" \
-        && echo "    OK" || echo "    FAIL"
+    if ssh_host "docker exec $container bash -c 'mysql -u magentouser -pMyPassword -h 127.0.0.1 magentodb -e \"SELECT 1\" 2>&1'"; then
+        echo "    OK"
+        return 0
+    fi
+    echo "    FAIL"
+    return 1
 }
 
 verify_gitlab_connection() {
@@ -205,8 +219,12 @@ verify_gitlab_connection() {
     local host_port
     host_port="$(host_port_for "$container" 5432)"
     echo "  ${container} PostgreSQL (${host_port:-unknown}):"
-    ssh_host "docker exec $container bash -c 'su - gitlab-psql -s /bin/sh -c \"/opt/gitlab/embedded/bin/psql -h 127.0.0.1 -U gitlab -d gitlabhq_production -c \\\"SELECT 1\\\"\" 2>&1'" \
-        && echo "    OK" || echo "    FAIL"
+    if ssh_host "docker exec $container bash -c 'su - gitlab-psql -s /bin/sh -c \"/opt/gitlab/embedded/bin/psql -h 127.0.0.1 -U gitlab -d gitlabhq_production -c \\\"SELECT 1\\\"\" 2>&1'"; then
+        echo "    OK"
+        return 0
+    fi
+    echo "    FAIL"
+    return 1
 }
 
 verify_postgres_connection() {
@@ -217,8 +235,12 @@ verify_postgres_connection() {
     local host_port
     host_port="$(host_port_for "$container" 5432)"
     echo "  ${container} PostgreSQL (${host_port:-unknown}):"
-    ssh_host "docker exec $container bash -c 'PGPASSWORD=${password} psql -h 127.0.0.1 -U ${user} -d ${database} -c \"SELECT 1\" 2>&1'" \
-        && echo "    OK" || echo "    FAIL"
+    if ssh_host "docker exec $container bash -c 'PGPASSWORD=${password} psql -h 127.0.0.1 -U ${user} -d ${database} -c \"SELECT 1\" 2>&1'"; then
+        echo "    OK"
+        return 0
+    fi
+    echo "    FAIL"
+    return 1
 }
 
 verify_connections() {
@@ -228,12 +250,59 @@ verify_connections() {
     for_each_container '^webarena-verified-gitlab(_[0-9]+)?$' verify_gitlab_connection
     while IFS= read -r container; do
         [[ -z "$container" ]] && continue
-        verify_postgres_connection "$container" "postmill" "postmill" "postmill"
+        if ! verify_postgres_connection "$container" "postmill" "postmill" "postmill"; then
+            record_failure
+        fi
     done < <(list_matching_containers '^webarena-verified-reddit(_[0-9]+)?$')
     while IFS= read -r container; do
         [[ -z "$container" ]] && continue
-        verify_postgres_connection "$container" "renderer" "renderer" "gis"
+        if ! verify_postgres_connection "$container" "renderer" "renderer" "gis"; then
+            record_failure
+        fi
     done < <(list_matching_containers '^webarena-verified-map(_[0-9]+)?$')
+}
+
+verify_operator_mysql_connectivity() {
+    local container="$1"
+    local host_port
+    host_port="$(host_port_for "$container" 3306)"
+    echo "  operator -> ${container} MySQL (${HOST_IP}:${host_port:-unknown}):"
+    if [[ -z "$host_port" ]]; then
+        echo "    FAIL: missing published host port"
+        return 1
+    fi
+    if (
+        cd "$REPO_ROOT" &&
+        HOST_IP_CHECK="$HOST_IP" HOST_PORT_CHECK="$host_port" uv run python -c '
+import os
+import pymysql
+
+conn = pymysql.connect(
+    host=os.environ["HOST_IP_CHECK"],
+    port=int(os.environ["HOST_PORT_CHECK"]),
+    user="magentouser",
+    password="MyPassword",
+    database="magentodb",
+)
+try:
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+finally:
+    conn.close()
+'
+    ); then
+        echo "    OK"
+        return 0
+    fi
+    echo "    FAIL"
+    return 1
+}
+
+verify_operator_connections() {
+    log "Verifying operator-host connectivity to shopping MySQL"
+    for_each_container '^webarena-verified-shopping(_[0-9]+)?$' verify_operator_mysql_connectivity
+    for_each_container '^webarena-verified-shopping_admin(_[0-9]+)?$' verify_operator_mysql_connectivity
 }
 
 print_host_ports() {
@@ -271,7 +340,14 @@ main() {
     for_each_container '^webarena-verified-shopping_admin(_[0-9]+)?$' grant_mysql_remote
     for_each_container '^webarena-verified-gitlab(_[0-9]+)?$' configure_gitlab_postgres
     verify_connections
+    verify_operator_connections
     print_host_ports
+
+    if [[ "$FAILURES" -gt 0 ]]; then
+        echo ""
+        log "Failed with ${FAILURES} verification error(s)."
+        return 1
+    fi
 
     echo ""
     log "Done."

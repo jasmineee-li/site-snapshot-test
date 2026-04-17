@@ -271,6 +271,120 @@ def test_create_group_routes_to_group_endpoint():
     assert resolved.url == "http://gitlab.test/api/v4/groups"
 
 
+def test_ensure_project_reuses_direct_match_before_search(monkeypatch):
+    monkeypatch.setattr(
+        gitlab,
+        "_gitlab_get_json",
+        lambda *args, **kwargs: {
+            "id": 17,
+            "path_with_namespace": "byteblaze/webagent-task-1",
+            "default_branch": "main",
+        },
+    )
+    monkeypatch.setattr(
+        gitlab,
+        "_gitlab_request_json",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("search/create should not run")),
+    )
+
+    project = gitlab._ensure_project(
+        {"create": {"project": {"name_template": "webagent-task-1"}}},
+        {"site_url": "http://gitlab.test", "auth": {"username": "byteblaze"}},
+        {"task_id": "1"},
+    )
+
+    assert project["id"] == 17
+
+
+def test_ensure_project_reuses_search_match_when_direct_lookup_missing(monkeypatch):
+    request_calls: list[tuple[str, str, dict[str, object] | None]] = []
+
+    monkeypatch.setattr(gitlab, "_gitlab_get_json", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"id": 9, "username": "byteblaze"})
+
+    def fake_request_json(instance, method, path, **kwargs):
+        request_calls.append((method, path, kwargs.get("params")))
+        if method == "GET" and path == "/api/v4/users/9/projects":
+            return [
+                {
+                    "id": 42,
+                    "path": "webagent-task-1",
+                    "namespace": {"full_path": "byteblaze"},
+                    "default_branch": "main",
+                }
+            ]
+        raise AssertionError(f"unexpected call: {method} {path}")
+
+    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
+
+    project = gitlab._ensure_project(
+        {"create": {"project": {"name_template": "webagent-task-1"}}},
+        {"site_url": "http://gitlab.test", "auth": {"username": "byteblaze"}},
+        {"task_id": "1"},
+    )
+
+    assert project["id"] == 42
+    assert request_calls == [
+        ("GET", "/api/v4/users/9/projects", {"search": "webagent-task-1", "per_page": 100, "simple": True})
+    ]
+
+
+def test_ensure_project_classifies_duplicate_project_create_400(monkeypatch):
+    response = requests.Response()
+    response.status_code = 400
+    response._content = b'{"message":{"path":["has already been taken"]}}'
+    response.url = "http://gitlab.test/api/v4/projects"
+    error = requests.HTTPError("bad request", response=response)
+
+    monkeypatch.setattr(gitlab, "_gitlab_get_json", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"id": 9, "username": "byteblaze"})
+
+    def fake_request_json(instance, method, path, **kwargs):
+        if method == "GET":
+            return []
+        raise error
+
+    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
+
+    with pytest.raises(ResolverError) as exc_info:
+        gitlab._ensure_project(
+            {"create": {"project": {"name_template": "webagent-task-1"}}},
+            {"site_url": "http://gitlab.test"},
+            {"task_id": "1"},
+        )
+
+    assert exc_info.value.kind == "project_already_exists"
+    assert "path: has already been taken" in exc_info.value.detail
+
+
+def test_ensure_project_classifies_invalid_project_path_400(monkeypatch):
+    response = requests.Response()
+    response.status_code = 400
+    response._content = b'{"message":{"path":["can contain only letters"]}}'
+    response.url = "http://gitlab.test/api/v4/projects"
+    error = requests.HTTPError("bad request", response=response)
+
+    monkeypatch.setattr(gitlab, "_gitlab_get_json", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gitlab, "_current_user", lambda instance: {"id": 9, "username": "byteblaze"})
+
+    def fake_request_json(instance, method, path, **kwargs):
+        if method == "GET":
+            return []
+        raise error
+
+    monkeypatch.setattr(gitlab, "_gitlab_request_json", fake_request_json)
+
+    with pytest.raises(ResolverError) as exc_info:
+        gitlab._ensure_project(
+            {"create": {"project": {"name_template": "webagent-task-1"}}},
+            {"site_url": "http://gitlab.test"},
+            {"task_id": "1"},
+        )
+
+    assert exc_info.value.kind == "invalid_project_path"
+    assert "path: can contain only letters" in exc_info.value.detail
+
+
 def test_create_repo_file_routes_to_commit_endpoint_in_preview():
     resolved = gitlab.create(
         {
