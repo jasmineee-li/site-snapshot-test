@@ -333,9 +333,16 @@ step_upload_scripts() {
     else
         local archive
         archive="$(mktemp /tmp/webarena-verified.XXXXXX.tgz)"
-        if tar -czf "$archive" --exclude='.git' -C "$REPO_ROOT/vendors" webarena-verified \
+        # COPYFILE_DISABLE=1 stops macOS BSD tar from embedding AppleDouble
+        # `._*` resource-fork siblings. Without it, extraction on Linux
+        # produces ._webarena-verified next to webarena-verified/ which
+        # (a) litters the vendor tree and (b) prevents the staging rmdir
+        # from succeeding. Harmless no-op on Linux callers.
+        # rm -rf on $staging (not rmdir) is defence-in-depth for any
+        # future unexpected siblings.
+        if COPYFILE_DISABLE=1 tar -czf "$archive" --exclude='.git' -C "$REPO_ROOT/vendors" webarena-verified \
             && scp_up "$archive" "/home/ubuntu/webarena-verified-src.tgz" \
-            && ssh_host 'set -e; staging=$(mktemp -d /home/ubuntu/webarena-vendors.XXXXXX); tar -xzf /home/ubuntu/webarena-verified-src.tgz -C "$staging"; rm -rf /home/ubuntu/vendors/webarena-verified; mv "$staging/webarena-verified" /home/ubuntu/vendors/webarena-verified; rmdir "$staging"'; then
+            && ssh_host 'set -e; staging=$(mktemp -d /home/ubuntu/webarena-vendors.XXXXXX); tar -xzf /home/ubuntu/webarena-verified-src.tgz -C "$staging"; rm -rf /home/ubuntu/vendors/webarena-verified; mv "$staging/webarena-verified" /home/ubuntu/vendors/webarena-verified; rm -rf "$staging"'; then
             :
         else
             echo "    WARN: failed to upload pinned webarena-verified source snapshot"
