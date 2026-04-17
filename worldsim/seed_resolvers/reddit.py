@@ -28,7 +28,9 @@ def create(
     forum_name = _forum_name(create_spec, seed_context)
     if resource_type == "forum":
         if not forum_name:
-            raise ResolverError("missing_forum_name", "reddit forum target requires create.forum.name_template")
+            raise ResolverError(
+                "missing_forum_name", "reddit forum target requires create.forum.name_template"
+            )
         return ResolvedCall(
             method=str(target.get("method") or "POST").strip().upper() or "POST",
             url=f"{site_url}/create_forum",
@@ -58,7 +60,9 @@ def create(
             )
         submission_id = seed_context.get("submission_id")
         if submission_id in (None, ""):
-            submission_id = _ensure_submission(site_url, forum_name, create_spec, instance, seed_context)
+            submission_id = _ensure_submission(
+                site_url, forum_name, create_spec, instance, seed_context
+            )
         if submission_id in (None, ""):
             raise ResolverError(
                 "missing_submission_id",
@@ -146,7 +150,9 @@ def _ensure_submission(
         return "preview-submission"
 
     title = str(submission_spec.get("title_template") or f"Submission {forum_name}").strip()
-    body = str(submission_spec.get("body_template") or f"Discussion thread for {forum_name}.").strip()
+    body = str(
+        submission_spec.get("body_template") or f"Discussion thread for {forum_name}."
+    ).strip()
     existing_submission_id = _find_existing_submission_id(instance, forum_name, title)
     if existing_submission_id not in (None, ""):
         return str(existing_submission_id)
@@ -223,7 +229,9 @@ def _forum_name(create_spec: dict[str, Any], seed_context: dict[str, Any]) -> st
     forum_spec = create_spec.get("forum")
     if not isinstance(forum_spec, dict):
         forum_spec = {}
-    candidate = forum_spec.get("name_template") or forum_spec.get("forum_name") or forum_spec.get("name")
+    candidate = (
+        forum_spec.get("name_template") or forum_spec.get("forum_name") or forum_spec.get("name")
+    )
     if isinstance(candidate, str) and candidate.strip():
         return candidate.strip()
     if isinstance(seed_context.get("forum_name"), str) and seed_context["forum_name"].strip():
@@ -252,11 +260,18 @@ def _current_username(instance: dict[str, Any], seed_context: dict[str, Any]) ->
 
 
 def _auth_username(instance: dict[str, Any]) -> str | None:
+    # Reddit credentials may live at any of several paths depending on which
+    # auth block the site uses. The agent_auth.authentication.credentials.*
+    # path is the one reddit's instances.smoke.json actually uses — don't
+    # miss it.
     for source in (
         _nested_lookup(instance.get("auth"), ("credentials", "username")),
         _nested_lookup(instance.get("auth"), ("username",)),
         _nested_lookup(instance.get("api_auth"), ("credentials", "username")),
         _nested_lookup(instance.get("api_auth"), ("username",)),
+        _nested_lookup(instance.get("agent_auth"), ("authentication", "credentials", "username")),
+        _nested_lookup(instance.get("agent_auth"), ("credentials", "username")),
+        _nested_lookup(instance.get("agent_auth"), ("username",)),
     ):
         if isinstance(source, str) and source.strip():
             return source.strip()
