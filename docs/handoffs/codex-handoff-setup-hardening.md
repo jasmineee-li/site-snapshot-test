@@ -475,6 +475,8 @@ worldsim/seed_resolvers/
 
 ### 14.10 Migration of the existing 312-task dataset
 
+Scope clarification: the Phase 2 pool has **312 adversarial tasks total** in `logs/phase_2/adversarial_tasks.json`. A given Phase 4 run only executes the adversarial tasks whose `benign_task_id` matches a benign that Phase 3 validated — for example, tonight's Phase 3 (`--max-tasks-per-site 10`, 50 tasks) validated 7 benigns, so Phase 4 ran 7 adversarial tasks (from the 312 pool). Migrating all 312 at once — rather than just the 7 currently unlocked — means **any future Phase 3 run** (bigger `--max-tasks-per-site`, different site filter, etc.) **can run Phase 4 immediately** without re-migrating. One-shot migration is also cheaper than lazy per-task migration; no runtime branching on "migrated or not."
+
 Write `scripts/migrate_phase_2_seeds_to_targets.py`:
 
 1. Read `logs/phase_2/adversarial_tasks.json`.
