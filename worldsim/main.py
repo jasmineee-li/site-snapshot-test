@@ -599,7 +599,9 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         rc = asyncio.run(phase_1_tasks.run(args))
     elif phase == "2":
         rc = asyncio.run(phase_2_injections.run(args))
-    elif phase in {"3", "4"}:
+    elif phase == "3":
+        rc = asyncio.run(phase_3_benign.run(args))
+    elif phase == "4":
         allow_unknown = getattr(args, "allow_unknown_auth", False)
         instances_for_gate: list[dict[str, object]] | None = None
         instances_path = getattr(args, "instances", None)
@@ -626,10 +628,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 2
-        if phase == "3":
-            rc = asyncio.run(phase_3_benign.run(args))
-        else:
-            rc = asyncio.run(phase_4_adversarial.run(args))
+        rc = asyncio.run(phase_4_adversarial.run(args))
     else:
         print(f"Unknown phase: {phase}", file=sys.stderr)
         return 1
