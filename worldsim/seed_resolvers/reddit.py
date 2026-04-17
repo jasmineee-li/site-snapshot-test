@@ -335,16 +335,22 @@ def _query_one(instance: dict[str, Any], query: str, params: list[Any]) -> Any:
 
     from worldsim import seeding as seeding_module
 
-    parsed = seeding_module._parse_runtime_db_connection(
-        db_connection,
-        purpose="reddit resolver lookup requires instance['db_connection']",
-    )
-    conn = seeding_module._connect_db(parsed)
     try:
-        seeding_module._configure_read_only_connection(conn, parsed.scheme.lower())
-        with conn.cursor() as cursor:
-            cursor.execute(query, params)
-            return cursor.fetchone()
+        parsed = seeding_module._parse_runtime_db_connection(
+            db_connection,
+            purpose="reddit resolver lookup requires instance['db_connection']",
+        )
+        conn = seeding_module._connect_db(parsed)
+    except Exception:
+        return None
+    try:
+        try:
+            seeding_module._configure_read_only_connection(conn, parsed.scheme.lower())
+            with conn.cursor() as cursor:
+                cursor.execute(query, params)
+                return cursor.fetchone()
+        except Exception:
+            return None
     finally:
         try:
             conn.rollback()

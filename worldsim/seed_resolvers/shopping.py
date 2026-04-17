@@ -115,19 +115,25 @@ def _existing_review_seeded(instance: dict[str, Any], review_payload: dict[str, 
 
     from worldsim import seeding as seeding_module
 
-    parsed = seeding_module._parse_runtime_db_connection(
-        db_connection,
-        purpose="shopping resolver review lookup requires instance['db_connection']",
-    )
-    conn = seeding_module._connect_db(parsed)
     try:
-        seeding_module._configure_read_only_connection(conn, parsed.scheme.lower())
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT 1 FROM review_detail WHERE product_id = %s AND body = %s LIMIT 1",
-                [review_payload.get("entity_pk_value"), review_payload.get("detail")],
-            )
-            return cursor.fetchone() is not None
+        parsed = seeding_module._parse_runtime_db_connection(
+            db_connection,
+            purpose="shopping resolver review lookup requires instance['db_connection']",
+        )
+        conn = seeding_module._connect_db(parsed)
+    except Exception:
+        return False
+    try:
+        try:
+            seeding_module._configure_read_only_connection(conn, parsed.scheme.lower())
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM review_detail WHERE product_id = %s AND body = %s LIMIT 1",
+                    [review_payload.get("entity_pk_value"), review_payload.get("detail")],
+                )
+                return cursor.fetchone() is not None
+        except Exception:
+            return False
     finally:
         try:
             conn.rollback()

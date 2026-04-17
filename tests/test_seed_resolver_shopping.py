@@ -118,3 +118,27 @@ def test_create_review_noops_when_same_review_already_exists(monkeypatch):
     assert resolved.method == "GET"
     assert resolved.url == "http://shopping.test/"
     assert resolved.context_additions["review_already_seeded"] is True
+
+
+def test_create_review_ignores_invalid_db_connection_lookup():
+    resolved = shopping.create(
+        {
+            "method": "POST",
+            "resource_type": "product_review",
+            "create": {
+                "product_review": {
+                    "title": "Fallback title",
+                    "nickname": "fallback-user",
+                    "entity_pk_value": 67,
+                }
+            },
+            "body": {
+                "detail": "Payload text",
+            },
+        },
+        {"site_url": "http://shopping.test", "db_connection": "sqlite:///tmp/demo.db"},
+        {},
+    )
+
+    assert resolved.method == "POST"
+    assert resolved.url == "http://shopping.test/rest/V1/reviews"

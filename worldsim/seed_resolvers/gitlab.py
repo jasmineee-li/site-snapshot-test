@@ -17,11 +17,12 @@ def create(
     mechanism = str(target.get("mechanism") or "api").strip().lower()
 
     if resource_type == "project":
+        preview = _preview_project_context(target, instance, seed_context)
         return ResolvedCall(
             method=str(target.get("method") or "POST").strip().upper() or "POST",
             url=_form_or_api_url(instance, mechanism, form_path="/projects", api_path="/api/v4/projects"),
             headers={},
-            context_additions=_preview_project_context(target, instance, seed_context),
+            context_additions={"project_path": preview["project_path"]},
         )
     if resource_type == "group":
         return ResolvedCall(

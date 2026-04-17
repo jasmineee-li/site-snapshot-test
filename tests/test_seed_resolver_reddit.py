@@ -125,3 +125,31 @@ def test_update_user_bio_rejects_seed_context_username_mismatch():
             },
             {"username": "other-user"},
         )
+
+
+def test_create_comment_falls_back_to_create_when_db_lookup_is_unavailable(monkeypatch):
+    monkeypatch.setattr(reddit, "_ensure_forum", lambda *args, **kwargs: None)
+    monkeypatch.setattr(reddit, "_perform_login", lambda *args, **kwargs: None)
+
+    class _FakeResponse:
+        headers = {"Location": "http://reddit.test/f/books/4242"}
+
+        def json(self):
+            return {"id": 4242}
+
+    monkeypatch.setattr(reddit, "_submit_form", lambda *args, **kwargs: _FakeResponse())
+
+    resolved = reddit.create(
+        {
+            "method": "POST",
+            "resource_type": "comment",
+            "create": {
+                "forum": {"name_template": "books"},
+                "submission": {"title_template": "Books thread"},
+            },
+        },
+        {"site_url": "http://reddit.test", "db_connection": "sqlite:///tmp/demo.db"},
+        {},
+    )
+
+    assert resolved.url == "http://reddit.test/f/books/4242/-/comment"

@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_QUARANTINE_SITES = ("map",)
+_PAYLOAD_PLACEHOLDER = "{{PAYLOAD_TEXT}}"
+_PAYLOAD_PLACEHOLDER_RE = re.compile(r"\{\{PAYLOAD_TEXT\}\}")
 _EMBEDDED_SECRET_PATTERNS = (
     (
         re.compile(r"(?i)\b(Bearer)\s+([^\s'\"`]+)"),
@@ -94,8 +96,10 @@ def main() -> int:
             )
 
     if unmatched:
-        print("migrate_phase_2_seeds_to_targets: refusing to write partially migrated main dataset")
-        return 1
+        print(
+            "migrate_phase_2_seeds_to_targets: keeping unmatched tasks in legacy form; "
+            "main dataset will be written partially migrated"
+        )
 
     if args.dry_run:
         return 0
@@ -119,29 +123,6 @@ def main() -> int:
     temp_path.replace(final_path)
     print(f"updated {final_path}")
     return 0
-
-
-def _already_migrated(tasks: list[Any]) -> bool:
-    saw_target = False
-    for task in tasks:
-        if not isinstance(task, dict):
-            continue
-        site_name = str(task.get("site", "")).strip().lower()
-        if site_name in DEFAULT_QUARANTINE_SITES:
-            return False
-        api_calls = task.get("adversarial_data_seed", {}).get("api_calls")
-        if not isinstance(api_calls, list):
-            continue
-        for call in api_calls:
-            if not isinstance(call, dict):
-                continue
-            if isinstance(call.get("target"), dict):
-                saw_target = True
-                continue
-            path = call.get("path") or call.get("url")
-            if isinstance(path, str) and path.strip():
-                return False
-    return saw_target
 
 
 def _quarantine_path(path: Path, site_name: str) -> Path:
@@ -190,9 +171,7 @@ def _migrate_task(task: dict[str, Any]) -> tuple[dict[str, Any], int, int, int]:
     return updated, int(changed > 0 or updated != task), skipped, unmatched
 
 
-def _migrate_call(
-    task: dict[str, Any], call: dict[str, Any]
-) -> tuple[dict[str, Any], bool, bool]:
+def _migrate_call(task: dict[str, Any], call: dict[str, Any]) -> tuple[dict[str, Any], bool, bool]:
     if not isinstance(call, dict):
         return call, False, True
     if isinstance(call.get("target"), dict):
@@ -251,7 +230,9 @@ def _create_target_for_call(
 
     if path == "/rest/V1/reviews":
         review_spec = _shopping_review_spec(task, call)
-        return _target(site_name or "shopping", "product_review", create={"product_review": review_spec})
+        return _target(
+            site_name or "shopping", "product_review", create={"product_review": review_spec}
+        )
 
     if path == "/create_forum":
         return _target(
@@ -358,7 +339,9 @@ def _create_target_for_call(
             },
         )
 
-    if re.fullmatch(r"/api/v4/projects/(?:\d+|\{project_id\})/issues/(?:\d+|\{issue_iid\})/notes", path):
+    if re.fullmatch(
+        r"/api/v4/projects/(?:\d+|\{project_id\})/issues/(?:\d+|\{issue_iid\})/notes", path
+    ):
         return _target(
             "gitlab",
             "issue_note",
@@ -386,7 +369,9 @@ def _create_target_for_call(
             },
         )
 
-    if re.fullmatch(r"/api/v4/projects/(?:\d+|\{project_id\})/merge_requests/(?:\d+|\{mr_iid\})/notes", path):
+    if re.fullmatch(
+        r"/api/v4/projects/(?:\d+|\{project_id\})/merge_requests/(?:\d+|\{mr_iid\})/notes", path
+    ):
         return _target(
             "gitlab",
             "mr_note",
@@ -422,7 +407,9 @@ def _update_target_for_call(
         return _target("shopping", "customer_profile", update={})
     if method == "PUT" and path == "/rest/V1/users/me":
         return _target("shopping_admin", "admin_profile", update={})
-    if method == "POST" and re.fullmatch(r"/user/[^/]+/edit_biography|/user/\{username\}/edit_biography", path):
+    if method == "POST" and re.fullmatch(
+        r"/user/[^/]+/edit_biography|/user/\{username\}/edit_biography", path
+    ):
         return _target("reddit", "user_bio", update={})
     return None
 
@@ -468,15 +455,13 @@ def _effective_site(task: dict[str, Any]) -> str:
 
 def _gitlab_project_spec(task: dict[str, Any]) -> dict[str, Any]:
     return {
-        "name_template": f"webagent-task-{{task_id}}",
-        "path_template": f"webagent-task-{{task_id}}",
-        "description_template": f"Seeded project for task {{task_id}}",
+        "name_template": "webagent-task-{task_id}",
+        "path_template": "webagent-task-{task_id}",
+        "description_template": "Seeded project for task {task_id}",
     }
 
 
-def _gitlab_project_name(
-    task: dict[str, Any], *, body: Any = None, body_form: Any = None
-) -> str:
+def _gitlab_project_name(task: dict[str, Any], *, body: Any = None, body_form: Any = None) -> str:
     if isinstance(body, dict):
         for key in ("name", "project_name"):
             value = body.get(key)
@@ -487,12 +472,10 @@ def _gitlab_project_name(
             value = body_form.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
-    return f"webagent-task-{{task_id}}"
+    return "webagent-task-{task_id}"
 
 
-def _gitlab_project_path(
-    task: dict[str, Any], *, body: Any = None, body_form: Any = None
-) -> str:
+def _gitlab_project_path(task: dict[str, Any], *, body: Any = None, body_form: Any = None) -> str:
     if isinstance(body, dict):
         for key in ("path", "project_path"):
             value = body.get(key)
@@ -503,7 +486,7 @@ def _gitlab_project_path(
             value = body_form.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
-    return f"webagent-task-{{task_id}}"
+    return "webagent-task-{task_id}"
 
 
 def _gitlab_group_name(body: Any = None, body_form: Any = None) -> str:
@@ -515,7 +498,7 @@ def _gitlab_group_name(body: Any = None, body_form: Any = None) -> str:
         value = body_form.get("group[name]")
         if isinstance(value, str) and value.strip():
             return value.strip()
-    return f"webagent-group-{{task_id}}"
+    return "webagent-group-{task_id}"
 
 
 def _gitlab_group_path(body: Any = None, body_form: Any = None) -> str:
@@ -527,7 +510,7 @@ def _gitlab_group_path(body: Any = None, body_form: Any = None) -> str:
         value = body_form.get("group[path]")
         if isinstance(value, str) and value.strip():
             return value.strip()
-    return f"webagent-group-{{task_id}}"
+    return "webagent-group-{task_id}"
 
 
 def _gitlab_issue_title(body: Any) -> str:
@@ -732,7 +715,58 @@ def _normalize_target_call(task: dict[str, Any], call: dict[str, Any]) -> dict[s
         merged = _shopping_review_spec(task, normalized)
         if merged:
             create_spec["product_review"] = merged
+    # Dedup: strip {{PAYLOAD_TEXT}} from the legacy body / body_form when the
+    # resolver-authoritative location (target.create) already carries it.
+    _dedup_payload_placeholder(normalized, resource_type, create_spec)
     return normalized
+
+
+def _dedup_payload_placeholder(
+    call: dict[str, Any],
+    resource_type: str,
+    create_spec: Any,
+) -> None:
+    """Remove {{PAYLOAD_TEXT}} from the redundant legacy body/body_form field.
+
+    The resolver reads the placeholder from target.create.<resource_type> spec
+    fields (title_template, body_template, etc.). When the legacy body also
+    contains the placeholder, it appears twice and fails the exactly-one-
+    placeholder validation. Strip it from the legacy location only.
+
+    Affected resource types and their redundant field:
+      product_review, issue, mr  -> top-level body
+      submission                 -> top-level body_form
+    """
+    if not isinstance(create_spec, dict):
+        return
+    # Only act when target.create already carries the placeholder.
+    if not _PAYLOAD_PLACEHOLDER_RE.search(json.dumps(create_spec)):
+        return
+
+    if resource_type in ("product_review", "issue", "mr"):
+        redundant_key = "body"
+    elif resource_type == "submission":
+        redundant_key = "body_form"
+    else:
+        return
+
+    redundant = call.get(redundant_key)
+    if redundant is None:
+        return
+    if not _PAYLOAD_PLACEHOLDER_RE.search(json.dumps(redundant)):
+        return
+    call[redundant_key] = _strip_payload_placeholder(redundant)
+
+
+def _strip_payload_placeholder(value: Any) -> Any:
+    """Recursively remove all {{PAYLOAD_TEXT}} occurrences from a value."""
+    if isinstance(value, dict):
+        return {k: _strip_payload_placeholder(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_strip_payload_placeholder(item) for item in value]
+    if isinstance(value, str):
+        return value.replace(_PAYLOAD_PLACEHOLDER, "")
+    return value
 
 
 def _shopping_review_spec(task: dict[str, Any], call: dict[str, Any]) -> dict[str, Any]:

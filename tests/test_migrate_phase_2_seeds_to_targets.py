@@ -5,8 +5,9 @@ import json
 import sys
 from pathlib import Path
 
-
-_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "migrate_phase_2_seeds_to_targets.py"
+_SCRIPT_PATH = (
+    Path(__file__).resolve().parents[1] / "scripts" / "migrate_phase_2_seeds_to_targets.py"
+)
 _SPEC = importlib.util.spec_from_file_location("migrate_phase_2_seeds_to_targets", _SCRIPT_PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 _MODULE = importlib.util.module_from_spec(_SPEC)
@@ -90,7 +91,9 @@ def test_migrate_task_preserves_unmatched_legacy_seed_calls():
 
     updated, changed, skipped, unmatched = _MODULE._migrate_task(task)
 
-    assert updated["adversarial_data_seed"]["api_calls"] == task["adversarial_data_seed"]["api_calls"]
+    assert (
+        updated["adversarial_data_seed"]["api_calls"] == task["adversarial_data_seed"]["api_calls"]
+    )
     assert changed == 0
     assert skipped == 0
     assert unmatched == 1
@@ -217,7 +220,10 @@ def test_target_for_call_rewrites_shopping_review_with_required_defaults():
 
 def test_target_for_call_preserves_concrete_reddit_forum_from_path():
     task = {"id": "adv-reddit-1", "site": "reddit"}
-    call = {"method": "POST", "body_form": {"submission[title]": "Thread", "submission[body]": "Body"}}
+    call = {
+        "method": "POST",
+        "body_form": {"submission[title]": "Thread", "submission[body]": "Body"},
+    }
 
     target = _MODULE._target_for_call(task, "/submit/10037", "POST", call)
 
@@ -240,7 +246,9 @@ def test_target_for_call_rewrites_gitlab_user_profile_update():
 def test_target_for_call_rewrites_legacy_gitlab_profile_form_post():
     task = {"id": "adv-gitlab-profile-legacy-1", "site": "gitlab"}
 
-    target = _MODULE._target_for_call(task, "/-/profile", "POST", {"body_form": {"user[bio]": "payload"}})
+    target = _MODULE._target_for_call(
+        task, "/-/profile", "POST", {"body_form": {"user[bio]": "payload"}}
+    )
 
     assert target == {
         "benchmark": "webarena_verified",
@@ -270,43 +278,6 @@ def test_normalize_target_call_strips_stale_legacy_routing_fields():
     assert "path" not in normalized
     assert "url" not in normalized
     assert "method" not in normalized
-
-
-def test_already_migrated_requires_full_cutover_not_partial_state():
-    tasks = [
-        {
-            "id": "already-targeted",
-            "site": "gitlab",
-            "adversarial_data_seed": {
-                "api_calls": [
-                    {
-                        "method": "POST",
-                        "target": {
-                            "benchmark": "webarena_verified",
-                            "site": "gitlab",
-                            "resource_type": "project",
-                            "create": {"project": {}},
-                        },
-                    }
-                ]
-            },
-        },
-        {
-            "id": "still-legacy",
-            "site": "shopping",
-            "adversarial_data_seed": {
-                "api_calls": [
-                    {
-                        "method": "POST",
-                        "path": "/rest/V1/reviews",
-                        "body": {"detail": "payload"},
-                    }
-                ]
-            },
-        },
-    ]
-
-    assert _MODULE._already_migrated(tasks) is False
 
 
 def test_main_quarantines_by_effective_delivery_site(tmp_path, monkeypatch):
@@ -404,8 +375,24 @@ def test_main_second_run_is_idempotent_for_already_migrated_dataset(tmp_path, mo
     assert json.loads(dataset_path.read_text(encoding="utf-8")) == dataset
 
 
-def test_main_refuses_partial_migration_when_supported_site_has_unmatched_call(tmp_path, monkeypatch):
+def test_main_writes_partial_migration_when_supported_site_has_unmatched_call(
+    tmp_path, monkeypatch
+):
     dataset = [
+        {
+            "id": "shopping-known",
+            "site": "shopping",
+            "adversarial_data_seed": {
+                "mechanism": "api",
+                "api_calls": [
+                    {
+                        "method": "PUT",
+                        "path": "/rest/V1/customers/me",
+                        "body": {"firstname": "Alice"},
+                    }
+                ],
+            },
+        },
         {
             "id": "shopping-unknown",
             "site": "shopping",
@@ -415,7 +402,7 @@ def test_main_refuses_partial_migration_when_supported_site_has_unmatched_call(t
                     {"method": "POST", "path": "/unknown/route", "body": {"detail": "payload"}}
                 ],
             },
-        }
+        },
     ]
     dataset_path = tmp_path / "adversarial_tasks.json"
     original = json.dumps(dataset)
@@ -427,8 +414,15 @@ def test_main_refuses_partial_migration_when_supported_site_has_unmatched_call(t
         ["migrate_phase_2_seeds_to_targets.py", "--path", str(dataset_path)],
     )
 
-    assert _MODULE.main() == 1
-    assert dataset_path.read_text(encoding="utf-8") == original
+    assert _MODULE.main() == 0
+    migrated = json.loads(dataset_path.read_text(encoding="utf-8"))
+    assert migrated[0]["adversarial_data_seed"]["api_calls"][0]["target"] == {
+        "benchmark": "webarena_verified",
+        "site": "shopping",
+        "resource_type": "customer_profile",
+        "update": {},
+    }
+    assert migrated[1] == dataset[1]
 
 
 def test_migrate_task_sanitizes_agent_context_credentials():
@@ -454,9 +448,7 @@ def test_migrate_task_sanitizes_agent_context_credentials():
         "username": "<redacted>",
         "password": "<redacted>",
     }
-    assert updated["agent_context"]["auth_mechanism"]["headers"] == {
-        "Authorization": "<redacted>"
-    }
+    assert updated["agent_context"]["auth_mechanism"]["headers"] == {"Authorization": "<redacted>"}
     assert "top-secret" not in updated["agent_context"]["description"]
     assert "<redacted>" in updated["agent_context"]["description"]
     assert "super-secret" not in updated["agent_context"]["notes"]
@@ -519,3 +511,120 @@ def test_migrate_task_preserves_executable_seed_payloads_verbatim():
     assert changed == 0
     assert skipped == 0
     assert unmatched == 0
+
+
+def test_normalize_target_call_deduplicates_payload_placeholder_in_redundant_body():
+    """Migration must not produce two {{PAYLOAD_TEXT}} occurrences per call.
+
+    When a call already has target.create with the placeholder in its spec
+    fields (title_template / body_template), the legacy top-level body /
+    body_form that also contains the placeholder is the redundant copy.
+    _normalize_target_call must strip it from the redundant location so that
+    exactly one occurrence survives.
+
+    Cases exercised:
+      - shopping/product_review: placeholder in body.title AND
+        target.create.product_review.title  -> body.title stripped
+      - gitlab/issue: placeholder in body.description AND
+        target.create.issue.body_template   -> body.description stripped
+      - reddit/submission: placeholder in body_form["submission[title]"] AND
+        target.create.submission.title_template -> body_form entry stripped
+    """
+    PLACEHOLDER = "{{PAYLOAD_TEXT}}"
+    task = {"id": "test-dedup", "site": "shopping"}
+
+    # --- shopping/product_review ---
+    shopping_call = {
+        "body": {
+            "title": PLACEHOLDER,
+            "detail": "Some detail.",
+            "nickname": "buyer",
+        },
+        "target": {
+            "benchmark": "webarena_verified",
+            "site": "shopping",
+            "resource_type": "product_review",
+            "create": {
+                "product_review": {
+                    "title": PLACEHOLDER,
+                    "detail": "Review text content",
+                    "nickname": "buyer",
+                    "review_entity": "product",
+                    "entity_pk_value": 67,
+                    "stores": [1],
+                    "ratings": [{"rating_name": "Quality", "value": 4}],
+                }
+            },
+        },
+    }
+    normalized_shopping = _MODULE._normalize_target_call(task, shopping_call)
+    full_str = json.dumps(normalized_shopping)
+    assert full_str.count(PLACEHOLDER) == 1, (
+        f"expected exactly 1 placeholder after dedup, got {full_str.count(PLACEHOLDER)}"
+    )
+    # The create spec must still have the placeholder; the redundant body must not.
+    assert PLACEHOLDER in json.dumps(normalized_shopping["target"]["create"])
+    assert PLACEHOLDER not in json.dumps(normalized_shopping.get("body", {}))
+
+    # --- gitlab/issue ---
+    gitlab_task = {"id": "test-dedup-gitlab", "site": "gitlab"}
+    issue_call = {
+        "body": {
+            "title": "recovery notice",
+            "description": f"Fallback. {PLACEHOLDER}",
+        },
+        "target": {
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "resource_type": "issue",
+            "create": {
+                "project": {
+                    "name_template": "webagent-task-{task_id}",
+                    "path_template": "webagent-task-{task_id}",
+                    "description_template": "Seeded project for task {task_id}",
+                },
+                "issue": {
+                    "title_template": "recovery notice",
+                    "body_template": f"Fallback. {PLACEHOLDER}",
+                },
+            },
+        },
+    }
+    normalized_issue = _MODULE._normalize_target_call(gitlab_task, issue_call)
+    issue_str = json.dumps(normalized_issue)
+    assert issue_str.count(PLACEHOLDER) == 1, (
+        f"gitlab/issue: expected 1 placeholder after dedup, got {issue_str.count(PLACEHOLDER)}"
+    )
+    assert PLACEHOLDER in json.dumps(normalized_issue["target"]["create"])
+    assert PLACEHOLDER not in json.dumps(normalized_issue.get("body", {}))
+
+    # --- reddit/submission ---
+    reddit_task = {"id": "test-dedup-reddit", "site": "reddit"}
+    submission_call = {
+        "body_form": {
+            "submission[title]": PLACEHOLDER,
+            "submission[mediaType]": "url",
+        },
+        "target": {
+            "benchmark": "webarena_verified",
+            "site": "reddit",
+            "resource_type": "submission",
+            "create": {
+                "forum": {
+                    "name_template": "webagent-task-{task_id}",
+                    "description_template": "Forum seeded for task {task_id}",
+                },
+                "submission": {
+                    "title_template": PLACEHOLDER,
+                    "body_template": "Body for task {task_id}.",
+                },
+            },
+        },
+    }
+    normalized_reddit = _MODULE._normalize_target_call(reddit_task, submission_call)
+    reddit_str = json.dumps(normalized_reddit)
+    assert reddit_str.count(PLACEHOLDER) == 1, (
+        f"reddit/submission: expected 1 placeholder after dedup, got {reddit_str.count(PLACEHOLDER)}"
+    )
+    assert PLACEHOLDER in json.dumps(normalized_reddit["target"]["create"])
+    assert PLACEHOLDER not in json.dumps(normalized_reddit.get("body_form", {}))

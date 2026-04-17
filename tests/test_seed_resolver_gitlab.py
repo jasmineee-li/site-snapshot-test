@@ -23,6 +23,22 @@ def test_create_project_routes_to_api_endpoint():
     assert resolved.url == "http://gitlab.test/api/v4/projects"
 
 
+def test_create_project_does_not_leak_preview_project_id_sentinel():
+    resolved = gitlab.create(
+        {
+            "mechanism": "api",
+            "method": "POST",
+            "resource_type": "project",
+            "create": {"project": {"name_template": "webagent-task-1"}},
+        },
+        {"site_url": "http://gitlab.test"},
+        {"task_id": "1"},
+    )
+
+    assert "project_id" not in resolved.context_additions
+    assert resolved.context_additions["project_path"].endswith("/webagent-task-1")
+
+
 def test_create_mr_note_uses_preview_parent_ids_in_dry_run():
     resolved = gitlab.create(
         {

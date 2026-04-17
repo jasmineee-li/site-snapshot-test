@@ -146,7 +146,7 @@ class BaseStateProbeResult:
 
 
 def _serialize_preflight_mismatch_records(
-    mismatches: tuple[SeedPreflightMismatch, ...] | list[SeedPreflightMismatch],
+    mismatches: tuple[SeedPreflightMismatch, ...],
 ) -> list[dict[str, Any]]:
     return [
         {
