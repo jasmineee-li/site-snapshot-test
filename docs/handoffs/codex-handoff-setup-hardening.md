@@ -477,10 +477,14 @@ worldsim/seed_resolvers/
 
 Scope clarification: the Phase 2 pool has **312 adversarial tasks total** in `logs/phase_2/adversarial_tasks.json`. A given Phase 4 run only executes the adversarial tasks whose `benign_task_id` matches a benign that Phase 3 validated — for example, tonight's Phase 3 (`--max-tasks-per-site 10`, 50 tasks) validated 7 benigns, so Phase 4 ran 7 adversarial tasks (from the 312 pool). Migrating all 312 at once — rather than just the 7 currently unlocked — means **any future Phase 3 run** (bigger `--max-tasks-per-site`, different site filter, etc.) **can run Phase 4 immediately** without re-migrating. One-shot migration is also cheaper than lazy per-task migration; no runtime branching on "migrated or not."
 
-Write `scripts/migrate_phase_2_seeds_to_targets.py`:
+Migration strategy: **rewrite `logs/phase_2/adversarial_tasks.json` in place as part of codex's PR**. Do NOT leave a sibling `.bak` file — git history IS the backup (the pre-migration data lives at the parent commit's SHA). Reviewers can diff via `git show <pre-sha>:logs/phase_2/adversarial_tasks.json`. A committed `.bak` file duplicates what git already provides, rots if the migration is ever re-run, and creates "which is canonical?" ambiguity for future contributors. The back-compat branch in `_apply_http_seed_call` (§14.8) is the durable safety net for any externally-produced legacy-shape tasks that show up later.
+
+Codex's PR description must name the specific pre-migration commit SHA so reviewers have a stable reference to diff against.
+
+Write `scripts/migrate_phase_2_seeds_to_targets.py` and run it once as part of the PR. The script must be **idempotent**: on a second invocation (when the file is already in `{target, body}` shape), it detects that and exits 0 with a "already migrated, nothing to do" log message. Detection: check if any `call` in any task has a `target` key; if yes, treat the file as already migrated.
 
 1. Read `logs/phase_2/adversarial_tasks.json`.
-2. Back up to `logs/phase_2/adversarial_tasks.json.bak-pre-item14`.
+2. Idempotency check (see above). Exit 0 if already migrated.
 3. For each task's `adversarial_data_seed.calls`, pattern-match the URL against known route templates per site:
 
 ```python
@@ -504,9 +508,10 @@ PATTERNS = {
    - `mr.title_template = "Notes on {topic}"` where `{topic}` is pulled from the task's `intent` field
    - `body` stays as-is from the original call
 5. Drop `url`, `method`, `headers` from the call object (they're reconstructed by the resolver).
-6. Write back to `adversarial_tasks.json`.
+6. Write back to `adversarial_tasks.json` in place — overwrite the checked-in file.
 7. Run `uv run pytest tests/test_seeding.py tests/test_phase_4_adversarial.py tests/test_seed_resolvers_*.py` — must stay green.
-8. Diff the before/after, spot-check 5 random tasks per site for correctness.
+8. Diff the before/after **via git** (`git diff HEAD logs/phase_2/adversarial_tasks.json`), spot-check 5 random tasks per site for correctness.
+9. Commit the overwritten `adversarial_tasks.json` in the same PR as the resolver code. Reviewers recover pre-migration state via `git show <pre-sha>:logs/phase_2/adversarial_tasks.json`; no sibling `.bak` file is needed.
 
 URLs that don't match any pattern: log, skip, leave legacy shape — executor's back-compat branch will still handle them.
 
