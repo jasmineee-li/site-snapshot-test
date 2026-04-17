@@ -556,11 +556,17 @@ async def run(args: argparse.Namespace) -> int:
     if max_tasks_per_site is not None:
         pre_cap = len(tasks)
         tasks = cap_tasks_per_site(tasks, max_tasks_per_site)
+        post_cap_by_origin: dict[str, int] = {"mode_a": 0, "mode_b": 0}
+        for task in tasks:
+            origin = str(task.get("origin", ""))
+            post_cap_by_origin[origin] = post_cap_by_origin.get(origin, 0) + 1
         logger.info(
-            "Phase 4: capped to %d/%d tasks (max %d per site)",
+            "Phase 4: capped to %d/%d tasks (max %d per site; post-cap mode_a=%d, mode_b=%d)",
             len(tasks),
             pre_cap,
             max_tasks_per_site,
+            post_cap_by_origin.get("mode_a", 0),
+            post_cap_by_origin.get("mode_b", 0),
         )
 
     # Load benchmark config
