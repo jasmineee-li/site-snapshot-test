@@ -226,7 +226,9 @@ async def run(args: argparse.Namespace) -> int:
     save_state("phase_3", **state_payload)
 
     if adversarial_errors:
-        logger.warning(
+        # Soft-warn per spec (Phase 3 is the benign validity gate); reference
+        # errors indicate a Phase 2 bug, so surface at ERROR for CI greppers.
+        logger.error(
             "Phase 3: %d adversarial task(s) reference invalid or unknown benign contracts:\n%s",
             len(adversarial_errors),
             "\n".join(
