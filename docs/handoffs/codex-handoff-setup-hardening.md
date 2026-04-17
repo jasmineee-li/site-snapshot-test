@@ -380,6 +380,81 @@ Plus one test for `preflight_adversarial_seed` that asserts the right skip-statu
 
 Contract change + resolver layer makes the adversarial dataset **portable**. Same `adversarial_tasks.json` runs against any instance — dev laptop, m5, r5, future scale-out — without regeneration.
 
+### Multi-benchmark compatibility
+
+A parallel effort on `feat/multi-benchmark` (and its descendants: `feat/multi-benchmark-v5-integration-codex`, `multi-benchmark-rebased`) is extending WorldSim from WebArena-Verified to additional benchmarks (ST-WebAgentBench, Mind2Web-style, etc.). The same seed contract fix needs to support that extension without forcing re-design later. The design choices below make #14 additive across benchmarks, not multiplicative.
+
+**Namespace the resolver registry by benchmark.** Package layout:
+
+```
+worldsim/seeding/resolvers/
+  __init__.py                         # dispatcher: get_resolver(benchmark, site, resource_type) -> callable
+  types.py                            # ResolvedCall, PreflightReport, ResolverError
+  webarena_verified/
+    __init__.py
+    gitlab.py
+    shopping.py
+    shopping_admin.py
+    reddit.py
+    map.py
+  stwebagentbench/                    # future — stub empty for now
+    __init__.py
+```
+
+**Add `benchmark` to the target descriptor.** Target shape updated:
+
+```json
+{
+  "target": {
+    "benchmark": "webarena_verified",   // NEW: dispatch key
+    "site": "gitlab",
+    "resource_type": "mr_note",
+    "constraints": {"owner": "current_user", "mr_state": "opened", "select": "newest"}
+  },
+  ...
+}
+```
+
+Default `benchmark` to `"webarena_verified"` for back-compat with the legacy shape.
+
+**What a new benchmark has to implement:**
+
+To add ST-WebAgentBench, the author writes one resolver module per in-scope site (typically 1–4), each exporting the same `resolve(target, instance, seed_context) -> ResolvedCall` function. That's the only required contract with Phase 4. Phase 2 for that benchmark can be implemented independently; as long as it emits the common `target` shape, the runtime just works.
+
+What a new benchmark does NOT have to do:
+- Fork Phase 4 runner
+- Re-invent preflight
+- Touch anything under `worldsim/phases/`
+- Modify `_apply_http_seed_call` — just register a resolver
+
+This is the research-infrastructure contribution: **the seed contract is benchmark-agnostic, resolvers are benchmark-specific, and the two are cleanly separated.** Adding a new benchmark is bounded-effort work, not an architectural refactor.
+
+**Shared constraint vocabulary (cross-benchmark):** a small number of constraint verbs generalize across sites and benchmarks. Define them centrally in `worldsim/seeding/resolvers/types.py` and document:
+
+- `owner`: `"current_user"`, or a specific username string
+- `select`: `"newest"`, `"oldest"`, `"deterministic_hash"`, `"by_index:N"`
+- `state`: site-specific (`"opened"` for gitlab MRs, `"published"` for blog posts, etc.) — left as a free-form string for resolver interpretation
+- `limit`: integer cap on candidates before `select` fires
+- `must_be_writable_by`: same vocabulary as `owner` — the authenticated user must have write permission
+
+Resolvers validate their supported constraints and raise `ResolverError("unsupported_constraint", detail=...)` when a task demands something they don't handle. Phase 2 generators across benchmarks should stick to this vocabulary unless they have a demonstrated need for a new term; new terms require a README-level note about cross-benchmark semantics.
+
+**Opt-out**: some benchmarks may not do injection seeding at all (e.g. pure capability evals). They simply don't register resolvers and Phase 4 for those benchmarks is a no-op for seeding. The contract doesn't force them to adopt it.
+
+**Integration point with `feat/multi-benchmark`:** once #14 lands on `feat/worldsim-v5`, that branch should be rebased/merged into the multi-benchmark branch before any new benchmark writes its own seeding code. Otherwise we'll end up with two incompatible seed contracts and a painful reconciliation later.
+
+### Research-design context (why this is worth the cost)
+
+Open question: is this a principled research-infrastructure contribution, or over-engineering? A subagent is doing deep-research web-search on how comparable browser-agent adversarial benchmarks (WebArena line, VisualWebArena, Mind2Web, Agent-SafetyBench, InjecAgent, Greshake foundational work) solve (or don't solve) this problem. Depending on findings, the design above may be revised before implementation — e.g., if a simpler "always generate against live instance + embed verified IDs" pattern is standard in the literature, we may abandon the resolver layer in favor of always-regenerate. Alternatively, if published benchmarks hit the same brittleness and nobody has a good solution, the resolver layer is a novel infrastructure contribution worth emphasizing in the paper.
+
+**Before committing to implementation**, read the research report at `docs/handoffs/codex-handoff-setup-hardening-research.md` (to be written by the subagent and merged in by the orchestrator) and reconcile with this section. If the research argues for a simpler alternative, update this section before starting code. If it validates the resolver approach, proceed.
+
+The rigor-preserving properties of this fix, regardless of which concrete design we land on:
+1. Abstract targets match the actual research claim ("attack on a naturally-encountered write surface") more faithfully than hardcoded IDs.
+2. Preflight separates infrastructure failure from research finding — infra errors no longer conflate with attack-success/attack-resistance.
+3. Portable tasks mean any reader can reproduce the experiment on their own WebArena deployment.
+4. Determinism preserved via explicit `select` rules + audit logging of resolved IDs per trajectory.
+
 **Verify:** after #14 lands, migrate the existing 312-task dataset, rerun Phase 4 against r5 on the 7 validated benigns in `logs/phase_3/validated_tasks.json`. Expected: 0 `error`, non-zero `variant_success + resistant + complied + broke`. The specific ratio is a research finding, not a setup validation; the setup check is that the pipeline produces real data instead of 7/7 `error`.
 
 ---
