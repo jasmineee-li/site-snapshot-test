@@ -83,6 +83,7 @@ _CSRF_PARAM_META = re.compile(
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
 _UNRESOLVED_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
+_FORMAT_TOKEN_PATTERN = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_\.]*)\}(?!\})")
 
 
 def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: Any) -> str | None:
@@ -182,10 +183,13 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     validate_data_seed(seed)
     mechanism = seed["mechanism"]
     if mechanism in {"api", "form"}:
+        seed_context = _build_seed_context(seed, instance)
         with requests.Session() as session:
             _perform_web_login_if_needed(session, instance, mechanism)
             for call in seed["api_calls"]:
-                _apply_http_seed_call(session, mechanism, call, instance)
+                rendered_call = _render_http_seed_call(call, seed_context=seed_context)
+                response = _apply_http_seed_call(session, mechanism, rendered_call, instance)
+                _merge_seed_context(seed_context, _extract_response_seed_context(response))
     elif mechanism == "state_push":
         resp = requests.put(
             f"{instance['site_url']}/api/state",
@@ -200,6 +204,392 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> None:
 async def apply_data_seed_async(seed: dict[str, Any], instance: dict[str, Any]) -> None:
     """Apply a data seed without blocking the event loop."""
     await asyncio.to_thread(apply_data_seed, seed, instance)
+
+
+def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[str, Any]:
+    context: dict[str, Any] = {}
+    explicit_context = instance.get("seed_context")
+    if isinstance(explicit_context, dict):
+        _merge_seed_context(context, explicit_context)
+
+    task = instance.get("seed_task")
+    if isinstance(task, dict):
+        _merge_seed_context(context, _derive_task_seed_context(task, seed, instance))
+    return context
+
+
+def _derive_task_seed_context(
+    task: dict[str, Any],
+    seed: dict[str, Any],
+    instance: dict[str, Any],
+) -> dict[str, Any]:
+    placeholders = _seed_placeholder_names(seed)
+    if not placeholders:
+        return {}
+
+    site_name = str(instance.get("site_name", task.get("site", ""))).strip().lower()
+    if site_name == "reddit":
+        return _derive_reddit_seed_context(task, instance, placeholders)
+    if site_name == "map":
+        return _derive_map_seed_context(task, instance, placeholders)
+    return {}
+
+
+def _seed_placeholder_names(value: Any) -> set[str]:
+    names: set[str] = set()
+    if isinstance(value, str):
+        names.update(match.group(1) for match in _FORMAT_TOKEN_PATTERN.finditer(value))
+        return names
+    if isinstance(value, dict):
+        for key, item in value.items():
+            names.update(_seed_placeholder_names(key))
+            names.update(_seed_placeholder_names(item))
+        return names
+    if isinstance(value, list):
+        for item in value:
+            names.update(_seed_placeholder_names(item))
+    return names
+
+
+def _merge_seed_context(target: dict[str, Any], update: dict[str, Any]) -> None:
+    for key, value in update.items():
+        if value is None:
+            continue
+        target[key] = value
+
+
+def _render_http_seed_call(
+    call: dict[str, Any],
+    *,
+    seed_context: dict[str, Any],
+) -> dict[str, Any]:
+    rendered = _render_seed_value(call, seed_context)
+    if not isinstance(rendered, dict):
+        raise RuntimeError("rendered seed call must be an object")
+    unresolved = sorted(_seed_placeholder_names(rendered))
+    if unresolved:
+        raise RuntimeError(
+            f"HTTP seed call has unresolved template placeholders: {', '.join(unresolved)}"
+        )
+    return rendered
+
+
+def _render_seed_value(value: Any, seed_context: dict[str, Any]) -> Any:
+    if isinstance(value, str):
+        whole_match = _FORMAT_TOKEN_PATTERN.fullmatch(value)
+        if whole_match is not None:
+            resolved = _lookup_seed_context_value(seed_context, whole_match.group(1))
+            if resolved is not None:
+                return resolved
+
+        def _replace(match: re.Match[str]) -> str:
+            resolved = _lookup_seed_context_value(seed_context, match.group(1))
+            if resolved is None:
+                return match.group(0)
+            return str(resolved)
+
+        return _FORMAT_TOKEN_PATTERN.sub(_replace, value)
+
+    if isinstance(value, dict):
+        rendered: dict[Any, Any] = {}
+        for key, item in value.items():
+            rendered_key = (
+                _render_seed_value(key, seed_context) if isinstance(key, str) else key
+            )
+            rendered[rendered_key] = _render_seed_value(item, seed_context)
+        return rendered
+
+    if isinstance(value, list):
+        return [_render_seed_value(item, seed_context) for item in value]
+
+    return value
+
+
+def _lookup_seed_context_value(seed_context: dict[str, Any], key: str) -> Any:
+    if key in seed_context:
+        return seed_context[key]
+
+    current: Any = seed_context
+    for part in key.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current
+
+
+def _extract_response_seed_context(response: requests.Response) -> dict[str, Any]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    flattened: dict[str, Any] = {}
+    _flatten_response_payload(flattened, payload)
+    return flattened
+
+
+def _flatten_response_payload(
+    flattened: dict[str, Any],
+    payload: dict[str, Any],
+    *,
+    prefix: str = "",
+) -> None:
+    for key, value in payload.items():
+        if not isinstance(key, str) or not key:
+            continue
+        full_key = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            _flatten_response_payload(flattened, value, prefix=full_key)
+            continue
+        if isinstance(value, list):
+            continue
+        flattened[full_key] = value
+        flattened.setdefault(key, value)
+
+
+def _derive_reddit_seed_context(
+    task: dict[str, Any],
+    instance: dict[str, Any],
+    placeholders: set[str],
+) -> dict[str, Any]:
+    if "forum_name" not in placeholders and "submission_id" not in placeholders:
+        return {}
+
+    forum = _resolve_reddit_forum(task, instance)
+    context: dict[str, Any] = {}
+    if forum is not None:
+        forum_name = forum.get("name")
+        forum_id = forum.get("id")
+        if isinstance(forum_name, str) and forum_name.strip():
+            context["forum_name"] = forum_name.strip()
+        if forum_id is not None:
+            context["forum_id"] = forum_id
+
+    if "submission_id" in placeholders and "forum_name" in context:
+        submission_id = _resolve_reddit_submission_id(task, instance, forum_name=context["forum_name"])
+        if submission_id is not None:
+            context["submission_id"] = submission_id
+    return context
+
+
+def _resolve_reddit_forum(task: dict[str, Any], instance: dict[str, Any]) -> dict[str, Any] | None:
+    instantiation = task.get("instantiation_dict")
+    forum_hint = None
+    if isinstance(instantiation, dict):
+        raw_forum = instantiation.get("forum")
+        if isinstance(raw_forum, str) and raw_forum.strip():
+            forum_hint = raw_forum.strip()
+    if forum_hint is None:
+        return None
+
+    db_connection = instance.get("db_connection")
+    if not db_connection:
+        return {"name": forum_hint}
+
+    parsed = _parse_runtime_db_connection(
+        db_connection,
+        purpose="Reddit seed placeholder resolution requires instance['db_connection']",
+    )
+    conn = _connect_db(parsed)
+    try:
+        scheme = parsed.scheme.lower()
+        _configure_read_only_connection(conn, scheme)
+        forum_table = _quote_identifier("forum", scheme)
+        name_col = _quote_identifier("name", scheme)
+        title_col = _quote_identifier("title", scheme)
+        id_col = _quote_identifier("id", scheme)
+        query = (
+            f"SELECT {id_col}, {name_col}, {title_col} "
+            f"FROM {forum_table} "
+            f"WHERE LOWER({name_col}) = LOWER(%s) OR LOWER({title_col}) = LOWER(%s) "
+            f"ORDER BY CASE WHEN LOWER({name_col}) = LOWER(%s) THEN 0 ELSE 1 END "
+            "LIMIT 1"
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(query, [forum_hint, forum_hint, forum_hint])
+            row = cursor.fetchone()
+    except Exception as exc:
+        raise RuntimeError(f"failed to resolve reddit forum_name for {forum_hint!r}: {exc}") from exc
+    finally:
+        try:
+            conn.rollback()
+        except Exception:
+            logger.debug("Failed to rollback reddit forum lookup", exc_info=True)
+        conn.close()
+
+    if not row:
+        return {"name": forum_hint}
+    if isinstance(row, dict):
+        return {"id": row.get("id"), "name": row.get("name"), "title": row.get("title")}
+    row_values = list(row)
+    return {
+        "id": row_values[0] if len(row_values) > 0 else None,
+        "name": row_values[1] if len(row_values) > 1 else forum_hint,
+        "title": row_values[2] if len(row_values) > 2 else None,
+    }
+
+
+def _resolve_reddit_submission_id(
+    task: dict[str, Any],
+    instance: dict[str, Any],
+    *,
+    forum_name: str,
+) -> Any:
+    benign_reward = task.get("reward_function", {})
+    if isinstance(benign_reward, dict) and isinstance(benign_reward.get("benign_reward"), dict):
+        reward = benign_reward["benign_reward"]
+    else:
+        reward = benign_reward
+
+    expected_title = _expected_reddit_post_title(reward)
+    if not expected_title:
+        return None
+
+    db_connection = instance.get("db_connection")
+    if not db_connection:
+        raise RuntimeError(
+            "reddit seed placeholder resolution requires instance['db_connection'] "
+            "to map the target post title to a submission_id"
+        )
+
+    parsed = _parse_runtime_db_connection(
+        db_connection,
+        purpose="Reddit seed placeholder resolution requires instance['db_connection']",
+    )
+    conn = _connect_db(parsed)
+    try:
+        scheme = parsed.scheme.lower()
+        _configure_read_only_connection(conn, scheme)
+        submission_table = _quote_identifier("submission", scheme)
+        forum_table = _quote_identifier("forum", scheme)
+        submission_id_col = _quote_identifier("id", scheme)
+        forum_id_col = _quote_identifier("forum_id", scheme)
+        timestamp_col = _quote_identifier("timestamp", scheme)
+        title_col = _quote_identifier("title", scheme)
+        forum_name_col = _quote_identifier("name", scheme)
+        forum_title_col = _quote_identifier("title", scheme)
+        query = (
+            f"SELECT s.{submission_id_col} "
+            f"FROM {submission_table} s "
+            f"JOIN {forum_table} f ON s.{forum_id_col} = f.{_quote_identifier('id', scheme)} "
+            f"WHERE s.{title_col} = %s "
+            f"AND (LOWER(f.{forum_name_col}) = LOWER(%s) OR LOWER(f.{forum_title_col}) = LOWER(%s)) "
+            f"ORDER BY s.{timestamp_col} DESC "
+            "LIMIT 1"
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(query, [expected_title, forum_name, forum_name])
+            row = cursor.fetchone()
+    except Exception as exc:
+        raise RuntimeError(
+            f"failed to resolve reddit submission_id for {expected_title!r} in forum {forum_name!r}: {exc}"
+        ) from exc
+    finally:
+        try:
+            conn.rollback()
+        except Exception:
+            logger.debug("Failed to rollback reddit submission lookup", exc_info=True)
+        conn.close()
+
+    if row is None:
+        raise RuntimeError(
+            f"could not resolve reddit submission_id for title {expected_title!r} in forum "
+            f"{forum_name!r}"
+        )
+    if isinstance(row, dict):
+        return row.get("id")
+    if isinstance(row, (list, tuple)):
+        return row[0] if row else None
+    return row
+
+
+def _expected_reddit_post_title(reward_function: dict[str, Any]) -> str | None:
+    eval_entries = reward_function.get("eval")
+    if not isinstance(eval_entries, list):
+        return None
+    for entry in eval_entries:
+        if not isinstance(entry, dict):
+            continue
+        expected = entry.get("expected")
+        if not isinstance(expected, dict):
+            continue
+        retrieved = expected.get("retrieved_data")
+        if not isinstance(retrieved, list):
+            continue
+        for item in retrieved:
+            if not isinstance(item, dict):
+                continue
+            post_title = item.get("post_title")
+            if isinstance(post_title, str) and post_title.strip():
+                return post_title.strip()
+    return None
+
+
+def _derive_map_seed_context(
+    task: dict[str, Any],
+    instance: dict[str, Any],
+    placeholders: set[str],
+) -> dict[str, Any]:
+    needs_way = "way_id" in placeholders
+    needs_relation = "relation_id" in placeholders
+    if not needs_way and not needs_relation:
+        return {}
+
+    instantiation = task.get("instantiation_dict")
+    place = instantiation.get("place") if isinstance(instantiation, dict) else None
+    if not isinstance(place, str) or not place.strip():
+        return {}
+
+    site_url = str(instance.get("site_url", "")).rstrip("/")
+    if not site_url:
+        return {}
+    search_url = f"{site_url}/nominatim/search"
+    try:
+        response = requests.get(
+            search_url,
+            params={"q": place.strip(), "format": "jsonv2", "limit": 10},
+            timeout=30,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise RuntimeError(f"failed to resolve map seed placeholders for {place!r}: {exc}") from exc
+
+    if not isinstance(payload, list):
+        raise RuntimeError(f"map placeholder lookup for {place!r} returned invalid JSON payload")
+
+    context: dict[str, Any] = {}
+    if needs_way:
+        way = _pick_map_search_result(payload, osm_type="way", place=place)
+        if way is not None:
+            context["way_id"] = way
+    if needs_relation:
+        relation = _pick_map_search_result(payload, osm_type="relation", place=place)
+        if relation is not None:
+            context["relation_id"] = relation
+    return context
+
+
+def _pick_map_search_result(payload: list[Any], *, osm_type: str, place: str) -> Any:
+    place_lower = place.lower()
+    fallback = None
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("osm_type", "")).strip().lower() != osm_type:
+            continue
+        osm_id = item.get("osm_id")
+        if fallback is None:
+            fallback = osm_id
+        haystack = " ".join(
+            str(item.get(key, "")).lower()
+            for key in ("display_name", "name")
+            if item.get(key) is not None
+        )
+        if place_lower and place_lower in haystack:
+            return osm_id
+    return fallback
 
 
 def _perform_web_login_if_needed(
@@ -431,7 +821,7 @@ def _apply_http_seed_call(
     mechanism: str,
     call: dict[str, Any],
     instance: dict[str, Any],
-) -> None:
+) -> requests.Response:
     method = str(call["method"]).strip().upper()
     raw_path = str(call["path"])
     url = _resolve_call_url(raw_path, instance)
@@ -486,6 +876,7 @@ def _apply_http_seed_call(
         instance=instance,
         raw_path=raw_path,
     )
+    return response
 
 
 def _resolve_call_url(raw_path: str, instance: dict[str, Any]) -> str:

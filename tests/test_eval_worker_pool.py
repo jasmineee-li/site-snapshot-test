@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -59,6 +60,179 @@ async def test_run_eval_sanitizes_task_directory_names(monkeypatch, tmp_path):
     assert len(seen_task_dirs) == 1
     assert seen_task_dirs[0].resolve().parent == tmp_path.resolve()
     assert ".." not in seen_task_dirs[0].name
+
+
+@pytest.mark.asyncio
+async def test_run_eval_deterministically_routes_tasks_despite_setup_race(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-0.test",
+            replica_index=0,
+            replica_name="shopping_0",
+        ),
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-1.test",
+            replica_index=1,
+            replica_name="shopping_1",
+        ),
+    ]
+    tasks = [{"id": f"task-{index}"} for index in range(8)]
+
+    async def run_with_setup_delays(delays: dict[str, float]) -> dict[str, str]:
+        seen: dict[str, str] = {}
+
+        class _DelayedAgent:
+            async def setup(self, server_url: str) -> None:
+                await asyncio.sleep(delays.get(server_url, 0))
+
+            async def teardown(self) -> None:
+                return None
+
+        async def task_runner(task, agent, instance, task_dir):
+            seen[task["id"]] = instance.site_url
+            return {"task_id": task["id"], "passed": True}
+
+        results = await run_eval(
+            tasks=tasks,
+            instances=instances,
+            agent_factory=lambda: _DelayedAgent(),
+            task_runner=task_runner,
+            task_dir_root=tmp_path,
+        )
+
+        assert len(results) == len(tasks)
+        return seen
+
+    first = await run_with_setup_delays(
+        {
+            "http://shopping-0.test": 0.05,
+            "http://shopping-1.test": 0,
+        }
+    )
+    second = await run_with_setup_delays(
+        {
+            "http://shopping-0.test": 0,
+            "http://shopping-1.test": 0.05,
+        }
+    )
+
+    assert first == second
+    assert {site_url for site_url in first.values()} == {
+        "http://shopping-0.test",
+        "http://shopping-1.test",
+    }
+
+
+@pytest.mark.asyncio
+async def test_run_eval_resume_keeps_task_on_same_replica(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-0.test",
+            replica_index=0,
+            replica_name="shopping_0",
+        ),
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-1.test",
+            replica_index=1,
+            replica_name="shopping_1",
+        ),
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-2.test",
+            replica_index=2,
+            replica_name="shopping_2",
+        ),
+    ]
+    tasks = [{"id": f"task-{index}"} for index in range(5)]
+
+    initial_seen: dict[str, str] = {}
+
+    async def initial_runner(task, agent, instance, task_dir):
+        initial_seen[task["id"]] = instance.site_url
+        return {"task_id": task["id"], "passed": True}
+
+    await run_eval(
+        tasks=tasks,
+        instances=instances,
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=initial_runner,
+        task_dir_root=tmp_path / "initial",
+    )
+
+    remaining_task_id = "task-4"
+    resume_dir = tmp_path / "resume"
+    resume_dir.mkdir()
+    for task in tasks:
+        if task["id"] == remaining_task_id:
+            continue
+        task_dir = resume_dir / safe_task_path_component(task["id"])
+        task_dir.mkdir()
+        (task_dir / "result.json").write_text(
+            json.dumps({"task_id": task["id"], "passed": True, "message": "prior"})
+        )
+
+    resumed_seen: dict[str, str] = {}
+
+    async def resumed_runner(task, agent, instance, task_dir):
+        resumed_seen[task["id"]] = instance.site_url
+        return {"task_id": task["id"], "passed": True}
+
+    await run_eval(
+        tasks=tasks,
+        instances=instances,
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=resumed_runner,
+        task_dir_root=resume_dir,
+        resume=True,
+    )
+
+    assert resumed_seen == {remaining_task_id: initial_seen[remaining_task_id]}
+
+
+@pytest.mark.asyncio
+async def test_run_eval_without_instances_returns_soft_failures(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    results = await run_eval(
+        tasks=[{"id": "task-a"}, {"id": "task-b"}],
+        instances=[],
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=lambda *args, **kwargs: None,
+        task_dir_root=tmp_path,
+    )
+
+    assert {result["task_id"] for result in results} == {"task-a", "task-b"}
+    assert all(result["outcome"] == "error" for result in results)
+    assert all("no benchmark instances configured" in result["message"] for result in results)
+
+
+@pytest.mark.asyncio
+async def test_run_eval_with_mixed_site_instances_returns_soft_failures(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+
+    results = await run_eval(
+        tasks=[{"id": "task-a"}],
+        instances=[
+            BenchmarkInstance(site_name="shopping", site_url="http://shopping.test"),
+            BenchmarkInstance(site_name="gitlab", site_url="http://gitlab.test"),
+        ],
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=lambda *args, **kwargs: None,
+        task_dir_root=tmp_path,
+    )
+
+    assert len(results) == 1
+    assert results[0]["task_id"] == "task-a"
+    assert results[0]["outcome"] == "error"
+    assert "same-site instances" in results[0]["message"]
 
 
 # ── Per-task resume tests ────────────────────────────────────────────────

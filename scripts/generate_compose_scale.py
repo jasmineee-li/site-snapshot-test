@@ -1,30 +1,30 @@
 """generate_compose_scale.py - Emit docker-compose + proxy + instances config
 from scripts/scale_config.yml for the r5.8xlarge 30-replica scale-out.
 
-Reads a canonical scale_config.yml (replica counts, port bases, volumes) and
-produces:
+Reads a canonical scale_config.yml (replica counts, port bases, volumes) plus a
+canonical base instances config and produces:
   - <out_dir>/compose.scale.yml        - all replicas per scale_config
   - <out_dir>/compose.smoke.yml        - 1-per-site smoke-test subset
-  - <out_dir>/proxy_ports.conf         - nginx port map
-  - <out_dir>/instances.json.fragment  - JSON array for instances.json
+  - <out_dir>/proxy_ports.conf         - nginx port map for Phase 0c only
+  - <out_dir>/instances.json           - full runtime config for Phases 0c/3/4
+  - <out_dir>/instances.json.fragment  - instances array only
 
 Port scheme:
-  real_web_port    = site.real_port_base + i * port_step
+  real_web_port     = site.real_port_base + i * port_step
   real_envctrl_port = real_web_port + 1
-  proxy_port       = real_web_port + proxy_port_offset
+  proxy_port        = real_web_port + proxy_port_offset
 
-Volume names:
-  shared RO:     as declared (shared by every replica, external: true)
-  per-replica:   <volume_name_prefix>_<i>
-
-Service / container names:
-  service:     <site>_<i>            (e.g. shopping_0, gitlab_3)
-  container:   webarena-verified-<site>_<i>
+Important contract:
+  - runtime site_url/reset_endpoint always use the real evaluation ports
+  - verification_proxy is Phase 0c-only and never replaces runtime URLs
+  - site_name stays canonical (shopping, gitlab, ...) for routing
+  - replica identity lives in replica_index / replica_name
 
 Usage:
   python scripts/generate_compose_scale.py \
       --config scripts/scale_config.yml \
-      --host-ip 1.2.3.4 \
+      --base-config instances.json \
+      --host-config configs/benchmark_hosts/r5.yaml \
       --proxy-token ab12... \
       --mode scale \
       --out-dir /tmp
@@ -42,8 +42,14 @@ import json
 import pathlib
 import sys
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import yaml
+
+from worldsim.config import BenchmarkConfig
+from worldsim.host_config import BenchmarkHostConfig, load_host_config
+from worldsim.placeholders import placeholder_for_site
+
 
 # ---------------------------------------------------------------------------
 # Replica expansion
@@ -54,21 +60,13 @@ def expand_site(
     site_name: str,
     site_cfg: dict[str, Any],
     replica_count: int,
-    host_ip: str,
+    advertise_host: str,
+    bind_host: str,
+    db_bind_host: str,
     proxy_port_offset: int,
     ip_allocator,
 ) -> list[dict[str, Any]]:
-    """Expand one site into a list of per-replica record dicts.
-
-    Returned records carry everything downstream emitters need:
-      - service_name / container_name
-      - image / platform / mem_limit / shm_size
-      - ports (list of "127.0.0.1:HOST:CONTAINER" strings)
-      - environment (list of "K=V" strings)
-      - volumes (list of compose volume-string entries)
-      - ipv4_address (on the shared bridge network)
-      - real_web_port / real_envctrl_port / proxy_port / db_port
-    """
+    """Expand one site into a list of per-replica record dicts."""
     out: list[dict[str, Any]] = []
     real_base = int(site_cfg["real_port_base"])
     port_step = int(site_cfg.get("port_step", 10))
@@ -84,27 +82,19 @@ def expand_site(
         service_name = f"{site_name}_{i}"
         container_name = f"webarena-verified-{site_name}_{i}"
 
-        # Port mappings: 127.0.0.1-only on the host; web + envctrl always.
         ports: list[str] = [
-            f"127.0.0.1:{real_web}:{container_web_port}",
-            f"127.0.0.1:{real_envctrl}:8877",
+            f"{bind_host}:{real_web}:{container_web_port}",
+            f"{bind_host}:{real_envctrl}:8877",
         ]
         db_port = None
         if db_port_base is not None:
             db_port = int(db_port_base) + i * db_port_step
-            # Postgres-based images expose 5432, MySQL 3306. shopping /
-            # shopping_admin are MySQL; gitlab/reddit/map are PostgreSQL.
-            if site_name in ("shopping", "shopping_admin"):
-                container_db_port = 3306
-            else:
-                container_db_port = 5432
-            ports.append(f"127.0.0.1:{db_port}:{container_db_port}")
+            container_db_port = 3306 if site_name in ("shopping", "shopping_admin") else 5432
+            ports.append(f"{db_bind_host}:{db_port}:{container_db_port}")
 
-        # Environment: always inject WA_ENV_CTRL_EXTERNAL_SITE_URL per replica.
         env_list: list[str] = [
-            f"WA_ENV_CTRL_EXTERNAL_SITE_URL=http://{host_ip}:{real_web}",
+            f"WA_ENV_CTRL_EXTERNAL_SITE_URL=http://{advertise_host}:{real_web}",
         ]
-        # Copy any per-site extras declared in the config.
         for entry in site_cfg.get("environment", []) or []:
             if isinstance(entry, str):
                 env_list.append(entry)
@@ -112,7 +102,6 @@ def expand_site(
                 for k, v in entry.items():
                     env_list.append(f"{k}={v}")
 
-        # Volumes.
         volumes: list[str] = []
         for shared in site_cfg.get("shared_ro_volumes", []) or []:
             volumes.append(f"{shared['volume_name']}:{shared['container_path']}:ro")
@@ -122,7 +111,6 @@ def expand_site(
             suffix = f":{mode}" if mode != "rw" else ""
             volumes.append(f"{vol_name}:{per['container_path']}{suffix}")
 
-        # gitlab.rb bind-mount (tuned settings for memory savings).
         if "gitlab_rb_host_path" in site_cfg:
             volumes.append(
                 f"{site_cfg['gitlab_rb_host_path']}:{site_cfg['gitlab_rb_container_path']}:ro"
@@ -167,24 +155,19 @@ def build_compose(
     """Assemble the full compose document as a plain dict (ready for YAML)."""
     services: dict[str, Any] = {}
 
-    # Collect declared shared + per-replica volume names by scanning the
-    # records (which have already resolved per-replica suffixes).
-    shared_names: set = set()
-    per_replica_names: set = set()
-    for site_name, site_cfg in config["sites"].items():
+    shared_names: set[str] = set()
+    per_replica_names: set[str] = set()
+    for site_cfg in config["sites"].values():
         for shared in site_cfg.get("shared_ro_volumes", []) or []:
             shared_names.add(shared["volume_name"])
 
     for rec in records:
         for vol_entry in rec["volumes"]:
-            # Bind mounts (start with /) are not named volumes.
             if vol_entry.startswith("/"):
                 continue
             vol_name = vol_entry.split(":", 1)[0]
-            if vol_name in shared_names:
-                continue
-            # gitlab.rb bind mount uses an absolute path (handled above).
-            per_replica_names.add(vol_name)
+            if vol_name not in shared_names:
+                per_replica_names.add(vol_name)
 
     for rec in records:
         svc: dict[str, Any] = {
@@ -207,7 +190,6 @@ def build_compose(
             svc["volumes"] = rec["volumes"]
         services[rec["service_name"]] = svc
 
-    # Networks.
     networks = {
         network_name: {
             "driver": "bridge",
@@ -215,9 +197,6 @@ def build_compose(
         }
     }
 
-    # Volumes block. Shared RO volumes are declared external (pre-hydrated by
-    # Phase B.2). Per-replica volumes are declared with explicit `name:` so
-    # compose does not prefix them with the project name.
     volumes_section: dict[str, Any] = {}
     for name in sorted(shared_names):
         volumes_section[name] = {"external": True, "name": name}
@@ -232,16 +211,12 @@ def build_compose(
 
 
 # ---------------------------------------------------------------------------
-# Proxy ports + instances fragment
+# Proxy ports + instances config
 # ---------------------------------------------------------------------------
 
 
 def build_proxy_ports(records: list[dict[str, Any]]) -> str:
-    """Render proxy_ports.conf text. One line per replica.
-
-    Format matches scripts/proxy_ports.conf: `name:real_port[:proxy_port]`.
-    We emit the explicit proxy_port to avoid relying on the default offset.
-    """
+    """Render proxy_ports.conf text for the Phase 0c verification proxy."""
     lines: list[str] = [
         "# proxy_ports.conf - auto-generated by generate_compose_scale.py",
         "# Do not edit by hand; regenerate from scripts/scale_config.yml.",
@@ -254,48 +229,138 @@ def build_proxy_ports(records: list[dict[str, Any]]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_instances_fragment(
-    records: list[dict[str, Any]],
-    host_ip: str,
-    proxy_token: str,
-) -> list[dict[str, Any]]:
-    """Produce BenchmarkInstance entries matching the instances.json schema.
+def _replace_url_host_port(raw_url: str, *, host_ip: str, port: int) -> str:
+    parts = urlsplit(raw_url)
+    username = parts.username
+    password = parts.password
+    userinfo = ""
+    if username:
+        userinfo = username
+        if password:
+            userinfo += f":{password}"
+        userinfo += "@"
+    host_display = f"[{host_ip}]" if ":" in host_ip else host_ip
+    return urlunsplit(
+        (
+            parts.scheme,
+            f"{userinfo}{host_display}:{port}",
+            parts.path,
+            parts.query,
+            parts.fragment,
+        )
+    )
 
-    Each entry has:
-      - site_name (site_<i> to disambiguate replicas)
-      - site_url: proxy URL (the orchestrator never hits real ports directly)
-      - reset_endpoint: proxy URL + /init
-      - db_connection: per-site DB URL, only for sites with db_port_base
-    """
-    # Default credentials per-site mirror what's in instances.json today.
-    creds = {
-        "shopping": ("magentouser", "MyPassword", "magentodb", "mysql"),
-        "shopping_admin": ("magentouser", "MyPassword", "magentodb", "mysql"),
-        "gitlab": ("gitlab", "", "gitlabhq_production", "postgresql"),
-        "reddit": ("postmill", "postmill", "postmill", "postgresql"),
-        "map": ("renderer", "renderer", "gis", "postgresql"),
-    }
-    out: list[dict[str, Any]] = []
+
+def _generated_placeholder_map(records: list[dict[str, Any]], host_ip: str) -> dict[str, str]:
+    placeholders: dict[str, str] = {}
     for rec in records:
-        entry: dict[str, Any] = {
-            "site_name": rec["service_name"],
-            "base_site_name": rec["site_name"],
-            "replica_index": rec["replica_index"],
-            "site_url": f"http://{host_ip}:{rec['proxy_port']}",
-            "reset_endpoint": f"http://{host_ip}:{rec['proxy_port'] + 1}/init",
-        }
-        if rec["db_port"] and rec["site_name"] in creds:
-            user, pw, db, scheme = creds[rec["site_name"]]
-            auth_part = f"{user}:{pw}@" if pw else f"{user}@"
-            entry["db_connection"] = f"{scheme}://{auth_part}{host_ip}:{rec['db_port']}/{db}"
-        out.append(entry)
-    # NOTE: reset_endpoint maps to proxy_port+1 follows plan section 2's
-    # convention that envctrl = web + 1. The nginx proxy must listen on
-    # proxy_port (web) AND proxy_port+1 (envctrl). build_proxy_ports emits
-    # only web; nginx listens on both because the proxy config is generated
-    # from real_port pairs - the env-ctrl line is added here so reviewers
-    # notice. If deploy_benchmark_proxy.sh only listens on web ports, adjust.
-    return out
+        if rec["replica_index"] != 0:
+            continue
+        token = placeholder_for_site(rec["site_name"])
+        if token:
+            placeholders[token] = f"http://{host_ip}:{rec['real_web_port']}"
+    return placeholders
+
+
+def _base_instances_by_site(base_instances: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    by_site: dict[str, dict[str, Any]] = {}
+    for instance in base_instances:
+        site_name = str(instance.get("site_name", "")).strip()
+        if not site_name:
+            raise ValueError("base config instance missing site_name")
+        if site_name in by_site:
+            raise ValueError(
+                f"base config contains multiple canonical instances for site {site_name!r}"
+            )
+        by_site[site_name] = instance
+    return by_site
+
+
+def _clone_instance(
+    base_instance: dict[str, Any],
+    rec: dict[str, Any],
+    *,
+    advertise_host: str,
+    placeholder_map: dict[str, str],
+) -> dict[str, Any]:
+    instance = json.loads(json.dumps(base_instance))
+    instance["site_name"] = rec["site_name"]
+    instance["site_url"] = f"http://{advertise_host}:{rec['real_web_port']}"
+    instance["reset_endpoint"] = f"http://{advertise_host}:{rec['real_envctrl_port']}/init"
+    instance["replica_index"] = rec["replica_index"]
+    instance["replica_name"] = rec["service_name"]
+
+    db_connection = instance.get("db_connection")
+    if isinstance(db_connection, str) and db_connection.strip() and rec["db_port"] is not None:
+        instance["db_connection"] = _replace_url_host_port(
+            db_connection,
+            host_ip=advertise_host,
+            port=int(rec["db_port"]),
+        )
+
+    existing_placeholders = instance.get("url_placeholders")
+    merged_placeholders = (
+        dict(existing_placeholders) if isinstance(existing_placeholders, dict) else {}
+    )
+    merged_placeholders.update(placeholder_map)
+    if merged_placeholders:
+        instance["url_placeholders"] = merged_placeholders
+
+    return instance
+
+
+def build_instances_config(
+    *,
+    base_config: dict[str, Any],
+    records: list[dict[str, Any]],
+    advertise_host: str,
+    proxy_token: str | None,
+    proxy_port_offset: int,
+    proxy_scheme: str | None,
+) -> dict[str, Any]:
+    """Produce a full BenchmarkConfig with scaled runtime instances."""
+    output = json.loads(json.dumps(base_config))
+    base_instances = output.get("instances")
+    if not isinstance(base_instances, list) or not base_instances:
+        raise ValueError("base config must contain a non-empty instances array")
+
+    by_site = _base_instances_by_site(base_instances)
+    placeholder_map = _generated_placeholder_map(records, advertise_host)
+
+    instances: list[dict[str, Any]] = []
+    for rec in records:
+        site_name = rec["site_name"]
+        base_instance = by_site.get(site_name)
+        if base_instance is None:
+            raise ValueError(f"scale config site {site_name!r} missing from base config instances")
+        instances.append(
+            _clone_instance(
+                base_instance,
+                rec,
+                advertise_host=advertise_host,
+                placeholder_map=placeholder_map,
+            )
+        )
+
+    verification_proxy = output.get("verification_proxy")
+    if not isinstance(verification_proxy, dict):
+        verification_proxy = {}
+    if proxy_token is not None:
+        verification_proxy["token"] = proxy_token
+    verification_proxy["port_offset"] = proxy_port_offset
+    if proxy_scheme is not None:
+        verification_proxy["scheme"] = proxy_scheme
+    if verification_proxy:
+        output["verification_proxy"] = verification_proxy
+
+    top_level_placeholders = output.get("url_placeholders")
+    merged_top_level = dict(top_level_placeholders) if isinstance(top_level_placeholders, dict) else {}
+    merged_top_level.update(placeholder_map)
+    output["url_placeholders"] = merged_top_level
+    output["instances"] = instances
+
+    validated = BenchmarkConfig.model_validate(output)
+    return validated.model_dump(mode="json")
 
 
 # ---------------------------------------------------------------------------
@@ -304,16 +369,61 @@ def build_instances_fragment(
 
 
 def make_ip_allocator(subnet: str, start_offset: int = 10):
-    """Return an iterator that yields IPv4Address entries in the given subnet.
-
-    Reserves the first `start_offset` addresses (network + gateway + docker
-    bookkeeping). 30 replicas fit trivially in a /20.
-    """
+    """Return an iterator that yields IPv4Address entries in the given subnet."""
     net = ipaddress.ip_network(subnet, strict=False)
     hosts = net.hosts()
     for _ in range(start_offset):
         next(hosts)
     return hosts
+
+
+def _unpinned_images(config: dict[str, Any]) -> list[str]:
+    unpinned: list[str] = []
+    for site_name, site_cfg in config.get("sites", {}).items():
+        image = str(site_cfg.get("image", "")).strip()
+        if not image:
+            continue
+        if "@sha256:" not in image:
+            unpinned.append(f"{site_name}:{image}")
+    return unpinned
+
+
+def _resolve_host_contract(
+    *,
+    host_config_path: str | None,
+    advertise_host: str | None,
+    bind_host: str | None,
+    db_bind_host: str | None,
+    allow_public_web_bind: bool,
+    allow_public_db_bind: bool,
+) -> BenchmarkHostConfig:
+    if host_config_path:
+        host_cfg = load_host_config(host_config_path)
+        if advertise_host is None:
+            advertise_host = host_cfg.advertise_host
+        if bind_host is None:
+            bind_host = host_cfg.bind_host
+        if db_bind_host is None:
+            db_bind_host = host_cfg.db_bind_host
+    else:
+        if advertise_host is None:
+            raise ValueError("provide --host-config or --advertise-host")
+        if bind_host is None:
+            raise ValueError("provide --host-config or --bind-host")
+        if db_bind_host is None:
+            db_bind_host = bind_host
+        host_cfg = BenchmarkHostConfig.model_validate(
+            {
+                "name": "cli",
+                "access_mode": "remote_direct_restricted",
+                "advertise_host": advertise_host,
+                "bind_host": bind_host,
+                "db_bind_host": db_bind_host,
+                "allow_public_web_bind": allow_public_web_bind,
+                "allow_public_db_bind": allow_public_db_bind,
+            }
+        )
+    return host_cfg
 
 
 # ---------------------------------------------------------------------------
@@ -324,8 +434,36 @@ def make_ip_allocator(subnet: str, start_offset: int = 10):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__ or "")
     ap.add_argument("--config", required=True, help="path to scale_config.yml")
-    ap.add_argument("--host-ip", required=True, help="host IP for site URLs")
-    ap.add_argument("--proxy-token", required=True, help="proxy token for instances.json")
+    ap.add_argument(
+        "--base-config",
+        required=True,
+        help="canonical instances.json to fan out across replicas",
+    )
+    ap.add_argument("--host-config", help="checked-in benchmark host config YAML")
+    ap.add_argument("--advertise-host", help="host/IP for runtime URLs and site URLs")
+    ap.add_argument("--bind-host", help="host/interface Docker should publish web/env-ctrl ports on")
+    ap.add_argument("--db-bind-host", help="host/interface Docker should publish DB ports on")
+    ap.add_argument(
+        "--allow-public-web-bind",
+        action="store_true",
+        help="explicitly allow publishing web/env-ctrl ports on all host interfaces",
+    )
+    ap.add_argument(
+        "--allow-public-db-bind",
+        action="store_true",
+        help="explicitly allow publishing DB ports on all host interfaces",
+    )
+    ap.add_argument(
+        "--proxy-token",
+        default=None,
+        help="optional proxy token override for instances.json",
+    )
+    ap.add_argument(
+        "--proxy-scheme",
+        choices=["http", "https"],
+        default=None,
+        help="optional verification_proxy.scheme override",
+    )
     ap.add_argument(
         "--mode",
         choices=["scale", "smoke"],
@@ -333,9 +471,14 @@ def main() -> int:
         help="scale = full replica counts; smoke = smoke_test_replicas",
     )
     ap.add_argument(
+        "--require-pinned-images",
+        action="store_true",
+        help="fail if any site image uses a mutable ref like :latest instead of a digest",
+    )
+    ap.add_argument(
         "--out-dir",
         default="/tmp",
-        help="directory to write compose + proxy_ports + instances fragment",
+        help="directory to write compose + proxy_ports + instances config",
     )
     args = ap.parse_args()
 
@@ -346,6 +489,34 @@ def main() -> int:
     with cfg_path.open() as f:
         config = yaml.safe_load(f)
 
+    unpinned = _unpinned_images(config)
+    if unpinned:
+        message = "Unpinned benchmark images detected: " + ", ".join(unpinned)
+        if args.require_pinned_images:
+            print(f"ERROR: {message}", file=sys.stderr)
+            return 2
+        print(f"WARNING: {message}", file=sys.stderr)
+
+    base_config_path = pathlib.Path(args.base_config)
+    if not base_config_path.exists():
+        print(f"ERROR: base config not found: {base_config_path}", file=sys.stderr)
+        return 2
+    with base_config_path.open() as f:
+        base_config = json.load(f)
+
+    try:
+        host_cfg = _resolve_host_contract(
+            host_config_path=args.host_config,
+            advertise_host=args.advertise_host,
+            bind_host=args.bind_host,
+            db_bind_host=args.db_bind_host,
+            allow_public_web_bind=args.allow_public_web_bind,
+            allow_public_db_bind=args.allow_public_db_bind,
+        )
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
     out_dir = pathlib.Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -353,7 +524,6 @@ def main() -> int:
     subnet = config.get("network", {}).get("subnet", "172.20.0.0/20")
     proxy_offset = int(config.get("proxy_port_offset", 10000))
 
-    # Decide replica counts for this mode.
     if args.mode == "scale":
         replica_counts = {name: int(sc["replicas"]) for name, sc in config["sites"].items()}
         compose_filename = "compose.scale.yml"
@@ -374,13 +544,23 @@ def main() -> int:
                 site_name=site_name,
                 site_cfg=site_cfg,
                 replica_count=count,
-                host_ip=args.host_ip,
+                advertise_host=host_cfg.advertise_host,
+                bind_host=host_cfg.bind_host,
+                db_bind_host=host_cfg.db_bind_host,
                 proxy_port_offset=proxy_offset,
                 ip_allocator=ip_alloc,
             )
         )
 
     compose_doc = build_compose(config, records, network_name, subnet)
+    instances_config = build_instances_config(
+        base_config=base_config,
+        records=records,
+        advertise_host=host_cfg.advertise_host,
+        proxy_token=args.proxy_token,
+        proxy_port_offset=proxy_offset,
+        proxy_scheme=args.proxy_scheme,
+    )
 
     compose_path = out_dir / compose_filename
     with compose_path.open("w") as f:
@@ -389,15 +569,20 @@ def main() -> int:
     proxy_path = out_dir / "proxy_ports.conf"
     proxy_path.write_text(build_proxy_ports(records))
 
-    fragment = build_instances_fragment(records, args.host_ip, args.proxy_token)
-    frag_path = out_dir / "instances.json.fragment"
-    with frag_path.open("w") as f:
-        json.dump(fragment, f, indent=2)
+    config_path = out_dir / "instances.json"
+    with config_path.open("w") as f:
+        json.dump(instances_config, f, indent=2)
+        f.write("\n")
+
+    fragment_path = out_dir / "instances.json.fragment"
+    with fragment_path.open("w") as f:
+        json.dump(instances_config["instances"], f, indent=2)
         f.write("\n")
 
     print(f"wrote {compose_path} ({len(records)} services)")
     print(f"wrote {proxy_path} ({len(records)} port entries)")
-    print(f"wrote {frag_path} ({len(fragment)} instance entries)")
+    print(f"wrote {config_path} ({len(instances_config['instances'])} instance entries)")
+    print(f"wrote {fragment_path} ({len(instances_config['instances'])} instance entries)")
     return 0
 
 

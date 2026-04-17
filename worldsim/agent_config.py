@@ -48,6 +48,7 @@ from typing import Any
 from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
 from worldsim.config import BenchmarkInstance
 from worldsim.eval_worker_pool import run_eval
+from worldsim.instance_selection import select_task_site_instance
 from worldsim.placeholders import (
     apply_placeholders,
     merge_placeholder_maps,
@@ -512,7 +513,7 @@ def bind_task_to_instance(
         site_instance = (
             instance
             if site_name == primary_site
-            else _select_binding_instance(site_name, instances)
+            else select_task_site_instance(task, site_name, instances)
         )
         bound_instances[site_name] = site_instance.model_dump()
         placeholders = merge_placeholder_maps(
@@ -532,16 +533,6 @@ def bind_task_to_instance(
         "bound_instances": bound_instances,
     }
     return bound_task
-
-
-def _select_binding_instance(
-    site_name: str,
-    instances: list[BenchmarkInstance],
-) -> BenchmarkInstance:
-    site_instances = instances_for_site(instances, site_name)
-    if not site_instances:
-        raise ValueError(f"no instances configured for site {site_name!r}")
-    return site_instances[0]
 
 
 def execution_instance_dict(

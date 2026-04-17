@@ -2,10 +2,11 @@
 
 Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Parallel Evaluation" section.
 
-Each worker is pinned to one pre-running benchmark instance and pulls tasks
-from a shared ``asyncio.Queue``. Workers start staggered (``STAGGER_DELAY``
-seconds apart) to avoid hammering all instances simultaneously on pool
-startup.
+Each worker is pinned to one pre-running benchmark instance. Tasks are
+deterministically partitioned onto per-instance queues before startup so the
+same task routes to the same replica across reruns and resume paths. Workers
+still start staggered (``STAGGER_DELAY`` seconds apart) to avoid hammering all
+instances simultaneously on pool startup.
 
 The worker pool is phase-agnostic: it accepts a ``task_runner`` callable
 ``(task, agent, instance, task_dir) -> awaitable[dict]``. Phase 3 passes
@@ -23,6 +24,8 @@ from typing import Any
 
 from worldsim.browser_use_agent import AgentRunner
 from worldsim.config import BenchmarkInstance
+from worldsim.instance_selection import ordered_instances, stable_index_for_task
+from worldsim.placeholders import normalize_site_name
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
@@ -153,10 +156,9 @@ async def staggered_worker(
 ) -> None:
     """Worker coroutine pinned to one benchmark instance.
 
-    The worker waits ``delay`` seconds before starting (for staggered pool
-    startup), creates one ``AgentRunner`` for its lifetime via
-    ``agent_factory``, and repeatedly pulls tasks from ``task_queue`` until
-    empty.
+    The worker waits ``delay`` seconds before starting, creates one
+    ``AgentRunner`` for its lifetime via ``agent_factory``, and processes
+    the deterministic task subset pre-assigned to its instance.
     """
     if delay > 0:
         await asyncio.sleep(delay)
@@ -259,30 +261,78 @@ async def run_eval(
         logger.info("All tasks already completed in prior run")
         return prior_results
 
-    num_workers = min(len(instances), len(tasks))
-    task_queue: asyncio.Queue = asyncio.Queue()
-    for t in tasks:
-        await task_queue.put(t)
+    ordered = ordered_instances(instances)
+    if not ordered:
+        logger.error("No benchmark instances available for evaluation")
+        failed = [
+            {
+                "task_id": str(task.get("id", f"task_{id(task):x}")),
+                "passed": False,
+                "outcome": "error",
+                "ecologically_valid": False,
+                "message": "no benchmark instances configured for worker pool",
+            }
+            for task in tasks
+        ]
+        return prior_results + failed
+
+    site_names = {
+        normalize_site_name(instance.site_name)
+        for instance in ordered
+        if normalize_site_name(instance.site_name)
+    }
+    if len(site_names) > 1:
+        logger.error("Worker pool requires same-site instances, got %s", sorted(site_names))
+        failed = [
+            {
+                "task_id": str(task.get("id", f"task_{id(task):x}")),
+                "passed": False,
+                "outcome": "error",
+                "ecologically_valid": False,
+                "message": (
+                    "worker pool requires same-site instances; "
+                    f"got {', '.join(sorted(site_names))}"
+                ),
+            }
+            for task in tasks
+        ]
+        return prior_results + failed
+
+    replica_count = len(ordered)
+    task_queues: list[asyncio.Queue] = [asyncio.Queue() for _ in range(replica_count)]
+    instance_site = normalize_site_name(ordered[0].site_name)
+    for task in tasks:
+        worker_index = _worker_index_for_task(
+            task,
+            replica_count=replica_count,
+            site_name=instance_site,
+        )
+        task_queues[worker_index].put_nowait(task)
 
     results: list[dict[str, Any]] = []
     results_lock = asyncio.Lock()
     stop_event = asyncio.Event()
 
+    worker_specs = [
+        (worker_index, ordered[worker_index], task_queues[worker_index])
+        for worker_index in range(replica_count)
+        if not task_queues[worker_index].empty()
+    ]
     workers = [
         staggered_worker(
-            worker_id=i,
-            delay=i * STAGGER_DELAY,
+            worker_id=worker_index,
+            delay=launch_index * STAGGER_DELAY,
             task_queue=task_queue,
             results=results,
             results_lock=results_lock,
             agent_factory=agent_factory,
-            instance=instances[i],
+            instance=instance,
             task_runner=task_runner,
             task_dir_root=task_dir_root,
             task_binder=task_binder,
             stop_event=stop_event,
         )
-        for i in range(num_workers)
+        for launch_index, (worker_index, instance, task_queue) in enumerate(worker_specs)
     ]
     gather_results = await asyncio.gather(*workers, return_exceptions=True)
     for i, gr in enumerate(gather_results):
@@ -290,8 +340,8 @@ async def run_eval(
             logger.error("worker %d raised an unhandled exception: %s", i, gr)
 
     if stop_event.is_set():
-        await _drain_queue_as_failures(
-            task_queue,
+        await _drain_queues_as_failures(
+            task_queues,
             results,
             results_lock,
             message="worker setup failed before queued task could start",
@@ -317,29 +367,39 @@ async def run_eval(
     return prior_results + results
 
 
-async def _drain_queue_as_failures(
-    task_queue: asyncio.Queue,
+def _worker_index_for_task(
+    task: dict[str, Any],
+    *,
+    replica_count: int,
+    site_name: str,
+) -> int:
+    return stable_index_for_task(task, replica_count, salt=site_name)
+
+
+async def _drain_queues_as_failures(
+    task_queues: list[asyncio.Queue],
     results: list[dict[str, Any]],
     results_lock: asyncio.Lock,
     *,
     message: str,
 ) -> None:
     drained: list[dict[str, Any]] = []
-    while True:
-        try:
-            task = task_queue.get_nowait()
-        except asyncio.QueueEmpty:
-            break
-        drained.append(
-            {
-                "task_id": str(task.get("id", f"task_{id(task):x}")),
-                "passed": False,
-                "outcome": "error",
-                "ecologically_valid": False,
-                "message": message,
-            }
-        )
-        task_queue.task_done()
+    for task_queue in task_queues:
+        while True:
+            try:
+                task = task_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            drained.append(
+                {
+                    "task_id": str(task.get("id", f"task_{id(task):x}")),
+                    "passed": False,
+                    "outcome": "error",
+                    "ecologically_valid": False,
+                    "message": message,
+                }
+            )
+            task_queue.task_done()
 
     if drained:
         async with results_lock:

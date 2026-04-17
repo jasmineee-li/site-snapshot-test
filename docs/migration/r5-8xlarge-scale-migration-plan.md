@@ -164,11 +164,19 @@ land in `/var/lib/docker/overlay2/` on the 1TB volume.
 
 New file: `scripts/generate_compose_scale.py`
 
-Reads `scripts/scale_config.yml` and emits three artifacts:
+Reads `scripts/scale_config.yml` plus the canonical base `instances.json` and
+emits four artifacts:
 
 - `/home/ubuntu/docker-compose.yml` (staged locally, scp'd up)
+- full `instances.json` with all 30 runtime entries and preserved auth blocks
 - `instances.json` fragment with all 30 entries
 - `scripts/proxy_ports.conf` regenerated with 30 lines
+
+It can also fail fast on mutable image refs via `--require-pinned-images`.
+The checked-in wrapper `scripts/generate_scale_r5.sh` preserves the canonical
+base `instances.json` and writes generated artifacts to
+`scripts/docker-compose.scale.yml`, `scripts/proxy_ports.conf`,
+`instances.scale.json`, and `instances.scale.json.fragment`.
 
 ### C.2 scale_config.yml format
 
@@ -335,11 +343,17 @@ prints the exact list.
 
 ## 9. Phase F - Orchestrator cutover
 
-Regenerate `instances.json` with 30 entries. Each entry follows the existing
-schema: `site`, `site_url` (proxy URL), `reset_endpoint` (proxy URL hitting
-/init), `verification_proxy.token`, optional `db_connection` for map /
-shopping / shopping_admin / gitlab / reddit (for post-condition reward
-checks only, never for seeding).
+Regenerate `instances.json` with 30 entries from the canonical base config.
+Each entry keeps the existing schema and auth blocks, but fans out across
+replicas:
+
+- `site_name` stays canonical (`shopping`, `gitlab`, etc.)
+- `site_url` points at the real web port
+- `reset_endpoint` points at the real env-ctrl port (`real_web_port + 1`)
+- `replica_index` / `replica_name` identify the specific replica
+- `verification_proxy` remains Phase 0c-only and never replaces runtime URLs
+- optional `db_connection` is rewritten per replica for post-condition reward
+  checks only, never for seeding
 
 Run Phase 0c smoke:
 
@@ -373,9 +387,12 @@ New file: `scripts/benchmark_host.sh`.
 ./scripts/benchmark_host.sh status  # print state + count of /init==200
 ```
 
-Start path: `ec2 start-instances`, poll until running, SSH, poll 30 /init
-endpoints until all 200 or 5 min timeout. Elastic IP stays attached while
-stopped ($3.60/mo line in cost model).
+Start path: `ec2 start-instances`, poll until running, SSH, wait for docker
+containers to be running, then probe the real env-ctrl `/init` endpoints over
+SSH until all 200 or 5 min timeout. Elastic IP stays attached while stopped
+($3.60/mo line in cost model). The checked-in host config now owns the
+advertised host plus bind hosts; scale compose is no longer implicitly
+localhost-only.
 
 ## 12. Phase I - Decommission m5.xlarge
 

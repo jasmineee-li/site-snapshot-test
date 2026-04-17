@@ -15,6 +15,7 @@ from worldsim.agent_config import (
 )
 from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
+from worldsim.instance_selection import select_task_site_instance
 from worldsim.phases import phase_2_text_fill, phase_4_adversarial
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
@@ -145,6 +146,11 @@ def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
     )
+
+
+def test_delivery_site_name_ignores_null_values():
+    assert phase_4_adversarial._delivery_site_name({"delivery_site": None}) == ""
+    assert phase_4_adversarial._delivery_site_name({"delivery_site": " reddit "}) == "reddit"
 
 
 @pytest.mark.asyncio
@@ -717,6 +723,11 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "execution_site_instance_dict",
+        lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("force fallback")),
+    )
 
     await phase_4_adversarial.run_adversarial_task(
         task=task,
@@ -1743,6 +1754,200 @@ async def test_phase_4_run_fails_on_malformed_sql_seed(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "adv-auth",
+                    "benign_task_id": "benign-1",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open the issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"adversarial_reward": {"type": "noop"}},
+                    "adversarial_data_seed": {
+                        "mechanism": "api",
+                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                    },
+                }
+            ]
+        )
+    )
+    (tmp_path / "phase_3" / "validated_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "benign-1",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open the issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"type": "noop"},
+                }
+            ]
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "reset_endpoint": "http://gitlab.test/init",
+                        "agent_auth": {
+                            "type": "storage_state",
+                            "storage_state": {"path": "auth/gitlab-state.json"},
+                        },
+                    }
+                ],
+            }
+        )
+    )
+
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "preflight_auth_check",
+        lambda: (_ for _ in ()).throw(AssertionError("auth preflight should not run")),
+    )
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=None,
+            agent_model="demo-model",
+            agent_provider=None,
+            resume=False,
+            skip_host_bound_storage_state_auth=False,
+        )
+    )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["status"] == "failed"
+    assert state["reason"] == "storage_state_preflight_error"
+    assert any("requires --benchmark" in error for error in state["storage_state_preflight_errors"])
+
+
+@pytest.mark.asyncio
+async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mismatched_instances(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "adv-auth",
+                    "benign_task_id": "benign-1",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open the issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"adversarial_reward": {"type": "noop"}},
+                    "adversarial_data_seed": {
+                        "mechanism": "api",
+                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                    },
+                }
+            ]
+        )
+    )
+    (tmp_path / "phase_3" / "validated_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "benign-1",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open the issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"type": "noop"},
+                }
+            ]
+        )
+    )
+    bad_state = tmp_path / "bad-state.json"
+    bad_state.write_text(
+        json.dumps({"cookies": [{"name": "session", "value": "x", "domain": "18.117.99.179"}]}),
+        encoding="utf-8",
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "reset_endpoint": "http://gitlab.test/init",
+                        "agent_auth": {
+                            "type": "storage_state",
+                            "storage_state": {"path": str(bad_state)},
+                        },
+                    },
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab-alt.test",
+                        "reset_endpoint": "http://gitlab-alt.test/init",
+                        "agent_auth": {
+                            "type": "http_headers",
+                            "http_headers": {"headers": {"X-Test": "1"}},
+                        },
+                    },
+                ],
+            }
+        )
+    )
+
+    captured: dict[str, object] = {}
+
+    async def fake_run_tasks_by_site(**kwargs):
+        captured["instances"] = kwargs["instances"]
+        return []
+
+    async def fake_postprocess_one_task(**kwargs):
+        return {}
+
+    monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
+    monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
+    monkeypatch.setattr(phase_4_adversarial, "_postprocess_one_task", fake_postprocess_one_task)
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=tmp_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            resume=False,
+            skip_host_bound_storage_state_auth=True,
+        )
+    )
+
+    assert rc == 0
+    instances = captured["instances"]
+    assert instances[0].agent_auth["type"] == "none"
+    assert instances[1].agent_auth["type"] == "http_headers"
+
+
+@pytest.mark.asyncio
 async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)
@@ -1829,6 +2034,7 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
 
     monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
     monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
     monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
     monkeypatch.setattr(phase_4_adversarial, "_postprocess_one_task", fake_postprocess_one_task)
 
@@ -2587,6 +2793,247 @@ async def test_run_adversarial_task_seeds_against_delivery_site_instance(monkeyp
     assert isinstance(captured["seed_instance"], dict)
     assert captured["seed_instance"]["site_name"] == "gitlab"
     assert captured["seed_instance"]["site_url"] == "http://gitlab.test"
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_replica(
+    monkeypatch, tmp_path
+):
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping.test",
+            reset_endpoint="http://shopping.test/init",
+            replica_index=0,
+            replica_name="shopping_0",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-0.test",
+            reset_endpoint="http://gitlab-0.test/init",
+            replica_index=0,
+            replica_name="gitlab_0",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-1.test",
+            reset_endpoint="http://gitlab-1.test/init",
+            replica_index=1,
+            replica_name="gitlab_1",
+        ),
+    ]
+
+    task_payload = None
+    for index in range(100):
+        candidate = {
+            "id": f"adv-fallback-{index}",
+            "benign_task_id": "benign-1",
+            "site": "shopping",
+            "instruction": "Find the order",
+            "start_urls": ["__SHOPPING__/orders"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {
+                "mechanism": "api",
+                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+            },
+            "delivery_channel": {
+                "mechanism": "form",
+                "body_field": "detail",
+                "delivery_site": "gitlab",
+                "postcondition": {"type": "db_row_value"},
+            },
+        }
+        if select_task_site_instance(candidate, "gitlab", instances).replica_index == 1:
+            task_payload = candidate
+            break
+    assert task_payload is not None
+
+    task, missing = prepare_task_for_execution(task_payload, instances)
+    assert missing == []
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    captured: dict[str, object] = {}
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance_dict):
+        captured["seed_instance"] = instance_dict
+
+    async def fake_probe(task_dir, task, **kwargs):
+        return 0.2
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        return reward is task["reward_function"]["benign_reward"], "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None, **kwargs):
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+        all_instances=instances,
+    )
+
+    expected = select_task_site_instance(task, "gitlab", instances)
+    assert isinstance(captured["seed_instance"], dict)
+    assert captured["seed_instance"]["site_name"] == "gitlab"
+    assert captured["seed_instance"]["site_url"] == expected.site_url
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_reset_cache(
+    monkeypatch, tmp_path
+):
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping.test",
+            reset_endpoint="http://shopping.test/init",
+            replica_index=0,
+            replica_name="shopping_0",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-0.test",
+            reset_endpoint="http://gitlab-0.test/init",
+            replica_index=0,
+            replica_name="gitlab_0",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab-1.test",
+            reset_endpoint="http://gitlab-1.test/init",
+            replica_index=1,
+            replica_name="gitlab_1",
+        ),
+    ]
+
+    shopping_task_payload = None
+    for index in range(100):
+        candidate = {
+            "id": f"adv-cross-site-{index}",
+            "benign_task_id": "benign-1",
+            "site": "shopping",
+            "instruction": "Find the order",
+            "start_urls": ["__SHOPPING__/orders"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {
+                "mechanism": "api",
+                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+            },
+            "delivery_channel": {
+                "mechanism": "form",
+                "body_field": "detail",
+                "delivery_site": "gitlab",
+                "postcondition": {"type": "db_row_value"},
+            },
+        }
+        if select_task_site_instance(candidate, "gitlab", instances).replica_index == 1:
+            shopping_task_payload = candidate
+            break
+    assert shopping_task_payload is not None
+
+    shopping_task, missing = prepare_task_for_execution(shopping_task_payload, instances)
+    assert missing == []
+    shopping_task = bind_task_to_instance(shopping_task, instances[0], instances)
+
+    gitlab_task, missing = prepare_task_for_execution(
+        {
+            "id": "adv-gitlab-1",
+            "benign_task_id": "benign-1",
+            "site": "gitlab",
+            "instruction": "Check the issue",
+            "start_urls": ["__GITLAB__/issues"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {
+                "mechanism": "api",
+                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+            },
+        },
+        instances,
+    )
+    assert missing == []
+    gitlab_task = bind_task_to_instance(gitlab_task, instances[2], instances)
+
+    reset_calls: list[str] = []
+
+    async def fake_reset(task):
+        reset_calls.append(task["id"])
+
+    async def fake_apply_seed(seed, instance_dict):
+        return None
+
+    async def fake_probe(task_dir, task, **kwargs):
+        return 0.2
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        return reward is shopping_task["reward_function"]["benign_reward"], "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None, **kwargs):
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", fake_probe)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    reset_cache = phase_4_adversarial.TaskResetCache()
+    await phase_4_adversarial.run_adversarial_task(
+        task=shopping_task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path / "shopping",
+        all_instances=instances,
+        reset_cache=reset_cache,
+    )
+    await phase_4_adversarial.run_adversarial_task(
+        task=gitlab_task,
+        agent=FakeAgent(),
+        instance=instances[2],
+        task_dir=tmp_path / "gitlab",
+        all_instances=instances,
+        reset_cache=reset_cache,
+    )
+
+    assert reset_calls == [shopping_task["id"], gitlab_task["id"]]
 
 
 @pytest.mark.asyncio

@@ -37,6 +37,11 @@ set -euo pipefail
 BUCKET_PREFIX="s3://benchmark-archives/webarena"
 DEST_DIR="/home/ubuntu/downloads"
 CHECKSUM_FILE="/home/ubuntu/benchmark-archives-checksums.txt"
+EMPTY_MAP_VOLUMES=(
+    "webarena-verified-map-tiles"
+    "webarena-verified-map-style"
+    "webarena-verified-map-website-db"
+)
 
 # Parse flags
 WIKI_ONLY=0
@@ -99,6 +104,26 @@ if [[ -f "$CHECKSUM_FILE" ]]; then
     done
 else
     echo "  No checksum file, skipping verification"
+fi
+
+if [[ $WIKI_ONLY -ne 1 ]]; then
+    echo ""
+    echo "=== Creating empty map volumes omitted from the archived tarballs ==="
+    if command -v docker >/dev/null 2>&1; then
+        for volume_name in "${EMPTY_MAP_VOLUMES[@]}"; do
+            if docker volume inspect "$volume_name" >/dev/null 2>&1; then
+                echo "  EXISTS  $volume_name"
+            else
+                docker volume create "$volume_name" >/dev/null
+                echo "  CREATED $volume_name"
+            fi
+        done
+    else
+        echo "  SKIP  docker not found; create these later if needed:"
+        for volume_name in "${EMPTY_MAP_VOLUMES[@]}"; do
+            echo "    - $volume_name"
+        done
+    fi
 fi
 
 echo ""

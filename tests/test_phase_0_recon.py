@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.config import BenchmarkInstance
+from worldsim.config import BenchmarkInstance, VerificationProxy
 from worldsim.phases import phase_0_recon
 
 VERIFICATION_OUTPUT = "/workspace/output/VERIFICATION_CAPABILITIES.json"
@@ -673,3 +673,79 @@ async def test_run_phase_0c_reprofiles_when_profile_metadata_is_malformed(monkey
     assert refreshed["agent_context"]["site_context"]["description"] == (
         "Fresh malformed metadata profile"
     )
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_proxy_metadata_changes(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+
+    profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_name,
+                "benchmark_root": str(benchmark_root),
+                "sandbox_model": "claude-sonnet-4-6",
+                "instance_site_url": "http://shopping.test",
+                "verification_proxy": {
+                    "scheme": "http",
+                    "port_offset": 10000,
+                    "token_sha256": "stale",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    calls: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        calls.append(kwargs["label"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            context = _valid_agent_context()
+            context["site_context"]["description"] = "Fresh proxy metadata profile"
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, context)
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={site_name: [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+        verification_proxy=VerificationProxy(token="fresh-token", port_offset=10000, scheme="https"),
+    )
+
+    assert site_name in result
+    assert calls, "proxy metadata change must trigger re-profiling"
+    refreshed = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
+    assert refreshed["agent_context"]["site_context"]["description"] == (
+        "Fresh proxy metadata profile"
+    )
+    metadata = json.loads((output_dir / f"PROFILE_METADATA_{site_name}.json").read_text())
+    assert metadata["verification_proxy"]["scheme"] == "https"

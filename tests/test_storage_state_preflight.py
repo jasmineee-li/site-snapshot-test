@@ -1,0 +1,199 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from worldsim.config import BenchmarkConfig, BenchmarkInstance
+from worldsim.storage_state_preflight import (
+    apply_skip_auth_for_host_bound_storage_states,
+    find_host_bound_storage_state_mismatches,
+    inspect_storage_state_preflight,
+)
+
+
+def _write_storage_state(path: Path, *, domain: str) -> None:
+    payload = {
+        "cookies": [
+            {
+                "name": "session",
+                "value": "abc",
+                "domain": domain,
+                "path": "/",
+            }
+        ],
+        "origins": [],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_find_host_bound_storage_state_mismatches_detects_old_host(tmp_path: Path) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    _write_storage_state(state_path, domain="18.117.99.179")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        )
+    ]
+
+    mismatches = find_host_bound_storage_state_mismatches(instances)
+    assert len(mismatches) == 1
+    assert mismatches[0].site_name == "gitlab"
+    assert mismatches[0].recorded_hosts == ("18.117.99.179",)
+    assert mismatches[0].instance_hosts == ("3.12.221.9",)
+
+
+def test_find_host_bound_storage_state_mismatches_allows_matching_parent_domain(
+    tmp_path: Path,
+) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    _write_storage_state(state_path, domain=".example.com")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="https://gitlab.example.com:8023",
+            reset_endpoint="https://gitlab.example.com:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        )
+    ]
+
+    assert find_host_bound_storage_state_mismatches(instances) == []
+
+
+def test_apply_skip_auth_for_host_bound_storage_states_rewrites_only_mismatched_storage_state(
+    tmp_path: Path,
+) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    _write_storage_state(state_path, domain="18.117.99.179")
+    healthy_state_path = tmp_path / "gitlab-healthy-state.json"
+    _write_storage_state(healthy_state_path, domain="3.12.221.9")
+
+    config = BenchmarkConfig.model_validate(
+        {
+            "benchmark_name": "WebArena Verified",
+            "benchmark_codebase": str(tmp_path),
+            "instances": [
+                {
+                    "site_name": "gitlab",
+                    "site_url": "http://3.12.221.9:8023",
+                    "reset_endpoint": "http://3.12.221.9:8024/init",
+                    "agent_auth": {
+                        "type": "storage_state",
+                        "storage_state": {"path": str(state_path)},
+                    },
+                },
+                {
+                    "site_name": "gitlab",
+                    "site_url": "http://3.12.221.9:8024",
+                    "reset_endpoint": "http://3.12.221.9:8025/init",
+                    "agent_auth": {
+                        "type": "storage_state",
+                        "storage_state": {"path": str(healthy_state_path)},
+                    },
+                },
+                {
+                    "site_name": "shopping",
+                    "site_url": "http://3.12.221.9:7770",
+                    "reset_endpoint": "http://3.12.221.9:7771/init",
+                    "agent_auth": {"type": "http_headers", "http_headers": {"headers": {"X-Test": "1"}}},
+                },
+            ],
+        }
+    )
+
+    mismatches = find_host_bound_storage_state_mismatches(config.instances)
+    updated = apply_skip_auth_for_host_bound_storage_states(config, mismatches)
+
+    gitlabs = [instance for instance in updated.instances if instance.site_name == "gitlab"]
+    shopping = next(instance for instance in updated.instances if instance.site_name == "shopping")
+    assert gitlabs[0].agent_auth["type"] == "none"
+    assert gitlabs[1].agent_auth["type"] == "storage_state"
+    assert shopping.agent_auth["type"] == "http_headers"
+
+
+def test_inspect_storage_state_preflight_reports_missing_relative_path_without_benchmark_root(
+    tmp_path: Path,
+) -> None:
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": "auth/gitlab-state.json"},
+            },
+        )
+    ]
+
+    report = inspect_storage_state_preflight(instances, benchmark_root=None)
+
+    assert report.mismatches == ()
+    assert len(report.errors) == 1
+    assert "requires --benchmark" in report.errors[0].message
+
+
+def test_inspect_storage_state_preflight_reports_invalid_json(tmp_path: Path) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    state_path.write_text("{not-json", encoding="utf-8")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        )
+    ]
+
+    report = inspect_storage_state_preflight(instances)
+
+    assert report.mismatches == ()
+    assert len(report.errors) == 1
+    assert "invalid JSON" in report.errors[0].message
+
+
+def test_find_host_bound_storage_state_mismatches_is_instance_specific_for_multi_host_sites(
+    tmp_path: Path,
+) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    _write_storage_state(state_path, domain="host-a.example.com")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="https://host-a.example.com:8023",
+            reset_endpoint="https://host-a.example.com:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="https://host-b.example.com:8023",
+            reset_endpoint="https://host-b.example.com:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        ),
+    ]
+
+    mismatches = find_host_bound_storage_state_mismatches(instances)
+
+    assert len(mismatches) == 1
+    assert mismatches[0].instance_hosts == ("host-b.example.com",)

@@ -79,7 +79,7 @@ still allowing canonical `webarena_verified` evaluation. If
    - `shopping` customer-form seeding uses `X-M2-Customer-Auto-Login` and typically reads from `WORLDSIM_SHOPPING_AUTO_LOGIN`.
    - `reddit` / Postmill form seeding uses `X-Postmill-Auto-Login` and typically reads from `WORLDSIM_REDDIT_AUTO_LOGIN`.
    - `shopping_admin` auth is config-driven rather than env-driven; use a static header such as `X-M2-Admin-Auto-Login: admin:admin1234` in the `shopping_admin` instance block when admin-origin seeding is required.
-   - `db_connection` in `instances.json` is optional and used only for postcondition verification and reward evaluation (read-only). Typical WebArena Verified shapes are:
+   - `db_connection` in `instances.json` is optional and used only for postcondition verification and reward evaluation (read-only). In this repo it is still a real runtime dependency for many WebArena Verified tasks, so host reachability and DB port exposure must stay aligned with the generated compose config. Typical shapes are:
      - `mysql://magentouser:MyPassword@HOST:3306/magentodb` for `shopping` / `shopping_admin`
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
      - `postgresql://openstreetmap:openstreetmap@HOST:5433/openstreetmap` for `map`
@@ -102,12 +102,17 @@ never use the proxy.
 **Deploy the proxy:**
 
 ```bash
-# Uses defaults from env or falls back to built-in WebArena port map.
-./scripts/deploy_benchmark_proxy.sh --host 18.117.99.179
+# Canonical r5 path (scale port map + explicit HTTP opt-in):
+./scripts/deploy_proxy_r5.sh
+
+# Generic path:
+./scripts/deploy_benchmark_proxy.sh --host-config configs/benchmark_hosts/r5.yaml
 
 # With explicit arguments:
 ./scripts/deploy_benchmark_proxy.sh \
-    --host 18.117.99.179 \
+    --host-config configs/benchmark_hosts/r5.yaml \
+    --topology scale \
+    --insecure-http \
     --ssh-key ~/.ssh/webarena-key.pem \
     --port-map scripts/proxy_ports.conf
 ```
@@ -115,7 +120,17 @@ never use the proxy.
 The script installs nginx on the EC2 instance, generates a random token, writes
 one `server` block per site (proxy port = real port + 10000), and restarts nginx.
 It is idempotent, safe to re-run, and benchmark-agnostic (reads port mappings from
-`scripts/proxy_ports.conf` or a custom file).
+`scripts/proxy_ports.conf` or a custom file). The checked-in `deploy_proxy_r5.sh`
+wrapper currently opts into token-protected HTTP by passing `--insecure-http`;
+switch to TLS inputs if you want HTTPS on the public proxy.
+
+For the scale bring-up path, `./scripts/bootstrap_r5.sh` now regenerates the
+scale artifacts and runs a security-group preflight against the generated
+runtime ports before staging the compose file onto the host.
+
+For TLS-backed Phase 0c probing, the deploy helper also accepts
+`--tls-cert /path/on/host/fullchain.pem --tls-key /path/on/host/privkey.pem`
+and emits `"scheme": "https"` in the suggested `verification_proxy` block.
 
 **After deploying:** open the proxy ports (17770, 17780, etc.) in the EC2 security
 group for `0.0.0.0/0`. These ports are token-protected. Then copy the token into
@@ -124,13 +139,16 @@ group for `0.0.0.0/0`. These ports are token-protected. Then copy the token into
 ```json
 "verification_proxy": {
   "token": "<token from .proxy_token>",
+  "scheme": "http",
   "port_offset": 10000
 }
 ```
 
 Phase 0c reads this config, rewrites site URLs to proxy ports, and includes
 `X-Worldsim-Token` in all sandbox curl requests. Without a non-empty token the
-proxy is treated as disabled.
+proxy is treated as disabled. This proxy is for Phase 0c live verification only;
+Phases 3-4 continue to use the real `site_url` and `reset_endpoint` values from
+`instances.json`.
 
 ### WebArena setup artifact cold storage (S3)
 
@@ -152,6 +170,18 @@ Restore to EC2 with:
 
 Restore takes 10-15 min end-to-end (intra-region transfer is free and fast).
 Checksums are verified on pull. Use `--wiki-only` or `--skip-wiki` to subset.
+The restore helper also creates the three intentionally-empty map volumes
+(`webarena-verified-map-tiles`, `webarena-verified-map-style`,
+`webarena-verified-map-website-db`) that are declared by the vendor compose
+file but not hydrated from the archived tarballs.
+
+For amd64 smoke bring-up on EC2, use `scripts/bootstrap_ec2.sh`. It writes the
+canonical `docker-compose.override.yml` from
+[`scripts/webarena-compose-override.yml`](scripts/webarena-compose-override.yml),
+stamps the selected host contract into `/home/ubuntu/.env`, builds the local
+`worldsim/webarena-verified-wikipedia:amd64` image when needed, and pins the
+compose stack to the local amd64 tags plus the correct
+`WA_ENV_CTRL_EXTERNAL_SITE_URL` / DB port bindings.
 
 ## Run
 

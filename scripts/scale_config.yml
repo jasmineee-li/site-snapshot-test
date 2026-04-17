@@ -13,8 +13,9 @@
 # shopping_admin is rebased from 7780 to 7810 so its +10 stride does not
 # collide with shopping replicas. All other sites keep their original bases.
 #
-# All real ports are 127.0.0.1-only on the host; only proxy ports are
-# reachable from the internet (token-auth via nginx).
+# Real runtime port bindings are emitted by generate_compose_scale.py from the
+# selected benchmark host config. In the canonical r5 profile they use the
+# remote_direct_restricted model (explicit host bind + explicit advertised host).
 
 network:
   name: worldsim-bench
@@ -37,7 +38,7 @@ smoke_test_replicas:
 sites:
 
   shopping:
-    image: am1n3e/webarena-verified-shopping:latest
+    image: worldsim/webarena-verified-shopping:amd64
     replicas: 4
     real_port_base: 7770          # container web 80 -> host 7770,7780,7790,7800
     container_web_port: 80
@@ -52,7 +53,7 @@ sites:
     db_port_step: 1
 
   shopping_admin:
-    image: am1n3e/webarena-verified-shopping_admin:latest
+    image: worldsim/webarena-verified-shopping_admin:amd64
     replicas: 4
     # Rebased from 7780 to 7810 to avoid +10 collision with shopping at 7770.
     # Shopping uses 7770..7800; shopping_admin uses 7810..7840.
@@ -65,12 +66,12 @@ sites:
     db_port_step: 1
 
   gitlab:
-    image: am1n3e/webarena-verified-gitlab:latest
-    replicas: 8
+    image: worldsim/webarena-verified-gitlab:amd64
+    replicas: 4
     real_port_base: 8023           # gitlab exposes on container port 8023
     container_web_port: 8023
-    port_step: 10                  # 8023,8033,8043,...,8093
-    mem_limit: 16g
+    port_step: 10                  # 8023,8033,8043,8053
+    mem_limit: 8g
     shm_size: 2g
     # Bind-mount tuned gitlab.rb (generator references scripts/gitlab.rb.tuned
     # which is scp'd to /home/ubuntu/gitlab.rb on the host).
@@ -82,7 +83,7 @@ sites:
     db_port_step: 1
 
   reddit:
-    image: am1n3e/webarena-verified-reddit:latest
+    image: worldsim/webarena-verified-reddit:amd64
     replicas: 4
     real_port_base: 9900           # rebased from 9999 to get a clean +10 run
     container_web_port: 80
@@ -108,19 +109,19 @@ sites:
     # are hydrated once in Phase B.2 and never written to. Mount paths are
     # copied verbatim from vendors/webarena-verified/docker-compose.yml.
     shared_ro_volumes:
-      - volume_name: webarena-verified-map-tile-db_shared
+      - volume_name: webarena-verified-map-tile-db
         container_path: /data/database
-      - volume_name: webarena-verified-map-routing-car_shared
+      - volume_name: webarena-verified-map-routing-car
         container_path: /data/routing/car
-      - volume_name: webarena-verified-map-routing-bike_shared
+      - volume_name: webarena-verified-map-routing-bike
         container_path: /data/routing/bike
-      - volume_name: webarena-verified-map-routing-foot_shared
+      - volume_name: webarena-verified-map-routing-foot
         container_path: /data/routing/foot
-      - volume_name: webarena-verified-map-nominatim-flatnode_shared
+      - volume_name: webarena-verified-map-nominatim-flatnode
         container_path: /data/nominatim/flatnode
-      - volume_name: webarena-verified-map-tiles_shared
+      - volume_name: webarena-verified-map-tiles
         container_path: /data/tiles
-      - volume_name: webarena-verified-map-style_shared
+      - volume_name: webarena-verified-map-style
         container_path: /data/style
 
     # Per-replica writable volumes (each replica gets its own copy). Names
@@ -142,5 +143,5 @@ sites:
     shm_size: 256m
 
     shared_ro_volumes:
-      - volume_name: webarena-verified-wikipedia-data_shared
+      - volume_name: webarena-verified-envs_webarena-verified-wikipedia-data
         container_path: /data

@@ -35,7 +35,8 @@
 #       --port 7770 \
 #       [HOST_IP]
 #
-#   HOST_IP defaults to the EC2 instance IP from instances.json.
+#   HOST_IP must be provided explicitly (or via --host-config) when
+#   running in --on-ec2 mode.
 #
 # Idempotent: safe to run multiple times. The Python patcher invoked inside
 # each container repairs any prior broken run where `import os\n` was
@@ -54,6 +55,8 @@ SINGLE_CONTAINER=""
 SINGLE_SITE=""
 SINGLE_PORT=""
 HOST_IP_ARG=""
+HOST_CONFIG=""
+HOST_IP="${HOST_IP:-}"
 
 # Positional HOST_IP argument is preserved for backward compatibility with
 # bootstrap_ec2.sh. New scale-mode flags (--container/--site/--port) target a
@@ -63,6 +66,10 @@ while [[ $# -gt 0 ]]; do
         --on-ec2)
             ON_EC2=1
             shift
+            ;;
+        --host-config)
+            HOST_CONFIG="$2"
+            shift 2
             ;;
         --container)
             SINGLE_CONTAINER="$2"
@@ -92,17 +99,29 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Default to the EC2 IP from instances.json
-HOST_IP="${HOST_IP_ARG:-18.117.99.179}"
+if [[ -n "$HOST_IP_ARG" ]]; then
+    HOST_IP="$HOST_IP_ARG"
+fi
+
+if [[ -n "$HOST_CONFIG" ]]; then
+    while IFS='=' read -r key quoted_value; do
+        eval "value=$quoted_value"
+        case "$key" in
+            HOST_IP|WORLDSIM_ADVERTISE_HOST)
+                [[ -n "$HOST_IP" ]] || HOST_IP="$value"
+                ;;
+        esac
+    done < <(uv run python "$REPO_ROOT/scripts/export_host_config_env.py" --host-config "$HOST_CONFIG")
+fi
 
 # --- Step 1: Deploy docker-compose.override.yml (only off-EC2 workflow) ---
 
 if [[ "$ON_EC2" -eq 0 ]]; then
     if [[ ! -d "$COMPOSE_DIR" ]]; then
-        echo "ERROR: $COMPOSE_DIR does not exist."
-        echo "Clone the webarena-verified repo first:"
-        echo "  git clone <webarena-verified-repo> $COMPOSE_DIR"
-        exit 1
+        echo "==> $COMPOSE_DIR does not exist; skipping workstation override deployment."
+        echo "    This repo path is optional now. The supported bring-up path is"
+        echo "    bootstrap_ec2.sh or the host-side compose files under /home/ubuntu/."
+        exit 0
     fi
 
     echo "==> Deploying docker-compose.override.yml to $COMPOSE_DIR"
@@ -115,6 +134,11 @@ if [[ "$ON_EC2" -eq 0 ]]; then
     echo "which scp's this script and the patcher helper up and re-invokes"
     echo "this script with --on-ec2 remotely."
     exit 0
+fi
+
+if [[ -z "$HOST_IP" ]]; then
+    echo "ERROR: --on-ec2 mode requires HOST_IP or --host-config so site URLs are explicit." >&2
+    exit 1
 fi
 
 # --- On-EC2 mode: verify the Python patcher helper is present ----------------
@@ -185,17 +209,10 @@ for container in "${!SITE_FILES[@]}"; do
 
     echo "    Patching $container ($site_file)..."
 
-    # Find the actual path to the site ops file inside the container.
-    # The Python version may vary across images, so we locate it dynamically.
-    py_path=$(docker exec "$container" python3 -c "
-import importlib.util, pathlib
-spec = importlib.util.find_spec('environment_control.ops.sites.${site_file%.py}')
-if spec and spec.origin:
-    print(spec.origin)
-" 2>/dev/null || true)
+    py_path="/usr/local/environment_control/ops/sites/${site_file}"
 
-    if [[ -z "$py_path" ]]; then
-        echo "      WARN: could not locate $site_file inside container"
+    if ! docker exec "$container" test -f "$py_path" 2>/dev/null; then
+        echo "      WARN: expected site ops file missing at $py_path"
         continue
     fi
 
@@ -219,7 +236,7 @@ if spec and spec.origin:
     docker exec "$container" bash -c "
         # Write env var for any future process
         grep -q '^export WA_ENV_CTRL_EXTERNAL_SITE_URL=' /etc/environment 2>/dev/null || \
-            echo 'export WA_ENV_CTRL_EXTERNAL_SITE_URL=$site_url' >> /etc/environment
+            printf '%s\n' \"export WA_ENV_CTRL_EXTERNAL_SITE_URL=$site_url\" >> /etc/environment
 
         # Try to restart the env-ctrl process so it picks up changes.
         # env-ctrl might run under supervisord or as a standalone process.

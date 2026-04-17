@@ -213,6 +213,14 @@ class BenchmarkInstance(BaseModel):
 
     site_name: str = Field(..., description="E.g. 'shopping', 'forum', 'gitlab'.")
     site_url: str = Field(..., description="Base URL of the running service.")
+    replica_index: int | None = Field(
+        None,
+        description="Optional same-site replica index for parallel evaluation.",
+    )
+    replica_name: str | None = Field(
+        None,
+        description="Optional human-readable replica identifier, e.g. 'shopping_0'.",
+    )
     db_connection: str | None = Field(
         None,
         description="Connection string for data seeding, e.g. 'mysql://user:pass@host:3306/db'. "
@@ -280,11 +288,23 @@ class VerificationProxy(BaseModel):
         "",
         description="Shared secret for X-Worldsim-Token header. Empty string disables proxy auth.",
     )
+    scheme: str = Field(
+        "http",
+        description="Proxy URL scheme used by Phase 0c when rewriting site URLs.",
+    )
     port_offset: int = Field(
         10000,
         description="Added to each site's real port to derive the proxy port. "
         "E.g. real port 7770 -> proxy port 17770.",
     )
+
+    @field_validator("scheme")
+    @classmethod
+    def _validate_scheme(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"http", "https"}:
+            raise ValueError("VerificationProxy.scheme must be 'http' or 'https'")
+        return normalized
 
 
 class BenchmarkConfig(BaseModel):

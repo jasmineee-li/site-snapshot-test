@@ -179,6 +179,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Phase 3-4: proceed even when a site's auth_mechanism.type is 'unknown'. "
         "Default behavior is to refuse unknown-auth tasks so humans review them first.",
     )
+    phase_cmd.add_argument(
+        "--skip-host-bound-storage-state-auth",
+        action="store_true",
+        default=False,
+        help="Phase 3-4: when a storage_state artifact was minted for a different host "
+        "(for example an old EC2 IP), skip agent auth for that site instead of failing. "
+        "Default behavior is to fail fast and ask you to re-run Phase 0d.",
+    )
 
     resume_cmd = subparsers.add_parser(
         "resume",
@@ -291,6 +299,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=argparse.SUPPRESS,
         help="Override the saved gate for auth_mechanism.type='unknown' during resume.",
+    )
+    resume_cmd.add_argument(
+        "--skip-host-bound-storage-state-auth",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Override the saved behavior for host-bound storage_state artifacts during resume.",
     )
 
     rescore_cmd = subparsers.add_parser(
@@ -450,6 +464,13 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     allow_unknown_auth = getattr(args, "allow_unknown_auth", None)
     if allow_unknown_auth is None:
         allow_unknown_auth = state.get("allow_unknown_auth", False)
+    skip_host_bound_storage_state_auth = getattr(
+        args, "skip_host_bound_storage_state_auth", None
+    )
+    if skip_host_bound_storage_state_auth is None:
+        skip_host_bound_storage_state_auth = state.get(
+            "skip_host_bound_storage_state_auth", False
+        )
 
     synthetic = argparse.Namespace(
         command="phase",
@@ -471,6 +492,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_2_text_fill_concurrency=phase_2_text_fill_concurrency,
         phase_2_text_model=phase_2_text_model,
         allow_unknown_auth=allow_unknown_auth,
+        skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
     )
 
     return _dispatch_phase(synthetic)

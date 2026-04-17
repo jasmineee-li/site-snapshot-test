@@ -7,44 +7,68 @@
 # on the env-ctrl HTTP server can resolve the base_url without it being
 # passed in the request body.
 #
-# Also exposes internal database ports for SQL seeding and postcondition
-# verification (see instances.json db_connection fields). After
+# Also exposes internal database ports for postcondition verification and
+# db_query_match rewards (see instances.json db_connection fields). The host
+# must provide explicit bind targets; there is no broad default. After
 # `docker compose up -d`, run scripts/configure_db_access.sh to grant
 # remote DB access inside the recreated containers.
 #
-# The HOST_IP and ports below must match your instances.json config.
-# Default: EC2 instance at 18.117.99.179 with standard WebArena ports.
+# The host must provide:
+#   * WORLDSIM_ADVERTISE_HOST for runtime URLs / WA_ENV_CTRL_EXTERNAL_SITE_URL
+#   * WORLDSIM_BIND_HOST for site + env-ctrl port publishing
+#   * WORLDSIM_DB_BIND_HOST for DB port publishing
 #
-# Override HOST_IP at compose time:
-#   HOST_IP=1.2.3.4 docker compose up -d
+# bootstrap_ec2.sh writes these into `/home/ubuntu/.env` from a checked-in
+# host config so smoke/vendor bring-up uses the same contract as the scale
+# generator.
+#
+# Override at compose time:
+#   WORLDSIM_ADVERTISE_HOST=1.2.3.4 WORLDSIM_BIND_HOST=0.0.0.0 \
+#   WORLDSIM_DB_BIND_HOST=0.0.0.0 docker compose up -d
 
 services:
   shopping:
+    image: worldsim/webarena-verified-shopping:amd64
+    platform: linux/amd64
     environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_SHOPPING_PORT:-7770}
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_SHOPPING_PORT:-7770}
     ports:
-      - "${WA_SHOPPING_DB_PORT:-3306}:3306"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_PORT:-7770}:80"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_ENV_CTRL_PORT:-7771}:8877"
+      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_SHOPPING_DB_PORT:-3306}:3306"
 
   shopping_admin:
+    image: worldsim/webarena-verified-shopping_admin:amd64
+    platform: linux/amd64
     environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_SHOPPING_ADMIN_PORT:-7780}
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_SHOPPING_ADMIN_PORT:-7780}
     ports:
-      - "${WA_SHOPPING_ADMIN_DB_PORT:-3307}:3306"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_ADMIN_PORT:-7780}:80"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_ADMIN_ENV_CTRL_PORT:-7781}:8877"
+      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_SHOPPING_ADMIN_DB_PORT:-3307}:3306"
 
   gitlab:
+    image: worldsim/webarena-verified-gitlab:amd64
+    platform: linux/amd64
     environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_GITLAB_PORT:-8023}
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_GITLAB_PORT:-8023}
       # Skip reconfigure on init -- the image is pre-configured with the correct
       # external_url. Reconfigure takes 3-5 minutes and can cause 502 errors.
       - WA_ENV_CTRL_SKIP_RECONFIGURE=true
     ports:
-      - "${WA_GITLAB_DB_PORT:-5433}:5432"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_GITLAB_PORT:-8023}:8023"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_GITLAB_ENV_CTRL_PORT:-8024}:8877"
+      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_GITLAB_DB_PORT:-5433}:5432"
 
   reddit:
+    image: worldsim/webarena-verified-reddit:amd64
+    platform: linux/amd64
     environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_REDDIT_PORT:-9999}
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_REDDIT_PORT:-9999}
     ports:
-      - "${WA_REDDIT_DB_PORT:-5434}:5432"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_REDDIT_PORT:-9999}:80"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_REDDIT_ENV_CTRL_PORT:-9998}:8877"
+      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_REDDIT_DB_PORT:-5434}:5432"
 
   # Wikipedia: upstream am1n3e/webarena-verified-wikipedia:latest is published
   # arm64-only on Docker Hub, which crash-loops on our x86_64 EC2 host with
@@ -58,11 +82,18 @@ services:
     image: worldsim/webarena-verified-wikipedia:amd64
     platform: linux/amd64
     environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${HOST_IP:-18.117.99.179}:${WA_WIKIPEDIA_PORT:-8888}
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_WIKIPEDIA_PORT:-8888}
+    ports:
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_WIKIPEDIA_PORT:-8888}:8080"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_WIKIPEDIA_ENV_CTRL_PORT:-8889}:8877"
 
   map:
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_MAP_PORT:-3030}
     ports:
-      - "${WA_MAP_DB_PORT:-5435}:5432"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_MAP_PORT:-3030}:8080"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_MAP_ENV_CTRL_PORT:-3031}:8877"
+      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_MAP_DB_PORT:-5435}:5432"
 
 # Map volume binding. setup-map-robust.sh extracts to un-prefixed volume names
 # (`webarena-verified-map-*`) via `docker run -v <name>:/volume`, but the
@@ -85,3 +116,9 @@ volumes:
     name: webarena-verified-map-nominatim-db
   webarena-verified-map-nominatim-flatnode:
     name: webarena-verified-map-nominatim-flatnode
+  webarena-verified-map-tiles:
+    name: webarena-verified-map-tiles
+  webarena-verified-map-style:
+    name: webarena-verified-map-style
+  webarena-verified-map-website-db:
+    name: webarena-verified-map-website-db

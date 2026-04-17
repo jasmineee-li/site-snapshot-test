@@ -61,7 +61,16 @@ from worldsim.rewards import run_reward_function
 from worldsim.seeding import apply_data_seed_async, collect_seed_runtime_errors
 from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
+from worldsim.storage_state_preflight import (
+    apply_skip_auth_for_host_bound_storage_states,
+    inspect_storage_state_preflight,
+)
 from worldsim.task_paths import safe_task_path_component
+from worldsim.task_reset_cache import (
+    TaskResetCache,
+    callable_accepts_keyword,
+    result_likely_mutated_state,
+)
 from worldsim.trajectory import load_trajectory_into_sandbox, save_result
 
 logger = logging.getLogger(__name__)
@@ -87,6 +96,7 @@ def _phase_3_state_metadata(
     sites: str | None,
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
+    skip_host_bound_storage_state_auth: bool,
 ) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "task_dir_root": str(task_dir_root),
@@ -97,6 +107,7 @@ def _phase_3_state_metadata(
         "full_baseline": full_baseline,
         "max_tasks_per_site": max_tasks_per_site,
         "allow_unknown_auth": allow_unknown_auth,
+        "skip_host_bound_storage_state_auth": skip_host_bound_storage_state_auth,
     }
     if sites is not None:
         metadata["sites"] = sites
@@ -312,6 +323,9 @@ async def run(args: argparse.Namespace) -> int:
     agent_provider = getattr(args, "agent_provider", None)
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
+    skip_host_bound_storage_state_auth = bool(
+        getattr(args, "skip_host_bound_storage_state_auth", False)
+    )
     state_metadata = _phase_3_state_metadata(
         task_dir_root=task_dir_root,
         instances_path=instances_path,
@@ -323,7 +337,62 @@ async def run(args: argparse.Namespace) -> int:
         sites=sites_filter_raw,
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
+        skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
     )
+    preflight = inspect_storage_state_preflight(
+        config.instances,
+        benchmark_root=benchmark_root,
+    )
+    preflight_errors = list(preflight.errors)
+    host_bound_mismatches = list(preflight.mismatches)
+    if preflight_errors:
+        error_lines = [
+            f"site {error.site_name!r}: {error.message} (declared path {error.declared_path!r})"
+            for error in preflight_errors
+        ]
+        logger.error(
+            "Phase 3 storage-state pre-flight failed:\n%s",
+            "\n".join(f"  - {line}" for line in error_lines),
+        )
+        save_state(
+            "phase_3",
+            status="failed",
+            reason="storage_state_preflight_error",
+            storage_state_preflight_errors=error_lines,
+            **state_metadata,
+        )
+        return 1
+    if host_bound_mismatches:
+        mismatch_lines = [
+            (
+                f"site {mismatch.site_name!r}: storage_state {mismatch.artifact_path} "
+                f"records hosts {list(mismatch.recorded_hosts)!r}, but live instances use "
+                f"{list(mismatch.instance_hosts)!r}"
+            )
+            for mismatch in host_bound_mismatches
+        ]
+        if skip_host_bound_storage_state_auth:
+            logger.warning(
+                "Phase 3 found host-bound storage_state artifacts and will skip agent auth for "
+                "those sites because --skip-host-bound-storage-state-auth was set:\n%s",
+                "\n".join(f"  - {line}" for line in mismatch_lines),
+            )
+            config = apply_skip_auth_for_host_bound_storage_states(config, host_bound_mismatches)
+        else:
+            logger.error(
+                "Phase 3 storage-state pre-flight failed:\n%s\nRe-run Phase 0d against the "
+                "current instances host, or pass --skip-host-bound-storage-state-auth to "
+                "proceed without browser auth for those sites.",
+                "\n".join(f"  - {line}" for line in mismatch_lines),
+            )
+            save_state(
+                "phase_3",
+                status="failed",
+                reason="host_bound_storage_state",
+                host_bound_storage_state_errors=mismatch_lines,
+                **state_metadata,
+            )
+            return 1
     # Acquire fresh bearer tokens for instances that use runtime generation.
     token_errors = acquire_tokens_for_instances(config.instances)
     if token_errors:
@@ -400,23 +469,29 @@ async def run(args: argparse.Namespace) -> int:
     # Build lookup from raw tasks — run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
     prepared_by_id = {str(task.get("id", "unknown")): task for task in benign_tasks}
+    reset_cache = TaskResetCache()
 
     # Thread the benchmark codebase root through so BrowserUseAgent can resolve
     # relative auth_mechanism.storage_state.path values. See worldsim/browser_use_agent.py:_resolve_auth.
 
     async def _bound_run_task(task, agent, instance, task_dir):
+        run_kwargs: dict[str, Any] = {
+            "benchmark_root": benchmark_root,
+            "site_profile": site_profiles.get(str(task.get("site", ""))),
+            "resume_fingerprint": _phase_3_result_fingerprint(
+                task,
+                eval_context=eval_context,
+                site_profile=site_profiles.get(str(task.get("site", ""))),
+            ),
+        }
+        if callable_accepts_keyword(run_task, "reset_cache"):
+            run_kwargs["reset_cache"] = reset_cache
         return await run_task(
             task,
             agent,
             instance,
             task_dir,
-            benchmark_root=benchmark_root,
-            site_profile=site_profiles.get(str(task.get("site", ""))),
-            resume_fingerprint=_phase_3_result_fingerprint(
-                task,
-                eval_context=eval_context,
-                site_profile=site_profiles.get(str(task.get("site", ""))),
-            ),
+            **run_kwargs,
         )
 
     # Run evaluation via worker pool, routing tasks only to matching site instances.
@@ -717,6 +792,7 @@ async def run_task(
     *,
     benchmark_root: Path | None = None,
     site_profile: dict[str, Any] | None = None,
+    reset_cache: TaskResetCache | None = None,
     resume_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Run one benign task: reset -> seed -> agent run -> reward check.
@@ -734,43 +810,63 @@ async def run_task(
     instance_dict = execution_instance_dict(instance, task)
     if isinstance(site_profile, dict):
         instance_dict["site_profile"] = json.loads(json.dumps(site_profile))
+    instance_dict["seed_task"] = json.loads(json.dumps(task))
 
-    # Reset all environments the task depends on.
-    await _reset_task_environment(task)
+    should_reset = True
+    if reset_cache is not None:
+        should_reset = reset_cache.should_reset(task)
+    if should_reset:
+        await _reset_task_environment(task)
+        if reset_cache is not None:
+            reset_cache.mark_clean(task)
 
-    # Seed data (Mode A tasks have mechanism "none" — skip)
-    seed = task.get("data_seed", {})
-    if seed.get("mechanism") not in (None, "none"):
-        await apply_data_seed_async(seed, instance_dict)
+    task_likely_mutated = False
+    try:
+        # Seed data (Mode A tasks have mechanism "none" — skip)
+        seed = task.get("data_seed", {})
+        if seed.get("mechanism") not in (None, "none"):
+            task_likely_mutated = True
+            await apply_data_seed_async(seed, instance_dict)
 
-    # Run agent
-    instance_agent_auth = resolve_instance_agent_auth(instance_dict)
-    instruction, start_urls = resolve_task_inputs(task, instance_dict)
-    site_prompt = _build_agent_prompt(
-        _agent_context_with_instance_auth(task.get("agent_context"), instance_agent_auth),
-        instruction,
-        start_urls,
-        task=task,
-    )
-    run_kwargs: dict[str, Any] = {"start_urls": start_urls}
-    if site_prompt is not None:
-        run_kwargs["site_prompt"] = site_prompt
-    # Auth from instances.json — single source of truth. No fallback to
-    # Phase 0c LLM-generated auth. If agent_auth is not configured for a site,
-    # the task runs without auth (fail-fast over silent degradation).
-    if instance_agent_auth is not None:
-        run_kwargs["auth_mechanism"] = instance_agent_auth
-        if benchmark_root is not None:
-            run_kwargs["benchmark_root"] = benchmark_root
-        site_value = task.get("site")
-        if isinstance(site_value, str) and site_value:
-            run_kwargs["task_site"] = site_value
-    result = await agent.run(
-        instruction,
-        instance.site_url,
-        task_dir,
-        **run_kwargs,
-    )
+        # Run agent
+        instance_agent_auth = resolve_instance_agent_auth(instance_dict)
+        instruction, start_urls = resolve_task_inputs(task, instance_dict)
+        site_prompt = _build_agent_prompt(
+            _agent_context_with_instance_auth(task.get("agent_context"), instance_agent_auth),
+            instruction,
+            start_urls,
+            task=task,
+        )
+        run_kwargs: dict[str, Any] = {"start_urls": start_urls}
+        if site_prompt is not None:
+            run_kwargs["site_prompt"] = site_prompt
+        # Auth from instances.json — single source of truth. No fallback to
+        # Phase 0c LLM-generated auth. If agent_auth is not configured for a site,
+        # the task runs without auth (fail-fast over silent degradation).
+        if instance_agent_auth is not None:
+            run_kwargs["auth_mechanism"] = instance_agent_auth
+            if benchmark_root is not None:
+                run_kwargs["benchmark_root"] = benchmark_root
+            site_value = task.get("site")
+            if isinstance(site_value, str) and site_value:
+                run_kwargs["task_site"] = site_value
+        result = await agent.run(
+            instruction,
+            instance.site_url,
+            task_dir,
+            **run_kwargs,
+        )
+    except Exception:
+        if reset_cache is not None:
+            reset_cache.mark_dirty(task)
+        raise
+
+    task_likely_mutated = task_likely_mutated or result_likely_mutated_state(task, result)
+    if reset_cache is not None:
+        if task_likely_mutated:
+            reset_cache.mark_dirty(task)
+        else:
+            reset_cache.mark_clean(task)
 
     if result.status != "success" and not _has_scoreable_agent_output(result):
         message = f"agent run {result.status}: " + (

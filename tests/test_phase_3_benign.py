@@ -665,6 +665,7 @@ async def test_phase_3_run_fails_on_gathered_diagnosis_exception(monkeypatch, tm
 
     monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
     monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "_load_site_profiles", lambda *args, **kwargs: {})
     monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
     monkeypatch.setattr(phase_3_benign, "_diagnose_one_task", fake_diagnose_one_task)
 
@@ -752,6 +753,156 @@ async def test_phase_3_run_fails_invalid_seed_preflight(monkeypatch, tmp_path):
     assert state["instances_path"] == str(instances_path)
     assert state["agent_model"] == "demo-model"
     assert state["full_baseline"] is True
+
+
+@pytest.mark.asyncio
+async def test_phase_3_run_fails_fast_on_storage_state_preflight_error(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-auth",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open the issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "reset_endpoint": "http://gitlab.test/init",
+                        "agent_auth": {
+                            "type": "storage_state",
+                            "storage_state": {"path": "auth/gitlab-state.json"},
+                        },
+                    }
+                ],
+            }
+        )
+    )
+
+    monkeypatch.setattr(
+        phase_3_benign,
+        "preflight_auth_check",
+        lambda: (_ for _ in ()).throw(AssertionError("auth preflight should not run")),
+    )
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=None,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            resume=False,
+            skip_host_bound_storage_state_auth=False,
+        )
+    )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["status"] == "failed"
+    assert state["reason"] == "storage_state_preflight_error"
+    assert any("requires --benchmark" in error for error in state["storage_state_preflight_errors"])
+
+
+@pytest.mark.asyncio
+async def test_phase_3_run_skip_host_bound_storage_state_auth_rewrites_only_mismatched_instances(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "task-auth",
+                    "site": "gitlab",
+                    "sites": ["gitlab"],
+                    "instruction": "Open the issue",
+                    "start_urls": ["http://gitlab.test/issues"],
+                    "data_seed": {"mechanism": "none"},
+                    "reward_function": {"eval": []},
+                }
+            ]
+        )
+    )
+    bad_state = tmp_path / "bad-state.json"
+    bad_state.write_text(
+        json.dumps({"cookies": [{"name": "session", "value": "x", "domain": "18.117.99.179"}]}),
+        encoding="utf-8",
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "reset_endpoint": "http://gitlab.test/init",
+                        "agent_auth": {
+                            "type": "storage_state",
+                            "storage_state": {"path": str(bad_state)},
+                        },
+                    },
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab-alt.test",
+                        "reset_endpoint": "http://gitlab-alt.test/init",
+                        "agent_auth": {
+                            "type": "http_headers",
+                            "http_headers": {"headers": {"X-Test": "1"}},
+                        },
+                    },
+                ],
+            }
+        )
+    )
+
+    captured: dict[str, object] = {}
+
+    async def fake_run_tasks_by_site(**kwargs):
+        captured["instances"] = kwargs["instances"]
+        return []
+
+    monkeypatch.setattr(phase_3_benign, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_3_benign, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_3_benign, "_load_site_profiles", lambda *args, **kwargs: {})
+    monkeypatch.setattr(phase_3_benign, "run_tasks_by_site", fake_run_tasks_by_site)
+
+    rc = await phase_3_benign.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=tmp_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            full_baseline=True,
+            resume=False,
+            skip_host_bound_storage_state_auth=True,
+        )
+    )
+
+    assert rc == 0
+    instances = captured["instances"]
+    assert instances[0].agent_auth["type"] == "none"
+    assert instances[1].agent_auth["type"] == "http_headers"
 
 
 @pytest.mark.asyncio
@@ -1630,6 +1781,53 @@ async def test_run_task_omits_benchmark_root_when_no_auth_mechanism(monkeypatch,
     assert "benchmark_root" not in captured
     assert "task_site" not in captured
     assert "auth_mechanism" not in captured
+
+
+@pytest.mark.asyncio
+async def test_run_task_reset_cache_skips_second_read_only_reset(monkeypatch, tmp_path):
+    task, instances = _prepared_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    reset_calls: list[str] = []
+
+    async def fake_reset(task):
+        reset_calls.append(task["id"])
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[{"method": "GET", "url": "http://shopping.test/orders"}],
+            )
+
+    monkeypatch.setattr(phase_3_benign, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_3_benign, "run_reward_function", fake_run_reward_function)
+
+    reset_cache = phase_3_benign.TaskResetCache()
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path / "first",
+        reset_cache=reset_cache,
+    )
+    await phase_3_benign.run_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path / "second",
+        reset_cache=reset_cache,
+    )
+
+    assert reset_calls == ["task-1"]
 
 
 @pytest.mark.asyncio

@@ -8,13 +8,27 @@ from worldsim import seeding
 
 
 class _FakeResponse:
-    def __init__(self, *, status_code: int = 200, text: str = "ok"):
+    def __init__(
+        self,
+        *,
+        status_code: int = 200,
+        text: str = "ok",
+        json_data=None,
+        headers: dict[str, str] | None = None,
+    ):
         self.status_code = status_code
         self.text = text
+        self._json_data = json_data
+        self.headers = headers or {}
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
             raise seeding.requests.HTTPError(f"status={self.status_code}")
+
+    def json(self):
+        if self._json_data is None:
+            raise ValueError("no json")
+        return self._json_data
 
 
 class _FakeSession:
@@ -299,6 +313,177 @@ def test_apply_data_seed_resolves_placeholders_and_http_headers(monkeypatch):
         == "http://shopping.test/submit?next=http://shopping.test/orders"
     )
     assert fake_session.calls[0]["headers"]["X-Test-Auth"] == "demo:user"
+
+
+def test_apply_data_seed_renders_chained_placeholders_from_response_context(monkeypatch):
+    fake_session = _FakeSession(
+        [
+            _FakeResponse(text='<input name="form_key" value="first-token">'),
+            _FakeResponse(json_data={"forum_name": "books", "submission_id": 42}),
+            _FakeResponse(text='<input name="form_key" value="second-token">'),
+            _FakeResponse(),
+        ]
+    )
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/seed/bootstrap",
+                    "body_form": {"detail": "bootstrap"},
+                },
+                {
+                    "method": "POST",
+                    "path": "/f/{forum_name}/{submission_id}/-/comment",
+                    "body_form": {
+                        "reply_to_submission_{submission_id}[comment]": "payload for {forum_name}"
+                    },
+                },
+            ],
+        },
+        {
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+            "site_profile": _review_postcondition_profile(),
+        },
+    )
+
+    second_call = [call for call in fake_session.calls if call["method"] == "POST"][1]
+    assert second_call["url"] == "http://reddit.test/f/books/42/-/comment"
+    assert second_call["data"]["reply_to_submission_42[comment]"] == "payload for books"
+
+
+def test_apply_data_seed_derives_map_way_id_from_task_context(monkeypatch):
+    fake_session = _FakeSession([_FakeResponse()])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+
+    def fake_get(url, *, params, timeout):
+        assert url == "http://map.test/nominatim/search"
+        assert params["q"] == "Columbia University"
+        return _FakeResponse(
+            json_data=[
+                {"osm_type": "relation", "osm_id": 7, "display_name": "Columbia University"},
+                {"osm_type": "way", "osm_id": 19, "display_name": "Columbia University"},
+            ]
+        )
+
+    monkeypatch.setattr(seeding.requests, "get", fake_get)
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "api",
+            "api_calls": [
+                {
+                    "method": "PUT",
+                    "path": "/api/0.6/way/{way_id}",
+                    "body": {"name": "ok"},
+                }
+            ],
+        },
+        {
+            "site_name": "map",
+            "site_url": "http://map.test",
+            "site_profile": _api_postcondition_profile(path_template="/api/0.6/way/{way_id}"),
+            "seed_task": {
+                "site": "map",
+                "instantiation_dict": {"place": "Columbia University"},
+            },
+        },
+    )
+
+    assert fake_session.calls[0]["url"] == "http://map.test/api/0.6/way/19"
+
+
+def test_apply_data_seed_derives_reddit_submission_placeholders_from_task_context(
+    monkeypatch,
+):
+    fake_session = _FakeSession(
+        [
+            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
+            _FakeResponse(),
+        ]
+    )
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
+    seeding._CSRF_TOKEN_CACHE.clear()
+
+    class _LookupCursor:
+        def __init__(self):
+            self._result = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def execute(self, query, params=None):
+            if params == ["Books", "Books", "Books"]:
+                self._result = (10067, "books", "Books")
+            elif params == ["Best place for a foot rub?", "books", "books"]:
+                self._result = (50001,)
+            else:
+                self._result = None
+
+        def fetchone(self):
+            return self._result
+
+    class _LookupConnection:
+        def cursor(self):
+            return _LookupCursor()
+
+        def rollback(self):
+            return None
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(seeding, "_connect_db", lambda parsed: _LookupConnection())
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "form",
+            "api_calls": [
+                {
+                    "method": "POST",
+                    "path": "/f/{forum_name}/{submission_id}/-/comment",
+                    "body_form": {
+                        "reply_to_submission_{submission_id}[comment]": "ok",
+                    },
+                }
+            ],
+        },
+        {
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+            "db_connection": "postgresql://user:pass@localhost:5432/reddit",
+            "site_profile": _review_postcondition_profile(),
+            "seed_task": {
+                "site": "reddit",
+                "instantiation_dict": {"forum": "Books"},
+                "reward_function": {
+                    "eval": [
+                        {
+                            "expected": {
+                                "retrieved_data": [
+                                    {"post_title": "Best place for a foot rub?"}
+                                ]
+                            }
+                        }
+                    ]
+                },
+            },
+        },
+    )
+
+    post_call = [call for call in fake_session.calls if call["method"] == "POST"][0]
+    assert post_call["url"] == "http://reddit.test/f/books/50001/-/comment"
+    assert post_call["data"]["reply_to_submission_50001[comment]"] == "ok"
 
 
 def test_apply_data_seed_loads_bearer_token_from_file(monkeypatch, tmp_path):

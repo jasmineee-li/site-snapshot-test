@@ -17,6 +17,7 @@ Phase 0 has three sub-steps:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -172,7 +173,7 @@ def _build_instance_site_url_map(instances: list[BenchmarkInstance] | None) -> d
     return result
 
 
-def _apply_proxy_to_url(site_url: str, port_offset: int) -> str:
+def _apply_proxy_to_url(site_url: str, port_offset: int, *, scheme: str | None = None) -> str:
     """Rewrite a site URL to use the proxy port (real_port + port_offset)."""
     parts = urlsplit(site_url)
     try:
@@ -186,7 +187,22 @@ def _apply_proxy_to_url(site_url: str, port_offset: int) -> str:
     hostname = parts.hostname or ""
     host_display = f"[{hostname}]" if ":" in hostname else hostname
     proxy_netloc = f"{host_display}:{proxy_port}"
-    return urlunsplit((parts.scheme, proxy_netloc, parts.path, parts.query, parts.fragment))
+    proxy_scheme = scheme or parts.scheme
+    return urlunsplit((proxy_scheme, proxy_netloc, parts.path, parts.query, parts.fragment))
+
+
+def _verification_proxy_metadata(
+    verification_proxy: VerificationProxy | None,
+) -> dict[str, Any] | None:
+    """Return stable, non-secret proxy metadata for Phase 0c cache fingerprints."""
+    if verification_proxy is None:
+        return None
+    token_digest = hashlib.sha256(verification_proxy.token.encode()).hexdigest()
+    return {
+        "scheme": verification_proxy.scheme,
+        "port_offset": verification_proxy.port_offset,
+        "token_sha256": token_digest,
+    }
 
 
 def _existing_site_outputs_are_reusable(
@@ -197,6 +213,7 @@ def _existing_site_outputs_are_reusable(
     sandbox_model: str,
     manifest_eval_type_set: set[str],
     instance_site_url: str | None,
+    verification_proxy: VerificationProxy | None,
 ) -> bool:
     """Return True only when existing site outputs are complete and match this run."""
     profile_path = output_dir / f"BENCHMARK_PROFILE_{site_name}.json"
@@ -239,6 +256,7 @@ def _existing_site_outputs_are_reusable(
         "benchmark_root": str(benchmark_root),
         "sandbox_model": sandbox_model,
         "instance_site_url": instance_site_url,
+        "verification_proxy": _verification_proxy_metadata(verification_proxy),
     }
     for key, expected in expected_metadata.items():
         if metadata.get(key) != expected:
@@ -753,6 +771,7 @@ async def run_phase_0c(
             sandbox_model=sandbox_model,
             manifest_eval_type_set=manifest_eval_type_set,
             instance_site_url=instance_site_url,
+            verification_proxy=verification_proxy,
         ):
             logger.info("Phase 0c: skipping site %r (profile + agent context already exist)", name)
         else:
@@ -1084,7 +1103,11 @@ async def _profile_one_site_tiered(
         if site_url:
             effective_url = site_url
             if verification_proxy is not None:
-                effective_url = _apply_proxy_to_url(site_url, verification_proxy.port_offset)
+                effective_url = _apply_proxy_to_url(
+                    site_url,
+                    verification_proxy.port_offset,
+                    scheme=verification_proxy.scheme,
+                )
             connectivity: dict[str, str] = {
                 "site_name": site_name,
                 "site_url": effective_url,
@@ -1176,6 +1199,7 @@ async def _profile_one_site_tiered(
                     "benchmark_root": str(benchmark_root),
                     "sandbox_model": sandbox_model,
                     "instance_site_url": site_url,
+                    "verification_proxy": _verification_proxy_metadata(verification_proxy),
                 },
                 indent=2,
             ),

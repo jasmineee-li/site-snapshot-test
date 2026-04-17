@@ -79,6 +79,9 @@ VOL_ROUTING_BIKE="webarena-verified-map-routing-bike"
 VOL_ROUTING_FOOT="webarena-verified-map-routing-foot"
 VOL_NOMINATIM_DB="webarena-verified-map-nominatim-db"
 VOL_NOMINATIM_FLATNODE="webarena-verified-map-nominatim-flatnode"
+VOL_TILES="webarena-verified-map-tiles"
+VOL_STYLE="webarena-verified-map-style"
+VOL_WEBSITE_DB="webarena-verified-map-website-db"
 
 ALL_VOLUMES=(
     "$VOL_TILE_DB"
@@ -87,6 +90,11 @@ ALL_VOLUMES=(
     "$VOL_ROUTING_FOOT"
     "$VOL_NOMINATIM_DB"
     "$VOL_NOMINATIM_FLATNODE"
+)
+EMPTY_BOOTSTRAP_VOLUMES=(
+    "$VOL_TILES"
+    "$VOL_STYLE"
+    "$VOL_WEBSITE_DB"
 )
 
 # Reasonable lower-bound sizes (bytes) for "this volume looks populated".
@@ -264,6 +272,16 @@ volume_size_bytes() {
         sh -c 'du -sb /data 2>/dev/null | awk "{print \$1}"' 2>/dev/null
 }
 
+ensure_empty_volume() {
+    local vol="$1"
+    if docker volume inspect "$vol" >/dev/null 2>&1; then
+        echo "    - $vol already exists"
+        return 0
+    fi
+    echo "    - creating empty volume $vol"
+    docker volume create "$vol" >/dev/null
+}
+
 # ---------------------------------------------------------------------------
 # Extract
 # ---------------------------------------------------------------------------
@@ -384,6 +402,12 @@ main() {
         "--strip-components=7 projects/metis2/docker/docker/volumes/nominatim-data/_data"
     extract_to_volume "$VOL_NOMINATIM_FLATNODE" "nominatim_volumes.tar" \
         "--strip-components=7 projects/metis2/docker/docker/volumes/nominatim-flatnode/_data"
+
+    echo ""
+    echo "==> Ensuring empty bootstrap volumes exist"
+    for vol in "${EMPTY_BOOTSTRAP_VOLUMES[@]}"; do
+        ensure_empty_volume "$vol" || return 1
+    done
 
     echo ""
     echo "==> Checking volume sentinels"
