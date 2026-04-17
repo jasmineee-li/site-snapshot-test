@@ -169,7 +169,9 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
                     )
                 if method is not None:
                     if not isinstance(method, str) or not method.strip():
-                        raise ValueError("targeted data seed call method must be a non-empty string")
+                        raise ValueError(
+                            "targeted data seed call method must be a non-empty string"
+                        )
                     if method.strip().upper() not in _ALLOWED_API_METHODS:
                         raise ValueError(
                             f"{mechanism} data seed method {method!r} not allowed "
@@ -416,9 +418,7 @@ def _render_seed_value(value: Any, seed_context: dict[str, Any]) -> Any:
     if isinstance(value, dict):
         rendered: dict[Any, Any] = {}
         for key, item in value.items():
-            rendered_key = (
-                _render_seed_value(key, seed_context) if isinstance(key, str) else key
-            )
+            rendered_key = _render_seed_value(key, seed_context) if isinstance(key, str) else key
             rendered[rendered_key] = _render_seed_value(item, seed_context)
         return rendered
 
@@ -455,11 +455,12 @@ def _prepare_http_seed_call(
         unresolved_target = sorted(_seed_placeholder_names(rendered_target))
         if unresolved_target:
             raise RuntimeError(
-                "seed target has unresolved template placeholders: "
-                + ", ".join(unresolved_target)
+                "seed target has unresolved template placeholders: " + ", ".join(unresolved_target)
             )
         target_site = str(rendered_target.get("site", "")).strip().lower()
-        target_benchmark = str(rendered_target.get("benchmark") or "webarena_verified").strip().lower()
+        target_benchmark = (
+            str(rendered_target.get("benchmark") or "webarena_verified").strip().lower()
+        )
         instance_site = str(instance.get("site_name", "")).strip().lower()
         if target_site and instance_site and target_site != instance_site:
             raise RuntimeError(
@@ -626,7 +627,9 @@ def _derive_reddit_seed_context(
             context["forum_id"] = forum_id
 
     if "submission_id" in placeholders and "forum_name" in context:
-        submission_id = _resolve_reddit_submission_id(task, instance, forum_name=context["forum_name"])
+        submission_id = _resolve_reddit_submission_id(
+            task, instance, forum_name=context["forum_name"]
+        )
         if submission_id is not None:
             context["submission_id"] = submission_id
     return context
@@ -669,7 +672,9 @@ def _resolve_reddit_forum(task: dict[str, Any], instance: dict[str, Any]) -> dic
             cursor.execute(query, [forum_hint, forum_hint, forum_hint])
             row = cursor.fetchone()
     except Exception as exc:
-        raise RuntimeError(f"failed to resolve reddit forum_name for {forum_hint!r}: {exc}") from exc
+        raise RuntimeError(
+            f"failed to resolve reddit forum_name for {forum_hint!r}: {exc}"
+        ) from exc
     finally:
         try:
             conn.rollback()
@@ -1131,12 +1136,39 @@ def _apply_http_seed_call(
             f"status={response.status_code}"
         ) from exc
 
-    _verify_http_seed_postcondition(
-        mechanism=mechanism,
-        call=call.rendered_call,
-        instance=instance,
-        raw_path=raw_path,
-    )
+    try:
+        _verify_http_seed_postcondition(
+            mechanism=mechanism,
+            call=call.rendered_call,
+            instance=instance,
+            raw_path=raw_path,
+        )
+    except RuntimeError as exc:
+        # DB-based postcondition verification requires the site's internal
+        # DB to be reachable from the orchestrator host. For some sites
+        # (notably gitlab's embedded postgres, which binds only to 127.0.0.1
+        # inside the container) the DB port mapping doesn't actually expose
+        # postgres externally. In that case the postcondition check fails
+        # with a wrapped psycopg2.OperationalError even though the seed POST
+        # itself succeeded. Setting WORLDSIM_SKIP_DB_POSTCONDITION=1 lets us
+        # soft-skip verification and proceed with the optimistic assumption
+        # that the POST succeeded (the HTTP status was already 2xx above).
+        # Long-term fix: expose the site's DB on TCP and drop this flag.
+        cause_text = str(exc.__cause__) if exc.__cause__ is not None else str(exc)
+        is_db_connection_failure = "OperationalError" in cause_text or (
+            "connection" in cause_text.lower() and "refused" in cause_text.lower()
+        )
+        if is_db_connection_failure and os.environ.get(
+            "WORLDSIM_SKIP_DB_POSTCONDITION", ""
+        ).strip() in ("1", "true", "yes"):
+            site_name = instance.get("site_name", "<unknown>")
+            logger.warning(
+                "seed postcondition DB unreachable for site %r (%s); WORLDSIM_SKIP_DB_POSTCONDITION=1 set, accepting POST status as proxy",
+                site_name,
+                cause_text.splitlines()[0][:200],
+            )
+        else:
+            raise
     return response
 
 
