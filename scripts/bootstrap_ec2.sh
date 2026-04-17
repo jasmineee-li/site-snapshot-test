@@ -421,9 +421,20 @@ step_setup_wikipedia_zim() {
 # ---------------------------------------------------------------------------
 
 step_compose_up_all() {
-    log "Step 6: docker compose up -d (all 6 sites)"
-    if ! ssh_host "cd $COMPOSE_DIR_REMOTE && sudo docker compose -f $COMPOSE_FILE_REMOTE up -d"; then
-        echo "    - WARN: docker compose up -d returned non-zero"
+    log "Step 6: docker compose up -d --force-recreate (all 6 sites)"
+    # --force-recreate ensures containers land on the final merged config
+    # (override.yml image pins, env vars, port bindings). Without it,
+    # intermediate recreates during Step 4/5 (map setup, ZIM replacement
+    # helper containers) can leave compose's per-container metadata
+    # referencing stale image tags, and Step 6's plain `up -d` treats
+    # them as up-to-date and skips recreation — leaving am1n3e/*:latest
+    # containers running while the merged config says worldsim/*:amd64.
+    # This bit us on the 2026-04-17 r5 bring-up: env-ctrl endpoints
+    # returned HTTP 000 because the base_url fallback wasn't baked in
+    # and wikipedia crash-looped on the arm64 manifest. Forcing recreate
+    # costs ~90s per bring-up; worth it for idempotent correctness.
+    if ! ssh_host "cd $COMPOSE_DIR_REMOTE && sudo docker compose -f $COMPOSE_FILE_REMOTE up -d --force-recreate"; then
+        echo "    - WARN: docker compose up -d --force-recreate returned non-zero"
         return 1
     fi
     return 0
