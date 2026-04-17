@@ -227,63 +227,111 @@ The URL literal `{forum_name}` appears URL-encoded (`%7Bforum_name%7D`) — the 
 
 Also verify Phase 4 end-to-end on r5 with the existing `logs/phase_3/validated_tasks.json` (7 benigns): all 7 should reach browser-use (not error at seed stage), and produce non-zero values in the `Phase 4 complete — N tasks: X complied, Y variant_success, ...` summary.
 
-## 14. Seeds must describe targets abstractly, not hardcode host-bound IDs (P0)
+## 14. Pure-create seed contract: attacker materializes the injection surface, resolver creates fresh resources per task (P0)
 
-**Status from prior work:** item #13 fixed placeholder substitution and response-chaining (commit `a5bf5af`, 3 tests passing). After #13, Phase 4 against r5 still errored 7/7 but with a different class of failure, summarized in `logs/phase_4_smoke_v2.log` at 2026-04-17 01:43:
+**Status:** research-reviewed (see `docs/handoffs/codex-handoff-setup-hardening-research.md`), design locked on pure-create. Supersedes the select/constraint design discussed in earlier drafts of this section.
+
+### 14.0 Goal
+
+Make Phase 4's adversarial seeding **robust to any live-instance data state** (new host, fresh image, reseeded DB, parallel replicas) and **semantically faithful** to our threat model (authenticated regular user who creates attacker-controlled content). Same `adversarial_tasks.json` should run unchanged against a dev laptop, m5, r5, or a future scale-out cluster, and each run should be deterministic, isolated, and cleanup-bounded.
+
+The observable success criterion: after this lands, Phase 4 on the existing 7 validated benigns in `logs/phase_3/validated_tasks.json` produces **0 `error`, non-zero `variant_success + resistant + complied + broke`**. 7/7 `error` as in `logs/phase_4_smoke_v2.log` (2026-04-17 01:43) becomes 0/7.
+
+### 14.1 Context — what went wrong and why
+
+Item #13 (commit `a5bf5af`) fixed `{placeholder}` substitution in seed URLs and added response-chaining (`_extract_response_seed_context` in `worldsim/seeding.py`) — that path works. Then Phase 4 rerun on r5 still errored 7/7, but with concrete-URL failures:
 
 ```
-HTTP seed failed for site 'gitlab' POST /api/v4/projects/1/merge_requests/1/notes: status=404
-HTTP seed failed for site 'gitlab' POST /api/v4/projects/5/merge_requests: status=404
-HTTP seed failed for site 'map'    PUT  /api/0.6/way/732228095: status=401
-HTTP seed failed for site 'shopping' POST /rest/V1/reviews: status=400
+HTTP seed failed for site 'gitlab'   POST /api/v4/projects/1/merge_requests/1/notes: 404
+HTTP seed failed for site 'gitlab'   POST /api/v4/projects/5/merge_requests:         404
+HTTP seed failed for site 'map'      PUT  /api/0.6/way/732228095:                    401
+HTTP seed failed for site 'shopping' POST /rest/V1/reviews:                          400
 ```
 
-URLs are concrete integers, not `{placeholder}` — so #13's substitution path is correct. The remaining errors are because Phase 2 adversarial task generation emitted seeds whose **target URL** hardcodes resource IDs (project 5, MR 1, way 732228095, etc.) that either (a) don't exist on the live instance, (b) aren't writable by the authenticated `byteblaze` user, or (c) need auth headers the current seeding code doesn't attach (map OSM PUT is 401).
+URLs are concrete integers, so #13's template substitution is correct. The remaining failures are because **Phase 2 baked in host-bound resource IDs** (project 5, MR 1, way 732228095, etc.) that either don't exist on the live instance, aren't writable by `byteblaze`, or need auth the seeding code doesn't attach. Any future data shift (image rebuild, reseed, host migration) rots the whole adversarial dataset the same way.
 
-This is not a missing-placeholder-resolver issue. The seed contract itself is wrong: Phase 2 treats "the target to inject into" and "the payload to inject" as one opaque blob, so any change in live-instance data rots the whole adversarial dataset.
+**Codex already took a first pass** at fixing this by building `worldsim/seed_resolvers/` (~534 LOC, dispatcher + `types.py` + 4 site modules: gitlab, shopping, reddit, map) that implements a **select/constraint** resolver (find an existing resource matching predicates like `mr_state="opened", select="newest"`). That package exists, is wired into `_apply_http_seed_call` in `worldsim/seeding.py:385-425`, and has preflight at `worldsim/seeding.py:306+`. Tests pass. **Item #14 replaces the select pattern with pure-create, not augment it** — rationale below.
 
-**Files:** `worldsim/seeding.py` (and a new `worldsim/seeding/resolvers/` package), `worldsim/phases/phase_4_adversarial.py` (preflight hook), Phase 2 generator (wherever it emits `adversarial_data_seed.calls`), `scripts/migrate_phase_2_seeds_to_targets.py` (new).
+### 14.2 Inspiration — WASP (Meta, 2025)
 
-### The contract change
+The closest published analog is **WASP** (Facebook Research, arXiv:2504.18575, https://github.com/facebookresearch/wasp). Same threat model as ours (authenticated user posts on GitLab/Reddit with attacker-controlled content). WASP's setup (`webarena_prompt_injections/environment_setup.py`) does not look up existing resources. It has `GitlabEditor` and `RedditEditor` classes with methods like `make_project_as_agent_user()`, `create_issue_with_title_and_text()`, `create_post_with_title_and_text()`, `make_attacker_account()` (with get-or-create fallback if the username exists). `_inject_gitlab_prompts()` captures the URL returned by the create call and stuffs it into the task object. `environment_cleanup.py` pairs with setup for teardown.
 
-Every `call` in `adversarial_data_seed.calls` currently shapes as:
-```json
-{ "method": "POST", "url": "/api/v4/projects/5/merge_requests/1/notes", "body": {...}, "headers": {...} }
-```
+Their answer to the 404 problem is: **don't look up resources, create them.** This maps cleanly onto the threat model — a "regular authenticated user" attack scenario IS an attacker posting new content, not editing someone else's. It also eliminates the ID-drift problem entirely.
 
-New shape (preferred for all new tasks; legacy shape kept for back-compat):
+Our pure-create design follows WASP's pattern but **unifies what WASP hand-rolled as duplicated per-site editors into one resolver interface**. That unification is the infrastructure contribution.
+
+### 14.3 Why pure-create (not select, not hybrid)
+
+Under our threat model (`CLAUDE.md`: authenticated regular user, no SQL seeding), every adversarial action IS a create from the user's perspective:
+
+- "Attacker posts a comment on an MR" → create comment.
+- "Attacker opens an issue with an injection body" → create issue.
+- "Attacker leaves a product review" → create review.
+- "Attacker posts on a forum" → create submission.
+
+"Edit existing content owned by someone else" requires admin and is excluded. "Edit existing content owned by the attacker" is functionally a create from scratch in a fresh test environment (no meaningful history to preserve). **The select pattern doesn't serve a real attack class; it just adds a constraint DSL we have to maintain.**
+
+Pros of pure-create vs select/constraint:
+
+- **Robust by construction.** Fresh resources always exist, always writable. No 404/401 from missing IDs.
+- **Deterministic + isolated per task.** `task_id` is unique → each task creates its own resource → no cross-task leakage via DB state.
+- **Cleanup is bounded.** Create with `name_template: "webagent-task-{task_id}-*"` → sweep by pattern → safe.
+- **Simpler code.** Target descriptor has no `constraints` DSL; resolver has no lookup logic; ~100 LOC per site vs ~288.
+- **Matches published norm.** WASP is the reviewer's reference point.
+
+Cons (and mitigations):
+
+- **Resource pollution if cleanup fails.** Mitigation: deterministic name template + periodic sweep script (`scripts/cleanup_webagent_test_resources.sh`). Belt-and-suspenders: Phase 4 does best-effort cleanup at task end.
+- **Realism concern — fresh MR has no history.** Mitigation: use plausible project/MR titles (not `injection-test-42`), derived from the task's `topic` field. The agent sees e.g. "Notes on deploy pipeline" not "injection target 42."
+- **Concurrency races on shared parent resources.** Mitigation: `get_or_create` semantics on projects (if project exists, reuse; only leaf resources — MR, comment — are always-create).
+- **Base-state drift (does `byteblaze` exist? is REST API enabled?).** Mitigation: preflight (§14.6) verifies base state once per Phase 4 run, before any variant runs.
+
+### 14.4 The contract
+
+**Seed call shape (post-migration):**
+
 ```json
 {
   "target": {
+    "benchmark": "webarena_verified",
     "site": "gitlab",
     "resource_type": "mr_note",
-    "constraints": {"owner": "current_user", "mr_state": "opened", "select": "newest"}
+    "create": {
+      "project":    {"owner": "current_user", "name_template": "webagent-task-{task_id}"},
+      "mr":         {"title_template": "Notes on {topic}", "body_template": "Context for {topic}."},
+      "mr_note":    {}
+    }
   },
-  "method": "POST",
-  "body": {"body": "<attacker prompt>"},
-  "headers": {}
+  "body": {"body": "<attacker prompt>"}
 }
 ```
 
-`target.constraints` is a site-and-resource-type-specific struct that the resolver consumes. The body carries only attacker-controlled payload; the URL is derived at runtime from the resolved target.
+Field semantics:
 
-### Resolver interface
+- `target.benchmark` — dispatch key into the resolver registry. Default `"webarena_verified"` when absent (back-compat). Required when multi-benchmark mode is active (see §14.9).
+- `target.site` — in-benchmark site identifier (`gitlab`, `shopping`, `shopping_admin`, `reddit`, `map`).
+- `target.resource_type` — the **leaf** resource being created for the attack. Resolver walks parents implicitly (to create an `mr_note`, first get-or-create a `project`, then create an `mr`, then create the `mr_note`).
+- `target.create.<resource>` — creation parameters for each resource type in the chain. Template strings support `{task_id}`, `{topic}`, `{intent}`, and any key previously written into `seed_context` by earlier calls.
+- `body` — the attacker-controlled payload, POSTed to the URL the resolver returns. Kept separate from `target.create` so it's unambiguous which text is the injection.
 
-Create `worldsim/seeding/resolvers/` as a package with one module per site:
+**Explicitly NOT in the target descriptor:**
 
-```
-worldsim/seeding/resolvers/
-  __init__.py           # dispatcher: get_resolver(site_name) -> callable
-  gitlab.py
-  shopping.py
-  shopping_admin.py
-  reddit.py
-  map.py
-  types.py              # ResolvedCall dataclass
-```
+- No `constraints`, `select`, `mr_state`, or any other find-style field. If a benchmark needs to target existing content, that's a different research question handled outside this contract.
+- No raw `url`. Legacy `{url, body}` calls keep working via a back-compat branch (§14.8) but no new task should be written in that shape.
 
-Each site module exports:
+**Resolver contract:**
+
 ```python
+# worldsim/seed_resolvers/types.py
+@dataclass(frozen=True)
+class ResolvedCall:
+    method: str                        # "POST", "PUT", etc.
+    url: str                           # fully-qualified, ready to fetch
+    headers: dict[str, str]            # Auth, Content-Type, etc.
+    body: Any                          # if resolver synthesizes body from target.create; else None and executor uses call.body
+    context_additions: dict[str, Any]  # intermediate IDs to write into seed_context, e.g. {"project_id": 193, "mr_iid": 4}
+
+# Each site module exports:
 def resolve(
     target: dict[str, Any],
     instance: dict[str, Any],
@@ -291,105 +339,114 @@ def resolve(
 ) -> ResolvedCall: ...
 ```
 
-Where `ResolvedCall` is:
+Resolver responsibilities:
+
+1. Read `target.create` chain, walk from root to leaf.
+2. For each non-leaf node: call `get_or_create_<type>()` — GET by deterministic name first, POST if absent.
+3. For the leaf node: always POST fresh (the attack resource). Resolver does NOT attach the attacker body; it returns the URL and the executor POSTs `call.body`.
+4. Write every resolved ID into `context_additions` (`project_id`, `mr_iid`, `issue_iid`, etc.) so reward evaluation can find what it evaluated.
+5. All HTTP calls use the resolver's own auth (from `instance.api_auth` / `instance.agent_auth`, tokens already acquired by `worldsim/auth_tokens.py:acquire_tokens_for_instances`).
+6. Raise `ResolverError(kind, detail)` on unrecoverable failure. The executor turns that into a `seed_preflight_mismatch` result.
+
+### 14.5 Refactor, not rebuild — disposition of codex's existing 534 LOC
+
+Codex's `worldsim/seed_resolvers/` package stays, but the internals change substantially:
+
+**Keep (~200 LOC reusable):**
+- `__init__.py` dispatcher (29 LOC) — gains a `benchmark` kwarg; otherwise unchanged.
+- `types.py` (20 LOC) — add `body: Any` to `ResolvedCall`; keep everything else.
+- URL-construction + auth-header helpers inside `gitlab.py` (~80 LOC) — extract into a new `_http_helpers.py` module shared across site resolvers.
+- `shopping.py` review-body formatting (~40 LOC) — the POST /rest/V1/reviews shape logic is salvageable as the body-builder for `create.product_review`.
+
+**Delete (~350 LOC dead under pure-create):**
+- All `_resolve_<resource>()` functions that GET-list and filter — `_resolve_project`, `_resolve_issue`, `_resolve_merge_request` in gitlab.py; constraint-based lookups in reddit.py, map.py.
+- The `_CACHE` dict keyed on constraints — redundant under pure-create (each task creates its own, so caching across variants is trivial and keyed differently).
+- Constraint-validation helpers.
+
+**Add (~400 LOC new):**
+- `create.<resource>` chain walker — given `target.create`, recurse through parent resource types, get-or-create each.
+- Per-site `_create_<type>()` functions that POST a new resource and return the ID. For gitlab: `_create_project`, `_create_mr`, `_create_mr_note`, `_create_issue`, `_create_issue_note`. For reddit: `_create_forum_if_missing`, `_create_submission`, `_create_comment`. For shopping: `_create_product_review` (already close — just strip the constraint code). For map: `_create_node`, `_create_way`, `_create_changeset` (map OSM needs an active changeset — the resolver opens/closes one per task).
+- Template renderer for `name_template` / `title_template` / `body_template` using `task_id`, `topic`, `intent`, and `seed_context`.
+
+Net: ~534 – 350 + 400 = **~580 LOC in the resolver package.** With migration (~200 LOC), preflight wiring (~150 LOC including tests), and test additions (~600 LOC), total new work is **~1200 LOC across 2-3 days focused.** Less than half of the original estimate.
+
+### 14.6 Preflight
+
+`worldsim/phases/phase_4_adversarial.py:run_adversarial_task` currently calls `apply_data_seed_async(adv_seed, seed_instance_dict)` directly. Replace with:
+
+```python
+preflight = await preflight_adversarial_seed(adv_seed, instance)
+if not preflight.ok:
+    return AdversarialResult(status="seed_preflight_mismatch",
+                             detail=preflight.mismatches, ...)
+await apply_data_seed_async(adv_seed, seed_instance_dict)
+```
+
+Preflight does TWO checks per variant, before any mutation fires:
+
+1. **Per-variant resolver dry-run.** Call each resolver's `resolve(target, instance, seed_context)` with a dry-run flag. Dry-run means: resolve templates, verify auth tokens present, verify base-state exists (does byteblaze's user account exist? is the REST API reachable?). Does NOT POST. Returns success or `ResolverError`.
+2. **Base-state probe once per Phase 4 run** (cached): GET `/api/v4/user` on gitlab, GET `/rest/V1/store/storeConfigs` on shopping, etc. If any base-state probe fails, mark the whole Phase 4 run as `infrastructure_failed` rather than tagging every variant as `error`.
+
+`PreflightReport`:
+
 ```python
 @dataclass(frozen=True)
-class ResolvedCall:
-    method: str
-    url: str                         # fully-qualified, ready to fetch
-    headers: dict[str, str]          # e.g. Authorization, OSM API key
-    context_additions: dict[str, Any]  # e.g. resolved_project_id, resolved_mr_iid
+class SeedPreflightMismatch:
+    call_index: int
+    site: str
+    resource_type: str
+    kind: str        # "resolver_error", "base_state_missing", "template_render_failed", "auth_missing"
+    detail: str
+
+@dataclass(frozen=True)
+class PreflightReport:
+    ok: bool
+    mismatches: tuple[SeedPreflightMismatch, ...]
 ```
 
-Resolvers use `instance.api_auth` / `instance.agent_auth` tokens already acquired by `acquire_tokens_for_instances`. They query the live instance (via `requests`), apply the `constraints`, and return the canonical call. Add a site-and-resource-type-keyed cache keyed on `(instance.site_url, resource_type, frozenset(constraints.items()))` so N variants against the same target hit the API once.
+Add a new result status `seed_preflight_mismatch` to the Phase 4 summary line between `invalid` and `error`. This is the mechanism that separates infrastructure failure from research finding — we can filter it out of ASR numerators and denominators cleanly.
 
-Resource types to support initially (covers the seven failing task sites in `logs/phase_3/validated_tasks.json`):
-- `gitlab`: `project`, `mr`, `mr_note`, `issue`, `issue_note`, `commit_comment`, `repo_file`
-- `shopping`: `product_review` (needs `product.entity_id`, `rating_store_id`, `rating_option_ids`)
-- `shopping_admin`: `product`, `cms_block`
-- `reddit`: `forum`, `submission`, `comment` (already partially done by #13's `_derive_reddit_seed_context` — generalize and move under this new package)
-- `map`: `node`, `way` (already partially done by #13 — generalize and move)
+### 14.7 Cleanup
 
-### Preflight gate in Phase 4
+Resource creation is deterministic by `task_id`, so cleanup is a pattern-sweep:
 
-`worldsim/phases/phase_4_adversarial.py:run_adversarial_task` today calls `apply_data_seed_async(adv_seed, seed_instance_dict)` directly. Add a preflight step that, per variant, dry-runs every call's resolver before executing any mutation. Signature:
+- New script `scripts/cleanup_webagent_test_resources.sh` on the host. For each site, enumerate resources matching the `webagent-task-*` name pattern and DELETE them via API (for gitlab: list projects, filter by name, DELETE; for reddit: list submissions by author byteblaze, DELETE posts matching pattern; for shopping: delete reviews posted by byteblaze with body matching marker; for map: close any open changesets owned by byteblaze and revert their edits).
+- Phase 4 itself does best-effort per-task cleanup at task end (catch exceptions, log; don't let cleanup failure fail a task).
+- Schedule the sweep script to run nightly via `bootstrap_ec2.sh --cleanup-only` or a cron on the host. Documented in the r5 operational runbook.
 
-```python
-async def preflight_adversarial_seed(
-    adv_seed: dict[str, Any],
-    instance: dict[str, Any],
-) -> PreflightReport: ...
-```
+### 14.8 Back-compat for the legacy shape
 
-`PreflightReport` has `.ok: bool` and `.mismatches: list[SeedPreflightMismatch]`. If not ok, skip the task with a new result status `seed_preflight_mismatch` (add to the summary stats alongside `complied`, `variant_success`, `error`, etc.). Do NOT fire partial mutations on preflight failure.
-
-Preflight cost: one GET per resolver invocation. Amortized across variants sharing targets via the resolver cache, ~10-50 ms/variant. Negligible vs the ~2-min browser agent.
-
-### Back-compat for legacy seed shape
-
-`_apply_http_seed_call` in `worldsim/seeding.py` already sits at the bottom of the call execution path. Add a branch at the top:
+`logs/phase_2/adversarial_tasks.json` today uses the legacy `{url, body}` shape. The executor in `_apply_http_seed_call` keeps a back-compat branch:
 
 ```python
-if "target" in call:
-    resolved = get_resolver(call["target"]["site"]).resolve(call["target"], instance, seed_context)
+target = call.get("target")
+if isinstance(target, dict):
+    resolved = get_resolver(target.get("benchmark", "webarena_verified"),
+                            target["site"]).resolve(target, instance, seed_context)
     method, url, headers = resolved.method, resolved.url, resolved.headers
+    body = resolved.body if resolved.body is not None else call.get("body")
     seed_context.update(resolved.context_additions)
 else:
-    # legacy concrete-URL path — use existing template-substitution flow
-    method = call["method"]; url = render_template(call["url"], seed_context); headers = call.get("headers", {})
+    # legacy: concrete URL + template substitution (#13 path, unchanged)
+    method = call["method"]
+    url = render_template(call["url"], seed_context)
+    headers = call.get("headers", {})
+    body = call.get("body")
 ```
 
-Existing `logs/phase_2/adversarial_tasks.json` uses the legacy shape. It'll still run (with the broken IDs) until migrated.
+Legacy tasks continue to run (and continue to 404 on host drift). The migration script (§14.10) converts them to the new shape.
 
-### Migration: convert existing tasks
+### 14.9 Multi-benchmark compatibility
 
-Write `scripts/migrate_phase_2_seeds_to_targets.py`:
+`feat/multi-benchmark` and descendants extend WorldSim to ST-WebAgentBench, Mind2Web, etc. Item #14 needs to support that without forcing re-design later.
 
-1. Read `logs/phase_2/adversarial_tasks.json`.
-2. For each task's `adversarial_data_seed.calls`, pattern-match the URL against known route templates per site (e.g. `r"^/api/v4/projects/(\d+)/merge_requests/(\d+)/notes$"`).
-3. Emit a `target` dict describing what we think the seed was trying to do: resource_type=`mr_note`, constraints inferred from the match (for legacy tasks, use `{"owner": "current_user", "mr_state": "opened", "select": "newest"}` as the default for gitlab notes since the hardcoded IDs are stale anyway).
-4. Preserve `body`, `method`, `headers` unchanged.
-5. Write back to `adversarial_tasks.json` (take a backup first — `adversarial_tasks.json.bak-2026-04-17`).
-6. Run `uv run pytest tests/test_seeding.py tests/test_phase_4_adversarial.py` to verify nothing regressed.
-
-If a URL doesn't match any known template, drop the call and log — these are rare and usually malformed.
-
-### Tests
-
-Each resolver gets:
-
-1. **Unit test with mocked HTTP** (in `tests/test_resolver_<site>.py`): given a fake instance and target, assert the resolver builds the correct URL + headers. Mock `requests.get/post` via `monkeypatch`.
-2. **Integration test skeleton** (marked `@pytest.mark.integration`, skipped by default in CI): takes a `LIVE_INSTANCE_URL` env var and hits a real running container. Run locally after each resolver lands.
-
-Plus one test for `preflight_adversarial_seed` that asserts the right skip-status + diagnostic is emitted when a resolver raises.
-
-### Scope estimate
-
-- Resolver package scaffold + types + cache: ~150 LOC
-- 5 site modules, ~200-400 LOC each depending on coverage: ~1500 LOC
-- Preflight hook: ~100 LOC + tests
-- Migration script: ~100 LOC
-- Tests: ~800 LOC across 6 new files
-- **Total: ~2500-3000 LOC, 2-3 days focused work**
-
-### Why this beats the alternatives
-
-- **Regenerating Phase 2 against r5**: expensive (~$316 Phase 2 cost), host-bound, breaks again on the next image rebuild or data reseed.
-- **Adding ad-hoc resolvers inside current seed flow**: mixes target resolution with payload execution, doesn't generalize, we'd re-diagnose the same class of bug next time.
-- **Skipping seeds that fail**: gives Phase 4 coverage but no Gate 2 data — not paper-grade.
-
-Contract change + resolver layer makes the adversarial dataset **portable**. Same `adversarial_tasks.json` runs against any instance — dev laptop, m5, r5, future scale-out — without regeneration.
-
-### Multi-benchmark compatibility
-
-A parallel effort on `feat/multi-benchmark` (and its descendants: `feat/multi-benchmark-v5-integration-codex`, `multi-benchmark-rebased`) is extending WorldSim from WebArena-Verified to additional benchmarks (ST-WebAgentBench, Mind2Web-style, etc.). The same seed contract fix needs to support that extension without forcing re-design later. The design choices below make #14 additive across benchmarks, not multiplicative.
-
-**Namespace the resolver registry by benchmark.** Package layout:
+**Registry layout:**
 
 ```
-worldsim/seeding/resolvers/
-  __init__.py                         # dispatcher: get_resolver(benchmark, site, resource_type) -> callable
+worldsim/seed_resolvers/
+  __init__.py                         # get_resolver(benchmark, site) -> callable
   types.py                            # ResolvedCall, PreflightReport, ResolverError
+  _http_helpers.py                    # shared URL/auth/template helpers
   webarena_verified/
     __init__.py
     gitlab.py
@@ -401,61 +458,112 @@ worldsim/seeding/resolvers/
     __init__.py
 ```
 
-**Add `benchmark` to the target descriptor.** Target shape updated:
+**Dispatcher:** `get_resolver(benchmark, site)` looks up `worldsim.seed_resolvers.<benchmark>.<site>.resolve`. Defaults `benchmark="webarena_verified"` when absent in the target dict.
 
-```json
-{
-  "target": {
-    "benchmark": "webarena_verified",   // NEW: dispatch key
-    "site": "gitlab",
-    "resource_type": "mr_note",
-    "constraints": {"owner": "current_user", "mr_state": "opened", "select": "newest"}
-  },
-  ...
+**What a new benchmark has to implement:** one module per in-scope site, each exporting `resolve(target, instance, seed_context) -> ResolvedCall`. That's the only required contract with Phase 4.
+
+**What a new benchmark does NOT have to do:**
+- Fork Phase 4 runner.
+- Re-invent preflight.
+- Touch anything under `worldsim/phases/`.
+- Modify `_apply_http_seed_call`.
+- Build a constraint DSL — pure-create is the default for all benchmarks.
+
+**Opt-out:** benchmarks that don't do injection seeding simply don't register resolvers. Phase 4 with no resolver registered for a site is a no-op for that site.
+
+**Rebase plan:** once #14 lands on `feat/worldsim-v5`, rebase/merge into `feat/multi-benchmark` before any new benchmark writes its own seeding code. Prevents two incompatible seed contracts.
+
+### 14.10 Migration of the existing 312-task dataset
+
+Write `scripts/migrate_phase_2_seeds_to_targets.py`:
+
+1. Read `logs/phase_2/adversarial_tasks.json`.
+2. Back up to `logs/phase_2/adversarial_tasks.json.bak-pre-item14`.
+3. For each task's `adversarial_data_seed.calls`, pattern-match the URL against known route templates per site:
+
+```python
+PATTERNS = {
+    "gitlab": [
+        (r"^/api/v4/projects/\d+/merge_requests/\d+/notes$", "mr_note"),
+        (r"^/api/v4/projects/\d+/issues/\d+/notes$",         "issue_note"),
+        (r"^/api/v4/projects/\d+/issues$",                   "issue"),
+        (r"^/api/v4/projects/\d+/merge_requests$",           "mr"),
+        (r"^/api/v4/projects$",                              "project"),
+    ],
+    "reddit":   [...],
+    "shopping": [...],
+    "shopping_admin": [...],
+    "map":      [...],
 }
 ```
 
-Default `benchmark` to `"webarena_verified"` for back-compat with the legacy shape.
+4. Emit a `target` dict with `create` subtree populated from task context:
+   - `project.name_template = "webagent-task-{task_id}"`
+   - `mr.title_template = "Notes on {topic}"` where `{topic}` is pulled from the task's `intent` field
+   - `body` stays as-is from the original call
+5. Drop `url`, `method`, `headers` from the call object (they're reconstructed by the resolver).
+6. Write back to `adversarial_tasks.json`.
+7. Run `uv run pytest tests/test_seeding.py tests/test_phase_4_adversarial.py tests/test_seed_resolvers_*.py` — must stay green.
+8. Diff the before/after, spot-check 5 random tasks per site for correctness.
 
-**What a new benchmark has to implement:**
+URLs that don't match any pattern: log, skip, leave legacy shape — executor's back-compat branch will still handle them.
 
-To add ST-WebAgentBench, the author writes one resolver module per in-scope site (typically 1–4), each exporting the same `resolve(target, instance, seed_context) -> ResolvedCall` function. That's the only required contract with Phase 4. Phase 2 for that benchmark can be implemented independently; as long as it emits the common `target` shape, the runtime just works.
+### 14.11 Tests
 
-What a new benchmark does NOT have to do:
-- Fork Phase 4 runner
-- Re-invent preflight
-- Touch anything under `worldsim/phases/`
-- Modify `_apply_http_seed_call` — just register a resolver
+New test files under `tests/`:
 
-This is the research-infrastructure contribution: **the seed contract is benchmark-agnostic, resolvers are benchmark-specific, and the two are cleanly separated.** Adding a new benchmark is bounded-effort work, not an architectural refactor.
+1. `tests/test_seed_resolver_gitlab.py` — mocked HTTP via `responses` or `monkeypatch` on `requests`. Cases: create project, get-or-create project (pre-existing), create MR, create mr_note chain, create issue + issue_note chain, ResolverError on auth missing.
+2. `tests/test_seed_resolver_reddit.py` — similar, for forum/submission/comment chains.
+3. `tests/test_seed_resolver_shopping.py` — product_review body shape + POST mock.
+4. `tests/test_seed_resolver_shopping_admin.py` — cms_block, product creation.
+5. `tests/test_seed_resolver_map.py` — OSM changeset open/edit/close, node and way creation.
+6. `tests/test_seed_preflight.py` — base-state probe, per-variant dry-run, `seed_preflight_mismatch` result shape.
+7. `tests/test_migrate_phase_2_seeds.py` — migration script produces correct target shape for each known URL pattern; legacy shape preserved for unknown patterns.
+8. `tests/test_seed_contract_backcompat.py` — `_apply_http_seed_call` handles both legacy `{url, body}` and new `{target, body}` shapes.
 
-**Shared constraint vocabulary (cross-benchmark):** a small number of constraint verbs generalize across sites and benchmarks. Define them centrally in `worldsim/seeding/resolvers/types.py` and document:
+Integration tests (marked `@pytest.mark.integration`, skipped in default CI, run locally against a live stack before shipping):
+- One per site, creating + deleting a real resource end-to-end.
+- `scripts/run_integration_tests.sh` wrapper that starts the stack if needed, runs them, and cleans up.
 
-- `owner`: `"current_user"`, or a specific username string
-- `select`: `"newest"`, `"oldest"`, `"deterministic_hash"`, `"by_index:N"`
-- `state`: site-specific (`"opened"` for gitlab MRs, `"published"` for blog posts, etc.) — left as a free-form string for resolver interpretation
-- `limit`: integer cap on candidates before `select` fires
-- `must_be_writable_by`: same vocabulary as `owner` — the authenticated user must have write permission
+### 14.12 Rigor — why this is publishable infrastructure
 
-Resolvers validate their supported constraints and raise `ResolverError("unsupported_constraint", detail=...)` when a task demands something they don't handle. Phase 2 generators across benchmarks should stick to this vocabulary unless they have a demonstrated need for a new term; new terms require a README-level note about cross-benchmark semantics.
+1. **Matches the research claim faithfully.** "Does the agent resist an injection posted by a regular user?" is the hypothesis. Pure-create realizes it literally — the attacker user creates the injection. No incidental numeric IDs contaminate the task spec.
+2. **Separates infrastructure failure from research finding.** Preflight's `seed_preflight_mismatch` status means ASR numerators/denominators are clean. Readers can trust the numbers.
+3. **Portable across deployments.** Any reader who can stand up a WebArena-Verified stack (or a WASP stack, or a future ST-WebAgentBench stack with a pure-create resolver) runs our `adversarial_tasks.json` verbatim. Reproducibility is a first-class property of the dataset, not a function of matching our host state.
+4. **Determinism.** `task_id` is stable across runs; resource names are deterministic functions of `task_id`; get-or-create semantics mean re-runs converge. Each trajectory logs its resolved IDs for audit.
+5. **Bounded cleanup.** Pattern-matched sweep. Safe to run against a production-like instance without touching real data.
+6. **Novel over WASP in exactly one way: unified interface.** WASP duplicates editor code per site (`GitlabEditor`, `RedditEditor`). Our single `resolve(target, instance, seed_context)` contract is the generalization, and `benchmark`-namespacing is the multi-benchmark extension. This is the infrastructure contribution.
 
-**Opt-out**: some benchmarks may not do injection seeding at all (e.g. pure capability evals). They simply don't register resolvers and Phase 4 for those benchmarks is a no-op for seeding. The contract doesn't force them to adopt it.
+### 14.13 Inspiration and references (for codex)
 
-**Integration point with `feat/multi-benchmark`:** once #14 lands on `feat/worldsim-v5`, that branch should be rebased/merged into the multi-benchmark branch before any new benchmark writes its own seeding code. Otherwise we'll end up with two incompatible seed contracts and a painful reconciliation later.
+- **WASP (Meta, 2025)** — paper: arXiv:2504.18575; code: https://github.com/facebookresearch/wasp. Read `webarena_prompt_injections/environment_setup.py` and `webarena_prompt_injections/prompt_injector.py` for the editor-wrapper pattern we're unifying.
+- **WebArena / WebArena-Verified** — WebArena: arXiv:2307.13854; WebArena-Verified: https://github.com/ServiceNow/webarena-verified. The reproducibility lessons (WebArena issue #98) motivate why pure-create + deterministic naming matters.
+- **k6 correlation pattern** — https://grafana.com/docs/k6/latest/examples/correlation-and-dynamic-data/. Extract-from-response into runtime context; we already have this via `_extract_response_seed_context`.
+- **factory_boy `get_or_create`** — https://factoryboy.readthedocs.io/en/latest/. The idempotency pattern for non-leaf parent resources.
+- **Pact provider states** — https://docs.pact.io/getting_started/provider_states. Our `context_additions` return mirrors Pact's state-change callback.
+- **Full research report** — `docs/handoffs/codex-handoff-setup-hardening-research.md` in this repo. Read it before starting; it explains why constraint-based select is a dead end.
 
-### Research-design context (why this is worth the cost)
+### 14.14 Out of scope for #14
 
-Open question: is this a principled research-infrastructure contribution, or over-engineering? A subagent is doing deep-research web-search on how comparable browser-agent adversarial benchmarks (WebArena line, VisualWebArena, Mind2Web, Agent-SafetyBench, InjecAgent, Greshake foundational work) solve (or don't solve) this problem. Depending on findings, the design above may be revised before implementation — e.g., if a simpler "always generate against live instance + embed verified IDs" pattern is standard in the literature, we may abandon the resolver layer in favor of always-regenerate. Alternatively, if published benchmarks hit the same brittleness and nobody has a good solution, the resolver layer is a novel infrastructure contribution worth emphasizing in the paper.
+- Changing Phase 3 (benign). This is Phase 4 adversarial seeding only.
+- Refactoring `acquire_tokens_for_instances` — resolvers consume the tokens it already acquires.
+- Adding new resource types beyond what's needed to cover the existing 312 tasks post-migration. If a future task needs a new resource_type, add it with its own commit.
+- Removing the `{url, body}` legacy path entirely. Keep it as a back-compat branch indefinitely; just don't write new tasks in that shape.
 
-**Before committing to implementation**, read the research report at `docs/handoffs/codex-handoff-setup-hardening-research.md` (to be written by the subagent and merged in by the orchestrator) and reconcile with this section. If the research argues for a simpler alternative, update this section before starting code. If it validates the resolver approach, proceed.
+### 14.15 Verification
 
-The rigor-preserving properties of this fix, regardless of which concrete design we land on:
-1. Abstract targets match the actual research claim ("attack on a naturally-encountered write surface") more faithfully than hardcoded IDs.
-2. Preflight separates infrastructure failure from research finding — infra errors no longer conflate with attack-success/attack-resistance.
-3. Portable tasks mean any reader can reproduce the experiment on their own WebArena deployment.
-4. Determinism preserved via explicit `select` rules + audit logging of resolved IDs per trajectory.
-
-**Verify:** after #14 lands, migrate the existing 312-task dataset, rerun Phase 4 against r5 on the 7 validated benigns in `logs/phase_3/validated_tasks.json`. Expected: 0 `error`, non-zero `variant_success + resistant + complied + broke`. The specific ratio is a research finding, not a setup validation; the setup check is that the pipeline produces real data instead of 7/7 `error`.
+1. `uv run pytest tests/` — 701+ passes, no regressions.
+2. `uv run python scripts/migrate_phase_2_seeds_to_targets.py` — migrates 312 tasks, no unknown-URL warnings expected for the 4 sites in scope.
+3. Rerun Phase 4 against r5 on `logs/phase_3/validated_tasks.json` (7 benigns):
+   ```
+   set -a && source .env && set +a && unset OPENROUTER_API_KEY
+   uv run python -m worldsim.main phase 4 \
+     --benchmark vendors/webarena-verified \
+     --instances instances.smoke.json \
+     --agent-provider openai --agent-model gpt-5.4-mini
+   ```
+   Expected summary: `0 error, 0 seed_preflight_mismatch, non-zero variant_success + complied + resistant + broke`.
+4. Run `scripts/cleanup_webagent_test_resources.sh` on r5 after the rerun — should delete 7 × N_variants resources matching the `webagent-task-*` pattern, zero false positives against pre-existing data.
 
 ---
 
