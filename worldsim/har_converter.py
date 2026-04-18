@@ -96,12 +96,12 @@ def flat_event_to_har_entry(flat: dict[str, Any]) -> dict[str, Any]:
         "httpVersion": "HTTP/1.1",
         "headers": _headers_to_har(flat.get("response_headers")),
         "cookies": _cookies_to_har(flat.get("response_cookies")),
-        "content": {"size": 0, "mimeType": "", "text": ""},
+        "content": {"size": 0, "mimeType": str(flat.get("response_mime_type") or ""), "text": ""},
         "redirectURL": "",
         "headersSize": -1,
         "bodySize": -1,
     }
-    return {
+    entry: dict[str, Any] = {
         "startedDateTime": "1970-01-01T00:00:00Z",
         "time": 0,
         "request": request,
@@ -109,6 +109,10 @@ def flat_event_to_har_entry(flat: dict[str, Any]) -> dict[str, Any]:
         "cache": {},
         "timings": {"send": 0, "wait": 0, "receive": 0},
     }
+    pageref = flat.get("pageref")
+    if pageref:
+        entry["pageref"] = str(pageref)
+    return entry
 
 
 def flat_events_to_har_entries(events: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -116,6 +120,49 @@ def flat_events_to_har_entries(events: list[dict[str, Any]] | None) -> list[dict
     if not events:
         return []
     return [flat_event_to_har_entry(e) for e in events if isinstance(e, dict)]
+
+
+def nav_events_to_har_pages(
+    nav_events: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Build a HAR ``pages[]`` list from top-frame document navigations.
+
+    ``kind=document`` entries emitted by ``_NetworkTraceRecorder._on_frame_navigated``
+    carry a ``pageref`` and a wall-clock ``timestamp``. Within-document (SPA)
+    nav events are preserved in ``navigation_trace.json`` but do not enter
+    HAR pages[] — the HAR spec keys pages by full document loads.
+    """
+    if not nav_events:
+        return []
+    from datetime import UTC, datetime
+
+    pages: list[dict[str, Any]] = []
+    for nav in nav_events:
+        if not isinstance(nav, dict):
+            continue
+        if nav.get("kind") != "document":
+            continue
+        pageref = nav.get("pageref")
+        if not pageref:
+            continue
+        ts = nav.get("timestamp")
+        try:
+            started = (
+                datetime.fromtimestamp(float(ts), tz=UTC).isoformat()
+                if ts is not None
+                else "1970-01-01T00:00:00+00:00"
+            )
+        except (TypeError, ValueError, OverflowError):
+            started = "1970-01-01T00:00:00+00:00"
+        pages.append(
+            {
+                "id": str(pageref),
+                "startedDateTime": started,
+                "title": str(nav.get("url") or ""),
+                "pageTimings": {"onContentLoad": -1, "onLoad": -1},
+            }
+        )
+    return pages
 
 
 def minimal_har_placeholder_entry() -> dict[str, Any]:

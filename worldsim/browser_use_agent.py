@@ -113,6 +113,9 @@ class _NetworkTraceRecorder:
         self._enabled_targets: set[str] = set()
         # Raw CDP entries keyed by requestId.
         self._requests: dict[str, dict[str, Any]] = {}
+        # Top-frame navigation events for C1b URL matching + HAR pages[].
+        self._nav_events: list[dict[str, Any]] = []
+        self._nav_seq: int = 0
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -133,6 +136,11 @@ class _NetworkTraceRecorder:
         )
         self._client.register.Network.loadingFinished(self._on_loading_finished)
         self._client.register.Network.loadingFailed(self._on_loading_failed)
+        # Page-domain navigation events — top-frame document nav + SPA within-doc.
+        # Both require ``Page.enable`` on the session (sent alongside ``Network.enable``
+        # in ``_enable_current_page_sessions``) before Chrome dispatches events.
+        self._client.register.Page.frameNavigated(self._on_frame_navigated)
+        self._client.register.Page.navigatedWithinDocument(self._on_navigated_within_document)
 
         await self._enable_current_page_sessions()
         self._recording = True
@@ -183,6 +191,9 @@ class _NetworkTraceRecorder:
                     target_id, focus=False
                 )
                 await session.cdp_client.send.Network.enable(session_id=session.session_id)
+                # Page.enable must be sent before the frame-navigation handlers
+                # registered in ``start()`` will receive events.
+                await session.cdp_client.send.Page.enable(session_id=session.session_id)
                 self._enabled_targets.add(target_id)
             except Exception as e:
                 logger.debug("Network trace enable failed for target %s: %s", target_id, e)
@@ -231,6 +242,20 @@ class _NetworkTraceRecorder:
             return
 
         entry = self._entry(request_id, session_id)
+
+        # Preserve redirect hops. CDP fires one requestWillBeSent per hop with
+        # the same requestId; the new event carries ``redirectResponse`` (the
+        # prior hop's response). Record the URL we had + that response's status
+        # before overwriting.
+        redirect_response = event.get("redirectResponse")
+        if redirect_response and entry.get("url"):
+            entry.setdefault("redirect_chain", []).append(
+                {
+                    "url": entry["url"],
+                    "status": redirect_response.get("status"),
+                }
+            )
+
         entry.update(
             {
                 "timestamp": event.get("timestamp"),
@@ -324,6 +349,39 @@ class _NetworkTraceRecorder:
         entry["error_text"] = event.get("errorText")
         entry["canceled"] = event.get("canceled")
 
+    def _on_frame_navigated(self, event: dict[str, Any], session_id: str | None = None) -> None:
+        if not self._recording:
+            return
+        frame = event.get("frame") or {}
+        # Top frame only — sub-frame navs don't carry the read surface the
+        # C1b classifier cares about.
+        if frame.get("parentId"):
+            return
+        self._nav_seq += 1
+        self._nav_events.append(
+            {
+                "url": frame.get("url") or "",
+                "navigation_type": event.get("type"),
+                "timestamp": time.time(),
+                "kind": "document",
+                "pageref": f"page_{self._nav_seq}",
+            }
+        )
+
+    def _on_navigated_within_document(
+        self, event: dict[str, Any], session_id: str | None = None
+    ) -> None:
+        if not self._recording:
+            return
+        self._nav_events.append(
+            {
+                "url": event.get("url") or "",
+                "navigation_type": event.get("navigationType"),
+                "timestamp": time.time(),
+                "kind": "within_document",
+            }
+        )
+
     # ------------------------------------------------------------------
     # Trace finalization
     # ------------------------------------------------------------------
@@ -377,22 +435,57 @@ class _NetworkTraceRecorder:
         # Extract cookies from Set-Cookie response headers.
         resp_cookies = self._parse_cookies_from_headers(resp_headers)
 
-        return {
+        resource_type = raw.get("type")
+        flat: dict[str, Any] = {
             "url": url,
             "method": raw.get("method", "GET"),
             "headers": headers,
             "query_params": query_params,
             "post_data": raw.get("post_data"),
             "response_status": raw.get("response_status"),
+            "response_mime_type": raw.get("response_mime_type"),
             "response_headers": resp_headers,
             "response_cookies": resp_cookies,
+            "is_document_load": resource_type == "Document",
+            "resource_type": resource_type,
         }
+        redirect_chain = raw.get("redirect_chain")
+        if redirect_chain:
+            flat["redirect_chain"] = list(redirect_chain)
+        return flat
 
     def _finalize_trace(self) -> list[dict[str, Any]]:
         """Return flat, evaluator-ready entries sorted by CDP timestamp."""
         raw_entries = list(self._requests.values())
         raw_entries.sort(key=lambda e: (e.get("timestamp") is None, e.get("timestamp", 0)))
-        return [self._flatten_entry(e) for e in raw_entries]
+        flat_entries = [self._flatten_entry(e) for e in raw_entries]
+
+        # Assign HAR ``pageref`` to each entry based on the most recent
+        # top-frame document navigation. Nav-event timestamps use
+        # ``time.time()`` and CDP entries carry ``wallTime`` (both wall-clock
+        # epoch seconds) so they are directly comparable.
+        doc_navs = sorted(
+            (
+                (nav.get("timestamp") or 0.0, nav.get("pageref") or "")
+                for nav in self._nav_events
+                if nav.get("kind") == "document" and nav.get("pageref")
+            ),
+            key=lambda item: item[0],
+        )
+        if doc_navs:
+            for raw, flat_entry in zip(raw_entries, flat_entries, strict=False):
+                wall = raw.get("wall_time")
+                if wall is None:
+                    continue
+                pageref = ""
+                for nav_time, nav_pageref in doc_navs:
+                    if nav_time <= wall:
+                        pageref = nav_pageref
+                    else:
+                        break
+                if pageref:
+                    flat_entry["pageref"] = pageref
+        return flat_entries
 
     def _write_trace(self, trace: list[dict[str, Any]]) -> None:
         """Write the flat internal trace and a valid HAR file.
@@ -404,7 +497,10 @@ class _NetworkTraceRecorder:
         the vendor rejected with ``"Unknown trace format"``.
         """
         # Import lazily to avoid a circular dep at module load time.
-        from worldsim.har_converter import flat_events_to_har_entries
+        from worldsim.har_converter import (
+            flat_events_to_har_entries,
+            nav_events_to_har_pages,
+        )
 
         try:
             (self._task_dir / "network_trace.json").write_text(
@@ -413,7 +509,15 @@ class _NetworkTraceRecorder:
         except Exception as e:
             logger.warning("Failed to write network_trace.json: %s", e)
 
+        try:
+            (self._task_dir / "navigation_trace.json").write_text(
+                json.dumps(self._nav_events, indent=2, default=str)
+            )
+        except Exception as e:
+            logger.warning("Failed to write navigation_trace.json: %s", e)
+
         har_entries = flat_events_to_har_entries(trace)
+        har_pages = nav_events_to_har_pages(self._nav_events)
         payload = {
             "log": {
                 "version": "1.2",
@@ -421,6 +525,7 @@ class _NetworkTraceRecorder:
                     "name": "worldsim",
                     "version": "phase-3-network-trace",
                 },
+                "pages": har_pages,
                 "entries": har_entries,
             }
         }
