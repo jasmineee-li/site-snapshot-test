@@ -29,6 +29,7 @@ from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
     get_client,
+    normalize_model_for_auth,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.strategy_catalog import REFUSAL_TRIGGERS, strategies_for_trigger
@@ -36,6 +37,12 @@ from worldsim.phase_4.trajectory_slice import slice_trajectory
 from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
+
+# stop_reason values the code branches on explicitly. Unknown values
+# (future SDK additions like pause_turn, refusal) get a warning log plus
+# the existing `no_tool_use` bucket so they surface in operator logs
+# instead of being silently indistinguishable from benign completions.
+_KNOWN_STOP_REASONS: frozenset[str] = frozenset({"tool_use", "end_turn", "max_tokens"})
 
 _JUDGE_TOOL: dict[str, Any] = {
     "name": "classify_refusal",
@@ -203,7 +210,7 @@ async def run_judge_api(
 
     async def _call() -> Any:
         return await client.messages.create(
-            model=sandbox_model,
+            model=normalize_model_for_auth(sandbox_model),
             max_tokens=2048,
             messages=messages,
             tools=[_JUDGE_TOOL],
@@ -236,6 +243,15 @@ async def run_judge_api(
     elapsed = time.monotonic() - t0
 
     stop_reason = getattr(response, "stop_reason", None)
+    if stop_reason not in _KNOWN_STOP_REASONS:
+        # Surfaces future SDK stop_reason values (pause_turn, refusal, etc.)
+        # so they hit operator logs rather than being silently indistinguishable
+        # from a normal no-tool_use completion.
+        logger.warning(
+            "judge got unknown stop_reason=%r for task %s; falling back to tool_use extraction",
+            stop_reason,
+            task_id,
+        )
     payload = _extract_tool_use(response)
     raw = {
         "task_id": task_id,

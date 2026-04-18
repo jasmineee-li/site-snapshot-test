@@ -271,6 +271,134 @@ async def test_oauth_token_sent_as_authorization_bearer_on_wire():
 
 
 @pytest.mark.asyncio
+async def test_preflight_check_routes_oauth_through_bearer_header(monkeypatch):
+    """End-to-end: CLAUDE_CODE_OAUTH_TOKEN in env → get_client →
+    AsyncAnthropic → messages.create emits Authorization: Bearer on the
+    wire. Covers the full production wiring, not just kwarg resolution.
+
+    The kwarg-level test above (`test_oauth_path_passes_auth_token_only`)
+    only proves our code passes `auth_token=` to the constructor. A
+    separate existing test (`test_oauth_token_sent_as_authorization_bearer_on_wire`)
+    proves the SDK transforms that to Bearer. This test closes the gap
+    in the middle: that *our* get_client → SDK path actually reaches the
+    wire with Bearer headers intact.
+    """
+    import httpx
+
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "e2e-oauth-tok")
+
+    captured: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update({k.lower(): v for k, v in request.headers.items()})
+        return httpx.Response(
+            200,
+            json={
+                "id": "msg_e2e_oauth",
+                "type": "message",
+                "role": "assistant",
+                "model": "claude-sonnet-4-6",
+                "content": [{"type": "text", "text": "ok"}],
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 1, "output_tokens": 1},
+            },
+        )
+
+    mock_transport = httpx.MockTransport(handler)
+    original = anthropic_client.AsyncAnthropic
+
+    def _wrapped_anthropic(**kwargs: Any) -> Any:
+        # Inject our mock transport so the SDK's request reaches our
+        # handler instead of the live endpoint. `http_client` is a real
+        # AsyncAnthropic kwarg; the SDK uses it verbatim.
+        kwargs["http_client"] = httpx.AsyncClient(transport=mock_transport)
+        return original(**kwargs)
+
+    monkeypatch.setattr(anthropic_client, "AsyncAnthropic", _wrapped_anthropic)
+
+    ok, err = await anthropic_client.preflight_check()
+    assert ok is True, f"preflight failed unexpectedly: {err}"
+    assert captured.get("authorization") == "Bearer e2e-oauth-tok", (
+        f"expected Bearer header through production wiring; got {captured.get('authorization')!r}"
+    )
+    assert "x-api-key" not in captured, (
+        f"x-api-key leaked when only OAuth should be configured: {captured.get('x-api-key')!r}"
+    )
+
+
+def test_normalize_model_for_auth_strips_vendor_prefix_for_anthropic_direct(monkeypatch):
+    """Anthropic-direct endpoint rejects `anthropic/claude-...` format.
+    When the active auth is OAuth or API-key, strip the vendor prefix."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    assert (
+        anthropic_client.normalize_model_for_auth("anthropic/claude-sonnet-4-6")
+        == "claude-sonnet-4-6"
+    )
+    assert anthropic_client.normalize_model_for_auth("claude-sonnet-4-6") == "claude-sonnet-4-6"
+
+
+def test_normalize_model_for_auth_preserves_prefix_for_openrouter(monkeypatch):
+    """OpenRouter expects `vendor/model` naming. Do not strip."""
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "sk-or-v1-test")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://openrouter.ai/api")
+    assert (
+        anthropic_client.normalize_model_for_auth("anthropic/claude-sonnet-4-6")
+        == "anthropic/claude-sonnet-4-6"
+    )
+
+
+def test_normalize_model_for_auth_passthrough_with_no_creds(monkeypatch):
+    """With no creds set, `get_client` will raise RuntimeError later — we
+    leave the model string unchanged rather than masking the underlying
+    misconfiguration."""
+    assert (
+        anthropic_client.normalize_model_for_auth("anthropic/claude-sonnet-4-6")
+        == "anthropic/claude-sonnet-4-6"
+    )
+
+
+def test_no_direct_async_anthropic_instantiation_outside_client_module():
+    """Structural guard: every phase_4 module that uses `AsyncAnthropic`
+    must route through `get_client()`. A direct `AsyncAnthropic(...)` call
+    in e.g. `judge_api.py` would bypass the conftest `patched_anthropic_client`
+    fixture and silently hit the live API during unit tests.
+
+    Type-hint references (`AsyncAnthropic | None = None`) are allowed;
+    only actual `ast.Call` nodes are rejected.
+    """
+    import ast
+    import pathlib
+
+    from worldsim import phase_4 as phase_4_pkg
+
+    phase_4_dir = pathlib.Path(phase_4_pkg.__file__).parent
+    violations: list[str] = []
+
+    for py_file in sorted(phase_4_dir.glob("*.py")):
+        if py_file.name in ("__init__.py", "anthropic_client.py"):
+            # anthropic_client.py is the one authorized place; __init__
+            # only re-exports and has no AsyncAnthropic calls.
+            continue
+        tree = ast.parse(py_file.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func = node.func
+                name: str | None = None
+                if isinstance(func, ast.Name):
+                    name = func.id
+                elif isinstance(func, ast.Attribute):
+                    name = func.attr
+                if name == "AsyncAnthropic":
+                    violations.append(f"{py_file.name}:{node.lineno}")
+
+    assert not violations, (
+        "phase_4 modules must route AsyncAnthropic construction through "
+        "anthropic_client.get_client(); direct instantiations found at " + ", ".join(violations)
+    )
+
+
+@pytest.mark.asyncio
 async def test_call_with_retry_honors_retry_after_header(monkeypatch):
     """A 529 with `Retry-After: N` must wait at least N seconds even if
     the jittered exponential backoff would wait less. Ignoring the hint

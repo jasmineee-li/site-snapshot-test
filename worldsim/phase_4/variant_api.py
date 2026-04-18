@@ -39,6 +39,7 @@ from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
     get_client,
+    normalize_model_for_auth,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES
@@ -51,6 +52,11 @@ logger = logging.getLogger(__name__)
 # context cap, not output-only.
 _INITIAL_MAX_TOKENS = 250_000
 _MAX_MAX_TOKENS = 500_000
+
+# stop_reason values the code branches on explicitly. Anything outside
+# this set gets a warning log + `no_tool_use` bucket so new SDK values
+# (e.g. `pause_turn`, `refusal`) surface loudly instead of silently.
+_KNOWN_STOP_REASONS: frozenset[str] = frozenset({"tool_use", "end_turn", "max_tokens"})
 
 _VARIANT_TOOL: dict[str, Any] = {
     "name": "build_variant",
@@ -193,6 +199,7 @@ async def generate_variant_api(
         skipped = copy.deepcopy(task)
         skipped["variant_status"] = {
             "status": "skipped",
+            "failure_class": "unknown_strategy",
             "reason": f"strategy {strategy_name!r} not in ALLOWED_STRATEGIES",
         }
         return skipped
@@ -207,7 +214,7 @@ async def generate_variant_api(
         # operations that may take longer than 10 minutes". The final
         # message has the same shape as a non-streaming response.
         async with client.messages.stream(
-            model=sandbox_model,
+            model=normalize_model_for_auth(sandbox_model),
             max_tokens=current_max_tokens,
             messages=messages,
             tools=[_VARIANT_TOOL],
@@ -218,6 +225,10 @@ async def generate_variant_api(
 
     attempts = 0
     last_error: str | None = None
+    # Track the latest failure bucket separately from the chained reason
+    # string. Downstream code should switch on failure_class; the reason
+    # is human-facing debug context (may chain across retries).
+    failure_class: str | None = None
     t0 = time.monotonic()
     response: Any = None
     payload: dict[str, Any] | None = None
@@ -248,29 +259,51 @@ async def generate_variant_api(
             break
 
         stop_reason = getattr(response, "stop_reason", None)
+        if stop_reason not in _KNOWN_STOP_REASONS:
+            # Unknown stop_reason (pause_turn, refusal, future SDK value).
+            # Falls through to tool_use extraction below — if a tool_use
+            # block is still present, we use it; if not, no_tool_use
+            # preserves the stop_reason in its reason string.
+            logger.warning(
+                "variant gen got unknown stop_reason=%r for task %s strategy %s; "
+                "falling back to tool_use extraction",
+                stop_reason,
+                task_id,
+                strategy_name,
+            )
+
         if stop_reason == "max_tokens":
             if max_tokens < _MAX_MAX_TOKENS:
                 max_tokens = _MAX_MAX_TOKENS
+                failure_class = "response_truncated"
                 _append_err("response_truncated")
                 continue
             # Already at ceiling; don't silently fall through to parse a
             # truncated tool_use block.
+            failure_class = "response_truncated"
             _append_err(f"response_truncated (at ceiling {_MAX_MAX_TOKENS})")
             break
 
         payload = _extract_tool_use(response)
         if payload is None:
+            failure_class = "no_tool_use"
             _append_err(f"no_tool_use (stop_reason={stop_reason})")
             break
 
         status = payload.get("status")
         if status == "inapplicable":
+            # Successful parse; strategy doesn't fit this task.
+            # Not a failure — clear failure_class so the inapplicable
+            # return path below doesn't inherit a stale bucket from a
+            # prior max_tokens retry.
+            failure_class = None
             break
 
         applied = payload.get("applied_strategy") or {}
         applied_name = applied.get("strategy")
         if applied_name != strategy_name:
             # Model ignored the strategy. Try once more.
+            failure_class = "strategy_mismatch"
             _append_err(f"strategy_mismatch: requested={strategy_name!r}, applied={applied_name!r}")
             if attempts < 2:
                 continue
@@ -290,6 +323,7 @@ async def generate_variant_api(
         skipped = copy.deepcopy(task)
         skipped["variant_status"] = {
             "status": "failed",
+            "failure_class": failure_class or "no_tool_use",
             "reason": last_error or "no_tool_use",
         }
         return skipped
@@ -308,6 +342,7 @@ async def generate_variant_api(
         skipped = copy.deepcopy(task)
         skipped["variant_status"] = {
             "status": "failed",
+            "failure_class": "unexpected_tool_status",
             "reason": f"unexpected tool status={status!r}",
         }
         return skipped
@@ -318,6 +353,7 @@ async def generate_variant_api(
         skipped = copy.deepcopy(task)
         skipped["variant_status"] = {
             "status": "failed",
+            "failure_class": "strategy_mismatch",
             "reason": last_error or "strategy_mismatch persisted after retry",
         }
         return skipped

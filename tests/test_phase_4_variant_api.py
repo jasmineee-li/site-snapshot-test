@@ -266,6 +266,152 @@ async def test_truncate_then_mismatch_reports_both_errors(
 
 
 @pytest.mark.asyncio
+async def test_failed_variant_carries_failure_class_on_strategy_mismatch(
+    patched_anthropic_client, sample_task, strategy
+):
+    """After the retry-once exhausts on strategy_mismatch, the returned
+    variant_status must carry a structured `failure_class` value so
+    downstream code can switch on it without parsing `reason`."""
+    wrong = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor"},
+            "applied_strategy": {
+                "strategy": "semantic_coherence",
+                "description": "wrong",
+                "injection_content": "x",
+            },
+        }
+    )
+    patched_anthropic_client.messages.create.side_effect = [wrong, wrong]
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "strategy_mismatch"
+
+
+@pytest.mark.asyncio
+async def test_failed_variant_carries_failure_class_on_api_error(
+    patched_anthropic_client, sample_task, strategy
+):
+    """API-exception failures surface as structured `failure_class`
+    values (classify_api_exception buckets), matching judge_api contract."""
+    patched_anthropic_client.messages.create.side_effect = _api_status_error(402)
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "insufficient_credits"
+
+
+@pytest.mark.asyncio
+async def test_failed_variant_carries_failure_class_on_response_truncated(
+    patched_anthropic_client, sample_task, strategy
+):
+    """Both attempts at max_tokens ceiling → failure_class=response_truncated."""
+    truncated = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor"},
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "partial",
+                "injection_content": "",
+            },
+        },
+        stop_reason="max_tokens",
+    )
+    patched_anthropic_client.messages.create.side_effect = [truncated, truncated]
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "response_truncated"
+
+
+@pytest.mark.asyncio
+async def test_skipped_variant_carries_failure_class_on_unknown_strategy(
+    patched_anthropic_client, sample_task
+):
+    """Unknown strategy → status=skipped + failure_class=unknown_strategy.
+    Downstream filtering by failure_class should catch both failed AND
+    skipped variants in a single switch."""
+    bogus = {"strategy": "not_a_strategy", "rationale": "", "guidance": ""}
+    result = await generate_variant_api(sample_task, bogus)
+    assert result["variant_status"]["status"] == "skipped"
+    assert result["variant_status"]["failure_class"] == "unknown_strategy"
+
+
+@pytest.mark.asyncio
+async def test_truncate_then_mismatch_final_failure_class_is_mismatch(
+    patched_anthropic_client, sample_task, strategy
+):
+    """Chained failure: attempt 1 truncates, attempt 2 mismatches. The
+    `reason` string must chain both (existing contract); the new
+    `failure_class` reflects the FINAL failure — strategy_mismatch. This
+    disambiguates truncation (fixable with a larger budget) from mismatch
+    (model ignored the strategy)."""
+    truncated = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor"},
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "partial",
+                "injection_content": "",
+            },
+        },
+        stop_reason="max_tokens",
+    )
+    mismatch = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "applied_strategy": {
+                "strategy": "semantic_coherence",
+                "description": "retried",
+                "injection_content": "y",
+            },
+        }
+    )
+    patched_anthropic_client.messages.create.side_effect = [truncated, mismatch]
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "strategy_mismatch"
+    reason = result["variant_status"]["reason"]
+    assert "response_truncated" in reason
+    assert "strategy_mismatch" in reason
+
+
+@pytest.mark.asyncio
+async def test_inapplicable_variant_has_no_failure_class(
+    patched_anthropic_client, sample_task, strategy
+):
+    """inapplicable is a successful-classification outcome, not a
+    failure. No `failure_class` should be set."""
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {"status": "inapplicable", "reason": "field too short for delimiters"}
+    )
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "inapplicable"
+    assert "failure_class" not in result["variant_status"]
+
+
+@pytest.mark.asyncio
+async def test_ok_variant_has_no_failure_class(patched_anthropic_client, sample_task, strategy):
+    """Happy path must not carry a failure_class field."""
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "fine",
+                "injection_content": "p",
+            },
+        }
+    )
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "ok"
+    assert "failure_class" not in result["variant_status"]
+
+
+@pytest.mark.asyncio
 async def test_max_tokens_retries_then_still_truncated_fails(
     patched_anthropic_client, sample_task, strategy
 ):

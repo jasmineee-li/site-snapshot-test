@@ -95,7 +95,7 @@ Refusal taxonomy: **7** (added `distracted` and `unknown`).
 - Phase 4 placement-fix loop (`_run_placement_fix_loop` → `_revise_adversarial_task`)
 - Phase 4 ecoval-fix loop (`_run_ecological_validity_fix_loop` → `_revise_adversarial_task`)
 
-`_revise_adversarial_task` at `phase_4_adversarial.py:2752` is intentionally untouched — it is reused by the ecoval and placement fix flows, which do not exhibit the same refusal pattern (they ask Claude to *rewrite ecological validity* or *reposition injection*, not to *recommend attack strategies*).
+`_revise_adversarial_task` at `phase_4_adversarial.py:2771` is intentionally untouched — it is reused by the ecoval and placement fix flows, which do not exhibit the same refusal pattern (they ask Claude to *rewrite ecological validity* or *reposition injection*, not to *recommend attack strategies*).
 
 ---
 
@@ -208,7 +208,11 @@ Observed empirically in the judge smoke test: the refused trajectory for `adv_sh
 
 - Judge: SDK `max_retries=5` handles 429/500/503. Explicit 529 backoff wrapper (`call_with_retry`) for overload responses.
 - Variant: one retry on `applied_strategy.strategy != target_strategy.strategy` (model ignored the pre-selected strategy). One retry at `max_tokens=500_000` on `stop_reason="max_tokens"` (initial budget `250_000`; streaming required at these sizes). Errors across the two attempts are concatenated into `variant_status.reason` so a truncate-then-mismatch sequence reports both causes.
-- Both: `failure_class` enum buckets API/parse/taxonomy/auth failures (`api_error`, `auth_invalid` [401], `insufficient_credits` [402], `quota_exceeded` [403], `no_tool_use`, `taxonomy_error`, `missing_seed`, `missing_trajectory`, `response_truncated`, `strategy_mismatch`).
+- Both: `failure_class` enum buckets API/parse/taxonomy/auth failures. Judge (`judge_api.py`) returns `failure_class` at the top level of its result dict. Variant (`variant_api.py`) returns `failure_class` inside `variant_status` whenever `variant_status.status in {"failed", "skipped"}`; it is omitted on `"ok"` and `"inapplicable"` (the latter is a successful non-failure outcome).
+  - Shared buckets from `classify_api_exception`: `api_error`, `auth_invalid` (401), `insufficient_credits` (402), `quota_exceeded` (403).
+  - Judge-only: `missing_seed`, `missing_trajectory`, `no_tool_use`, `taxonomy_error`.
+  - Variant-only: `unknown_strategy` (strategy not in `ALLOWED_STRATEGIES`; skipped without calling the API), `response_truncated` (both attempts hit the `max_tokens=500_000` ceiling), `no_tool_use`, `strategy_mismatch` (applied_strategy != target after retry), `unexpected_tool_status` (tool returned a `status` value other than `ok` / `inapplicable`).
+  - On a chained failure (e.g. attempt 1 `response_truncated`, attempt 2 `strategy_mismatch`), `failure_class` reflects the **final** failure mode; the full chain is preserved in `variant_status.reason`.
 
 ---
 
@@ -218,7 +222,7 @@ Observed empirically in the judge smoke test: the refused trajectory for `adv_sh
 
 `run_judge(task, trajectory_dir, profile_path, *, sandbox_model)` and `generate_variant(task, strategy, profile_path, *, sandbox_model)` preserve their pre-cutover signatures. `profile_path` is accepted but not forwarded (the API call doesn't need the benchmark profile).
 
-`_revise_adversarial_task` at `phase_4_adversarial.py:2752` is untouched — ecoval-fix and placement-fix still use it against the sandbox.
+`_revise_adversarial_task` at `phase_4_adversarial.py:2771` is untouched — ecoval-fix and placement-fix still use it against the sandbox.
 
 ### 5.2 Downstream status handling
 
@@ -234,12 +238,14 @@ Observed empirically in the judge smoke test: the refused trajectory for `adv_sh
 
 ### 5.4 Auth compatibility
 
-`worldsim/phase_4/anthropic_client.py` precedence matches `_call_anthropic_fallback` at `worldsim/phases/phase_2_text_fill.py:626`:
+`worldsim/phase_4/anthropic_client.py` precedence matches the sandbox-side authority `worldsim.modal_sandbox._build_claude_secrets`:
 1. OpenRouter (`ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`)
 2. Anthropic direct + OAuth (`CLAUDE_CODE_OAUTH_TOKEN`)
 3. Anthropic direct + API key (`ANTHROPIC_API_KEY`)
 
-Empty-string env values are treated as unset (matches `modal_sandbox.py:124` convention). OAuth tokens DO work with the Messages API via `Authorization: Bearer` header.
+Phase 2's `_call_anthropic_fallback` at `worldsim/phases/phase_2_text_fill.py:626` covers only tiers 2 and 3; OpenRouter routing in phase_2 lives in a sibling `_call_openrouter` at line 604. The `modal_sandbox` helper is the single function that captures all three tiers with the same empty-string semantics, so it is the canonical reference.
+
+Empty-string env values are treated as unset (matches `modal_sandbox.py:124` convention). OAuth tokens DO work with the Messages API via `Authorization: Bearer` header — the SDK's `auth_token=` constructor kwarg emits `Authorization: Bearer <token>` on every request (verified by `tests/test_phase_4_anthropic_client.py::test_oauth_token_sent_as_authorization_bearer_on_wire` and the end-to-end production-wrapper coverage at `::test_preflight_check_routes_oauth_through_bearer_header`).
 
 ### 5.5 No test suite regressions
 

@@ -536,19 +536,15 @@ async def run(args: argparse.Namespace) -> int:
     # N tasks have already burned eval cost each. See review item I.1.
     # Set WORLDSIM_PHASE_4_SKIP_PREFLIGHT=1 to bypass — used by crash-resume
     # tests that run in scrubbed-env subprocesses and mock the judge anyway.
-    # Skipped on active resume so an operator who rotated credentials can
-    # still pick up already-complete task results on disk; the first real
-    # API call will surface any remaining auth issue per-task.
-    resuming_phase_4 = bool(
-        prior_state and prior_state.get("step") == "phase_4" and prior_state.get("task_dir_root")
-    )
+    #
+    # Preflight runs on --resume too: incomplete tasks still need a working
+    # credential for the host-side judge/variant API path, and a rotated-to-
+    # wrong token is a failure mode we want surfaced before Browser-Use eval
+    # time is spent on the first incomplete task. Already-complete tasks on
+    # disk are unaffected (checkpoints are consulted per-task, not gated on
+    # preflight).
     if os.environ.get("WORLDSIM_PHASE_4_SKIP_PREFLIGHT", "").strip() in ("1", "true", "True"):
         logger.info("Phase 4 preflight SKIPPED (WORLDSIM_PHASE_4_SKIP_PREFLIGHT set)")
-    elif resuming_phase_4:
-        logger.info(
-            "Phase 4 preflight SKIPPED (active resume; first API call will surface "
-            "auth issues per-task)"
-        )
     else:
         from worldsim.phase_4.anthropic_client import preflight_check
 

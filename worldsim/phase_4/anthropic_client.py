@@ -57,6 +57,51 @@ def classify_api_exception(exc: BaseException) -> str:
     return "api_error"
 
 
+def _resolved_auth_path() -> str | None:
+    """Return the auth path that `get_client` would pick, without raising.
+
+    `"openrouter"` if OpenRouter envs are set, `"oauth"` if only
+    OAuth is set, `"anthropic_api"` for API-key, or None if no
+    credentials are available. Used by `normalize_model_for_auth` to
+    strip OpenRouter-style `vendor/` prefixes before hitting
+    api.anthropic.com.
+    """
+    auth_token = _nonempty("ANTHROPIC_AUTH_TOKEN")
+    base_url = _nonempty("ANTHROPIC_BASE_URL")
+    if auth_token and base_url:
+        return "openrouter"
+    if _nonempty("CLAUDE_CODE_OAUTH_TOKEN"):
+        return "oauth"
+    if _nonempty("ANTHROPIC_API_KEY"):
+        return "anthropic_api"
+    return None
+
+
+def normalize_model_for_auth(model: str) -> str:
+    """Strip `vendor/` prefix when the active auth path is Anthropic-direct.
+
+    OpenRouter uses `anthropic/claude-sonnet-4-6` naming. Anthropic-direct
+    (`api.anthropic.com`) rejects that with "unknown model" and expects
+    the bare `claude-sonnet-4-6`. Mirrors
+    `worldsim.phases.phase_2_text_fill._direct_anthropic_model_name` so a
+    single `--sandbox-model` flag value works against either endpoint.
+
+    When no credentials are configured (`_resolved_auth_path()` returns
+    None), we leave the model string unchanged — the downstream SDK call
+    will raise a clearer `RuntimeError` via `get_client()` anyway.
+    """
+    if not model:
+        return model
+    auth_path = _resolved_auth_path()
+    if auth_path in ("oauth", "anthropic_api") and "/" in model:
+        return model.split("/", 1)[1]
+    # OpenRouter keeps `vendor/model` naming. No creds resolves to no
+    # normalization either — `get_client()` will raise cleanly on the
+    # missing-credentials path, and we don't want to mask that by
+    # silently mutating the model string.
+    return model
+
+
 def _resolve_auth() -> tuple[str, dict[str, str]]:
     """Return `(auth_path, kwargs)` for `AsyncAnthropic(**kwargs)`.
 
