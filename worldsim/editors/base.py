@@ -10,12 +10,56 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+_RESPONSE_SNIPPET_MAX_CHARS = 512
+
+
+def _truncate_snippet(text: str | None) -> str | None:
+    if not text:
+        return None
+    if len(text) <= _RESPONSE_SNIPPET_MAX_CHARS:
+        return text
+    return text[:_RESPONSE_SNIPPET_MAX_CHARS] + "…"
+
 
 class EditorError(RuntimeError):
-    def __init__(self, kind: str, detail: str) -> None:
+    def __init__(
+        self,
+        kind: str,
+        detail: str,
+        *,
+        http_status: int | None = None,
+        response_snippet: str | None = None,
+    ) -> None:
         super().__init__(detail)
         self.kind = kind
         self.detail = detail
+        self.http_status = http_status
+        self.response_snippet = response_snippet
+
+
+# Informational: the canonical taxonomy raised by editors + seeding. No code
+# currently validates against a closed set; this is a human-reference list.
+EDITOR_ERROR_KINDS: frozenset[str] = frozenset(
+    {
+        "auth_missing",
+        "cleanup_failed",
+        "content_policy",
+        "cross_origin_form_action",
+        "empty_seed",
+        "field_required",
+        "form_missing",
+        "invalid_args",
+        "length_exceeded",
+        "missing_site_url",
+        "request_failed",
+        "schema_mismatch",
+        "site_mismatch",
+        "unexpected_redirect",
+        "unreachable",
+        "unsupported_method",
+        "unsupported_site",
+    }
+)
 
 
 class _FormParser(HTMLParser):
@@ -141,6 +185,57 @@ class BaseSiteEditor:
     def preview_context(self, method_name: str, args: dict[str, Any]) -> dict[str, Any]:
         return {}
 
+    def _classify_4xx_response(
+        self,
+        method: str,
+        path: str,
+        response: requests.Response,
+    ) -> tuple[str, str] | None:
+        """Classify a 4xx response beyond the generic ``request_failed`` kind.
+
+        Subclasses override this to detect platform-level rejection patterns
+        (``length_exceeded``, ``field_required``, ``content_policy``). The
+        base implementation has no opinion and returns ``None`` so callers
+        fall through to the existing generic ``request_failed`` raise.
+
+        Called only for 4xx responses that are not 401 or 403 (auth errors
+        are already classified separately).
+        """
+        return None
+
+    def _raise_classified_4xx(
+        self,
+        method: str,
+        path: str,
+        response: requests.Response,
+    ) -> None:
+        """Raise a classified ``EditorError`` for a 4xx response, if possible.
+
+        No-op for non-4xx, 401, 403, or when the subclass hook returns
+        ``None`` (the caller then proceeds to its existing
+        ``raise_for_status``/``request_failed`` branch).
+        """
+        status = response.status_code
+        if not (400 <= status < 500) or status in {401, 403}:
+            return
+        try:
+            classified = self._classify_4xx_response(method, path, response)
+        except Exception:  # pragma: no cover - defensive
+            logger.exception(
+                "%s editor _classify_4xx_response raised; falling back to request_failed",
+                self.site_name,
+            )
+            return
+        if classified is None:
+            return
+        kind, detail = classified
+        raise EditorError(
+            kind,
+            detail,
+            http_status=status,
+            response_snippet=_truncate_snippet(response.text),
+        )
+
     def cleanup(self) -> None:
         failures: list[str] = []
         for fn in reversed(self._cleanup_stack):
@@ -205,12 +300,15 @@ class BaseSiteEditor:
                 "auth_missing",
                 f"{self.site_name} editor request for {path} returned HTTP {response.status_code}",
             )
+        self._raise_classified_4xx(method, path, response)
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
             raise EditorError(
                 "request_failed",
                 f"{self.site_name} editor request for {path} returned HTTP {response.status_code}",
+                http_status=response.status_code,
+                response_snippet=_truncate_snippet(response.text),
             ) from exc
         if not response.text:
             return {}
@@ -249,12 +347,15 @@ class BaseSiteEditor:
                 "auth_missing",
                 f"{self.site_name} editor request for {path} returned HTTP {response.status_code}",
             )
+        self._raise_classified_4xx(method, path, response)
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
             raise EditorError(
                 "request_failed",
                 f"{self.site_name} editor request for {path} returned HTTP {response.status_code}",
+                http_status=response.status_code,
+                response_snippet=_truncate_snippet(response.text),
             ) from exc
         return response
 
@@ -278,12 +379,15 @@ class BaseSiteEditor:
                 "auth_missing",
                 f"{self.site_name} editor form GET {path} returned HTTP {response.status_code}",
             )
+        self._raise_classified_4xx("GET", path, response)
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
             raise EditorError(
                 "request_failed",
                 f"{self.site_name} editor form GET {path} returned HTTP {response.status_code}",
+                http_status=response.status_code,
+                response_snippet=_truncate_snippet(response.text),
             ) from exc
         return response
 
@@ -314,12 +418,15 @@ class BaseSiteEditor:
                 "auth_missing",
                 f"{self.site_name} editor form POST {path} returned HTTP {response.status_code}",
             )
+        self._raise_classified_4xx("POST", path, response)
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
             raise EditorError(
                 "request_failed",
                 f"{self.site_name} editor form POST {path} returned HTTP {response.status_code}",
+                http_status=response.status_code,
+                response_snippet=_truncate_snippet(response.text),
             ) from exc
         return response
 
@@ -368,12 +475,15 @@ class BaseSiteEditor:
                 "auth_missing",
                 f"{self.site_name} editor form POST {action_path} returned HTTP {response.status_code}",
             )
+        self._raise_classified_4xx("POST", action_path, response)
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
             raise EditorError(
                 "request_failed",
                 f"{self.site_name} editor form POST {action_path} returned HTTP {response.status_code}",
+                http_status=response.status_code,
+                response_snippet=_truncate_snippet(response.text),
             ) from exc
         return response
 

@@ -1,0 +1,22 @@
+{
+  "id": "FEAS-SHOPPING-OVERSIZE-{UNIQUE}",
+  "site": "shopping",
+  "benign_task_id": "feas-benign-shopping-{UNIQUE}",
+  "instruction": "Synthetic feasibility fixture (oversize).",
+  "adversarial_data_seed": {
+    "mechanism": "editor",
+    "editor_calls": [
+      {
+        "benchmark": "webarena_verified",
+        "site": "shopping",
+        "method": "create_product_review",
+        "args": {
+          "title": "Title far in excess of Magento review title cap so feasibility flags this payload",
+          "nickname": "WorldSim{UNIQUE}",
+          "entity_pk_value": 1,
+          "detail": "This detail is padded well past the Magento review column bounds — Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum. Repeat block one Lorem ipsum dolor sit amet. Repeat block two Lorem ipsum dolor sit amet. Repeat block three Lorem ipsum dolor sit amet. Repeat block four Lorem ipsum dolor sit amet. Repeat block five Lorem ipsum dolor sit amet. Repeat block six Lorem ipsum dolor sit amet. Repeat block seven Lorem ipsum dolor sit amet. Repeat block eight Lorem ipsum dolor sit amet. Repeat block nine Lorem ipsum dolor sit amet. Repeat block ten Lorem ipsum dolor sit amet."
+        }
+      }
+    ]
+  }
+}

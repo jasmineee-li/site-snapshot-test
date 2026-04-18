@@ -10,6 +10,21 @@ from worldsim.phases import phase_2_injections
 from worldsim.state import save_state
 
 
+def _strip_feasibility(tasks: list[dict]) -> list[dict]:
+    """Drop the Phase 2c feasibility stanza so pre-2c tests still compare cleanly.
+
+    The tests in this module predate Phase 2c and assert on the adversarial
+    task shape produced by 2a+2b. Runs pass ``skip_feasibility=True`` which
+    stamps each task ``feasibility.status="unverified"`` — we remove that key
+    before asserting so the pre-existing expected shapes still hold.
+    """
+    stripped: list[dict] = []
+    for task in tasks:
+        copy = {key: value for key, value in task.items() if key != "feasibility"}
+        stripped.append(copy)
+    return stripped
+
+
 def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) -> dict:
     return {
         "type": "db_row_value",
@@ -788,7 +803,11 @@ def test_validate_adversarial_task_contract_rejects_editor_call_site_mismatch():
             },
             "reward_function": {
                 "benign_reward": _benign_task()["reward_function"],
-                "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+                "adversarial_reward": {
+                    "type": "db_query_match",
+                    "query": "SELECT 1",
+                    "expected": 1,
+                },
             },
         },
         _benign_task(),
@@ -1332,7 +1351,9 @@ def test_validate_adversarial_task_contract_rejects_editor_map_seed():
         site_profile,
     )
 
-    assert violation == "target-based map seeds must be quarantined instead of validated for execution"
+    assert (
+        violation == "target-based map seeds must be quarantined instead of validated for execution"
+    )
 
 
 def test_validate_adversarial_task_contract_rejects_placeholder_postcondition_selector():
@@ -1488,12 +1509,12 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
 
     monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
 
-    rc = await phase_2_injections.run(Namespace())
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
 
     assert rc == 0
     output_path = tmp_path / "phase_2" / "adversarial_tasks.json"
     assert output_path.exists()
-    assert json.loads(output_path.read_text()) == [{"id": "adv-1"}]
+    assert _strip_feasibility(json.loads(output_path.read_text())) == [{"id": "adv-1"}]
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "partial_complete"
     assert state["partial"] is True
@@ -1582,10 +1603,12 @@ async def test_phase_2_run_reuses_existing_final_tasks_for_text_fill_resume(monk
 
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fail_fill)
 
-    rc = await phase_2_injections.run(Namespace())
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
 
     assert rc == 0
-    assert json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text()) == [final_task]
+    assert _strip_feasibility(
+        json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text())
+    ) == [final_task]
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "complete"
     assert state["phase_2_stage"] == "complete"
@@ -1638,12 +1661,12 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
 
     monkeypatch.setattr(phase_2_injections, "preflight_auth_check", fail_preflight)
 
-    rc = await phase_2_injections.run(Namespace())
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
 
     assert rc == 0
-    assert json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text()) == [
-        legacy_task
-    ]
+    assert _strip_feasibility(
+        json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text())
+    ) == [legacy_task]
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "complete"
     assert state["phase_2_stage"] == "complete"
@@ -1727,10 +1750,12 @@ async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monke
     monkeypatch.setattr(phase_2_injections, "preflight_auth_check", fail_preflight)
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
 
-    rc = await phase_2_injections.run(Namespace())
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
 
     assert rc == 0
-    assert json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text()) == [finalized]
+    assert _strip_feasibility(
+        json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text())
+    ) == [finalized]
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["phase_2_stage"] == "complete"
 
@@ -1762,11 +1787,13 @@ async def test_phase_2_run_rejects_stale_same_site_reused_tasks(monkeypatch, tmp
 
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
 
-    rc = await phase_2_injections.run(Namespace())
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
 
     assert rc == 0
     assert calls["count"] == 1
-    assert json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text()) == [fresh]
+    assert _strip_feasibility(
+        json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text())
+    ) == [fresh]
 
 
 @pytest.mark.asyncio
@@ -1795,7 +1822,7 @@ async def test_phase_2_run_rejects_reuse_when_texts_per_plan_increases(monkeypat
 
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
 
-    rc = await phase_2_injections.run(Namespace(phase_2b_texts_per_plan=2))
+    rc = await phase_2_injections.run(Namespace(phase_2b_texts_per_plan=2, skip_feasibility=True))
 
     assert rc == 0
     assert calls["count"] == 1

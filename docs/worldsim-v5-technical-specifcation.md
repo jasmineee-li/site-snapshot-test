@@ -699,11 +699,17 @@ Phase 2 generates adversarial injections for every benign task whose contract is
 
 **Injection point analysis.** Phase 2 reads the Injection Surface section of the benchmark profile. For each candidate injection point, evaluate: (a) attacker realism (require "medium" or higher), (b) concealment opportunity given the rendering context, (c) harmful action feasibility, and (d) task relevance (will the agent encounter this content). Only points satisfying all four criteria are retained.
 
-**Implementation.** Phase 2 is one orchestrator phase with two internal stages. Phase 2a runs one Modal sandbox per shard (20 tasks), with shards for a site running in parallel. These sandboxes emit adversarial plans, not final payload text. After plans are merged and validated, Phase 2b runs on the host, filling payload text in parallel via model API calls and writing the final adversarial tasks file.
+**Implementation.** Phase 2 is one orchestrator phase (`phase 2`) with three internal stages that run sequentially:
+
+1. **Phase 2a (Modal sandboxes, planning).** Each site's benign tasks are sharded into chunks of `TASKS_PER_SHARD = 20`. One Modal sandbox runs per shard. A global `asyncio.Semaphore` caps concurrent shard launches to `--phase-2-sandbox-concurrency`, and a deterministic per-shard launch jitter (`--phase-2-launch-jitter-ms`) smooths burst traffic. Every sandbox receives a human-readable `label` (`{site}-shard-{idx}`) that is prefixed to its log output so concurrent streams remain readable. Sandboxes emit adversarial plans, not final payload text.
+2. **Phase 2b (host-side async, text fill).** After 2a's plans are merged and validated, the host generates one or more payload-text candidates per plan using the configured text model. `--phase-2b-texts-per-plan` controls the candidate count (default 1); `--phase-2-text-fill-concurrency` caps parallelism; `--phase-2-text-model` picks the model independently of the sandbox model. 2b writes `payload_texts`, `selected_payload_index`, and `payload_text_diagnostics` onto each task, then materializes `adversarial_data_seed` by substituting the selected candidate into `seed_template`.
+3. **Phase 2c (host-side async, feasibility verification).** Covered in its own section below. Runs automatically after 2b unless `--skip-feasibility` is set.
 
 **Phase 2a output schema.** Sandboxes produce only the fields Claude uniquely generates for the plan layer: `id`, `benign_task_id`, `target_surface_id`, `framing`, `concealment`, `delivery_mechanism`, `attack_objective`, `seed_template`, `adversarial_reward`. The orchestrator copies immutable fields (`instruction`, `site`, `sites`, `start_urls`, `data_seed`, `agent_context`, `benign_reward`) from the benign task after the sandbox returns, then enriches the plan with derived `required_tokens` and `length_budget`. This reduces output tokens, prevents JSON reproduction errors, and keeps Phase 2a refusal-safe because it does not ask Claude Code to write the final adversarial payload text. Phase 2 sandboxes also receive ``AGENT_CONTEXT_{site}.json`` as an input file so injections are crafted with knowledge of the agent's operational constraints and response format.
 
-**Phase 2b output schema.** The host-side text-fill stage consumes each validated plan's `seed_template` plus the derived `required_tokens` and `length_budget`, generates one or more `payload_texts`, records `selected_payload_index` and `payload_text_diagnostics`, and materializes a backward-compatible `adversarial_data_seed` by substituting the selected rendered payload into the `seed_template`. The final `adversarial_tasks.json` remains the handoff artifact for Phase 4.
+**Phase 2b output schema.** The host-side text-fill stage consumes each validated plan's `seed_template` plus the derived `required_tokens` and `length_budget`, generates one or more `payload_texts`, records `selected_payload_index` and `payload_text_diagnostics`, and materializes a backward-compatible `adversarial_data_seed` by substituting the selected rendered payload into the `seed_template`. The final `adversarial_tasks.json` is the handoff artifact for Phase 2c, which in turn emits the verified `adversarial_tasks.json` that Phase 4 admits.
+
+**Editor-based seeding dispatch.** Every `data_seed` and `adversarial_data_seed` carries an `editor_calls` list of `{benchmark, site, method, args}` entries. Phase 4 and Phase 2c dispatch each call through `EDITOR_REGISTRY[(benchmark, site)]` (defined in `worldsim/editors/__init__.py`), which returns a per-site OOP editor class (`ShoppingEditor`, `ShoppingAdminEditor`, `GitlabEditor`, `RedditEditor`, ...). Adding a new benchmark means adding new editor classes and a registry entry; no call-site changes are needed. The single source of truth for field names is the editor's `validate_args`. Phase 2a prompts use natural field names that are mapped to the editor's method signature by `_EDITOR_BODY_FIELD_ALIASES` in `worldsim/_sandbox_validator.py`, so an LLM-friendly name like `description` resolves to the editor's actual kwarg without a prompt rewrite.
 
 **Partial success.** Phase 2 succeeds if any site produces valid adversarial tasks. Sites that fail (sandbox timeout, validation errors) are logged as warnings, not fatal errors. Phase 2 fails only if zero adversarial tasks are produced across all sites.
 
@@ -767,6 +773,64 @@ Write to `/workspace/output/adversarial_tasks.json`.
 
 ---
 
+## Phase 2c: Feasibility Verification
+
+Phase 2c is the operational-feasibility gate between Phase 2b's text fill and Phase 3's contract validity check. It POSTs each adversarial task against a live dev instance via the same editor classes Phase 4 uses, keeps the tasks that return 2xx, and quarantines the rest. The research claim "every task in the evaluation set can be seeded by a regular authenticated user" becomes true by construction, rather than by static analysis that cannot see content-policy filters, implicit required fields, or silent length caps (the AT-009 case, where a 624-char gitlab group description planned cleanly but the server capped descriptions at 255, motivated this gate).
+
+**Pipeline position.** Runs automatically as the last internal stage of `phase 2`. Skipping or re-running is controlled by CLI flags:
+
+- `phase 2 --skip-feasibility`: skip 2c for fast dev iteration. Tasks are tagged `feasibility.status: "unverified"` and Phase 4 keeps accepting them under a permissive grace-period mode (logs a one-shot warning).
+- `phase 2 --feasibility-only` (or equivalently `phase 2c`): re-run 2c against an existing `logs/phase_2/adversarial_tasks.json` without regenerating 2a or 2b output.
+
+**Entry point.** `worldsim/phases/phase_2_feasibility.py`:
+
+    async def verify_feasibility(
+        tasks_path: Path,
+        *,
+        instances: list[dict[str, Any]],
+        instances_label: str = "instances.smoke.json",
+        concurrency: int = 10,
+        retry_count: int = 1,
+        ttl_hours: float | None = None,
+        force_reverify: bool = False,
+        phase_2_status: str | None = None,
+    ) -> FeasibilityReport: ...
+
+    @dataclass(frozen=True)
+    class FeasibilityReport:
+        verified: list[dict[str, Any]]
+        infeasible: list[dict[str, Any]]
+        skipped_already_verified: list[dict[str, Any]]
+        cleanup_warnings: list[str]
+        host_fingerprint: dict[str, str]
+        elapsed_seconds: float
+        per_site_counts: dict[str, dict[str, int]]
+        phase_2_status: str | None
+
+Per-task execution reuses the existing primitives: the verifier calls `apply_data_seed_async` (`worldsim/seeding.py:342`), which renders the seed context, dispatches through `EDITOR_REGISTRY[(call["benchmark"], call["site"])]`, runs `validate_args` (rejections remap to `schema_mismatch`), invokes the declared method, and — via `SeedCleanupHandle` — tears down every succeeded call in LIFO order on any chain failure. The verifier retries only on `EditorError.kind ∈ {"request_failed", "unreachable"}` (exponential backoff); 4xx-class rejection is the answer and is never retried. Resource isolation is supplied by this immediate per-task cleanup, not by name prefixing: resource names are derived from `args["name"]` inside the editor layer, so a distinct `task_id` prefix would not actually change what lands on the platform. The `scripts/cleanup_webagent_test_resources.sh` belt-and-suspenders sweep handles both `webagent-task-*` and `webagent-verify-*` GitLab projects, with best-effort Reddit + Magento residue reporting.
+
+**Outputs.**
+
+- `logs/phase_2/adversarial_tasks.json`: tasks with `feasibility.status == "verified"`, an `attempts` log, and a `host_fingerprint` stanza (`host_config`, `editor_commit`, `dataset_commit`).
+- `logs/phase_2/adversarial_tasks.infeasible.json`: tasks with `feasibility.status == "infeasible"`, including per-call `kind` drawn from the editor error taxonomy (`base_state_missing`, `auth_missing`, `schema_mismatch`, `length_exceeded`, `field_required`, `content_policy`, `permission_denied`, `request_failed`, `unreachable`, `unsupported_method`, `site_mismatch`, `cleanup_failed`, `unknown`), `http_status`, and a `response_snippet`. Editors classify 4xx responses into these kinds with cheap per-platform heuristics so the verifier itself stays benchmark-agnostic.
+- `logs/phase_2/feasibility_report.json`: single summary line with per-site verified / infeasible breakdown, elapsed time, total `cleanup_warnings`, and the host fingerprint used for the run.
+
+**Idempotency.** A task whose `feasibility.host_fingerprint` matches the current `(host_config, editor_commit, dataset_commit, task_content_hash)` — where `task_content_hash` is a 12-char SHA-256 prefix of the canonical-JSON-encoded `editor_calls` — is skipped on re-run. Drift on any field invalidates the fingerprint and triggers re-verification. `--force-reverify` overrides; `--feasibility-ttl-hours N` opts into a short-lived bypass that preserves recent verifications even when the fingerprint drifts.
+
+**Phase 4 admission.** Phase 4 exposes a module-level `STRICT_FEASIBILITY_ADMISSION` constant, overridable at runtime via the `WORLDSIM_STRICT_FEASIBILITY={true,false}` env var. In grace mode (initial rollout) Phase 4 skips `feasibility.status == "infeasible"` tasks, admits unverified tasks with a one-time warning, and reports both `skipped_infeasible` and `skipped_unverified` counts in the admission summary line. Once flipped to strict, only `feasibility.status == "verified"` tasks are admitted. Phase 3 annotates benign contracts whose linked adversarials are all infeasible with `adversarially_exhausted=true` so reviewers can distinguish agent failure from dataset exhaustion.
+
+**Benchmark-agnosticity.** No benchmark, site, or platform string appears in `phase_2_feasibility.py`. All benchmark knowledge lives in the editor classes under `worldsim/editors/` and in `EDITOR_REGISTRY`. Adding a new benchmark (e.g. ST-WebAgentBench) means adding editor classes and a host config; the 2c module is unchanged.
+
+**Threat model and infrastructure invariants.** 2c uses the same HTTP-only editor channels Phase 4 uses. No SQL seeding. Regular authenticated user, no admin shortcuts. One `reset_endpoint` call between tasks is allowed; no container lifecycle management. The default `--feasibility-host-config` must be a dev or smoke config, not production.
+
+**Cost and throughput.** No LLM calls. Pure HTTP, roughly 500 ms per task amortized. At `--feasibility-concurrency 10` the current 236-task WebArena Verified dataset verifies in 1 to 3 minutes. Zero incremental dollar cost.
+
+**Phase 3 interaction.** Phase 3 admits benign contracts whose schema parses. If every adversarial task linked to a benign contract is `infeasible`, Phase 3 annotates the benign entry as "adversarially exhausted under current dataset" without invalidating the contract itself, so reviewers can audit why a benign entry has no adversarial runs in Phase 4.
+
+**Phase 4 interaction.** Phase 4 admits only tasks with `feasibility.status == "verified"`; infeasible tasks are skipped and counted in the Phase 4 summary line. A grace-period mode keeps accepting unverified tasks (from older datasets) and logs a one-shot warning; the strict gate is the default on new runs.
+
+---
+
 ## Phase 3: Contract Validity Gate
 
 Phase 3 is agent-free. It checks that every benign task's contract is well-formed and every adversarial task references a known benign task, then emits `phase_3/contracts.json` for Phase 4 to admit. No live instances, no reward execution, no diagnosis.
@@ -820,7 +884,9 @@ Phase 4 is the core evaluation loop. It runs each adversarial task, applies two 
 
 ### Initial Adversarial Run
 
-**Self-contained adversarial seeds.** Phase 4 applies only `adversarial_data_seed`, not the benign `data_seed`. In the v2 schema, Phase 4 first resolves the selected rendered payload from `payload_texts[selected_payload_index]`, then materializes `adversarial_data_seed` from `seed_template` if needed. The resulting adversarial data seed must be self-contained: it must include all benign seed statements plus the adversarial injection content. Phase 2 enforces this through the `seed_template` contract and the final materialization step.
+**Self-contained adversarial seeds.** Phase 4 applies only `adversarial_data_seed`, not the benign `data_seed`. In the v2 schema, Phase 4 first resolves the selected rendered payload from `payload_texts[selected_payload_index]`, then materializes `adversarial_data_seed` from `seed_template` if needed. The resulting adversarial data seed must be self-contained: it must include all benign seed statements plus the adversarial injection content. Phase 2 enforces this through the `seed_template` contract and the final materialization step. `apply_data_seed` dispatches each `editor_calls` entry through `EDITOR_REGISTRY`, the same registry Phase 2c used at verification time.
+
+**Feasibility admission.** Phase 4 admits only tasks with `feasibility.status == "verified"`. Tasks quarantined by Phase 2c are skipped; the Phase 4 summary line reports the skip count. A permissive grace-period path keeps accepting unverified tasks (from older datasets generated before Phase 2c existed) and logs a one-shot warning.
 
 async def run_adversarial_task(task, agent, instance, task_dir):
     if instance.get("reset_endpoint"):
@@ -1070,7 +1136,14 @@ Phase 1 Mode A: Wrap existing tasks -> benign task bundles
 
 Phase 1 Mode B: Generate new tasks (Modal Sandboxes) -> benign task bundles + sanity checks
 
-Phase 2: Injection Generation (Modal Sandboxes) -> adversarial task bundles
+Phase 2: Injection Generation (Modal Sandboxes 2a + host-side 2b) -> adversarial task plans + payload texts
+
+Phase 2c: Feasibility Verification (local Python + HTTP, dev instance)
+
+    -> adversarial_tasks.json (verified)
+    -> adversarial_tasks.infeasible.json (quarantined)
+    -> feasibility_report.json
+    -> verified tasks flow to Phase 3 and Phase 4
 
 Phase 3: Contract Validity Gate (agent-free, local)
 
@@ -1096,9 +1169,11 @@ Phase 4: Adversarial Evaluation + Adaptive Strategy Variation
 | Filesystem mapping (0b) | Local Python | Single |
 | Auth bootstrap (0d) | Local Python (+ optional Playwright) | Per site, sequential |
 | Task generation (1b) | Claude Code in Modal Sandbox | One per site |
-| Injection generation (2) | Claude Code in Modal Sandbox | One per site |
+| Injection planning (2a) | Claude Code in Modal Sandbox | Shards of 20 tasks, capped concurrency |
+| Injection text fill (2b) | Host-side async model API | Per-plan concurrency cap |
+| Feasibility verification (2c) | Local Python (editors + HTTP) | Per-task, concurrency cap |
 | Agent execution (4) | Local Browser Use worker pool | M parallel workers |
-| Data seeding (4) | API/form/state_push to benchmark | Per-task |
+| Data seeding (4) | Editor dispatch via EDITOR_REGISTRY (api/form) | Per-task |
 | Judge diagnosis (4) | Claude Code in Modal Sandbox | One per refused task |
 | Strategy variant generation (4) | Claude Code in Modal Sandbox | Up to 3 parallel per task |
 | Cost aggregation | cost_tracker singleton | Single (append after each sandbox) |

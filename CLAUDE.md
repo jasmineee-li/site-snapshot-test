@@ -12,7 +12,7 @@ The authoritative technical spec is [`docs/worldsim-v5-technical-specifcation.md
 
 `worldsim/main.py` is the CLI entrypoint — `uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified`. See `--help` for flags.
 
-Phase 2 is a single CLI phase with two internal stages: 2a planning in Modal sandboxes, then 2b host-side text fill. Do not invent split-stage flags unless the code actually adds them.
+Phase 2 is a single CLI phase with three internal stages: 2a planning in Modal sandboxes, 2b host-side text fill, 2c feasibility verification against a live dev instance. The standalone `phase 2c` subcommand is sugar for `phase 2 --feasibility-only`. Do not invent split-stage flags unless the code actually adds them.
 
 ## Non-negotiable principles
 
@@ -23,7 +23,7 @@ Phase 2 is a single CLI phase with two internal stages: 2a planning in Modal san
 
 ## Integration test requirement
 
-If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, or `worldsim/phases/phase_4_adversarial.py`, run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack before shipping and include the output in the PR description. Unit tests alone are not sufficient for editor or Phase 4 integration changes.
+If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, `worldsim/phases/phase_4_adversarial.py`, or `worldsim/phases/phase_2_feasibility.py`, run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack before shipping and include the output in the PR description. Unit tests alone are not sufficient for editor, Phase 2c, or Phase 4 integration changes.
 
 ## What NOT to do
 
@@ -32,6 +32,9 @@ If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, or `worldsim/phase
 - Do not reintroduce BrowserGym or the `agent-browser` CLI — predecessor runner, gone.
 - Do not modify benign task contracts or reward functions during Phase 4. Phase 4 only varies adversarial strategy; the contracts emitted by Phase 3 are invariant across variants.
 - Do not manage benchmark environment lifecycles (starting, stopping, snapshotting). `reset_endpoint` between tasks is the one exception.
+- Do not bypass Phase 2c (`--skip-feasibility`) on shipping runs; the `feasibility.status="verified"` stamp is a gate input for Phase 4 under strict admission.
+- Do not hand-edit `feasibility.status` in `adversarial_tasks.json`; trust the gate or re-run `phase 2c`.
+- The break-glass env override for Phase 4 admission is `WORLDSIM_STRICT_FEASIBILITY={true,false}`; it supersedes the source-controlled `STRICT_FEASIBILITY_ADMISSION` constant.
 
 <important if="you are stuck on Modal image setup, secret wiring, sandbox lifecycle, or Claude Code invocation flags">
 Two files from the predecessor AgentLab pipeline survive on this branch as read-only reference material for exactly those mechanics:

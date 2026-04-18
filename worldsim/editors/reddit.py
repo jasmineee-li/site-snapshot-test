@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import re
 from typing import Any
 
@@ -8,6 +9,68 @@ import requests
 from .base import BaseSiteEditor, EditorError
 
 _SUBMISSION_ID_RE = re.compile(r"/f/[^/]+/(\d+)(?:/|$)")
+
+# PostMill renders validation errors inside elements with class="form-error"
+# (the containing <ul>) or <li class="form-error__item">. Grab anything inside
+# those blocks; we also fall back to the raw body so server-side flash messages
+# are still classified.
+_POSTMILL_FORM_ERROR_RE = re.compile(
+    r"<(?:li|span|div)[^>]+class=\"[^\"]*form-error[^\"]*\"[^>]*>(.*?)</(?:li|span|div)>",
+    re.IGNORECASE | re.DOTALL,
+)
+_POSTMILL_FLASH_RE = re.compile(
+    r"<(?:div|p)[^>]+class=\"[^\"]*(?:flash|alert|message)[^\"]*\"[^>]*>(.*?)</(?:div|p)>",
+    re.IGNORECASE | re.DOTALL,
+)
+_POSTMILL_LENGTH_TOKENS: tuple[str, ...] = (
+    "is too long",
+    "too long",
+    "must be shorter",
+    "maximum of",
+    "cannot be longer",
+)
+_POSTMILL_REQUIRED_TOKENS: tuple[str, ...] = (
+    "is required",
+    "should not be blank",
+    "cannot be blank",
+    "must not be empty",
+    "this value should not",
+)
+_POSTMILL_POLICY_TOKENS: tuple[str, ...] = (
+    "flagged as spam",
+    "marked as spam",
+    "rate limit",
+    "throttled",
+    "not allowed",
+    "forbidden",
+    "abuse",
+    "banned",
+    "rejected",
+)
+
+
+def _extract_postmill_error_messages(response: requests.Response) -> list[str]:
+    text = response.text or ""
+    if not text:
+        return []
+    messages: list[str] = []
+    for match in _POSTMILL_FORM_ERROR_RE.findall(text):
+        stripped = _strip_tags(match)
+        if stripped:
+            messages.append(stripped)
+    if not messages:
+        for match in _POSTMILL_FLASH_RE.findall(text):
+            stripped = _strip_tags(match)
+            if stripped:
+                messages.append(stripped)
+    return messages
+
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_tags(fragment: str) -> str:
+    return html.unescape(_TAG_RE.sub("", fragment)).strip()
 
 
 class RedditEditor(BaseSiteEditor):
@@ -62,6 +125,31 @@ class RedditEditor(BaseSiteEditor):
                 "submission_id": str(args.get("submission_id") or ""),
             }
         return {}
+
+    def _classify_4xx_response(
+        self,
+        method: str,
+        path: str,
+        response: requests.Response,
+    ) -> tuple[str, str] | None:
+        """Classify PostMill 4xx responses into Phase 2c error kinds.
+
+        PostMill returns 422 for validation failures with errors rendered
+        inside ``<li class="form-error__item">`` blocks (or a similar
+        container on older themes). Rate-limit / spam flags come back as
+        flash messages.
+        """
+        messages = _extract_postmill_error_messages(response)
+        if not messages:
+            return None
+        blob = " | ".join(messages).lower()
+        if any(token in blob for token in _POSTMILL_LENGTH_TOKENS):
+            return ("length_exceeded", messages[0])
+        if any(token in blob for token in _POSTMILL_REQUIRED_TOKENS):
+            return ("field_required", messages[0])
+        if any(token in blob for token in _POSTMILL_POLICY_TOKENS):
+            return ("content_policy", messages[0])
+        return None
 
     def create_forum(
         self,

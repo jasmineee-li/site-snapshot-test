@@ -84,7 +84,7 @@ still allowing canonical `webarena_verified` evaluation. If
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
      - `postgresql://openstreetmap:openstreetmap@HOST:5433/openstreetmap` for `map`
 
-Phases 0, 1, and 2 only need the benchmark **codebase** on disk, not running instances.
+Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` to skip 2c for fast dev iteration; Phase 4 will run in grace mode and admit the unverified tasks with a warning.
 
 ### Proxy Setup (Phase 0c live verification)
 
@@ -198,11 +198,20 @@ export OPENROUTER_API_KEY=sk-or-v1-...
 uv run python -m worldsim.main phase 4 --instances instances.json \
   --agent-provider openrouter --agent-model gpt-5.4-mini
 
-# Phase 2 runs two internal stages sequentially:
-# 2a plan generation in Modal sandboxes, then 2b host-side text fill.
-uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified
+# Phase 2 runs three internal stages sequentially:
+# 2a plan generation in Modal sandboxes, 2b host-side text fill, then 2c
+# feasibility verification against a live dev instance. Use --skip-feasibility
+# for fast dev iteration (Phase 4 runs in grace mode in that case); omit it
+# for shipping runs.
+uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified \
+  --feasibility-instances instances.smoke.json
 
-# Resume from the last checkpoint after a crash
+# Re-verify an already-generated dataset against a fresh dev host:
+uv run python -m worldsim.main phase 2c \
+  --feasibility-instances instances.smoke.json
+
+# Resume from the last checkpoint after a crash. Resume reads the saved
+# phase_2_stage and re-enters planning/text_fill/feasibility automatically.
 uv run python -m worldsim.main resume
 ```
 
@@ -224,7 +233,7 @@ Five phases:
 |---|-------|--------------|
 | 0 | Reconnaissance | 0a discovers benchmark structure, 0b computes per-site sandbox file maps, 0c profiles each site in parallel |
 | 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
-| 2 | Injection Generation | Runs 2a plan generation, then 2b text fill sequentially; emits final adversarial tasks with materialized data seeds |
+| 2 | Injection Generation | Runs 2a plan generation, 2b text fill, then 2c feasibility verification sequentially; emits final adversarial tasks with materialized data seeds and a `feasibility` stanza per task (requires a live dev instance unless `--skip-feasibility` is set) |
 | 3 | Contract Validity Gate | Agent-free schema check over every benign contract (reward function, start URLs, data seed) and every adversarial task's benign reference; writes `phase_3/contracts.json` |
 | 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused; reports baseline capability as a byproduct |
 

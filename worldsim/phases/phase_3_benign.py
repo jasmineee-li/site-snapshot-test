@@ -87,6 +87,34 @@ def _validate_benign_task(task: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _annotate_adversarially_exhausted(
+    contracts: list[dict[str, Any]],
+    adversarial_tasks: list[dict[str, Any]],
+) -> None:
+    """Tag benign contracts whose every linked adversarial is ``infeasible``.
+
+    Annotation only: the contract stays ``valid``; Phase 4 reads
+    ``adversarially_exhausted`` to decide whether to run baseline-only for
+    these benigns (they have no usable adversarial this run).
+    """
+    linked: dict[str, list[str]] = {}
+    for adv_task in adversarial_tasks:
+        benign_task_id = str(adv_task.get("benign_task_id", "")).strip()
+        if not benign_task_id:
+            continue
+        feasibility = adv_task.get("feasibility")
+        status = feasibility.get("status") if isinstance(feasibility, dict) else None
+        linked.setdefault(benign_task_id, []).append(str(status or "missing"))
+
+    for contract in contracts:
+        benign_id = str(contract.get("id", "")).strip()
+        statuses = linked.get(benign_id)
+        if not statuses:
+            continue
+        if all(status == "infeasible" for status in statuses):
+            contract["adversarially_exhausted"] = True
+
+
 def _adversarial_task_errors(
     adv_task: dict[str, Any],
     benign_by_id: dict[str, dict[str, Any]],
@@ -202,6 +230,8 @@ async def run(args: argparse.Namespace) -> int:
                     "errors": errors,
                 }
             )
+
+    _annotate_adversarially_exhausted(contracts, adversarial_tasks)
 
     output_dir = state_dir / "phase_3"
     output_dir.mkdir(parents=True, exist_ok=True)

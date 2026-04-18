@@ -126,6 +126,24 @@ VARIANT_TASK_OUTPUT = "/workspace/output/variant_task.json"
 ECOLOGICAL_FIX_MAX_ITERATIONS = 2
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 
+# Phase 2c feasibility admission. Commit 1 ships this ``False`` (grace mode):
+# explicitly-``infeasible`` tasks are skipped, unverified tasks are admitted
+# with a one-time warning. Commit 3 flips this to ``True`` so only
+# ``feasibility.status == "verified"`` tasks run.
+#
+# Break-glass: set ``WORLDSIM_STRICT_FEASIBILITY=true`` (or ``false``) to
+# override the source-controlled value at runtime without a code change.
+STRICT_FEASIBILITY_ADMISSION = False
+
+
+def _strict_feasibility_enabled() -> bool:
+    import os as _os
+
+    override = _os.environ.get("WORLDSIM_STRICT_FEASIBILITY")
+    if override is None or not override.strip():
+        return STRICT_FEASIBILITY_ADMISSION
+    return override.strip().lower() in {"1", "true", "yes", "on"}
+
 
 @dataclass(frozen=True)
 class SeedPreflightMismatch:
@@ -494,8 +512,28 @@ async def run(args: argparse.Namespace) -> int:
     rebase_errors: list[str] = []
     skipped_invalid = 0
     skipped_orphan = 0
+    skipped_infeasible = 0
+    skipped_unverified = 0
+    grace_warning_emitted = False
+    strict_feasibility = _strict_feasibility_enabled()
     admitted_by_origin: dict[str, int] = {"mode_a": 0, "mode_b": 0}
     for adversarial_task in adversarial_tasks:
+        feasibility = adversarial_task.get("feasibility")
+        feasibility_status = feasibility.get("status") if isinstance(feasibility, dict) else None
+        if feasibility_status == "infeasible":
+            skipped_infeasible += 1
+            continue
+        if feasibility_status != "verified":
+            if strict_feasibility:
+                skipped_unverified += 1
+                continue
+            if not grace_warning_emitted:
+                logger.warning(
+                    "Phase 4: admitting tasks without feasibility.status='verified' "
+                    "(grace mode). Set STRICT_FEASIBILITY_ADMISSION=True or "
+                    "WORLDSIM_STRICT_FEASIBILITY=true to enforce."
+                )
+                grace_warning_emitted = True
         benign_task_id = str(adversarial_task.get("benign_task_id", "")).strip()
         if not benign_task_id:
             rebase_errors.append(f"{adversarial_task.get('id', '?')}: missing benign_task_id")
@@ -520,13 +558,17 @@ async def run(args: argparse.Namespace) -> int:
         tasks.append(rebuilt)
     logger.info(
         "Phase 4: admitted %d/%d adversarial tasks (mode_a=%d, mode_b=%d); "
-        "skipped %d with invalid benign contract, %d with unknown benign_task_id",
+        "skipped %d with invalid benign contract, %d with unknown benign_task_id, "
+        "%d infeasible, %d unverified (strict=%s)",
         len(tasks),
         len(adversarial_tasks),
         admitted_by_origin.get("mode_a", 0),
         admitted_by_origin.get("mode_b", 0),
         skipped_invalid,
         skipped_orphan,
+        skipped_infeasible,
+        skipped_unverified,
+        strict_feasibility,
     )
     if rebase_errors:
         logger.error(

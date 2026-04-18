@@ -19,6 +19,12 @@ _DROP_KEYS = {
     "timestamp",
     "trajectory_dir",
     "contracts_path",
+    "feasibility_completed_at",
+    "feasibility_report_path",
+    "feasibility_infeasible_path",
+    "skipped_at",
+    "verified_at",
+    "first_failed_at",
 }
 
 

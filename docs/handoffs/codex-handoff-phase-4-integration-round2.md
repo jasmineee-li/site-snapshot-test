@@ -5,6 +5,8 @@
 **Scope**: Replace the resolver package + target-dispatch contract + DB-postcondition machinery with a WASP-style per-site editor-class architecture. Produce demo-grade Phase 4 signal on the 6 adversarial tasks unlocked by tonight's 7 validated benigns.
 **Out of scope**: Phase 3 changes, agent model choice, scaling beyond the 6-task demo, map attack model (§15 stays deferred).
 
+> **Update 2026-04-18**: Phase 2c feasibility verification (`docs/handoffs/codex-handoff-phase-2c-feasibility-verification.md`) adds the operational-feasibility gate that closes the AT-009 class of failure — adversarial tasks whose seed 4xx's at POST time now land in `adversarial_tasks.infeasible.json` before Phase 4 sees them. Phase 4 admission is driven by `feasibility.status == "verified"` under strict admission; grace mode admits unverified tasks with a one-time warning.
+
 ---
 
 ## 0. Why a pivot, not another patch

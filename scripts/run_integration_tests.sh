@@ -88,6 +88,7 @@ config = BenchmarkConfig.model_validate_json(instances_path.read_text())
 exports = {
     "LIVE_INSTANCES_FILE": str(instances_path),
     "LIVE_PHASE2_ARTIFACT": str((instances_path.parent / "logs/phase_2/adversarial_tasks.json").resolve()),
+    "LIVE_PHASE2C_ARTIFACT": str((instances_path.parent / "logs/phase_2/feasibility_report.json").resolve()),
     "LIVE_HOST_IP": host,
 }
 
@@ -116,4 +117,4 @@ printf '    LIVE_SHOPPING_ADMIN_URL = %s\n' "${LIVE_SHOPPING_ADMIN_URL:-}"
 printf '    LIVE_REDDIT_URL = %s\n' "${LIVE_REDDIT_URL:-}"
 
 cd "$REPO_ROOT"
-uv run pytest -m integration tests/integration "$@"
+uv run pytest -m "integration or feasibility" tests/integration "$@"

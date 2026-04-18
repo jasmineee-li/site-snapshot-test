@@ -357,6 +357,7 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
                 sites=state.get("sites"),
                 max_tasks_per_site=state.get("max_tasks_per_site"),
                 sandbox_model=state.get("sandbox_model"),
+                skip_feasibility=True,
             )
         )
     return await phase_2_injections.run(
@@ -364,6 +365,7 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
             sites="shopping",
             max_tasks_per_site=None,
             sandbox_model="claude-sonnet-4-6",
+            skip_feasibility=True,
         )
     )
 

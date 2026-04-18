@@ -25,12 +25,21 @@ import re
 import tempfile
 import urllib.parse
 from dataclasses import dataclass
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
+from worldsim.phases.phase_2_feasibility import (
+    FAILPOINT_DATASET,
+    FAILPOINT_QUARANTINE,
+    FAILPOINT_REPORT,
+    FeasibilityReport,
+    skipped_task_stanza,
+    verify_feasibility,
+)
 from worldsim.phases.phase_2_text_fill import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
@@ -272,6 +281,28 @@ async def run(args: argparse.Namespace) -> int:
     plans_path = output_dir / "adversarial_plans.json"
     diagnostics_path = output_dir / "text_fill_diagnostics.json"
     output_path = output_dir / "adversarial_tasks.json"
+
+    # Phase 2c-only short-circuit: re-verify an existing adversarial dataset
+    # against a live dev instance without re-running 2a planning or 2b text
+    # fill. This is the `phase 2c` CLI alias (and `phase 2 --feasibility-only`).
+    if getattr(args, "feasibility_only", False):
+        if not output_path.exists():
+            logger.error(
+                "Phase 2c --feasibility-only requires an existing %s; run phase 2 first",
+                output_path,
+            )
+            return 1
+        prior_state = load_state() or {}
+        return await _run_feasibility_stage(
+            args=args,
+            output_path=output_path,
+            output_dir=output_dir,
+            state_metadata={
+                **state_metadata,
+                "feasibility_only": True,
+            },
+            prior_phase_2_status=prior_state.get("status"),
+        )
 
     # Load benign tasks from Phase 1
     tasks_path = state_dir / "phase_1" / "benign_tasks.json"
@@ -571,6 +602,31 @@ async def run(args: argparse.Namespace) -> int:
     save_state(
         "phase_2",
         status=status,
+        phase_2_stage="text_fill",
+        adversarial_tasks_path=str(output_path),
+        task_count=len(merged_output),
+        generation_failures=site_failures,
+        text_fill_failures=text_fill_failures,
+        partial=bool(site_failures or text_fill_failures),
+        **state_metadata,
+    )
+
+    feasibility_rc = await _run_feasibility_stage(
+        args=args,
+        output_path=output_path,
+        output_dir=output_dir,
+        state_metadata=state_metadata,
+        prior_phase_2_status=status,
+    )
+    if feasibility_rc != 0:
+        return feasibility_rc
+
+    # Final "complete" marker: every sub-stage (2a planning, 2b text fill,
+    # 2c feasibility) has succeeded. `phase_2_stage="complete"` is what
+    # downstream tooling looks at to know Phase 2 is done.
+    save_state(
+        "phase_2",
+        status=status,
         phase_2_stage="complete",
         adversarial_tasks_path=str(output_path),
         task_count=len(merged_output),
@@ -579,6 +635,7 @@ async def run(args: argparse.Namespace) -> int:
         partial=bool(site_failures or text_fill_failures),
         **state_metadata,
     )
+
     cost_tracker.log_phase_summary("phase_2")
     cost_tracker.save(state_dir / "cost_report.json")
     logger.info(
@@ -588,6 +645,198 @@ async def run(args: argparse.Namespace) -> int:
         output_path,
     )
     return 0
+
+
+async def _run_feasibility_stage(
+    *,
+    args: argparse.Namespace,
+    output_path: Path,
+    output_dir: Path,
+    state_metadata: dict[str, Any],
+    prior_phase_2_status: str | None,
+) -> int:
+    """Phase 2c wrapper — runs verification, writes the three artifacts,
+    and records ``phase_2_stage="feasibility"`` in pipeline state.
+
+    Honors ``--skip-feasibility`` (tags every task as ``unverified``) and
+    ``--feasibility-only`` (re-verifies whatever is currently on disk).
+    """
+    infeasible_path = output_path.with_name(output_path.stem + ".infeasible.json")
+    report_path = output_dir / "feasibility_report.json"
+
+    if getattr(args, "skip_feasibility", False):
+        logger.warning("Phase 2c: --skip-feasibility active; stamping tasks as unverified")
+        current = json.loads(output_path.read_text())
+        if not isinstance(current, list):
+            logger.error("Phase 2c: %s must contain a JSON array", output_path)
+            return 1
+        stamped = [skipped_task_stanza(task) for task in current]
+        write_json_atomic(
+            output_path,
+            stamped,
+            failpoint_base=FAILPOINT_DATASET,
+        )
+        save_state(
+            "phase_2",
+            status=prior_phase_2_status or "complete",
+            phase_2_stage="feasibility",
+            adversarial_tasks_path=str(output_path),
+            feasibility_completed_at=_utcnow_iso(),
+            feasibility_verified_count=0,
+            feasibility_infeasible_count=0,
+            feasibility_skipped_count=0,
+            feasibility_unverified_count=len(stamped),
+            feasibility_skipped_via_flag=True,
+            **state_metadata,
+        )
+        return 0
+
+    instances_arg = getattr(args, "feasibility_instances", None) or "instances.smoke.json"
+    instances_path = Path(instances_arg)
+    if not instances_path.exists():
+        logger.error(
+            "Phase 2c requires --feasibility-instances path; %s does not exist",
+            instances_path,
+        )
+        return 1
+
+    try:
+        raw_instances = json.loads(instances_path.read_text())
+    except json.JSONDecodeError as exc:
+        logger.error("Phase 2c: %s is not valid JSON: %s", instances_path, exc)
+        return 1
+    instances = _extract_instances_list(raw_instances)
+    if not instances:
+        logger.error(
+            "Phase 2c: %s contained no instances; feasibility cannot run",
+            instances_path,
+        )
+        return 1
+
+    concurrency = int(getattr(args, "feasibility_concurrency", None) or 10)
+    retry_count = int(getattr(args, "feasibility_retry_count", None) or 1)
+    ttl_hours = getattr(args, "feasibility_ttl_hours", None)
+    force_reverify = bool(getattr(args, "force_reverify", False))
+
+    logger.info(
+        "Phase 2c: verifying %s against %s (concurrency=%d, retry=%d, ttl_hours=%s, force=%s)",
+        output_path,
+        instances_path,
+        concurrency,
+        retry_count,
+        ttl_hours,
+        force_reverify,
+    )
+
+    try:
+        report: FeasibilityReport = await verify_feasibility(
+            output_path,
+            instances=instances,
+            instances_label=instances_path.name,
+            concurrency=concurrency,
+            retry_count=retry_count,
+            ttl_hours=ttl_hours,
+            force_reverify=force_reverify,
+            phase_2_status=prior_phase_2_status,
+        )
+    except Exception as exc:
+        logger.error("Phase 2c verification failed: %s", exc)
+        save_state(
+            "phase_2",
+            status="failed",
+            phase_2_stage="feasibility",
+            reason="feasibility_preflight",
+            feasibility_error=str(exc),
+            adversarial_tasks_path=str(output_path),
+            **state_metadata,
+        )
+        return 1
+
+    write_json_atomic(
+        output_path,
+        report.verified,
+        failpoint_base=FAILPOINT_DATASET,
+    )
+    write_json_atomic(
+        infeasible_path,
+        report.infeasible,
+        failpoint_base=FAILPOINT_QUARANTINE,
+    )
+    write_json_atomic(
+        report_path,
+        _report_summary_dict(report, instances_path=instances_path.name),
+        failpoint_base=FAILPOINT_REPORT,
+    )
+
+    verified_count = len(report.verified)
+    infeasible_count = len(report.infeasible)
+    skipped_count = len(report.skipped_already_verified)
+    logger.info(
+        "Phase 2c complete: %d verified / %d infeasible / %d skipped (elapsed=%.1fs)",
+        verified_count,
+        infeasible_count,
+        skipped_count,
+        report.elapsed_seconds,
+    )
+    if report.cleanup_warnings:
+        logger.warning(
+            "Phase 2c cleanup warnings (%d): first=%s",
+            len(report.cleanup_warnings),
+            report.cleanup_warnings[0],
+        )
+
+    save_state(
+        "phase_2",
+        status=prior_phase_2_status or "complete",
+        phase_2_stage="feasibility",
+        adversarial_tasks_path=str(output_path),
+        feasibility_report_path=str(report_path),
+        feasibility_infeasible_path=str(infeasible_path),
+        feasibility_completed_at=_utcnow_iso(),
+        feasibility_verified_count=verified_count,
+        feasibility_infeasible_count=infeasible_count,
+        feasibility_skipped_count=skipped_count,
+        feasibility_unverified_count=0,
+        feasibility_cleanup_warning_count=len(report.cleanup_warnings),
+        **state_metadata,
+    )
+    return 0
+
+
+def _extract_instances_list(payload: Any) -> list[dict[str, Any]]:
+    """Accept both the wrapper shape (``{"instances": [...]}``) and a raw list.
+
+    The production ``instances.smoke.json`` / ``instances.scale.json`` files
+    are wrapper dicts; some fixtures (and older tooling) hand back a flat list.
+    """
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        nested = payload.get("instances")
+        if isinstance(nested, list):
+            return [item for item in nested if isinstance(item, dict)]
+    return []
+
+
+def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> dict[str, Any]:
+    return {
+        "generated_at": _utcnow_iso(),
+        "instances": instances_path,
+        "host_fingerprint": report.host_fingerprint,
+        "elapsed_seconds": round(report.elapsed_seconds, 3),
+        "phase_2_status": report.phase_2_status,
+        "verified_count": len(report.verified),
+        "infeasible_count": len(report.infeasible),
+        "skipped_already_verified_count": len(report.skipped_already_verified),
+        "cleanup_warnings": list(report.cleanup_warnings),
+        "per_site": report.per_site_counts,
+    }
+
+
+def _utcnow_iso() -> str:
+    from datetime import datetime
+
+    return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
@@ -866,7 +1115,7 @@ def _load_reusable_phase_2_plans(
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
-    if prior_state.get("phase_2_stage") not in {None, "planning", "text_fill"}:
+    if prior_state.get("phase_2_stage") not in {None, "planning", "text_fill", "feasibility"}:
         return None
     if prior_state.get("status") not in {"running", "failed"}:
         return None
@@ -926,7 +1175,7 @@ def _load_reusable_phase_2_tasks(
     if prior_state.get("status") not in {"running", "failed"}:
         return None
     stage = prior_state.get("phase_2_stage")
-    if stage not in {None, "text_fill"}:
+    if stage not in {None, "text_fill", "feasibility"}:
         return None
     if stage == "text_fill" and not expected_task_ids:
         return None

@@ -6,7 +6,7 @@
 **Status:** not started. Design reviewed against the live editor + seeding modules; implementation open.
 **Anchor artifact:** commit `4c27fb48` + AT-009 case study from the 2026-04-17 demo.
 
-**Mandate — implement this end-to-end, self-contained.** This handoff is the complete spec. Codex owns the full delivery: verifier module, retry helper, editor `_classify_4xx_response` overrides for all four sites, Phase 2/3/4 wiring, CLI flags + resume passthrough, unit tests, integration tests + fixtures, cleanup-script extension, doc drift (spec, README, CLAUDE.md, cross-reference footnotes), and the four-commit migration. Do not stop early or punt sub-tasks to a follow-up PR. There is no time budget; ship when §9 acceptance criteria all pass. If you discover a design gap not covered here, fix it inline and document the decision in the PR body (do not pause for human input on small choices — exercise judgment and proceed). The only allowed deferrals are the items explicitly listed in §8 non-goals.
+**Mandate — implement this end-to-end, self-contained, directly on `feat/worldsim-v5`.** This handoff is the complete spec. Codex owns the full delivery: verifier module, retry helper, editor `_classify_4xx_response` overrides for all four sites, Phase 2/3/4 wiring, CLI flags + resume passthrough, unit tests, integration tests + fixtures, cleanup-script extension, doc drift (spec, README, CLAUDE.md, cross-reference footnotes), and the four-step migration. **Work trunk-style:** commit directly to `feat/worldsim-v5`; no feature branch, no PRs, no code review round-trip. The §6 migration remains a four-commit sequence, but each step is a direct commit pushed to `feat/worldsim-v5` after it lands green on CI. Do not stop early or punt sub-tasks to follow-up work. There is no time budget; ship when §9 acceptance criteria all pass. If you discover a design gap not covered here, fix it inline and document the decision in the commit message body (do not pause for human input on small choices — exercise judgment and proceed). The only allowed deferrals are the items explicitly listed in §8 non-goals. Never force-push `feat/worldsim-v5`; fix forward with follow-up commits.
 
 ---
 
@@ -615,7 +615,7 @@ In `_dispatch_resume` (`main.py:365–477`), add the new fields to the Namespace
 
 ### 4.8 Documentation drift checklist
 
-Every PR for this work updates these in lockstep with the code changes:
+Every commit in this work updates these in lockstep with the code changes (no "docs lag behind code" commits):
 
 | File | Change |
 |---|---|
@@ -681,7 +681,7 @@ Run against the current 236-task dataset. Success:
 
 ### 5.4 Manual smoke checklist
 
-Before opening the PR, Codex runs by hand:
+Before pushing each commit to `feat/worldsim-v5`, Codex runs by hand:
 
 ```bash
 # 1. Lint + unit tests
@@ -697,7 +697,7 @@ uv run python -m worldsim.main phase 2 --feasibility-only \
 bash scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml
 ```
 
-All three must pass. Capture output for the PR description.
+All three must pass. Capture output for the commit message body.
 
 ---
 
@@ -705,15 +705,17 @@ All three must pass. Capture output for the PR description.
 
 Step-by-step so we don't break in-flight runs:
 
+Each step below is a **single atomic commit on `feat/worldsim-v5`**, pushed after its own CI run lands green. No PRs, no feature branch. Sequence the pushes; do not push all four at once.
+
 1. **Commit 1**: 2c module + CLI flags + editor `_classify_4xx_response` hooks land. Phase 4 stays in **grace mode** (`STRICT_FEASIBILITY_ADMISSION = False`) — admits tasks where `feasibility` is missing OR `feasibility.status == "verified"`; **skips** explicitly-`infeasible` tasks (with a one-time warning). Unit + integration tests land here. Documentation drift updated in lockstep.
 
-2. **Commit 2**: run 2c once against live r5, commit the enriched `adversarial_tasks.json` + `adversarial_tasks.infeasible.json` + `feasibility_report.json`. Grace mode still active. PR description includes the report summary.
+2. **Commit 2**: run 2c once against live r5, commit the enriched `adversarial_tasks.json` + `adversarial_tasks.infeasible.json` + `feasibility_report.json`. Grace mode still active. Commit message body includes the report summary.
 
-3. **Commit 3**: flip `STRICT_FEASIBILITY_ADMISSION = True`. Old datasets break — but we're on the committed enriched dataset by then, so this only affects local dev branches that haven't merged main yet (announce in #engineering before merging). Update CLAUDE.md "What NOT to do" to add: "Do not run Phase 4 on a dataset that hasn't been through 2c — admission is strict now."
+3. **Commit 3**: flip `STRICT_FEASIBILITY_ADMISSION = True`. Old dev checkouts that haven't pulled the enriched dataset will break on their next Phase 4 run; announce in #engineering before pushing so collaborators rebase/pull first. Update CLAUDE.md "What NOT to do" to add: "Do not run Phase 4 on a dataset that hasn't been through 2c — admission is strict now."
 
-4. **Commit 4** (optional): add a nightly cron that re-verifies the dataset against the dev host (with `--feasibility-ttl-hours 24` to skip recently-verified tasks) so silent platform drift surfaces early. Document in README.
+4. **Commit 4**: nightly cron hook that re-verifies the dataset against the dev host (with `--feasibility-ttl-hours 24` to skip recently-verified tasks) so silent platform drift surfaces early. Document in README.
 
-Each commit is shippable independently. Commit 3 is the only one with potential to break unrelated work; coordinate.
+Each commit is individually revert-safe. Commit 3 is the only one with potential to disrupt collaborators on the branch; coordinate the push. Never force-push `feat/worldsim-v5` — fix forward with follow-up commits if needed.
 
 ---
 
@@ -731,9 +733,9 @@ Each commit is shippable independently. Commit 3 is the only one with potential 
 | **Intra-batch resource collision** — two parallel 2c tasks render the same resource name and the second 4xx's "already exists" | Default `--feasibility-concurrency 10` makes this rare on the 236-task dataset; reproduce with `--feasibility-concurrency 1`. Long-term mitigation is per-task name suffixing in editor layer (out of scope). |
 | **Partial-state leak on SIGINT / OOM** — interrupt mid-task means `_cleanup_stack` doesn't run; resource leaks | The cleanup script is the safety net. Document that operators should run it after any interrupted 2c. Future work: install signal handlers that flush in-flight cleanup stacks. |
 | **Fingerprint thrash during local dev** — every editor commit invalidates 236 verifications | `--feasibility-ttl-hours N` opt-in skip catches the worst of this for local iteration. Nightly cron in commit 4 keeps main fresh. |
-| **Fixtures going stale** — synthetic good/oversize fixtures pinned to today's GitLab/Magento behavior | Fixtures live next to their integration tests; bump them in the same PR that updates the editor when the platform evolves. Document this in CLAUDE.md. |
+| **Fixtures going stale** — synthetic good/oversize fixtures pinned to today's GitLab/Magento behavior | Fixtures live next to their integration tests; bump them in the same commit that updates the editor when the platform evolves. Document this in CLAUDE.md. |
 | **OAuth token expiry mid-run** — `_RUN_TOKEN_CACHE` doesn't refresh | Tokens are minted per run by `acquire_tokens_for_instances`; a 5-min run is well within the typical 1h token TTL. If a future run takes longer, add a refresh loop; today, accept the risk. |
-| **Reddit / Magento have no cleanup-script equivalent** | Acknowledged. Per-task immediate cleanup via `SeedCleanupHandle` covers the happy path. Add the equivalent sweepers as part of *this* PR — Reddit `delete_forum`/`delete_submission` and Magento product-review delete already exist on the editor classes; the script extension is ~30 lines per site. Self-contained mandate at top of doc applies. |
+| **Reddit / Magento have no cleanup-script equivalent** | Acknowledged. Per-task immediate cleanup via `SeedCleanupHandle` covers the happy path. Add the equivalent sweepers as part of *this* work (commit 1 or 2) — Reddit `delete_forum`/`delete_submission` and Magento product-review delete already exist on the editor classes; the script extension is ~30 lines per site. Self-contained mandate at top of doc applies. |
 | **Shared instance dict mutation under parallel workers** | `verify_one` shallow-copies the instance via `dict(instance)` before injecting `seed_task` (§3.4). Without this, two workers on the same site race on the seed_task key while `_build_seed_context` is mid-render. |
 | **`validate_data_seed` raises `ValueError`, not `EditorError`** | `worldsim/seeding.py:162,173,177,…` raise plain `ValueError`. The verifier catches both (§3.4) and remaps `ValueError` → `EditorError("schema_mismatch", …)`. |
 | **`acquire_tokens_for_instances` returns errors as a list, not by raising** | Pre-flight (§3.4.0) checks the return value and raises `RuntimeError` with the joined error list. Mirrors Phase 4's pattern (`phase_4_adversarial.py:632`). |
@@ -767,23 +769,26 @@ Each commit is shippable independently. Commit 3 is the only one with potential 
 4. `logs/phase_2/feasibility_report.json` summary: ≥90% verified, AT-009 flagged `length_exceeded`, zero `webagent-verify-*` residue on r5 after run.
 5. Every verified task has `feasibility.host_fingerprint.task_content_hash` populated.
 6. Phase 4 admission summary line shows both `skipped_infeasible` and `skipped_unverified` counts.
-7. `scripts/cleanup_webagent_test_resources.sh` extended to glob `webagent-verify-`; a successful sweep result is recorded in the PR description.
-8. CLAUDE.md "Integration test requirement" section extended; spec §Phase 2c subsection added; README mention added.
-9. PR description includes: pytest summary, integration-test output, feasibility-report summary, before/after per-site verified counts, list of all docs touched.
+7. `scripts/cleanup_webagent_test_resources.sh` extended to glob `webagent-verify-` and to sweep Reddit + Magento resources; a successful sweep result is recorded in the commit 1 (or 2) message body.
+8. CLAUDE.md "Integration test requirement" section extended; spec §Phase 2c subsection added; README mention added — all in lockstep with the code commits.
+9. Each commit message body includes: pytest summary, integration-test output, feasibility-report summary (commit 2), before/after per-site verified counts (commit 2), list of all docs touched in that commit.
 
 ---
 
-## 10. PR description checklist (commit 1 example)
+## 10. Commit message template (commit 1 example)
+
+Use a conventional-commits subject plus a structured body. Each commit on `feat/worldsim-v5` uses this shape; adapt the body per commit (e.g., commit 2 replaces "What ships" with "Dataset enrichment result" and shows the report summary; commit 3 is a short flip with before/after admission counts).
 
 ```
-## Summary
+feat(phase2c): add feasibility verification sub-stage (grace mode)
+
 Adds Phase 2c feasibility verification as an internal sub-stage of Phase 2.
 Every adversarial task gets POSTed against a live dev instance; tasks that
 2xx are tagged `feasibility.status="verified"` with a fingerprint; tasks
 that fail are quarantined to `adversarial_tasks.infeasible.json`. Phase 4
 runs in grace mode this commit; commit 3 will flip to strict admission.
 
-## What ships
+What ships:
 - worldsim/phases/phase_2_feasibility.py (new, ~150 LOC)
 - worldsim/_async_utils.py (new, retry helper)
 - worldsim/editors/{base,gitlab,reddit,shopping}.py — _classify_4xx_response hook
@@ -792,13 +797,13 @@ runs in grace mode this commit; commit 3 will flip to strict admission.
 - tests/test_phase_2_feasibility.py + tests/integration/test_phase_2_feasibility_live.py + fixtures
 - scripts/{run_integration_tests,cleanup_webagent_test_resources}.sh — updates
 
-## Docs touched
-- [ ] docs/worldsim-v5-technical-specifcation.md (§Phase 2c added)
-- [ ] README.md (CLI flags + prerequisites)
-- [ ] CLAUDE.md (integration-test trigger; what NOT to do)
-- [ ] docs/handoffs/codex-handoff-phase-4-integration-round2.md (cross-reference footnote)
+Docs touched (in this commit, not a follow-up):
+- docs/worldsim-v5-technical-specifcation.md (§Phase 2c added)
+- README.md (CLI flags + prerequisites)
+- CLAUDE.md (integration-test trigger; what NOT to do)
+- docs/handoffs/codex-handoff-phase-4-integration-round2.md (cross-reference footnote)
 
-## Test evidence
+Test evidence:
 - pytest: <paste summary>
 - integration tests: <paste summary>
 - feasibility_report.json summary: <paste per-site table>
@@ -855,21 +860,24 @@ runs in grace mode this commit; commit 3 will flip to strict admission.
 There is no time budget. Ship when, and only when, **all** of the following hold simultaneously:
 
 - All §9 acceptance criteria pass on a clean checkout against r5.
-- All four migration commits (§6) are open as PRs in order; each passes CI independently and rebases cleanly on `main`.
-- Every file in the §4.8 documentation-drift table has been updated in the same commit that introduces the corresponding code change (no doc lag).
+- All four migration commits (§6) are pushed to `feat/worldsim-v5` in order; each passed local CI before being pushed; none were squashed, amended, or reordered after push.
+- Every file in the §4.8 documentation-drift table has been updated in the same commit that introduces the corresponding code change (no doc-lag follow-up commits).
 - AT-009 specifically lands in the `infeasible` quarantine with `kind="length_exceeded"`, `http_status=400`, response_snippet preserved. This is the load-bearing regression. If it lands as `request_failed`, the GitLab `_classify_4xx_response` override is incomplete; iterate until it classifies correctly.
 - All four editors (`gitlab`, `reddit`, `shopping`, `shopping_admin`) have working `_classify_4xx_response` overrides covering at least the three additive kinds (`length_exceeded`, `field_required`, `content_policy`). None can be deferred — the dataset has tasks for all four.
-- Reddit and Magento sweep additions land in `scripts/cleanup_webagent_test_resources.sh` in the same PR (commit 1 or 2), not deferred.
+- Reddit and Magento sweep additions land in `scripts/cleanup_webagent_test_resources.sh` in commit 1 or 2, not deferred.
 - A clean re-run of `phase 2c` on the verified dataset is a no-op (every task skipped via fingerprint match). This proves idempotency.
 - A re-run of `phase 2c --force-reverify` re-verifies every task and produces an identical report (modulo timestamps). This proves determinism.
+- `git log feat/worldsim-v5 --oneline` shows the four commits in order with the expected subjects; no force-pushes appear in the reflog.
 
-If any of these fails, do not ship — fix and re-verify. The mandate at the top of this doc is "self-contained end-to-end"; partial delivery is not acceptable.
+If any of these fails, do not ship — fix forward with an additional commit and re-verify. The mandate at the top of this doc is "self-contained end-to-end on `feat/worldsim-v5`"; partial delivery is not acceptable.
 
 ---
 
 ## 14. How to call this done
 
-One PR per §6 commit, in order. Each PR passes the §9 acceptance criteria. The final commit (commit 3) flips `STRICT_FEASIBILITY_ADMISSION = True`; at that point the research claim "our dataset is feasibility-verified against a dev host of known commit" becomes true and `error` in Phase 4 summaries can be reliably attributed to infra flake or agent action, never to dataset-side infeasibility.
+Four commits on `feat/worldsim-v5`, pushed in order, each green on CI before the next is pushed. No PRs; no feature branch. Each commit individually satisfies the §9 acceptance criteria for its scope. The commit that flips `STRICT_FEASIBILITY_ADMISSION = True` (commit 3) is the moment the research claim "our dataset is feasibility-verified against a dev host of known commit" becomes true and `error` in Phase 4 summaries can be reliably attributed to infra flake or agent action, never to dataset-side infeasibility.
+
+After commit 4 lands, update this handoff's `Status:` field from "not started" to "shipped YYYY-MM-DD" in a final small commit.
 
 That's the payoff.
 
@@ -890,7 +898,7 @@ Recording these so future revisions don't regress to earlier drafts. Each was a 
 9. **`--feasibility-only` × current-status truth table under-specified.** Fix: explicit table in §3.7.
 10. **Fingerprint missing `task_content_hash`.** Manual edits to `editor_calls` would not invalidate verification. Fix: 12-char sha256 prefix of canonical-json'd `editor_calls`.
 11. **Phase 4 grace-period semantics under-specified for `infeasible`-tagged tasks.** Fix: explicit rules in §4.4 — admit unverified, skip explicit-infeasible, throughout grace; flip to strict in commit 3.
-12. **Cleanup script sweeps GitLab only.** Fix: extend in same PR to Reddit and Magento (per §13 Definition of Done).
+12. **Cleanup script sweeps GitLab only.** Fix: extend in same commit (1 or 2) to Reddit and Magento (per §13 Definition of Done).
 13. **`_PHASE_ORDER` placement vacillation.** Fix: 2c is `phase_2_stage="feasibility"`; no new top-level phase; CLI `phase 2c` is sugar.
 14. **`write_json_atomic` not specified for outputs.** Fix: required for all three file writes; failpoint bases attached.
 15. **Failpoint hooks missing.** Fix: three named bases, `phase_2.output.feasibility_*` (singular `output`, matching Phase 2's existing convention).

@@ -68,10 +68,11 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pytest.ini_options]
-addopts = "-m 'not integration'"
+addopts = "-m 'not integration and not feasibility'"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "crash_resume: focused crash/resume and resume-drift differential tests",
     "integration: live environment tests for resolvers, seeding, and Phase 4 runtime integration",
+    "feasibility: live Phase 2c feasibility verification tests (require a running dev instance)",
 ]

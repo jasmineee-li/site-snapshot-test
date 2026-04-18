@@ -7,6 +7,81 @@ import requests
 
 from .base import BaseSiteEditor, EditorError
 
+_GITLAB_LENGTH_TOKENS: tuple[str, ...] = (
+    "is too long",
+    "too long (maximum is",
+    "exceeds the limit",
+    "value too long for type",
+)
+_GITLAB_REQUIRED_TOKENS: tuple[str, ...] = (
+    "is required",
+    "can't be blank",
+    "must be filled",
+    "is missing",
+    "must exist",
+    "must be provided",
+)
+_GITLAB_POLICY_TOKENS: tuple[str, ...] = (
+    "blocked",
+    "has been blocked",
+    "spam",
+    "abuse",
+    "forbidden",
+    "rejected",
+    "policy violation",
+    "not allowed",
+    "prohibited",
+)
+
+
+def _extract_gitlab_error_messages(response: requests.Response) -> list[str]:
+    """Flatten GitLab error payloads into a list of human-readable strings.
+
+    GitLab answers validation failures in several shapes:
+
+    - ``{"message": "..."}``
+    - ``{"message": {"description": ["is too long ..."], ...}}``
+    - ``{"error": "has already been taken"}``
+    - Free-text body for non-JSON errors.
+    """
+    body: Any
+    try:
+        body = response.json()
+    except ValueError:
+        text = (response.text or "").strip()
+        return [text] if text else []
+
+    collected: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, str):
+            if node.strip():
+                collected.append(node.strip())
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+
+    if isinstance(body, dict):
+        for key in ("message", "error", "errors", "error_description"):
+            if key in body:
+                walk(body[key])
+        if not collected:
+            walk(body)
+    else:
+        walk(body)
+
+    return collected
+
+
+def _first_line(messages: list[str]) -> str:
+    if not messages:
+        return ""
+    primary = messages[0]
+    return primary.splitlines()[0] if primary else ""
+
 
 class GitlabEditor(BaseSiteEditor):
     site_name = "gitlab"
@@ -49,7 +124,9 @@ class GitlabEditor(BaseSiteEditor):
         }
         validator = validators.get(method_name)
         if validator is None:
-            raise EditorError("unsupported_method", f"unsupported gitlab editor method {method_name!r}")
+            raise EditorError(
+                "unsupported_method", f"unsupported gitlab editor method {method_name!r}"
+            )
         validator()
         self._current_user()
 
@@ -62,7 +139,9 @@ class GitlabEditor(BaseSiteEditor):
             )
             return {"project_id": 0, **preview}
         if method_name == "create_group":
-            group_path = self._slugify(str(args.get("path_template") or args.get("name_template") or "group"))
+            group_path = self._slugify(
+                str(args.get("path_template") or args.get("name_template") or "group")
+            )
             return {"group_id": 0, "group_path": group_path}
         if method_name == "create_issue":
             return {
@@ -125,7 +204,9 @@ class GitlabEditor(BaseSiteEditor):
         description_template: str | None = None,
         path_template: str | None = None,
     ) -> dict[str, Any]:
-        preview = self._preview_project_context(name_template=name_template, path_template=path_template)
+        preview = self._preview_project_context(
+            name_template=name_template, path_template=path_template
+        )
         project_path = preview["project_path"]
         cached = self._created_projects_by_path.get(project_path.lower())
         if isinstance(cached, dict):
@@ -136,7 +217,9 @@ class GitlabEditor(BaseSiteEditor):
             allow_missing=True,
         )
         if isinstance(project, dict):
-            if self._should_reap_preexisting_project(project_path, project, current_user=current_user):
+            if self._should_reap_preexisting_project(
+                project_path, project, current_user=current_user
+            ):
                 self._reap_preexisting_project(project_path, project)
             else:
                 raise self._preexisting_project_error(project_path)
@@ -147,7 +230,9 @@ class GitlabEditor(BaseSiteEditor):
             expected_path=project_path,
         )
         if isinstance(project, dict):
-            if self._should_reap_preexisting_project(project_path, project, current_user=current_user):
+            if self._should_reap_preexisting_project(
+                project_path, project, current_user=current_user
+            ):
                 self._reap_preexisting_project(project_path, project)
             else:
                 raise self._preexisting_project_error(project_path)
@@ -194,7 +279,9 @@ class GitlabEditor(BaseSiteEditor):
                     raise classified from exc
             raise
         if not isinstance(project, dict):
-            raise EditorError("invalid_project_create", "gitlab project create returned invalid payload")
+            raise EditorError(
+                "invalid_project_create", "gitlab project create returned invalid payload"
+            )
         project_id = project.get("id")
         if project_id in (None, ""):
             raise EditorError("invalid_project_create", "gitlab project create missing id")
@@ -224,7 +311,10 @@ class GitlabEditor(BaseSiteEditor):
                 if not isinstance(group, dict):
                     continue
                 if str(group.get("path", "")).strip().lower() == group_path.lower():
-                    return {"group_id": group["id"], "group_path": str(group.get("full_path") or group_path)}
+                    return {
+                        "group_id": group["id"],
+                        "group_path": str(group.get("full_path") or group_path),
+                    }
         created = self._gitlab_request_json(
             "POST",
             "/api/v4/groups",
@@ -235,7 +325,9 @@ class GitlabEditor(BaseSiteEditor):
             },
         )
         if not isinstance(created, dict) or created.get("id") in (None, ""):
-            raise EditorError("invalid_group_create", "gitlab group create returned invalid payload")
+            raise EditorError(
+                "invalid_group_create", "gitlab group create returned invalid payload"
+            )
         group_id = created["id"]
         self._push_cleanup(lambda group_id=group_id: self.delete_group(group_id))
         return {"group_id": group_id, "group_path": str(created.get("full_path") or group_path)}
@@ -258,7 +350,9 @@ class GitlabEditor(BaseSiteEditor):
         )
         title = str(title_template).strip()
         description = str(body_template or "").strip()
-        existing = self._find_existing_issue(project_id=project["project_id"], title=title, description=description)
+        existing = self._find_existing_issue(
+            project_id=project["project_id"], title=title, description=description
+        )
         if isinstance(existing, dict):
             return {
                 "project_id": project["project_id"],
@@ -271,10 +365,14 @@ class GitlabEditor(BaseSiteEditor):
             json_body={"title": title, "description": description},
         )
         if not isinstance(issue, dict) or issue.get("iid") in (None, ""):
-            raise EditorError("invalid_issue_create", "gitlab issue create returned invalid payload")
+            raise EditorError(
+                "invalid_issue_create", "gitlab issue create returned invalid payload"
+            )
         issue_iid = issue["iid"]
         self._push_cleanup(
-            lambda project_id=project["project_id"], issue_iid=issue_iid: self._close_issue(project_id, issue_iid)
+            lambda project_id=project["project_id"], issue_iid=issue_iid: self._close_issue(
+                project_id, issue_iid
+            )
         )
         return {
             "project_id": project["project_id"],
@@ -315,10 +413,14 @@ class GitlabEditor(BaseSiteEditor):
             json_body={"body": str(note_body)},
         )
         if not isinstance(created, dict) or created.get("id") in (None, ""):
-            raise EditorError("invalid_issue_note_create", "gitlab issue note create returned invalid payload")
+            raise EditorError(
+                "invalid_issue_note_create", "gitlab issue note create returned invalid payload"
+            )
         note_id = created["id"]
         self._push_cleanup(
-            lambda project_id=project["project_id"], issue_iid=issue["issue_iid"], note_id=note_id: self._delete_issue_note(project_id, issue_iid, note_id)
+            lambda project_id=project["project_id"], issue_iid=issue["issue_iid"], note_id=note_id: (
+                self._delete_issue_note(project_id, issue_iid, note_id)
+            )
         )
         return {**project, "issue_iid": issue["issue_iid"], "note_id": note_id}
 
@@ -344,7 +446,8 @@ class GitlabEditor(BaseSiteEditor):
             "title": str(title_template).strip(),
             "description": str(body_template or "").strip(),
             "source_branch": str(source_branch).strip(),
-            "target_branch": str(target_branch or project.get("default_branch") or "main").strip() or "main",
+            "target_branch": str(target_branch or project.get("default_branch") or "main").strip()
+            or "main",
         }
         existing = self._find_existing_merge_request(project["project_id"], payload)
         if isinstance(existing, dict):
@@ -356,10 +459,15 @@ class GitlabEditor(BaseSiteEditor):
             json_body=payload,
         )
         if not isinstance(created, dict) or created.get("iid") in (None, ""):
-            raise EditorError("invalid_merge_request_create", "gitlab merge request create returned invalid payload")
+            raise EditorError(
+                "invalid_merge_request_create",
+                "gitlab merge request create returned invalid payload",
+            )
         mr_iid = created["iid"]
         self._push_cleanup(
-            lambda project_id=project["project_id"], mr_iid=mr_iid: self._close_merge_request(project_id, mr_iid)
+            lambda project_id=project["project_id"], mr_iid=mr_iid: self._close_merge_request(
+                project_id, mr_iid
+            )
         )
         return {**project, "mr_iid": mr_iid}
 
@@ -391,7 +499,9 @@ class GitlabEditor(BaseSiteEditor):
             source_branch=source_branch,
             target_branch=target_branch,
         )
-        note = self._find_existing_mr_note(project["project_id"], merge_request["mr_iid"], note_body)
+        note = self._find_existing_mr_note(
+            project["project_id"], merge_request["mr_iid"], note_body
+        )
         if isinstance(note, dict):
             return {**project, "mr_iid": merge_request["mr_iid"], "note_id": note["id"]}
         created = self._gitlab_request_json(
@@ -400,10 +510,14 @@ class GitlabEditor(BaseSiteEditor):
             json_body={"body": str(note_body)},
         )
         if not isinstance(created, dict) or created.get("id") in (None, ""):
-            raise EditorError("invalid_mr_note_create", "gitlab MR note create returned invalid payload")
+            raise EditorError(
+                "invalid_mr_note_create", "gitlab MR note create returned invalid payload"
+            )
         note_id = created["id"]
         self._push_cleanup(
-            lambda project_id=project["project_id"], mr_iid=merge_request["mr_iid"], note_id=note_id: self._delete_mr_note(project_id, mr_iid, note_id)
+            lambda project_id=project["project_id"], mr_iid=merge_request["mr_iid"], note_id=note_id: (
+                self._delete_mr_note(project_id, mr_iid, note_id)
+            )
         )
         return {**project, "mr_iid": merge_request["mr_iid"], "note_id": note_id}
 
@@ -427,7 +541,9 @@ class GitlabEditor(BaseSiteEditor):
         )
         branch_name = str(branch).strip()
         file_path = str(path).strip()
-        current = self._gitlab_get_file_content(project["project_id"], file_path=file_path, ref=branch_name)
+        current = self._gitlab_get_file_content(
+            project["project_id"], file_path=file_path, ref=branch_name
+        )
         action = "create" if current is None else "update"
         if current == content:
             return {**project}
@@ -442,15 +558,21 @@ class GitlabEditor(BaseSiteEditor):
             json_body=payload,
         )
         if not isinstance(commit, dict):
-            raise EditorError("invalid_repo_file_commit", "gitlab repo file commit returned invalid payload")
+            raise EditorError(
+                "invalid_repo_file_commit", "gitlab repo file commit returned invalid payload"
+            )
         if action == "create":
             self._push_cleanup(
-                lambda project_id=project["project_id"], branch_name=branch_name, file_path=file_path: self._delete_repo_file(project_id, branch_name, file_path)
+                lambda project_id=project["project_id"], branch_name=branch_name, file_path=file_path: (
+                    self._delete_repo_file(project_id, branch_name, file_path)
+                )
             )
         else:
             original_content = str(current)
             self._push_cleanup(
-                lambda project_id=project["project_id"], branch_name=branch_name, file_path=file_path, original_content=original_content: self._restore_repo_file(project_id, branch_name, file_path, original_content)
+                lambda project_id=project["project_id"], branch_name=branch_name, file_path=file_path, original_content=original_content: (
+                    self._restore_repo_file(project_id, branch_name, file_path, original_content)
+                )
             )
         return {**project, "commit_id": commit.get("id") or commit.get("short_id")}
 
@@ -462,7 +584,9 @@ class GitlabEditor(BaseSiteEditor):
         )
         return {}
 
-    def update_user_profile(self, *, bio: str | None = None, name: str | None = None) -> dict[str, Any]:
+    def update_user_profile(
+        self, *, bio: str | None = None, name: str | None = None
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         if bio is not None:
             payload["bio"] = str(bio)
@@ -551,7 +675,9 @@ class GitlabEditor(BaseSiteEditor):
                 f"gitlab editor form POST /users/sign_in returned HTTP {response.status_code}",
             )
         if response.status_code == 200 and "user[password]" in response.text.lower():
-            raise EditorError("auth_missing", "gitlab profile form login did not establish a session")
+            raise EditorError(
+                "auth_missing", "gitlab profile form login did not establish a session"
+            )
         self._profile_form_session_prepared = True
 
     def _validate_user_profile_args(self, args: dict[str, Any]) -> None:
@@ -601,7 +727,9 @@ class GitlabEditor(BaseSiteEditor):
             return cached
         payload = self._gitlab_request_json("GET", "/api/v4/user")
         if not isinstance(payload, dict):
-            raise EditorError("invalid_current_user", "gitlab current-user probe returned invalid payload")
+            raise EditorError(
+                "invalid_current_user", "gitlab current-user probe returned invalid payload"
+            )
         self._current_user_cache = payload
         return payload
 
@@ -769,7 +897,9 @@ class GitlabEditor(BaseSiteEditor):
                 return issue
         return None
 
-    def _find_existing_merge_request(self, project_id: Any, payload: dict[str, Any]) -> dict[str, Any] | None:
+    def _find_existing_merge_request(
+        self, project_id: Any, payload: dict[str, Any]
+    ) -> dict[str, Any] | None:
         merge_requests = self._gitlab_request_json(
             "GET",
             f"/api/v4/projects/{project_id}/merge_requests",
@@ -782,14 +912,19 @@ class GitlabEditor(BaseSiteEditor):
                 continue
             if (
                 str(merge_request.get("title", "")).strip() == str(payload["title"]).strip()
-                and str(merge_request.get("description", "")).strip() == str(payload["description"]).strip()
-                and str(merge_request.get("source_branch", "")).strip() == str(payload["source_branch"]).strip()
-                and str(merge_request.get("target_branch", "")).strip() == str(payload["target_branch"]).strip()
+                and str(merge_request.get("description", "")).strip()
+                == str(payload["description"]).strip()
+                and str(merge_request.get("source_branch", "")).strip()
+                == str(payload["source_branch"]).strip()
+                and str(merge_request.get("target_branch", "")).strip()
+                == str(payload["target_branch"]).strip()
             ):
                 return merge_request
         return None
 
-    def _find_existing_issue_note(self, project_id: Any, issue_iid: Any, body: str) -> dict[str, Any] | None:
+    def _find_existing_issue_note(
+        self, project_id: Any, issue_iid: Any, body: str
+    ) -> dict[str, Any] | None:
         notes = self._gitlab_request_json(
             "GET",
             f"/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
@@ -802,7 +937,9 @@ class GitlabEditor(BaseSiteEditor):
                 return note
         return None
 
-    def _find_existing_mr_note(self, project_id: Any, mr_iid: Any, body: str) -> dict[str, Any] | None:
+    def _find_existing_mr_note(
+        self, project_id: Any, mr_iid: Any, body: str
+    ) -> dict[str, Any] | None:
         notes = self._gitlab_request_json(
             "GET",
             f"/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes",
@@ -893,7 +1030,9 @@ class GitlabEditor(BaseSiteEditor):
             },
         )
 
-    def _restore_repo_file(self, project_id: Any, branch: str, file_path: str, content: str) -> None:
+    def _restore_repo_file(
+        self, project_id: Any, branch: str, file_path: str, content: str
+    ) -> None:
         self._gitlab_request_json(
             "POST",
             f"/api/v4/projects/{project_id}/repository/commits",
@@ -904,7 +1043,9 @@ class GitlabEditor(BaseSiteEditor):
             },
         )
 
-    def _preview_project_context(self, *, name_template: str, path_template: str | None) -> dict[str, Any]:
+    def _preview_project_context(
+        self, *, name_template: str, path_template: str | None
+    ) -> dict[str, Any]:
         leaf_path = self._slugify(path_template or name_template)
         username = self.current_username_preview(self.instance)
         project_path = f"{username}/{leaf_path}" if username and "/" not in leaf_path else leaf_path
@@ -915,12 +1056,19 @@ class GitlabEditor(BaseSiteEditor):
             auth = self.instance.get(auth_name)
             if not isinstance(auth, dict):
                 continue
-            candidate = auth.get("credentials") if isinstance(auth.get("credentials"), dict) else auth
+            candidate = (
+                auth.get("credentials") if isinstance(auth.get("credentials"), dict) else auth
+            )
             if not isinstance(candidate, dict):
                 continue
             username = candidate.get("username")
             password = candidate.get("password")
-            if isinstance(username, str) and username.strip() and isinstance(password, str) and password:
+            if (
+                isinstance(username, str)
+                and username.strip()
+                and isinstance(password, str)
+                and password
+            ):
                 return {"username": username.strip(), "password": password}
         return None
 
@@ -943,7 +1091,9 @@ class GitlabEditor(BaseSiteEditor):
             kind = "project_already_exists"
         elif "can contain only" in detail or "is invalid" in detail:
             kind = "invalid_project_path"
-        return EditorError(kind, f"gitlab rejected project create for {project_path!r}: {exc.detail}")
+        return EditorError(
+            kind, f"gitlab rejected project create for {project_path!r}: {exc.detail}"
+        )
 
     def _preexisting_project_error(self, project_path: str) -> EditorError:
         return EditorError(
@@ -968,10 +1118,16 @@ class GitlabEditor(BaseSiteEditor):
         namespace = project.get("namespace")
         namespace_path = ""
         if isinstance(namespace, dict):
-            namespace_path = str(namespace.get("full_path") or namespace.get("path") or "").strip().lower()
+            namespace_path = (
+                str(namespace.get("full_path") or namespace.get("path") or "").strip().lower()
+            )
         current_username = str(current_user.get("username") or "").strip().lower()
         expected_namespace = normalized_path.rsplit("/", 1)[0] if "/" in normalized_path else ""
-        return bool(current_username and namespace_path == current_username and expected_namespace == current_username)
+        return bool(
+            current_username
+            and namespace_path == current_username
+            and expected_namespace == current_username
+        )
 
     def _reap_preexisting_project(self, project_path: str, project: dict[str, Any]) -> None:
         project_id = project.get("id")
@@ -991,11 +1147,43 @@ class GitlabEditor(BaseSiteEditor):
             f"stale gitlab project path {project_path!r} could not be deleted before reseeding",
         )
 
-    def _classify_gitlab_request_error(self, method: str, path: str, exc: EditorError) -> EditorError:
+    def _classify_gitlab_request_error(
+        self, method: str, path: str, exc: EditorError
+    ) -> EditorError:
         detail = exc.detail.lower()
         if path.endswith("/repository/branches") and "already exists" in detail:
             return EditorError("branch_exists", exc.detail)
         return exc
+
+    def _classify_4xx_response(
+        self,
+        method: str,
+        path: str,
+        response: requests.Response,
+    ) -> tuple[str, str] | None:
+        """Classify GitLab 4xx responses into Phase 2c error kinds.
+
+        Recognized patterns (drawn from the live GitLab we target, and from the
+        AT-009 case study where a 624-char ``group.description`` tripped the
+        255-char column cap):
+
+        - ``length_exceeded``: ``is too long``, ``too long (maximum is ...)``
+        - ``field_required``: ``is required``, ``can't be blank``, ``must be
+          filled``, ``is missing``
+        - ``content_policy``: ``blocked``, ``spam``, ``abuse``, ``forbidden``,
+          ``rejected``, ``policy violation``, ``has been blocked``
+        """
+        messages = _extract_gitlab_error_messages(response)
+        if not messages:
+            return None
+        blob = " | ".join(messages).lower()
+        if any(token in blob for token in _GITLAB_LENGTH_TOKENS):
+            return ("length_exceeded", _first_line(messages))
+        if any(token in blob for token in _GITLAB_REQUIRED_TOKENS):
+            return ("field_required", _first_line(messages))
+        if any(token in blob for token in _GITLAB_POLICY_TOKENS):
+            return ("content_policy", _first_line(messages))
+        return None
 
     @staticmethod
     def _slugify(value: str) -> str:

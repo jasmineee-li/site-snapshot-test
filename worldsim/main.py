@@ -40,6 +40,14 @@ def _positive_int(value: str) -> int:
     return parsed
 
 
+def _non_negative_int(value: str) -> int:
+    """Argparse type for 0-or-greater integer CLI flags."""
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be zero or greater")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct the CLI parser used by ``main()`` and tests."""
     parser = argparse.ArgumentParser(
@@ -60,8 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     phase_cmd.add_argument(
         "phase",
-        choices=["0", "0a", "0b", "0c", "0d", "1", "2", "3", "4"],
-        help="Phase to run",
+        choices=["0", "0a", "0b", "0c", "0d", "1", "2", "2c", "3", "4"],
+        help="Phase to run. '2c' is CLI sugar for 'phase 2 --feasibility-only'.",
     )
     phase_cmd.add_argument(
         "--benchmark",
@@ -181,6 +189,58 @@ def build_parser() -> argparse.ArgumentParser:
         "(for example an old EC2 IP), skip agent auth for that site instead of failing. "
         "Default behavior is to fail fast and ask you to re-run Phase 0d.",
     )
+    phase_cmd.add_argument(
+        "--skip-feasibility",
+        action="store_true",
+        default=False,
+        help="Phase 2c: skip live feasibility verification. Tasks are stamped "
+        "feasibility.status='unverified' and Phase 4 runs in grace mode. Use "
+        "only for fast dev iteration; shipping runs must not bypass 2c.",
+    )
+    phase_cmd.add_argument(
+        "--feasibility-only",
+        action="store_true",
+        default=False,
+        help="Phase 2c: re-verify an existing adversarial_tasks.json without "
+        "re-running 2a planning or 2b text fill. Idempotent.",
+    )
+    phase_cmd.add_argument(
+        "--feasibility-instances",
+        type=str,
+        default="instances.smoke.json",
+        metavar="PATH",
+        help="Phase 2c: per-site instances file (wrapper dict with "
+        "'instances' key). Defaults to instances.smoke.json.",
+    )
+    phase_cmd.add_argument(
+        "--feasibility-concurrency",
+        type=_positive_int,
+        default=10,
+        metavar="N",
+        help="Phase 2c: maximum parallel verification workers (default 10).",
+    )
+    phase_cmd.add_argument(
+        "--feasibility-retry-count",
+        type=_non_negative_int,
+        default=1,
+        metavar="N",
+        help="Phase 2c: per-task retry budget for transient EditorError kinds "
+        "(default 1). 4xx rejections are never retried.",
+    )
+    phase_cmd.add_argument(
+        "--feasibility-ttl-hours",
+        type=float,
+        default=None,
+        metavar="HOURS",
+        help="Phase 2c: skip re-verify when verified_at is newer than N hours "
+        "even if the fingerprint drifts. Opt-in dev convenience.",
+    )
+    phase_cmd.add_argument(
+        "--force-reverify",
+        action="store_true",
+        default=False,
+        help="Phase 2c: re-verify every task regardless of fingerprint or status.",
+    )
 
     resume_cmd = subparsers.add_parser(
         "resume",
@@ -292,6 +352,52 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=argparse.SUPPRESS,
         help="Override the saved behavior for host-bound storage_state artifacts during resume.",
+    )
+    resume_cmd.add_argument(
+        "--skip-feasibility",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Resume: force Phase 2 to skip 2c live verification on this run.",
+    )
+    resume_cmd.add_argument(
+        "--feasibility-only",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Resume: re-run only Phase 2c (skip 2a planning + 2b text fill).",
+    )
+    resume_cmd.add_argument(
+        "--feasibility-instances",
+        type=str,
+        default=argparse.SUPPRESS,
+        metavar="PATH",
+        help="Resume: override the Phase 2c instances file.",
+    )
+    resume_cmd.add_argument(
+        "--feasibility-concurrency",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Resume: override Phase 2c worker concurrency.",
+    )
+    resume_cmd.add_argument(
+        "--feasibility-retry-count",
+        type=_non_negative_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Resume: override Phase 2c retry budget.",
+    )
+    resume_cmd.add_argument(
+        "--feasibility-ttl-hours",
+        type=float,
+        default=argparse.SUPPRESS,
+        metavar="HOURS",
+        help="Resume: override Phase 2c TTL shortcut.",
+    )
+    resume_cmd.add_argument(
+        "--force-reverify",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Resume: re-verify every Phase 2c task regardless of fingerprint.",
     )
 
     rescore_cmd = subparsers.add_parser(
@@ -414,6 +520,14 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     phase_2_text_fill_concurrency = getattr(args, "phase_2_text_fill_concurrency", None)
     phase_2_text_model = getattr(args, "phase_2_text_model", None)
 
+    skip_feasibility = getattr(args, "skip_feasibility", None)
+    feasibility_only = getattr(args, "feasibility_only", None)
+    feasibility_instances = getattr(args, "feasibility_instances", None)
+    feasibility_concurrency = getattr(args, "feasibility_concurrency", None)
+    feasibility_retry_count = getattr(args, "feasibility_retry_count", None)
+    feasibility_ttl_hours = getattr(args, "feasibility_ttl_hours", None)
+    force_reverify = getattr(args, "force_reverify", None)
+
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
         benchmark = Path(state["benchmark_path"])
@@ -441,6 +555,20 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_2_text_fill_concurrency = state.get("phase_2_text_fill_concurrency")
     if phase_2_text_model is None:
         phase_2_text_model = state.get("phase_2_text_model")
+    if skip_feasibility is None:
+        skip_feasibility = state.get("skip_feasibility", False)
+    if feasibility_only is None:
+        feasibility_only = state.get("feasibility_only", False)
+    if feasibility_instances is None:
+        feasibility_instances = state.get("feasibility_instances", "instances.smoke.json")
+    if feasibility_concurrency is None:
+        feasibility_concurrency = state.get("feasibility_concurrency", 10)
+    if feasibility_retry_count is None:
+        feasibility_retry_count = state.get("feasibility_retry_count", 1)
+    if feasibility_ttl_hours is None:
+        feasibility_ttl_hours = state.get("feasibility_ttl_hours")
+    if force_reverify is None:
+        force_reverify = state.get("force_reverify", False)
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -472,6 +600,13 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_2_text_model=phase_2_text_model,
         allow_unknown_auth=allow_unknown_auth,
         skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
+        skip_feasibility=skip_feasibility,
+        feasibility_only=feasibility_only,
+        feasibility_instances=feasibility_instances,
+        feasibility_concurrency=feasibility_concurrency,
+        feasibility_retry_count=feasibility_retry_count,
+        feasibility_ttl_hours=feasibility_ttl_hours,
+        force_reverify=force_reverify,
     )
 
     return _dispatch_phase(synthetic)
@@ -597,7 +732,9 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         rc = asyncio.run(phase_0d_auth_bootstrap.run(args))
     elif phase == "1":
         rc = asyncio.run(phase_1_tasks.run(args))
-    elif phase == "2":
+    elif phase in {"2", "2c"}:
+        if phase == "2c":
+            args.feasibility_only = True
         rc = asyncio.run(phase_2_injections.run(args))
     elif phase == "3":
         rc = asyncio.run(phase_3_benign.run(args))
