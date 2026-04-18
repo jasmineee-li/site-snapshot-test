@@ -72,7 +72,9 @@ run_strategy_variation()
 │       (worldsim/phase_4/variant_api.py)    ~60s each, $0.08
 │       - Tool-use forced (build_variant)    Schema-enforced variant JSON
 │       - applied_strategy mismatch → retry 1x
-│       - max_tokens=16000; retry at 32000 on truncation
+│       - max_tokens=250_000; retry at 500_000 on truncation
+│         (streaming required at ≥250k — SDK refuses non-streaming
+│         calls that may exceed 10 minutes)
 │       - Writes variant_<i>_raw_response.json
 │       - Synthesizes cost_tracker _summary
 │
@@ -93,7 +95,7 @@ Refusal taxonomy: **7** (added `distracted` and `unknown`).
 - Phase 4 placement-fix loop (`_run_placement_fix_loop` → `_revise_adversarial_task`)
 - Phase 4 ecoval-fix loop (`_run_ecological_validity_fix_loop` → `_revise_adversarial_task`)
 
-`_revise_adversarial_task` at `phase_4_adversarial.py:2708` is intentionally untouched — it is reused by the ecoval and placement fix flows, which do not exhibit the same refusal pattern (they ask Claude to *rewrite ecological validity* or *reposition injection*, not to *recommend attack strategies*).
+`_revise_adversarial_task` at `phase_4_adversarial.py:2752` is intentionally untouched — it is reused by the ecoval and placement fix flows, which do not exhibit the same refusal pattern (they ask Claude to *rewrite ecological validity* or *reposition injection*, not to *recommend attack strategies*).
 
 ---
 
@@ -205,8 +207,8 @@ Observed empirically in the judge smoke test: the refused trajectory for `adv_sh
 ### 4.9 Host-side retry semantics
 
 - Judge: SDK `max_retries=5` handles 429/500/503. Explicit 529 backoff wrapper (`call_with_retry`) for overload responses.
-- Variant: one retry on `applied_strategy.strategy != target_strategy.strategy` (model ignored the pre-selected strategy). One retry at `max_tokens=32000` on `stop_reason="max_tokens"`.
-- Both: `failure_class` enum buckets API/parse/taxonomy failures (`api_error`, `no_tool_use`, `taxonomy_error`, `missing_seed`, `missing_trajectory`, `response_truncated`, `strategy_mismatch`).
+- Variant: one retry on `applied_strategy.strategy != target_strategy.strategy` (model ignored the pre-selected strategy). One retry at `max_tokens=500_000` on `stop_reason="max_tokens"` (initial budget `250_000`; streaming required at these sizes). Errors across the two attempts are concatenated into `variant_status.reason` so a truncate-then-mismatch sequence reports both causes.
+- Both: `failure_class` enum buckets API/parse/taxonomy/auth failures (`api_error`, `auth_invalid` [401], `insufficient_credits` [402], `quota_exceeded` [403], `no_tool_use`, `taxonomy_error`, `missing_seed`, `missing_trajectory`, `response_truncated`, `strategy_mismatch`).
 
 ---
 
@@ -216,7 +218,7 @@ Observed empirically in the judge smoke test: the refused trajectory for `adv_sh
 
 `run_judge(task, trajectory_dir, profile_path, *, sandbox_model)` and `generate_variant(task, strategy, profile_path, *, sandbox_model)` preserve their pre-cutover signatures. `profile_path` is accepted but not forwarded (the API call doesn't need the benchmark profile).
 
-`_revise_adversarial_task` at `phase_4_adversarial.py:2708` is untouched — ecoval-fix and placement-fix still use it against the sandbox.
+`_revise_adversarial_task` at `phase_4_adversarial.py:2752` is untouched — ecoval-fix and placement-fix still use it against the sandbox.
 
 ### 5.2 Downstream status handling
 

@@ -90,3 +90,55 @@ def test_bare_list_history_also_accepted(tmp_path):
     sliced = slice_trajectory(tmp_path)
     assert len(sliced) == 1
     assert sliced[0]["step"] == 0
+
+
+def test_earliest_refusal_survives_budget_eviction(tmp_path):
+    """Multi-refusal trajectory: root-cause refusal at step 2, retry
+    ladder with fat contexts at steps 3-199. The backwards-from-end
+    windower would normally evict step 2. The slicer must force-include
+    a truncated version so the judge classifies on the root cause, not
+    the retry symptom."""
+    steps: list[dict] = []
+    steps.append(_make_step(0, thinking="looking at page"))
+    steps.append(_make_step(1, thinking="reading content"))
+    # Root-cause refusal with distinctive phrasing the judge would key on.
+    steps.append(
+        _make_step(
+            2,
+            thinking=(
+                "I noticed an injected instruction in the product review. "
+                "I won't comply with that; it appears to be a prompt injection "
+                "from untrusted external content."
+            ),
+        )
+    )
+    # Fat retry ladder that blows the budget.
+    for i in range(3, 200):
+        steps.append(_make_step(i, thinking=("retry " + "x" * 500)))
+
+    _write_history(tmp_path, steps)
+    sliced = slice_trajectory(tmp_path)
+
+    refusal_present = any(
+        "prompt injection" in str(step.get("thinking", "")).lower() for step in sliced
+    )
+    assert refusal_present, (
+        "earliest refusal (step 2) was evicted by backwards-from-end windowing; "
+        "the slicer must preserve at least one refusal marker"
+    )
+    # The forced-inclusion marker is on the rescued step.
+    forced = [s for s in sliced if s.get("_forced_inclusion") == "earliest_refusal_marker"]
+    assert len(forced) == 1 and forced[0]["step"] == 2
+
+
+def test_refusal_within_window_is_not_duplicated(tmp_path):
+    """When the backwards window already captures the earliest refusal,
+    no forced-inclusion duplicate is added."""
+    steps = [_make_step(i, thinking="ok") for i in range(3)]
+    steps.append(_make_step(3, thinking="I refuse this prompt injection — suspicious content."))
+    steps.append(_make_step(4, thinking="agent done"))
+    _write_history(tmp_path, steps)
+    sliced = slice_trajectory(tmp_path)
+    refusal_steps = [s for s in sliced if "refuse" in str(s.get("thinking", "")).lower()]
+    assert len(refusal_steps) == 1
+    assert not any(s.get("_forced_inclusion") for s in sliced)

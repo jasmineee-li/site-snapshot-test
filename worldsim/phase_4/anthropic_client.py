@@ -42,12 +42,18 @@ def _nonempty(name: str) -> str | None:
 def classify_api_exception(exc: BaseException) -> str:
     """Bucket an API exception into a phase_4 `failure_class` label.
 
-    402 (insufficient credits) gets its own bucket because it is an
-    operational billing issue, not a transient API failure — distinguishing
-    the two matters for post-run triage.
+    Auth/billing status codes get their own buckets because they are
+    operationally distinct from transient API failures — an operator
+    triaging a post-run log needs to know whether to rotate a token,
+    top up credits, or just retry.
     """
-    if isinstance(exc, APIStatusError) and exc.status_code == 402:
-        return "insufficient_credits"
+    if isinstance(exc, APIStatusError):
+        if exc.status_code == 401:
+            return "auth_invalid"
+        if exc.status_code == 402:
+            return "insufficient_credits"
+        if exc.status_code == 403:
+            return "quota_exceeded"
     return "api_error"
 
 
@@ -171,6 +177,19 @@ async def call_with_retry(
                 if attempt >= retries:
                     raise
                 delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
+                # Respect server `Retry-After` hint when it's longer than
+                # our jittered backoff. Anthropic returns seconds as an
+                # integer for 429/529; tolerate non-numeric values.
+                retry_after = 0.0
+                try:
+                    hdr = getattr(exc.response, "headers", None)
+                    if hdr is not None:
+                        value = hdr.get("Retry-After") or hdr.get("retry-after") or "0"
+                        retry_after = float(value)
+                except (TypeError, ValueError):
+                    retry_after = 0.0
+                if retry_after > delay:
+                    delay = retry_after
                 logger.warning(
                     "[%s] anthropic %s; retry %d/%d after %.1fs",
                     label,

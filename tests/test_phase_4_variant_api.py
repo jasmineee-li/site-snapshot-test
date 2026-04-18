@@ -191,6 +191,80 @@ async def test_max_tokens_triggers_retry_with_larger_budget(
     assert result["applied_strategy"]["description"] == "complete"
 
 
+def _api_status_error(status_code: int, message: str = "synthetic") -> Exception:
+    import httpx
+    from anthropic import APIStatusError
+
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(status_code, request=request)
+    return APIStatusError(
+        message=message,
+        response=response,
+        body={"error": {"code": status_code}},
+    )
+
+
+@pytest.mark.asyncio
+async def test_insufficient_credits_buckets_through_variant(
+    patched_anthropic_client, sample_task, strategy
+):
+    """402 from the API surfaces as variant_status.reason with the
+    `insufficient_credits` prefix so operators can distinguish billing
+    from transient errors."""
+    patched_anthropic_client.messages.create.side_effect = _api_status_error(402)
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert "insufficient_credits" in result["variant_status"]["reason"]
+
+
+@pytest.mark.asyncio
+async def test_auth_invalid_buckets_through_variant(
+    patched_anthropic_client, sample_task, strategy
+):
+    patched_anthropic_client.messages.create.side_effect = _api_status_error(401)
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert "auth_invalid" in result["variant_status"]["reason"]
+
+
+@pytest.mark.asyncio
+async def test_truncate_then_mismatch_reports_both_errors(
+    patched_anthropic_client, sample_task, strategy
+):
+    """Attempt 1 truncates, attempt 2 returns wrong strategy. The final
+    variant_status.reason must mention both so operators know the retry
+    bumped the budget AND the model still ignored the strategy."""
+    truncated = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor"},
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "partial",
+                "injection_content": "",
+            },
+        },
+        stop_reason="max_tokens",
+    )
+    mismatch = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "applied_strategy": {
+                "strategy": "semantic_coherence",  # wrong strategy
+                "description": "retried at higher budget",
+                "injection_content": "y",
+            },
+        }
+    )
+    patched_anthropic_client.messages.create.side_effect = [truncated, mismatch]
+    result = await generate_variant_api(sample_task, strategy)
+    reason = result["variant_status"]["reason"]
+    assert result["variant_status"]["status"] == "failed"
+    assert "response_truncated" in reason, f"missing truncation context in {reason!r}"
+    assert "strategy_mismatch" in reason, f"missing mismatch context in {reason!r}"
+
+
 @pytest.mark.asyncio
 async def test_max_tokens_retries_then_still_truncated_fails(
     patched_anthropic_client, sample_task, strategy

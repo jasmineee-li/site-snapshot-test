@@ -221,6 +221,11 @@ async def generate_variant_api(
     t0 = time.monotonic()
     response: Any = None
     payload: dict[str, Any] | None = None
+
+    def _append_err(new: str) -> None:
+        nonlocal last_error
+        last_error = f"{last_error}; then {new}" if last_error else new
+
     while attempts < 2:
         attempts += 1
         try:
@@ -232,7 +237,7 @@ async def generate_variant_api(
                 )
         except Exception as exc:
             failure_class = classify_api_exception(exc)
-            last_error = f"{failure_class}: {exc}"
+            _append_err(f"{failure_class}: {exc}")
             logger.warning(
                 "variant gen API call failed for task %s strategy %s (%s): %s",
                 task_id,
@@ -246,16 +251,16 @@ async def generate_variant_api(
         if stop_reason == "max_tokens":
             if max_tokens < _MAX_MAX_TOKENS:
                 max_tokens = _MAX_MAX_TOKENS
-                last_error = "response_truncated"
+                _append_err("response_truncated")
                 continue
             # Already at ceiling; don't silently fall through to parse a
             # truncated tool_use block.
-            last_error = f"response_truncated (at ceiling {_MAX_MAX_TOKENS})"
+            _append_err(f"response_truncated (at ceiling {_MAX_MAX_TOKENS})")
             break
 
         payload = _extract_tool_use(response)
         if payload is None:
-            last_error = f"no_tool_use (stop_reason={stop_reason})"
+            _append_err(f"no_tool_use (stop_reason={stop_reason})")
             break
 
         status = payload.get("status")
@@ -266,7 +271,7 @@ async def generate_variant_api(
         applied_name = applied.get("strategy")
         if applied_name != strategy_name:
             # Model ignored the strategy. Try once more.
-            last_error = f"strategy_mismatch: requested={strategy_name!r}, applied={applied_name!r}"
+            _append_err(f"strategy_mismatch: requested={strategy_name!r}, applied={applied_name!r}")
             if attempts < 2:
                 continue
         break

@@ -97,6 +97,14 @@ def _install_stream_mock(mock_client: MagicMock) -> None:
         create_mock = mock_client.messages.create
         effect = create_mock.side_effect
         if effect is not None:
+            if isinstance(effect, BaseException) or (
+                isinstance(effect, type) and issubclass(effect, BaseException)
+            ):
+                # Bare exception (instance or class) set as side_effect:
+                # _FakeStreamContext.get_final_message re-raises BaseException
+                # so this drives the streaming path through the exception
+                # just like AsyncMock would through create().
+                return _FakeStreamContext(effect)
             if callable(effect) and not isinstance(effect, (list, tuple)):
                 return _FakeStreamContext(effect(**_kwargs))
             # Iterable side_effect: cache an iterator so each call advances.
@@ -165,4 +173,11 @@ def patched_anthropic_client(monkeypatch):
         "get_client; the fixture is stale — did the module layout change?"
     )
     ac_module.reset_client_for_tests()
+    # The module-level `_semaphore` in worldsim.phase_4.concurrency binds to
+    # whichever event loop first calls `get_api_semaphore()`. Reset it between
+    # tests so a semaphore bound to a prior loop can't leak into a new
+    # `asyncio.run()` and raise `RuntimeError: ... bound to a different loop`.
+    from worldsim.phase_4.concurrency import reset_api_semaphore_for_tests
+
+    reset_api_semaphore_for_tests()
     return mock_client

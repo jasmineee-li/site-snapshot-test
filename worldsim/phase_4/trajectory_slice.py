@@ -31,6 +31,40 @@ _STEP_BYTE_BUDGET = 4096
 # comfortably inside Sonnet 4.6's 200K context even with the task JSON.
 _TOTAL_BYTE_BUDGET = 30_000
 
+# Keywords that indicate a step is a refusal / ignore event. Used to force
+# the EARLIEST such step into the slice even when the backwards-from-end
+# budget would otherwise evict it — multi-refusal trajectories can have the
+# root cause at step 3 and a symptomatic retry-ladder at step 17, and the
+# judge should classify on the root. Matched case-insensitively against
+# `thinking`, `evaluation_previous_goal`, `memory`, `next_goal`.
+_REFUSAL_KEYWORDS: tuple[str, ...] = (
+    "refus",
+    "declin",
+    "won't comply",
+    "will not comply",
+    "not going to",
+    "cannot help",
+    "can't help",
+    "i won't",
+    "ignor",
+    "suspicious",
+    "untrusted",
+    "injected",
+    "prompt injection",
+    "safety",
+    "not follow",
+)
+
+
+def _has_refusal_marker(step: dict[str, Any]) -> bool:
+    parts: list[str] = []
+    for key in ("thinking", "evaluation_previous_goal", "memory", "next_goal"):
+        value = step.get(key)
+        if isinstance(value, str):
+            parts.append(value)
+    haystack = " ".join(parts).lower()
+    return any(kw in haystack for kw in _REFUSAL_KEYWORDS)
+
 
 def _truncate(s: str | None, cap: int) -> str:
     if not s:
@@ -125,4 +159,30 @@ def slice_trajectory(trajectory_dir: Path | str) -> list[dict[str, Any]]:
         window.append(step)
         budget -= step_bytes
     window.reverse()
+
+    # Preserve the earliest refusal marker. If the backwards window evicted
+    # the root-cause refusal (e.g. refuse at step 3, retry-ladder at step
+    # 17), force-include a heavily-truncated version at the start so the
+    # judge classifies on the root, not on the retry symptom.
+    window_step_ids = {step.get("step") for step in window}
+    earliest_refusal: dict[str, Any] | None = None
+    for step in compacted:
+        if step.get("step") in window_step_ids:
+            # First refusal we'd encounter is already in the window — nothing
+            # to backfill.
+            if _has_refusal_marker(step):
+                earliest_refusal = None
+                break
+            continue
+        if _has_refusal_marker(step):
+            earliest_refusal = step
+            break
+
+    if earliest_refusal is not None:
+        early = dict(earliest_refusal)
+        early["thinking"] = _truncate(early.get("thinking"), _TEXT_FIELD_CAP // 2)
+        early["memory"] = _truncate(early.get("memory"), _TEXT_FIELD_CAP // 2)
+        early["_forced_inclusion"] = "earliest_refusal_marker"
+        window.insert(0, early)
+
     return window

@@ -136,32 +136,33 @@ def test_no_creds_raises_actionable_runtime_error(monkeypatch):
     assert "ANTHROPIC_API_KEY" in msg
 
 
-def test_classify_api_exception_buckets_402(monkeypatch):
+def _status_error(status_code: int, message: str = "synthetic") -> APIStatusError:
     import httpx
 
     request = httpx.Request("POST", "https://example.test/v1/messages")
-    response = httpx.Response(402, request=request)
-
-    exc = APIStatusError(
-        message="Insufficient credits",
+    response = httpx.Response(status_code, request=request)
+    return APIStatusError(
+        message=message,
         response=response,
-        body={"error": {"code": 402}},
+        body={"error": {"code": status_code}},
     )
-    assert anthropic_client.classify_api_exception(exc) == "insufficient_credits"
+
+
+def test_classify_api_exception_buckets_401_as_auth_invalid():
+    assert anthropic_client.classify_api_exception(_status_error(401)) == "auth_invalid"
+
+
+def test_classify_api_exception_buckets_402_as_insufficient_credits():
+    assert anthropic_client.classify_api_exception(_status_error(402)) == "insufficient_credits"
+
+
+def test_classify_api_exception_buckets_403_as_quota_exceeded():
+    assert anthropic_client.classify_api_exception(_status_error(403)) == "quota_exceeded"
 
 
 def test_classify_api_exception_buckets_other_statuses_as_api_error():
-    import httpx
-
-    request = httpx.Request("POST", "https://example.test/v1/messages")
-    response = httpx.Response(500, request=request)
-
-    exc = APIStatusError(
-        message="boom",
-        response=response,
-        body={"error": {"code": 500}},
-    )
-    assert anthropic_client.classify_api_exception(exc) == "api_error"
+    assert anthropic_client.classify_api_exception(_status_error(500)) == "api_error"
+    assert anthropic_client.classify_api_exception(_status_error(429)) == "api_error"
 
 
 def test_classify_api_exception_buckets_non_status_errors_as_api_error():
@@ -215,3 +216,89 @@ async def test_preflight_check_returns_false_on_no_creds(monkeypatch):
     assert ok is False
     assert err is not None
     assert "No Claude credentials configured" in err
+
+
+@pytest.mark.asyncio
+async def test_oauth_token_sent_as_authorization_bearer_on_wire():
+    """End-to-end verification that `auth_token=` produces an
+    `Authorization: Bearer <token>` header at the transport layer.
+
+    This is what Phase 4's `CLAUDE_CODE_OAUTH_TOKEN` path is
+    load-bearing on — a future anthropic SDK bump that changed
+    `auth_token` semantics would pass every kwarg-level mock test and
+    break production. Use httpx.MockTransport to intercept the real
+    request the SDK would send.
+    """
+    import httpx
+    from anthropic import AsyncAnthropic
+
+    captured: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update({k.lower(): v for k, v in request.headers.items()})
+        return httpx.Response(
+            200,
+            json={
+                "id": "msg_oauth_test",
+                "type": "message",
+                "role": "assistant",
+                "model": "claude-sonnet-4-6",
+                "content": [{"type": "text", "text": "ok"}],
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 1, "output_tokens": 1},
+            },
+        )
+
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        client = AsyncAnthropic(auth_token="test-oauth-tok", http_client=http_client)
+        await client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1,
+            messages=[{"role": "user", "content": "."}],
+        )
+    finally:
+        await http_client.aclose()
+
+    assert captured.get("authorization") == "Bearer test-oauth-tok", (
+        f"expected 'Authorization: Bearer test-oauth-tok'; got {captured.get('authorization')!r}"
+    )
+    # x-api-key must NOT be set when auth_token is the auth mode.
+    assert "x-api-key" not in captured, (
+        f"x-api-key leaked into request headers: {captured.get('x-api-key')!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_call_with_retry_honors_retry_after_header(monkeypatch):
+    """A 529 with `Retry-After: N` must wait at least N seconds even if
+    the jittered exponential backoff would wait less. Ignoring the hint
+    causes immediate re-fire and likely another 529."""
+    import httpx
+
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", fake_sleep)
+
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(529, headers={"Retry-After": "7"}, request=request)
+
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise APIStatusError(message="overloaded", response=response, body=None)
+        return "ok"
+
+    result = await anthropic_client.call_with_retry(
+        flaky, retries=3, base_delay=1.0, label="retry-after-test"
+    )
+    assert result == "ok"
+    assert sleeps, "expected at least one sleep before the retry"
+    # First (and only) retry delay must be ≥ Retry-After hint.
+    assert sleeps[0] >= 7.0, f"retry slept {sleeps[0]}s, expected ≥7s per Retry-After header"

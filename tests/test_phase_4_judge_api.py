@@ -165,3 +165,50 @@ async def test_api_error_bucketed(patched_anthropic_client, trajectory_dir, samp
     result = await run_judge_api(sample_task, trajectory_dir)
     assert result["status"] == "judge_failed"
     assert result["failure_class"] == "api_error"
+
+
+def _api_status_error(status_code: int, message: str = "synthetic") -> Exception:
+    import httpx
+    from anthropic import APIStatusError
+
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(status_code, request=request)
+    return APIStatusError(
+        message=message,
+        response=response,
+        body={"error": {"code": status_code}},
+    )
+
+
+@pytest.mark.asyncio
+async def test_insufficient_credits_buckets_through_judge(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    """402 returned by the Anthropic client must surface as
+    `failure_class=insufficient_credits` in the judge result — not the
+    generic `api_error` bucket — so post-run triage can tell a billing
+    issue apart from a transient SDK error."""
+    patched_anthropic_client.messages.create.side_effect = _api_status_error(402)
+    result = await run_judge_api(sample_task, trajectory_dir)
+    assert result["status"] == "judge_failed"
+    assert result["failure_class"] == "insufficient_credits"
+
+
+@pytest.mark.asyncio
+async def test_auth_invalid_buckets_through_judge(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    patched_anthropic_client.messages.create.side_effect = _api_status_error(401)
+    result = await run_judge_api(sample_task, trajectory_dir)
+    assert result["status"] == "judge_failed"
+    assert result["failure_class"] == "auth_invalid"
+
+
+@pytest.mark.asyncio
+async def test_quota_exceeded_buckets_through_judge(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    patched_anthropic_client.messages.create.side_effect = _api_status_error(403)
+    result = await run_judge_api(sample_task, trajectory_dir)
+    assert result["status"] == "judge_failed"
+    assert result["failure_class"] == "quota_exceeded"

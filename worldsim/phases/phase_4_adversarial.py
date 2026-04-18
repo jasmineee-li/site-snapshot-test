@@ -536,8 +536,19 @@ async def run(args: argparse.Namespace) -> int:
     # N tasks have already burned eval cost each. See review item I.1.
     # Set WORLDSIM_PHASE_4_SKIP_PREFLIGHT=1 to bypass — used by crash-resume
     # tests that run in scrubbed-env subprocesses and mock the judge anyway.
+    # Skipped on active resume so an operator who rotated credentials can
+    # still pick up already-complete task results on disk; the first real
+    # API call will surface any remaining auth issue per-task.
+    resuming_phase_4 = bool(
+        prior_state and prior_state.get("step") == "phase_4" and prior_state.get("task_dir_root")
+    )
     if os.environ.get("WORLDSIM_PHASE_4_SKIP_PREFLIGHT", "").strip() in ("1", "true", "True"):
         logger.info("Phase 4 preflight SKIPPED (WORLDSIM_PHASE_4_SKIP_PREFLIGHT set)")
+    elif resuming_phase_4:
+        logger.info(
+            "Phase 4 preflight SKIPPED (active resume; first API call will surface "
+            "auth issues per-task)"
+        )
     else:
         from worldsim.phase_4.anthropic_client import preflight_check
 
@@ -1348,7 +1359,15 @@ async def run_adversarial_task(
                     await _reset_task_environment(task)
                     if reset_cache is not None:
                         reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
-                seed_cleanup = await apply_data_seed_async(adv_seed, seed_instance_dict)
+                seed_cleanup, seed_metadata = await apply_data_seed_async(
+                    adv_seed, seed_instance_dict
+                )
+                surface_urls = seed_metadata.get("read_surface_urls") or []
+                if surface_urls:
+                    task["read_surface_urls"] = surface_urls
+                    provenance = seed_metadata.get("read_surface_provenance") or {}
+                    if provenance:
+                        task["read_surface_provenance"] = provenance
             elif should_reset:
                 await _reset_task_environment(task)
                 if reset_cache is not None:
