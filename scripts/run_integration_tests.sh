@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST_CONFIG=""
 INSTANCES_FILE="${REPO_ROOT}/instances.smoke.json"
+VERIFY_READ_SURFACE_URLS=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -14,6 +15,10 @@ while [[ $# -gt 0 ]]; do
         --instances)
             INSTANCES_FILE="$2"
             shift 2
+            ;;
+        --verify-read-surface-urls)
+            VERIFY_READ_SURFACE_URLS=1
+            shift
             ;;
         --)
             shift
@@ -117,4 +122,8 @@ printf '    LIVE_SHOPPING_ADMIN_URL = %s\n' "${LIVE_SHOPPING_ADMIN_URL:-}"
 printf '    LIVE_REDDIT_URL = %s\n' "${LIVE_REDDIT_URL:-}"
 
 cd "$REPO_ROOT"
+if [[ -n "$VERIFY_READ_SURFACE_URLS" ]]; then
+    export PYTEST_VERIFY_READ_SURFACE_URLS=1
+    printf '    PYTEST_VERIFY_READ_SURFACE_URLS = 1\n'
+fi
 uv run pytest -m "integration or feasibility" tests/integration "$@"
