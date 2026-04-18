@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import re
 
-import requests
-
 import pytest
+import requests
 
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.editors.base import EditorError
@@ -46,7 +45,7 @@ def test_reddit_live_create_forum_submission_and_comment(live_instance, unique_s
         if submission is None:
             news_page = editor._form_get("/f/news")
             assert news_page is not None
-            match = re.search(r'/f/news/(\d+)', news_page.text)
+            match = re.search(r"/f/news/(\d+)", news_page.text)
             if match is None:
                 pytest.skip("reddit live stack does not expose a commentable submission id")
             submission = {
@@ -79,7 +78,14 @@ def test_reddit_live_create_forum_submission_and_comment(live_instance, unique_s
             profile_page = editor._form_get(
                 f"/user/{editor._quote(editor._resolve_current_username(instance))}"
             )
-            assert first == second == {"forum_name": forum_name}
+            # Commit 2 of the C1 migration: editor results now include
+            # ``read_surface_urls`` + ``read_surface_provenance_source``.
+            assert first["forum_name"] == forum_name
+            assert second["forum_name"] == forum_name
+            for result in (first, second):
+                assert result.get("read_surface_provenance_source") == "editor_constructed"
+                surface = result.get("read_surface_urls") or []
+                assert f"/f/{forum_name}" in surface
             assert forum_page is not None
             assert submission["forum_name"] in {"news", forum_name}
             assert submission_page is not None
