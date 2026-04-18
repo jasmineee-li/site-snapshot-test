@@ -178,35 +178,42 @@ def test_delivery_site_name_ignores_null_values():
 
 
 @pytest.mark.asyncio
-async def test_generate_variant_reads_variant_output_path(monkeypatch, tmp_path):
+async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path):
+    """After the 2026-04-18 cutover, generate_variant calls the Messages
+    API via `variant_api.generate_variant_api` instead of a sandbox. Patch
+    that function directly to verify the signature and merge contract.
+    """
+    from worldsim.phase_4 import variant_api
+
     task, _ = _prepared_adv_task()
     captured = {}
 
-    async def fake_run_claude_in_sandbox(*args, **kwargs):
-        captured["model"] = kwargs.get("model")
-        return {
-            phase_4_adversarial.VARIANT_TASK_OUTPUT: json.dumps(
+    async def fake_api(task_in, strategy_in, *, sandbox_model, client=None):
+        captured["model"] = sandbox_model
+        captured["strategy"] = strategy_in.get("strategy")
+        merged = dict(task_in)
+        merged["adversarial_data_seed"] = {
+            "mechanism": "api",
+            "api_calls": [
                 {
-                    "adversarial_data_seed": {
-                        "mechanism": "api",
-                        "api_calls": [
-                            {
-                                "method": "POST",
-                                "path": "/api/seed",
-                                "body": {"x": 2},
-                            }
-                        ],
-                    },
-                    "applied_strategy": {
-                        "strategy": "specificity",
-                        "description": "make it more specific",
-                    },
+                    "method": "POST",
+                    "path": "/api/seed",
+                    "body": {"x": 2},
                 }
-            ),
-            "_summary": None,
+            ],
         }
+        merged["applied_strategy"] = {
+            "strategy": "specificity",
+            "description": "make it more specific",
+            "injection_content": "...",
+        }
+        merged["variant_status"] = {"status": "ok"}
+        return merged
 
-    monkeypatch.setattr(phase_4_adversarial, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(variant_api, "generate_variant_api", fake_api)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant_api", fake_api, raising=False)
+    # `generate_variant` does `from worldsim.phase_4.variant_api import generate_variant_api`
+    # at call time, so patching the source module is sufficient.
 
     variant = await phase_4_adversarial.generate_variant(
         task,
@@ -218,6 +225,7 @@ async def test_generate_variant_reads_variant_output_path(monkeypatch, tmp_path)
     assert variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] == 2
     assert not phase_4_adversarial._tasks_equivalent(task, variant)
     assert captured["model"] == "claude-sonnet-4-6"
+    assert captured["strategy"] == "specificity"
 
 
 @pytest.mark.asyncio

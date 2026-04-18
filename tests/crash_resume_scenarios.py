@@ -564,6 +564,15 @@ async def _run_phase_4(
     phase_4_adversarial.preflight_auth_check = lambda: None
     phase_4_adversarial._run_ecological_validity_fix_loop = _async_none
     phase_4_adversarial._run_placement_fix_loop = _async_none
+
+    # New 2026-04-18 preflight against Anthropic Messages API. The scenario
+    # runs offline with mocked judge/variant, so short-circuit to "OK".
+    from worldsim.phase_4 import anthropic_client as _ac_module
+
+    async def _fake_preflight(**_kwargs: Any) -> tuple[bool, None]:
+        return (True, None)
+
+    _ac_module.preflight_check = _fake_preflight
     invocation_log = state_dir / "phase_4_invocations.json"
 
     async def fake_run_judge(*args, **kwargs):

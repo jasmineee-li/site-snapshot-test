@@ -14,6 +14,10 @@ from worldsim.failpoints import FAILPOINT_EXIT_CODE
         "phase_4.postprocess.checkpoint.after_replace",
         "phase_4.strategy_variation.checkpoint.after_replace",
         "phase_4.outputs.results.after_replace",
+        # After the judge API returns (and its cost is spent) but before the
+        # strategy_variation_checkpoint.json is written. On resume, the judge
+        # re-runs from scratch — verify the pipeline still converges.
+        "phase_4.judge.after_response.before_checkpoint",
     ],
 )
 def test_phase_4_crash_resume_matches_clean_run(tmp_path, failpoint):

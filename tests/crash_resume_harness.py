@@ -42,6 +42,10 @@ def run_scenario(
     # Synthetic scenarios don't build tasks with a Phase 2c feasibility
     # stanza. Disable strict admission in the child so Phase 4 still runs.
     env["WORLDSIM_STRICT_FEASIBILITY"] = "false"
+    # Synthetic scenarios mock run_judge/generate_variant at the module level
+    # and don't need real Anthropic credentials. Bypass the Phase 4 preflight
+    # so subprocess launches succeed in CI environments with no auth.
+    env["WORLDSIM_PHASE_4_SKIP_PREFLIGHT"] = "1"
     if failpoint is None:
         env.pop("WORLDSIM_FAILPOINTS", None)
     else:
