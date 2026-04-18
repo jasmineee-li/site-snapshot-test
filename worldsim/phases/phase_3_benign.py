@@ -162,6 +162,21 @@ async def run(args: argparse.Namespace) -> int:
         else:
             logger.warning("Phase 3: adversarial_tasks.json is not an array, ignoring")
 
+    # Also include Phase 2c's quarantined infeasible tasks so the
+    # ``adversarially_exhausted`` annotation can fire for benigns whose only
+    # linked adversarials all landed in quarantine. These tasks will not
+    # reach Phase 4, but the annotation lets reviewers distinguish "no
+    # usable adversarial for this benign" from "agent resisted".
+    infeasible_path = adv_tasks_path.with_name(adv_tasks_path.stem + ".infeasible.json")
+    if infeasible_path.exists():
+        try:
+            infeasible_raw = json.loads(infeasible_path.read_text())
+        except json.JSONDecodeError:
+            infeasible_raw = []
+            logger.warning("Phase 3: %s is not valid JSON, ignoring", infeasible_path)
+        if isinstance(infeasible_raw, list):
+            adversarial_tasks.extend(infeasible_raw)
+
     if sites_filter_raw and adversarial_tasks:
         benign_site_set = {str(task.get("site", "")).strip() for task in benign_tasks}
         adversarial_tasks = [

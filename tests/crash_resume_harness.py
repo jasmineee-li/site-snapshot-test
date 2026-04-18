@@ -39,6 +39,9 @@ def run_scenario(
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     env["WORLDSIM_STATE_DIR"] = str(state_dir)
+    # Synthetic scenarios don't build tasks with a Phase 2c feasibility
+    # stanza. Disable strict admission in the child so Phase 4 still runs.
+    env["WORLDSIM_STRICT_FEASIBILITY"] = "false"
     if failpoint is None:
         env.pop("WORLDSIM_FAILPOINTS", None)
     else:

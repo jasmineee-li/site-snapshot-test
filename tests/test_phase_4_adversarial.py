@@ -21,6 +21,17 @@ from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
 
+@pytest.fixture(autouse=True)
+def _relax_feasibility_admission(monkeypatch):
+    """Disable strict feasibility admission for the synthetic tests in this
+    module. Production flipped to strict on 2026-04-18; the tests here
+    predate Phase 2c and construct adversarial tasks without a
+    ``feasibility`` stanza, so relaxing admission lets them exercise the
+    Phase 4 logic they are about without hand-stamping each task."""
+    monkeypatch.setenv("WORLDSIM_STRICT_FEASIBILITY", "false")
+    yield
+
+
 def _as_contracts(tasks: list[dict], *, origin: str = "mode_a") -> list[dict]:
     return [
         {

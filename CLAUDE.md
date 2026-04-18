@@ -34,6 +34,7 @@ If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, `worldsim/phases/p
 - Do not manage benchmark environment lifecycles (starting, stopping, snapshotting). `reset_endpoint` between tasks is the one exception.
 - Do not bypass Phase 2c (`--skip-feasibility`) on shipping runs; the `feasibility.status="verified"` stamp is a gate input for Phase 4 under strict admission.
 - Do not hand-edit `feasibility.status` in `adversarial_tasks.json`; trust the gate or re-run `phase 2c`.
+- Do not run Phase 4 on a dataset that hasn't been through 2c — admission is strict as of 2026-04-18 and unverified tasks are skipped.
 - The break-glass env override for Phase 4 admission is `WORLDSIM_STRICT_FEASIBILITY={true,false}`; it supersedes the source-controlled `STRICT_FEASIBILITY_ADMISSION` constant.
 
 <important if="you are stuck on Modal image setup, secret wiring, sandbox lifecycle, or Claude Code invocation flags">

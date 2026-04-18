@@ -126,14 +126,16 @@ VARIANT_TASK_OUTPUT = "/workspace/output/variant_task.json"
 ECOLOGICAL_FIX_MAX_ITERATIONS = 2
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 
-# Phase 2c feasibility admission. Commit 1 ships this ``False`` (grace mode):
-# explicitly-``infeasible`` tasks are skipped, unverified tasks are admitted
-# with a one-time warning. Commit 3 flips this to ``True`` so only
-# ``feasibility.status == "verified"`` tasks run.
+# Phase 2c feasibility admission. Flipped to ``True`` on 2026-04-18 after
+# commit 2 enriched the dataset on r5; only ``feasibility.status == "verified"``
+# tasks run, ``infeasible`` is skipped, and any unverified remnant is also
+# skipped (strict mode). The Phase 4 summary reports ``skipped_infeasible``
+# and ``skipped_unverified`` counts so ``error`` in results.json attributes
+# to infra flake rather than dataset-side infeasibility.
 #
-# Break-glass: set ``WORLDSIM_STRICT_FEASIBILITY=true`` (or ``false``) to
-# override the source-controlled value at runtime without a code change.
-STRICT_FEASIBILITY_ADMISSION = False
+# Break-glass: set ``WORLDSIM_STRICT_FEASIBILITY=false`` to revert to the
+# grace-mode behavior at runtime without rolling this constant back.
+STRICT_FEASIBILITY_ADMISSION = True
 
 
 def _strict_feasibility_enabled() -> bool:
