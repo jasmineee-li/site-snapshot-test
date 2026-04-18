@@ -5,7 +5,29 @@ from typing import Any
 
 import requests
 
+from ._read_surface import collect_platform_urls, host_and_path_forms, normalize_surface_urls
 from .base import BaseSiteEditor, EditorError
+
+_GITLAB_WEB_URL_PATHS = ("web_url", "_links.self")
+
+
+def _gitlab_read_surface(
+    response: Any,
+    constructed_paths: list[str],
+    site_url: str,
+) -> list[str]:
+    """Combine API-returned web_urls + constructed paths into host+path forms.
+
+    Each URL is emitted in BOTH host-qualified and path-only forms so the
+    C1b matcher survives cross-host replay (see handoff §12.8).
+    """
+    urls: list[str] = list(collect_platform_urls(response, list(_GITLAB_WEB_URL_PATHS)))
+    urls.extend(constructed_paths)
+    expanded: list[str] = []
+    for url in urls:
+        expanded.extend(host_and_path_forms(site_url, url))
+    return normalize_surface_urls(expanded)
+
 
 _GITLAB_LENGTH_TOKENS: tuple[str, ...] = (
     "is too long",
@@ -285,9 +307,12 @@ class GitlabEditor(BaseSiteEditor):
         project_id = project.get("id")
         if project_id in (None, ""):
             raise EditorError("invalid_project_create", "gitlab project create missing id")
+        resolved_path = str(project.get("path_with_namespace") or project_path)
         result = {
             "project_id": project_id,
-            "project_path": str(project.get("path_with_namespace") or project_path),
+            "project_path": resolved_path,
+            "read_surface_urls": self._project_surface_urls(project, resolved_path),
+            "read_surface_provenance_source": "editor_api_response",
         }
         self._created_projects_by_path[project_path.lower()] = dict(result)
         self._push_cleanup(lambda project_id=project_id: self.delete_project(project_id))
@@ -311,9 +336,12 @@ class GitlabEditor(BaseSiteEditor):
                 if not isinstance(group, dict):
                     continue
                 if str(group.get("path", "")).strip().lower() == group_path.lower():
+                    group_full_path = str(group.get("full_path") or group_path)
                     return {
                         "group_id": group["id"],
-                        "group_path": str(group.get("full_path") or group_path),
+                        "group_path": group_full_path,
+                        "read_surface_urls": self._group_surface_urls(group, group_full_path),
+                        "read_surface_provenance_source": "editor_api_response",
                     }
         created = self._gitlab_request_json(
             "POST",
@@ -330,7 +358,13 @@ class GitlabEditor(BaseSiteEditor):
             )
         group_id = created["id"]
         self._push_cleanup(lambda group_id=group_id: self.delete_group(group_id))
-        return {"group_id": group_id, "group_path": str(created.get("full_path") or group_path)}
+        group_full_path = str(created.get("full_path") or group_path)
+        return {
+            "group_id": group_id,
+            "group_path": group_full_path,
+            "read_surface_urls": self._group_surface_urls(created, group_full_path),
+            "read_surface_provenance_source": "editor_api_response",
+        }
 
     def create_issue(
         self,
@@ -358,6 +392,10 @@ class GitlabEditor(BaseSiteEditor):
                 "project_id": project["project_id"],
                 "project_path": project["project_path"],
                 "issue_iid": existing["iid"],
+                "read_surface_urls": self._issue_surface_urls(
+                    existing, project["project_path"], existing["iid"]
+                ),
+                "read_surface_provenance_source": "editor_api_response",
             }
         issue = self._gitlab_request_json(
             "POST",
@@ -378,6 +416,10 @@ class GitlabEditor(BaseSiteEditor):
             "project_id": project["project_id"],
             "project_path": project["project_path"],
             "issue_iid": issue_iid,
+            "read_surface_urls": self._issue_surface_urls(
+                issue, project["project_path"], issue_iid
+            ),
+            "read_surface_provenance_source": "editor_api_response",
         }
 
     def create_issue_note(
@@ -406,7 +448,15 @@ class GitlabEditor(BaseSiteEditor):
         )
         note = self._find_existing_issue_note(project["project_id"], issue["issue_iid"], note_body)
         if isinstance(note, dict):
-            return {**project, "issue_iid": issue["issue_iid"], "note_id": note["id"]}
+            return {
+                **project,
+                "issue_iid": issue["issue_iid"],
+                "note_id": note["id"],
+                "read_surface_urls": self._issue_surface_urls(
+                    note, project["project_path"], issue["issue_iid"]
+                ),
+                "read_surface_provenance_source": "editor_api_response",
+            }
         created = self._gitlab_request_json(
             "POST",
             f"/api/v4/projects/{project['project_id']}/issues/{issue['issue_iid']}/notes",
@@ -422,7 +472,15 @@ class GitlabEditor(BaseSiteEditor):
                 self._delete_issue_note(project_id, issue_iid, note_id)
             )
         )
-        return {**project, "issue_iid": issue["issue_iid"], "note_id": note_id}
+        return {
+            **project,
+            "issue_iid": issue["issue_iid"],
+            "note_id": note_id,
+            "read_surface_urls": self._issue_surface_urls(
+                created, project["project_path"], issue["issue_iid"]
+            ),
+            "read_surface_provenance_source": "editor_api_response",
+        }
 
     def create_mr(
         self,
@@ -451,7 +509,14 @@ class GitlabEditor(BaseSiteEditor):
         }
         existing = self._find_existing_merge_request(project["project_id"], payload)
         if isinstance(existing, dict):
-            return {**project, "mr_iid": existing["iid"]}
+            return {
+                **project,
+                "mr_iid": existing["iid"],
+                "read_surface_urls": self._mr_surface_urls(
+                    existing, project["project_path"], existing["iid"]
+                ),
+                "read_surface_provenance_source": "editor_api_response",
+            }
         self._ensure_branch_and_commit(project["project_id"], payload)
         created = self._gitlab_request_json(
             "POST",
@@ -469,7 +534,12 @@ class GitlabEditor(BaseSiteEditor):
                 project_id, mr_iid
             )
         )
-        return {**project, "mr_iid": mr_iid}
+        return {
+            **project,
+            "mr_iid": mr_iid,
+            "read_surface_urls": self._mr_surface_urls(created, project["project_path"], mr_iid),
+            "read_surface_provenance_source": "editor_api_response",
+        }
 
     def create_mr_note(
         self,
@@ -503,7 +573,15 @@ class GitlabEditor(BaseSiteEditor):
             project["project_id"], merge_request["mr_iid"], note_body
         )
         if isinstance(note, dict):
-            return {**project, "mr_iid": merge_request["mr_iid"], "note_id": note["id"]}
+            return {
+                **project,
+                "mr_iid": merge_request["mr_iid"],
+                "note_id": note["id"],
+                "read_surface_urls": self._mr_surface_urls(
+                    note, project["project_path"], merge_request["mr_iid"]
+                ),
+                "read_surface_provenance_source": "editor_api_response",
+            }
         created = self._gitlab_request_json(
             "POST",
             f"/api/v4/projects/{project['project_id']}/merge_requests/{merge_request['mr_iid']}/notes",
@@ -519,7 +597,15 @@ class GitlabEditor(BaseSiteEditor):
                 self._delete_mr_note(project_id, mr_iid, note_id)
             )
         )
-        return {**project, "mr_iid": merge_request["mr_iid"], "note_id": note_id}
+        return {
+            **project,
+            "mr_iid": merge_request["mr_iid"],
+            "note_id": note_id,
+            "read_surface_urls": self._mr_surface_urls(
+                created, project["project_path"], merge_request["mr_iid"]
+            ),
+            "read_surface_provenance_source": "editor_api_response",
+        }
 
     def create_repo_file(
         self,
@@ -545,8 +631,13 @@ class GitlabEditor(BaseSiteEditor):
             project["project_id"], file_path=file_path, ref=branch_name
         )
         action = "create" if current is None else "update"
+        surface_urls = self._repo_file_surface_urls(project["project_path"], branch_name, file_path)
         if current == content:
-            return {**project}
+            return {
+                **project,
+                "read_surface_urls": surface_urls,
+                "read_surface_provenance_source": "editor_constructed",
+            }
         payload = {
             "branch": branch_name,
             "commit_message": str(commit_message or f"Seed {file_path}").strip(),
@@ -574,7 +665,12 @@ class GitlabEditor(BaseSiteEditor):
                     self._restore_repo_file(project_id, branch_name, file_path, original_content)
                 )
             )
-        return {**project, "commit_id": commit.get("id") or commit.get("short_id")}
+        return {
+            **project,
+            "commit_id": commit.get("id") or commit.get("short_id"),
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_constructed",
+        }
 
     def update_user_status(self, *, message: str, emoji: str | None = None) -> dict[str, Any]:
         self._gitlab_request_json(
@@ -582,6 +678,12 @@ class GitlabEditor(BaseSiteEditor):
             "/api/v4/user/status",
             json_body={"message": str(message), "emoji": str(emoji or "")},
         )
+        surface_urls = self._user_profile_surface_urls()
+        if surface_urls:
+            return {
+                "read_surface_urls": surface_urls,
+                "read_surface_provenance_source": "editor_constructed",
+            }
         return {}
 
     def update_user_profile(
@@ -594,9 +696,20 @@ class GitlabEditor(BaseSiteEditor):
             payload["name"] = str(name)
         if not payload:
             raise EditorError("invalid_args", "gitlab user profile update requires bio or name")
+        surface_urls = self._user_profile_surface_urls()
+        provenance_source = "editor_constructed"
+
+        def _surface_result() -> dict[str, Any]:
+            if surface_urls:
+                return {
+                    "read_surface_urls": surface_urls,
+                    "read_surface_provenance_source": provenance_source,
+                }
+            return {}
+
         try:
             self._gitlab_request_json("PUT", "/api/v4/user", json_body=payload)
-            return {}
+            return _surface_result()
         except EditorError as exc:
             if not (exc.kind == "request_failed" and "HTTP 404" in exc.detail):
                 raise
@@ -622,7 +735,7 @@ class GitlabEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
-        return {}
+        return _surface_result()
 
     def _ensure_profile_form_session(self) -> None:
         if self._profile_form_session_prepared:
@@ -1192,3 +1305,34 @@ class GitlabEditor(BaseSiteEditor):
             slug = slug.replace("--", "-")
         slug = slug.strip("-")
         return slug or "webagent-task"
+
+    def _issue_surface_urls(self, issue: Any, project_path: str, issue_iid: Any) -> list[str]:
+        constructed = [f"/{project_path}/-/issues/{issue_iid}"] if project_path else []
+        return _gitlab_read_surface(issue, constructed, self._site_url())
+
+    def _mr_surface_urls(self, merge_request: Any, project_path: str, mr_iid: Any) -> list[str]:
+        constructed = [f"/{project_path}/-/merge_requests/{mr_iid}"] if project_path else []
+        return _gitlab_read_surface(merge_request, constructed, self._site_url())
+
+    def _project_surface_urls(self, project: Any, project_path: str) -> list[str]:
+        constructed = [f"/{project_path}"] if project_path else []
+        return _gitlab_read_surface(project, constructed, self._site_url())
+
+    def _group_surface_urls(self, group: Any, group_path: str) -> list[str]:
+        constructed = [f"/groups/{group_path}"] if group_path else []
+        return _gitlab_read_surface(group, constructed, self._site_url())
+
+    def _repo_file_surface_urls(self, project_path: str, branch: str, file_path: str) -> list[str]:
+        if not project_path or not branch or not file_path:
+            return []
+        return _gitlab_read_surface(
+            None,
+            [f"/{project_path}/-/blob/{branch}/{file_path}"],
+            self._site_url(),
+        )
+
+    def _user_profile_surface_urls(self) -> list[str]:
+        username = self.current_username_preview(self.instance)
+        if not username or username == "current-user":
+            return []
+        return _gitlab_read_surface(None, [f"/{username}"], self._site_url())

@@ -4,8 +4,16 @@ from typing import Any
 
 import requests
 
+from ._read_surface import host_and_path_forms, normalize_surface_urls
 from .base import EditorError
 from .shopping import ShoppingEditor
+
+
+def _shopping_admin_surface_urls(site_url: str, paths: list[str]) -> list[str]:
+    expanded: list[str] = []
+    for value in paths:
+        expanded.extend(host_and_path_forms(site_url, value))
+    return normalize_surface_urls(expanded)
 
 
 class ShoppingAdminEditor(ShoppingEditor):
@@ -69,4 +77,9 @@ class ShoppingAdminEditor(ShoppingEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
-        return {}
+        return {
+            "read_surface_urls": _shopping_admin_surface_urls(
+                self._site_url(), ["/admin/admin/user/edit/user_id/1/"]
+            ),
+            "read_surface_provenance_source": "editor_constructed",
+        }

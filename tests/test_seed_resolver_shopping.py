@@ -34,7 +34,16 @@ def test_create_product_review_builds_expected_review_payload(monkeypatch):
         rating=5,
     )
 
-    assert result == {"review_id": 42}
+    assert result == {
+        "review_id": 42,
+        "read_surface_urls": [
+            "http://shopping.test/catalog/product/view/id/7",
+            "/catalog/product/view/id/7",
+            "http://shopping.test/review/product/listAjax/id/7",
+            "/review/product/listAjax/id/7",
+        ],
+        "read_surface_provenance_source": "editor_constructed",
+    }
     assert captured["method"] == "POST"
     assert captured["path"] == "/rest/V1/reviews"
     assert captured["json_body"] == {
@@ -70,7 +79,9 @@ def test_update_customer_profile_posts_account_edit_form(monkeypatch):
         },
     )
 
-    def fake_submit_exact_form(action_path, form_fields, *, multipart=False, refresh_on_rejection=None):
+    def fake_submit_exact_form(
+        action_path, form_fields, *, multipart=False, refresh_on_rejection=None
+    ):
         captured["action_path"] = action_path
         captured["form_fields"] = form_fields
         captured["multipart"] = multipart
@@ -79,7 +90,13 @@ def test_update_customer_profile_posts_account_edit_form(monkeypatch):
 
     monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
 
-    assert editor.update_customer_profile(field="firstname", value="Alice") == {}
+    assert editor.update_customer_profile(field="firstname", value="Alice") == {
+        "read_surface_urls": [
+            "http://shopping.test/customer/account/index/",
+            "/customer/account/index/",
+        ],
+        "read_surface_provenance_source": "editor_constructed",
+    }
     assert captured["action_path"] == "/customer/account/editpost/"
     assert captured["form_fields"] == {
         "form_key": "abc123",

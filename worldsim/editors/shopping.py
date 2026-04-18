@@ -4,7 +4,16 @@ from typing import Any
 
 import requests
 
+from ._read_surface import host_and_path_forms, normalize_surface_urls
 from .base import BaseSiteEditor, EditorError
+
+
+def _shopping_surface_urls(site_url: str, paths: list[str]) -> list[str]:
+    expanded: list[str] = []
+    for value in paths:
+        expanded.extend(host_and_path_forms(site_url, value))
+    return normalize_surface_urls(expanded)
+
 
 _MAGENTO_LENGTH_TOKENS: tuple[str, ...] = (
     "maximum length",
@@ -152,7 +161,16 @@ class ShoppingEditor(BaseSiteEditor):
         review_id = None
         if isinstance(payload, dict):
             review_id = payload.get("id") or payload.get("review_id")
-        return {"review_id": review_id}
+        product_key = review_payload.get("entity_pk_value")
+        surface_paths: list[str] = []
+        if product_key not in (None, ""):
+            surface_paths.append(f"/catalog/product/view/id/{product_key}")
+            surface_paths.append(f"/review/product/listAjax/id/{product_key}")
+        return {
+            "review_id": review_id,
+            "read_surface_urls": _shopping_surface_urls(self._site_url(), surface_paths),
+            "read_surface_provenance_source": "editor_constructed",
+        }
 
     def update_customer_profile(self, *, field: str, value: Any) -> dict[str, Any]:
         def build_form_submission() -> tuple[str, dict[str, Any], bool]:
@@ -181,7 +199,12 @@ class ShoppingEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
-        return {}
+        return {
+            "read_surface_urls": _shopping_surface_urls(
+                self._site_url(), ["/customer/account/index/"]
+            ),
+            "read_surface_provenance_source": "editor_constructed",
+        }
 
     def _validate_product_review_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "detail")

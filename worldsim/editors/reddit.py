@@ -6,7 +6,16 @@ from typing import Any
 
 import requests
 
+from ._read_surface import host_and_path_forms, normalize_surface_urls
 from .base import BaseSiteEditor, EditorError
+
+
+def _reddit_surface_urls(site_url: str, forms: list[str]) -> list[str]:
+    expanded: list[str] = []
+    for value in forms:
+        expanded.extend(host_and_path_forms(site_url, value))
+    return normalize_surface_urls(expanded)
+
 
 _SUBMISSION_ID_RE = re.compile(r"/f/[^/]+/(\d+)(?:/|$)")
 
@@ -158,9 +167,14 @@ class RedditEditor(BaseSiteEditor):
         description_template: str | None = None,
     ) -> dict[str, Any]:
         forum_name = str(name_template).strip()
+        forum_surface = _reddit_surface_urls(self._site_url(), [f"/f/{forum_name}"])
         existing = self._forum_exists(forum_name)
         if existing:
-            return {"forum_name": forum_name}
+            return {
+                "forum_name": forum_name,
+                "read_surface_urls": forum_surface,
+                "read_surface_provenance_source": "editor_constructed",
+            }
 
         def build_form_submission() -> tuple[str, dict[str, Any], bool]:
             form = self._fetch_form_state(
@@ -188,7 +202,11 @@ class RedditEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
-        return {"forum_name": forum_name}
+        return {
+            "forum_name": forum_name,
+            "read_surface_urls": forum_surface,
+            "read_surface_provenance_source": "editor_constructed",
+        }
 
     def create_submission(
         self,
@@ -226,6 +244,10 @@ class RedditEditor(BaseSiteEditor):
             "forum_name": forum_name,
             "submission_id": submission_id,
             "submission_url": f"{self._site_url()}/f/{forum_name}/{submission_id}",
+            "read_surface_urls": _reddit_surface_urls(
+                self._site_url(), [f"/f/{forum_name}/{submission_id}"]
+            ),
+            "read_surface_provenance_source": "editor_constructed",
         }
 
     def create_comment(
@@ -265,6 +287,10 @@ class RedditEditor(BaseSiteEditor):
             "forum_name": resolved_forum,
             "submission_id": str(submission_id),
             "comment_id": comment_id,
+            "read_surface_urls": _reddit_surface_urls(
+                self._site_url(), [f"/f/{resolved_forum}/{submission_id}"]
+            ),
+            "read_surface_provenance_source": "editor_constructed",
         }
 
     def update_user_bio(self, *, bio_text: str) -> dict[str, Any]:
@@ -287,7 +313,10 @@ class RedditEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
-        return {}
+        return {
+            "read_surface_urls": _reddit_surface_urls(self._site_url(), [f"/user/{username}"]),
+            "read_surface_provenance_source": "editor_constructed",
+        }
 
     @classmethod
     def _resolve_current_username(cls, instance: dict[str, Any]) -> str:

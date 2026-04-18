@@ -274,8 +274,19 @@ def _validate_editor_calls(editor_calls: Any) -> None:
         _validate_untrusted_selector_args(site.strip().lower(), args)
 
 
-def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> SeedCleanupHandle | None:
+def apply_data_seed(
+    seed: dict[str, Any], instance: dict[str, Any]
+) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed to a running benchmark instance.
+
+    Returns a ``(cleanup_handle, metadata)`` tuple where ``metadata`` carries
+    the editor-emitted read-surface URLs (C1b signal, see
+    ``docs/handoffs/codex-handoff-c1-read-surface.md`` §5.4)::
+
+        {
+          "read_surface_urls": [...],  # deduped, first-occurrence order
+          "read_surface_provenance": {"source": ..., "editor_method": ...},
+        }
 
     Args:
         seed: Seed spec with a ``mechanism`` field and mechanism-specific
@@ -286,6 +297,8 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> SeedClean
     Raises:
         ValueError: If ``seed["mechanism"]`` is unknown.
     """
+    from worldsim.editors._read_surface import normalize_surface_urls
+
     validate_data_seed(seed)
     mechanism = seed.get("mechanism")
     if mechanism == "state_push":
@@ -295,12 +308,14 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> SeedClean
             timeout=30,
         )
         resp.raise_for_status()
-        return
+        return None, {}
 
     seed_context = _build_seed_context(seed, instance)
     editor_instances: dict[tuple[str, str], Any] = {}
     session = requests.Session()
     cleanup_handle: SeedCleanupHandle | None = None
+    read_surface_accumulator: list[str] = []
+    read_surface_provenance: dict[str, Any] = {}
     try:
         if mechanism in {"api", "form"}:
             _perform_web_login_if_needed(session, instance, mechanism)
@@ -320,15 +335,23 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> SeedClean
                 instance,
                 seed_context=seed_context,
                 editor_instances=editor_instances,
+                read_surface_accumulator=read_surface_accumulator,
+                read_surface_provenance=read_surface_provenance,
             )
+        metadata: dict[str, Any] = {}
+        deduped = normalize_surface_urls(read_surface_accumulator)
+        if deduped:
+            metadata["read_surface_urls"] = deduped
+            if read_surface_provenance:
+                metadata["read_surface_provenance"] = read_surface_provenance
         if editor_instances:
             cleanup_handle = SeedCleanupHandle(
                 session=session,
                 editor_instances=editor_instances,
             )
-            return cleanup_handle
+            return cleanup_handle, metadata
         session.close()
-        return None
+        return None, metadata
     except Exception:
         if cleanup_handle is not None:
             cleanup_handle.cleanup()
@@ -341,7 +364,7 @@ def apply_data_seed(seed: dict[str, Any], instance: dict[str, Any]) -> SeedClean
 
 async def apply_data_seed_async(
     seed: dict[str, Any], instance: dict[str, Any]
-) -> SeedCleanupHandle | None:
+) -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
     """Apply a data seed without blocking the event loop."""
     return await asyncio.to_thread(apply_data_seed, seed, instance)
 
@@ -602,7 +625,11 @@ def _apply_editor_seed_call(
     *,
     seed_context: dict[str, Any],
     editor_instances: dict[tuple[str, str], Any],
+    read_surface_accumulator: list[str] | None = None,
+    read_surface_provenance: dict[str, Any] | None = None,
 ) -> None:
+    from datetime import UTC, datetime
+
     rendered = _render_editor_seed_call(call, seed_context)
     editor = _get_editor_for_seed_call(
         rendered,
@@ -626,7 +653,41 @@ def _apply_editor_seed_call(
         )
     result = editor_method(**args)
     if isinstance(result, dict):
-        _merge_seed_context(seed_context, result)
+        # C1b read-surface URLs must NOT round-trip through seed_context
+        # (namespace-flat; multi-call seeds would clobber each other — §12.9).
+        surface_urls = result.get("read_surface_urls")
+        if read_surface_accumulator is not None and isinstance(surface_urls, list):
+            for url in surface_urls:
+                if isinstance(url, str) and url.strip():
+                    read_surface_accumulator.append(url.strip())
+        if (
+            read_surface_provenance is not None
+            and isinstance(surface_urls, list)
+            and surface_urls
+            and not read_surface_provenance
+        ):
+            provenance_source = (
+                result.get("read_surface_provenance_source") or "editor_api_response"
+            )
+            read_surface_provenance.update(
+                {
+                    "source": str(provenance_source),
+                    "editor_method": f"{editor.site_name}.{method_name}",
+                    "captured_at": datetime.now(UTC).isoformat(),
+                }
+            )
+        # Strip C1b-only keys before merging into seed_context so they do not
+        # surface as placeholder values to later calls.
+        if surface_urls is not None or "read_surface_provenance_source" in result:
+            sanitized = {
+                k: v
+                for k, v in result.items()
+                if k not in {"read_surface_urls", "read_surface_provenance_source"}
+            }
+            if sanitized:
+                _merge_seed_context(seed_context, sanitized)
+        else:
+            _merge_seed_context(seed_context, result)
 
 
 def _call_reference(call: dict[str, Any]) -> str | None:

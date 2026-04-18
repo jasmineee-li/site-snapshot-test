@@ -137,7 +137,9 @@ def _patch_apply(
     """Patch ``apply_data_seed_async`` to call ``responder(attempt_index)``.
 
     ``responder`` may return a fake handle, raise ``EditorError``, raise
-    ``ValueError``, or return ``None`` (the "empty_seed" path).
+    ``ValueError``, or return ``None`` (the "empty_seed" path). The wrapper
+    auto-tuples bare responder returns so tests don't need to track the
+    Commit-2-of-C1-migration tuple shape ``(handle, metadata)``.
     """
     counter = {"n": 0}
     attempt_log: list[int] = []
@@ -146,7 +148,10 @@ def _patch_apply(
         idx = counter["n"]
         counter["n"] += 1
         attempt_log.append(idx)
-        return responder(idx, seed, instance)
+        result = responder(idx, seed, instance)
+        if isinstance(result, tuple) and len(result) == 2:
+            return result
+        return result, {}
 
     monkeypatch.setattr(feas, "apply_data_seed_async", fake)
     return attempt_log

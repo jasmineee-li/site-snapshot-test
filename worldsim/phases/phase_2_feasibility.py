@@ -296,9 +296,15 @@ async def _verify_one(
     attempts: list[dict[str, Any]] = []
     handle: SeedCleanupHandle | None = None
 
+    async def _apply_and_drop_metadata() -> SeedCleanupHandle | None:
+        # Phase 2c only needs the cleanup handle; the read-surface metadata
+        # is C1b-only and belongs on the Phase 4 task dict.
+        cleanup, _metadata = await apply_data_seed_async(seed, bound_instance)
+        return cleanup
+
     try:
         handle = await retrying(
-            lambda: apply_data_seed_async(seed, bound_instance),
+            _apply_and_drop_metadata,
             retries=retry_count,
             attempts_log=attempts,
         )

@@ -515,9 +515,7 @@ def test_apply_data_seed_derives_reddit_submission_placeholders_from_task_contex
                     "eval": [
                         {
                             "expected": {
-                                "retrieved_data": [
-                                    {"post_title": "Best place for a foot rub?"}
-                                ]
+                                "retrieved_data": [{"post_title": "Best place for a foot rub?"}]
                             }
                         }
                     ]
@@ -915,7 +913,9 @@ def test_apply_data_seed_strips_origin_and_referer_headers(monkeypatch):
     assert headers["X-Allowed"] == "ok"
 
 
-def test_apply_data_seed_http_does_not_require_site_profile_for_postcondition_verification(monkeypatch):
+def test_apply_data_seed_http_does_not_require_site_profile_for_postcondition_verification(
+    monkeypatch,
+):
     fake_session = _FakeSession([_FakeResponse()])
     monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
 
@@ -1200,7 +1200,7 @@ def test_build_seed_context_prefers_seed_task_values():
 
 
 class _FakeEditor:
-    instances: list["_FakeEditor"] = []
+    instances: list[_FakeEditor] = []
     supported_methods = frozenset({"create_submission", "create_comment"})
 
     def __init__(self, instance, session) -> None:
@@ -1221,7 +1221,9 @@ class _FakeEditor:
         }.get(method_name, ())
         missing = [key for key in required if args.get(key) in (None, "")]
         if missing:
-            raise seeding.EditorError("invalid_args", "missing required args: " + ", ".join(missing))
+            raise seeding.EditorError(
+                "invalid_args", "missing required args: " + ", ".join(missing)
+            )
 
     def preview_context(self, method_name: str, args: dict[str, object]) -> dict[str, object]:
         if method_name == "create_submission":
@@ -1259,7 +1261,7 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
     monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
     monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
 
-    cleanup_handle = seeding.apply_data_seed(
+    cleanup_handle, _metadata = seeding.apply_data_seed(
         {
             "mechanism": "editor",
             "editor_calls": [
@@ -1287,7 +1289,13 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
     editor = _FakeEditor.instances[-1]
     assert cleanup_handle is not None
     assert editor.calls == [
-        ("validate_args", {"method_name": "create_submission", "args": {"forum_name": "books", "title_template": "Thread"}}),
+        (
+            "validate_args",
+            {
+                "method_name": "create_submission",
+                "args": {"forum_name": "books", "title_template": "Thread"},
+            },
+        ),
         ("create_submission", {"forum_name": "books", "title_template": "Thread"}),
         (
             "validate_args",
@@ -1649,9 +1657,10 @@ def test_sandbox_self_contained_adversarial_seed_requires_none_mechanism_editor_
         ],
     }
 
-    assert _sandbox_validator.self_contained_adversarial_seed_error(
-        benign_seed, adversarial_seed
-    ) == "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    assert (
+        _sandbox_validator.self_contained_adversarial_seed_error(benign_seed, adversarial_seed)
+        == "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    )
 
 
 def test_sandbox_validator_accepts_nested_review_body_field_reference():

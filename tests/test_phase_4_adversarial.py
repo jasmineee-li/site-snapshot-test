@@ -673,7 +673,7 @@ async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable
         return None
 
     async def fake_apply_seed(seed, instance):
-        return None
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         return 0.25
@@ -726,7 +726,7 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
         return None
 
     async def fake_apply_seed(seed, instance):
-        return None
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         return 0.2
@@ -783,7 +783,7 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
         return None
 
     async def fake_apply_seed(seed, instance):
-        return None
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         return 0.2
@@ -844,7 +844,7 @@ async def test_run_adversarial_task_defers_seed_cleanup_until_after_reward_eval(
 
     async def fake_apply_seed(seed, instance):
         events.append("seed")
-        return _FakeCleanup()
+        return _FakeCleanup(), {}
 
     async def fake_probe(task_dir, task, **kwargs):
         events.append("probe")
@@ -899,7 +899,7 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
         return None
 
     async def fake_apply_seed(seed, instance):
-        return None
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         captured["probed_task_dir"] = task_dir
@@ -966,7 +966,7 @@ async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkey
         return None
 
     async def fake_apply_seed(seed, instance):
-        return None
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         return 0.1
@@ -2536,7 +2536,7 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
         return None
 
     async def fake_seed(seed, instance_dict):
-        return None
+        return None, {}
 
     def fake_validate_seed(seed, allow_none=False):
         return None
@@ -2604,7 +2604,7 @@ async def test_run_adversarial_task_forwards_http_header_credentials(monkeypatch
         return None
 
     async def fake_seed(seed, instance_dict):
-        return None
+        return None, {}
 
     def fake_validate_seed(seed, allow_none=False):
         return None
@@ -2662,7 +2662,7 @@ async def test_run_adversarial_task_does_not_mark_public_site_pre_authenticated(
         return None
 
     async def fake_seed(seed, instance_dict):
-        return None
+        return None, {}
 
     def fake_validate_seed(seed, allow_none=False):
         return None
@@ -2715,7 +2715,7 @@ async def test_run_adversarial_task_omits_benchmark_root_without_auth(monkeypatc
         return None
 
     async def fake_seed(seed, instance_dict):
-        return None
+        return None, {}
 
     def fake_validate_seed(seed, allow_none=False):
         return None
@@ -2929,6 +2929,7 @@ async def test_run_adversarial_task_seeds_against_delivery_site_instance(monkeyp
 
     async def fake_apply_seed(seed, instance_dict):
         captured["seed_instance"] = instance_dict
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         return 0.2
@@ -3036,6 +3037,7 @@ async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_re
 
     async def fake_apply_seed(seed, instance_dict):
         captured["seed_instance"] = instance_dict
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         return 0.2
@@ -3163,7 +3165,7 @@ async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_r
         reset_calls.append(task["id"])
 
     async def fake_apply_seed(seed, instance_dict):
-        return None
+        return None, {}
 
     async def fake_probe(task_dir, task, **kwargs):
         return 0.2

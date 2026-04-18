@@ -18,7 +18,9 @@ def _editor() -> GitlabEditor:
 
 def test_validate_args_rejects_missing_note_body_before_auth_lookup(monkeypatch):
     editor = _editor()
-    monkeypatch.setattr(editor, "_current_user", lambda: (_ for _ in ()).throw(AssertionError("should not run")))
+    monkeypatch.setattr(
+        editor, "_current_user", lambda: (_ for _ in ()).throw(AssertionError("should not run"))
+    )
 
     with pytest.raises(EditorError, match="missing required args: note_body"):
         editor.validate_args("create_mr_note", {})
@@ -55,8 +57,19 @@ def test_create_project_reuses_project_created_in_same_editor_session(monkeypatc
     created = editor.create_project(name_template="webagent-task-1")
     result = editor.create_project(name_template="webagent-task-1")
 
-    assert created == {"project_id": 7, "project_path": "current-user/webagent-task-1"}
-    assert result == {"project_id": 7, "project_path": "current-user/webagent-task-1"}
+    expected = {
+        "project_id": 7,
+        "project_path": "current-user/webagent-task-1",
+        "read_surface_urls": [
+            "http://gitlab.test/current-user/webagent-task-1",
+            "/current-user/webagent-task-1",
+        ],
+        "read_surface_provenance_source": "editor_api_response",
+    }
+    assert created == expected
+    # Re-creating a same-path project returns the cached copy, which now
+    # includes read_surface_urls too (commit 2 of the C1 migration).
+    assert result == expected
 
 
 def test_create_project_classifies_duplicate_path_errors(monkeypatch):
@@ -114,7 +127,9 @@ def test_create_project_reaps_stale_disposable_project_in_current_user_namespace
     monkeypatch.setattr(editor, "_current_user", lambda: current_user)
     monkeypatch.setattr(editor, "_gitlab_get_json", fake_get)
     monkeypatch.setattr(editor, "_find_accessible_project", lambda **kwargs: None)
-    monkeypatch.setattr(editor, "delete_project", lambda project_id: seen.__setitem__("deleted", True))
+    monkeypatch.setattr(
+        editor, "delete_project", lambda project_id: seen.__setitem__("deleted", True)
+    )
     monkeypatch.setattr(
         editor,
         "_gitlab_request_json",
@@ -126,7 +141,15 @@ def test_create_project_reaps_stale_disposable_project_in_current_user_namespace
 
     created = editor.create_project(name_template="webagent-task-1")
 
-    assert created == {"project_id": 11, "project_path": "current-user/webagent-task-1"}
+    assert created == {
+        "project_id": 11,
+        "project_path": "current-user/webagent-task-1",
+        "read_surface_urls": [
+            "http://gitlab.test/current-user/webagent-task-1",
+            "/current-user/webagent-task-1",
+        ],
+        "read_surface_provenance_source": "editor_api_response",
+    }
 
 
 def test_create_project_does_not_reap_non_disposable_preexisting_project(monkeypatch):
@@ -153,7 +176,9 @@ def test_update_user_profile_falls_back_to_profile_form_when_api_missing(monkeyp
     captured = {}
 
     def fake_gitlab_request_json(method, path, **kwargs):
-        raise EditorError("request_failed", "gitlab editor request for /api/v4/user returned HTTP 404")
+        raise EditorError(
+            "request_failed", "gitlab editor request for /api/v4/user returned HTTP 404"
+        )
 
     monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
     monkeypatch.setattr(
@@ -171,7 +196,9 @@ def test_update_user_profile_falls_back_to_profile_form_when_api_missing(monkeyp
         },
     )
 
-    def fake_submit_exact_form(action_path, form_fields, *, multipart=False, refresh_on_rejection=None):
+    def fake_submit_exact_form(
+        action_path, form_fields, *, multipart=False, refresh_on_rejection=None
+    ):
         captured["action_path"] = action_path
         captured["form_fields"] = form_fields
         captured["multipart"] = multipart

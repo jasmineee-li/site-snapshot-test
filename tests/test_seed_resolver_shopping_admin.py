@@ -21,7 +21,9 @@ def test_update_admin_profile_writes_expected_payload(monkeypatch):
         },
     )
 
-    def fake_submit_exact_form(action_path, form_fields, *, multipart=False, refresh_on_rejection=None):
+    def fake_submit_exact_form(
+        action_path, form_fields, *, multipart=False, refresh_on_rejection=None
+    ):
         captured["action_path"] = action_path
         captured["form_fields"] = form_fields
         captured["multipart"] = multipart
@@ -30,7 +32,13 @@ def test_update_admin_profile_writes_expected_payload(monkeypatch):
 
     monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
 
-    assert editor.update_admin_profile(field="firstname", value="Alice") == {}
+    assert editor.update_admin_profile(field="firstname", value="Alice") == {
+        "read_surface_urls": [
+            "http://shopping-admin.test/admin/admin/user/edit/user_id/1/",
+            "/admin/admin/user/edit/user_id/1/",
+        ],
+        "read_surface_provenance_source": "editor_constructed",
+    }
     assert captured["action_path"] == "/admin/admin/user/save/"
     assert captured["form_fields"] == {
         "form_key": "xyz789",

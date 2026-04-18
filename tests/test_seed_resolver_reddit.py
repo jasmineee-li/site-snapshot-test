@@ -51,7 +51,11 @@ def test_create_forum_reuses_existing_forum(monkeypatch):
 
     result = editor.create_forum(name_template="books")
 
-    assert result == {"forum_name": "books"}
+    assert result == {
+        "forum_name": "books",
+        "read_surface_urls": ["http://reddit.test/f/books", "/f/books"],
+        "read_surface_provenance_source": "editor_constructed",
+    }
 
 
 def test_create_forum_posts_exact_form_fields(monkeypatch):
@@ -88,7 +92,9 @@ def test_create_forum_posts_exact_form_fields(monkeypatch):
     monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
 
     assert editor.create_forum(name_template="books", description_template="A forum") == {
-        "forum_name": "books"
+        "forum_name": "books",
+        "read_surface_urls": ["http://reddit.test/f/books", "/f/books"],
+        "read_surface_provenance_source": "editor_constructed",
     }
     assert captured["action_path"] == "/create_forum"
     assert captured["form_fields"] == {
@@ -159,6 +165,11 @@ def test_create_submission_backfills_required_media_type(monkeypatch):
         "forum_name": "books",
         "submission_id": "123",
         "submission_url": "http://reddit.test/f/books/123",
+        "read_surface_urls": [
+            "http://reddit.test/f/books/123",
+            "/f/books/123",
+        ],
+        "read_surface_provenance_source": "editor_constructed",
     }
     assert captured["action_path"] == "/submit/books"
     assert captured["form_fields"] == {
@@ -212,6 +223,11 @@ def test_create_comment_posts_exact_form_fields(monkeypatch):
         "forum_name": "books",
         "submission_id": "123",
         "comment_id": 9,
+        "read_surface_urls": [
+            "http://reddit.test/f/books/123",
+            "/f/books/123",
+        ],
+        "read_surface_provenance_source": "editor_constructed",
     }
     assert captured["action_path"] == "/f/books/123/-/comment"
     assert captured["form_fields"] == {
@@ -252,7 +268,13 @@ def test_update_user_bio_uses_exact_form_fields(monkeypatch):
 
     monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
 
-    assert editor.update_user_bio(bio_text="new bio") == {}
+    assert editor.update_user_bio(bio_text="new bio") == {
+        "read_surface_urls": [
+            "http://reddit.test/user/user",
+            "/user/user",
+        ],
+        "read_surface_provenance_source": "editor_constructed",
+    }
     assert captured["action_path"] == "/user/user/edit_biography"
     assert captured["form_fields"] == {
         "user_biography[biography]": "new bio",
