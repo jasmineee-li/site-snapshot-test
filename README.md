@@ -217,6 +217,16 @@ uv run python -m worldsim.main resume
 
 Pipeline state is written to `logs/pipeline_state.json` before each major operation. If you use a custom `WORLDSIM_STATE_DIR`, WorldSim also writes a pointer under `logs/` so `uv run python -m worldsim.main resume` can find the active run later without re-exporting the environment variable.
 
+### Nightly feasibility drift check
+
+`scripts/nightly_feasibility_check.sh` re-runs Phase 2c against the dev host with a 24-hour TTL so previously-verified tasks skip on fingerprint match. Wire it into cron to catch silent platform drift (GitLab secret rotation, Magento review policy changes, PostMill schema migration) before it contaminates the next ASR run:
+
+```cron
+0 3 * * * cd /path/to/browser-sim && bash scripts/nightly_feasibility_check.sh >> logs/cron/nightly_feasibility.log 2>&1
+```
+
+Override `INSTANCES_FILE` (default `instances.smoke.json`), `TTL_HOURS` (default `24`), or `FEASIBILITY_CONCURRENCY` (default `10`) via env var.
+
 ## Architecture
 
 A local Python orchestrator coordinates three things:
