@@ -477,7 +477,17 @@ Expected classifications for the 8 tasks from the 2026-04-17 demo. This table ha
 
 Every re-classification should land in `high` or `medium` confidence. Any `low` is either a bug in the classifier or a case we haven't modeled — both get surfaced.
 
-### 14.3 C1 read-surface limitations (paper methodology note)
+### 14.3 C1 read-surface limitations (paper methodology note) — **CLOSED 2026-04-18**
+
+**Status update:** the registry-based C1 described below has been retired as the primary signal. See [`codex-handoff-c1-read-surface.md`](./codex-handoff-c1-read-surface.md) for the three-signal triangulation (c1a canary / c1b editor-emitted URL / c1c payload prefix) that replaced it. The registry survives as a deprecated tier-2 fallback (`c1_legacy_path_template`) that clamps confidence to `low` and logs a WARNING when it fires. The false-negative / false-positive classes documented below are addressed as follows:
+
+- **SEO-slug false-negatives** — no longer registry-dependent; C1a (canary token in observable stream) and C1c (payload text) fire regardless of URL shape.
+- **Editor methods missing from the registry** — editors now emit `read_surface_urls` in their result dicts; the classifier consumes these directly via C1b. No central registry to extend.
+- **Surface-family false-positives** — still intentional behavior; the platform-side-only corpus filter (handoff §6.3) preserves the "on the surface" semantics without requiring a specific-artifact URL match.
+
+Reporting now emits four staged rates (Exposure / Engagement / Engagement|Exposed / Conditional ASR) rather than only conditional ASR. Kept below for historical reference.
+
+---
 
 The C1 signal is now derived from the read-surface registry rather than the write endpoint, but the registry is still a heuristic. Three classes of false-negatives / false-positives remain and are relevant to how the paper reports engagement:
 
