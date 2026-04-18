@@ -31,7 +31,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-CLASSIFIER_VERSION = "v1.0"
+CLASSIFIER_VERSION = "v1.1"  # C1 three-signal triangulation (commits 1-4 of migration)
 
 # Minimum payload-prefix length for C2 substring matching (handoff §3.3).
 # Guards against trivial substrings coincidentally appearing in agent output.
