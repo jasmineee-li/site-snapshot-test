@@ -18,12 +18,12 @@ Phase 2 is a single CLI phase with three internal stages: 2a planning in Modal s
 
 1. **The orchestrator does not manage environments.** It connects to pre-running benchmark instances the user supplies (`{site_url, reset_endpoint}`). Never start, stop, provision, or snapshot them. Data seeding is per-task only, via `apply_data_seed` (api/form channels only). SQL seeding is excluded from the evaluation methodology because it violates the threat model (a regular authenticated user cannot write to the database directly). `db_connection` is optional and used only for postcondition verification and reward evaluation. Calling `reset_endpoint` between tasks is fine; anything beyond that is out of scope.
 2. **File routing via inclusion, not ignore.** Modal sandboxes are scoped by which files you `image.add_local_dir`, not by ignore-file patterns. Never rely on ignore patterns for isolation.
-3. **Trajectories flow through disk.** Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`. Judge sandboxes read `history.json` first and load screenshots only when the text log is ambiguous.
+3. **Trajectories flow through disk.** Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`. The Phase 4 judge receives a host-side compact slice of `history.json` via the Messages API (see `worldsim/phase_4/trajectory_slice.py`); sandbox-run Claude Code steps (ecological-validity probe, placement-fix, ecoval-fix) read `history.json` directly and load screenshots only when the text log is ambiguous.
 4. **Two gates in Phase 4.** Gate 1 is ecological validity (probe each trajectory ~5× and average P(eval)). Gate 2 is attack effectiveness. Every trajectory passes Gate 1 before conclusions are drawn from Gate 2. Baseline capability (benign-under-attack) is reported as a Phase 4 byproduct, never used to filter tasks before Phase 4.
 
 ## Integration test requirement
 
-If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, `worldsim/phases/phase_4_adversarial.py`, or `worldsim/phases/phase_2_feasibility.py`, run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack before shipping and include the output in the PR description. Unit tests alone are not sufficient for editor, Phase 2c, or Phase 4 integration changes.
+If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, `worldsim/phases/phase_4_adversarial.py`, `worldsim/phase_4/**`, `worldsim/phases/phase_2_feasibility.py`, `worldsim/prompts/judge-adversarial-failure.md`, or `worldsim/prompts/generate-variant.md`, run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack before shipping and include the output in the PR description. Unit tests alone are not sufficient for editor, Phase 2c, or Phase 4 integration changes. Prompt-file changes to judge-adversarial-failure.md or generate-variant.md are tracked here because, after the Messages API cutover (2026-04-18), those prompts are the only input to a single-turn API call with no sandbox error boundary.
 
 ## What NOT to do
 
@@ -36,6 +36,8 @@ If a PR changes `worldsim/editors/**`, `worldsim/seeding.py`, `worldsim/phases/p
 - Do not hand-edit `feasibility.status` in `adversarial_tasks.json`; trust the gate or re-run `phase 2c`.
 - Do not run Phase 4 on a dataset that hasn't been through 2c — admission is strict as of 2026-04-18 and unverified tasks are skipped.
 - The break-glass env override for Phase 4 admission is `WORLDSIM_STRICT_FEASIBILITY={true,false}`; it supersedes the source-controlled `STRICT_FEASIBILITY_ADMISSION` constant.
+- Do not route the Phase 4 judge or variant generator through `run_claude_in_sandbox`. Both use direct Anthropic Messages API calls via `worldsim/phase_4/judge_api.py` and `worldsim/phase_4/variant_api.py`. The sandbox path was removed on 2026-04-18 after observed refusals on the "recommend strategies" framing (see `logs/phase_4_demo_20260417_190422.log:3570`); the fix is in the prompt (classification-only, authorization preamble citing Dziemian et al., 2026, arXiv:2603.15714) and in the mechanism (single-turn API with structured tool-use output).
+- Do not add `visual_concealment` back to the strategy pool. It was a category error — paper concealment is behavioral (final-response steering), not visual (CSS/font). Behavioral concealment strategies (`scripted_message`, `command_silent_execution`, `false_justification`) are deferred indefinitely because they require a new reward function to grade; the current `AgentResponseEvaluator` + `db_query_match` reward is tool-side only.
 
 <important if="you are stuck on Modal image setup, secret wiring, sandbox lifecycle, or Claude Code invocation flags">
 Two files from the predecessor AgentLab pipeline survive on this branch as read-only reference material for exactly those mechanics:
@@ -47,10 +49,10 @@ Read them, understand the mechanic, then retype the equivalent in `worldsim/`. N
 </important>
 
 <important if="you are actually running the pipeline, wiring up a phase entrypoint, or debugging a run">
-- Claude Code steps always run in Modal sandboxes via `run_claude_in_sandbox`.
+- Claude Code steps run in Modal sandboxes via `run_claude_in_sandbox` — **except** the Phase 4 judge and variant generator, which use direct Anthropic Messages API calls via `worldsim/phase_4/judge_api.py` and `worldsim/phase_4/variant_api.py`. The ecological-validity probe, placement-fix, and ecoval-fix loops still use the sandbox.
 - Agent evaluation runs locally via Browser Use in an async worker pool with staggered start (`STAGGER_DELAY = 5`).
 - Results default to `./logs/`; override with `WORLDSIM_STATE_DIR`.
 - `--resume` reads `logs/pipeline_state.json` and skips completed phases.
-- Prerequisites (Modal token, Claude Code auth, benchmark clone, running WebArena for Phase 4): see `README.md`. Phase 3 is agent-free and needs no live instances. Do not duplicate prerequisites into code or configs.
-- Claude Code auth inside the sandbox supports **both** `CLAUDE_CODE_OAUTH_TOKEN` (Pro/Max subscription) and `ANTHROPIC_API_KEY` (API credits). OAuth wins when both are set — see `worldsim/modal_sandbox.py:_build_claude_secrets`. Never hard-code which one; always let `_build_claude_secrets` decide.
+- Prerequisites (Modal token, Claude auth, benchmark clone, running WebArena for Phase 4): see `README.md`. Phase 3 is agent-free and needs no live instances. Do not duplicate prerequisites into code or configs.
+- Claude auth supports `CLAUDE_CODE_OAUTH_TOKEN` (Pro/Max), `ANTHROPIC_API_KEY` (API credits), or `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL` (OpenRouter). All three work for both sandbox paths and the host-side Messages API path. Precedence is defined in `worldsim/modal_sandbox.py:_build_claude_secrets` (for sandbox) and `worldsim/phase_4/anthropic_client.py` (for host API). Never hard-code which one; always let the helper decide.
 </important>

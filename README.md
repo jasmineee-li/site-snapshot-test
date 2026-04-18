@@ -32,7 +32,7 @@ still allowing canonical `webarena_verified` evaluation. If
 ## Prerequisites
 
 1. **Modal account.** Sign up at <https://modal.com>, then run `modal token new` to write `~/.modal.toml`, or set `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` in your environment.
-2. **Claude Code authentication.** Claude Code runs *inside* the Modal sandbox and needs credentials injected via `modal.Secret.from_dict`. Three auth methods are supported — pick whichever you have:
+2. **Claude authentication.** Credentials are used by (a) Claude Code inside the Modal sandbox for most pipeline steps (injected via `modal.Secret.from_dict`), and (b) host-side Anthropic Messages API calls for the Phase 4 judge and variant generator (see `worldsim/phase_4/{judge_api,variant_api}.py`, as of 2026-04-18). Three auth methods are supported — pick whichever you have:
 
    - **`CLAUDE_CODE_OAUTH_TOKEN`** (preferred if you have a Claude Pro / Claude Max subscription):
 
@@ -253,7 +253,7 @@ Five phases:
 | 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
 | 2 | Injection Generation | Runs 2a plan generation, 2b text fill, then 2c feasibility verification sequentially; emits final adversarial tasks with materialized data seeds and a `feasibility` stanza per task (requires a live dev instance unless `--skip-feasibility` is set) |
 | 3 | Contract Validity Gate | Agent-free schema check over every benign contract (reward function, start URLs, data seed) and every adversarial task's benign reference; writes `phase_3/contracts.json` |
-| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; adaptively varies strategy when attacks are refused; reports baseline capability as a byproduct |
+| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; on refusal, the judge classifies failure mode via direct Anthropic Messages API call (host-side, tool-use forced) and the host looks up variant strategies from a 22-entry pool; variant gen also runs via direct Messages API. Reports baseline capability as a byproduct |
 
 The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). Every module in `worldsim/` implements a section of that spec.
 

@@ -63,12 +63,12 @@ One Modal sandbox per site. Input: benign tasks + profiles. Output: `adversarial
 Agent-free. Schema-validate every benign contract and every adversarial task's benign reference; emit `phase_3/contracts.json` with per-entry `validity_status` / `origin`. No live instances required.
 
 ### Phase 4 — Adversarial Evaluation
-Initial run + two sequential gates (ecological validity, attack effectiveness). Refused attacks enter strategy variation: judge sandbox → variant generation (parallel) → variant evaluation (parallel). Implement `run_adversarial_task()`, `probe_ecological_validity()`, `run_strategy_variation()` matching the spec. **Requires running WebArena.**
+Initial run + two sequential gates (ecological validity, attack effectiveness). Refused attacks enter strategy variation: judge API call (single-turn, tool-use forced) → host-side strategy lookup → variant generation (parallel Messages API calls) → variant evaluation (parallel Browser Use workers). Implement `run_adversarial_task()`, `probe_ecological_validity()`, `run_strategy_variation()` matching the spec. The judge and variant generator live under `worldsim/phase_4/{judge_api,variant_api}.py` and call the Anthropic Messages API directly, NOT via `run_claude_in_sandbox`. **Requires running WebArena.**
 
 ## Rules
 
 - **Spec is truth.** When it gives literal code, use it. When it gives a JSON schema, validate against it.
-- **`run_claude_in_sandbox` for every Claude Code step.** Never shell out to `claude` directly.
+- **`run_claude_in_sandbox` for every Claude Code step, EXCEPT the Phase 4 judge and variant generator.** Those use direct Anthropic Messages API calls (`worldsim/phase_4/judge_api.py`, `worldsim/phase_4/variant_api.py`). Never shell out to `claude` directly.
 - **Never `import` from `AgentLab/`.** Zero runtime dependency on the old pipeline.
 - **Comments explain WHY, not WHAT.** No "this function does X" comments.
 - **Don't add features beyond what the spec says.** No extra configurability, no speculative abstractions.

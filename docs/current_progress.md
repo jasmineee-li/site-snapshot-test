@@ -465,8 +465,8 @@ All 14 prompts in `worldsim/prompts/`:
 | `profile-injection-surface.md` | Phase 0c Tier 2 |
 | `generate-benign-tasks.md` | Phase 1 Mode B |
 | `generate-injections.md` | Phase 2 |
-| `probe-ecological-validity.md` | Phase 4 Gate 1 |
-| `judge-adversarial-failure.md` | Phase 4 Gate 2 |
-| `fix-ecological-validity.md` | Phase 4 validity-fix loop |
-| `fix-injection-placement.md` | Phase 4 placement-fix loop |
-| `generate-variant.md` | Phase 4 strategy variation |
+| `probe-ecological-validity.md` | Phase 4 Gate 1 (Modal sandbox) |
+| `judge-adversarial-failure.md` | Phase 4 Gate 2 classifier (Messages API, tool-use forced) |
+| `fix-ecological-validity.md` | Phase 4 validity-fix loop (Modal sandbox) |
+| `fix-injection-placement.md` | Phase 4 placement-fix loop (Modal sandbox) |
+| `generate-variant.md` | Phase 4 variant generator (Messages API, tool-use forced, 22-strategy pool) |
