@@ -350,10 +350,23 @@ class TestReadSurfaceRegistry:
     """Verify C1 fires on agent-visible read surfaces per editor method,
     not on the seed-write endpoint."""
 
-    def _check(self, task: dict[str, Any], url: str) -> bool:
+    def _check(
+        self,
+        task: dict[str, Any],
+        url: str,
+        *,
+        history: list[dict[str, Any]] | None = None,
+    ) -> bool:
+        # Commit 3 of the C1 read-surface migration changed the signature
+        # from ``(network_trace, task) -> bool`` to
+        # ``(network_trace, history, task) -> (bool, signal_id)``. These
+        # registry tests exercise the tier-2 legacy-path-template fallback,
+        # not the new canary/URL/payload triangulation, so ``history=[]``
+        # and we ignore the signal_id here.
         from worldsim.outcome_taxonomy import _check_injection_surface_visited
 
-        return _check_injection_surface_visited([_net(url)], task)
+        fired, _ = _check_injection_surface_visited([_net(url)], history or [], task)
+        return fired
 
     # shopping.create_product_review ---------------------------------------
 
