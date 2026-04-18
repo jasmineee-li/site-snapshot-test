@@ -3,8 +3,8 @@
 **Branch to base off:** `feat/worldsim-v5`
 **Target branch:** `codex/phase-2c-feasibility`
 **Date:** 2026-04-17 (revised 2026-04-17 to align with actual code shape)
-**Status:** shipped 2026-04-18. Four commits on `feat/worldsim-v5`: verifier + hooks + grace mode, enriched dataset against r5, strict-admission flip, nightly cron hook. AT-009 lands `length_exceeded` with `http_status=400` in `adversarial_tasks.infeasible.json` as required.
-**Anchor artifact:** commit `4c27fb48` + AT-009 case study from the 2026-04-17 demo.
+**Status:** shipped 2026-04-18. Four commits on `feat/worldsim-v5`: verifier + hooks + grace mode, enriched dataset against r5, strict-admission flip, nightly cron hook. AT-009 lands `length_exceeded` with `http_status=400` in `adversarial_tasks.infeasible.json` as required. **Post-ship audit 2026-04-18** caught six latent bugs (see §16); fixed in follow-up commits `0cfb6513` and `e0b4b07b`. One was critical: the nightly cron from `ed7cb377` would have corrupted the dataset on its first warm re-run by overwriting `feasibility.status="verified"` with `"skipped"` on every idempotency hit, and strict admission (from `5ea2a275`) would then reject every previously-verified task at the Phase 4 gate.
+**Anchor artifact:** commit `4c27fb48` + AT-009 case study from the 2026-04-17 demo. Post-ship anchor: `0cfb6513` (idempotency preservation) + `e0b4b07b` (pipeline hardening).
 
 **Mandate — implement this end-to-end, self-contained, directly on `feat/worldsim-v5`.** This handoff is the complete spec. Codex owns the full delivery: verifier module, retry helper, editor `_classify_4xx_response` overrides for all four sites, Phase 2/3/4 wiring, CLI flags + resume passthrough, unit tests, integration tests + fixtures, cleanup-script extension, doc drift (spec, README, CLAUDE.md, cross-reference footnotes), and the four-step migration. **Work trunk-style:** commit directly to `feat/worldsim-v5`; no feature branch, no PRs, no code review round-trip. The §6 migration remains a four-commit sequence, but each step is a direct commit pushed to `feat/worldsim-v5` after it lands green on CI. Do not stop early or punt sub-tasks to follow-up work. There is no time budget; ship when §9 acceptance criteria all pass. If you discover a design gap not covered here, fix it inline and document the decision in the commit message body (do not pause for human input on small choices — exercise judgment and proceed). The only allowed deferrals are the items explicitly listed in §8 non-goals. Never force-push `feat/worldsim-v5`; fix forward with follow-up commits.
 
@@ -912,5 +912,36 @@ Recording these so future revisions don't regress to earlier drafts. Each was a 
 23. **Phase 2 `partial_complete` status handling unspecified.** Fix: 2c verifies whatever is present; report header records `phase_2_status` so reviewers see the qualifier.
 24. **Site-instance pre-validation missing.** Earlier draft would discover missing instances 200 tasks deep. Fix: pre-flight (§3.4.0) computes `sites_in_tasks - sites_in_instances` and fails fast.
 25. **`probe_base_state` not pre-flighted.** Earlier draft would discover dead instances per-task. Fix: pre-flight (§3.4.0) probes once per `(benchmark, site)` pair before launching workers.
+
+If a future revision reintroduces any of these, treat it as a regression and revert.
+
+---
+
+## 16. Appendix — post-ship bugs caught by 2026-04-18 audit (fixed in `0cfb6513` + `e0b4b07b`)
+
+Follow-up audit run immediately after the four-commit ship found six latent defects. Four are Phase 2c-specific (commit `0cfb6513`); two are pipeline-wide hardening (commit `e0b4b07b`). All six had test coverage added alongside the fix. +19 new unit tests; 855 passed / 2 skipped post-audit.
+
+1. **CRITICAL — Idempotency-skip corrupts the dataset on re-run.** `phase_2_feasibility.py:266` overwrote `feasibility.status="verified"` with `"skipped"`, and `:223` added the corrupted result to the `verified` list written back to `adversarial_tasks.json`. Phase 4's strict admission gate (`phase_4_adversarial.py:626`) admits only `status == "verified"`, so the nightly cron from `ed7cb377` would have flipped every task to `status="skipped"` on its first warm run and Phase 4 would reject the whole dataset as `skipped_unverified`. Self-healed only via `--force-reverify`, which no operator would reach for without the outage first. Fix: preserve prior `status="verified"` verbatim on skip; record the skip fact on sibling fields `last_reverify_skipped_at` / `last_reverify_skip_reason`. Aggregator now keys the "skipped" report bucket off presence of `last_reverify_skipped_at`, not a status value. `_idempotency_decision` returns `(decision, reason)` so the skip stanza records whether it was fingerprint_match or ttl_hours.
+
+2. **HIGH — Case 7 unit test encoded the bug.** `tests/test_phase_2_feasibility.py:368` asserted `status == "skipped"` post-skip, so CI stayed green while the corruption lived. Case 14 had the same masking for the TTL path. Fix: both cases now assert `status == "verified"` with `last_reverify_skipped_at` populated. Added Case 7b regression: three consecutive runs on the same dataset must not drift `status` or `verified_at`.
+
+3. **MEDIUM — Phase 3 exhaustion check missed `"skipped"` status.** `phase_3_benign.py:114` only treated `status == "infeasible"` as exhausted. If a dataset on disk still carries pre-fix `status="skipped"` tasks from an earlier buggy build, the `adversarially_exhausted` annotation wouldn't fire and Phase 4 gets handed a benign whose only adversarial is Phase-4-inadmissible. Fix (defense-in-depth): `status in ("infeasible", "skipped")` triggers the annotation.
+
+4. **LOW — `--feasibility-retry-count 0` silently rewrote to `1`.** `phase_2_injections.py:717` used `int(getattr(args, "feasibility_retry_count", None) or 1)`. The `or` fallback treats `0` as falsy; operators debugging a transient failure who wanted no retries got one anyway. Fix: explicit `None` sentinels; `0` now means "single attempt". Same pattern applied to `--feasibility-concurrency`.
+
+5. **LOW — Uncaught `OSError` on instances / tasks file reads.** `phase_2_injections.py:669,704` caught `JSONDecodeError` only; permission errors, concurrent deletes, and other I/O failures produced an uncaught traceback instead of a clean error-code return. Fix: `except (json.JSONDecodeError, OSError)`.
+
+6. **Log clarity.** `phase_2_injections.py:774-780` printed "N verified / Y skipped", which operators read as "N admitted, Y no-op". Post-fix, the fresh-vs-reused distinction is load-bearing (since reused tasks now also count as admitted). Now prints `N admitted (X fresh + Y reused via idempotency) / Z infeasible`.
+
+Pipeline-wide hardening (commit `e0b4b07b`):
+
+7. **MEDIUM — `atomic_io.write_json_atomic` silently downgraded file permissions to `0o600` on every rewrite.** `tempfile.mkstemp` hardcodes `0o600` on CPython regardless of umask. Four Phase 2 dataset files committed to git as mode `100644` existed on disk as `0o600` — a live divergence git cannot show via `git diff` (git tracks only the executable bit). Fix: probe umask once at import (thread-safe for the async worker pool), stat the destination before writing, chmod the tempfile to either the existing mode (preserving operator intent) or `0o666 & ~umask` (typically `0o644`). Does not retroactively heal files already at `0o600`; operators need `chmod 644 logs/phase_2/*.json` once, future writes then preserve `0o644`.
+
+8. **MEDIUM — `retrying` did not retry `cleanup_failed`.** `BaseSiteEditor.cleanup()` attempts every unwind DELETE and, if any fail, raises `EditorError("cleanup_failed")` — *replacing* the original `request_failed` that triggered the unwind. `_async_utils._DEFAULT_RETRY_KINDS` did not include `cleanup_failed`, so the retry short-circuited and tasks were marked infeasible with the wrong kind. The common victim: GitLab's nginx-fronted 502/504 window where a create POST and its matching DELETE fall inside the same burst. Fix: add `cleanup_failed` to the default retry kinds. Idempotent editor methods (`create_group` / `create_issue` / `create_forum` via GET-then-POST, `create_project` via `_reap_preexisting_project` on `webagent-task-*` prefix) recover naturally on the next attempt. Also added optional `on_retry` hook to `retrying` for future callers that may need per-platform residue sweeps (not wired in Phase 2c — not needed given current editor idempotency).
+
+New test files introduced by the audit:
+
+- `tests/test_atomic_io.py` — 7 cases covering default mode, preservation of `0o644`/`0o600`/`0o640`, no tmpfile leftover on success or on mid-write exception.
+- `tests/test_async_utils.py` — 12 cases covering default retry kinds, transient-kind retry, 4xx no-retry, retry exhaustion, `on_retry` firing boundaries, custom `retry_on`, and attempts-log bookkeeping.
 
 If a future revision reintroduces any of these, treat it as a regression and revert.
