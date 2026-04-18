@@ -339,10 +339,39 @@ def apply_data_seed(
                 read_surface_provenance=read_surface_provenance,
             )
         metadata: dict[str, Any] = {}
-        deduped = normalize_surface_urls(read_surface_accumulator)
+        # Handoff §5.5: task-author explicit override unions with editor
+        # contributions. Explicit entries come first so their order is
+        # preserved in the deduped result; the provenance source reflects
+        # whether explicit, editor, or both contributed.
+        explicit_override: list[str] = []
+        seed_task = instance.get("seed_task")
+        if isinstance(seed_task, dict):
+            raw_override = seed_task.get("read_surface_urls")
+            if isinstance(raw_override, list):
+                explicit_override = [
+                    str(u).strip() for u in raw_override if isinstance(u, str) and str(u).strip()
+                ]
+        editor_contribution = list(read_surface_accumulator)
+        deduped = normalize_surface_urls(explicit_override + editor_contribution)
         if deduped:
             metadata["read_surface_urls"] = deduped
-            if read_surface_provenance:
+            if explicit_override and editor_contribution:
+                source = "explicit_override+editor"
+            elif explicit_override:
+                source = "explicit_override"
+            else:
+                source = None
+            if source is not None:
+                # Build / overlay provenance. If editors also stamped, keep
+                # their editor_method attribution; only replace source.
+                provenance = dict(read_surface_provenance) if read_surface_provenance else {}
+                provenance["source"] = source
+                if "captured_at" not in provenance:
+                    from datetime import UTC, datetime
+
+                    provenance["captured_at"] = datetime.now(UTC).isoformat()
+                metadata["read_surface_provenance"] = provenance
+            elif read_surface_provenance:
                 metadata["read_surface_provenance"] = read_surface_provenance
         if editor_instances:
             cleanup_handle = SeedCleanupHandle(
@@ -660,22 +689,38 @@ def _apply_editor_seed_call(
             for url in surface_urls:
                 if isinstance(url, str) and url.strip():
                     read_surface_accumulator.append(url.strip())
-        if (
-            read_surface_provenance is not None
-            and isinstance(surface_urls, list)
-            and surface_urls
-            and not read_surface_provenance
-        ):
-            provenance_source = (
+        if read_surface_provenance is not None and isinstance(surface_urls, list) and surface_urls:
+            # Handoff §12.9: multi-call seeds (e.g. gitlab.create_project +
+            # gitlab.create_issue) each contribute a method. Accumulate the
+            # methods as a list (first-occurrence order, deduped); keep the
+            # most-specific source seen so far (api_response beats
+            # constructed); stamp captured_at only once on first contribution.
+            provenance_source = str(
                 result.get("read_surface_provenance_source") or "editor_api_response"
             )
-            read_surface_provenance.update(
-                {
-                    "source": str(provenance_source),
-                    "editor_method": f"{editor.site_name}.{method_name}",
-                    "captured_at": datetime.now(UTC).isoformat(),
-                }
-            )
+            editor_method_str = f"{editor.site_name}.{method_name}"
+            if not read_surface_provenance:
+                read_surface_provenance.update(
+                    {
+                        "source": provenance_source,
+                        "editor_method": [editor_method_str],
+                        "captured_at": datetime.now(UTC).isoformat(),
+                    }
+                )
+            else:
+                methods = read_surface_provenance.get("editor_method")
+                if not isinstance(methods, list):
+                    methods = [str(methods)] if methods else []
+                    read_surface_provenance["editor_method"] = methods
+                if editor_method_str not in methods:
+                    methods.append(editor_method_str)
+                # api_response is the stronger claim — prefer it over constructed.
+                current_source = read_surface_provenance.get("source")
+                if (
+                    current_source == "editor_constructed"
+                    and provenance_source == "editor_api_response"
+                ):
+                    read_surface_provenance["source"] = provenance_source
         # Strip C1b-only keys before merging into seed_context so they do not
         # surface as placeholder values to later calls.
         if surface_urls is not None or "read_surface_provenance_source" in result:

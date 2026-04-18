@@ -304,7 +304,9 @@ def test_apply_data_seed_returns_tuple_with_metadata(monkeypatch):
         "/f/books/9999",
     ]
     assert metadata["read_surface_provenance"]["source"] == "editor_constructed"
-    assert metadata["read_surface_provenance"]["editor_method"] == "reddit.create_submission"
+    # §12.9: editor_method is a list so multi-call seeds can attribute each
+    # contribution; single-call seeds land as a one-element list.
+    assert metadata["read_surface_provenance"]["editor_method"] == ["reddit.create_submission"]
     assert "captured_at" in metadata["read_surface_provenance"]
     handle.cleanup()
 
@@ -356,8 +358,11 @@ def test_apply_data_seed_accumulates_across_multi_editor_calls(monkeypatch):
     assert "/f/books/9999" in urls
     # Anchored comment URL is distinct and preserved.
     assert "http://fake.test/f/books/9999#comment-c1" in urls
-    # Provenance reflects FIRST call that contributed, not last (§5.5).
-    assert metadata["read_surface_provenance"]["editor_method"] == "reddit.create_submission"
+    # §12.9: both contributing methods recorded in first-occurrence order.
+    assert metadata["read_surface_provenance"]["editor_method"] == [
+        "reddit.create_submission",
+        "reddit.create_comment",
+    ]
     _handle.cleanup()
 
 

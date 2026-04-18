@@ -1318,6 +1318,214 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
     assert fake_session.closed is True
 
 
+class _ReadSurfaceEditor(_FakeEditor):
+    """FakeEditor variant that emits ``read_surface_urls`` — for §5.5 tests."""
+
+    site_name = "reddit"
+
+    def create_submission(self, *, forum_name: str, title_template: str) -> dict[str, object]:
+        self.calls.append(
+            ("create_submission", {"forum_name": forum_name, "title_template": title_template})
+        )
+        return {
+            "forum_name": forum_name,
+            "submission_id": "59421",
+            "read_surface_urls": [
+                "http://reddit.test/f/books/59421",
+                "/f/books/59421",
+            ],
+            "read_surface_provenance_source": "editor_constructed",
+        }
+
+    def create_comment(
+        self, *, forum_name: str, submission_id: str, body: str
+    ) -> dict[str, object]:
+        self.calls.append(
+            (
+                "create_comment",
+                {"forum_name": forum_name, "submission_id": submission_id, "body": body},
+            )
+        )
+        return {"comment_id": "901"}
+
+
+def _reddit_editor_call_submission() -> dict[str, object]:
+    return {
+        "benchmark": "webarena_verified",
+        "site": "reddit",
+        "method": "create_submission",
+        "args": {"forum_name": "books", "title_template": "Thread"},
+    }
+
+
+def test_apply_data_seed_returns_editor_only_read_surface_urls(monkeypatch):
+    """Editor-emitted URLs surface in metadata when no explicit override is set."""
+    _ReadSurfaceEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(
+        seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _ReadSurfaceEditor
+    )
+
+    cleanup_handle, metadata = seeding.apply_data_seed(
+        {"mechanism": "editor", "editor_calls": [_reddit_editor_call_submission()]},
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    assert cleanup_handle is not None
+    cleanup_handle.cleanup()
+    assert metadata["read_surface_urls"] == [
+        "http://reddit.test/f/books/59421",
+        "/f/books/59421",
+    ]
+    provenance = metadata["read_surface_provenance"]
+    assert provenance["source"] == "editor_constructed"
+    assert provenance["editor_method"] == ["reddit.create_submission"]
+
+
+def test_apply_data_seed_merges_explicit_override_with_editor_surface_urls(monkeypatch):
+    """Handoff §5.5: explicit task-level URLs union with editor contribution."""
+    _ReadSurfaceEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(
+        seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _ReadSurfaceEditor
+    )
+
+    cleanup_handle, metadata = seeding.apply_data_seed(
+        {"mechanism": "editor", "editor_calls": [_reddit_editor_call_submission()]},
+        {
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+            "seed_task": {
+                "id": "task_override",
+                # Explicit override comes first: both stays, both deduped.
+                "read_surface_urls": [
+                    "/f/books/59421",  # duplicate of editor path-form
+                    "/some/explicit/path",  # unique
+                ],
+            },
+        },
+    )
+
+    assert cleanup_handle is not None
+    cleanup_handle.cleanup()
+    # Union preserving first-occurrence order: explicit first, then editor.
+    # /f/books/59421 appeared first in explicit, host-qualified form is unique.
+    assert metadata["read_surface_urls"] == [
+        "/f/books/59421",
+        "/some/explicit/path",
+        "http://reddit.test/f/books/59421",
+    ]
+    provenance = metadata["read_surface_provenance"]
+    assert provenance["source"] == "explicit_override+editor"
+
+
+def test_apply_data_seed_explicit_override_only(monkeypatch):
+    """Editor contributes nothing → provenance source is explicit_override."""
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    # Register the non-emitting _FakeEditor so editor_calls succeed but
+    # return no read_surface_urls.
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+
+    cleanup_handle, metadata = seeding.apply_data_seed(
+        {"mechanism": "editor", "editor_calls": [_reddit_editor_call_submission()]},
+        {
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+            "seed_task": {
+                "id": "task_override",
+                "read_surface_urls": ["/explicit/only"],
+            },
+        },
+    )
+
+    assert cleanup_handle is not None
+    cleanup_handle.cleanup()
+    assert metadata["read_surface_urls"] == ["/explicit/only"]
+    assert metadata["read_surface_provenance"]["source"] == "explicit_override"
+
+
+class _MultiCallEditor(_FakeEditor):
+    """Two methods, each contributing distinct read_surface_urls — §12.9."""
+
+    site_name = "reddit"
+    supported_methods = frozenset({"create_submission", "create_comment"})
+
+    def create_submission(self, *, forum_name: str, title_template: str) -> dict[str, object]:
+        self.calls.append(("create_submission", {"forum_name": forum_name}))
+        return {
+            "forum_name": forum_name,
+            "submission_id": "59421",
+            "read_surface_urls": ["/f/books/59421"],
+            "read_surface_provenance_source": "editor_constructed",
+        }
+
+    def create_comment(
+        self, *, forum_name: str, submission_id: str, body: str
+    ) -> dict[str, object]:
+        self.calls.append(("create_comment", {"forum_name": forum_name}))
+        return {
+            "forum_name": forum_name,
+            "comment_id": "901",
+            # Second call surfaces a distinct URL and uses a stronger source.
+            "read_surface_urls": ["/f/books/59421#comment-901"],
+            "read_surface_provenance_source": "editor_api_response",
+        }
+
+
+def test_apply_data_seed_multi_call_accumulates_editor_methods_and_picks_strongest_source(
+    monkeypatch,
+):
+    """Every contributing editor call stamps provenance (handoff §12.9)."""
+    _MultiCallEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _MultiCallEditor)
+
+    cleanup_handle, metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_submission",
+                    "args": {"forum_name": "books", "title_template": "Thread"},
+                },
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "args": {
+                        "forum_name": "{forum_name}",
+                        "submission_id": "{submission_id}",
+                        "body": "payload",
+                    },
+                },
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    assert cleanup_handle is not None
+    cleanup_handle.cleanup()
+    assert metadata["read_surface_urls"] == [
+        "/f/books/59421",
+        "/f/books/59421#comment-901",
+    ]
+    provenance = metadata["read_surface_provenance"]
+    # Both methods contributed — both appear, first-occurrence order.
+    assert provenance["editor_method"] == [
+        "reddit.create_submission",
+        "reddit.create_comment",
+    ]
+    # api_response beats constructed — stronger claim wins.
+    assert provenance["source"] == "editor_api_response"
+
+
 def test_preflight_editor_seed_calls_chains_preview_context(monkeypatch):
     _FakeEditor.instances.clear()
     monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
