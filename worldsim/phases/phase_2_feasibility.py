@@ -115,7 +115,8 @@ async def verify_feasibility(
             "phase 2c pre-flight: token acquisition failed:\n  - " + "\n  - ".join(token_errors)
         )
 
-    sites_in_tasks = {str(task.get("site", "")).strip().lower() for task in raw if task.get("site")}
+    sites_in_tasks = {_resolve_seed_site(task) for task in raw}
+    sites_in_tasks.discard("")
     sites_in_instances = {str(inst.get("site_name", "")).strip().lower() for inst in instances}
     missing_sites = sites_in_tasks - sites_in_instances
     if missing_sites:
@@ -156,28 +157,47 @@ async def verify_feasibility(
         async with semaphore:
             if stagger_delay:
                 await asyncio.sleep(min(stagger_delay * index, stagger_delay * 10))
-            site = str(task.get("site", "")).strip().lower()
-            instance = instance_by_site.get(site)
+            # Phase 4 binds the seed call to the *delivery* site (from
+            # ``delivery_channel.delivery_site``, falling back to the first
+            # editor_call's ``site``, falling back to ``task["site"]``).
+            # Mirror that so cross-site adversarial seeds — e.g. a
+            # shopping_admin task whose payload seeds a product review on
+            # the shopping storefront — verify against the correct instance.
+            seed_site = _resolve_seed_site(task)
+            instance = instance_by_site.get(seed_site)
             if instance is None:
                 return _infeasible_task(
                     task,
                     kind="unsupported_site",
-                    detail=f"no instance for site {site!r}",
+                    detail=f"no instance for seed site {seed_site!r}",
                     fingerprint=fingerprint_base,
                     http_status=None,
                     response_snippet=None,
                     attempts=[],
                     timestamp=now_iso,
                 )
-            return await _verify_one(
-                task,
-                instance,
-                retry_count=retry_count,
-                fingerprint_base=fingerprint_base,
-                ttl_hours=ttl_hours,
-                force_reverify=force_reverify,
-                cleanup_warnings=cleanup_warnings,
-            )
+            try:
+                return await _verify_one(
+                    task,
+                    instance,
+                    retry_count=retry_count,
+                    fingerprint_base=fingerprint_base,
+                    ttl_hours=ttl_hours,
+                    force_reverify=force_reverify,
+                    cleanup_warnings=cleanup_warnings,
+                )
+            except Exception as exc:  # defensive — never let a single task kill 2c
+                logger.exception("phase 2c: unexpected error verifying task %s", task.get("id"))
+                return _infeasible_task(
+                    task,
+                    kind="unknown",
+                    detail=f"{exc.__class__.__name__}: {exc}",
+                    fingerprint=fingerprint_base,
+                    http_status=None,
+                    response_snippet=None,
+                    attempts=[],
+                    timestamp=now_iso,
+                )
 
     results = await asyncio.gather(
         *(worker(task, i) for i, task in enumerate(raw)),
@@ -285,7 +305,12 @@ async def _verify_one(
             attempts=attempts,
             timestamp=_now_iso(),
         )
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
+        # ValueError comes from validate_data_seed; RuntimeError comes from
+        # ``_render_editor_seed_call`` when a template placeholder (e.g.
+        # ``{submission_id}``) can't be resolved because the chain is
+        # missing a producer call. Both are structural problems; neither is
+        # a platform rejection.
         _safe_cleanup(handle, cleanup_warnings, task.get("id"))
         return _infeasible_task(
             task,
@@ -464,6 +489,31 @@ def _first_method(task: dict[str, Any]) -> str:
     if isinstance(calls, list) and calls and isinstance(calls[0], dict):
         return str(calls[0].get("method", ""))
     return ""
+
+
+def _resolve_seed_site(task: dict[str, Any]) -> str:
+    """Return the site the adversarial seed actually POSTs against.
+
+    Phase 4 uses the same precedence: ``delivery_channel.delivery_site`` →
+    first editor_call's ``site`` → ``task["site"]``. A shopping_admin task
+    whose payload seeds a product review on the shopping storefront has
+    ``delivery_site="shopping"`` and must bind to the shopping instance.
+    """
+    delivery = task.get("delivery_channel")
+    if isinstance(delivery, dict):
+        ds = delivery.get("delivery_site")
+        if isinstance(ds, str) and ds.strip() and ds.strip().lower() != "none":
+            return ds.strip().lower()
+    seed = task.get("adversarial_data_seed") or {}
+    if isinstance(seed, dict):
+        calls = seed.get("editor_calls")
+        if isinstance(calls, list):
+            for call in calls:
+                if isinstance(call, dict):
+                    cs = call.get("site")
+                    if isinstance(cs, str) and cs.strip():
+                        return cs.strip().lower()
+    return str(task.get("site", "")).strip().lower()
 
 
 def _now_iso() -> str:
