@@ -41,6 +41,7 @@ from typing import Any
 
 import requests
 
+from worldsim import outcome_taxonomy
 from worldsim.agent_config import (
     DEFAULT_MODEL,
     RUNTIME_METADATA_KEY,
@@ -125,6 +126,103 @@ REVISED_TASK_OUTPUT = "/workspace/output/revised_task.json"
 VARIANT_TASK_OUTPUT = "/workspace/output/variant_task.json"
 ECOLOGICAL_FIX_MAX_ITERATIONS = 2
 PLACEMENT_FIX_MAX_ITERATIONS = 2
+
+
+def _log_stratified_summary(final_results: list[dict[str, Any]]) -> None:
+    """Reconstruct ``ClassifiedOutcome``s from persisted result dicts and
+    log the handoff §12 stratified summary block.
+
+    Non-fatal: if the reconstruction fails for any reason, fall back to
+    logging nothing rather than breaking the Phase 4 summary line.
+    """
+    try:
+        reconstructed: list[outcome_taxonomy.ClassifiedOutcome] = []
+        for r in final_results:
+            if not isinstance(r, dict):
+                continue
+            fine = r.get("outcome_fine")
+            if not isinstance(fine, str):
+                continue
+            signals_dict = r.get("signals") or {}
+            signals_obj: outcome_taxonomy.TrajectorySignals | None
+            if isinstance(signals_dict, dict) and signals_dict:
+                try:
+                    signals_obj = outcome_taxonomy.TrajectorySignals(**signals_dict)
+                except TypeError:
+                    signals_obj = None
+            else:
+                signals_obj = None
+            flags = r.get("flags") or []
+            if not isinstance(flags, list):
+                flags = []
+            confidence = r.get("diagnosable_confidence", "high")
+            if confidence not in {"high", "medium", "low"}:
+                confidence = "high"
+            outcome = "task_broke"
+            if fine.startswith("complied_"):
+                outcome = "complied"
+            elif fine.startswith("resistant") or fine == "refused_or_ignored":
+                outcome = "refused_or_ignored"
+            elif fine.startswith("evaluator_unavailable"):
+                outcome = "evaluator_unavailable"
+            elif fine.startswith("task_broke"):
+                outcome = "task_broke"
+            reconstructed.append(
+                outcome_taxonomy.ClassifiedOutcome(
+                    outcome=outcome,
+                    outcome_fine=fine,
+                    flags=list(flags),
+                    diagnosable_confidence=confidence,
+                    signals=signals_obj,
+                    rationale=str(r.get("classifier_rationale", "")),
+                    classifier_version=str(
+                        r.get("classifier_version", outcome_taxonomy.CLASSIFIER_VERSION)
+                    ),
+                )
+            )
+        if not reconstructed:
+            return
+        summary = outcome_taxonomy.stratified_summary(reconstructed)
+        for line in outcome_taxonomy.format_stratified_summary_log(summary).splitlines():
+            logger.info(line)
+    except Exception as exc:  # defensive: never break the summary line
+        logger.warning("stratified_summary logging failed: %s", exc)
+
+
+def _classify_trajectory_outcome(
+    *,
+    task: dict[str, Any],
+    task_dir: Path,
+    benign_passed: bool,
+    adv_passed: bool,
+    ecologically_valid: bool,
+) -> dict[str, Any]:
+    """Run the outcome-taxonomy classifier on a completed trajectory.
+
+    Returns empty dict if classification fails for any reason (malformed
+    artifacts, missing task metadata, etc.) — the pipeline must not break
+    when the classifier trips.
+    """
+    try:
+        if not (task_dir / "history.json").exists():
+            return {}
+        classified = outcome_taxonomy.classify_from_dir(
+            task_dir,
+            task,
+            benign_passed=benign_passed,
+            adversarial_passed=adv_passed,
+            ecologically_valid=ecologically_valid,
+            seed_ok=True,
+        )
+    except Exception as exc:  # defensive: never break the pipeline
+        logger.warning(
+            "outcome_taxonomy classification failed for %s: %s",
+            task.get("id", "unknown"),
+            exc,
+        )
+        return {}
+    return outcome_taxonomy.as_result_fields(classified)
+
 
 # Phase 2c feasibility admission. Flipped to ``True`` on 2026-04-18 after
 # commit 2 enriched the dataset on r5; only ``feasibility.status == "verified"``
@@ -964,6 +1062,9 @@ async def run(args: argparse.Namespace) -> int:
         errors,
         inconclusive,
     )
+
+    _log_stratified_summary(final_results)
+
     return return_code
 
 
@@ -1396,6 +1497,14 @@ async def run_adversarial_task(
             **extra,
         )
 
+        taxonomy_fields = _classify_trajectory_outcome(
+            task=task,
+            task_dir=task_dir,
+            benign_passed=bool(benign_passed),
+            adv_passed=bool(adv_passed),
+            ecologically_valid=bool(ecologically_valid),
+        )
+
         return {
             "task_id": task_id,
             "outcome": outcome,
@@ -1406,6 +1515,7 @@ async def run_adversarial_task(
             "trajectory_dir": str(task_dir),
             "elapsed": result.elapsed,
             "steps": result.steps,
+            **taxonomy_fields,
         }
     finally:
         if seed_cleanup is not None:

@@ -217,6 +217,14 @@ uv run python -m worldsim.main resume
 
 Pipeline state is written to `logs/pipeline_state.json` before each major operation. If you use a custom `WORLDSIM_STATE_DIR`, WorldSim also writes a pointer under `logs/` so `uv run python -m worldsim.main resume` can find the active run later without re-exporting the environment variable.
 
+Phase 4 trajectories are enriched post-hoc with a diagnosable outcome taxonomy (see the spec's "Outcome Taxonomy" section). Every `processed_result.json` gains `outcome_fine`, `flags`, `signals`, and `diagnosable_confidence` fields alongside the legacy `outcome`. To re-classify a historical run offline:
+
+```bash
+uv run python scripts/reclassify_phase_4_results.py logs/phase_4/<run_id>/
+```
+
+The reclassifier is idempotent (skips rows already at the current `classifier_version`; pass `--force` to rewrite) and reads trajectory artifacts from disk; no live services are touched.
+
 ### Nightly feasibility drift check
 
 `scripts/nightly_feasibility_check.sh` re-runs Phase 2c against the dev host with a 24-hour TTL so previously-verified tasks skip on fingerprint match. Wire it into cron to catch silent platform drift (GitLab secret rotation, Magento review policy changes, PostMill schema migration) before it contaminates the next ASR run:
