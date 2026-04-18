@@ -363,9 +363,19 @@ def test_case_07_fingerprint_match_skips_http(tmp_path, monkeypatch):
         )
     )
     assert calls["n"] == 0
-    # Skipped tasks still count as verified for downstream consumption.
+    # Idempotency-skip preserves the prior ``status="verified"`` record so
+    # Phase 4's strict admission gate still admits the task. The skip fact
+    # is recorded on a sibling field (``last_reverify_skipped_at``) and the
+    # task is additionally surfaced via ``report.skipped_already_verified``
+    # for reporting.
     assert len(report.verified) == 1
-    assert report.verified[0]["feasibility"]["status"] == "skipped"
+    stanza = report.verified[0]["feasibility"]
+    assert stanza["status"] == "verified"
+    assert stanza["verified_at"] == "2026-04-18T00:00:00Z"
+    assert stanza["last_reverify_skipped_at"]
+    assert stanza["last_reverify_skip_reason"] == "fingerprint_match"
+    assert len(report.skipped_already_verified) == 1
+    assert report.skipped_already_verified[0] is report.verified[0]
 
 
 # ---------------------------------------------------------------------------
@@ -621,7 +631,11 @@ def test_case_14_ttl_hours_preserves_recent_verification(tmp_path, monkeypatch):
         )
     )
     assert len(report.verified) == 1
-    assert report.verified[0]["feasibility"]["status"] == "skipped"
+    stanza = report.verified[0]["feasibility"]
+    # TTL-skip preserves the prior ``status="verified"`` and records the skip
+    # reason so the per-run summary can distinguish it from a fresh verify.
+    assert stanza["status"] == "verified"
+    assert stanza["last_reverify_skip_reason"] == "ttl_hours"
 
 
 # ---------------------------------------------------------------------------
@@ -710,57 +724,106 @@ def test_idempotency_decision_truth_table():
     }
     drift = {**fp, "task_content_hash": "other"}
 
+    def _decide(existing, *, ttl=None, force=False):
+        return feas._idempotency_decision(
+            existing, current_fingerprint=fp, ttl_hours=ttl, force_reverify=force
+        )
+
     # missing → verify
-    assert (
-        feas._idempotency_decision(
-            None, current_fingerprint=fp, ttl_hours=None, force_reverify=False
-        )
-        == "verify"
-    )
-    # verified + match → skip
-    assert (
-        feas._idempotency_decision(
-            {"status": "verified", "host_fingerprint": fp},
-            current_fingerprint=fp,
-            ttl_hours=None,
-            force_reverify=False,
-        )
-        == "skip"
+    assert _decide(None) == ("verify", None)
+    # verified + match → skip (reason=fingerprint_match)
+    assert _decide({"status": "verified", "host_fingerprint": fp}) == (
+        "skip",
+        "fingerprint_match",
     )
     # verified + drift → re-verify
-    assert (
-        feas._idempotency_decision(
-            {"status": "verified", "host_fingerprint": drift},
-            current_fingerprint=fp,
-            ttl_hours=None,
-            force_reverify=False,
-        )
-        == "verify"
-    )
+    assert _decide({"status": "verified", "host_fingerprint": drift}) == ("verify", None)
+    # verified + drift + TTL covers it → skip (reason=ttl_hours)
+    from datetime import datetime
+
+    recent = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert _decide(
+        {"status": "verified", "host_fingerprint": drift, "verified_at": recent},
+        ttl=24.0,
+    ) == ("skip", "ttl_hours")
     # infeasible → always re-verify
-    assert (
-        feas._idempotency_decision(
-            {"status": "infeasible", "host_fingerprint": fp},
-            current_fingerprint=fp,
-            ttl_hours=None,
-            force_reverify=False,
-        )
-        == "verify"
-    )
+    assert _decide({"status": "infeasible", "host_fingerprint": fp}) == ("verify", None)
     # unverified (skip flag) → verify
-    assert (
-        feas._idempotency_decision(
-            {"status": "unverified"}, current_fingerprint=fp, ttl_hours=None, force_reverify=False
-        )
-        == "verify"
-    )
+    assert _decide({"status": "unverified"}) == ("verify", None)
     # force overrides skip
-    assert (
-        feas._idempotency_decision(
-            {"status": "verified", "host_fingerprint": fp},
-            current_fingerprint=fp,
-            ttl_hours=None,
-            force_reverify=True,
-        )
-        == "verify"
+    assert _decide({"status": "verified", "host_fingerprint": fp}, force=True) == (
+        "verify",
+        None,
     )
+
+
+# ---------------------------------------------------------------------------
+# Case 7b — double-run invariant: running the verifier twice in a row must
+# converge to a byte-identical dataset (modulo timestamps). This is the
+# regression test for the idempotency-skip status-mutation bug.
+# ---------------------------------------------------------------------------
+
+
+def test_case_07b_double_run_converges_without_status_drift(tmp_path, monkeypatch):
+    handle = _FakeHandle()
+
+    def responder(idx, seed, instance):
+        return handle
+
+    _patch_apply(monkeypatch, responder)
+    tasks_path = _write_tasks(tmp_path, [_task()])
+
+    # First run: fresh verify.
+    first = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_gitlab_instance()],
+            concurrency=1,
+            retry_count=0,
+        )
+    )
+    assert len(first.verified) == 1
+    first_feas = first.verified[0]["feasibility"]
+    assert first_feas["status"] == "verified"
+    assert "last_reverify_skipped_at" not in first_feas
+
+    # Persist exactly what the Phase 2c caller would persist — the
+    # ``report.verified`` list — and re-run. The second run must hit the
+    # idempotency shortcut, leaving ``status="verified"`` intact so Phase 4
+    # strict admission still admits the task.
+    tasks_path.write_text(json.dumps(first.verified))
+
+    def blow_up_if_called(idx, seed, instance):
+        raise AssertionError("second run should short-circuit via idempotency")
+
+    _patch_apply(monkeypatch, blow_up_if_called)
+    second = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_gitlab_instance()],
+            concurrency=1,
+            retry_count=0,
+        )
+    )
+    assert len(second.verified) == 1
+    second_feas = second.verified[0]["feasibility"]
+    # The critical invariant: Phase 4's admission gate reads this field.
+    assert second_feas["status"] == "verified"
+    # Reused-via-idempotency evidence must surface on the report for audit
+    # trail without trampling the original verification.
+    assert second_feas["verified_at"] == first_feas["verified_at"]
+    assert second_feas["last_reverify_skip_reason"] == "fingerprint_match"
+    assert len(second.skipped_already_verified) == 1
+    # Third run over the *twice-processed* dataset must also converge —
+    # i.e. ``last_reverify_skipped_at`` updates without status drifting.
+    tasks_path.write_text(json.dumps(second.verified))
+    third = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_gitlab_instance()],
+            concurrency=1,
+            retry_count=0,
+        )
+    )
+    assert third.verified[0]["feasibility"]["status"] == "verified"
+    assert third.verified[0]["feasibility"]["verified_at"] == first_feas["verified_at"]

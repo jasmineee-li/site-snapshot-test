@@ -666,7 +666,11 @@ async def _run_feasibility_stage(
 
     if getattr(args, "skip_feasibility", False):
         logger.warning("Phase 2c: --skip-feasibility active; stamping tasks as unverified")
-        current = json.loads(output_path.read_text())
+        try:
+            current = json.loads(output_path.read_text())
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.error("Phase 2c: failed to read %s: %s", output_path, exc)
+            return 1
         if not isinstance(current, list):
             logger.error("Phase 2c: %s must contain a JSON array", output_path)
             return 1
@@ -702,8 +706,8 @@ async def _run_feasibility_stage(
 
     try:
         raw_instances = json.loads(instances_path.read_text())
-    except json.JSONDecodeError as exc:
-        logger.error("Phase 2c: %s is not valid JSON: %s", instances_path, exc)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("Phase 2c: failed to read instances %s: %s", instances_path, exc)
         return 1
     instances = _extract_instances_list(raw_instances)
     if not instances:
@@ -713,8 +717,13 @@ async def _run_feasibility_stage(
         )
         return 1
 
-    concurrency = int(getattr(args, "feasibility_concurrency", None) or 10)
-    retry_count = int(getattr(args, "feasibility_retry_count", None) or 1)
+    # Use explicit None sentinels: ``--feasibility-retry-count 0`` is a
+    # legitimate "single attempt, no retries" setting; the ``or`` fallback
+    # would silently rewrite it to the default.
+    concurrency_raw = getattr(args, "feasibility_concurrency", None)
+    concurrency = 10 if concurrency_raw is None else max(1, int(concurrency_raw))
+    retry_raw = getattr(args, "feasibility_retry_count", None)
+    retry_count = 1 if retry_raw is None else max(0, int(retry_raw))
     ttl_hours = getattr(args, "feasibility_ttl_hours", None)
     force_reverify = bool(getattr(args, "force_reverify", False))
 
@@ -771,11 +780,14 @@ async def _run_feasibility_stage(
     verified_count = len(report.verified)
     infeasible_count = len(report.infeasible)
     skipped_count = len(report.skipped_already_verified)
+    fresh_count = verified_count - skipped_count
     logger.info(
-        "Phase 2c complete: %d verified / %d infeasible / %d skipped (elapsed=%.1fs)",
+        "Phase 2c complete: %d admitted (%d fresh + %d reused via idempotency) / "
+        "%d infeasible (elapsed=%.1fs)",
         verified_count,
-        infeasible_count,
+        fresh_count,
         skipped_count,
+        infeasible_count,
         report.elapsed_seconds,
     )
     if report.cleanup_warnings:

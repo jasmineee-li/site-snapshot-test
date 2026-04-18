@@ -205,22 +205,27 @@ async def verify_feasibility(
     )
 
     for result in results:
-        status = result.get("feasibility", {}).get("status")
+        feasibility = result.get("feasibility") or {}
+        status = feasibility.get("status") if isinstance(feasibility, dict) else None
         site = str(result.get("site", "")).strip().lower() or "unknown"
         bucket = per_site.setdefault(
             site,
             {"verified": 0, "infeasible": 0, "skipped": 0},
         )
         if status == "verified":
+            # Tasks reused via idempotency carry ``last_reverify_skipped_at``.
+            # They stay in ``verified`` (that's the list persisted to disk and
+            # admitted by Phase 4) but are *also* tracked in ``skipped`` for
+            # the report breakdown.
             verified.append(result)
-            bucket["verified"] += 1
+            if isinstance(feasibility, dict) and "last_reverify_skipped_at" in feasibility:
+                skipped.append(result)
+                bucket["skipped"] += 1
+            else:
+                bucket["verified"] += 1
         elif status == "infeasible":
             infeasible.append(result)
             bucket["infeasible"] += 1
-        elif status == "skipped":
-            skipped.append(result)
-            bucket["skipped"] += 1
-            verified.append(result)
         else:
             infeasible.append(result)
             bucket["infeasible"] += 1
@@ -254,18 +259,22 @@ async def _verify_one(
     fingerprint = dict(fingerprint_base)
     fingerprint["task_content_hash"] = content_hash
 
-    decision = _idempotency_decision(
+    decision, skip_reason = _idempotency_decision(
         task.get("feasibility"),
         current_fingerprint=fingerprint,
         ttl_hours=ttl_hours,
         force_reverify=force_reverify,
     )
     if decision == "skip":
+        # Preserve the prior ``status="verified"`` record verbatim — Phase 4's
+        # strict admission gate only admits ``status == "verified"``, so
+        # overwriting to ``"skipped"`` would silently take prior verifications
+        # offline on every idempotent re-run. We record the skip fact on a
+        # sibling field so the report bucket still picks it out.
         result = dict(task)
         prior = dict(task.get("feasibility") or {})
-        prior["status"] = "skipped"
-        prior["skipped_at"] = _now_iso()
-        prior["reason"] = "fingerprint_match"
+        prior["last_reverify_skipped_at"] = _now_iso()
+        prior["last_reverify_skip_reason"] = skip_reason or "fingerprint_match"
         result["feasibility"] = prior
         return result
 
@@ -401,36 +410,39 @@ def _idempotency_decision(
     current_fingerprint: dict[str, str],
     ttl_hours: float | None,
     force_reverify: bool,
-) -> str:
-    """Return ``"skip"`` to reuse the prior result, ``"verify"`` to re-run.
+) -> tuple[str, str | None]:
+    """Return ``("skip", reason)`` to reuse the prior result or
+    ``("verify", None)`` to re-run.
 
     Matches the truth table in §3.7:
 
     - Missing feasibility field → verify.
-    - ``verified`` + fingerprint matches → skip (unless force_reverify).
-    - ``verified`` + fingerprint drifts → re-verify unless TTL covers it.
+    - ``verified`` + fingerprint matches → skip (reason=fingerprint_match);
+      force_reverify overrides.
+    - ``verified`` + fingerprint drifts → re-verify unless TTL covers it
+      (reason=ttl_hours).
     - ``infeasible`` (any fingerprint) → re-verify (platform may have
       changed its policy since).
     - ``unverified`` → verify.
     """
     if force_reverify:
-        return "verify"
+        return ("verify", None)
     if not isinstance(existing, dict):
-        return "verify"
+        return ("verify", None)
     status = existing.get("status")
     if status != "verified":
-        return "verify"
+        return ("verify", None)
     prior_fp = existing.get("host_fingerprint") or {}
     if not isinstance(prior_fp, dict):
-        return "verify"
+        return ("verify", None)
     if _fingerprints_match(prior_fp, current_fingerprint):
-        return "skip"
+        return ("skip", "fingerprint_match")
     if ttl_hours is not None:
         verified_at = existing.get("verified_at")
         age = _hours_since(verified_at)
         if age is not None and age <= ttl_hours:
-            return "skip"
-    return "verify"
+            return ("skip", "ttl_hours")
+    return ("verify", None)
 
 
 def _fingerprints_match(a: dict[str, Any], b: dict[str, Any]) -> bool:

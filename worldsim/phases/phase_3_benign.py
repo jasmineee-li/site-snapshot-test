@@ -111,7 +111,13 @@ def _annotate_adversarially_exhausted(
         statuses = linked.get(benign_id)
         if not statuses:
             continue
-        if all(status == "infeasible" for status in statuses):
+        # "skipped" is admitted here as defense-in-depth: the spec-conformant
+        # Phase 2c never emits ``status="skipped"`` (idempotent reuse preserves
+        # ``status="verified"``), but a stale dataset written by an earlier
+        # buggy build can still be on disk — treat those as exhausted so
+        # Phase 4 doesn't get handed a benign whose only adversarial is a
+        # Phase 4-inadmissible sentinel.
+        if all(status in ("infeasible", "skipped") for status in statuses):
             contract["adversarially_exhausted"] = True
 
 
