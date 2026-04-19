@@ -1,14 +1,58 @@
 """Honeyclient-style verification of editor-emitted ``read_surface_urls``.
 
-Per handoff §11.2, this test plants a payload with a known canary, captures
-the editor's emitted ``read_surface_urls``, fetches each URL from the
-orchestrator machine, and asserts the canary text renders at (at least) one
-URL. The check closes the loop between C1b (editor says the injection is at
-URL X) and the live platform (URL X actually shows the injection).
+Per `docs/handoffs/codex-handoff-c1-read-surface.md` §11.2, each test in
+this module plants a payload carrying a known canary string (e.g.
+``WS-CANARY-ISSUE-<uuid>``), captures the editor's emitted
+``read_surface_urls`` field, fetches each of those URLs from the
+orchestrator host, and asserts the canary text renders at (at least)
+one of them. The check closes the loop between two halves of the C1b
+engagement signal:
 
-Gated by ``PYTEST_VERIFY_READ_SURFACE_URLS=1`` — the whole module skips
-otherwise so default integration runs stay fast and do not require
-network-fetching every URL.
+  - **Editor side**: the editor says "after this seed call, the injection
+    is rendered at URLs X / Y / Z."
+  - **Platform side**: when the agent navigates to X / Y / Z, the
+    injection is actually visible there.
+
+Without these tests, an editor could silently emit URLs that don't
+render the planted content and the Phase 4 outcome classifier's C1b
+signal would degrade from "agent visited the surface" to "agent visited
+some URL that may or may not have the content". The honeyclient gate is
+the unit-of-truth that prevents that drift; treat it as the
+contract-test for ``read_surface_urls`` accuracy.
+
+**Why these 3 tests are skipped by default.** The fetch loop hits every
+emitted URL over HTTP from the orchestrator host. That:
+
+  - adds 30-60s of wall-clock to the integration suite (the default suite
+    targets <90s),
+  - dogpiles the live stack with extra GETs while the rest of the suite
+    is also running, and
+  - requires every site (gitlab, reddit, shopping) to be healthy on the
+    target host AND for SG ingress to allow the orchestrator host to
+    reach each site's port.
+
+So the default integration run skips them and asserts only the
+editor-side contracts. Operators opt in explicitly when they're touching
+``read_surface_urls`` emission code or the C1b classifier signal.
+
+**When to opt in.** Run with ``--verify-read-surface-urls`` (which sets
+``PYTEST_VERIFY_READ_SURFACE_URLS=1`` for pytest) any time you change:
+
+  - any ``worldsim/editors/*.py`` file's ``read_surface_urls`` emission
+    or the helper module ``worldsim/editors/_read_surface.py``,
+  - the C1b branch in ``worldsim/outcome_taxonomy.py::
+    _check_injection_surface_visited``, or
+  - benchmark-host routing / nginx config that could change which URLs
+    actually render the canary on each site.
+
+Default integration runs include this module's tests as ``s`` (skipped)
+in the pytest output so it's visible that the gate exists; opt in
+explicitly when the change warrants the extra coverage.
+
+Invocation:
+    bash scripts/run_integration_tests.sh \\
+        --host-config configs/benchmark_hosts/r5.yaml \\
+        --verify-read-surface-urls
 """
 
 from __future__ import annotations
@@ -30,11 +74,22 @@ pytestmark = pytest.mark.integration
 
 
 def _skip_unless_verify_read_surface_urls() -> None:
+    """Per-test gate. See module docstring for the full rationale.
+
+    The default integration run leaves these tests as skipped so the
+    suite stays fast and doesn't hit every emitted URL on the live
+    stack. Opt in by setting ``PYTEST_VERIFY_READ_SURFACE_URLS=1`` (or
+    pass ``--verify-read-surface-urls`` to ``run_integration_tests.sh``)
+    when you've touched ``read_surface_urls`` emission or the C1b
+    classifier signal — the gate is what prevents a silent C1b
+    correctness regression on the next Phase 4 run.
+    """
     if not os.getenv("PYTEST_VERIFY_READ_SURFACE_URLS"):
         pytest.skip(
             "set PYTEST_VERIFY_READ_SURFACE_URLS=1 "
             "(or pass --verify-read-surface-urls to run_integration_tests.sh) "
-            "to enable honeyclient read-surface verification"
+            "to enable honeyclient read-surface verification — see module "
+            "docstring for when this gate should be flipped on"
         )
 
 
@@ -86,6 +141,33 @@ def _assert_canary_rendered(
 
 
 def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
+    """C1b honeyclient — gitlab editor surfaces.
+
+    GitLab is the heaviest C1b surface in the dataset because Phase 2
+    plants payloads across five distinct gitlab editor methods, each of
+    which emits its own ``read_surface_urls`` shape:
+
+      - ``create_issue`` → ``/<group>/<project>/-/issues/<iid>``
+      - ``create_issue_note`` → same issue page (note rendered inline)
+      - ``create_mr`` → ``/<group>/<project>/-/merge_requests/<iid>``
+      - ``create_mr_note`` → same MR page (note rendered inline)
+      - ``create_repo_file`` → blob and raw URLs
+
+    A regression in any one of these would silently degrade C1b's recall
+    on a different slice of Phase 4 trajectories (e.g. a wrong
+    issues-vs-merge_requests path would miss every MR-targeted task).
+    This test plants a unique canary in each of the 5 surfaces and
+    asserts each is independently visible at the URL the editor
+    emitted, so a single live run pins the contract for the whole
+    GitLab read-surface family.
+
+    Skipped by default. Opt in when changing
+    ``worldsim/editors/gitlab.py``'s ``read_surface_urls`` emission, the
+    GitLab path-template helpers in
+    ``worldsim/editors/_read_surface.py``, or after a GitLab version
+    bump on the benchmark host (URL layouts can drift across major
+    releases — e.g. ``/-/issues/`` ↔ ``/_/issues/``).
+    """
     _skip_unless_verify_read_surface_urls()
     instance = live_instance("gitlab")
     assert acquire_tokens_for_instances([instance]) == []
@@ -191,6 +273,32 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
 
 
 def test_verify_reddit_read_surface_urls(live_instance, unique_suffix):
+    """C1b honeyclient — reddit (PostMill) editor surfaces.
+
+    Reddit's PostMill backend exposes two C1b-relevant editor methods:
+
+      - ``create_submission`` → ``/f/<forum>/<submission_id>``
+      - ``create_comment`` → same submission page (comment rendered inline)
+
+    PostMill auto-linkifies URLs and applies its own markdown rules to
+    UGC, so a payload's rendered DOM can shift across PostMill versions
+    in ways that don't map cleanly to the editor's static
+    ``path_template``. This test verifies that a planted canary actually
+    surfaces inside the rendered submission and comment pages — covering
+    both the plain-text body case and the markdown-formatted case.
+
+    Includes a graceful fallback for PostMill rate-limiting on
+    submission creation: if the stack returns ``request_failed`` /
+    ``submission_id_missing``, the test reuses an existing commentable
+    submission so the comment-creation surface is still exercised.
+    Without that fallback the test would be flaky on busy stacks; with
+    it, a real C1b regression still surfaces (the comment path is the
+    one most adversarial Phase 4 tasks touch).
+
+    Skipped by default. Opt in when changing
+    ``worldsim/editors/reddit.py``'s ``read_surface_urls`` emission or
+    after a PostMill version bump on the benchmark host.
+    """
     _skip_unless_verify_read_surface_urls()
     instance = live_instance("reddit")
     assert acquire_tokens_for_instances([instance]) == []
@@ -255,6 +363,41 @@ def test_verify_reddit_read_surface_urls(live_instance, unique_suffix):
 
 
 def test_verify_shopping_read_surface_urls(live_instance, unique_suffix):
+    """C1b honeyclient — shopping (Magento) editor surfaces.
+
+    Magento's product-review pipeline emits two read-surface URLs per
+    review: the PDP itself (``/catalog/product/view/id/<id>``) and the
+    AJAX listing endpoint (``/review/product/listAjax/id/<id>``). These
+    are the URLs the agent's network trace will hit when it follows a
+    review-bearing PDP, so they're the surfaces C1b's substring match
+    keys on.
+
+    **Magento moderation caveat.** The default Magento install
+    moderates customer reviews — a freshly-planted review is held in an
+    "Approved by admin" queue and does NOT render on the PDP until an
+    operator approves it. This is a Magento default, not a defect in
+    the editor's URL emission, so the test is structured as a graceful
+    two-tier check:
+
+      1. Hard assertion — at least one emitted URL must return HTTP 200.
+         This catches the actual C1b correctness regression: an editor
+         emitting a wrong path that 404s would silently break C1b on
+         every shopping task.
+      2. Soft assertion (xfail on miss) — the canary text appearing in
+         the response body. This is the "stretch goal" proof that
+         end-to-end rendering works, but is suppressed because Magento's
+         moderation default makes it environment-dependent.
+
+    To upgrade the soft check to a hard check on a deployment, either
+    auto-approve reviews via the admin user (out of scope for default
+    benchmark hosts) or relax the test once Magento config is known to
+    skip moderation.
+
+    Skipped by default. Opt in when changing
+    ``worldsim/editors/shopping.py``'s ``read_surface_urls`` emission,
+    the Magento path-template helpers, or after a Magento version bump
+    on the benchmark host.
+    """
     _skip_unless_verify_read_surface_urls()
     instance = live_instance("shopping")
     assert acquire_tokens_for_instances([instance]) == []
