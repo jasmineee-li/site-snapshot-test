@@ -83,7 +83,19 @@ def test_feasibility_good_task(site, live_instance, tmp_path):
     assert all("cleanup_failed" not in w for w in report.cleanup_warnings), report.cleanup_warnings
 
 
-@pytest.mark.parametrize("site", ["gitlab", "shopping", "shopping_admin"])
+# Shopping + shopping_admin are excluded from the oversize parametrize set
+# because the r5 Magento deployment does not enforce review field-length
+# caps at the REST API layer: `/rest/V1/reviews` under customer auth
+# accepts 400+ char titles and 200+ char nicknames without rejection
+# (verified with DEBUG tracing on 2026-04-19), and the same endpoint
+# under admin auth returns 404 "Request does not match any route."
+# The length-exceeded classifier IS exercised for Magento wordings via
+# ``tests/test_seed_resolver_shopping.py::
+# test_classify_4xx_length_exceeded_recognizes_magento_wordings``, which
+# mocks Magento error bodies and verifies the token union — that's the
+# correct layer to assert the classifier's contract on, since the live
+# Magento enforcement story is deployment-specific.
+@pytest.mark.parametrize("site", ["gitlab"])
 def test_feasibility_oversize_task(site, live_instance, tmp_path):
     fixture = _load_fixture(site, "oversize")
     task = _materialize_task(fixture)
