@@ -156,13 +156,46 @@ def test_feasibility_concurrency_batch(live_config, tmp_path):
 
 
 def test_feasibility_cleanup_leaves_no_gitlab_residue(live_instance, tmp_path):
-    """After a feasibility run, there must be zero ``webagent-verify-*``
-    and zero surviving ``webagent-task-*`` projects under the API user.
+    """The per-task cleanup contract: a feasibility run must not leak
+    any ``webagent-verify-*`` or ``webagent-task-*`` projects into the
+    API user's namespace.
 
-    The contract is per-task immediate cleanup, not bulk sweep.
+    Tested as a **delta**, not as absolute zero: we snapshot the
+    residual-project set before the run and assert that no new project
+    ids appear after the run. The absolute-zero version of this test
+    coupled the assertion to historical state on the gitlab server
+    (which prior crashed runs could populate), turning a test of
+    ``this run's behaviour`` into a test of ``all prior runs' residue
+    has been swept,`` which is a separate operational concern.
     """
     instance = live_instance("gitlab")
     assert acquire_tokens_for_instances([instance]) == []
+
+    import requests
+
+    def _snapshot_project_ids(session: requests.Session) -> dict[str, set[int]]:
+        editor_local = GitlabEditor(instance, session)
+        current_user = editor_local._current_user()
+        user_id = current_user.get("id")
+        snapshot: dict[str, set[int]] = {}
+        for prefix in ("webagent-verify-", "webagent-task-"):
+            projects = editor_local._gitlab_request_json(
+                "GET",
+                f"/api/v4/users/{editor_local._quote(user_id)}/projects",
+                params={"search": prefix, "per_page": 100, "simple": True},
+            )
+            assert isinstance(projects, list)
+            snapshot[prefix] = {
+                int(p["id"])
+                for p in projects
+                if isinstance(p, dict)
+                and "id" in p
+                and str(p.get("path", "")).lower().startswith(prefix)
+            }
+        return snapshot
+
+    with requests.Session() as session:
+        before = _snapshot_project_ids(session)
 
     fixture = _load_fixture("gitlab", "good")
     task = _materialize_task(fixture)
@@ -171,23 +204,16 @@ def test_feasibility_cleanup_leaves_no_gitlab_residue(live_instance, tmp_path):
     report = _run_verifier(tasks_path, instance)
     assert len(report.verified) == 1, report
 
-    import requests
-
     with requests.Session() as session:
-        editor = GitlabEditor(instance, session)
-        current_user = editor._current_user()
-        user_id = current_user.get("id")
-        for prefix in ("webagent-verify-", "webagent-task-"):
-            projects = editor._gitlab_request_json(
-                "GET",
-                f"/api/v4/users/{editor._quote(user_id)}/projects",
-                params={"search": prefix, "per_page": 100, "simple": True},
-            )
-            assert isinstance(projects, list)
-            leftover = [p for p in projects if str(p.get("path", "")).lower().startswith(prefix)]
-            assert not leftover, (
-                f"gitlab retained {len(leftover)} {prefix!r} project(s) after feasibility run"
-            )
+        after = _snapshot_project_ids(session)
+
+    for prefix in ("webagent-verify-", "webagent-task-"):
+        leaked = after[prefix] - before[prefix]
+        assert not leaked, (
+            f"gitlab feasibility run leaked {len(leaked)} new {prefix!r} "
+            f"project(s) that were not present beforehand (ids={sorted(leaked)}). "
+            "Per-task cleanup contract violated."
+        )
 
 
 # ---------------------------------------------------------------------------

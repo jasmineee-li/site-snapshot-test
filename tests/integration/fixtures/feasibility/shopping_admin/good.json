@@ -11,8 +11,8 @@
         "site": "shopping_admin",
         "method": "update_admin_profile",
         "args": {
-          "firstname": "WorldSimAdmin",
-          "lastname": "Feas{UNIQUE}"
+          "field": "lastname",
+          "value": "Feas{UNIQUE}"
         }
       }
     ]

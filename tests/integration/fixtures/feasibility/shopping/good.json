@@ -11,8 +11,8 @@
         "site": "shopping",
         "method": "update_customer_profile",
         "args": {
-          "firstname": "WorldSim",
-          "lastname": "Feas{UNIQUE}"
+          "field": "lastname",
+          "value": "Feas{UNIQUE}"
         }
       }
     ]

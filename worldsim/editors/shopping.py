@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import requests
 
 from ._read_surface import host_and_path_forms, normalize_surface_urls
 from .base import BaseSiteEditor, EditorError
+
+logger = logging.getLogger(__name__)
 
 
 def _shopping_surface_urls(site_url: str, paths: list[str]) -> list[str]:
@@ -15,6 +18,14 @@ def _shopping_surface_urls(site_url: str, paths: list[str]) -> list[str]:
     return normalize_surface_urls(expanded)
 
 
+# Lowercased substrings that mean "this field was too long" in Magento 2's
+# REST + admin error surfaces. We union across Magento minor versions
+# because the exact wording drifts ("Please enter a value with a maximum
+# length of N characters" vs. "The X is too long. Allowed length is Y"
+# vs. admin form validation's "Please enter no more than Y characters").
+# A 4xx whose body contains ANY of these is classified as length_exceeded.
+# A DEBUG log on the no-match path surfaces future drift without changing
+# observable behaviour — see _classify_4xx_response below.
 _MAGENTO_LENGTH_TOKENS: tuple[str, ...] = (
     "maximum length",
     "is too long",
@@ -22,6 +33,11 @@ _MAGENTO_LENGTH_TOKENS: tuple[str, ...] = (
     "cannot be longer",
     "please enter a value less than",
     "value too long",
+    "enter up to",
+    "no more than",
+    "must be less than",
+    "character limit",
+    "too many characters",
 )
 _MAGENTO_REQUIRED_TOKENS: tuple[str, ...] = (
     "is a required field",
@@ -112,9 +128,25 @@ class ShoppingEditor(BaseSiteEditor):
         path: str,
         response: requests.Response,
     ) -> tuple[str, str] | None:
-        """Classify Magento 4xx responses into Phase 2c error kinds."""
+        """Classify Magento 4xx responses into Phase 2c error kinds.
+
+        Returns ``None`` when none of the token families match; the caller
+        then falls through to the generic ``request_failed`` kind. When
+        that happens, we log the full message blob at DEBUG so operators
+        can see whether Magento's error wording drifted in a way our
+        token tables don't yet cover — Phase 2c regressions on
+        ``oversize`` fixtures that only surface as ``request_failed``
+        are usually this class of drift.
+        """
         messages = _extract_magento_error_messages(response)
         if not messages:
+            logger.debug(
+                "%s editor 4xx on %s %s had empty / unparseable body (status=%d)",
+                self.site_name,
+                method,
+                path,
+                response.status_code,
+            )
             return None
         blob = " | ".join(messages).lower()
         if any(token in blob for token in _MAGENTO_LENGTH_TOKENS):
@@ -123,6 +155,16 @@ class ShoppingEditor(BaseSiteEditor):
             return ("field_required", messages[0])
         if any(token in blob for token in _MAGENTO_POLICY_TOKENS):
             return ("content_policy", messages[0])
+        logger.debug(
+            "%s editor 4xx on %s %s did not match any _MAGENTO_*_TOKENS "
+            "family (status=%d); falling through to request_failed. "
+            "First message: %s",
+            self.site_name,
+            method,
+            path,
+            response.status_code,
+            messages[0],
+        )
         return None
 
     def create_product_review(

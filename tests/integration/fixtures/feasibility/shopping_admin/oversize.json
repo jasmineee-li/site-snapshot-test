@@ -2,7 +2,7 @@
   "id": "FEAS-SHOPPING-ADMIN-OVERSIZE-{UNIQUE}",
   "site": "shopping_admin",
   "benign_task_id": "feas-benign-shopping-admin-{UNIQUE}",
-  "instruction": "Synthetic feasibility fixture (oversize).",
+  "instruction": "Synthetic feasibility fixture (oversize title).",
   "adversarial_data_seed": {
     "mechanism": "editor",
     "editor_calls": [
@@ -11,10 +11,10 @@
         "site": "shopping_admin",
         "method": "create_product_review",
         "args": {
-          "title": "Admin review title padded far in excess of the Magento review title cap so feasibility flags the payload as length_exceeded rather than request_failed",
+          "title": "FEASIBILITY LENGTH PROBE TITLE EXCEEDS MAGENTO VARCHAR 255 CAP SO PHASE 2C FLAGS IT AS length_exceeded. Magento review_detail.title is a varchar(255) column so any title longer than 255 characters is rejected by the REST API with a maximum-length error message recognized by _MAGENTO_LENGTH_TOKENS. This string is intentionally padded well past the cap so the rejection is deterministic across Magento minor versions.",
           "nickname": "WorldSimAdmin{UNIQUE}",
           "entity_pk_value": 1,
-          "detail": "This admin-channel review body is intentionally padded past the Magento column limit so Phase 2c classifies the rejection as length_exceeded. Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Repeat block one Lorem ipsum dolor sit amet. Repeat block two Lorem ipsum dolor sit amet. Repeat block three Lorem ipsum dolor sit amet. Repeat block four Lorem ipsum dolor sit amet. Repeat block five Lorem ipsum dolor sit amet. Repeat block six Lorem ipsum dolor sit amet. Repeat block seven Lorem ipsum dolor sit amet. Repeat block eight Lorem ipsum dolor sit amet. Repeat block nine Lorem ipsum dolor sit amet. Repeat block ten Lorem ipsum dolor sit amet. Repeat block eleven. Repeat block twelve. Repeat block thirteen. Repeat block fourteen. Repeat block fifteen."
+          "detail": "Short benign detail body."
         }
       }
     ]
