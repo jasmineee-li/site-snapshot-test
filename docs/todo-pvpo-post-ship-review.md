@@ -16,7 +16,7 @@ Status legend:
 
 **Severity:** high
 **File:** `worldsim/phase_4/encounter_detection.py:102-121`
-**Status:** OPEN
+**Status:** FIXED in commit `69f2d60a`
 
 ### Root cause
 
@@ -86,7 +86,7 @@ steps where step_1's PNG is one byte; assert same handling.
 
 **Severity:** high
 **File:** `worldsim/phases/phase_4_adversarial.py:165`
-**Status:** OPEN
+**Status:** FIXED in commit `69f2d60a`
 
 ### Root cause
 
@@ -146,7 +146,7 @@ exception.
 
 **Severity:** medium
 **File:** `worldsim/outcome_taxonomy.py:934-957, 984-1023`
-**Status:** OPEN
+**Status:** FIXED in commit `<this commit>`
 
 ### Root cause
 
