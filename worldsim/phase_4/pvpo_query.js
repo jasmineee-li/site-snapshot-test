@@ -1,43 +1,44 @@
 // @ts-check
 /**
- * Per-character visibility query for the Paint-Verified Payload Oracle.
+ * Per-character visibility + viewport-bg-color query for the Paint-Verified
+ * Payload Oracle.
  *
- * Runs inside the page via CDP `Runtime.evaluate`. Returns an array of
- * per-char records for the seeded payload identified by the
- * `[data-worldsim-payload]` anchor. Host-side code (pvpo_capture.py) uses
- * these records together with the atomic `HeadlessExperimental.beginFrame`
- * screenshot to decide, per character, whether the character was both
- * layout-visible and pixel-identical to the hidden-DOM reference render.
+ * Runs inside the page via CDP ``Runtime.evaluate``. Returns an object with:
  *
- * Three checks compose `layoutVisible`:
- *   - In visual viewport (Range.getBoundingClientRect intersected with
- *     window.innerWidth × innerHeight).
- *   - Ancestor not hidden (Element.checkVisibility with opacity/visibility/
- *     content-visibility flags).
- *   - Not occluded (document.elementFromPoint at rect center returns the
- *     ancestor or a descendant).
+ *   - ``entries``: one record per character of the seeded payload text
+ *     identified by the ``[data-worldsim-payload]`` anchor. Each record
+ *     carries ``layoutVisible`` (in-viewport ∧ ancestor visible ∧ not
+ *     occluded) and the ``liveRect`` where the glyph is painted.
+ *   - ``backgroundColor``: the page's effective viewport background color,
+ *     resolved by walking up the ancestor chain from the payload anchor
+ *     until a non-transparent ``background-color`` is found, then falling
+ *     back to ``getComputedStyle(document.documentElement).backgroundColor``.
+ *     Used host-side by the ink-occupancy oracle to distinguish painted
+ *     glyph pixels from untouched background pixels.
  *
- * Range-based per-char rects (no DOM mutation of the live payload) keep
- * OpenType ligature shaping intact. The reference container uses per-char
- * spans; ligatures may merge across span boundaries there, but that does
- * not affect the oracle because comparison is position-for-position within
- * the same committed paint frame.
+ * Range-based per-char rects keep OpenType ligature shaping intact. No DOM
+ * mutation of the live payload.
  *
  * @typedef {{x:number,y:number,w:number,h:number}} Rect
- * @typedef {{i:number,char:string,isSpace:boolean,layoutVisible:boolean,liveRect:Rect|null,refRect:Rect|null}} CharResult
+ * @typedef {{r:number,g:number,b:number}} Rgb
+ * @typedef {{i:number,char:string,isSpace:boolean,layoutVisible:boolean,liveRect:Rect|null}} CharResult
+ * @typedef {{entries:CharResult[], backgroundColor:Rgb}} QueryResult
  */
 
 (() => {
+  /** @returns {QueryResult} */
+  function emptyResult() {
+    return { entries: [], backgroundColor: { r: 255, g: 255, b: 255 } };
+  }
+
   const payloadAnchor = document.querySelector("[data-worldsim-payload]");
-  const referenceContainer = document.getElementById("worldsim-payload-reference");
-  if (!payloadAnchor || !referenceContainer) return [];
+  if (!payloadAnchor) return emptyResult();
 
   const textNode = payloadAnchor.firstChild;
-  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return [];
+  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return emptyResult();
 
-  const refSpans = referenceContainer.querySelectorAll("span[data-worldsim-ref-idx]");
   /** @type {CharResult[]} */
-  const results = [];
+  const entries = [];
 
   const range = document.createRange();
   const viewportW = window.innerWidth;
@@ -47,13 +48,12 @@
   for (let i = 0; i < content.length; i++) {
     const char = content[i];
     if (/\s/.test(char)) {
-      results.push({
+      entries.push({
         i,
         char,
         isSpace: true,
         layoutVisible: false,
         liveRect: null,
-        refRect: null,
       });
       continue;
     }
@@ -89,20 +89,19 @@
     }
 
     const layoutVisible = inViewport && ancestorVisible && notOccluded;
-    const refSpan = /** @type {HTMLElement | undefined} */ (refSpans[i]);
-    const refRect = refSpan ? refSpan.getBoundingClientRect() : null;
 
-    results.push({
+    entries.push({
       i,
       char,
       isSpace: false,
       layoutVisible,
       liveRect: layoutVisible ? serializeRect(liveRect) : null,
-      refRect: refRect ? serializeRect(refRect) : null,
     });
   }
 
-  return results;
+  const backgroundColor = resolveBackgroundColor(payloadAnchor);
+
+  return { entries, backgroundColor };
 
   /**
    * @param {DOMRect} r
@@ -114,6 +113,52 @@
       y: Math.round(r.top),
       w: Math.round(r.width),
       h: Math.round(r.height),
+    };
+  }
+
+  /**
+   * Resolve the effective background color seen behind the payload text.
+   * Walk up the ancestor chain from the payload anchor; return the first
+   * non-transparent ``background-color``. Fall back to documentElement
+   * and finally to opaque white.
+   *
+   * @param {Element} start
+   * @returns {Rgb}
+   */
+  function resolveBackgroundColor(start) {
+    /** @type {Element | null} */
+    let node = start;
+    while (node) {
+      const cs = getComputedStyle(node);
+      const parsed = parseRgb(cs.backgroundColor);
+      if (parsed) return parsed;
+      node = node.parentElement;
+    }
+    const rootBg = parseRgb(getComputedStyle(document.documentElement).backgroundColor);
+    if (rootBg) return rootBg;
+    return { r: 255, g: 255, b: 255 };
+  }
+
+  /**
+   * Parse ``rgb(r, g, b)`` or ``rgba(r, g, b, a)`` strings. Returns null
+   * for ``transparent`` / fully-alpha-zero, so ``resolveBackgroundColor``
+   * keeps walking.
+   *
+   * @param {string} str
+   * @returns {Rgb | null}
+   */
+  function parseRgb(str) {
+    if (!str) return null;
+    const match = str.match(
+      /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/,
+    );
+    if (!match) return null;
+    const alpha = match[4] === undefined ? 1 : parseFloat(match[4]);
+    if (!isFinite(alpha) || alpha === 0) return null;
+    return {
+      r: parseInt(match[1], 10),
+      g: parseInt(match[2], 10),
+      b: parseInt(match[3], 10),
     };
   }
 })();

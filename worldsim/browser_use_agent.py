@@ -1117,11 +1117,10 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path):
     See ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3.
     """
     # Import inside the factory so import-time failure of optional PVPO deps
-    # (Pillow, phase_4 subpackage) does not break the base AgentRunner.
+    # (Pillow, numpy, phase_4 subpackage) does not break the base AgentRunner.
     from worldsim.phase_4.pvpo_browser_config import (
         PAYLOAD_ANCHOR_ATTR,
         inject_animation_killer,
-        inject_reference_container,
     )
     from worldsim.phase_4.pvpo_capture import (
         Rect,
@@ -1130,11 +1129,11 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path):
     )
 
     anchor_selector = f"[{PAYLOAD_ANCHOR_ATTR}]"
-    # Shared per-run state: keep track of which pages have had the
-    # animation-killer and reference-container injected so we don't redo work
-    # every step.
+    # Shared per-run state: avoid re-installing the animation-killer stylesheet
+    # on every step. No reference-container state after the ink-occupancy
+    # cutover — host-side verification works directly against the viewport
+    # background color returned by the JS query.
     pages_prepared: set[int] = set()
-    ref_injected_for_payload: dict[int, str] = {}
 
     async def _callback(state_summary: Any, agent_output: Any, step_idx: int) -> None:
         try:
@@ -1158,25 +1157,16 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path):
             logger.debug("pvpo: inject_animation_killer failed at step %d: %s", step_idx, exc)
 
         try:
-            payload_text = await page.evaluate(
-                f"(() => {{ const el = document.querySelector({anchor_selector!r}); "
-                "return el ? el.textContent : null; }})()"
+            has_anchor = await page.evaluate(
+                f"(() => !!document.querySelector({anchor_selector!r}))()"
             )
         except Exception as exc:
             logger.debug("pvpo: anchor lookup failed at step %d: %s", step_idx, exc)
             return
 
-        if not payload_text:
-            # Anchor not on this page — nothing to capture. Browser-Use's own
+        if not has_anchor:
+            # Anchor not on this page — nothing to measure. Browser-Use's own
             # per-step screenshot still lands via _copy_history_screenshots.
-            return
-
-        try:
-            if ref_injected_for_payload.get(page_key) != payload_text:
-                await inject_reference_container(page, payload_text, anchor_selector)
-                ref_injected_for_payload[page_key] = payload_text
-        except Exception as exc:
-            logger.debug("pvpo: inject_reference_container failed at step %d: %s", step_idx, exc)
             return
 
         try:

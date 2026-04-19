@@ -14,29 +14,14 @@ from worldsim.phase_4.pvpo_capture import (
     PVPO_QUERY_JS,
     Rect,
     StepCapture,
+    _unwrap_runtime_evaluate,
     atomic_capture_with_visibility,
-    paint_verified_vector,
     save_step_artifacts,
 )
 
 
-def _make_png(
-    boxes: dict[tuple[int, int, int, int], tuple[int, int, int]],
-    *,
-    size: tuple[int, int] = (300, 120),
-) -> bytes:
-    """Build a deterministic PNG with solid-color rectangles at given positions.
-
-    ``boxes`` maps ``(x, y, w, h)`` to ``(r, g, b)``. Everything else is white.
-    Sufficient for byte-equal comparisons because PIL's PNG encoder is
-    deterministic for the same pixel buffer.
-    """
-    img = Image.new("RGB", size, (255, 255, 255))
-    for (x, y, w, h), color in boxes.items():
-        for ix in range(x, x + w):
-            for iy in range(y, y + h):
-                if 0 <= ix < size[0] and 0 <= iy < size[1]:
-                    img.putpixel((ix, iy), color)
+def _png_bytes() -> bytes:
+    img = Image.new("RGB", (100, 50), (255, 255, 255))
     buf = BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -48,7 +33,6 @@ def _entry(
     *,
     layout_visible: bool,
     live: tuple[int, int, int, int] | None = None,
-    ref: tuple[int, int, int, int] | None = None,
     is_space: bool = False,
 ) -> dict[str, Any]:
     def _rect(t: tuple[int, int, int, int] | None) -> dict[str, int] | None:
@@ -62,153 +46,85 @@ def _entry(
         "isSpace": is_space,
         "layoutVisible": layout_visible,
         "liveRect": _rect(live),
-        "refRect": _rect(ref),
     }
 
 
-def test_all_visible_byte_equal_returns_all_true():
-    png = _make_png(
-        {
-            (10, 10, 5, 5): (255, 0, 0),
-            (100, 10, 5, 5): (255, 0, 0),
-            (20, 10, 5, 5): (0, 128, 0),
-            (110, 10, 5, 5): (0, 128, 0),
+def test_rect_as_cdp_clip_shape():
+    rect = Rect(x=10, y=20, w=300, h=200)
+    clip = rect.as_cdp_clip()
+    assert clip == {"x": 10.0, "y": 20.0, "width": 300.0, "height": 200.0, "scale": 1.0}
+
+
+def test_unwrap_runtime_evaluate_happy_path():
+    raw = {
+        "result": {
+            "type": "object",
+            "value": {
+                "entries": [_entry(0, "a", layout_visible=True, live=(0, 0, 5, 5))],
+                "backgroundColor": {"r": 240, "g": 241, "b": 242},
+            },
         }
+    }
+    entries, bg = _unwrap_runtime_evaluate(raw)
+    assert len(entries) == 1
+    assert entries[0]["char"] == "a"
+    assert bg == (240, 241, 242)
+
+
+def test_unwrap_runtime_evaluate_missing_value_falls_back_to_defaults():
+    assert _unwrap_runtime_evaluate({"result": {"type": "object"}}) == ([], (255, 255, 255))
+    assert _unwrap_runtime_evaluate({}) == ([], (255, 255, 255))
+    assert _unwrap_runtime_evaluate({"result": {"type": "object", "value": "not-a-dict"}}) == (
+        [],
+        (255, 255, 255),
     )
-    vec = [
-        _entry(0, "a", layout_visible=True, live=(10, 10, 5, 5), ref=(100, 10, 5, 5)),
-        _entry(1, "b", layout_visible=True, live=(20, 10, 5, 5), ref=(110, 10, 5, 5)),
-    ]
-    assert paint_verified_vector(png, vec) == [True, True]
 
 
-def test_all_occluded_returns_all_false():
-    png = _make_png({})
-    vec = [
-        _entry(0, "a", layout_visible=False),
-        _entry(1, "b", layout_visible=False),
-    ]
-    assert paint_verified_vector(png, vec) == [False, False]
-
-
-def test_partial_overlap_returns_mixed_booleans():
-    png = _make_png(
-        {
-            (10, 10, 5, 5): (255, 0, 0),
-            (100, 10, 5, 5): (255, 0, 0),  # matches char 0
-            (20, 10, 5, 5): (0, 255, 0),
-            (110, 10, 5, 5): (0, 0, 255),  # diverges for char 1
+def test_unwrap_runtime_evaluate_malformed_bg_falls_back():
+    raw = {
+        "result": {
+            "type": "object",
+            "value": {"entries": [], "backgroundColor": "not-a-dict"},
         }
-    )
-    vec = [
-        _entry(0, "a", layout_visible=True, live=(10, 10, 5, 5), ref=(100, 10, 5, 5)),
-        _entry(1, "b", layout_visible=True, live=(20, 10, 5, 5), ref=(110, 10, 5, 5)),
-    ]
-    assert paint_verified_vector(png, vec) == [True, False]
-
-
-def test_whitespace_chars_excluded():
-    png = _make_png({})
-    vec = [
-        _entry(0, " ", layout_visible=False, is_space=True),
-        _entry(1, "\t", layout_visible=False, is_space=True),
-    ]
-    assert paint_verified_vector(png, vec) == [False, False]
-
-
-def test_size_mismatch_returns_false_defensively():
-    png = _make_png(
-        {
-            (10, 10, 5, 5): (0, 0, 0),
-            (100, 10, 8, 5): (0, 0, 0),  # wider reference rect
-        }
-    )
-    vec = [
-        _entry(0, "a", layout_visible=True, live=(10, 10, 5, 5), ref=(100, 10, 8, 5)),
-    ]
-    assert paint_verified_vector(png, vec) == [False]
-
-
-def test_missing_rect_returns_false():
-    png = _make_png({(10, 10, 5, 5): (0, 0, 0)})
-    vec = [
-        _entry(0, "a", layout_visible=True, live=(10, 10, 5, 5), ref=None),
-        _entry(1, "b", layout_visible=True, live=None, ref=(10, 10, 5, 5)),
-    ]
-    assert paint_verified_vector(png, vec) == [False, False]
-
-
-def test_ligature_payload_per_char_rects_independent():
-    # Models what the JS query emits for 'fi' / 'ffi' payloads: per-char rects
-    # remain distinct (Range-based measurement does not break ligatures) and
-    # the pixel compare works independently for each character position.
-    png = _make_png(
-        {
-            (10, 10, 4, 6): (0, 0, 0),  # live 'f'
-            (14, 10, 4, 6): (0, 0, 0),  # live 'i'
-            (18, 10, 4, 6): (0, 0, 0),  # live 'i' (second 'i' in 'ffi')
-            (100, 10, 4, 6): (0, 0, 0),  # ref 'f'
-            (104, 10, 4, 6): (0, 0, 0),  # ref 'i'
-            (108, 10, 4, 6): (0, 0, 0),  # ref 'i'
-        }
-    )
-    vec = [
-        _entry(0, "f", layout_visible=True, live=(10, 10, 4, 6), ref=(100, 10, 4, 6)),
-        _entry(1, "i", layout_visible=True, live=(14, 10, 4, 6), ref=(104, 10, 4, 6)),
-        _entry(2, "i", layout_visible=True, live=(18, 10, 4, 6), ref=(108, 10, 4, 6)),
-    ]
-    assert paint_verified_vector(png, vec) == [True, True, True]
-
-
-def test_clip_offset_translates_viewport_to_screenshot_coords():
-    size = (200, 100)
-    img = Image.new("RGB", size, (255, 255, 255))
-    for ix in range(50, 55):
-        for iy in range(10, 15):
-            img.putpixel((ix, iy), (255, 0, 0))
-    for ix in range(150, 155):
-        for iy in range(10, 15):
-            img.putpixel((ix, iy), (255, 0, 0))
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    png = buf.getvalue()
-
-    clip = Rect(x=50, y=50, w=200, h=100)
-    vec = [
-        _entry(0, "a", layout_visible=True, live=(100, 60, 5, 5), ref=(200, 60, 5, 5)),
-    ]
-    assert paint_verified_vector(png, vec, clip=clip) == [True]
+    }
+    entries, bg = _unwrap_runtime_evaluate(raw)
+    assert entries == []
+    assert bg == (255, 255, 255)
 
 
 @pytest.mark.asyncio
-async def test_atomic_capture_sequences_cdp_calls():
-    png_bytes = _make_png({(10, 10, 5, 5): (255, 0, 0)})
+async def test_atomic_capture_sequences_cdp_calls_and_extracts_bg():
+    png = _png_bytes()
     cdp = AsyncMock()
-
-    vec_value = [
-        _entry(0, "a", layout_visible=True, live=(10, 10, 5, 5), ref=(100, 10, 5, 5)),
-    ]
 
     async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         if method == "Emulation.setVirtualTimePolicy":
             return {}
         if method == "Runtime.evaluate":
-            return {"result": {"type": "object", "value": vec_value}}
+            return {
+                "result": {
+                    "type": "object",
+                    "value": {
+                        "entries": [_entry(0, "a", layout_visible=True, live=(10, 10, 5, 5))],
+                        "backgroundColor": {"r": 250, "g": 251, "b": 252},
+                    },
+                }
+            }
         if method == "HeadlessExperimental.beginFrame":
             return {
                 "hasDamage": True,
-                "screenshotData": base64.b64encode(png_bytes).decode("ascii"),
+                "screenshotData": base64.b64encode(png).decode("ascii"),
             }
         raise AssertionError(f"unexpected CDP method {method}")
 
     cdp.send = AsyncMock(side_effect=_send)
 
-    viewport = Rect(x=0, y=0, w=200, h=100)
-    capture = await atomic_capture_with_visibility(cdp, viewport_rect=viewport)
+    capture = await atomic_capture_with_visibility(cdp, viewport_rect=Rect(0, 0, 200, 100))
 
     assert capture.has_damage is True
-    assert capture.screenshot_png == png_bytes
-    assert capture.visibility_vec == vec_value
+    assert capture.screenshot_png == png
+    assert capture.background_color == (250, 251, 252)
+    assert capture.visibility_vec[0]["char"] == "a"
 
     methods = [c.args[0] for c in cdp.send.call_args_list]
     assert methods == [
@@ -217,7 +133,6 @@ async def test_atomic_capture_sequences_cdp_calls():
         "HeadlessExperimental.beginFrame",
         "Emulation.setVirtualTimePolicy",
     ]
-    # First setVirtualTimePolicy must be pause, last must be advance.
     policies = [
         c.args[1]["policy"]
         for c in cdp.send.call_args_list
@@ -242,8 +157,6 @@ async def test_atomic_capture_resumes_virtual_time_on_error():
     with pytest.raises(RuntimeError, match="synthetic CDP failure"):
         await atomic_capture_with_visibility(cdp, viewport_rect=Rect(0, 0, 100, 100))
 
-    # The ``advance`` policy must have been sent in the finally block so the
-    # page does not stay paused after a failed capture.
     policies = [
         c.args[1]["policy"]
         for c in cdp.send.call_args_list
@@ -254,42 +167,42 @@ async def test_atomic_capture_resumes_virtual_time_on_error():
 
 @pytest.mark.asyncio
 async def test_atomic_capture_has_damage_false_does_not_retry(caplog):
-    png_bytes = _make_png({})
     cdp = AsyncMock()
-
     begin_frame_count = {"n": 0}
 
     async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         if method == "Emulation.setVirtualTimePolicy":
             return {}
         if method == "Runtime.evaluate":
-            return {"result": {"type": "object", "value": []}}
+            return {
+                "result": {
+                    "type": "object",
+                    "value": {"entries": [], "backgroundColor": {"r": 255, "g": 255, "b": 255}},
+                }
+            }
         if method == "HeadlessExperimental.beginFrame":
             begin_frame_count["n"] += 1
             return {
                 "hasDamage": False,
-                "screenshotData": base64.b64encode(png_bytes).decode("ascii"),
+                "screenshotData": base64.b64encode(_png_bytes()).decode("ascii"),
             }
         raise AssertionError(f"unexpected CDP method {method}")
 
     cdp.send = AsyncMock(side_effect=_send)
 
-    viewport = Rect(x=0, y=0, w=200, h=100)
     with caplog.at_level("DEBUG", logger="worldsim.phase_4.pvpo_capture"):
-        capture = await atomic_capture_with_visibility(cdp, viewport_rect=viewport)
+        capture = await atomic_capture_with_visibility(cdp, viewport_rect=Rect(0, 0, 200, 100))
 
     assert capture.has_damage is False
     assert begin_frame_count["n"] == 1
     assert any("hasDamage=False" in rec.message for rec in caplog.records)
 
 
-def test_save_step_artifacts_writes_both_files(tmp_path: Path):
-    png = _make_png({(0, 0, 10, 10): (100, 150, 200)})
+def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
     capture = StepCapture(
-        screenshot_png=png,
-        visibility_vec=[
-            _entry(0, "a", layout_visible=True, live=(10, 10, 5, 5), ref=(100, 10, 5, 5)),
-        ],
+        screenshot_png=_png_bytes(),
+        visibility_vec=[_entry(0, "a", layout_visible=True, live=(10, 10, 5, 5))],
+        background_color=(128, 129, 130),
         has_damage=True,
         clip=Rect(x=0, y=0, w=200, h=100),
     )
@@ -298,21 +211,24 @@ def test_save_step_artifacts_writes_both_files(tmp_path: Path):
     png_out = tmp_path / "screenshots" / "step_3.png"
     pvpo_out = tmp_path / "pvpo" / "step_3.json"
     assert png_out.exists()
-    assert png_out.read_bytes() == png
+    assert png_out.read_bytes() == capture.screenshot_png
 
     pvpo_json = json.loads(pvpo_out.read_text())
     assert pvpo_json["step_idx"] == 3
     assert pvpo_json["has_damage"] is True
     assert pvpo_json["clip"] == {"x": 0, "y": 0, "w": 200, "h": 100}
+    assert pvpo_json["background_color"] == [128, 129, 130]
     assert pvpo_json["visibility_vec"][0]["char"] == "a"
 
 
 def test_pvpo_query_js_contract_markers_present():
     assert "@ts-check" in PVPO_QUERY_JS
     assert "data-worldsim-payload" in PVPO_QUERY_JS
-    assert "worldsim-payload-reference" in PVPO_QUERY_JS
-    assert "data-worldsim-ref-idx" in PVPO_QUERY_JS
+    assert "entries" in PVPO_QUERY_JS
+    assert "backgroundColor" in PVPO_QUERY_JS
     assert "checkVisibility" in PVPO_QUERY_JS
     assert "elementFromPoint" in PVPO_QUERY_JS
-    # Range-based per-char rects (ligature safety, handoff §3.4).
     assert "createRange" in PVPO_QUERY_JS
+    # Reference container was removed in the ink-occupancy cutover.
+    assert "worldsim-payload-reference" not in PVPO_QUERY_JS
+    assert "data-worldsim-ref-idx" not in PVPO_QUERY_JS

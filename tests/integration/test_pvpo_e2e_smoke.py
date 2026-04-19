@@ -34,10 +34,7 @@ import pytest
 
 from worldsim.phase_4.encounter_detection import determine_encounter
 from worldsim.phase_4.p_eval_api import run_p_eval_api
-from worldsim.phase_4.pvpo_browser_config import (
-    inject_animation_killer,
-    inject_reference_container,
-)
+from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
 from worldsim.phase_4.pvpo_capture import (
     Rect,
     atomic_capture_with_visibility,
@@ -111,7 +108,6 @@ async def test_pvpo_e2e_single_step_produces_expected_result_shape(tmp_path: Pat
 
         cdp = await context.new_cdp_session(page)
         await inject_animation_killer(page, cdp)
-        await inject_reference_container(page, "ATTACK_PAYLOAD_TEXT_AB", "[data-worldsim-payload]")
 
         viewport = await page.evaluate("(() => ({w: window.innerWidth, h: window.innerHeight}))()")
         viewport_rect = Rect(

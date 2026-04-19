@@ -15,6 +15,7 @@ dependencies = [
     "pymysql>=1.1",
     "psycopg2-binary>=2.9",
     "pillow>=10.0",
+    "numpy>=1.26",
     # LLM providers are supplied by browser-use's native chat classes
     # (browser_use.llm.{google,openai,anthropic,openrouter}.chat).
     # No separate langchain-* packages needed.

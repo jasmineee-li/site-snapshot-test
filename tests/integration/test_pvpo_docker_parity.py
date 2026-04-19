@@ -23,10 +23,7 @@ from urllib.request import urlopen
 
 import pytest
 
-from worldsim.phase_4.pvpo_browser_config import (
-    inject_animation_killer,
-    inject_reference_container,
-)
+from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
 from worldsim.phase_4.pvpo_capture import (
     Rect,
     atomic_capture_with_visibility,
@@ -127,7 +124,6 @@ async def test_pvpo_visibility_vectors_byte_identical_host_vs_container(tmp_path
         await host_page.set_content(_FIXTURE_HTML)
         host_cdp = await host_context.new_cdp_session(host_page)
         await inject_animation_killer(host_page, host_cdp)
-        await inject_reference_container(host_page, "ABCDEFGH", "[data-worldsim-payload]")
         host_capture = await atomic_capture_with_visibility(
             host_cdp, viewport_rect=Rect(x=0, y=0, w=1280, h=720)
         )
@@ -144,7 +140,6 @@ async def test_pvpo_visibility_vectors_byte_identical_host_vs_container(tmp_path
         await container_page.set_content(_FIXTURE_HTML)
         container_cdp = await container_context.new_cdp_session(container_page)
         await inject_animation_killer(container_page, container_cdp)
-        await inject_reference_container(container_page, "ABCDEFGH", "[data-worldsim-payload]")
         container_capture = await atomic_capture_with_visibility(
             container_cdp, viewport_rect=Rect(x=0, y=0, w=1280, h=720)
         )
