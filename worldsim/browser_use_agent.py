@@ -909,6 +909,7 @@ class BrowserUseAgent:
         try:
             initial_actions = _build_initial_actions(start_urls or [])
             task_text = site_prompt if site_prompt else task
+            pvpo_hook = _make_pvpo_step_callback(self._session, task_dir)
             agent = Agent(
                 task=task_text,
                 llm=self.llm,
@@ -921,6 +922,7 @@ class BrowserUseAgent:
                 use_judge=False,
                 save_conversation_path=str(task_dir / "conversations"),
                 initial_actions=initial_actions,
+                register_new_step_callback=pvpo_hook,
             )
 
             t0 = time.time()
@@ -1086,6 +1088,113 @@ def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[st
         errors = []
 
     return steps, is_done, final_result, errors
+
+
+def _make_pvpo_step_callback(session: Any, task_dir: Path):
+    """Build the per-step callback that captures PVPO artifacts.
+
+    Browser-Use invokes this after each agent step with
+    ``(browser_state_summary, agent_output, step_index)``. We use the step
+    boundary to:
+
+    1. Idempotently inject the animation-killer stylesheet + CDP animation
+       pause on the current page (once per page load).
+    2. Idempotently inject the hidden per-character reference container as
+       a sibling of the ``[data-worldsim-payload]`` anchor — only on pages
+       where the payload is actually present.
+    3. Pause virtual time, run the per-char visibility query, capture a
+       deterministic ``HeadlessExperimental.beginFrame`` screenshot, and
+       write ``pvpo/step_{N}.json`` + ``screenshots/step_{N}.png``.
+
+    The callback is intentionally best-effort: any CDP failure (the most
+    common is ``beginFrame`` being unsupported on native macOS Chrome, which
+    is why rigor runs use the ``chrome-headless-shell`` Docker container)
+    logs at debug and returns without raising. Trajectories without PVPO
+    artifacts fall back to the legacy screenshot-copy path via
+    ``_copy_history_screenshots`` after the agent finishes, and encounter
+    detection reports zero coverage — routing to placement-fix.
+
+    See ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3.
+    """
+    # Import inside the factory so import-time failure of optional PVPO deps
+    # (Pillow, phase_4 subpackage) does not break the base AgentRunner.
+    from worldsim.phase_4.pvpo_browser_config import (
+        PAYLOAD_ANCHOR_ATTR,
+        inject_animation_killer,
+        inject_reference_container,
+    )
+    from worldsim.phase_4.pvpo_capture import (
+        Rect,
+        atomic_capture_with_visibility,
+        save_step_artifacts,
+    )
+
+    anchor_selector = f"[{PAYLOAD_ANCHOR_ATTR}]"
+    # Shared per-run state: keep track of which pages have had the
+    # animation-killer and reference-container injected so we don't redo work
+    # every step.
+    pages_prepared: set[int] = set()
+    ref_injected_for_payload: dict[int, str] = {}
+
+    async def _callback(state_summary: Any, agent_output: Any, step_idx: int) -> None:
+        try:
+            page = await session.get_current_page()
+        except Exception as exc:  # pragma: no cover - CDP unavailable
+            logger.debug("pvpo: could not resolve current page at step %d: %s", step_idx, exc)
+            return
+
+        page_key = id(page)
+        try:
+            cdp_session = await session.get_or_create_cdp_session(page)
+        except Exception as exc:  # pragma: no cover - CDP unavailable
+            logger.debug("pvpo: CDP session unavailable at step %d: %s", step_idx, exc)
+            return
+
+        try:
+            if page_key not in pages_prepared:
+                await inject_animation_killer(page, cdp_session)
+                pages_prepared.add(page_key)
+        except Exception as exc:
+            logger.debug("pvpo: inject_animation_killer failed at step %d: %s", step_idx, exc)
+
+        try:
+            payload_text = await page.evaluate(
+                f"(() => {{ const el = document.querySelector({anchor_selector!r}); "
+                "return el ? el.textContent : null; }})()"
+            )
+        except Exception as exc:
+            logger.debug("pvpo: anchor lookup failed at step %d: %s", step_idx, exc)
+            return
+
+        if not payload_text:
+            # Anchor not on this page — nothing to capture. Browser-Use's own
+            # per-step screenshot still lands via _copy_history_screenshots.
+            return
+
+        try:
+            if ref_injected_for_payload.get(page_key) != payload_text:
+                await inject_reference_container(page, payload_text, anchor_selector)
+                ref_injected_for_payload[page_key] = payload_text
+        except Exception as exc:
+            logger.debug("pvpo: inject_reference_container failed at step %d: %s", step_idx, exc)
+            return
+
+        try:
+            viewport = await page.evaluate(
+                "(() => ({w: window.innerWidth, h: window.innerHeight}))()"
+            )
+            viewport_rect = Rect(
+                x=0,
+                y=0,
+                w=int(viewport.get("w", 0)) or 1280,
+                h=int(viewport.get("h", 0)) or 720,
+            )
+            capture = await atomic_capture_with_visibility(cdp_session, viewport_rect=viewport_rect)
+            save_step_artifacts(task_dir, step_idx, capture)
+        except Exception as exc:
+            logger.debug("pvpo: capture failed at step %d: %s", step_idx, exc)
+
+    return _callback
 
 
 def _copy_history_screenshots(task_dir: Path, history: Any) -> None:

@@ -30,6 +30,12 @@ DEFAULT_TEXT_FILL_MODEL = "anthropic/claude-sonnet-4.5"
 DEFAULT_TEXT_FILL_CONCURRENCY = 20
 DEFAULT_TEXTS_PER_PLAN = 1
 PAYLOAD_PLACEHOLDER = "{{PAYLOAD_TEXT}}"
+
+# PVPO anchor: wrapped around every materialized payload so the per-step
+# visibility query (``worldsim/phase_4/pvpo_query.js``) can locate the
+# injected text at runtime. The attribute name must match
+# :data:`worldsim.phase_4.pvpo_browser_config.PAYLOAD_ANCHOR_ATTR`.
+_PAYLOAD_ANCHOR_ATTR_VALUE = "1"
 REFUSAL_SNIPPETS = (
     "i'm not going to",
     "i won't",
@@ -246,7 +252,19 @@ def materialize_adversarial_seed(
     seed_template: dict[str, Any], rendered_payload: str
 ) -> dict[str, Any]:
     validate_seed_template_contract(seed_template)
-    return _replace_payload_placeholder(seed_template, rendered_payload)
+    # PVPO anchor: wrap the injected payload in a span whose data attribute
+    # matches PAYLOAD_ANCHOR_ATTR so the per-step visibility query can
+    # locate it on the delivery page at runtime. Sites that render HTML in
+    # the target field (WebArena's forum posts, product reviews, issue
+    # bodies, etc.) surface the wrapped payload with ``data-worldsim-payload``
+    # attached to the enclosing element. Sites that strip HTML receive the
+    # raw wrapper as literal text, which PVPO then reports as zero
+    # coverage — routed to placement-fix via the widened trigger. See
+    # ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3.2, §5.
+    wrapped_payload = (
+        f'<span data-worldsim-payload="{_PAYLOAD_ANCHOR_ATTR_VALUE}">{rendered_payload}</span>'
+    )
+    return _replace_payload_placeholder(seed_template, wrapped_payload)
 
 
 async def fill_texts_for_tasks(
@@ -744,7 +762,9 @@ def validate_seed_template_contract(seed_template: dict[str, Any]) -> None:
         if not isinstance(call, dict):
             raise ValueError(f"{mechanism} seed_template api_calls entries must be objects")
         if "target" in call:
-            raise ValueError("seed_template api_calls must not use target-based calls; use editor_calls")
+            raise ValueError(
+                "seed_template api_calls must not use target-based calls; use editor_calls"
+            )
         body = call.get(expected_body_key)
         if isinstance(body, dict):
             placeholder_count += _count_placeholder_occurrences(body)

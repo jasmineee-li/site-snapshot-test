@@ -630,30 +630,11 @@ def test_merge_variant_task_allows_valid_seed_mechanism_upgrade():
     assert merged["adversarial_data_seed"]["mechanism"] == "editor"
 
 
-@pytest.mark.asyncio
-async def test_probe_ecological_validity_stages_task_json(monkeypatch, tmp_path):
-    (tmp_path / "history.json").write_text("{}")
-    captured = {}
-
-    async def fake_run_claude_in_sandbox(*, site_files, prompt, output_paths, **kwargs):
-        captured["site_files"] = site_files
-        captured["model"] = kwargs.get("model")
-        return {
-            phase_4_adversarial.VALIDITY_PROBE_OUTPUT: json.dumps({"average_score": 0.2}),
-            "_summary": None,
-        }
-
-    monkeypatch.setattr(phase_4_adversarial, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
-
-    score = await phase_4_adversarial.probe_ecological_validity(
-        tmp_path,
-        {"id": "adv-1", "instruction": "task text"},
-        sandbox_model="claude-sonnet-4-6",
-    )
-
-    assert score == 0.2
-    assert "/workspace/task.json" in captured["site_files"]
-    assert captured["model"] == "claude-sonnet-4-6"
+# Legacy sandbox-based ecological-validity probe was deleted in the PVPO
+# cutover (see docs/handoffs/codex-handoff-paint-verified-oracle.md §1, §4).
+# The replacement is screenshot-only API-path P(eval), exercised by
+# tests/test_phase_4_p_eval_api.py. The specific sandbox-staging test that
+# used to live here no longer has a live symbol to verify.
 
 
 @pytest.mark.asyncio
