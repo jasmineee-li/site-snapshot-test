@@ -208,7 +208,7 @@ common case.
 
 **Severity:** medium
 **File:** `worldsim/phase_4/pvpo_query.js:79-94`
-**Status:** FIXED in commit `<this commit>` — JS code path replaced with linearization across all accepted text nodes; per-char ancestor lookup now uses each char's source node parent rather than the first match's parent. Python-level structural smoke test at `tests/test_phase_4_pvpo_capture.py::test_pvpo_query_js_uses_multinode_linearization` pins the change. End-to-end live verification on reddit (auto-linkifies attacker URLs) is gated on Linux Docker access — the test exists conceptually as `tests/integration/test_pvpo_e2e_smoke.py` and should be re-run on the next live r5 round-trip.
+**Status:** FIXED in commit `5986338a` — JS code path replaced with linearization across all accepted text nodes; per-char ancestor lookup now uses each char's source node parent rather than the first match's parent. Python-level structural smoke test at `tests/test_phase_4_pvpo_capture.py::test_pvpo_query_js_uses_multinode_linearization` pins the change. End-to-end live verification on reddit (auto-linkifies attacker URLs) is gated on Linux Docker access — the test exists conceptually as `tests/integration/test_pvpo_e2e_smoke.py` and should be re-run on the next live r5 round-trip.
 
 ### Root cause
 
