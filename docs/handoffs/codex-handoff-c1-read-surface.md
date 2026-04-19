@@ -3,7 +3,7 @@
 **Branch to base off:** `feat/worldsim-v5`
 **Target branch:** `feat/c1-read-surface` (new)
 **Date:** 2026-04-18
-**Status:** shipped on `feat/c1-read-surface`. Five migration commits landed 2026-04-18 (`b4c85e56`, `bb4a59e2`, `1b229e84`, `29c06309`, `348f9a87`) plus an integration-test follow-up (`0fcc2acd`). Review-finding fixes landed 2026-04-18 (`f9c57f4c` honeyclient `--verify-read-surface-urls` gate; `a3383468` C1 confidence clamp, explicit-override union, multi-call provenance).
+**Status:** Shipped. **C1a (directive-token substring-match) was subsequently removed when PVPO shipped** — PVPO `max_coverage > 0` is a strictly stronger encounter signal. The C1 triangulation now has two signals (C1b editor-emitted URL visited, C1c rendered payload prefix in the platform-observable stream) plus the deprecated tier-2 path-template fallback. Wherever this document describes a three-signal triangulation, read it as the C1a portion being historical context and C1b + C1c as the current implementation. See [`codex-handoff-paint-verified-oracle.md`](./codex-handoff-paint-verified-oracle.md) for the PVPO encounter-detection design.
 **Predecessor:** [`codex-handoff-outcome-taxonomy.md`](./codex-handoff-outcome-taxonomy.md) §3.3.1 describes the current read-surface registry and §14.3 documents it as a known limitation. This handoff retires the registry.
 **Anchor artifact:** commit `98777f81` on `feat/worldsim-v5` shipped a 14-entry `(site, method)` registry (10 `elif` blocks; two blocks share a pattern across two methods each via set-membership) in `worldsim/outcome_taxonomy.py:_derive_read_surface_from_editor` — lines 365-483. This handoff replaces it with a three-signal triangulation grounded in published research.
 

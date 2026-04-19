@@ -1,5 +1,7 @@
 # C1 Read-Surface Migration — Reclassification Diff
 
+**Historical:** snapshot of the C1 migration reclassification run. `c1a_canary` rows in the tables below are no longer produced — C1a was removed when PVPO shipped as the authoritative encounter signal.
+
 **Scope:** every `logs/phase_4/*` run on `feat/c1-read-surface` at the close of
 commit 5. Reclassifier invoked as `uv run python
 scripts/reclassify_phase_4_results.py logs/phase_4/<run> --force`.

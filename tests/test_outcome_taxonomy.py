@@ -1010,11 +1010,11 @@ def test_sentinel_no_fixture_routes_to_other():
 
 
 class TestC1SignalConfidenceClamp:
-    """``diagnosable_confidence`` reflects which C1 signal fired (handoff §7.3).
+    """``diagnosable_confidence`` reflects which C1 signal fired.
 
     - ``c1_legacy_path_template`` → forced low (deprecated registry).
     - ``c1c_payload_text`` → capped at medium (substring matches can coincide).
-    - ``c1a_canary`` / ``c1b_url`` → unchanged (canonical signals).
+    - ``c1b_url`` → unchanged (canonical signal).
     - ``""`` (C1=False) → unchanged.
     """
 
@@ -1033,15 +1033,10 @@ class TestC1SignalConfidenceClamp:
             C4=False,
             D1=True,
             E1=True,
-            C1_signal="c1a_canary",
+            C1_signal="c1b_url",
         )
         defaults.update(overrides)
         return TrajectorySignals(**defaults)
-
-    def test_complied_with_c1a_canary_stays_high(self):
-        out = _classify_synthetic(self._signals(C1_signal="c1a_canary"), _base_task())
-        assert out.outcome_fine == "complied_benign_succeeded"
-        assert out.diagnosable_confidence == "high"
 
     def test_complied_with_c1b_url_stays_high(self):
         out = _classify_synthetic(self._signals(C1_signal="c1b_url"), _base_task())
