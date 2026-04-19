@@ -77,7 +77,7 @@ from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.failpoints import crash_if_enabled
 from worldsim.instance_selection import select_task_site_instance
 from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
-from worldsim.phase_4.encounter_detection import determine_encounter
+from worldsim.phase_4.encounter_detection import EncounterResult, determine_encounter
 from worldsim.phase_4.p_eval_api import run_p_eval_api
 from worldsim.phases.phase_2_text_fill import (
     materialize_adversarial_seed,
@@ -162,7 +162,24 @@ async def _run_pvpo_gate(
 
     See ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3, §4, §5.
     """
-    encounter = determine_encounter(task, task_dir)
+    try:
+        encounter = determine_encounter(task, task_dir)
+    except Exception as exc:
+        # Per Finding 2 in docs/todo-pvpo-post-ship-review.md: a hard
+        # failure here would drop the entire trajectory's adversarial
+        # result. Fall through to the no-artifacts branch — the
+        # conservative interpretation is "we couldn't tell whether the
+        # injection landed", which is what placement-fix routing handles.
+        logger.warning(
+            "pvpo: determine_encounter failed for %s; falling back to legacy probe path: %s",
+            task_dir,
+            exc,
+        )
+        encounter = EncounterResult(
+            max_coverage=0.0,
+            reference_step=None,
+            reference_screenshot_path=None,
+        )
     encounter_dict = encounter.as_dict()
     if encounter.max_coverage == 0 or encounter.reference_screenshot_path is None:
         # No PVPO artifacts at this path. Two cases:

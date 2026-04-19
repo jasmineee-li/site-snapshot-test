@@ -204,6 +204,40 @@ async def test_p_eval_failure_populates_failure_class_and_nulls_score(monkeypatc
     assert result["injection_not_encountered"] is False
 
 
+@pytest.mark.asyncio
+async def test_run_pvpo_gate_falls_back_when_determine_encounter_raises(monkeypatch, tmp_path):
+    """Finding 2: a hard failure inside ``determine_encounter`` (corrupt
+    artifacts on disk that even Finding 1's per-step skip can't recover
+    from) must not propagate. The gate falls through to the no-artifacts
+    branch with an empty encounter, and the legacy probe path then
+    stamps ``injection_not_encountered=True`` so placement-fix routing
+    fires conservatively.
+    """
+
+    def exploding_determine(task, trajectory_dir):
+        raise RuntimeError("simulated hard failure inside determine_encounter")
+
+    async def unexpected_p_eval(*args, **kwargs):
+        raise AssertionError("p_eval should not be called when encounter is empty")
+
+    async def legacy_probe(task_dir, task, *, sandbox_model):
+        return 1.0  # default sentinel — "no encounter"
+
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", exploding_determine)
+    monkeypatch.setattr(phase_4_adversarial, "run_p_eval_api", unexpected_p_eval)
+    monkeypatch.setattr(phase_4_adversarial, "probe_ecological_validity", legacy_probe)
+
+    result = await phase_4_adversarial._run_pvpo_gate(
+        _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
+    )
+
+    assert result["injection_not_encountered"] is True
+    assert result["encounter"]["max_coverage"] == 0.0
+    assert result["encounter"]["reference_step"] is None
+    assert result["p_eval_score"] is None
+    assert result["p_eval_breakdown"] is None
+
+
 def test_placement_fix_trigger_fires_on_injection_not_encountered():
     """The widened trigger in _run_placement_fix_loop must accept both
     outcome==task_broke AND final_status==injection_not_encountered.

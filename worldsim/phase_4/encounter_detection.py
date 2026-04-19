@@ -79,9 +79,14 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             ``screenshots/step_*.png`` subdirectories.
 
     Raises:
-        FileNotFoundError: when a ``pvpo/step_N.json`` references a step
-            whose paired ``screenshots/step_N.png`` is missing (or vice
-            versa). Silent defaults would mask capture bugs.
+        FileNotFoundError: when a ``pvpo/step_N.json`` exists but its
+            paired ``screenshots/step_N.png`` is missing. This is a
+            ``save_step_artifacts`` contract violation, not an
+            on-disk corruption symptom, so we still raise to surface it.
+            Per-file parse / decode corruption (partial JSON write,
+            truncated PNG) is logged at warning and the offending step
+            is skipped — see Finding 1 in
+            ``docs/todo-pvpo-post-ship-review.md``.
 
     Returns:
         :class:`EncounterResult`. Empty trajectories yield
@@ -98,6 +103,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
 
     per_step_coverage: list[float] = []
     per_char_visibility: list[list[bool]] = []
+    kept_step_files: list[tuple[int, Path]] = []
 
     for step_idx, pvpo_path in step_files:
         png_path = screenshots_dir / f"step_{step_idx}.png"
@@ -107,18 +113,40 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
                 f"{png_path} is missing; capture is inconsistent"
             )
 
-        pvpo_json = json.loads(pvpo_path.read_text(encoding="utf-8"))
+        try:
+            pvpo_json = json.loads(pvpo_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning(
+                "pvpo: skipping step %d — could not parse %s: %s",
+                step_idx,
+                pvpo_path,
+                exc,
+            )
+            continue
+
         visibility_vec = pvpo_json.get("visibility_vec") or []
         clip = _parse_clip(pvpo_json.get("clip"))
         bg = _parse_bg(pvpo_json.get("background_color"))
-        png_bytes = png_path.read_bytes()
 
-        paint_vec = ink_occupancy_vector(png_bytes, visibility_vec, background_color=bg, clip=clip)
+        try:
+            png_bytes = png_path.read_bytes()
+            paint_vec = ink_occupancy_vector(
+                png_bytes, visibility_vec, background_color=bg, clip=clip
+            )
+        except (OSError, ValueError) as exc:
+            logger.warning(
+                "pvpo: skipping step %d — could not decode %s: %s",
+                step_idx,
+                png_path,
+                exc,
+            )
+            continue
+
         per_char_visibility.append(paint_vec)
-
         rendered = sum(1 for v in paint_vec if v)
         coverage = rendered / non_space_total if non_space_total else 0.0
         per_step_coverage.append(coverage)
+        kept_step_files.append((step_idx, pvpo_path))
 
     if not per_step_coverage:
         return EncounterResult(
@@ -132,7 +160,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
     reference_path: Path | None
     if max_coverage > 0.0:
         argmax = per_step_coverage.index(max_coverage)
-        reference_step = step_files[argmax][0]
+        reference_step = kept_step_files[argmax][0]
         reference_path = screenshots_dir / f"step_{reference_step}.png"
     else:
         reference_step = None

@@ -295,6 +295,68 @@ def test_step_files_enumerated_numerically_not_lexically(tmp_path: Path):
     assert len(result.per_step_coverage) == 4
 
 
+def test_corrupt_pvpo_json_skipped_with_other_steps_intact(tmp_path: Path):
+    """Finding 1: a single malformed step JSON must not abort the trajectory.
+
+    The bad step is dropped (logged as warning); good steps still
+    contribute to ``per_step_coverage`` and ``max_coverage``.
+    """
+    png = _make_png_with_ink([(10, 10, 5, 5)])
+    vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
+    _write_step(tmp_path, 0, vec, png)
+    # step_1 has the PNG but a malformed JSON sibling.
+    (tmp_path / "screenshots" / "step_1.png").write_bytes(png)
+    (tmp_path / "pvpo" / "step_1.json").write_text("{not valid json")
+    _write_step(tmp_path, 2, vec, png)
+
+    result = determine_encounter(_task("a"), tmp_path)
+    # Two good steps (0 and 2), step 1 was skipped without raising.
+    assert result.per_step_coverage == [1.0, 1.0]
+    assert result.max_coverage == 1.0
+    # Reference step must point at one of the kept steps, not at the
+    # skipped step 1.
+    assert result.reference_step in {0, 2}
+    assert result.reference_screenshot_path is not None
+    assert result.reference_screenshot_path.name in {"step_0.png", "step_2.png"}
+
+
+def test_truncated_png_skipped_with_other_steps_intact(tmp_path: Path):
+    """Finding 1: truncated PNG raises ``OSError`` from PIL load; that
+    step is skipped, neighbours unaffected."""
+    png = _make_png_with_ink([(10, 10, 5, 5)])
+    vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
+    _write_step(tmp_path, 0, vec, png)
+    # step_1: valid JSON, but the PNG is one byte (PIL can't open it).
+    (tmp_path / "screenshots").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "screenshots" / "step_1.png").write_bytes(b"\x89")
+    (tmp_path / "pvpo").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "pvpo" / "step_1.json").write_text(
+        json.dumps(
+            {
+                "step_idx": 1,
+                "visibility_vec": [
+                    {
+                        "i": 0,
+                        "char": "a",
+                        "isSpace": False,
+                        "layoutVisible": True,
+                        "liveRect": _rect(10, 10, 5, 5),
+                    }
+                ],
+                "background_color": [255, 255, 255],
+                "has_damage": True,
+                "clip": {"x": 0, "y": 0, "w": 400, "h": 200},
+            }
+        )
+    )
+    _write_step(tmp_path, 2, vec, png)
+
+    result = determine_encounter(_task("a"), tmp_path)
+    assert result.per_step_coverage == [1.0, 1.0]
+    assert result.max_coverage == 1.0
+    assert result.reference_step in {0, 2}
+
+
 def test_non_white_background_color_from_step_json(tmp_path: Path):
     """Ink-occupancy must compare against the step's recorded background,
     not a hardcoded white. A grey-bg page with darker-grey text still has
