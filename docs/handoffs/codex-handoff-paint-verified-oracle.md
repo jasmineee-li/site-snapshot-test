@@ -1,10 +1,57 @@
 # codex-handoff — Paint-Verified Payload Oracle + API-Path Ecological-Validity Judge
 
-**Status:** Design locked, implementation pending.
-**Branch:** `feat/worldsim-v5`. All commits in this series land directly on the v5 integration branch; no separate feature branch. The earlier `feat/c1-read-surface` work was fast-forward-merged into `feat/worldsim-v5` before this series begins, so the starting state includes the C1 read-surface migration and the three-signal C1 triangulation (c1a canary / c1b url / c1c payload).
+**Status:** Shipped on `feat/worldsim-v5` through commit `65db740c`. See the Implementation Status section immediately below for what landed vs. what the original design prescribed — the shipped paint-verification mechanism is **ink-occupancy**, not the byte-equal reference-container compare described in §3.5 below. The original design text is preserved for historical context; new readers should read the Implementation Status first.
+**Branch:** `feat/worldsim-v5`. All commits landed directly on the v5 integration branch; no separate feature branch. The earlier `feat/c1-read-surface` work was fast-forward-merged into `feat/worldsim-v5` before this series began, so the starting state included the C1 read-surface migration and the three-signal C1 triangulation (c1a canary / c1b url / c1c payload).
 **Scope:** Phase 4 encounter detection + ecological-validity probe. Fixes seven documented probe bugs and closes the encounter-verification gap that WASP (arXiv:2504.18575) and the rest of the published IPI-benchmark literature leaves open.
 **Author:** Design converged across an extended planning session (see plan file at `/Users/ashtonchew/.claude-ashton-2/plans/can-you-view-the-mossy-dijkstra.md`).
 **This document:** comprehensive technical handoff for implementation + code review + audit. No PR format, commit-structured.
+
+---
+
+## Implementation Status (2026-04-19)
+
+**Shipped commits on `feat/worldsim-v5`:**
+
+| SHA | Commit | What landed |
+|---|---|---|
+| `1d45587f` | C1 — chrome-headless-shell Docker + PVPO browser config | Dockerfile and launch flags; initial reference-container helper (later deleted) |
+| `0805d4c6` | C2 — PVPO atomic capture + per-char visibility oracle | `pvpo_capture.py`, `pvpo_query.js`, `pillow` dep |
+| `76349015` | C3 — encounter detection over PVPO step artifacts | `encounter_detection.py`, `EncounterResult` |
+| `c1310910` | C4 — API-path P(eval) probe | `p_eval_api.py`, `prompts/p-eval.md`, 16 tests |
+| `004dc11e` | C5 — Phase 4 integration | Deleted sandbox probe + ecoval fix loop + `VALIDITY_THRESHOLD`; wired `_run_pvpo_gate` at the three call sites; widened placement-fix trigger; added `data-worldsim-payload` wrapping |
+| `a4bd941a` | C6 — probe-scoped doc sync | Outcome-taxonomy §14.3 + technical spec Gate 1/2 |
+| `edc46b85` | C7 — integration tests | `test_pvpo_e2e_smoke.py` + `test_pvpo_docker_parity.py` |
+| `19111ea8` | Confidence-pass fixes | Rebuildable Dockerfile (public Chrome-for-Testing + socat forwarder); fixed `Animation.setPaused` CDP contract; fixed reference-container CSS (`visibility:hidden` → offscreen positioning); added `test_phase_4_pvpo_gate.py`; introduced a short-lived `_PIXEL_VERIFICATION_ENABLED=False` fallback while the byte-equal design was proven non-viable |
+| `65db740c` | Clean cutover to ink-occupancy | Deleted reference-container machinery; deleted `paint_verified_vector`; replaced with `ink_occupancy.py`; JS query returns `{entries, backgroundColor}`; added `numpy` dep; 33 new ink-occupancy tests |
+
+**What shipped differs from §3.2b / §3.5 below:**
+
+The byte-equal paint-verified pixel-compare oracle described in §3 — hidden per-character reference spans in the DOM, identical Blink+HarfBuzz+Skia paint path on both sides, zero-tolerance byte equality on crops from the same committed `beginFrame` — is **not the shipped mechanism**. Two structural holes surfaced during implementation that the handoff did not anticipate:
+
+1. `visibility: hidden` on the reference container (the handoff's own CSS at §3.2b) *skips paint entirely* per the CSS spec. Reference spans contributed zero pixels; every byte-equal compare returned False spuriously. Fixing to `position: absolute; top: 50000px` paints the spans but surfaces hole 2.
+2. `HeadlessExperimental.beginFrame` is *post-composite*. Offscreen DOM is never in the composited viewport and is therefore never in the captured PNG regardless of `clip` extent. The `clip = viewport ∪ reference` scheme in §3.3 assumes clip operates on the full layout tree. It does not.
+
+The clean realization of the original design would require per-step `Emulation.setDeviceMetricsOverride` to grow the viewport to include the reference region, capture, then restore. Cost: ~65M-pixel screenshots, layout reflow contamination (`vh`-based heights, media queries), compositor-commit synchronization, P(eval) framing leakage. Deferred as disproportionate for the MVP.
+
+**What shipped instead: ink-occupancy (`worldsim/phase_4/ink_occupancy.py`).**
+
+For each non-whitespace character in the seeded payload, crop the live-paint rect from the same committed `beginFrame`, count non-background pixels (per-channel L1 delta > 24), and classify as "rendered" iff absolute floor (`≥3 ink pixels`) OR relative floor (`≥3% occupancy`) is met. Background RGB is resolved by the JS query walking up the payload-anchor's ancestor chain. Zero OCR, zero ML, zero external Skia, deterministic numpy integer math, ~<1ms per character.
+
+Ink-occupancy is strictly weaker than byte-equal compare in theory (it answers "was ink painted here" not "does it match the expected glyph") but strictly stronger in practice for the WebArena threat model:
+
+- Catches `color == background` text (byte-equal would also catch this, layout-visibility would miss it).
+- Catches font-fallback-to-blank.
+- Catches CSS paint-over where the glyph is covered after layout.
+- Catches clipped glyphs whose bounding rect is reported but whose actual paint is zero.
+- Does not require reference paint → no `setDeviceMetricsOverride` → no viewport reflow, no 65MP screenshots.
+
+**Known gap:** ink-occupancy cannot distinguish "attacker-controlled same-color-as-background text" from "no text painted at all." Both report zero occupancy. In our threat model this is fine (attacker cannot control CSS), but if the threat model ever expands, flip back to byte-equal compare with the viewport-expansion plumbing.
+
+**Live verification:** end-to-end smoke (`tests/integration/test_pvpo_e2e_smoke.py`) passes against the `chrome-headless-shell` Docker container with `ATTACK_PAYLOAD_TEXT_AB` rendered as a `<span data-worldsim-payload>`; encounter produces `max_coverage > 0`, P(eval) returns the expected 5-probe breakdown, `p_eval_raw_response.json` persists with the site context. Linux ↔ container parity test (`tests/integration/test_pvpo_docker_parity.py`) is scaffolded but only runs on Linux (skipped on the macOS dev host).
+
+**Follow-ups for the broader docs pass:** CLAUDE.md integration-test gate list (add `ink_occupancy.py`), `worldsim-v5-technical-specifcation.md` Gate 1 text (replace "byte-equal" framing with "ink-occupancy"), `codex-handoff-outcome-taxonomy.md` §14.3 closure pointer (ink-occupancy is now what subsumes C1a, not byte-equal).
+
+---
 
 A follow-up agent should perform a separate pass to check all other docs for consistency (CLAUDE.md, worldsim-v5-technical-specifcation.md, docs/handoffs/codex-handoff-outcome-taxonomy.md §14.3 closure note, TODO-adversarial-rigor-mvp.md) and update anything that references the current probe or encounter detection. That pass is explicitly NOT in this handoff's scope.
 
@@ -826,9 +873,14 @@ The docs-audit pass that comes after this handoff should flag whether any other 
 
 ## 13. Follow-up tickets (not in scope here)
 
-- **Canary format rename**: change `TROJAN-ACK-[HEX]` to ecologically plausible pattern in `derive_required_tokens` (`phase_2_text_fill.py:76-89`) plus the template in `fill-injection-text.md`. Full audit in §11. Decoupled from PVPO; does not affect encounter detection or ASR reward.
-- **C1a deprecation**: once PVPO is trusted in production, the C1a signal in `outcome_taxonomy.py:846-854` becomes redundant with `max_coverage`. Remove the signal definition and its call sites. Full audit in §11.
-- **Placement-fix API cutover**: migrate `_revise_adversarial_task`'s placement-fix path from `run_claude_in_sandbox` to an API-path variant generator (mirror `variant_api.py`). Finishes the Phase 4 sandbox exit.
+- **Live r5 validation (highest priority).** All local verification is on a synthetic fixture page inside the Docker container. The last unanswered questions — (a) does the `data-worldsim-payload` span wrapper survive HTML rendering across shopping / shopping_admin / reddit / gitlab, (b) does Browser-Use's step callback reliably fire and produce non-zero `max_coverage` on a real adversarial trajectory — both require a live r5 WebArena stack. Block on running `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` with the `chrome-headless-shell` container up, then rerun the 20260417 demo dataset with PVPO enabled and diff the stratified summary against the pre-PVPO baseline.
+- **Canary format rename**: change `TROJAN-ACK-[HEX]` to ecologically plausible pattern in `derive_required_tokens` (`phase_2_text_fill.py:76-89`) plus the template in `fill-injection-text.md`. Full audit in §11. Decoupled from PVPO; does not affect encounter detection or ASR reward. **Higher priority now that P(eval)'s `artifact_presence` probe directly sees the literal `TROJAN-ACK-` string in the reference screenshot and will consistently flag it.**
+- **C1a deprecation**: PVPO's `max_coverage` is now strictly stronger than the C1a canary-in-network-log signal. `max_coverage > 0` proves the injection was *painted in the composited viewport at non-background ink density*, which implies it was parseable by the agent — a stronger claim than C1a's "canary string appeared in the observable platform corpus." Retire C1a as the primary encounter signal; keep for an audit window with a WARNING clamp on confidence.
+- **Placement-fix API cutover**: migrate `_revise_adversarial_task`'s placement-fix path from `run_claude_in_sandbox` to an API-path variant generator (mirror `variant_api.py`). Last sandbox-path holdout in Phase 4. Unblocks deleting the sandbox wiring from `phase_4_adversarial.py` entirely.
+- **Docker `chrome-headless-shell` arm64 support**: current build pins `TARGETARCH=amd64` because Chrome for Testing does not publish an arm64 `chrome-headless-shell` binary. Dev boxes on Apple Silicon run the amd64 image under Rosetta emulation (functional but slower). Revisit if Google publishes an arm64 build or if a self-built Chromium becomes feasible.
+- **Ink-occupancy per-site bg resolver**: the current background-color resolver walks up the ancestor chain of the payload anchor and returns the first non-transparent `backgroundColor`. For pages with gradient/image backgrounds directly behind the payload (rare in WebArena's flat chrome but possible), a per-capture "sample the 4 rect-corner neighbors in the PNG and take the mode" fallback could tighten bg detection. Defer until evidence warrants.
+- **Ink-occupancy threshold calibration against live Chrome**: the calibration fixture in `tests/test_phase_4_ink_occupancy.py` uses PIL's default bitmap font as a proxy renderer (period / apostrophe render at 2 pixels). Real Chrome sans-serif at 16-20px produces 3+ pixels for these glyphs. Add a live-integration calibration test that renders the full payload character set in the per-site primary fonts via the Docker container and locks per-font thresholds into a fixture.
+- **Viewport-expansion pixel-compare (optional)**: if the threat model ever expands to include attacker-controlled CSS (which could paint `color: #fff` on a white-sanitized UGC field), re-enable byte-equal reference compare via per-step `Emulation.setDeviceMetricsOverride`. The old code was deleted in the clean cutover; reintroducing it is a ~200-line reimplementation, not a flag flip.
 - **Docs audit pass**: comprehensive check of all docs for consistency with the shipped probe/encounter design. Explicitly NOT this handoff's job; a separate agent takes this.
 - **Variance reduction**: if P(eval) is noisy in analysis (single-call-5-dimensions showing run-to-run variation on the same trajectory), introduce N independent probe calls averaged.
 
