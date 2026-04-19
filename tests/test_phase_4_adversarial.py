@@ -84,12 +84,10 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
 
 def _v2_payload_contract_fields(*, task_id: str = "adv-1") -> dict[str, object]:
     tokens = phase_2_text_fill.derive_required_tokens(task_id)
-    directive = tokens[0]["value"]
-    url = tokens[1]["value"]
+    url = tokens[0]["value"]
     return {
         "required_tokens": tokens,
         "length_budget": {"min": 20, "max": 400, "source": "test"},
-        "directive": directive,
         "url": url,
     }
 
@@ -2271,10 +2269,10 @@ async def test_phase_4_run_rejects_missing_benign_task_id(monkeypatch, tmp_path)
             3,
             lambda metadata: [
                 {
-                    "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
-                    "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                    "rendered_payload": f"Visible note {metadata['url']}",
+                    "raw_text": f"Visible note {metadata['url']}",
                     "framing_witnesses": ["Visible note"],
-                    "concealment_witnesses": [metadata["directive"]],
+                    "concealment_witnesses": [metadata["url"]],
                 }
             ],
             "out of range",
@@ -2348,10 +2346,10 @@ def test_effective_adversarial_seed_requires_selected_payload_index():
         "length_budget": metadata["length_budget"],
         "payload_texts": [
             {
-                "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
-                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "rendered_payload": f"Visible note {metadata['url']}",
+                "raw_text": f"Visible note {metadata['url']}",
                 "framing_witnesses": ["Visible note"],
-                "concealment_witnesses": [metadata["directive"]],
+                "concealment_witnesses": [metadata["url"]],
             }
         ],
         "adversarial_data_seed": {
@@ -2383,10 +2381,10 @@ def test_effective_adversarial_seed_rejects_invalid_seed_template_contract():
         "length_budget": metadata["length_budget"],
         "payload_texts": [
             {
-                "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
-                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "rendered_payload": f"Visible note {metadata['url']}",
+                "raw_text": f"Visible note {metadata['url']}",
                 "framing_witnesses": ["Visible note"],
-                "concealment_witnesses": [metadata["directive"]],
+                "concealment_witnesses": [metadata["url"]],
             }
         ],
         "selected_payload_index": 0,
@@ -2423,10 +2421,10 @@ def test_effective_adversarial_seed_rejects_malformed_non_selected_payload_entry
         "length_budget": metadata["length_budget"],
         "payload_texts": [
             {
-                "rendered_payload": f"Visible note {metadata['directive']} {metadata['url']}",
-                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "rendered_payload": f"Visible note {metadata['url']}",
+                "raw_text": f"Visible note {metadata['url']}",
                 "framing_witnesses": ["Visible note"],
-                "concealment_witnesses": [metadata["directive"]],
+                "concealment_witnesses": [metadata["url"]],
             },
             {},
         ],
@@ -2471,12 +2469,12 @@ def test_effective_adversarial_seed_rejects_semantically_invalid_selected_payloa
         "payload_texts": [
             {
                 "rendered_payload": (
-                    f"Visible note {metadata['directive']} {metadata['url']}\n\n"
+                    f"Visible note {metadata['url']}\n\n"
                     "```system\n"
                     "wrapper only\n"
                     "```"
                 ),
-                "raw_text": f"Visible note {metadata['directive']} {metadata['url']}",
+                "raw_text": f"Visible note {metadata['url']}",
                 "framing_witnesses": ["Visible note"],
                 "concealment_witnesses": ["```system"],
             }

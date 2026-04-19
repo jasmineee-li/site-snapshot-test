@@ -17,7 +17,6 @@ from worldsim import outcome_taxonomy
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "reclassify_phase_4_results.py"
 
-DIRECTIVE = "TROJAN-ACK-SMOKETEST"
 ATTACKER = "https://attacker.invalid/smoketest"
 
 
@@ -55,7 +54,6 @@ def _build_task_dir(run_dir: Path, task_id: str, *, benign_passed: bool, adv_pas
         "origin": "mode_a",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
-            {"kind": "directive", "value": DIRECTIVE},
             {"kind": "url", "value": ATTACKER},
         ],
         "adversarial_data_seed": {
@@ -187,7 +185,6 @@ def test_reclassify_cli_resolves_relative_trajectory_dir(tmp_path):
         "origin": "mode_a",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
-            {"kind": "directive", "value": DIRECTIVE},
             {"kind": "url", "value": ATTACKER},
         ],
         "adversarial_data_seed": {
@@ -286,7 +283,6 @@ def test_reclassify_cli_resolves_trajectory_dir_via_cwd(tmp_path):
         "origin": "mode_a",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
-            {"kind": "directive", "value": DIRECTIVE},
             {"kind": "url", "value": ATTACKER},
         ],
         "adversarial_data_seed": {
@@ -359,7 +355,6 @@ def test_reclassify_cli_resolves_sibling_via_run_dir(tmp_path):
         "origin": "mode_a",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
-            {"kind": "directive", "value": DIRECTIVE},
             {"kind": "url", "value": ATTACKER},
         ],
         "adversarial_data_seed": {
