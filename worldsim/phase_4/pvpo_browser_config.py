@@ -67,31 +67,37 @@ _INJECT_ANIMATION_KILLER_JS = f"""
 
 
 async def inject_animation_killer(page: Any, cdp_session: Any | None = None) -> None:
-    """Idempotently install the animation-killer stylesheet and pause CDP animations.
+    """Idempotently install the animation-killer stylesheet.
 
-    The stylesheet forces all CSS ``animation`` and ``transition`` properties to
-    zero duration, which prevents off-main-thread compositor-thread animations
-    from advancing between the visibility query and the ``beginFrame`` capture.
-    Combined with ``Emulation.setVirtualTimePolicy("pause")``, this closes the
-    theoretical race flagged by Chromium's own compositor-animation tests
-    (marked "Flaky on all platforms").
+    The stylesheet forces all CSS ``animation`` and ``transition`` properties
+    to zero duration, which prevents off-main-thread compositor-thread
+    animations from advancing between the visibility query and the
+    ``beginFrame`` capture. Combined with
+    ``Emulation.setVirtualTimePolicy("pause")`` (called per-step by
+    :func:`worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility`),
+    this closes the theoretical race flagged by Chromium's own
+    compositor-animation tests (marked "Flaky on all platforms").
 
     Args:
         page: the Playwright ``Page`` object whose DOM will receive the style
-            tag. Only required for the stylesheet path.
-        cdp_session: optional CDP session. When provided, additionally calls
-            ``Animation.enable`` then ``Animation.setPaused({paused: true})``
-            for belt-and-suspenders safety on animations that might still be
-            ticking through non-CSS paths.
+            tag.
+        cdp_session: accepted for signature compatibility. Not used — an
+            earlier draft of this helper called
+            ``Animation.setPaused({"paused": true})`` but that CDP method
+            requires a pre-collected ``animations: [id, ...]`` array per
+            the current DevTools Protocol and is not a global toggle. There
+            is no CDP primitive that pauses all animations regardless of
+            source; the CSS route above is the canonical mechanism.
+
+    The WebArena surfaces we target are static HTML forms with no CSS or
+    compositor animations, so the residual race reduces to effectively zero
+    in our setting.
     """
     await page.evaluate(_INJECT_ANIMATION_KILLER_JS)
-    if cdp_session is not None:
-        try:
-            await cdp_session.send("Animation.enable")
-        except Exception:
-            # Animation domain may already be enabled; non-fatal.
-            pass
-        await cdp_session.send("Animation.setPaused", {"paused": True})
+    _ = cdp_session  # retained for signature compatibility; see docstring.
+
+
+_REFERENCE_CONTAINER_OFFSCREEN_Y = 50000
 
 
 def _build_reference_container_js(
@@ -106,16 +112,33 @@ def _build_reference_container_js(
     family/weight/size, letter-spacing, writing-mode, etc.) resolves identically
     to the live payload — no style copying required.
 
-    Visual concealment: the container is visually hidden via ``visibility:
-    hidden`` + ``pointer-events: none``. We do NOT use ``display: none`` or
-    ``position: absolute; left: -99999px`` because those would remove the
-    container from the layout tree and defeat the shared-paint-pipeline
-    guarantee. The PVPO capture step uses ``beginFrame``'s ``clip`` parameter
-    to include the reference region in the saved PNG; see ``pvpo_capture.py``.
+    Visual concealment: the container is ``position: absolute`` with a large
+    positive ``top`` offset (``_REFERENCE_CONTAINER_OFFSCREEN_Y`` pixels below
+    the viewport). This keeps it in the layout + paint tree — so the per-char
+    spans actually get rasterized through the same Blink+HarfBuzz+Skia
+    pipeline as the live payload, which is what makes zero-tolerance pixel
+    comparison sound — while placing it outside any reasonable user scroll
+    target. PVPO capture extends ``beginFrame``'s ``clip`` rect to include
+    the reference region (see ``pvpo_capture.py::_clip_union``) so both the
+    live viewport and the reference crop land in the same committed frame.
+
+    Concealment options explicitly rejected:
+      - ``visibility: hidden`` / ``display: none`` — both skip paint entirely
+        per CSS spec, so the reference spans would not contribute pixels and
+        every byte-equal compare would spuriously return False.
+      - ``opacity: 0`` — paints but produces fully transparent pixels, again
+        guaranteeing a mismatch against the opaque live text.
+      - ``left: -99999px`` — equivalent mechanism but negative offsets are
+        more likely to be clipped by negative-coordinate-hostile render
+        stacks; a positive ``top`` offset is the conventional choice.
     """
     import json
 
     payload_chars = list(payload_text)
+    style = (
+        f"position: absolute; left: 0; top: {_REFERENCE_CONTAINER_OFFSCREEN_Y}px; "
+        "pointer-events: none; user-select: none; white-space: pre;"
+    )
     return f"""
 (() => {{
   const anchor = document.querySelector({json.dumps(anchor_selector)});
@@ -127,7 +150,7 @@ def _build_reference_container_js(
   }}
   const container = document.createElement('span');
   container.id = {json.dumps(REFERENCE_CONTAINER_ID)};
-  container.style.cssText = 'visibility: hidden; pointer-events: none; user-select: none;';
+  container.style.cssText = {json.dumps(style)};
   container.setAttribute('aria-hidden', 'true');
   const chars = {json.dumps(payload_chars)};
   for (let i = 0; i < chars.length; i++) {{

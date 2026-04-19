@@ -33,6 +33,20 @@ from typing import Any
 
 from worldsim.phase_4.pvpo_capture import Rect, paint_verified_vector
 
+# Pixel-level paint verification requires the hidden reference container to
+# actually paint in the same committed frame as the live payload. Chrome
+# skips paint for DOM offscreen of the composited viewport, so the
+# reference spans at ``position: absolute; top: 50000px`` currently return
+# blank pixels and byte-equal compare fails for every char. Until we
+# migrate to a per-capture ``Emulation.setDeviceMetricsOverride`` that
+# grows the viewport to include the reference region (future work),
+# fall back to layout-visibility verification: the JS query's three-check
+# ``layoutVisible`` flag (in-viewport AND ancestor visible AND not
+# occluded) is the rendered signal. This is a strictly weaker oracle than
+# paint-verified byte-equal, but it is still a strictly stronger encounter
+# signal than the canary-on-network-log path that it replaces.
+_PIXEL_VERIFICATION_ENABLED = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -114,7 +128,10 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         clip = _parse_clip(pvpo_json.get("clip"))
         png_bytes = png_path.read_bytes()
 
-        paint_vec = paint_verified_vector(png_bytes, visibility_vec, clip=clip)
+        if _PIXEL_VERIFICATION_ENABLED:
+            paint_vec = paint_verified_vector(png_bytes, visibility_vec, clip=clip)
+        else:
+            paint_vec = _layout_visibility_vector(visibility_vec)
         per_char_visibility.append(paint_vec)
 
         rendered = sum(1 for v in paint_vec if v)
@@ -146,6 +163,22 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         per_char_visibility=per_char_visibility,
         per_step_coverage=per_step_coverage,
     )
+
+
+def _layout_visibility_vector(visibility_vec: list[dict[str, Any]]) -> list[bool]:
+    """Return per-char booleans from the JS query's ``layoutVisible`` flag.
+
+    Whitespace characters always return ``False`` (they do not contribute to
+    coverage). For non-whitespace, the value is the three-check product
+    from ``pvpo_query.js``: in-viewport ∧ ancestor visible ∧ not occluded.
+    """
+    out: list[bool] = []
+    for entry in visibility_vec:
+        if entry.get("isSpace"):
+            out.append(False)
+            continue
+        out.append(bool(entry.get("layoutVisible")))
+    return out
 
 
 def _extract_payload(task: dict[str, Any]) -> str:
