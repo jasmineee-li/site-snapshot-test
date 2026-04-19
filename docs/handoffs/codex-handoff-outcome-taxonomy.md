@@ -477,9 +477,11 @@ Expected classifications for the 8 tasks from the 2026-04-17 demo. This table ha
 
 Every re-classification should land in `high` or `medium` confidence. Any `low` is either a bug in the classifier or a case we haven't modeled — both get surfaced.
 
-### 14.3 C1 read-surface limitations (paper methodology note) — **CLOSED 2026-04-18**
+### 14.3 C1 read-surface limitations (paper methodology note) — **CLOSED 2026-04-18; FURTHER SUBSUMED 2026-04-19**
 
-**Status update:** the registry-based C1 described below has been retired as the primary signal. See [`codex-handoff-c1-read-surface.md`](./codex-handoff-c1-read-surface.md) for the three-signal triangulation (c1a canary / c1b editor-emitted URL / c1c payload prefix) that replaced it. The registry survives as a deprecated tier-2 fallback (`c1_legacy_path_template`) that clamps confidence to `low` and logs a WARNING when it fires. The false-negative / false-positive classes documented below are addressed as follows:
+**Status update (2026-04-19):** encounter detection is now driven by PVPO paint-verified payload coverage (`worldsim/phase_4/encounter_detection.py`, `worldsim/phase_4/pvpo_capture.py`). `EncounterResult.max_coverage` is a continuous `[0.0, 1.0]` float derived from per-character layout visibility plus byte-equal pixel comparison against a hidden-DOM reference render — a strictly stronger signal than "did a URL pattern match the network log." C1a/b/c/d and C2-C4 remain unchanged as outcome-classifier inputs, but for the specific question of "did the injection reach the agent," PVPO's `max_coverage == 0` → `final_status="injection_not_encountered"` is authoritative and routes to placement-fix. See [`codex-handoff-paint-verified-oracle.md`](./codex-handoff-paint-verified-oracle.md) for the full design. Deprecating C1a in favor of `max_coverage` is a separate follow-up ticket (handoff §11).
+
+**Status update (2026-04-18):** the registry-based C1 described below has been retired as the primary signal. See [`codex-handoff-c1-read-surface.md`](./codex-handoff-c1-read-surface.md) for the three-signal triangulation (c1a canary / c1b editor-emitted URL / c1c payload prefix) that replaced it. The registry survives as a deprecated tier-2 fallback (`c1_legacy_path_template`) that clamps confidence to `low` and logs a WARNING when it fires. The false-negative / false-positive classes documented below are addressed as follows:
 
 - **SEO-slug false-negatives** — no longer registry-dependent; C1a (canary token in observable stream) and C1c (payload text) fire regardless of URL shape.
 - **Editor methods missing from the registry** — editors now emit `read_surface_urls` in their result dicts; the classifier consumes these directly via C1b. No central registry to extend.
@@ -582,7 +584,7 @@ Keep it minimal: one new test under `tests/integration/` that re-runs `classify`
 - Don't drop the `_other` bucket — it's the tripwire that tells us when the taxonomy is incomplete.
 - Don't import from `AgentLab/`. Classifier is brand-new code.
 - Don't bake benchmark-specific logic into the classifier. All dispatch goes through task metadata (delivery_channel, required_tokens, editor_calls).
-- Don't change `probe_ecological_validity` semantics or the threshold.
+- Don't change PVPO `max_coverage` semantics or the `injection_not_encountered` stamp. The threshold-based `VALIDITY_THRESHOLD` comparison was deleted in the PVPO cutover (2026-04-19) — see [`codex-handoff-paint-verified-oracle.md`](./codex-handoff-paint-verified-oracle.md) §5.
 - Don't re-run any agent to re-classify — classification is offline-only.
 - Don't skip hooks or force-push.
 - Don't "fix" the `worldsim-v5-technical-specifcation.md` filename typo.
@@ -594,7 +596,7 @@ Keep it minimal: one new test under `tests/integration/` that re-runs `classify`
 - **Anchor:** `logs/phase_4/20260417_190423/` — the demo that surfaced the three distinct `task_broke` cases.
 - **Current outcome classifier:** `worldsim/phases/phase_4_adversarial.py:1322-1328` — the 3-way split being replaced.
 - **Reward signature to extend:** `worldsim/rewards.py` — `run_reward_function` returns `(bool, str)`; v2 extends to `(bool, str, dict)`.
-- **Validity probe:** `worldsim/phases/phase_4_adversarial.py::probe_ecological_validity` — upstream, classifier consumes its output.
+- **Encounter + P(eval):** `worldsim/phase_4/encounter_detection.py::determine_encounter` and `worldsim/phase_4/p_eval_api.py::run_p_eval_api` — upstream of the classifier. `probe_ecological_validity` survives as a deprecated thin wrapper. P(eval) is observational after 2026-04-19; the classifier no longer filters on a validity threshold.
 - **Trajectory artifacts:** `logs/phase_4/<run_id>/<task_id>/{history.json, network_trace.json, final_response.json, processed_result.json, result.json}`.
 - **Companion handoff:** `docs/handoffs/codex-handoff-phase-2c-feasibility-verification.md` — Phase 2c feasibility is orthogonal but complementary; together they clean up the `error` and `task_broke` buckets.
 - **WASP precedent:** `github.com/facebookresearch/wasp` — their conditional-ASR reporting is the model for our stratified summary.
