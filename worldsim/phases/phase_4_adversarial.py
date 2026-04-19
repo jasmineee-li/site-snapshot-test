@@ -30,10 +30,12 @@ Adaptive strategy variation (one round per task, fan-out up to 3 variants):
 Strategy pool: 22 strategies in ``ALLOWED_STRATEGIES`` (see
 ``strategy_catalog.py``), filtered from Dziemian et al. 2026 Table 6.
 
-Judge + variant generator use direct Anthropic API calls via
-``worldsim.phase_4.judge_api`` and ``worldsim.phase_4.variant_api``. The
-ecological-validity probe, placement-fix, and ecoval-fix loops still run in
-Modal sandboxes via ``run_claude_in_sandbox``.
+Judge, variant generator, P(eval) probe, and placement-fix all use direct
+Anthropic API calls via ``worldsim.phase_4.{judge_api, variant_api,
+p_eval_api, placement_api}``. The legacy sandbox path
+(``run_claude_in_sandbox``) has zero callers in this module after the
+2026-04-19 PVPO + placement-fix cutovers; other Phase 4 callers (Phase 2
+planning, Phase 0c profiling) still use the sandbox.
 """
 
 from __future__ import annotations
@@ -43,7 +45,6 @@ import asyncio
 import json
 import logging
 import os
-import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -76,9 +77,10 @@ from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.failpoints import crash_if_enabled
 from worldsim.instance_selection import select_task_site_instance
-from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
+from worldsim.modal_sandbox import preflight_auth_check
 from worldsim.phase_4.encounter_detection import EncounterResult, determine_encounter
 from worldsim.phase_4.p_eval_api import run_p_eval_api
+from worldsim.phase_4.placement_api import run_placement_api
 from worldsim.phases.phase_2_text_fill import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
@@ -86,7 +88,6 @@ from worldsim.phases.phase_2_text_fill import (
 )
 from worldsim.placeholders import merge_placeholder_maps
 from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
-from worldsim.prompt_loading import load_prompt
 from worldsim.resume_metadata import (
     RESULT_FINGERPRINT_KEY,
     fingerprint_payload,
@@ -120,7 +121,7 @@ from worldsim.task_reset_cache import (
     callable_accepts_keyword,
     result_likely_mutated_state,
 )
-from worldsim.trajectory import load_trajectory_into_sandbox, save_result
+from worldsim.trajectory import save_result
 
 logger = logging.getLogger(__name__)
 _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
@@ -132,8 +133,6 @@ _VARIANT_RESULT_METADATA = "resume_metadata.json"
 # validation callers.
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
 
-REVISED_TASK_OUTPUT = "/workspace/output/revised_task.json"
-VARIANT_TASK_OUTPUT = "/workspace/output/variant_task.json"
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 
 
@@ -1920,15 +1919,23 @@ async def _run_placement_fix_loop(
     current_result = initial_result
 
     for iteration in range(PLACEMENT_FIX_MAX_ITERATIONS):
-        revised_task = await _revise_adversarial_task(
-            task=current_task,
+        placement_outcome = await run_placement_api(
+            current_task,
             trajectory_dir=Path(current_result.get("trajectory_dir", "")),
-            profile_path=profile_path,
-            prompt_name="fix-injection-placement",
-            revision_kind="placement_fix",
-            output_path=REVISED_TASK_OUTPUT,
             sandbox_model=sandbox_model,
         )
+        if placement_outcome["status"] != "ok":
+            # API-side failure — couldn't get a revised seed back. Treat as
+            # "no_change" so the loop exits cleanly with the failure recorded.
+            return {
+                "status": "no_change",
+                "attempts": attempts,
+                "final_result": current_result,
+                "final_task": current_task,
+                "placement_failure_class": placement_outcome.get("failure_class"),
+                "placement_diagnosis": placement_outcome.get("diagnosis"),
+            }
+        revised_task = _merge_variant_task(current_task, placement_outcome["new_task"])
         if _tasks_equivalent(current_task, revised_task):
             return {
                 "status": "no_change",
@@ -2761,74 +2768,6 @@ def _is_non_interpretable_benign_eval(
             "vendor evaluator failed",
         )
     )
-
-
-async def _revise_adversarial_task(
-    task: dict[str, Any],
-    trajectory_dir: Path | None,
-    profile_path: Path,
-    prompt_name: str,
-    revision_kind: str,
-    output_path: str,
-    merge_base_task: dict[str, Any] | None = None,
-    sandbox_model: str = "claude-sonnet-4-6",
-) -> dict[str, Any]:
-    """Run a sandbox that revises only the adversarial seed of a task."""
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp = Path(tmp_dir)
-        task_json_path = tmp / "task.json"
-        task_json_path.write_text(json.dumps(task, indent=2))
-
-        sandbox_files: dict[str, str] = {
-            "/workspace/task.json": str(task_json_path),
-        }
-        if trajectory_dir is not None and trajectory_dir.exists():
-            load_trajectory_into_sandbox(trajectory_dir, sandbox_files)
-        if profile_path.exists():
-            sandbox_files["/workspace/profile/BENCHMARK_PROFILE.json"] = str(profile_path)
-
-        # Map output path to the matching validator subcommand.
-        _output_to_validator = {
-            REVISED_TASK_OUTPUT: "revised-task",
-            VARIANT_TASK_OUTPUT: "variant-task",
-        }
-        validation_cmd = _output_to_validator.get(output_path)
-
-        outputs = await run_claude_in_sandbox(
-            site_files=sandbox_files,
-            prompt=load_prompt(prompt_name, validation_command=validation_cmd),
-            output_paths=[output_path],
-            model=sandbox_model,
-            label=f"4-{revision_kind}-{task.get('id', 'unknown')}",
-        )
-
-    cost_tracker.record(
-        "phase_4",
-        outputs.get("_summary"),
-        task_id=task.get("id"),
-        site=task.get("site"),
-    )
-
-    revised_json = outputs.get(output_path)
-    if not revised_json:
-        logger.warning(
-            "Task revision sandbox produced no output for %s on task %s",
-            revision_kind,
-            task.get("id", "?"),
-        )
-        return task
-
-    try:
-        candidate = json.loads(revised_json)
-    except json.JSONDecodeError:
-        logger.warning(
-            "Task revision sandbox produced invalid JSON for %s on task %s",
-            revision_kind,
-            task.get("id", "?"),
-        )
-        return task
-
-    return _merge_variant_task(merge_base_task or task, candidate)
 
 
 async def _rerun_adversarial_task(
