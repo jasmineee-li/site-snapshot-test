@@ -49,6 +49,33 @@ def _entry(
     }
 
 
+def test_pvpo_query_js_uses_multinode_linearization():
+    """Finding 4 regression guard: the JS query must linearize text nodes
+    before substring-matching the payload, not search each node
+    individually.
+
+    The pre-fix implementation looped per-text-node calling
+    ``content.indexOf(payloadText)`` and missed payloads spanning multiple
+    nodes (auto-linkified URLs, inline ``<em>`` etc.). The fix builds a
+    flat ``corpus`` + ``charMap`` and runs a single ``corpus.indexOf(...)``.
+    A regression here would silently lower max_coverage in production —
+    quietly miss-routing trajectories to placement-fix — so we pin the
+    structural change at the JS-source level.
+    """
+    js = build_pvpo_query_js("anything")
+    # Linearization markers — corpus assembly + charMap lookup table.
+    assert "const charMap" in js
+    assert "let corpus" in js
+    # Single match against the linearized corpus, not per-node loop.
+    assert "corpus.indexOf(payloadText)" in js
+    # No remaining substitution token.
+    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
+    # Per-char ancestor uses the source text node's parent so inline-
+    # wrapped runs (e.g. an `<a>` inside a `<p>`) are individually
+    # visibility-checked rather than inheriting the first match's parent.
+    assert "sourceNode.parentElement" in js
+
+
 def test_rect_as_cdp_clip_shape():
     rect = Rect(x=10, y=20, w=300, h=200)
     clip = rect.as_cdp_clip()

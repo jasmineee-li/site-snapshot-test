@@ -53,9 +53,15 @@
 
   if (!payloadText) return emptyResult();
 
-  // Walk every text node and find the first one whose textContent contains
-  // ``payloadText``. Skip script/style subtrees — their text nodes never
-  // render.
+  // Walk every renderable text node and linearize them into one corpus
+  // string + a parallel ``charMap`` from global character offset to
+  // ``(textNodeIndex, intraNodeOffset)``. This lets us find the payload
+  // even when it spans multiple text nodes — which is the common case on
+  // sites that auto-linkify URLs (reddit) or apply inline formatting
+  // (`<em>`, `<strong>`, `<code>`, `<a>`) inside UGC fields. The pre-fix
+  // implementation searched each text node individually and missed every
+  // such case. See Finding 4 in
+  // ``docs/todo-pvpo-post-ship-review.md``.
   const walker = document.createTreeWalker(
     document.body || document.documentElement,
     NodeFilter.SHOW_TEXT,
@@ -73,25 +79,38 @@
     },
   );
 
-  /** @type {Text | null} */
-  let matchNode = null;
-  let matchOffset = -1;
+  /** @type {Text[]} */
+  const textNodes = [];
+  /** @type {{nodeIndex:number, offset:number}[]} */
+  const charMap = [];
+  let corpus = "";
   while (walker.nextNode()) {
     const node = /** @type {Text} */ (walker.currentNode);
     const content = node.textContent || "";
-    const idx = content.indexOf(payloadText);
-    if (idx >= 0) {
-      matchNode = node;
-      matchOffset = idx;
-      break;
+    if (!content) continue;
+    const nodeIndex = textNodes.length;
+    textNodes.push(node);
+    for (let o = 0; o < content.length; o++) {
+      charMap.push({ nodeIndex, offset: o });
     }
+    corpus += content;
   }
 
-  if (matchNode === null) {
+  const matchOffset = corpus.indexOf(payloadText);
+  if (matchOffset < 0) {
     // Payload wasn't rendered anywhere in the DOM. The host treats this as
     // zero coverage — routed to placement-fix.
     return emptyResult();
   }
+
+  // Anchor for visibility / background resolution: parent element of the
+  // first matched character's source text node. When the match spans
+  // multiple inline runs, all chars share the same nearest block ancestor
+  // (otherwise the page broke layout rules) so this is a sound base
+  // reference even though per-char ``ancestor`` may differ.
+  const firstSourceInfo = charMap[matchOffset];
+  const firstSourceNode = textNodes[firstSourceInfo.nodeIndex];
+  const matchNode = firstSourceNode;
 
   /** @type {CharResult[]} */
   const entries = [];
@@ -113,8 +132,10 @@
       continue;
     }
 
-    range.setStart(matchNode, matchOffset + i);
-    range.setEnd(matchNode, matchOffset + i + 1);
+    const sourceInfo = charMap[matchOffset + i];
+    const sourceNode = textNodes[sourceInfo.nodeIndex];
+    range.setStart(sourceNode, sourceInfo.offset);
+    range.setEnd(sourceNode, sourceInfo.offset + 1);
     const liveRect = range.getBoundingClientRect();
 
     const inViewport =
@@ -125,7 +146,12 @@
       liveRect.left < viewportW &&
       liveRect.top < viewportH;
 
-    const ancestor = matchNode.parentElement;
+    // Visibility / occlusion are evaluated against THIS char's source
+    // node parent — not the first match's parent — so that an inline-
+    // wrapped run (e.g. an `<a>` inside a `<p>`) that's hidden by CSS
+    // gets correctly classified as not layout-visible even if other
+    // chars in the same payload are visible.
+    const ancestor = sourceNode.parentElement;
     const ancestorVisible = ancestor
       ? ancestor.checkVisibility({
           opacityProperty: true,
