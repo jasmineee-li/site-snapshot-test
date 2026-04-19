@@ -3,39 +3,95 @@
  * Per-character visibility + viewport-bg-color query for the Paint-Verified
  * Payload Oracle.
  *
- * Runs inside the page via CDP ``Runtime.evaluate``. Returns an object with:
+ * Caller injects the seeded payload text via ``__WORLDSIM_PAYLOAD_JSON__``
+ * substitution (JSON-encoded at the call site). This query locates the
+ * payload on the page by substring-matching text nodes via TreeWalker —
+ * we do NOT depend on any DOM attribute or wrapping element being
+ * preserved by the site. This matters because many production sites
+ * (Magento, reddit, gitlab) sanitize HTML in UGC fields: a ``<span
+ * data-worldsim-payload>`` wrapper is frequently stripped before rendering.
  *
- *   - ``entries``: one record per character of the seeded payload text
- *     identified by the ``[data-worldsim-payload]`` anchor. Each record
- *     carries ``layoutVisible`` (in-viewport ∧ ancestor visible ∧ not
- *     occluded) and the ``liveRect`` where the glyph is painted.
+ * Returns an object with:
+ *
+ *   - ``entries``: one record per character of the matched payload text.
+ *     Each record carries ``layoutVisible`` (in-viewport ∧ ancestor
+ *     visible ∧ not occluded) and the ``liveRect`` where the glyph is
+ *     painted.
  *   - ``backgroundColor``: the page's effective viewport background color,
- *     resolved by walking up the ancestor chain from the payload anchor
- *     until a non-transparent ``background-color`` is found, then falling
- *     back to ``getComputedStyle(document.documentElement).backgroundColor``.
- *     Used host-side by the ink-occupancy oracle to distinguish painted
- *     glyph pixels from untouched background pixels.
+ *     resolved by walking up the ancestor chain from the matched text
+ *     node until a non-transparent ``background-color`` is found, then
+ *     falling back to
+ *     ``getComputedStyle(document.documentElement).backgroundColor``. Used
+ *     host-side by the ink-occupancy oracle.
+ *   - ``matchOffset`` / ``matchFound``: diagnostic fields so the host can
+ *     distinguish "payload was rendered somewhere else in the DOM"
+ *     (matchFound=true) from "payload never reached the DOM"
+ *     (matchFound=false).
  *
- * Range-based per-char rects keep OpenType ligature shaping intact. No DOM
- * mutation of the live payload.
+ * Range-based per-char rects keep OpenType ligature shaping intact. No
+ * DOM mutation of the live payload.
  *
  * @typedef {{x:number,y:number,w:number,h:number}} Rect
  * @typedef {{r:number,g:number,b:number}} Rgb
  * @typedef {{i:number,char:string,isSpace:boolean,layoutVisible:boolean,liveRect:Rect|null}} CharResult
- * @typedef {{entries:CharResult[], backgroundColor:Rgb}} QueryResult
+ * @typedef {{entries:CharResult[], backgroundColor:Rgb, matchFound:boolean, matchOffset:number}} QueryResult
  */
 
 (() => {
+  /** @type {string} */
+  const payloadText = __WORLDSIM_PAYLOAD_JSON__;
+
   /** @returns {QueryResult} */
   function emptyResult() {
-    return { entries: [], backgroundColor: { r: 255, g: 255, b: 255 } };
+    return {
+      entries: [],
+      backgroundColor: { r: 255, g: 255, b: 255 },
+      matchFound: false,
+      matchOffset: -1,
+    };
   }
 
-  const payloadAnchor = document.querySelector("[data-worldsim-payload]");
-  if (!payloadAnchor) return emptyResult();
+  if (!payloadText) return emptyResult();
 
-  const textNode = payloadAnchor.firstChild;
-  if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return emptyResult();
+  // Walk every text node and find the first one whose textContent contains
+  // ``payloadText``. Skip script/style subtrees — their text nodes never
+  // render.
+  const walker = document.createTreeWalker(
+    document.body || document.documentElement,
+    NodeFilter.SHOW_TEXT,
+    {
+      /** @param {Node} node */
+      acceptNode(node) {
+        const p = /** @type {Element | null} */ (node.parentElement);
+        if (!p) return NodeFilter.FILTER_REJECT;
+        const tag = p.tagName;
+        if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT") {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    },
+  );
+
+  /** @type {Text | null} */
+  let matchNode = null;
+  let matchOffset = -1;
+  while (walker.nextNode()) {
+    const node = /** @type {Text} */ (walker.currentNode);
+    const content = node.textContent || "";
+    const idx = content.indexOf(payloadText);
+    if (idx >= 0) {
+      matchNode = node;
+      matchOffset = idx;
+      break;
+    }
+  }
+
+  if (matchNode === null) {
+    // Payload wasn't rendered anywhere in the DOM. The host treats this as
+    // zero coverage — routed to placement-fix.
+    return emptyResult();
+  }
 
   /** @type {CharResult[]} */
   const entries = [];
@@ -44,9 +100,8 @@
   const viewportW = window.innerWidth;
   const viewportH = window.innerHeight;
 
-  const content = textNode.textContent || "";
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
+  for (let i = 0; i < payloadText.length; i++) {
+    const char = payloadText[i];
     if (/\s/.test(char)) {
       entries.push({
         i,
@@ -58,8 +113,8 @@
       continue;
     }
 
-    range.setStart(textNode, i);
-    range.setEnd(textNode, i + 1);
+    range.setStart(matchNode, matchOffset + i);
+    range.setEnd(matchNode, matchOffset + i + 1);
     const liveRect = range.getBoundingClientRect();
 
     const inViewport =
@@ -70,7 +125,7 @@
       liveRect.left < viewportW &&
       liveRect.top < viewportH;
 
-    const ancestor = textNode.parentElement;
+    const ancestor = matchNode.parentElement;
     const ancestorVisible = ancestor
       ? ancestor.checkVisibility({
           opacityProperty: true,
@@ -99,9 +154,9 @@
     });
   }
 
-  const backgroundColor = resolveBackgroundColor(payloadAnchor);
+  const backgroundColor = resolveBackgroundColor(matchNode.parentElement);
 
-  return { entries, backgroundColor };
+  return { entries, backgroundColor, matchFound: true, matchOffset };
 
   /**
    * @param {DOMRect} r
@@ -117,12 +172,12 @@
   }
 
   /**
-   * Resolve the effective background color seen behind the payload text.
-   * Walk up the ancestor chain from the payload anchor; return the first
-   * non-transparent ``background-color``. Fall back to documentElement
-   * and finally to opaque white.
+   * Resolve the effective background color seen behind the matched text.
+   * Walk up from the matched text node's parent; return the first
+   * non-transparent ``background-color``. Fall back to documentElement,
+   * then opaque white.
    *
-   * @param {Element} start
+   * @param {Element | null} start
    * @returns {Rgb}
    */
   function resolveBackgroundColor(start) {
@@ -134,15 +189,16 @@
       if (parsed) return parsed;
       node = node.parentElement;
     }
-    const rootBg = parseRgb(getComputedStyle(document.documentElement).backgroundColor);
+    const rootBg = parseRgb(
+      getComputedStyle(document.documentElement).backgroundColor,
+    );
     if (rootBg) return rootBg;
     return { r: 255, g: 255, b: 255 };
   }
 
   /**
    * Parse ``rgb(r, g, b)`` or ``rgba(r, g, b, a)`` strings. Returns null
-   * for ``transparent`` / fully-alpha-zero, so ``resolveBackgroundColor``
-   * keeps walking.
+   * for ``transparent`` / fully-alpha-zero so the ancestor walk keeps going.
    *
    * @param {string} str
    * @returns {Rgb | null}

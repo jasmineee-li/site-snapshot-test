@@ -1466,6 +1466,16 @@ async def run_adversarial_task(
                 site_value = task.get("site")
                 if isinstance(site_value, str) and site_value:
                     run_kwargs["task_site"] = site_value
+            # Plumb the seeded payload text so the PVPO step callback can
+            # locate it by substring match on the delivery page. When no
+            # payload_texts are attached to the task (benign runs, seed-
+            # preflight failures), PVPO capture is disabled.
+            _payload_texts = task.get("payload_texts") or []
+            if _payload_texts:
+                _first = _payload_texts[0] or {}
+                _rendered = _first.get("rendered_payload")
+                if isinstance(_rendered, str) and _rendered:
+                    run_kwargs["payload_text"] = _rendered
             result = await agent.run(
                 instruction,
                 instance.site_url,

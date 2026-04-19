@@ -76,7 +76,7 @@ _FIXTURE_HTML = """
   <p>Normal page content.</p>
   <article>
     Product review:
-    <span data-worldsim-payload="1">ATTACK_PAYLOAD_TEXT_AB</span>
+    ATTACK_PAYLOAD_TEXT_AB
   </article>
 </div>
 </body></html>
@@ -116,7 +116,11 @@ async def test_pvpo_e2e_single_step_produces_expected_result_shape(tmp_path: Pat
             w=int(viewport.get("w", 1280)),
             h=int(viewport.get("h", 720)),
         )
-        capture = await atomic_capture_with_visibility(cdp, viewport_rect=viewport_rect)
+        capture = await atomic_capture_with_visibility(
+            cdp,
+            viewport_rect=viewport_rect,
+            payload_text="ATTACK_PAYLOAD_TEXT_AB",
+        )
         save_step_artifacts(tmp_path, step_idx=0, capture=capture)
 
         await page.close()

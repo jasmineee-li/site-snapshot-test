@@ -75,6 +75,7 @@ class AgentRunner(Protocol):
         auth_mechanism: dict[str, Any] | None = None,
         benchmark_root: Path | None = None,
         task_site: str | None = None,
+        payload_text: str | None = None,
     ) -> AgentResult: ...
 
     async def teardown(self) -> None: ...
@@ -838,6 +839,7 @@ class BrowserUseAgent:
         auth_mechanism: dict[str, Any] | None = None,
         benchmark_root: Path | None = None,
         task_site: str | None = None,
+        payload_text: str | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
 
@@ -909,7 +911,7 @@ class BrowserUseAgent:
         try:
             initial_actions = _build_initial_actions(start_urls or [])
             task_text = site_prompt if site_prompt else task
-            pvpo_hook = _make_pvpo_step_callback(self._session, task_dir)
+            pvpo_hook = _make_pvpo_step_callback(self._session, task_dir, payload_text)
             agent = Agent(
                 task=task_text,
                 llm=self.llm,
@@ -1090,19 +1092,17 @@ def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[st
     return steps, is_done, final_result, errors
 
 
-def _make_pvpo_step_callback(session: Any, task_dir: Path):
+def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | None):
     """Build the per-step callback that captures PVPO artifacts.
 
     Browser-Use invokes this after each agent step with
     ``(browser_state_summary, agent_output, step_index)``. We use the step
     boundary to:
 
-    1. Idempotently inject the animation-killer stylesheet + CDP animation
-       pause on the current page (once per page load).
-    2. Idempotently inject the hidden per-character reference container as
-       a sibling of the ``[data-worldsim-payload]`` anchor — only on pages
-       where the payload is actually present.
-    3. Pause virtual time, run the per-char visibility query, capture a
+    1. Idempotently inject the animation-killer stylesheet on the current
+       page (once per page load).
+    2. Pause virtual time, run the per-char visibility query (which locates
+       ``payload_text`` in the live DOM by substring match), capture a
        deterministic ``HeadlessExperimental.beginFrame`` screenshot, and
        write ``pvpo/step_{N}.json`` + ``screenshots/step_{N}.png``.
 
@@ -1114,25 +1114,34 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path):
     ``_copy_history_screenshots`` after the agent finishes, and encounter
     detection reports zero coverage — routing to placement-fix.
 
-    See ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3.
+    When ``payload_text`` is None or empty, PVPO capture is disabled (we
+    have nothing to locate in the DOM). This is the benign-task / no-seed
+    case.
+
+    See ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3 and
+    the Implementation Status section documenting the content-match
+    anchor strategy.
     """
+    if not payload_text:
+
+        async def _noop(state_summary: Any, agent_output: Any, step_idx: int) -> None:
+            return None
+
+        return _noop
+
     # Import inside the factory so import-time failure of optional PVPO deps
     # (Pillow, numpy, phase_4 subpackage) does not break the base AgentRunner.
-    from worldsim.phase_4.pvpo_browser_config import (
-        PAYLOAD_ANCHOR_ATTR,
-        inject_animation_killer,
-    )
+    from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
     from worldsim.phase_4.pvpo_capture import (
         Rect,
         atomic_capture_with_visibility,
         save_step_artifacts,
     )
 
-    anchor_selector = f"[{PAYLOAD_ANCHOR_ATTR}]"
-    # Shared per-run state: avoid re-installing the animation-killer stylesheet
-    # on every step. No reference-container state after the ink-occupancy
-    # cutover — host-side verification works directly against the viewport
-    # background color returned by the JS query.
+    # Shared per-run state: avoid re-installing the animation-killer
+    # stylesheet on every step. No reference-container state and no anchor-
+    # attribute lookup after the ink-occupancy + content-match cutover —
+    # the JS query walks text nodes for the payload substring directly.
     pages_prepared: set[int] = set()
 
     async def _callback(state_summary: Any, agent_output: Any, step_idx: int) -> None:
@@ -1157,19 +1166,6 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path):
             logger.debug("pvpo: inject_animation_killer failed at step %d: %s", step_idx, exc)
 
         try:
-            has_anchor = await page.evaluate(
-                f"(() => !!document.querySelector({anchor_selector!r}))()"
-            )
-        except Exception as exc:
-            logger.debug("pvpo: anchor lookup failed at step %d: %s", step_idx, exc)
-            return
-
-        if not has_anchor:
-            # Anchor not on this page — nothing to measure. Browser-Use's own
-            # per-step screenshot still lands via _copy_history_screenshots.
-            return
-
-        try:
             viewport = await page.evaluate(
                 "(() => ({w: window.innerWidth, h: window.innerHeight}))()"
             )
@@ -1179,7 +1175,11 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path):
                 w=int(viewport.get("w", 0)) or 1280,
                 h=int(viewport.get("h", 0)) or 720,
             )
-            capture = await atomic_capture_with_visibility(cdp_session, viewport_rect=viewport_rect)
+            capture = await atomic_capture_with_visibility(
+                cdp_session,
+                viewport_rect=viewport_rect,
+                payload_text=payload_text,
+            )
             save_step_artifacts(task_dir, step_idx, capture)
         except Exception as exc:
             logger.debug("pvpo: capture failed at step %d: %s", step_idx, exc)

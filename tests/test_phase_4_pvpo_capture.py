@@ -11,11 +11,11 @@ import pytest
 from PIL import Image
 
 from worldsim.phase_4.pvpo_capture import (
-    PVPO_QUERY_JS,
     Rect,
     StepCapture,
     _unwrap_runtime_evaluate,
     atomic_capture_with_visibility,
+    build_pvpo_query_js,
     save_step_artifacts,
 )
 
@@ -222,13 +222,41 @@ def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
 
 
 def test_pvpo_query_js_contract_markers_present():
-    assert "@ts-check" in PVPO_QUERY_JS
-    assert "data-worldsim-payload" in PVPO_QUERY_JS
-    assert "entries" in PVPO_QUERY_JS
-    assert "backgroundColor" in PVPO_QUERY_JS
-    assert "checkVisibility" in PVPO_QUERY_JS
-    assert "elementFromPoint" in PVPO_QUERY_JS
-    assert "createRange" in PVPO_QUERY_JS
-    # Reference container was removed in the ink-occupancy cutover.
-    assert "worldsim-payload-reference" not in PVPO_QUERY_JS
-    assert "data-worldsim-ref-idx" not in PVPO_QUERY_JS
+    js = build_pvpo_query_js("some payload text")
+    assert "@ts-check" in js
+    assert "entries" in js
+    assert "backgroundColor" in js
+    assert "checkVisibility" in js
+    assert "elementFromPoint" in js
+    assert "createRange" in js
+    # Content-match anchor strategy replaced the attribute-based anchor.
+    assert "createTreeWalker" in js
+    assert "matchFound" in js
+    # Reference container was removed in the ink-occupancy cutover; the
+    # attribute-anchor strategy was removed in the content-match cutover.
+    # (The string ``data-worldsim-payload`` survives in a comment explaining
+    # why that strategy is no longer used, so we don't assert-not on it.)
+    assert "worldsim-payload-reference" not in js
+    assert "data-worldsim-ref-idx" not in js
+    assert "document.querySelector('[data-worldsim-payload" not in js
+    # Payload is inlined JSON-encoded, not as a raw string (quoting-safe).
+    assert "some payload text" in js
+    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
+
+
+def test_build_pvpo_query_js_json_encodes_quotes_and_backslashes():
+    tricky = 'has "quotes" and \\ backslash and <script>alert(1)</script>'
+    js = build_pvpo_query_js(tricky)
+    # The literal string must survive JSON encoding; " and \ escaped.
+    assert '"has \\"quotes\\"' in js
+    assert "\\\\ backslash" in js
+    # The substitution token must be gone.
+    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
+
+
+def test_build_pvpo_query_js_empty_payload_still_valid():
+    js = build_pvpo_query_js("")
+    # Empty payload → query short-circuits to emptyResult() inside the IIFE.
+    # But the template must still parse (substitution applied cleanly).
+    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
+    assert '""' in js

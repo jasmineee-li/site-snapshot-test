@@ -35,7 +35,26 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-PVPO_QUERY_JS: str = (Path(__file__).parent / "pvpo_query.js").read_text(encoding="utf-8")
+_PVPO_QUERY_JS_TEMPLATE: str = (Path(__file__).parent / "pvpo_query.js").read_text(encoding="utf-8")
+_PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_PAYLOAD_JSON__"
+
+
+def build_pvpo_query_js(payload_text: str) -> str:
+    """Return the PVPO per-step JS with ``payload_text`` inlined as a JSON literal.
+
+    The query uses substring matching against every text node in the DOM to
+    locate the rendered payload — we do not depend on any HTML wrapper or
+    data-attribute being preserved by the site. ``payload_text`` is JSON-
+    encoded so characters like quotes and backslashes remain valid JS
+    strings.
+    """
+    return _PVPO_QUERY_JS_TEMPLATE.replace(_PAYLOAD_SUBSTITUTION_TOKEN, json.dumps(payload_text))
+
+
+# Back-compat: the old constant returned a non-parameterized JS blob. Anything
+# that still imports it now gets a query that matches an empty string (no
+# match → empty result). New callers should use ``build_pvpo_query_js``.
+PVPO_QUERY_JS: str = build_pvpo_query_js("")
 
 
 @dataclass(frozen=True)
@@ -77,6 +96,7 @@ async def atomic_capture_with_visibility(
     cdp_session: Any,
     *,
     viewport_rect: Rect,
+    payload_text: str = "",
 ) -> StepCapture:
     """Run the virtual-time-paused visibility query + ``beginFrame`` screenshot.
 
@@ -89,6 +109,11 @@ async def atomic_capture_with_visibility(
             screenshot is clipped to this rect; post-composite capture
             means anything outside the viewport would not be in the frame
             even if the clip were larger.
+        payload_text: the seeded payload string. The JS query substring-
+            matches this against text nodes in the DOM to locate the
+            rendered payload — no HTML wrapper or data-attribute is
+            required. When empty, the query returns an empty result
+            (caller should provide the payload when one is known).
 
     Returns:
         :class:`StepCapture` with decoded PNG bytes, the raw visibility
@@ -102,11 +127,12 @@ async def atomic_capture_with_visibility(
         (no layout mutation occurred). We trust them and log for
         observability — scope locked per handoff §9.
     """
+    query_js = build_pvpo_query_js(payload_text)
     await cdp_session.send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
     try:
         raw = await cdp_session.send(
             "Runtime.evaluate",
-            {"expression": PVPO_QUERY_JS, "returnByValue": True},
+            {"expression": query_js, "returnByValue": True},
         )
         visibility_vec, background_color = _unwrap_runtime_evaluate(raw)
 

@@ -60,7 +60,7 @@ _FIXTURE_HTML = """
   <article>
     <h1>Parity fixture</h1>
     <p>
-      <span data-worldsim-payload="1">ABCDEFGH</span>
+      ABCDEFGH
     </p>
   </article>
 </body></html>
@@ -125,7 +125,9 @@ async def test_pvpo_visibility_vectors_byte_identical_host_vs_container(tmp_path
         host_cdp = await host_context.new_cdp_session(host_page)
         await inject_animation_killer(host_page, host_cdp)
         host_capture = await atomic_capture_with_visibility(
-            host_cdp, viewport_rect=Rect(x=0, y=0, w=1280, h=720)
+            host_cdp,
+            viewport_rect=Rect(x=0, y=0, w=1280, h=720),
+            payload_text="ABCDEFGH",
         )
         await host_page.close()
         await host_browser.close()
@@ -141,7 +143,9 @@ async def test_pvpo_visibility_vectors_byte_identical_host_vs_container(tmp_path
         container_cdp = await container_context.new_cdp_session(container_page)
         await inject_animation_killer(container_page, container_cdp)
         container_capture = await atomic_capture_with_visibility(
-            container_cdp, viewport_rect=Rect(x=0, y=0, w=1280, h=720)
+            container_cdp,
+            viewport_rect=Rect(x=0, y=0, w=1280, h=720),
+            payload_text="ABCDEFGH",
         )
         await container_page.close()
         await container_browser.close()
