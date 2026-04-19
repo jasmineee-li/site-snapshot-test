@@ -36,7 +36,7 @@ Output per task: `validity_report.json` with all three signals + combined score.
 - Without self-reported P(eval), the triangulation claim in the spec (`:50`) is only two signals deep, weaker than advertised.
 
 ### Context
-- **Lite version already exists on `feat/worldsim-v5`**: `worldsim/phases/phase_4_adversarial.py:925` runs a single external-judge P(eval) probe as Gate 1 of the fix-loop. Uses `worldsim/prompts/probe-ecological-validity.md`. This is NOT the rigorous spec-compliant version. Keep it as a cheap runtime gate; Phase 5 is the rigorous post-hoc measurement.
+- **Lite version exists on `feat/worldsim-v5` post-PVPO**: `worldsim/phase_4/p_eval_api.py::run_p_eval_api` is a screenshot-only Anthropic Messages API call with forced tool-use (`score_p_eval`); 5 probes (`content_realism`, `ui_realism`, `data_coherence`, `artifact_presence`, `overall_plausibility`); host-mean. Uses `worldsim/prompts/p-eval.md`. Observational only (no gating, no fix loop). The pre-2026-04-19 sandbox `probe_ecological_validity` and its `probe-ecological-validity.md` prompt were deleted in the PVPO cutover. Keep `run_p_eval_api` as a cheap runtime observational metric; Phase 5 is the rigorous post-hoc measurement.
 - **Orphan branch `origin/claude/plan-eval-experiments-LNd9F`**: contains the full rigorous implementation. Authors Jasmine + Max. Never merged. Covers ~70 percent of Phase 5's surface area, missing only self-reported P(eval).
 - **Trajectory artifacts are stable**: confirmed `history.json`, `final_response.json`, `conversations/`, `screenshots/`, `network.har` all land in per-task dirs. Phase 5 can be a pure post-hoc pass.
 
@@ -311,13 +311,12 @@ Summary of how findings from `docs/research/gpt-deep-research-2026-04-14.md` lan
 - `docs/worldsim-v5-full-specification.md:73-74` (P(eval) probe methodology)
 
 ### Our branch
-- `worldsim/phases/phase_4_adversarial.py:925` (existing lite P(eval) probe)
-- `worldsim/phases/phase_4_adversarial.py:715` (existing ecological-validity fix loop)
-- `worldsim/prompts/probe-ecological-validity.md`
-- `worldsim/prompts/fix-ecological-validity.md`
-- `worldsim/_sandbox_validator.py:842` (existing validity schema)
+- `worldsim/phase_4/p_eval_api.py` (API-path observational P(eval) — replaces the 2026-04-19-deleted lite probe)
+- `worldsim/phase_4/encounter_detection.py` + `worldsim/phase_4/ink_occupancy.py` + `worldsim/phase_4/pvpo_capture.py` (PVPO encounter detection; replaces the deleted ecological-validity fix loop and `probe-ecological-validity.md` / `fix-ecological-validity.md` prompts)
+- `worldsim/_sandbox_validator.py` (validity schema)
 - `docs/TODO-adversarial-rigor-mvp.md` (MVP plan; covers Contribution 1 only)
 - `docs/TODO-adversarial-rigor-mvp.md:361-363` (cost estimates per model)
+- `docs/handoffs/codex-handoff-paint-verified-oracle.md` (PVPO design + Implementation Status — read first)
 
 ### Orphan branches (to merge or port)
 - `origin/claude/plan-eval-experiments-LNd9F:eval_awareness_experiments/experiments/p_eval.py` (5-probe P(eval) bank)

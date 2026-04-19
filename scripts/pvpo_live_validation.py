@@ -1,22 +1,31 @@
-"""Live PVPO validation against r5.
+"""Live PVPO validation against r5 — STALE; superseded by ``pvpo_live_render_check.py``.
 
-One-shot script (not a pytest test) that answers the two questions I cannot
-answer from a synthetic Docker-only fixture:
+This script tests the pre-2026-04-19 ``<span data-worldsim-payload="1">``
+HTML-attribute anchor strategy, which was deleted in commit ``8158b707`` and
+replaced with TreeWalker substring-matching of the seeded ``payload_text``
+against rendered DOM text content (see ``worldsim/phase_4/pvpo_query.js``).
+The first question this script asks is therefore moot — there is no DOM
+attribute to grep for. Use ``scripts/pvpo_live_render_check.py`` instead.
 
-  1. Does the ``<span data-worldsim-payload="1">`` wrapper that
-     ``materialize_adversarial_seed`` emits survive HTML rendering on each
-     WebArena site? — Pick one adversarial task per site from
-     ``logs/phase_2/adversarial_tasks.json``, materialize its seed, apply
-     it via the editor API to the live r5 stack, fetch the delivery page
-     URL, grep for ``data-worldsim-payload``. Sites that strip the span
-     will show up as False here.
+Original docstring (preserved for archival context):
 
-  2. Does the ink-occupancy oracle produce non-zero ``max_coverage`` on
-     real r5 pages? — For sites where the wrapper survives, connect
-     chrome-headless-shell (the Docker container already running on
-     127.0.0.1:9222) via Playwright, navigate to the delivery page, run
-     ``atomic_capture_with_visibility``, run ``determine_encounter``,
-     report ``max_coverage``.
+  One-shot script (not a pytest test) that answers the two questions I cannot
+  answer from a synthetic Docker-only fixture:
+
+    1. Does the ``<span data-worldsim-payload="1">`` wrapper that
+       ``materialize_adversarial_seed`` emits survive HTML rendering on each
+       WebArena site? — Pick one adversarial task per site from
+       ``logs/phase_2/adversarial_tasks.json``, materialize its seed, apply
+       it via the editor API to the live r5 stack, fetch the delivery page
+       URL, grep for ``data-worldsim-payload``. Sites that strip the span
+       will show up as False here.
+
+    2. Does the ink-occupancy oracle produce non-zero ``max_coverage`` on
+       real r5 pages? — For sites where the wrapper survives, connect
+       chrome-headless-shell (the Docker container already running on
+       127.0.0.1:9222) via Playwright, navigate to the delivery page, run
+       ``atomic_capture_with_visibility``, run ``determine_encounter``,
+       report ``max_coverage``.
 
 Prerequisites (operator-enforced):
   - SG sg-08792057943b27a65 temporarily opens 22/7770-7781/8023-8024/9999/

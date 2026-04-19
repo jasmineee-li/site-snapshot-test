@@ -1,5 +1,7 @@
 # WorldSim v5 -- Current Progress
 
+> **Historical session log — pre-PVPO state.** This file is a chronological snapshot of work through 2026-04-17. The PVPO cutover (2026-04-19) deleted the sandbox `probe_ecological_validity` + `_run_ecological_validity_fix_loop`, the `probe-ecological-validity.md` and `fix-ecological-validity.md` prompts, the C1a directive-canary signal, and the `TROJAN-ACK-<hex>` directive token. Treat any reference to those mechanisms below as historical. See [`docs/handoffs/codex-handoff-paint-verified-oracle.md`](./handoffs/codex-handoff-paint-verified-oracle.md) for current state.
+
 Last updated: 2026-04-17
 
 ## 2026-04-17 update

@@ -1,5 +1,7 @@
 # Codex Handoff — Phase 4 Judge + Variant-Gen API Cutover
 
+> **Superseded in part by the PVPO cutover (2026-04-19).** This handoff documents the 2026-04-18 cutover for the judge and variant generator only. Since then: the sandbox-side `probe_ecological_validity` and `_run_ecological_validity_fix_loop` listed under §2.3 "What stays on sandbox" were **deleted** (replaced by the API-path observational `run_p_eval_api`, which is not a gate). The placement-fix loop is also being moved to the API path in a follow-up. The "judge + variant" portion of this handoff is still accurate; treat the rest as historical. See [`codex-handoff-paint-verified-oracle.md`](./codex-handoff-paint-verified-oracle.md) for current state.
+
 **Date:** 2026-04-18
 **Branch:** `feat/worldsim-v5`
 **Scope:** `worldsim/phase_4/**` (new), `worldsim/phases/phase_4_adversarial.py` (modified), `worldsim/prompts/{judge-adversarial-failure,generate-variant}.md` (rewritten), doc updates, tests added/modified.
