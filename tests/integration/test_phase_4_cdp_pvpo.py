@@ -1,27 +1,24 @@
-"""End-to-end PVPO check: BrowserUseAgent + chrome-headless-shell container.
+"""Browser-Use PVPO integration against chrome-headless-shell.
 
-The Phase 4 PVPO integration depends on Browser-Use connecting to the
-``chrome-headless-shell`` container over CDP. When ``WORLDSIM_PVPO_CDP_URL``
-is set, ``browser_use_agent.BrowserUseAgent`` constructs ``BrowserSession``
-with ``cdp_url=...`` instead of launching its own Chromium. That path had
-never been exercised end-to-end before issue #18's CDP-connect patch — the
-prior ``max_coverage=1.0`` verification ran only against the standalone
-``scripts/pvpo_live_render_check.py``.
-
-This test boots a minimal fixture page, drives it through ``BrowserUseAgent``
-under an LLM stub that returns a single no-op step, captures one PVPO frame,
-and asserts the session actually used ``cdp_url`` (not local launch args).
-Skipped when the container is not reachable so CI on laptops without Docker
-is still green.
+This test covers the runtime path that previously broke in production:
+BrowserUseAgent creates a real Browser-Use ``BrowserSession`` connected to
+the external chrome-headless-shell container over CDP, a stub Agent drives
+one page load, and the PVPO callback must emit deterministic artifacts.
 """
 
 from __future__ import annotations
 
-import os
+import asyncio
+import json
 import socket
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.request import urlopen
 
 import pytest
+
+from worldsim.browser_use_agent import BrowserUseAgent
 
 CDP_HOST = "127.0.0.1"
 CDP_PORT = 9222
@@ -40,6 +37,59 @@ def _chrome_headless_shell_reachable() -> bool:
         return False
 
 
+class _FixtureServer:
+    def __init__(self, html: str):
+        self._html = html
+        self._server: ThreadingHTTPServer | None = None
+        self._thread: threading.Thread | None = None
+
+    def __enter__(self) -> str:
+        html = self._html.encode("utf-8")
+
+        class _Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(html)))
+                self.end_headers()
+                self.wfile.write(html)
+
+            def log_message(self, format, *args):
+                return
+
+        self._server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+        return f"http://127.0.0.1:{self._server.server_port}/"
+
+    def __exit__(self, exc_type, exc, tb):
+        assert self._server is not None
+        self._server.shutdown()
+        self._server.server_close()
+        assert self._thread is not None
+        self._thread.join(timeout=5)
+
+
+class _FakeHistory:
+    def __init__(self):
+        self.history = [object()]
+
+    def save_to_file(self, path: Path):
+        path.write_text('{"history":[{"step":1}]}', encoding="utf-8")
+
+    def screenshot_paths(self):
+        return []
+
+    def is_done(self):
+        return True
+
+    def final_result(self):
+        return "ok"
+
+    def errors(self):
+        return []
+
+
 pytestmark = pytest.mark.integration
 
 
@@ -47,60 +97,62 @@ pytestmark = pytest.mark.integration
     not _chrome_headless_shell_reachable(),
     reason="chrome-headless-shell container not reachable on 127.0.0.1:9222",
 )
-def test_browser_session_uses_cdp_url_when_env_set(monkeypatch):
-    """BrowserUseAgent must route through cdp_url when WORLDSIM_PVPO_CDP_URL is set."""
-    from browser_use import BrowserSession
+@pytest.mark.asyncio
+async def test_browser_use_agent_emits_pvpo_artifacts_over_cdp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    import browser_use
 
-    from worldsim import browser_use_agent as mod
+    payload = "PVPO visible payload 123"
+    html = f"""
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"></head>
+  <body>
+    <main>
+      <p>{payload}</p>
+    </main>
+  </body>
+</html>
+"""
 
-    monkeypatch.setenv("WORLDSIM_PVPO_CDP_URL", f"http://{CDP_HOST}:{CDP_PORT}")
+    with _FixtureServer(html) as url:
+        class _FakeAgent:
+            def __init__(self, **kwargs):
+                self._session = kwargs["browser_session"]
+                self._callback = kwargs["register_new_step_callback"]
+                self._initial_actions = kwargs["initial_actions"]
+                self.history = _FakeHistory()
 
-    captured: dict[str, object] = {}
+            async def run(self, max_steps: int = 1):
+                _ = max_steps
+                current_page = await self._session.get_current_page()
+                assert current_page is not None, "Browser-Use must expose a focused page"
+                navigate_url = self._initial_actions[0]["navigate"]["url"]
+                await current_page.goto(navigate_url)
+                await asyncio.sleep(0.5)
+                await self._callback(object(), object(), 1)
+                return self.history
 
-    class _FakeSession:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
+        monkeypatch.setattr(browser_use, "Agent", _FakeAgent)
+        monkeypatch.setenv("WORLDSIM_PVPO_CDP_URL", f"http://{CDP_HOST}:{CDP_PORT}")
 
-        async def start(self):
-            return None
+        runner = BrowserUseAgent(llm=object(), timeout=60)
+        result = await runner.run(
+            task="Open the fixture page",
+            server_url=url,
+            task_dir=tmp_path / "task",
+            start_urls=[url],
+            payload_text=payload,
+        )
 
-        async def close(self):
-            return None
+    assert result.status == "success"
 
-    monkeypatch.setattr(mod, "BrowserSession", _FakeSession, raising=False)
+    task_dir = tmp_path / "task"
+    capture_summary = json.loads((task_dir / "pvpo" / "capture_summary.json").read_text())
+    assert capture_summary["steps_seen"] == 1
+    assert capture_summary["steps_captured"] == 1
 
-    # Reproduce the kwargs-building block from BrowserUseAgent.run without
-    # invoking the full agent loop (that would require a real LLM).
-    pvpo_cdp_url = os.environ.get("WORLDSIM_PVPO_CDP_URL", "").strip()
-    session_kwargs: dict = {"headless": True, "keep_alive": False}
-    if pvpo_cdp_url:
-        session_kwargs["cdp_url"] = pvpo_cdp_url
-    else:
-        session_kwargs["args"] = ["--no-sandbox"]
-    _FakeSession(**session_kwargs)
-
-    assert captured.get("cdp_url") == f"http://{CDP_HOST}:{CDP_PORT}"
-    assert "args" not in captured, "local Chromium args must not be set under CDP-connect"
-    _ = BrowserSession  # silence unused-import lint; proves the symbol still resolves
-
-
-def test_browser_session_uses_local_args_when_env_unset(monkeypatch):
-    """Without WORLDSIM_PVPO_CDP_URL, fall back to local Chromium with normal flags."""
-    monkeypatch.delenv("WORLDSIM_PVPO_CDP_URL", raising=False)
-
-    pvpo_cdp_url = os.environ.get("WORLDSIM_PVPO_CDP_URL", "").strip()
-    session_kwargs: dict = {"headless": True, "keep_alive": False}
-    if pvpo_cdp_url:
-        session_kwargs["cdp_url"] = pvpo_cdp_url
-    else:
-        session_kwargs["args"] = [
-            "--disable-gpu",
-            "--disable-extensions",
-            "--no-sandbox",
-            "--disable-software-rasterizer",
-        ]
-
-    assert "cdp_url" not in session_kwargs
-    assert "--no-sandbox" in session_kwargs["args"]
-    # PVPO flags must NOT appear in the local-launch path — they hang navigation.
-    assert "--enable-begin-frame-control" not in session_kwargs["args"]
+    step_json = json.loads((task_dir / "pvpo" / "step_1.json").read_text())
+    assert step_json["visibility_vec"], "visible payload should produce a non-empty visibility vector"
+    assert (task_dir / "screenshots" / "step_1.png").exists()

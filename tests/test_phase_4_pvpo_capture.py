@@ -258,6 +258,72 @@ async def test_atomic_capture_has_damage_false_does_not_retry(caplog):
     assert any("hasDamage=False" in rec.message for rec in caplog.records)
 
 
+@pytest.mark.asyncio
+async def test_atomic_capture_accepts_browser_use_cdp_session_surface():
+    png = _png_bytes()
+
+    class _Domain:
+        def __init__(self, fn):
+            self._fn = fn
+
+        def __getattr__(self, name: str):
+            async def _call(*, params=None, session_id=None):
+                return await self._fn(name, params or {}, session_id)
+
+            return _call
+
+    class _SendRoot:
+        def __init__(self, fn):
+            self.Emulation = _Domain(fn)
+            self.Runtime = _Domain(fn)
+            self.HeadlessExperimental = _Domain(fn)
+
+    class _Client:
+        def __init__(self, fn):
+            self.send = _SendRoot(fn)
+
+    class _BrowserUseCDPSession:
+        def __init__(self):
+            self.session_id = "session-1"
+            self.cdp_client = _Client(self._handle)
+            self.calls: list[tuple[str, dict[str, Any], str | None]] = []
+
+        async def _handle(self, method_name: str, params: dict[str, Any], session_id: str | None):
+            self.calls.append((method_name, params, session_id))
+            if method_name == "setVirtualTimePolicy":
+                return {}
+            if method_name == "evaluate":
+                return {
+                    "result": {
+                        "type": "object",
+                        "value": {
+                            "entries": [_entry(0, "a", layout_visible=True, live=(10, 10, 5, 5))],
+                            "backgroundColor": {"r": 250, "g": 251, "b": 252},
+                        },
+                    }
+                }
+            if method_name == "beginFrame":
+                return {
+                    "hasDamage": True,
+                    "screenshotData": base64.b64encode(png).decode("ascii"),
+                }
+            raise AssertionError(f"unexpected Browser-Use CDP command {method_name}")
+
+    cdp = _BrowserUseCDPSession()
+
+    capture = await atomic_capture_with_visibility(cdp, viewport_rect=Rect(0, 0, 200, 100))
+
+    assert capture.screenshot_png == png
+    assert capture.background_color == (250, 251, 252)
+    assert capture.visibility_vec[0]["char"] == "a"
+    assert [call[0] for call in cdp.calls] == [
+        "setVirtualTimePolicy",
+        "evaluate",
+        "beginFrame",
+        "setVirtualTimePolicy",
+    ]
+
+
 def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
     capture = StepCapture(
         screenshot_png=_png_bytes(),

@@ -11,9 +11,11 @@ artifacts such as network traces stay isolated per task directory.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -47,6 +49,21 @@ _SENSITIVE_HEADER_SUBSTRINGS = (
     "csrf",
     "key",
 )
+_PHASE_0D_SITE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_REMOTE_PVPO_CDP_OVERRIDE_ENV = "WORLDSIM_ALLOW_REMOTE_PVPO_CDP_URL"
+_CDP_VIEWPORT_JS = """
+(() => ({
+  w: Math.max(0, Number(window.innerWidth || 0)),
+  h: Math.max(0, Number(window.innerHeight || 0))
+}))()
+"""
+_CLEAR_PAGE_STORAGE_JS = """
+(() => {
+  try { window.localStorage.clear(); } catch (_) {}
+  try { window.sessionStorage.clear(); } catch (_) {}
+  return true;
+})()
+"""
 
 
 @dataclass
@@ -620,11 +637,62 @@ def _phase_0d_fallback_path(task: dict[str, Any] | None) -> Path | None:
     site = task.get("site")
     if not isinstance(site, str) or not site.strip():
         return None
+    if _PHASE_0D_SITE_RE.fullmatch(site.strip()) is None:
+        return None
     try:
         from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
     except ImportError:  # pragma: no cover — only triggers on misinstalled env.
         return None
     return phase_0d_artifact_path(site.strip())
+
+
+def _host_is_loopback(host: str | None) -> bool:
+    if not host:
+        return False
+    normalized = host.strip().lower()
+    if normalized in {"localhost", "::1", "[::1]"}:
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
+def _resolve_pvpo_cdp_url(raw_url: str) -> str:
+    """Validate the optional external CDP endpoint for PVPO."""
+    url = raw_url.strip()
+    if not url:
+        return ""
+
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https", "ws", "wss"}:
+        raise ValueError(
+            f"WORLDSIM_PVPO_CDP_URL must use http/https/ws/wss, got {parsed.scheme!r}"
+        )
+    if not parsed.hostname:
+        raise ValueError("WORLDSIM_PVPO_CDP_URL must include a hostname")
+
+    if _host_is_loopback(parsed.hostname):
+        return url
+
+    if os.environ.get(_REMOTE_PVPO_CDP_OVERRIDE_ENV, "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        logger.warning(
+            "PVPO remote CDP endpoint override enabled via %s: %s",
+            _REMOTE_PVPO_CDP_OVERRIDE_ENV,
+            url,
+        )
+        return url
+
+    raise ValueError(
+        "WORLDSIM_PVPO_CDP_URL must point to a loopback CDP endpoint by default; "
+        f"got remote host {parsed.hostname!r}. Set {_REMOTE_PVPO_CDP_OVERRIDE_ENV}=1 "
+        "only if you intentionally trust that remote browser."
+    )
 
 
 def _resolve_storage_state_path(raw_path: str, benchmark_root: Path | None) -> Path:
@@ -842,6 +910,7 @@ class BrowserUseAgent:
         self.timeout = timeout
         self.headless = headless
         self._session: Any = None
+        self._pvpo_cdp_url: str = ""
         # Surface the configured model slug at construction. If the run 404s
         # mid-task, this is the first thing to check against the provider's
         # currently-served model list. An allowlist would rot faster than
@@ -893,7 +962,8 @@ class BrowserUseAgent:
         # (--enable-begin-frame-control et al.); applying those flags to a
         # locally-launched Chromium hangs page.goto() because Browser-Use's
         # navigation model never calls HeadlessExperimental.beginFrame.
-        pvpo_cdp_url = os.environ.get("WORLDSIM_PVPO_CDP_URL", "").strip()
+        pvpo_cdp_url = _resolve_pvpo_cdp_url(os.environ.get("WORLDSIM_PVPO_CDP_URL", ""))
+        self._pvpo_cdp_url = pvpo_cdp_url
         session_kwargs: dict[str, Any] = {
             "headless": self.headless,
             "keep_alive": False,
@@ -997,10 +1067,12 @@ class BrowserUseAgent:
                 # Clean up temp profile dir before killing to avoid /tmp accumulation
                 self._cleanup_temp_profile(self._session)
                 try:
+                    await self._cleanup_external_cdp_state(self._session)
                     await self._session.kill()
                 except Exception as e:
                     logger.warning("BrowserSession kill failed: %s", e)
                 self._session = None
+                self._pvpo_cdp_url = ""
 
         steps, is_done, final_result, history_errors = _extract_history_state(history)
         return AgentResult(
@@ -1018,10 +1090,66 @@ class BrowserUseAgent:
             # Clean up temp profile dir before killing to avoid /tmp accumulation
             self._cleanup_temp_profile(self._session)
             try:
+                await self._cleanup_external_cdp_state(self._session)
                 await self._session.kill()
             except Exception as e:
                 logger.warning("BrowserSession kill failed: %s", e)
             self._session = None
+            self._pvpo_cdp_url = ""
+
+    async def _cleanup_external_cdp_state(self, session: Any) -> None:
+        """Clean up shared CDP browser state between task-scoped runs."""
+        if not self._pvpo_cdp_url:
+            return
+
+        from worldsim.phase_4.pvpo_cdp import runtime_evaluate
+
+        pages: list[Any] = []
+        get_pages = getattr(session, "get_pages", None)
+        if callable(get_pages):
+            try:
+                pages = list(await get_pages())
+            except Exception as exc:
+                logger.debug("PVPO cleanup: could not enumerate pages: %s", exc)
+        if not pages:
+            try:
+                current_page = await session.get_current_page()
+            except Exception as exc:
+                logger.debug("PVPO cleanup: current page unavailable: %s", exc)
+            else:
+                if current_page is not None:
+                    pages = [current_page]
+
+        seen_target_ids: set[str] = set()
+        for page in pages:
+            target_id = getattr(page, "_target_id", None)
+            if not isinstance(target_id, str) or not target_id or target_id in seen_target_ids:
+                continue
+            seen_target_ids.add(target_id)
+            try:
+                cdp_session = await session.get_or_create_cdp_session(target_id=target_id, focus=False)
+                await runtime_evaluate(cdp_session, _CLEAR_PAGE_STORAGE_JS)
+            except Exception as exc:
+                logger.debug(
+                    "PVPO cleanup: could not clear storage for target %s: %s",
+                    target_id,
+                    exc,
+                )
+
+        clear_cookies = getattr(session, "clear_cookies", None)
+        if callable(clear_cookies):
+            try:
+                await clear_cookies()
+            except Exception as exc:
+                logger.debug("PVPO cleanup: could not clear cookies: %s", exc)
+
+        close_page = getattr(session, "close_page", None)
+        if callable(close_page):
+            for page in pages:
+                try:
+                    await close_page(page)
+                except Exception as exc:
+                    logger.debug("PVPO cleanup: could not close page: %s", exc)
 
     @staticmethod
     def _cleanup_temp_profile(session: Any) -> None:
@@ -1189,6 +1317,7 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
     # Import inside the factory so import-time failure of optional PVPO deps
     # (Pillow, numpy, phase_4 subpackage) does not break the base AgentRunner.
     from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
+    from worldsim.phase_4.pvpo_cdp import runtime_evaluate_value
     from worldsim.phase_4.pvpo_capture import (
         Rect,
         atomic_capture_with_visibility,
@@ -1256,10 +1385,13 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
         except Exception as exc:  # pragma: no cover - CDP unavailable
             _record_issue("current_page_unavailable", step_idx, str(exc))
             return
+        if page is None:
+            _record_issue("current_page_unavailable", step_idx, "Browser session has no current page")
+            return
 
         page_key = id(page)
         try:
-            cdp_session = await session.get_or_create_cdp_session(page)
+            cdp_session = await session.get_or_create_cdp_session()
         except Exception as exc:  # pragma: no cover - CDP unavailable
             _record_issue("cdp_session_unavailable", step_idx, str(exc))
             return
@@ -1272,9 +1404,9 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
             _record_issue("animation_killer_failed", step_idx, str(exc))
 
         try:
-            viewport = await page.evaluate(
-                "(() => ({w: window.innerWidth, h: window.innerHeight}))()"
-            )
+            viewport = await runtime_evaluate_value(cdp_session, _CDP_VIEWPORT_JS)
+            if not isinstance(viewport, dict):
+                raise RuntimeError(f"viewport probe returned {type(viewport).__name__}, expected object")
             viewport_rect = Rect(
                 x=0,
                 y=0,

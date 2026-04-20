@@ -26,6 +26,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from worldsim.phase_4.pvpo_cdp import runtime_evaluate
+
 # Chromium launch flags. The binary is ``chrome-headless-shell`` from Chrome
 # for Testing (see ``worldsim/docker/chrome-headless-shell.Dockerfile``).
 # Flag audit: these three are required and active in 2026 Chromium; three
@@ -69,6 +71,15 @@ _INJECT_ANIMATION_KILLER_JS = f"""
 """
 
 
+_INJECT_ANIMATION_KILLER_FALLBACK_EVAL = f"""() => {{
+  if (document.getElementById('worldsim-animation-killer')) return;
+  const style = document.createElement('style');
+  style.id = 'worldsim-animation-killer';
+  style.textContent = {_ANIMATION_KILLER_CSS!r};
+  (document.head || document.documentElement).appendChild(style);
+}}"""
+
+
 async def inject_animation_killer(page: Any, cdp_session: Any | None = None) -> None:
     """Idempotently install the animation-killer stylesheet.
 
@@ -82,18 +93,18 @@ async def inject_animation_killer(page: Any, cdp_session: Any | None = None) -> 
     compositor-animation tests (marked "Flaky on all platforms").
 
     Args:
-        page: the Playwright ``Page`` object whose DOM will receive the
-            style tag.
-        cdp_session: accepted for signature compatibility. Not used — an
-            earlier draft called ``Animation.setPaused({"paused": true})``
-            but that CDP method requires a pre-collected
-            ``animations: [id, ...]`` array per the current DevTools
-            Protocol and is not a global toggle. The CSS route above is
-            the canonical mechanism.
+        page: page-like object used only when no ``cdp_session`` is
+            available and the caller falls back to ``page.evaluate``.
+        cdp_session: preferred transport. When present, the stylesheet is
+            injected with direct CDP ``Runtime.evaluate`` so the Browser-Use
+            path does not depend on ``Page.evaluate``'s custom calling
+            convention.
 
     The WebArena surfaces we target are static HTML forms with no CSS or
     compositor animations, so the residual race reduces to effectively
     zero in our setting.
     """
-    await page.evaluate(_INJECT_ANIMATION_KILLER_JS)
-    _ = cdp_session  # retained for signature compatibility; see docstring.
+    if cdp_session is not None:
+        await runtime_evaluate(cdp_session, _INJECT_ANIMATION_KILLER_JS)
+        return
+    await page.evaluate(_INJECT_ANIMATION_KILLER_FALLBACK_EVAL)

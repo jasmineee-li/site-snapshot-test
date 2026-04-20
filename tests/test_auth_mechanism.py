@@ -19,6 +19,7 @@ import pytest
 from worldsim import _sandbox_validator as validator
 from worldsim.browser_use_agent import (
     AuthArtifactMissingError,
+    _phase_0d_fallback_path,
     _resolve_auth,
 )
 from worldsim.main import _dispatch_phase, _unknown_auth_sites, build_parser
@@ -376,6 +377,12 @@ class TestResolveAuth:
         task = {"site": "shopping"}
         kwargs, _ = _resolve_auth(auth, task=task, benchmark_root=tmp_path / "bench")
         assert kwargs == {"storage_state": str(bootstrap_artifact)}
+
+    def test_phase_0d_fallback_rejects_unsafe_site_name(self, tmp_path: Path, monkeypatch):
+        state_dir = tmp_path / "logs"
+        state_dir.mkdir()
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+        assert _phase_0d_fallback_path({"site": "../escape"}) is None
 
 
 # ---------------------------------------------------------------------------

@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
+from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
 logger = logging.getLogger(__name__)
 
@@ -106,10 +107,9 @@ async def atomic_capture_with_visibility(
     """Run the virtual-time-paused visibility query + ``beginFrame`` screenshot.
 
     Args:
-        cdp_session: Playwright CDP session
-            (``page.context().new_cdp_session(page)``) attached to a
-            ``chrome-headless-shell`` launched with
-            :data:`worldsim.phase_4.pvpo_browser_config.PVPO_LAUNCH_FLAGS`.
+        cdp_session: CDP session object. Supports either Playwright's
+            ``send(method, params)`` surface or Browser-Use 0.12.6's
+            ``cdp_client.send.<Domain>.<method>(..., session_id=...)`` surface.
         viewport_rect: the visual viewport in page coordinates. The
             screenshot is clipped to this rect; post-composite capture
             means anything outside the viewport would not be in the frame
@@ -133,11 +133,12 @@ async def atomic_capture_with_visibility(
         observability — scope locked per handoff §9.
     """
     query_js = build_pvpo_query_js(payload_text)
-    await cdp_session.send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
+    cdp = normalize_cdp_session(cdp_session)
+    await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
     try:
-        raw = await cdp_session.send(
+        raw = await cdp.send(
             "Runtime.evaluate",
-            {"expression": query_js, "returnByValue": True},
+            {"expression": query_js, "returnByValue": True, "awaitPromise": True},
         )
         visibility_vec, background_color, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
         if issue_class is not None:
@@ -147,7 +148,7 @@ async def atomic_capture_with_visibility(
                 issue_message or issue_class,
             )
 
-        frame = await cdp_session.send(
+        frame = await cdp.send(
             "HeadlessExperimental.beginFrame",
             {
                 "screenshot": {
@@ -167,7 +168,7 @@ async def atomic_capture_with_visibility(
         png_b64 = frame.get("screenshotData") or ""
         screenshot_png = base64.b64decode(png_b64) if png_b64 else b""
     finally:
-        await cdp_session.send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
+        await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
 
     return StepCapture(
         screenshot_png=screenshot_png,
