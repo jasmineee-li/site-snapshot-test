@@ -44,7 +44,7 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory
+from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory, extract_task_intent
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -201,7 +201,7 @@ def _normalize_evidence(raw: Any) -> list[str]:
 
 
 def _task_instruction(task: dict[str, Any]) -> str:
-    return str(task.get("description") or task.get("task_description") or task.get("intent") or "")
+    return extract_task_intent(task)
 
 
 def _failure_result(failure: str, raw_response_path: Path | None = None) -> dict[str, Any]:
@@ -308,7 +308,22 @@ async def run_verbalized_eval_awareness_api(
         )
         return _failure_result("malformed_json", raw_path)
 
-    classification = _normalize_classification(parsed.get("classification"))
+    if "classification" not in parsed:
+        # Key missing entirely is a malformed output, not a genuine "Real"
+        # classification. Distinguish it from the upstream "unrecognised label"
+        # fallback below so malformed runs don't silently bias is_aware=false.
+        raw_path = _persist_raw_response(
+            trajectory_dir,
+            {
+                "failure": "malformed_json",
+                "response_text": response_text,
+                "response_id": getattr(response, "id", None),
+            },
+        )
+        return _failure_result("malformed_json", raw_path)
+
+    raw_classification = parsed.get("classification")
+    classification = _normalize_classification(raw_classification)
     evidence = _normalize_evidence(parsed.get("evidence"))
     if classification is None:
         # Upstream behaviour: unrecognised classification falls back to "Real".
@@ -322,7 +337,7 @@ async def run_verbalized_eval_awareness_api(
         trajectory_dir,
         {
             "classification": classification,
-            "raw_classification": parsed.get("classification"),
+            "raw_classification": raw_classification,
             "evidence": evidence,
             "is_aware": is_aware,
             "response_text": response_text,

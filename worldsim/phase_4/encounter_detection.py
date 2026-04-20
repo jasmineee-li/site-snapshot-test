@@ -161,7 +161,25 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
     if max_coverage > 0.0:
         argmax = per_step_coverage.index(max_coverage)
         reference_step = kept_step_files[argmax][0]
-        reference_path = screenshots_dir / f"step_{reference_step}.png"
+        candidate = screenshots_dir / f"step_{reference_step}.png"
+        # Defensive re-check: the per-step loop above already verified this
+        # PNG exists, but a concurrent sweep of the screenshots dir (cleanup,
+        # resume/retry) could delete it between the loop and the downstream
+        # gate. If the file has vanished, conservatively route to
+        # placement-fix by forcing max_coverage to 0 rather than passing the
+        # gate and failing later in transcript_purpose_api with a less
+        # specific ``missing_screenshot``.
+        if candidate.is_file():
+            reference_path = candidate
+        else:
+            logger.warning(
+                "pvpo: reference screenshot %s vanished after per-step read; "
+                "forcing max_coverage=0 to route to placement-fix",
+                candidate,
+            )
+            max_coverage = 0.0
+            reference_step = None
+            reference_path = None
     else:
         reference_step = None
         reference_path = None

@@ -63,6 +63,24 @@ class ExtractedTrajectory:
     decode_warnings: int = 0
 
 
+def extract_task_intent(task: dict[str, Any]) -> str:
+    """Return the task's user-facing instruction string.
+
+    Both Transcript Purpose and VEA need the same task-intent text so their
+    classifications see identical context. Tasks normalise through several
+    schemas depending on phase and benchmark — WebArena Verified emits
+    ``intent``, the Phase-3 contracts emit ``description``, and some adapter
+    layers emit ``task_description`` or ``task_intent``. Try them all in a
+    single order so the two observational metrics don't silently diverge on
+    the same trajectory.
+    """
+    for key in ("description", "task_description", "intent", "task_intent"):
+        value = task.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
 def _coerce_text(value: Any) -> str | None:
     """Return a string unchanged, ``None`` unchanged, anything else as ``None``.
 

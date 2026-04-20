@@ -260,6 +260,50 @@ def test_missing_png_for_pvpo_raises(tmp_path: Path):
         determine_encounter(_task("ab"), tmp_path)
 
 
+def test_reference_png_vanishing_after_loop_forces_zero_coverage(tmp_path: Path):
+    """Concurrent sweep of screenshots dir between loop and gate: route conservatively.
+
+    The per-step loop verifies each PNG exists. A downstream cleanup/resume
+    could then delete the reference PNG before the gate's final sanity
+    check reads it. Rather than passing the gate and letting
+    transcript_purpose_api fail with ``missing_screenshot``, the detector
+    should force ``max_coverage=0`` so the trajectory routes to
+    placement-fix — the correct failure class for "no reference evidence
+    available."
+    """
+    png = _make_png_with_ink([(10, 10, 5, 5)])
+    vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
+    _write_step(tmp_path, 0, vec, png)
+    png_path = tmp_path / "screenshots" / "step_0.png"
+
+    # Simulate the race: let the per-step loop read the file successfully,
+    # then delete it before the final sanity check. We wrap read_bytes to
+    # delete the file after the loop reads its contents — so everything the
+    # loop needs succeeds, but the Path.is_file() re-check at the end sees
+    # a missing file.
+    from worldsim.phase_4 import encounter_detection as _ed
+
+    original_read_bytes = Path.read_bytes
+    deleted = {"done": False}
+
+    def read_then_delete(self: Path) -> bytes:  # type: ignore[override]
+        data = original_read_bytes(self)
+        if self == png_path and not deleted["done"]:
+            self.unlink()
+            deleted["done"] = True
+        return data
+
+    import unittest.mock
+
+    with unittest.mock.patch.object(Path, "read_bytes", read_then_delete):
+        result = _ed.determine_encounter(_task("a"), tmp_path)
+
+    assert deleted["done"] is True
+    assert result.max_coverage == 0.0
+    assert result.reference_step is None
+    assert result.reference_screenshot_path is None
+
+
 def test_encounter_result_as_dict_json_serializable(tmp_path: Path):
     png = _make_png_with_ink([(10, 10, 5, 5)])
     vec = [_visible_entry(0, "a", (10, 10, 5, 5))]

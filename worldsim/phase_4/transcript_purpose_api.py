@@ -33,7 +33,11 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory, as_aer_view
+from worldsim.phase_4.aer_trajectory_extract import (
+    ExtractedTrajectory,
+    as_aer_view,
+    extract_task_intent,
+)
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -359,8 +363,8 @@ async def run_transcript_purpose_api(
         logger.warning("transcript_purpose: unreadable screenshot at %s: %s", screenshot_file, exc)
         return _failure_result("missing_screenshot", trajectory_dir)
 
-    task_intent = task.get("description") or task.get("intent") or task.get("task_intent") or ""
-    aer_text = format_ipi_aer_inline(str(task_intent), as_aer_view(extracted_trajectory))
+    task_intent = extract_task_intent(task)
+    aer_text = format_ipi_aer_inline(task_intent, as_aer_view(extracted_trajectory))
     _persist_transcript(trajectory_dir, aer_text)
 
     client = client or get_client()

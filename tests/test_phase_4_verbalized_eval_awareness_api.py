@@ -14,6 +14,7 @@ judge:
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -335,3 +336,52 @@ async def test_evidence_non_iterable_defaults_to_empty(patched_anthropic_client,
     )
     result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
     assert result["verbalized_eval_awareness_evidence"] == []
+
+
+@pytest.mark.asyncio
+async def test_missing_classification_key_is_malformed_json(patched_anthropic_client, tmp_path):
+    """A valid JSON object without a ``classification`` key must fail loudly.
+
+    Distinct from the ``unknown_classification_falls_back_to_real`` case: an
+    unrecognised label is Jasmine's documented upstream behaviour and falls
+    back to ``Real``. But a response that omits the key entirely is a
+    malformed output, not a genuine ``Real`` — conflating them biases
+    ``is_aware=false`` on runs where the model just forgot to emit the label.
+    """
+    patched_anthropic_client.messages.create = AsyncMock(
+        return_value=_text_response(json.dumps({"evidence": ["some text"]}))
+    )
+    result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
+    assert result["verbalized_eval_awareness_failure"] == "malformed_json"
+    assert result["verbalized_eval_awareness_classification"] is None
+    assert result["verbalized_eval_awareness_is_aware"] is None
+    assert result["verbalized_eval_awareness_evidence"] == []
+
+
+@pytest.mark.asyncio
+async def test_empty_json_object_is_malformed_json(patched_anthropic_client, tmp_path):
+    patched_anthropic_client.messages.create = AsyncMock(return_value=_text_response("{}"))
+    result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
+    assert result["verbalized_eval_awareness_failure"] == "malformed_json"
+
+
+# ---------------------------------------------------------------------------
+# Prompt immutability — parallels Apollo's SHA256 pin for Transcript Purpose
+# ---------------------------------------------------------------------------
+
+
+def test_vea_prompt_sha256_pinned():
+    """VEA prompt is a byte-for-byte port of Jasmine's ``eval_awareness_experiments``.
+
+    Any drift (trailing newline normalisation, editor whitespace stripping,
+    copy-paste regression) will change the semantics of the classifier in
+    ways the other tests won't catch. Pin the bytes so drift fails loudly,
+    mirroring ``test_apollo_prompt_sha256_pinned``.
+    """
+    prompt_bytes = (
+        Path(__file__).parent.parent / "worldsim" / "prompts" / "verbalized-eval-awareness.md"
+    ).read_bytes()
+    assert (
+        hashlib.sha256(prompt_bytes).hexdigest()
+        == "9af3c92ccd432dbbfb0039b146ff1b74845b582d6c2bb8ce2a3b6852c498bb74"
+    ), f"VEA prompt drift: {hashlib.sha256(prompt_bytes).hexdigest()}"

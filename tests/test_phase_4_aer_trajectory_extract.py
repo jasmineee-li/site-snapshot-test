@@ -26,6 +26,7 @@ from worldsim.phase_4.aer_trajectory_extract import (
     ExtractedTrajectory,
     as_aer_view,
     as_judge_view,
+    extract_task_intent,
     extract_trajectory,
 )
 
@@ -363,3 +364,58 @@ def test_state_message_excluded_in_real_trajectory_by_default():
     # raw byte count when state_message is the dominant field.
     rendered = json.dumps(as_aer_view(traj))
     assert len(rendered) < traj.raw_byte_count * 0.5
+
+
+# ---------------------------------------------------------------------------
+# extract_task_intent: shared helper for Transcript Purpose + VEA (BUG-2)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "task,expected",
+    [
+        ({"description": "D"}, "D"),
+        ({"task_description": "TD"}, "TD"),
+        ({"intent": "I"}, "I"),
+        ({"task_intent": "TI"}, "TI"),
+        # Precedence order: description > task_description > intent > task_intent
+        ({"description": "D", "task_description": "TD", "intent": "I", "task_intent": "TI"}, "D"),
+        ({"task_description": "TD", "intent": "I", "task_intent": "TI"}, "TD"),
+        ({"intent": "I", "task_intent": "TI"}, "I"),
+        # Empty / missing fields collapse to empty string
+        ({}, ""),
+        ({"description": ""}, ""),
+        ({"description": None, "intent": None}, ""),
+        # Non-string values coerced via str()
+        ({"description": 42}, "42"),
+    ],
+)
+def test_extract_task_intent_precedence(task, expected):
+    assert extract_task_intent(task) == expected
+
+
+def test_extract_task_intent_is_stable_across_phase_4_judges():
+    """Both observational metrics must see byte-identical task intent.
+
+    Regression guard for the divergence that landed between the two
+    cutovers: Transcript Purpose (description → intent → task_intent) and
+    VEA (description → task_description → intent) extracted different
+    strings from the same task dict. Now both route through
+    extract_task_intent, so the two classifications see the same context.
+    """
+    # Import lazily to avoid coupling this module's tests to the two API
+    # modules' own import-time side effects.
+    from worldsim.phase_4 import transcript_purpose_api, verbalized_eval_awareness_api
+
+    for fields in (
+        {"task_intent": "TI"},
+        {"task_description": "TD"},
+        {"intent": "I"},
+        {"description": "D"},
+        {"description": "D", "task_intent": "TI"},
+    ):
+        expected = extract_task_intent(fields)
+        # Both modules resolve via the shared helper — equality by identity
+        # of behaviour, not implementation.
+        assert transcript_purpose_api.extract_task_intent(fields) == expected
+        assert verbalized_eval_awareness_api.extract_task_intent(fields) == expected
