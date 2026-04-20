@@ -60,8 +60,14 @@ class ChatOpenAIResponses:
     """
 
     @classmethod
-    def create(cls, **kwargs: Any) -> Any:
-        """Build and return a patched ``ChatOpenAI`` instance."""
+    def create(cls, service_tier: str | None = None, **kwargs: Any) -> Any:
+        """Build and return a patched ``ChatOpenAI`` instance.
+
+        ``service_tier`` is the optional OpenAI priority/flex/default knob; when
+        set, it is forwarded on every ``responses.parse`` call. The underlying
+        ``ChatOpenAI`` constructor does not know about this field, so it is
+        held in closure rather than passed through ``**kwargs``.
+        """
         from browser_use.llm.openai.chat import ChatOpenAI
 
         instance = ChatOpenAI(**kwargs)
@@ -86,18 +92,22 @@ class ChatOpenAIResponses:
             # both carry ``role`` and ``content`` at the top level.
             openai_messages = OpenAIMessageSerializer.serialize_messages(messages)
 
+            parse_kwargs: dict[str, Any] = {
+                "model": instance.model,
+                "input": openai_messages,
+                "text_format": output_format,
+                # Separate reasoning into its own output item; do NOT
+                # request summary and do NOT include encrypted_content.
+                "reasoning": {"effort": "none"},
+                # Store=False keeps responses out of the dashboard and
+                # avoids unintended retention of task content.
+                "store": False,
+            }
+            if service_tier:
+                parse_kwargs["service_tier"] = service_tier
+
             try:
-                response = await instance.get_client().responses.parse(
-                    model=instance.model,
-                    input=openai_messages,  # type: ignore[arg-type]
-                    text_format=output_format,
-                    # Separate reasoning into its own output item; do NOT
-                    # request summary and do NOT include encrypted_content.
-                    reasoning={"effort": "none"},
-                    # Store=False keeps responses out of the dashboard and
-                    # avoids unintended retention of task content.
-                    store=False,
-                )
+                response = await instance.get_client().responses.parse(**parse_kwargs)
             except RateLimitError as e:
                 raise ModelRateLimitError(message=e.message, model=instance.name) from e
             except APIConnectionError as e:

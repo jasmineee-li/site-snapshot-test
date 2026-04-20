@@ -134,7 +134,7 @@ def _normalize_openrouter_model(model: str) -> str:
     return model
 
 
-def _openrouter_overrides(model: str) -> dict[str, Any]:
+def _openrouter_overrides(model: str, service_tier: str | None = None) -> dict[str, Any]:
     """Return OpenRouter-specific overrides for Arm B of the A/B study.
 
     For gpt-5.4-mini (and the ``openai/`` prefixed variant):
@@ -147,6 +147,9 @@ def _openrouter_overrides(model: str) -> dict[str, Any]:
     - ``temperature=None`` lets OpenRouter use the model's default (required
       for reasoning models that reject an explicit temperature).
 
+    ``service_tier`` (optional) is forwarded inside the same ``extra_body``
+    envelope so OpenRouter passes it to the pinned OpenAI upstream.
+
     Note on ``extra_body`` double-nesting. Browser Use's ``ChatOpenRouter``
     splats its ``extra_body`` field as top-level kwargs to
     ``client.chat.completions.create``. The openai SDK treats unknown
@@ -156,19 +159,22 @@ def _openrouter_overrides(model: str) -> dict[str, Any]:
     ``extra_body={...}`` and forwards the contents as extra body fields.
     """
     if model in {"gpt-5.4-mini", "openai/gpt-5.4-mini"}:
-        return {
-            "temperature": None,
-            "extra_body": {
-                "extra_body": {
-                    "reasoning": {"effort": "none", "exclude": True},
-                    "provider": {
-                        "only": ["openai"],
-                        "allow_fallbacks": False,
-                        "require_parameters": True,
-                    },
-                },
+        inner: dict[str, Any] = {
+            "reasoning": {"effort": "none", "exclude": True},
+            "provider": {
+                "only": ["openai"],
+                "allow_fallbacks": False,
+                "require_parameters": True,
             },
         }
+        if service_tier:
+            inner["service_tier"] = service_tier
+        return {
+            "temperature": None,
+            "extra_body": {"extra_body": inner},
+        }
+    if service_tier:
+        return {"extra_body": {"extra_body": {"service_tier": service_tier}}}
     return {}
 
 
@@ -176,6 +182,7 @@ def make_llm(
     model: str = DEFAULT_MODEL,
     provider: str | None = None,
     temperature: float = 0,
+    service_tier: str | None = None,
 ) -> Any:
     """Return a Browser Use ``BaseChatModel`` for the requested provider.
 
@@ -186,12 +193,23 @@ def make_llm(
             ``openrouter``.  When ``None`` the provider is auto-detected
             from *model*.
         temperature: Sampling temperature.
+        service_tier: Optional OpenAI service tier (``"auto"``, ``"default"``,
+            ``"flex"``, ``"priority"``). Only applied for ``openai`` and
+            ``openrouter`` providers; ignored with a warning for others.
 
     Raises:
         RuntimeError: If the required browser-use LLM module is missing.
         ValueError: If *provider* is not recognised.
     """
     provider = resolve_provider(model, provider)
+
+    if service_tier and provider not in ("openai", "openrouter"):
+        logger.warning(
+            "service_tier=%r is OpenAI-only; ignored for provider=%r",
+            service_tier,
+            provider,
+        )
+        service_tier = None
 
     # ``openai`` uses the native Responses API (Arm A of the A/B study).
     # It requires ``OPENAI_API_KEY`` directly -- no redirect to OpenRouter.
@@ -249,9 +267,12 @@ def make_llm(
             # Arm A: native Responses API with reasoning={"effort": "none"}.
             # ChatOpenAIResponses.create reads OPENAI_API_KEY from the
             # environment automatically via the underlying AsyncOpenAI client.
-            return ChatOpenAIResponses.create(model=model)
+            return ChatOpenAIResponses.create(model=model, service_tier=service_tier)
         # Non-reasoning OpenAI models: plain ChatOpenAI with temperature.
-        return ChatOpenAI(model=model, temperature=temperature)
+        openai_kwargs: dict[str, Any] = {"model": model, "temperature": temperature}
+        if service_tier:
+            openai_kwargs["extra_body"] = {"service_tier": service_tier}
+        return ChatOpenAI(**openai_kwargs)
 
     if provider == "anthropic":
         try:
@@ -288,7 +309,7 @@ def make_llm(
             "temperature": temperature,
             "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
         }
-        kwargs.update(_openrouter_overrides(model))
+        kwargs.update(_openrouter_overrides(model, service_tier=service_tier))
         return ChatOpenRouter(**kwargs)
 
     raise ValueError(f"Unknown provider {provider!r}. Supported: {', '.join(SUPPORTED_PROVIDERS)}")
@@ -300,6 +321,7 @@ def make_llm(
 def make_agent_factory(
     model: str = DEFAULT_MODEL,
     provider: str | None = None,
+    service_tier: str | None = None,
 ) -> Callable[[], BrowserUseAgent]:
     """Return a zero-arg callable that produces a fresh ``BrowserUseAgent``.
 
@@ -308,7 +330,7 @@ def make_agent_factory(
     """
 
     def factory() -> BrowserUseAgent:
-        llm = make_llm(model=model, provider=provider)
+        llm = make_llm(model=model, provider=provider, service_tier=service_tier)
         return BrowserUseAgent(llm=llm, headless=True)
 
     return factory

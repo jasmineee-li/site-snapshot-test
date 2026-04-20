@@ -117,6 +117,17 @@ def build_parser() -> argparse.ArgumentParser:
         "ANTHROPIC_API_KEY, or OPENROUTER_API_KEY.",
     )
     phase_cmd.add_argument(
+        "--agent-service-tier",
+        default=None,
+        choices=("auto", "default", "flex", "priority"),
+        help="OpenAI service tier for the Browser Use agent. "
+        "'priority' = lowest + most consistent latency (costs more); "
+        "'flex' = ~50%% cheaper but slower + variable; "
+        "'default' / 'auto' = provider default. Applies to --agent-provider "
+        "openai and openrouter (forwarded when pinned to OpenAI upstream); "
+        "ignored with a warning for google/anthropic. Omit to use provider default.",
+    )
+    phase_cmd.add_argument(
         "--max-tasks-per-site",
         type=_positive_int,
         default=None,
@@ -287,6 +298,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         choices=AGENT_PROVIDER_CHOICES,
         help="Override the saved Browser Use agent provider for the resumed phase.",
+    )
+    resume_cmd.add_argument(
+        "--agent-service-tier",
+        default=argparse.SUPPRESS,
+        choices=("auto", "default", "flex", "priority"),
+        help="Override the saved OpenAI service tier for the resumed phase.",
     )
     resume_cmd.add_argument(
         "--generate-novel",
@@ -584,6 +601,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None)
     sandbox_model = getattr(args, "sandbox_model", None)
     agent_provider = getattr(args, "agent_provider", None)
+    agent_service_tier = getattr(args, "agent_service_tier", None)
     generate_novel = getattr(args, "generate_novel", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites = getattr(args, "sites", None)
@@ -614,6 +632,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         sandbox_model = state.get("sandbox_model", DEFAULT_SANDBOX_MODEL)
     if agent_provider is None:
         agent_provider = state.get("agent_provider")
+    if agent_service_tier is None:
+        agent_service_tier = state.get("agent_service_tier")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if sites is None:
@@ -663,6 +683,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_model=agent_model,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
+        agent_service_tier=agent_service_tier,
         generate_novel=generate_novel,
         max_tasks_per_site=max_tasks_per_site,
         sites=sites,

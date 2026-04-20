@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from worldsim.agent_config import (
+    bind_task_to_instance,
     execution_instance_dict,
     instances_for_site,
     prepare_task_for_execution,
-    bind_task_to_instance,
     resolve_task_inputs,
 )
 from worldsim.config import BenchmarkInstance
@@ -211,3 +211,126 @@ def test_bind_task_to_instance_rewrites_host_bound_auth_scope_patterns() -> None
 
     scope = bound["agent_context"]["auth_mechanism"]["scope_url_pattern"]
     assert scope == "^http://gitlab-new.test:8033/.*$"
+
+
+# ─── service_tier threading ────────────────────────────────────────────────
+
+
+def _install_fake_llm_modules(monkeypatch):
+    """Install fakes for the browser-use LLM classes that ``make_llm`` lazily imports.
+
+    Each fake records the kwargs it was constructed with so tests can assert on them.
+    """
+    import sys
+    import types
+
+    recorded: dict[str, dict] = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs):
+            recorded["openai"] = dict(kwargs)
+
+    class FakeChatOpenRouter:
+        def __init__(self, **kwargs):
+            recorded["openrouter"] = dict(kwargs)
+
+    class FakeChatAnthropic:
+        def __init__(self, **kwargs):
+            recorded["anthropic"] = dict(kwargs)
+
+    class FakeChatGoogle:
+        def __init__(self, **kwargs):
+            recorded["google"] = dict(kwargs)
+
+    openai_mod = types.ModuleType("browser_use.llm.openai.chat")
+    openai_mod.ChatOpenAI = FakeChatOpenAI
+    router_mod = types.ModuleType("browser_use.llm.openrouter.chat")
+    router_mod.ChatOpenRouter = FakeChatOpenRouter
+    anthropic_mod = types.ModuleType("browser_use.llm.anthropic.chat")
+    anthropic_mod.ChatAnthropic = FakeChatAnthropic
+    google_mod = types.ModuleType("browser_use.llm.google.chat")
+    google_mod.ChatGoogle = FakeChatGoogle
+
+    monkeypatch.setitem(sys.modules, "browser_use.llm.openai.chat", openai_mod)
+    monkeypatch.setitem(sys.modules, "browser_use.llm.openrouter.chat", router_mod)
+    monkeypatch.setitem(sys.modules, "browser_use.llm.anthropic.chat", anthropic_mod)
+    monkeypatch.setitem(sys.modules, "browser_use.llm.google.chat", google_mod)
+
+    # Patch the Responses-API wrapper at its import site so make_llm's lazy
+    # ``from worldsim.llm_wrapper import ChatOpenAIResponses`` picks up the fake.
+    import worldsim.llm_wrapper as llm_wrapper
+
+    def fake_create(**kwargs):
+        recorded["openai_responses"] = dict(kwargs)
+        return object()
+
+    monkeypatch.setattr(llm_wrapper.ChatOpenAIResponses, "create", staticmethod(fake_create))
+
+    return recorded
+
+
+def test_service_tier_threads_to_openai_responses_arm(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import make_llm
+
+    make_llm("gpt-5.4-mini", provider="openai", service_tier="priority")
+    assert recorded["openai_responses"]["service_tier"] == "priority"
+    assert recorded["openai_responses"]["model"] == "gpt-5.4-mini"
+
+
+def test_service_tier_threads_to_openai_chat_arm_via_extra_body(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import make_llm
+
+    make_llm("gpt-4o", provider="openai", service_tier="flex")
+    assert recorded["openai"]["extra_body"] == {"service_tier": "flex"}
+
+
+def test_service_tier_threads_to_openrouter_arm_nested(monkeypatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import make_llm
+
+    make_llm("gpt-5.4-mini", provider="openrouter", service_tier="priority")
+    inner = recorded["openrouter"]["extra_body"]["extra_body"]
+    assert inner["service_tier"] == "priority"
+    # The existing reasoning + provider pins must still be present.
+    assert inner["reasoning"] == {"effort": "none", "exclude": True}
+    assert inner["provider"]["only"] == ["openai"]
+
+
+def test_service_tier_ignored_and_warned_for_anthropic(monkeypatch, caplog) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    import logging
+
+    from worldsim.agent_config import make_llm
+
+    with caplog.at_level(logging.WARNING, logger="worldsim.agent_config"):
+        make_llm("claude-sonnet-4-6", provider="anthropic", service_tier="priority")
+
+    # ChatAnthropic must not have received a service_tier kwarg.
+    assert "service_tier" not in recorded["anthropic"]
+    assert "extra_body" not in recorded["anthropic"]
+    # And a warning must have been emitted.
+    assert any(
+        "service_tier" in rec.message and "OpenAI-only" in rec.message for rec in caplog.records
+    )
+
+
+def test_service_tier_omitted_leaves_baseline_unchanged(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import make_llm
+
+    make_llm("gpt-5.4-mini", provider="openai")
+    # ChatOpenAIResponses.create always receives the kwarg; the wrapper's
+    # ainvoke closure gates it out of ``responses.parse`` when falsy.
+    assert recorded["openai_responses"].get("service_tier") is None
+
+    make_llm("gpt-5.4-mini", provider="openrouter")
+    inner = recorded["openrouter"]["extra_body"]["extra_body"]
+    assert "service_tier" not in inner
