@@ -228,6 +228,20 @@ async def test_schema_violation_missing_seed_field(
 
 
 @pytest.mark.asyncio
+async def test_schema_violation_invalid_seed_shape(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    bad = _good_payload()
+    bad["new_adversarial_data_seed"] = {"mechanism": "editor"}
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+
+    result = await run_placement_api(sample_task, trajectory_dir)
+
+    assert result["status"] == "failed"
+    assert result["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
 async def test_schema_violation_invalid_confidence_enum(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
@@ -365,3 +379,24 @@ async def test_tool_choice_forces_propose_placement_fix(
     assert kwargs["tool_choice"] == {"type": "tool", "name": "propose_placement_fix"}
     assert len(kwargs["tools"]) == 1
     assert kwargs["tools"][0]["name"] == "propose_placement_fix"
+
+
+@pytest.mark.asyncio
+async def test_placement_prompt_strips_auth_bearing_task_fields(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    task = {
+        **sample_task,
+        "authentication": {"token": "top-secret"},
+        "instances": [{"site_url": "http://secret.test"}],
+        "agent_context": {"authentication": {"cookie": "shh"}},
+    }
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(_good_payload())
+
+    await run_placement_api(task, trajectory_dir)
+
+    _, kwargs = patched_anthropic_client.messages.create.call_args
+    prompt_text = json.dumps(kwargs["messages"])
+    assert "top-secret" not in prompt_text
+    assert "secret.test" not in prompt_text
+    assert '"authentication"' not in prompt_text

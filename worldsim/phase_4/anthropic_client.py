@@ -11,9 +11,8 @@ Empty-string env vars are treated as unset (matches sandbox convention at
 `modal_sandbox.py:124`).
 
 The client is module-level lazy so Phase 4's judge + variant calls share one
-TCP connection pool. Retries at 5 with exponential backoff handle transient
-5xx (SDK default handles 429/500/503; we also retry 529 overloaded manually
-in `_call_with_retry`).
+TCP connection pool. SDK retries are disabled so the host-side retry helper
+can release API semaphore slots before backing off.
 """
 
 from __future__ import annotations
@@ -23,13 +22,14 @@ import logging
 import os
 import random
 from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from anthropic import APIConnectionError, APIStatusError, AsyncAnthropic
 
 logger = logging.getLogger(__name__)
 
 _client: AsyncAnthropic | None = None
+_SDK_MAX_RETRIES = 0
 
 T = TypeVar("T")
 
@@ -102,7 +102,7 @@ def normalize_model_for_auth(model: str) -> str:
     return model
 
 
-def _resolve_auth() -> tuple[str, dict[str, str]]:
+def _resolve_auth() -> tuple[str, dict[str, Any]]:
     """Return `(auth_path, kwargs)` for `AsyncAnthropic(**kwargs)`.
 
     Raises RuntimeError with an actionable message if no credentials are
@@ -120,18 +120,18 @@ def _resolve_auth() -> tuple[str, dict[str, str]]:
             {
                 "auth_token": auth_token,
                 "base_url": base_url.rstrip("/"),
-                "max_retries": 5,
+                "max_retries": _SDK_MAX_RETRIES,
             },
         )
 
     oauth = _nonempty("CLAUDE_CODE_OAUTH_TOKEN")
     if oauth:
         # Anthropic direct with OAuth — Bearer header path.
-        return ("oauth", {"auth_token": oauth, "max_retries": 5})
+        return ("oauth", {"auth_token": oauth, "max_retries": _SDK_MAX_RETRIES})
 
     api_key = _nonempty("ANTHROPIC_API_KEY")
     if api_key:
-        return ("anthropic_api", {"api_key": api_key, "max_retries": 5})
+        return ("anthropic_api", {"api_key": api_key, "max_retries": _SDK_MAX_RETRIES})
 
     raise RuntimeError(
         "No Claude credentials configured. Phase 4 judge + variant gen run "
@@ -180,10 +180,14 @@ async def preflight_check(*, sandbox_model: str = "claude-sonnet-4-6") -> tuple[
         return (False, f"preflight failed: {exc}")
 
     try:
-        await client.messages.create(
-            model=sandbox_model,
-            max_tokens=1,
-            messages=[{"role": "user", "content": "."}],
+        await call_with_retry(
+            lambda: client.messages.create(
+                model=normalize_model_for_auth(sandbox_model),
+                max_tokens=1,
+                messages=[{"role": "user", "content": "."}],
+            ),
+            retries=3,
+            label="phase4-preflight",
         )
         return (True, None)
     except APIStatusError as exc:
@@ -208,9 +212,10 @@ async def call_with_retry(
 ) -> T:
     """Wrap `fn` with jittered exponential backoff for 529 overloaded responses.
 
-    SDK's built-in `max_retries` handles 429/500/503. 529 is not always
-    retried by default across SDK versions, and network errors (`APIConnectionError`)
-    benefit from an extra retry layer here.
+    The Anthropic SDK retry layer is disabled (`max_retries=0`) so callers
+    can release their API semaphore slot before sleeping. This helper is the
+    single transport retry policy for 429/500/502/503/529 plus
+    `APIConnectionError`.
     """
     last_exc: Exception | None = None
     for attempt in range(retries + 1):

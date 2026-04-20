@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -52,12 +53,22 @@ def _variant_response(tool_input: dict, stop_reason: str = "tool_use") -> Simple
     )
 
 
+def _valid_editor_seed(*, detail: str = "NEW PAYLOAD", site: str = "shopping_admin") -> dict:
+    return {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "site": site,
+                "method": "create_product_review",
+                "args": {"detail": detail},
+            }
+        ],
+    }
+
+
 @pytest.mark.asyncio
 async def test_happy_path_merges_variant(patched_anthropic_client, sample_task, strategy):
-    new_seed = {
-        "mechanism": "editor",
-        "editor_calls": [{"method": "create_product_review", "args": {"detail": "NEW PAYLOAD"}}],
-    }
+    new_seed = _valid_editor_seed(detail="NEW PAYLOAD", site=sample_task["site"])
     patched_anthropic_client.messages.create.return_value = _variant_response(
         {
             "status": "ok",
@@ -101,7 +112,7 @@ async def test_strategy_mismatch_retries_then_fails(
     wrong = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "adversarial_data_seed": _valid_editor_seed(detail="x", site=sample_task["site"]),
             "applied_strategy": {
                 "strategy": "semantic_coherence",  # ← mismatch
                 "description": "wrong",
@@ -124,7 +135,7 @@ async def test_strategy_mismatch_succeeds_on_retry(patched_anthropic_client, sam
     wrong = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(detail="x", site=sample_task["site"]),
             "applied_strategy": {
                 "strategy": "semantic_coherence",  # ← mismatch
                 "description": "wrong",
@@ -135,7 +146,7 @@ async def test_strategy_mismatch_succeeds_on_retry(patched_anthropic_client, sam
     right = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "adversarial_data_seed": _valid_editor_seed(detail="y", site=sample_task["site"]),
             "applied_strategy": {
                 "strategy": "authority_framing",  # ← matches target
                 "description": "fixed",
@@ -165,7 +176,10 @@ async def test_max_tokens_triggers_retry_with_larger_budget(
     truncated = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="partial",
+                site=sample_task["site"],
+            ),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "partial",
@@ -177,7 +191,10 @@ async def test_max_tokens_triggers_retry_with_larger_budget(
     full = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="full payload",
+                site=sample_task["site"],
+            ),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "complete",
@@ -237,7 +254,10 @@ async def test_truncate_then_mismatch_reports_both_errors(
     truncated = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="partial",
+                site=sample_task["site"],
+            ),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "partial",
@@ -249,7 +269,7 @@ async def test_truncate_then_mismatch_reports_both_errors(
     mismatch = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "adversarial_data_seed": _valid_editor_seed(detail="y", site=sample_task["site"]),
             "applied_strategy": {
                 "strategy": "semantic_coherence",  # wrong strategy
                 "description": "retried at higher budget",
@@ -275,7 +295,7 @@ async def test_failed_variant_carries_failure_class_on_strategy_mismatch(
     wrong = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(detail="x", site=sample_task["site"]),
             "applied_strategy": {
                 "strategy": "semantic_coherence",
                 "description": "wrong",
@@ -309,7 +329,10 @@ async def test_failed_variant_carries_failure_class_on_response_truncated(
     truncated = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="partial",
+                site=sample_task["site"],
+            ),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "partial",
@@ -349,7 +372,10 @@ async def test_truncate_then_mismatch_final_failure_class_is_mismatch(
     truncated = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="partial",
+                site=sample_task["site"],
+            ),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "partial",
@@ -361,7 +387,7 @@ async def test_truncate_then_mismatch_final_failure_class_is_mismatch(
     mismatch = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "adversarial_data_seed": _valid_editor_seed(detail="y", site=sample_task["site"]),
             "applied_strategy": {
                 "strategy": "semantic_coherence",
                 "description": "retried",
@@ -398,7 +424,7 @@ async def test_ok_variant_has_no_failure_class(patched_anthropic_client, sample_
     patched_anthropic_client.messages.create.return_value = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor", "editor_calls": []},
+            "adversarial_data_seed": _valid_editor_seed(detail="p", site=sample_task["site"]),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "fine",
@@ -412,6 +438,57 @@ async def test_ok_variant_has_no_failure_class(patched_anthropic_client, sample_
 
 
 @pytest.mark.asyncio
+async def test_invalid_variant_seed_buckets_as_schema_violation(
+    patched_anthropic_client, sample_task, strategy
+):
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "editor"},
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "invalid seed",
+                "injection_content": "p",
+            },
+        }
+    )
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
+async def test_variant_prompt_strips_auth_bearing_task_fields(
+    patched_anthropic_client, sample_task, strategy
+):
+    task = {
+        **sample_task,
+        "authentication": {"token": "top-secret"},
+        "instances": [{"site_url": "http://secret.test"}],
+        "agent_context": {"authentication": {"cookie": "shh"}},
+    }
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": _valid_editor_seed(detail="p", site=sample_task["site"]),
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "fine",
+                "injection_content": "p",
+            },
+        }
+    )
+
+    await generate_variant_api(task, strategy)
+
+    _, kwargs = patched_anthropic_client.messages.stream.call_args
+    prompt_text = json.dumps(kwargs["messages"])
+    assert "top-secret" not in prompt_text
+    assert "secret.test" not in prompt_text
+    assert '"authentication"' not in prompt_text
+
+
+@pytest.mark.asyncio
 async def test_max_tokens_retries_then_still_truncated_fails(
     patched_anthropic_client, sample_task, strategy
 ):
@@ -421,7 +498,10 @@ async def test_max_tokens_retries_then_still_truncated_fails(
     truncated_first = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="partial first",
+                site=sample_task["site"],
+            ),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "partial first",
@@ -433,7 +513,10 @@ async def test_max_tokens_retries_then_still_truncated_fails(
     truncated_second = _variant_response(
         {
             "status": "ok",
-            "adversarial_data_seed": {"mechanism": "editor"},
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="partial second",
+                site=sample_task["site"],
+            ),
             "applied_strategy": {
                 "strategy": "authority_framing",
                 "description": "partial second",

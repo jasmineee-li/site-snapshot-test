@@ -36,6 +36,7 @@ from worldsim.phase_4.anthropic_client import (
     normalize_model_for_auth,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
+from worldsim.phase_4.prompt_payloads import sanitize_task_for_model_prompt
 from worldsim.phase_4.strategy_catalog import REFUSAL_TRIGGERS, strategies_for_trigger
 from worldsim.prompt_loading import load_prompt
 
@@ -134,7 +135,7 @@ def _build_messages(
     task: dict[str, Any], trajectory_slice: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("judge-adversarial-failure")
-    task_json = json.dumps(task, indent=2, sort_keys=True)
+    task_json = json.dumps(sanitize_task_for_model_prompt(task), indent=2, sort_keys=True)
     slice_json = json.dumps(trajectory_slice, indent=2, sort_keys=True)
     return [
         {
@@ -163,6 +164,30 @@ def _extract_tool_use(response: Any) -> dict[str, Any] | None:
             and getattr(block, "name", None) == "classify_refusal"
         ):
             return dict(block.input or {})
+    return None
+
+
+def _validate_tool_payload(payload: dict[str, Any]) -> str | None:
+    trigger = payload.get("refusal_trigger")
+    if trigger not in REFUSAL_TRIGGERS:
+        return "taxonomy_error"
+
+    confidence = payload.get("confidence")
+    if confidence not in {"low", "medium", "high"}:
+        return "schema_violation"
+
+    evidence_step = payload.get("evidence_step")
+    if evidence_step is not None and not isinstance(evidence_step, int):
+        return "schema_violation"
+
+    evidence_quote = payload.get("evidence_quote", "")
+    if not isinstance(evidence_quote, str):
+        return "schema_violation"
+
+    notes = payload.get("notes", "")
+    if not isinstance(notes, str):
+        return "schema_violation"
+
     return None
 
 
@@ -223,27 +248,40 @@ async def run_judge_api(
             "recommended_strategies": [],
         }
 
+    traj_slice = as_judge_view(traj)
+    if not traj_slice:
+        return {
+            "status": "judge_failed",
+            "failure_class": "partial_trajectory",
+            "diagnosis": (
+                "trajectory contains no judgeable model_output steps after filtering "
+                "partial entries"
+            ),
+            "refusal_trigger": "unknown",
+            "recommended_strategies": [],
+        }
+
     client = client or get_client()
-    messages = _build_messages(task, as_judge_view(traj))
+    messages = _build_messages(task, traj_slice)
 
     async def _call() -> Any:
-        return await client.messages.create(
-            model=normalize_model_for_auth(sandbox_model),
-            max_tokens=2048,
-            messages=messages,
-            tools=[_JUDGE_TOOL],
-            tool_choice={"type": "tool", "name": "classify_refusal"},
-            metadata=_model_metadata(task),
-        )
+        async with get_api_semaphore():
+            return await client.messages.create(
+                model=normalize_model_for_auth(sandbox_model),
+                max_tokens=2048,
+                messages=messages,
+                tools=[_JUDGE_TOOL],
+                tool_choice={"type": "tool", "name": "classify_refusal"},
+                metadata=_model_metadata(task),
+            )
 
     t0 = time.monotonic()
     try:
-        async with get_api_semaphore():
-            response = await call_with_retry(
-                _call,
-                retries=3,
-                label=f"judge-{task_id}",
-            )
+        response = await call_with_retry(
+            _call,
+            retries=3,
+            label=f"judge-{task_id}",
+        )
     except Exception as exc:  # broad by design — bucket via failure_class
         failure_class = classify_api_exception(exc)
         logger.warning("judge API call failed for task %s (%s): %s", task_id, failure_class, exc)
@@ -304,16 +342,17 @@ async def run_judge_api(
             "recommended_strategies": [],
         }
 
-    trigger = payload.get("refusal_trigger")
-    if trigger not in REFUSAL_TRIGGERS:
+    validation_failure = _validate_tool_payload(payload)
+    if validation_failure is not None:
         return {
             "status": "judge_failed",
-            "failure_class": "taxonomy_error",
-            "diagnosis": f"judge returned invalid refusal_trigger={trigger!r}",
+            "failure_class": validation_failure,
+            "diagnosis": f"judge returned invalid payload ({validation_failure})",
             "refusal_trigger": "unknown",
             "recommended_strategies": [],
         }
 
+    trigger = payload["refusal_trigger"]
     strategies, actionable = strategies_for_trigger(trigger)
     return {
         "status": "judge_ok_actionable" if actionable else "judge_ok_unactionable",

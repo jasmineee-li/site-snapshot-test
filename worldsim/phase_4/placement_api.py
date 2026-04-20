@@ -52,7 +52,9 @@ from worldsim.phase_4.anthropic_client import (
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.judge_api import _synthesize_summary
+from worldsim.phase_4.prompt_payloads import sanitize_task_for_model_prompt
 from worldsim.prompt_loading import load_prompt
+from worldsim.seeding import validate_data_seed
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +138,7 @@ def _build_messages(
     task: dict[str, Any], trajectory_slice: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("placement-fix")
-    task_json = json.dumps(task, indent=2, sort_keys=True)
+    task_json = json.dumps(sanitize_task_for_model_prompt(task), indent=2, sort_keys=True)
     slice_json = json.dumps(trajectory_slice, indent=2, sort_keys=True)
     return [
         {
@@ -175,6 +177,10 @@ def _validate_payload(payload: dict[str, Any]) -> str | None:
     """Return None on a structurally-valid payload, or a failure_class string."""
     seed = payload.get("new_adversarial_data_seed")
     if not isinstance(seed, dict) or not seed:
+        return "schema_violation"
+    try:
+        validate_data_seed(seed, allow_none=False)
+    except ValueError:
         return "schema_violation"
 
     placement = payload.get("placement_fix")
@@ -270,19 +276,19 @@ async def run_placement_api(
     messages = _build_messages(task, traj_slice)
 
     async def _call() -> Any:
-        return await client.messages.create(
-            model=normalize_model_for_auth(sandbox_model),
-            max_tokens=4096,
-            messages=messages,
-            tools=[_PLACEMENT_TOOL],
-            tool_choice={"type": "tool", "name": "propose_placement_fix"},
-            metadata=_model_metadata(),
-        )
+        async with get_api_semaphore():
+            return await client.messages.create(
+                model=normalize_model_for_auth(sandbox_model),
+                max_tokens=4096,
+                messages=messages,
+                tools=[_PLACEMENT_TOOL],
+                tool_choice={"type": "tool", "name": "propose_placement_fix"},
+                metadata=_model_metadata(),
+            )
 
     t0 = time.monotonic()
     try:
-        async with get_api_semaphore():
-            response = await call_with_retry(_call, retries=3, label=f"placement-{task_id}")
+        response = await call_with_retry(_call, retries=3, label=f"placement-{task_id}")
     except Exception as exc:
         failure_class = classify_api_exception(exc)
         logger.warning(

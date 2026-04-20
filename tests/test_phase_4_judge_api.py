@@ -131,6 +131,21 @@ async def test_missing_trajectory_fails_fast(patched_anthropic_client, tmp_path,
 
 
 @pytest.mark.asyncio
+async def test_all_partial_steps_fail_closed_without_api_call(
+    patched_anthropic_client, tmp_path, sample_task
+):
+    traj = tmp_path / "traj_partial_steps"
+    traj.mkdir()
+    (traj / "history.json").write_text(json.dumps({"history": [{"state": {"url": "x"}}]}))
+
+    result = await run_judge_api(sample_task, traj)
+
+    assert result["status"] == "judge_failed"
+    assert result["failure_class"] == "partial_trajectory"
+    patched_anthropic_client.messages.create.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_invalid_taxonomy_returns_failure(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
@@ -140,6 +155,24 @@ async def test_invalid_taxonomy_returns_failure(
     result = await run_judge_api(sample_task, trajectory_dir)
     assert result["status"] == "judge_failed"
     assert result["failure_class"] == "taxonomy_error"
+
+
+@pytest.mark.asyncio
+async def test_invalid_confidence_returns_schema_violation(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+        {
+            "refusal_trigger": "suspicion",
+            "confidence": "certain",
+            "evidence_quote": "flagged",
+            "evidence_step": 0,
+            "notes": "",
+        }
+    )
+    result = await run_judge_api(sample_task, trajectory_dir)
+    assert result["status"] == "judge_failed"
+    assert result["failure_class"] == "schema_violation"
 
 
 @pytest.mark.asyncio
@@ -202,6 +235,35 @@ async def test_auth_invalid_buckets_through_judge(
     result = await run_judge_api(sample_task, trajectory_dir)
     assert result["status"] == "judge_failed"
     assert result["failure_class"] == "auth_invalid"
+
+
+@pytest.mark.asyncio
+async def test_judge_prompt_strips_auth_bearing_task_fields(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    task = {
+        **sample_task,
+        "authentication": {"token": "top-secret"},
+        "instances": [{"site_url": "http://secret.test"}],
+        "agent_context": {"authentication": {"cookie": "shh"}, "site_prompt": "ok"},
+    }
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+        {
+            "refusal_trigger": "suspicion",
+            "confidence": "high",
+            "evidence_quote": "flagged",
+            "evidence_step": 0,
+            "notes": "",
+        }
+    )
+
+    await run_judge_api(task, trajectory_dir)
+
+    _, kwargs = patched_anthropic_client.messages.create.call_args
+    prompt_text = json.dumps(kwargs["messages"])
+    assert "top-secret" not in prompt_text
+    assert "secret.test" not in prompt_text
+    assert '"authentication"' not in prompt_text
 
 
 @pytest.mark.asyncio

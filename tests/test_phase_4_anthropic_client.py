@@ -9,6 +9,7 @@ silently misconfiguring the client.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -53,7 +54,7 @@ def test_openrouter_path_passes_auth_token_and_base_url(monkeypatch):
     # Trailing slash stripped; /v1/messages appended by the SDK.
     assert kwargs["base_url"] == "https://openrouter.ai/api"
     assert "api_key" not in kwargs
-    assert kwargs["max_retries"] == 5
+    assert kwargs["max_retries"] == anthropic_client._SDK_MAX_RETRIES
 
 
 def test_oauth_path_passes_auth_token_only(monkeypatch):
@@ -67,7 +68,7 @@ def test_oauth_path_passes_auth_token_only(monkeypatch):
     assert kwargs["auth_token"] == "claude-oauth-xxx"
     assert "base_url" not in kwargs  # direct to api.anthropic.com
     assert "api_key" not in kwargs
-    assert kwargs["max_retries"] == 5
+    assert kwargs["max_retries"] == anthropic_client._SDK_MAX_RETRIES
 
 
 def test_api_key_path_passes_api_key(monkeypatch):
@@ -81,7 +82,7 @@ def test_api_key_path_passes_api_key(monkeypatch):
     assert kwargs["api_key"] == "sk-ant-test"
     assert "auth_token" not in kwargs
     assert "base_url" not in kwargs
-    assert kwargs["max_retries"] == 5
+    assert kwargs["max_retries"] == anthropic_client._SDK_MAX_RETRIES
 
 
 def test_openrouter_wins_over_oauth_and_api_key(monkeypatch):
@@ -430,3 +431,31 @@ async def test_call_with_retry_honors_retry_after_header(monkeypatch):
     assert sleeps, "expected at least one sleep before the retry"
     # First (and only) retry delay must be ≥ Retry-After hint.
     assert sleeps[0] >= 7.0, f"retry slept {sleeps[0]}s, expected ≥7s per Retry-After header"
+
+
+@pytest.mark.asyncio
+async def test_call_with_retry_sleeps_after_attempt_semaphore_is_released(monkeypatch):
+    """Retry backoff must not hold a caller-owned semaphore slot."""
+    import httpx
+
+    sem = asyncio.Semaphore(1)
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(529, request=request)
+    calls = {"n": 0}
+    observed_locked: list[bool] = []
+
+    async def fake_sleep(delay: float) -> None:
+        observed_locked.append(sem.locked())
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", fake_sleep)
+
+    async def flaky() -> str:
+        async with sem:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise APIStatusError(message="overloaded", response=response, body=None)
+            return "ok"
+
+    result = await anthropic_client.call_with_retry(flaky, retries=1, label="sem-release-test")
+    assert result == "ok"
+    assert observed_locked == [False]

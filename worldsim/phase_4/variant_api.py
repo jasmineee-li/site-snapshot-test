@@ -42,8 +42,10 @@ from worldsim.phase_4.anthropic_client import (
     normalize_model_for_auth,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
+from worldsim.phase_4.prompt_payloads import sanitize_task_for_model_prompt
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES
 from worldsim.prompt_loading import load_prompt
+from worldsim.seeding import validate_data_seed
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +130,7 @@ def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) 
 
 def _build_messages(task: dict[str, Any], strategy: dict[str, Any]) -> list[dict[str, Any]]:
     prompt = load_prompt("generate-variant")
-    task_with_strategy = {**task, "target_strategy": strategy}
+    task_with_strategy = {**sanitize_task_for_model_prompt(task), "target_strategy": strategy}
     task_json = json.dumps(task_with_strategy, indent=2, sort_keys=True)
     return [
         {
@@ -173,6 +175,17 @@ def _merge_variant(base_task: dict[str, Any], tool_payload: dict[str, Any]) -> d
     # into downstream serializations.
     merged.pop("target_strategy", None)
     return merged
+
+
+def _validate_variant_seed(payload: dict[str, Any]) -> str | None:
+    seed = payload.get("adversarial_data_seed")
+    if not isinstance(seed, dict) or not seed:
+        return "schema_violation"
+    try:
+        validate_data_seed(seed, allow_none=False)
+    except ValueError:
+        return "schema_violation"
+    return None
 
 
 async def generate_variant_api(
@@ -240,12 +253,15 @@ async def generate_variant_api(
     while attempts < 2:
         attempts += 1
         try:
-            async with get_api_semaphore():
-                response = await call_with_retry(
-                    lambda mt=max_tokens: _call(mt),
-                    retries=3,
-                    label=f"variant-{strategy_name}-{task_id}",
-                )
+            async def _attempt(mt: int = max_tokens) -> Any:
+                async with get_api_semaphore():
+                    return await _call(mt)
+
+            response = await call_with_retry(
+                _attempt,
+                retries=3,
+                label=f"variant-{strategy_name}-{task_id}",
+            )
         except Exception as exc:
             failure_class = classify_api_exception(exc)
             _append_err(f"{failure_class}: {exc}")
@@ -344,6 +360,16 @@ async def generate_variant_api(
             "status": "failed",
             "failure_class": "unexpected_tool_status",
             "reason": f"unexpected tool status={status!r}",
+        }
+        return skipped
+
+    seed_failure = _validate_variant_seed(payload)
+    if seed_failure is not None:
+        skipped = copy.deepcopy(task)
+        skipped["variant_status"] = {
+            "status": "failed",
+            "failure_class": seed_failure,
+            "reason": "tool payload returned an invalid adversarial_data_seed",
         }
         return skipped
 
