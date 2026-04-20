@@ -143,9 +143,16 @@ with open(instances_path, encoding="utf-8") as handle:
     payload = json.load(handle)
 
 ports: set[int] = set()
-for instance in payload.get("instances", []):
+missing_labels: list[str] = []
+for index, instance in enumerate(payload.get("instances", [])):
     raw_url = str(instance.get("pvpo_cdp_url") or "").strip()
     if not raw_url:
+        site_name = str(instance.get("site_name") or f"instance[{index}]").strip() or f"instance[{index}]"
+        replica_index = instance.get("replica_index")
+        if replica_index is None:
+            missing_labels.append(site_name)
+        else:
+            missing_labels.append(f"{site_name}[{replica_index}]")
         continue
     parsed = urlparse(raw_url)
     host = (parsed.hostname or "").strip().lower()
@@ -159,6 +166,11 @@ for instance in payload.get("instances", []):
 
 if not ports:
     raise SystemExit("instances file has no pvpo_cdp_url entries; populate one endpoint per instance")
+if missing_labels:
+    missing_display = ", ".join(sorted(missing_labels))
+    raise SystemExit(
+        f"instances missing pvpo_cdp_url: {missing_display}. Populate one dedicated endpoint per instance"
+    )
 
 for port in sorted(ports):
     print(port)
