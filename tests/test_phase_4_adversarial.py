@@ -399,6 +399,47 @@ async def test_process_adversarial_result_marks_partial_capacity_inconclusive(
 
 
 @pytest.mark.asyncio
+async def test_process_adversarial_result_does_not_run_strategy_variation_after_unresolved_non_encounter(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "final_status": "injection_not_encountered",
+        "encounter": {"max_coverage": 0.0},
+        "trajectory_dir": str(tmp_path / "traj"),
+    }
+
+    async def fake_placement_fix(*args, **kwargs):
+        return {
+            "status": "no_change",
+            "final_task": task,
+            "final_result": dict(initial_result),
+            "attempts": [dict(initial_result)],
+        }
+
+    async def fail_strategy_variation(*args, **kwargs):
+        raise AssertionError("strategy variation must not run on unresolved non-encounter")
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", fake_placement_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fail_strategy_variation)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["final_status"] == "injection_not_encountered"
+    assert result["placement_fix"]["status"] == "no_change"
+
+
+@pytest.mark.asyncio
 async def test_postprocess_one_task_resume_ignores_stale_processed_result(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     result = {
@@ -2909,6 +2950,55 @@ async def test_run_adversarial_task_seeds_against_delivery_site_instance(monkeyp
     assert isinstance(captured["seed_instance"], dict)
     assert captured["seed_instance"]["site_name"] == "gitlab"
     assert captured["seed_instance"]["site_url"] == "http://gitlab.test"
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_uses_selected_payload_for_pvpo(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    task["payload_texts"] = [
+        {"rendered_payload": "ignored payload"},
+        {"rendered_payload": "selected payload"},
+    ]
+    task["selected_payload_index"] = 1
+
+    captured: dict[str, object] = {}
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance_dict):
+        return None, {}
+
+    def fake_run_reward_function(reward, instance, agent_result=None, network_trace=None):
+        return reward is task["reward_function"]["benign_reward"], "ok"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None, **kwargs):
+            captured["payload_text"] = kwargs.get("payload_text")
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert result["outcome"] == "refused_or_ignored"
+    assert captured["payload_text"] == "selected payload"
 
 
 @pytest.mark.asyncio

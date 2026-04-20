@@ -374,20 +374,44 @@ def test_state_message_excluded_in_real_trajectory_by_default():
 @pytest.mark.parametrize(
     "task,expected",
     [
+        ({"instruction": "INST"}, "INST"),
+        ({"task_instruction": "TI2"}, "TI2"),
         ({"description": "D"}, "D"),
         ({"task_description": "TD"}, "TD"),
         ({"intent": "I"}, "I"),
         ({"task_intent": "TI"}, "TI"),
-        # Precedence order: description > task_description > intent > task_intent
+        # Precedence order: instruction > task_instruction > description >
+        # task_description > intent > task_intent
+        (
+            {
+                "instruction": "INST",
+                "task_instruction": "TI2",
+                "description": "D",
+                "task_description": "TD",
+                "intent": "I",
+                "task_intent": "TI",
+            },
+            "INST",
+        ),
+        (
+            {
+                "task_instruction": "TI2",
+                "description": "D",
+                "task_description": "TD",
+                "intent": "I",
+                "task_intent": "TI",
+            },
+            "TI2",
+        ),
         ({"description": "D", "task_description": "TD", "intent": "I", "task_intent": "TI"}, "D"),
         ({"task_description": "TD", "intent": "I", "task_intent": "TI"}, "TD"),
         ({"intent": "I", "task_intent": "TI"}, "I"),
         # Empty / missing fields collapse to empty string
         ({}, ""),
-        ({"description": ""}, ""),
+        ({"instruction": ""}, ""),
         ({"description": None, "intent": None}, ""),
         # Non-string values coerced via str()
-        ({"description": 42}, "42"),
+        ({"instruction": 42}, "42"),
     ],
 )
 def test_extract_task_intent_precedence(task, expected):
@@ -412,6 +436,7 @@ def test_extract_task_intent_is_stable_across_phase_4_judges():
         {"task_description": "TD"},
         {"intent": "I"},
         {"description": "D"},
+        {"instruction": "INST"},
         {"description": "D", "task_intent": "TI"},
     ):
         expected = extract_task_intent(fields)

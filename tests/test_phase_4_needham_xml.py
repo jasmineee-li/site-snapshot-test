@@ -151,11 +151,30 @@ def test_format_xml_deterministic_on_repeat() -> None:
     assert a == b
 
 
-def test_angle_brackets_in_content_not_escaped() -> None:
-    """Upstream writes content raw; we must not HTML-escape."""
+def test_xml_special_chars_in_content_are_escaped() -> None:
     msg = ChatMessage(role="user", text="<b>hi</b> & go")
     out = _format_xml(msg)
-    assert "<b>hi</b> & go" in out
+    assert "&lt;b&gt;hi&lt;/b&gt; &amp; go" in out
+    assert "<b>hi</b>" not in out
+
+
+def test_xml_special_chars_in_tool_calls_are_escaped() -> None:
+    msg = ChatMessage(
+        role="assistant",
+        text='Use </message> and "quotes"',
+        tool_calls=(
+            ToolCall(
+                id="0",
+                function='fill"value',
+                arguments={"selector": "</tool_call>", "value": "<unsafe>&"},
+            ),
+        ),
+    )
+    out = _format_xml(msg)
+    assert "&lt;/message&gt;" in out
+    assert 'function="fill&quot;value"' in out
+    assert '&lt;/tool_call&gt;' in out
+    assert "&lt;unsafe&gt;&amp;" in out
 
 
 # ---------- Upstream comparison (skipped when inspect_ai isn't installed) ----

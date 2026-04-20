@@ -179,6 +179,28 @@ def test_multi_step_picks_max_coverage_step(tmp_path: Path):
     assert result.reference_screenshot_path == tmp_path / "screenshots" / "step_1.png"
 
 
+def test_selected_payload_index_controls_payload_used_for_coverage(tmp_path: Path):
+    png = _make_png_with_ink([(10, 10, 5, 5), (20, 10, 5, 5)])
+    vec = [
+        _visible_entry(0, "x", (10, 10, 5, 5)),
+        _visible_entry(1, "y", (20, 10, 5, 5)),
+    ]
+    _write_step(tmp_path, 0, vec, png)
+
+    task = {
+        "id": "adv_t_selected",
+        "site": "shopping_admin",
+        "payload_texts": [
+            {"rendered_payload": "ignored"},
+            {"rendered_payload": "xy"},
+        ],
+        "selected_payload_index": 1,
+    }
+
+    result = determine_encounter(task, tmp_path)
+    assert result.max_coverage == 1.0
+
+
 @pytest.mark.parametrize(
     "visible_indices,payload,expected",
     [

@@ -80,9 +80,10 @@ from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.failpoints import crash_if_enabled
 from worldsim.instance_selection import select_task_site_instance
 from worldsim.modal_sandbox import preflight_auth_check
-from worldsim.phase_4.aer_trajectory_extract import extract_trajectory
+from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory, extract_trajectory
 from worldsim.phase_4.encounter_detection import EncounterResult, determine_encounter
 from worldsim.phase_4.placement_api import run_placement_api
+from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
 from worldsim.phase_4.transcript_purpose_api import (
     _failure_result as _transcript_purpose_failure_result,
 )
@@ -90,6 +91,7 @@ from worldsim.phase_4.transcript_purpose_api import (
     run_transcript_purpose_api,
 )
 from worldsim.phase_4.verbalized_eval_awareness_api import (
+    _failure_result as _vea_failure_result,
     run_verbalized_eval_awareness_api,
 )
 from worldsim.phases.phase_2_text_fill import (
@@ -142,7 +144,6 @@ _VARIANT_RESULT_METADATA = "resume_metadata.json"
 # `worldsim.phase_4.strategy_catalog.ALLOWED_STRATEGIES`. Re-exported here
 # as `_ALLOWED_STRATEGIES` for backward compatibility with existing
 # validation callers.
-from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
 
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 
@@ -212,6 +213,56 @@ def _pvpo_metric_payload(pvpo: dict[str, Any]) -> dict[str, Any]:
     return {k: pvpo[k] for k in _PVPO_METRIC_KEYS if k in pvpo}
 
 
+def _gate_miss_payload(encounter_dict: dict[str, Any]) -> dict[str, Any]:
+    """Return the canonical gate-miss payload with a fail-closed encounter view."""
+    coerced_encounter = dict(encounter_dict)
+    coerced_encounter["max_coverage"] = 0.0
+    coerced_encounter["reference_step"] = None
+    coerced_encounter["reference_screenshot_path"] = None
+    return {
+        "encounter": coerced_encounter,
+        "injection_not_encountered": True,
+        **_null_metric_keys(),
+    }
+
+
+def _observational_metrics_unavailable(
+    *,
+    encounter_dict: dict[str, Any],
+    task_dir: Path,
+    failure_class: str,
+) -> dict[str, Any]:
+    """Return a schema-complete payload when Stage 2 evidence is unavailable."""
+    return {
+        "encounter": encounter_dict,
+        "injection_not_encountered": False,
+        **_transcript_purpose_failure_result(failure_class, task_dir),
+        **_vea_failure_result(failure_class),
+    }
+
+
+def _trajectory_available_for_observational_metrics(traj: ExtractedTrajectory) -> bool:
+    """Conservatively reject partial trajectory envelopes for Stage 2 judges."""
+    if traj.partial:
+        return False
+    return not any(step.partial for step in traj.steps)
+
+
+def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
+    """Return the rendered payload chosen by ``selected_payload_index``."""
+    payload_texts = task.get("payload_texts")
+    if not isinstance(payload_texts, list) or not payload_texts:
+        return None
+    selected_index = task.get("selected_payload_index", 0)
+    if not isinstance(selected_index, int) or not (0 <= selected_index < len(payload_texts)):
+        selected_index = 0
+    payload = payload_texts[selected_index]
+    if not isinstance(payload, dict):
+        return None
+    rendered = payload.get("rendered_payload")
+    return rendered if isinstance(rendered, str) and rendered else None
+
+
 async def _run_pvpo_gate(
     task: dict[str, Any],
     task_dir: Path,
@@ -250,11 +301,7 @@ async def _run_pvpo_gate(
     )
 
     if injection_not_encountered:
-        return {
-            "encounter": encounter_dict,
-            "injection_not_encountered": True,
-            **_null_metric_keys(),
-        }
+        return _gate_miss_payload(encounter_dict)
 
     # Extract the trajectory once; transcript_purpose formats AER text and VEA
     # builds Needham XML from the same ExtractedTrajectory.
@@ -262,15 +309,35 @@ async def _run_pvpo_gate(
         traj = extract_trajectory(task_dir)
     except (FileNotFoundError, ValueError) as exc:
         logger.warning(
-            "pvpo: trajectory extract failed for %s; falling back to empty: %s",
+            "pvpo: trajectory extract failed for %s; skipping Stage 2 judges: %s",
             task_dir,
             exc,
         )
-        from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory
+        return _observational_metrics_unavailable(
+            encounter_dict=encounter_dict,
+            task_dir=task_dir,
+            failure_class="trajectory_unavailable",
+        )
 
-        traj = ExtractedTrajectory(steps=[])
+    if not _trajectory_available_for_observational_metrics(traj):
+        logger.warning(
+            "pvpo: trajectory for %s is partial; skipping Stage 2 judges",
+            task_dir,
+        )
+        return _observational_metrics_unavailable(
+            encounter_dict=encounter_dict,
+            task_dir=task_dir,
+            failure_class="trajectory_unavailable",
+        )
 
     screenshot_path = encounter.reference_screenshot_path
+    if screenshot_path is None or not screenshot_path.is_file():
+        logger.warning(
+            "pvpo: reference screenshot unavailable at Stage 2 start for %s; "
+            "routing to placement-fix",
+            task_dir,
+        )
+        return _gate_miss_payload(encounter_dict)
 
     sentinel_path = task_dir / _IPI_AER_INFLIGHT_SENTINEL
     try:
@@ -303,6 +370,8 @@ async def _run_pvpo_gate(
 
     # Convert any raised exceptions into classified failure dicts so one
     # metric blowing up never aborts the other.
+    if isinstance(tp_result_raw, asyncio.CancelledError):
+        raise tp_result_raw
     if isinstance(tp_result_raw, BaseException):
         logger.warning("pvpo: transcript_purpose raised unexpectedly: %s", tp_result_raw)
         tp_null = _null_metric_keys()
@@ -311,6 +380,8 @@ async def _run_pvpo_gate(
     else:
         tp_result = tp_result_raw
 
+    if isinstance(vea_result_raw, asyncio.CancelledError):
+        raise vea_result_raw
     if isinstance(vea_result_raw, BaseException):
         logger.warning("pvpo: VEA raised unexpectedly: %s", vea_result_raw)
         vea_result = {
@@ -1626,12 +1697,9 @@ async def run_adversarial_task(
             # locate it by substring match on the delivery page. When no
             # payload_texts are attached to the task (benign runs, seed-
             # preflight failures), PVPO capture is disabled.
-            _payload_texts = task.get("payload_texts") or []
-            if _payload_texts:
-                _first = _payload_texts[0] or {}
-                _rendered = _first.get("rendered_payload")
-                if isinstance(_rendered, str) and _rendered:
-                    run_kwargs["payload_text"] = _rendered
+            selected_payload = _selected_rendered_payload(task)
+            if selected_payload is not None:
+                run_kwargs["payload_text"] = selected_payload
             result = await agent.run(
                 instruction,
                 instance.site_url,
@@ -1875,6 +1943,17 @@ async def _process_adversarial_result(
         annotations["placement_fix"] = placement_fix
         current_task = placement_fix.get("final_task", current_task)
         current_result = placement_fix["final_result"]
+
+    if current_result.get("final_status") == "injection_not_encountered":
+        return {
+            **_build_phase_4_result(
+                task_id=task.get("id", "unknown"),
+                initial_result=initial_result,
+                current_result=current_result,
+                final_status="injection_not_encountered",
+            ),
+            **annotations,
+        }
 
     outcome = current_result.get("outcome")
     if outcome == "complied":

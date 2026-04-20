@@ -74,7 +74,9 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
 
     Args:
         task: the task dict. The seeded payload is read from
-            ``task["payload_texts"][0]["rendered_payload"]``.
+            ``task["payload_texts"][selected_payload_index]["rendered_payload"]``
+            when ``selected_payload_index`` is present, otherwise the first
+            payload.
         trajectory_dir: per-task directory with ``pvpo/step_*.json`` and
             ``screenshots/step_*.png`` subdirectories.
 
@@ -197,8 +199,11 @@ def _extract_payload(task: dict[str, Any]) -> str:
     payloads = task.get("payload_texts") or []
     if not payloads:
         return ""
-    first = payloads[0] or {}
-    rendered = first.get("rendered_payload") or ""
+    selected_index = task.get("selected_payload_index", 0)
+    if not isinstance(selected_index, int) or not (0 <= selected_index < len(payloads)):
+        selected_index = 0
+    selected = payloads[selected_index] or {}
+    rendered = selected.get("rendered_payload") or ""
     return str(rendered)
 
 

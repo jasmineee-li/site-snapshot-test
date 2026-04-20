@@ -320,3 +320,85 @@ async def test_sentinel_written_then_cleaned_on_success(monkeypatch, tmp_path):
 
     # Cleaned up on clean return.
     assert not (tmp_path / ".ipi_aer_inflight").exists()
+
+
+@pytest.mark.asyncio
+async def test_partial_trajectory_skips_both_stage_2_judges(monkeypatch, tmp_path):
+    (tmp_path / "history.json").write_text(
+        json.dumps({"history": [], "partial": True, "errors": ["browser crashed"]})
+    )
+    screenshot = _screenshot(tmp_path)
+
+    def fake_determine(task, trajectory_dir):
+        return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
+
+    async def assert_tp_not_called(*args, **kwargs):
+        raise AssertionError("transcript-purpose must not run on partial trajectory")
+
+    async def assert_vea_not_called(*args, **kwargs):
+        raise AssertionError("VEA must not run on partial trajectory")
+
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
+    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called)
+
+    result = await phase_4_adversarial._run_pvpo_gate(
+        _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
+    )
+
+    assert result["injection_not_encountered"] is False
+    assert result["transcript_purpose_failure"] == "trajectory_unavailable"
+    assert result["verbalized_eval_awareness_failure"] == "trajectory_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_missing_history_skips_both_stage_2_judges(monkeypatch, tmp_path):
+    screenshot = _screenshot(tmp_path)
+
+    def fake_determine(task, trajectory_dir):
+        return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
+
+    async def assert_tp_not_called(*args, **kwargs):
+        raise AssertionError("transcript-purpose must not run without history.json")
+
+    async def assert_vea_not_called(*args, **kwargs):
+        raise AssertionError("VEA must not run without history.json")
+
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
+    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called)
+
+    result = await phase_4_adversarial._run_pvpo_gate(
+        _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
+    )
+
+    assert result["injection_not_encountered"] is False
+    assert result["transcript_purpose_failure"] == "trajectory_unavailable"
+    assert result["verbalized_eval_awareness_failure"] == "trajectory_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_reference_screenshot_rechecked_before_stage_2(monkeypatch, tmp_path):
+    _write_history(tmp_path)
+    screenshot = _screenshot(tmp_path)
+
+    def fake_determine(task, trajectory_dir):
+        return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
+
+    async def assert_tp_not_called(*args, **kwargs):
+        raise AssertionError("transcript-purpose must not run after screenshot loss")
+
+    async def assert_vea_not_called(*args, **kwargs):
+        raise AssertionError("VEA must not run after screenshot loss")
+
+    screenshot.unlink()
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
+    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called)
+
+    result = await phase_4_adversarial._run_pvpo_gate(
+        _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
+    )
+
+    assert result["injection_not_encountered"] is True
+    assert result["encounter"]["max_coverage"] == 0.0
