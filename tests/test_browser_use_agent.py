@@ -160,6 +160,31 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
     assert (tmp_path / "screenshots" / "step_1.png").read_bytes() == b"png-bytes"
 
 
+@pytest.mark.asyncio
+async def test_pvpo_callback_rejects_non_owned_target(tmp_path):
+    page = SimpleNamespace(_target_id="foreign-1")
+
+    class BrowserUseLikeSession:
+        get_or_create_cdp_session = AsyncMock()
+
+        async def get_current_page(self):
+            return page
+
+    callback = browser_use_agent._make_pvpo_step_callback(
+        BrowserUseLikeSession(),
+        tmp_path,
+        "payload text",
+        owned_target_ids={"target-1"},
+    )
+
+    await callback(SimpleNamespace(), SimpleNamespace(), 1)
+
+    summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
+    assert summary["status"] == "degraded"
+    assert summary["issue_counts"]["foreign_target"] == 1
+    BrowserUseLikeSession.get_or_create_cdp_session.assert_not_awaited()
+
+
 def test_resolve_pvpo_cdp_url_rejects_remote_without_override(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("WORLDSIM_ALLOW_REMOTE_PVPO_CDP_URL", raising=False)
     with pytest.raises(ValueError, match="loopback"):
@@ -279,3 +304,279 @@ async def test_reset_remote_browser_for_task_closes_failed_retained_page_before_
     session.get_or_create_cdp_session.assert_any_await(target_id="fresh-1", focus=True)
     assert agent._owned_target_ids == {"fresh-1"}
     assert agent._primary_target_id == "fresh-1"
+
+
+@pytest.mark.asyncio
+async def test_reset_remote_browser_for_task_preserves_storage_state_auth():
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    agent._preserve_remote_auth_state = True
+    focused = SimpleNamespace(_target_id="focused-1", goto=AsyncMock())
+    extra = SimpleNamespace(_target_id="extra-1")
+    cdp_session = object()
+    clear_storage = AsyncMock()
+
+    class FakeSession:
+        get_pages = AsyncMock(return_value=[extra, focused])
+        get_current_page = AsyncMock(return_value=focused)
+        get_or_create_cdp_session = AsyncMock(return_value=cdp_session)
+        clear_cookies = AsyncMock()
+        close_page = AsyncMock()
+        new_page = AsyncMock()
+        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage)))
+
+    session = FakeSession()
+    await agent._reset_remote_browser_for_task(session)
+
+    focused.goto.assert_awaited_once_with("about:blank")
+    session.close_page.assert_awaited_once_with(extra)
+    session.clear_cookies.assert_not_awaited()
+    clear_storage.assert_not_awaited()
+    assert agent._browser_runtime["reset_preserved_auth_state"] is True
+
+
+@pytest.mark.asyncio
+async def test_cleanup_external_cdp_state_preserves_storage_state_auth():
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    agent._preserve_remote_auth_state = True
+    agent._task_origins = {"http://example.test"}
+    page = SimpleNamespace(_target_id="target-1", get_url=AsyncMock(return_value="http://example.test/path"))
+    clear_storage = AsyncMock()
+
+    class FakeSession:
+        get_pages = AsyncMock(return_value=[page])
+        clear_cookies = AsyncMock()
+        close_page = AsyncMock()
+        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage)))
+
+    session = FakeSession()
+    await agent._cleanup_external_cdp_state(session)
+
+    clear_storage.assert_not_awaited()
+    session.clear_cookies.assert_not_awaited()
+    session.close_page.assert_awaited_once_with(page)
+    assert agent._browser_runtime["cleanup_preserved_auth_state"] is True
+
+
+@pytest.mark.asyncio
+async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, tmp_path):
+    import browser_use
+
+    class FakeHistory:
+        history = []
+
+        def save_to_file(self, path):
+            path.write_text('{"history":[]}')
+
+        def screenshot_paths(self):
+            return []
+
+        def is_done(self):
+            return True
+
+        def final_result(self):
+            return "ok"
+
+        def errors(self):
+            return []
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            self.history = FakeHistory()
+
+        async def run(self, max_steps=50):
+            return self.history
+
+    class FakeBrowserSession:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def start(self):
+            return None
+
+        async def kill(self):
+            return None
+
+    runner = browser_use_agent.BrowserUseAgent(llm=object())
+
+    monkeypatch.setattr(browser_use, "Agent", FakeAgent)
+    monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
+    monkeypatch.setattr(
+        browser_use_agent,
+        "_resolve_auth",
+        lambda *args, **kwargs: ({"storage_state": "/tmp/state.json"}, []),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_reset_remote_browser_for_task",
+        AsyncMock(),
+    )
+    monkeypatch.setattr(
+        browser_use_agent._NetworkTraceRecorder,
+        "start",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        browser_use_agent._NetworkTraceRecorder,
+        "stop",
+        AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_cleanup_external_cdp_state",
+        AsyncMock(return_value=None),
+    )
+
+    result = await runner.run(
+        task="task",
+        server_url="http://example.test",
+        task_dir=tmp_path / "task",
+        auth_mechanism={"type": "storage_state"},
+        pvpo_cdp_url="http://127.0.0.1:9222",
+    )
+
+    assert result.status == "success"
+    runner._reset_remote_browser_for_task.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    import browser_use
+
+    observed: dict[str, object] = {}
+    page = SimpleNamespace(
+        _target_id="owned-1",
+        goto=AsyncMock(),
+        get_url=AsyncMock(return_value="https://example.test/path"),
+    )
+    cdp_session = object()
+
+    class FakeHistory:
+        history = [object()]
+
+        def save_to_file(self, path):
+            path.write_text('{"history":[{"step":1}]}')
+
+        def screenshot_paths(self):
+            return []
+
+        def is_done(self):
+            return True
+
+        def final_result(self):
+            return "ok"
+
+        def errors(self):
+            return []
+
+    class FakeRecorder:
+        def __init__(self, browser_session, task_dir, *, target_filter=None):
+            _ = browser_session, task_dir
+            observed["target_filter"] = set(target_filter or ())
+
+        async def start(self):
+            return None
+
+        async def stop(self):
+            return []
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            self.history = FakeHistory()
+
+        async def run(self, max_steps: int = 1):
+            _ = max_steps
+            return self.history
+
+    class FakeBrowserSession:
+        def __init__(self, **kwargs):
+            _ = kwargs
+            self.cdp_client = SimpleNamespace(
+                send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock()))
+            )
+            self.clear_cookies = AsyncMock()
+            self.close_page = AsyncMock()
+            self.kill = AsyncMock()
+
+        async def start(self):
+            return None
+
+        async def get_pages(self):
+            return [page]
+
+        async def get_current_page(self):
+            return page
+
+        async def get_or_create_cdp_session(self, *, target_id=None, focus=False):
+            _ = target_id, focus
+            return cdp_session
+
+        async def new_page(self, url=None):
+            _ = url
+            return page
+
+    monkeypatch.setattr(browser_use, "Agent", FakeAgent)
+    monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
+    monkeypatch.setattr(browser_use_agent, "_NetworkTraceRecorder", FakeRecorder)
+    monkeypatch.setattr(
+        browser_use_agent,
+        "_make_pvpo_step_callback",
+        lambda *args, **kwargs: AsyncMock(),
+    )
+
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    result = await agent.run(
+        task="Open the page",
+        server_url="https://example.test",
+        task_dir=tmp_path / "task",
+        start_urls=["https://example.test"],
+        pvpo_cdp_url="http://127.0.0.1:9222",
+    )
+
+    assert result.status == "success"
+    assert observed["target_filter"] == {"owned-1"}
+
+    runtime = json.loads((tmp_path / "task" / "browser_runtime.json").read_text())
+    assert runtime["cleanup_closed_targets"] == 1
+    assert runtime["cleanup_target_ids"] == ["owned-1"]
+    assert runtime["cleanup_origins"] == ["https://example.test"]
+
+
+@pytest.mark.asyncio
+async def test_run_cleans_up_session_when_remote_reset_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    import browser_use
+
+    observed: dict[str, object] = {}
+
+    class FakeBrowserSession:
+        def __init__(self, **kwargs):
+            _ = kwargs
+            self.kill = AsyncMock()
+            observed["session"] = self
+
+        async def start(self):
+            return None
+
+    monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
+    monkeypatch.setattr(browser_use, "Agent", object)
+    monkeypatch.setattr(
+        browser_use_agent.BrowserUseAgent,
+        "_reset_remote_browser_for_task",
+        AsyncMock(side_effect=RuntimeError("reset boom")),
+    )
+
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    with pytest.raises(RuntimeError, match="reset boom"):
+        await agent.run(
+            task="Open the page",
+            server_url="https://example.test",
+            task_dir=tmp_path / "task",
+            start_urls=["https://example.test"],
+            pvpo_cdp_url="http://127.0.0.1:9222",
+        )
+
+    session = observed["session"]
+    session.kill.assert_awaited_once()

@@ -61,3 +61,17 @@ def validate_pvpo_cdp_url(
         f"{parsed.hostname!r}. Set {REMOTE_PVPO_CDP_OVERRIDE_ENV}=1 only if you intentionally "
         "trust that remote browser."
     )
+
+
+def canonical_pvpo_endpoint_identity(raw_url: str) -> str:
+    """Return a stable identity string for endpoint dedupe."""
+    parsed = urlparse(raw_url)
+    if not parsed.hostname:
+        raise ValueError(f"pvpo_cdp_url must include a hostname: {raw_url!r}")
+    host = parsed.hostname.strip().lower()
+    if _host_is_loopback(host):
+        host = "127.0.0.1"
+    port = parsed.port
+    if port is None:
+        port = 443 if parsed.scheme in {"https", "wss"} else 80
+    return f"{host}:{port}"

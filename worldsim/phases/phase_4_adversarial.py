@@ -120,7 +120,7 @@ from worldsim.placeholders import (
     placeholder_for_site,
 )
 from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
-from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
+from worldsim.pvpo_endpoint import canonical_pvpo_endpoint_identity, validate_pvpo_cdp_url
 from worldsim.resume_metadata import (
     RESULT_FINGERPRINT_KEY,
     fingerprint_payload,
@@ -1107,14 +1107,15 @@ def _pvpo_endpoint_preflight_errors(
             continue
         if normalized_url is None:
             continue
-        prior = seen_urls.get(normalized_url)
+        endpoint_identity = canonical_pvpo_endpoint_identity(normalized_url)
+        prior = seen_urls.get(endpoint_identity)
         if prior is not None:
             errors.append(
                 f"duplicate pvpo_cdp_url {normalized_url!r} for instances {prior!r} and {label!r}; "
                 "Phase 4 requires one dedicated PVPO browser endpoint per worker"
             )
         else:
-            seen_urls[normalized_url] = label
+            seen_urls[endpoint_identity] = label
     return errors
 
 

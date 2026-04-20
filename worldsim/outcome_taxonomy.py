@@ -1104,7 +1104,10 @@ def _classify_evaluator_unavailable_subclass(task: dict[str, Any]) -> str:
         evals = spec.get("eval")
         if isinstance(evals, list):
             return any(isinstance(e, dict) and e.get("evaluator") == name for e in evals)
-        return spec.get("type") == name
+        spec_type = spec.get("type")
+        if name == "NetworkEventEvaluator":
+            return spec_type in {"NetworkEventEvaluator", "network_event"}
+        return spec_type == name
 
     if _has_evaluator(reward.get("benign_reward", reward), "NetworkEventEvaluator") or (
         isinstance(adv_reward, dict) and _has_evaluator(adv_reward, "NetworkEventEvaluator")

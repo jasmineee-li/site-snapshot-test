@@ -149,6 +149,30 @@ def test_pvpo_endpoint_preflight_errors_ignore_inactive_sites():
     ) == []
 
 
+def test_pvpo_endpoint_preflight_errors_reject_loopback_alias_duplicates():
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-0.test",
+            replica_index=0,
+            pvpo_cdp_url="http://127.0.0.1:9222",
+        ),
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-1.test",
+            replica_index=1,
+            pvpo_cdp_url="http://localhost:9222/",
+        ),
+    ]
+
+    errors = phase_4_adversarial._pvpo_endpoint_preflight_errors(
+        instances,
+        active_sites={"shopping"},
+    )
+
+    assert any("duplicate pvpo_cdp_url" in error for error in errors)
+
+
 def _v2_payload_contract_fields(*, task_id: str = "adv-1") -> dict[str, object]:
     tokens = phase_2_text_fill.derive_required_tokens(task_id)
     url = tokens[0]["value"]
@@ -2715,6 +2739,7 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
                         "site_name": "gitlab",
                         "site_url": "http://gitlab.test",
                         "reset_endpoint": "http://gitlab.test/init",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
                         "agent_auth": {
                             "type": "storage_state",
                             "storage_state": {"path": "auth/gitlab-state.json"},
@@ -2802,7 +2827,13 @@ async def test_phase_4_run_agent_runtime_error_precedes_host_api_preflight(monke
             {
                 "benchmark_name": "demo",
                 "benchmark_codebase": str(tmp_path),
-                "instances": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}],
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
+                    }
+                ],
             }
         )
     )
@@ -2895,6 +2926,7 @@ async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mism
                         "site_name": "gitlab",
                         "site_url": "http://gitlab.test",
                         "reset_endpoint": "http://gitlab.test/init",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
                         "agent_auth": {
                             "type": "storage_state",
                             "storage_state": {"path": str(bad_state)},
@@ -2904,6 +2936,7 @@ async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mism
                         "site_name": "gitlab",
                         "site_url": "http://gitlab-alt.test",
                         "reset_endpoint": "http://gitlab-alt.test/init",
+                        "pvpo_cdp_url": "http://127.0.0.1:9223",
                         "agent_auth": {
                             "type": "http_headers",
                             "http_headers": {"headers": {"X-Test": "1"}},
@@ -3012,6 +3045,7 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
                         "reset_endpoint": "http://shopping.test/init",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
                     }
                 ],
             }
@@ -3681,6 +3715,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
                         "site_name": "gitlab",
                         "site_url": "http://gitlab.test",
                         "reset_endpoint": "http://gitlab.test/init",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
                     }
                 ],
             }
@@ -4209,6 +4244,7 @@ async def test_phase_4_run_marks_all_error_results_failed(monkeypatch, tmp_path)
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
                         "reset_endpoint": "http://shopping.test/init",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
                     }
                 ],
             }
@@ -4680,6 +4716,7 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
                     {
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
                     }
                 ],
             }
@@ -4730,7 +4767,13 @@ def _prepare_malformed_contracts_fixture(tmp_path, contracts_payload):
             {
                 "benchmark_name": "demo",
                 "benchmark_codebase": str(tmp_path),
-                "instances": [{"site_name": "shopping", "site_url": "http://shopping.test"}],
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
+                    }
+                ],
             }
         )
     )

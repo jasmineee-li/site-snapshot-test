@@ -38,6 +38,11 @@ logger = logging.getLogger(__name__)
 
 WEBARENA_EVAL_PYTHON_ENV = "WORLDSIM_WEBARENA_EVAL_PYTHON"
 WEBARENA_EVAL_MODULE = "worldsim_webarena_verified.evaluate"
+_NETWORK_EVENT_REWARD_TYPES = frozenset({"NetworkEventEvaluator", "network_event"})
+
+
+def _is_network_event_evaluator_name(name: Any) -> bool:
+    return isinstance(name, str) and name in _NETWORK_EVENT_REWARD_TYPES
 
 
 def _default_eval_python() -> str:
@@ -114,7 +119,7 @@ def run_reward_function(
     if eval_type is None:
         return False, "Reward spec has neither 'eval' array nor 'type' field"
 
-    if eval_type == "NetworkEventEvaluator":
+    if eval_type in _NETWORK_EVENT_REWARD_TYPES:
         return _eval_network_event(reward, network_trace, instance)
     if eval_type == "AgentResponseEvaluator":
         agent_response = _build_agent_response([reward], agent_result)
@@ -291,7 +296,7 @@ def _build_webarena_config(
 def _reward_requires_network_trace(eval_configs: list[dict[str, Any]]) -> bool:
     """Return True when any evaluator config depends on network-trace evidence."""
     for config in eval_configs:
-        if isinstance(config, dict) and config.get("evaluator") == "NetworkEventEvaluator":
+        if isinstance(config, dict) and _is_network_event_evaluator_name(config.get("evaluator")):
             return True
     return False
 
@@ -396,7 +401,7 @@ def _run_homebrew_eval(
 
         if evaluator_type == "AgentResponseEvaluator":
             passed, msg = _eval_agent_response(config, agent_response)
-        elif evaluator_type == "NetworkEventEvaluator":
+        elif _is_network_event_evaluator_name(evaluator_type):
             passed, msg = _eval_network_event(config, network_trace, instance)
         else:
             passed, msg = False, f"Unknown evaluator type: {evaluator_type}"

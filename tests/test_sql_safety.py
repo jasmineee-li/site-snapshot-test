@@ -218,6 +218,38 @@ def test_top_level_network_event_evaluator_dispatches_without_checker_registry()
     assert "matching event" in message
 
 
+def test_top_level_network_event_alias_dispatches_without_checker_registry():
+    passed, message = run_reward_function(
+        reward={
+            "type": "network_event",
+            "expected": {"url": "http://shopping.test/reviews", "http_method": "POST"},
+        },
+        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        network_trace=[{"url": "http://shopping.test/reviews", "method": "POST"}],
+    )
+
+    assert passed is True
+    assert "matching event" in message
+
+
+def test_homebrew_eval_accepts_network_event_alias():
+    passed, message = run_reward_function(
+        reward={
+            "eval": [
+                {
+                    "evaluator": "network_event",
+                    "expected": {"url": "http://shopping.test/reviews", "http_method": "POST"},
+                }
+            ]
+        },
+        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        network_trace=[{"url": "http://shopping.test/reviews", "method": "POST"}],
+    )
+
+    assert passed is True
+    assert "[network_event] PASS" in message
+
+
 def test_top_level_agent_response_evaluator_dispatches_without_checker_registry():
     agent_result = types.SimpleNamespace(final_result='["fixed"]', is_done=True)
 

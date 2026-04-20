@@ -909,6 +909,7 @@ class BrowserUseAgent:
         self._owned_target_ids: set[str] = set()
         self._primary_target_id: str | None = None
         self._browser_runtime: dict[str, Any] = {}
+        self._preserve_remote_auth_state = False
         # Surface the configured model slug at construction. If the run 404s
         # mid-task, this is the first thing to check against the provider's
         # currently-served model list. An allowlist would rot faster than
@@ -926,6 +927,7 @@ class BrowserUseAgent:
         self._owned_target_ids = set()
         self._primary_target_id = None
         self._browser_runtime = {}
+        self._preserve_remote_auth_state = False
 
     async def run(
         self,
@@ -965,6 +967,7 @@ class BrowserUseAgent:
             task=resolve_task,
             benchmark_root=benchmark_root,
         )
+        self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
 
         # PVPO integration: Phase 4 binds each worker to its own chrome-
         # headless-shell endpoint via the instance config. The shared global
@@ -1008,29 +1011,39 @@ class BrowserUseAgent:
         if last_exc is not None:
             raise last_exc
 
-        if self._pvpo_cdp_url:
-            await self._reset_remote_browser_for_task(self._session)
-
-        # Run any deferred auth actions (e.g. future form_login flow) after
-        # session.start() succeeds and after any remote-browser reset has
-        # produced a fresh task-owned target. No-op for the first batch
-        # (storage_state / http_basic / none).
-        for action in deferred_auth_actions:
-            await action(self._session)
-
-        network_recorder = _NetworkTraceRecorder(self._session, task_dir)
-        await network_recorder.start()
-
         history = None
         agent = None
         elapsed = 0.0
         network_trace: list[dict[str, Any]] = []
+        network_recorder: _NetworkTraceRecorder | None = None
         status = "error"
         extra_errors: list[str] = []
         try:
+            if self._pvpo_cdp_url:
+                await self._reset_remote_browser_for_task(self._session)
+
+            # Run any deferred auth actions (e.g. future form_login flow) after
+            # session.start() succeeds and after any remote-browser reset has
+            # produced a fresh task-owned target. No-op for the first batch
+            # (storage_state / http_basic / none).
+            for action in deferred_auth_actions:
+                await action(self._session)
+
+            network_recorder = _NetworkTraceRecorder(
+                self._session,
+                task_dir,
+                target_filter=self._owned_target_ids,
+            )
+            await network_recorder.start()
+
             initial_actions = _build_initial_actions(start_urls or [])
             task_text = site_prompt if site_prompt else task
-            pvpo_hook = _make_pvpo_step_callback(self._session, task_dir, payload_text)
+            pvpo_hook = _make_pvpo_step_callback(
+                self._session,
+                task_dir,
+                payload_text,
+                owned_target_ids=self._owned_target_ids,
+            )
             agent = Agent(
                 task=task_text,
                 llm=self.llm,
@@ -1066,7 +1079,8 @@ class BrowserUseAgent:
                 history = getattr(agent, "history", None)
                 logger.exception("Agent run failed for %s", task_dir)
         finally:
-            network_trace = await network_recorder.stop()
+            if network_recorder is not None:
+                network_trace = await network_recorder.stop()
             self._task_origins.update(_origins_from_network_trace(network_trace))
             self._browser_runtime.update(
                 {
@@ -1081,12 +1095,16 @@ class BrowserUseAgent:
                 status=status,
                 extra_errors=extra_errors,
             )
-            _write_browser_runtime_artifact(task_dir, self._browser_runtime)
             if self._session is not None:
                 # Clean up temp profile dir before killing to avoid /tmp accumulation
                 self._cleanup_temp_profile(self._session)
                 try:
                     await self._cleanup_external_cdp_state(self._session)
+                except Exception as e:
+                    logger.warning("Remote PVPO browser cleanup failed: %s", e)
+                finally:
+                    _write_browser_runtime_artifact(task_dir, self._browser_runtime)
+                try:
                     await self._session.kill()
                 except Exception as e:
                     logger.warning("BrowserSession kill failed: %s", e)
@@ -1096,6 +1114,9 @@ class BrowserUseAgent:
                 self._owned_target_ids = set()
                 self._primary_target_id = None
                 self._browser_runtime = {}
+                self._preserve_remote_auth_state = False
+            else:
+                _write_browser_runtime_artifact(task_dir, self._browser_runtime)
 
         steps, is_done, final_result, history_errors = _extract_history_state(history)
         return AgentResult(
@@ -1123,6 +1144,7 @@ class BrowserUseAgent:
             self._owned_target_ids = set()
             self._primary_target_id = None
             self._browser_runtime = {}
+            self._preserve_remote_auth_state = False
 
     async def _reset_remote_browser_for_task(self, session: Any) -> None:
         """Reset a worker-owned remote browser to one fresh blank target."""
@@ -1152,7 +1174,8 @@ class BrowserUseAgent:
         if retained_page is None and extra_pages:
             retained_page = extra_pages.pop(0)
         if pages:
-            await self._clear_page_storage(session, pages=pages, origins=set())
+            if not self._preserve_remote_auth_state:
+                await self._clear_page_storage(session, pages=pages, origins=set())
             if retained_page is not None:
                 try:
                     await retained_page.goto("about:blank")
@@ -1166,7 +1189,8 @@ class BrowserUseAgent:
             if extra_pages:
                 await self._close_pages(session, extra_pages)
 
-        await self._clear_browser_cookies(session)
+        if not self._preserve_remote_auth_state:
+            await self._clear_browser_cookies(session)
 
         if retained_page is None:
             retained_page = await session.new_page("about:blank")
@@ -1182,6 +1206,7 @@ class BrowserUseAgent:
                 "reset_initial_targets": initial_targets,
                 "reset_closed_targets": len(extra_pages),
                 "primary_target_id": new_target_id,
+                "reset_preserved_auth_state": self._preserve_remote_auth_state,
             }
         )
 
@@ -1190,18 +1215,23 @@ class BrowserUseAgent:
         if not self._pvpo_cdp_url:
             return
 
-        pages = await _session_pages(session)
+        pages = await _session_pages(
+            session,
+            target_filter=self._owned_target_ids or None,
+        )
         closed_target_ids = sorted(
             target_id for target_id in (_target_id_for_page(page) for page in pages) if target_id
         )
-        await self._clear_page_storage(session, pages=pages, origins=set(self._task_origins))
-        await self._clear_browser_cookies(session)
+        if not self._preserve_remote_auth_state:
+            await self._clear_page_storage(session, pages=pages, origins=set(self._task_origins))
+            await self._clear_browser_cookies(session)
         await self._close_pages(session, pages)
         self._browser_runtime.update(
             {
                 "cleanup_closed_targets": len(closed_target_ids),
                 "cleanup_target_ids": closed_target_ids,
                 "cleanup_origins": sorted(self._task_origins),
+                "cleanup_preserved_auth_state": self._preserve_remote_auth_state,
             }
         )
 
@@ -1438,7 +1468,13 @@ def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[st
     return steps, is_done, final_result, errors
 
 
-def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | None):
+def _make_pvpo_step_callback(
+    session: Any,
+    task_dir: Path,
+    payload_text: str | None,
+    *,
+    owned_target_ids: set[str] | None = None,
+):
     """Build the per-step callback that captures PVPO artifacts.
 
     Browser-Use invokes this after each agent step with
@@ -1556,6 +1592,13 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
         target_id = _target_id_for_page(page)
         if not target_id:
             _record_issue("cdp_session_unavailable", step_idx, "current page has no target id")
+            return
+        if owned_target_ids and target_id not in owned_target_ids:
+            _record_issue(
+                "foreign_target",
+                step_idx,
+                f"current page target {target_id} is not owned by this task",
+            )
             return
         try:
             cdp_session = await session.get_or_create_cdp_session(target_id=target_id, focus=False)
