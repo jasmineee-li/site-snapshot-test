@@ -56,7 +56,33 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
             per_step_coverage=[0.0, 0.4, 0.75, 0.5],
         )
 
+    async def fake_caption(screenshot_path, *, trajectory_dir, sandbox_model):
+        return {"caption": "cap", "failure_class": None, "cached": False}
+
+    async def fake_aer(task, trajectory_dir, *args, **kwargs):
+        return {
+            "ipi_aer_p_eval_score": 0.5,
+            "ipi_aer_label_matrix": [[1], [1], [0], [0], [0]],
+            "ipi_aer_per_pq_means": [1.0, 1.0, 0.0, 0.0, 0.0],
+            "ipi_aer_failure": None,
+            "ipi_aer_reps": 1,
+            "ipi_aer_screenshot_mode": "caption",
+            "ipi_aer_n_calls_attempted": 5,
+            "ipi_aer_n_calls_succeeded": 5,
+        }
+
+    async def fake_vea(task, trajectory_dir, aer_transcript, *, sandbox_model):
+        return {
+            "vea_verbalized": False,
+            "vea_evidence": "",
+            "vea_confidence": "low",
+            "vea_failure": None,
+        }
+
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_adversarial, "caption_screenshot", fake_caption)
+    monkeypatch.setattr(phase_4_adversarial, "run_ipi_aer_p_eval_api", fake_aer)
+    monkeypatch.setattr(phase_4_adversarial, "run_vea_api", fake_vea)
 
     result = await phase_4_adversarial._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"

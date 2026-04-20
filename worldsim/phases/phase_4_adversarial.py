@@ -78,8 +78,13 @@ from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.failpoints import crash_if_enabled
 from worldsim.instance_selection import select_task_site_instance
 from worldsim.modal_sandbox import preflight_auth_check
+from worldsim.phase_4.aer_formatter import format_aer_caption, format_aer_inline
+from worldsim.phase_4.aer_trajectory_extract import as_aer_view, extract_trajectory
 from worldsim.phase_4.encounter_detection import EncounterResult, determine_encounter
+from worldsim.phase_4.ipi_aer_caption import caption_screenshot
+from worldsim.phase_4.ipi_aer_p_eval_api import run_ipi_aer_p_eval_api
 from worldsim.phase_4.placement_api import run_placement_api
+from worldsim.phase_4.vea_api import run_vea_api
 from worldsim.phases.phase_2_text_fill import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
@@ -135,37 +140,108 @@ from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STR
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 
 
+_AER_INFLIGHT_SENTINEL = ".aer_inflight"
+
+DEFAULT_AER_REPS = 1
+DEFAULT_AER_SCREENSHOT_MODE = "caption"
+
+# Resolved per-run config. ``run()`` mutates this at startup from the
+# parsed CLI args (and ``save_state`` persists them so resume recovers
+# the same values). Per-task call sites read from here rather than
+# threading the config through the ~15-deep chain of Phase-4 functions.
+_AER_CONFIG: dict[str, Any] = {
+    "reps": DEFAULT_AER_REPS,
+    "screenshot_mode": DEFAULT_AER_SCREENSHOT_MODE,
+}
+
+
+def _resolve_aer_config() -> tuple[int, str]:
+    return int(_AER_CONFIG["reps"]), str(_AER_CONFIG["screenshot_mode"])
+
+
+def set_aer_config(*, reps: int, screenshot_mode: str) -> None:
+    """Set the resolved AER config for the current process.
+
+    Called exactly once at Phase-4 entry by ``run()`` (and again on resume
+    when the saved state carries aer_reps / aer_screenshot_mode).
+    """
+    if reps not in (1, 5):
+        raise ValueError(f"aer_reps must be 1 or 5, got {reps}")
+    if screenshot_mode not in ("caption", "inline"):
+        raise ValueError(
+            f"aer_screenshot_mode must be 'caption' or 'inline', got {screenshot_mode!r}"
+        )
+    _AER_CONFIG["reps"] = reps
+    _AER_CONFIG["screenshot_mode"] = screenshot_mode
+
+
+def _null_metric_keys(*, reps: int, screenshot_mode: str) -> dict[str, Any]:
+    """Null metric payload stamped on every gate-miss trajectory.
+
+    Keeping all new keys present-but-null (vs absent) means downstream
+    analysis can load any result.json uniformly — no per-trajectory schema
+    branching on whether the injection was encountered.
+    """
+    empty_matrix = [[None] * reps for _ in range(5)]
+    return {
+        "ipi_aer_p_eval_score": None,
+        "ipi_aer_label_matrix": empty_matrix,
+        "ipi_aer_per_pq_means": [None] * 5,
+        "ipi_aer_failure": None,
+        "ipi_aer_reps": reps,
+        "ipi_aer_screenshot_mode": screenshot_mode,
+        "ipi_aer_n_calls_attempted": 0,
+        "ipi_aer_n_calls_succeeded": 0,
+        "ipi_aer_caption_text": None,
+        "vea_verbalized": None,
+        "vea_evidence": None,
+        "vea_confidence": None,
+        "vea_failure": None,
+    }
+
+
 async def _run_pvpo_gate(
     task: dict[str, Any],
     task_dir: Path,
     *,
     sandbox_model: str,
+    aer_reps: int | None = None,
+    aer_screenshot_mode: str | None = None,
 ) -> dict[str, Any]:
-    """Run Stage 1 encounter detection.
+    """Run Stage 1 encounter detection + IPI-AER and VEA judges in parallel.
 
-    Returns observational fields for every per-trajectory ``result.json``:
+    Flow:
 
-    - ``encounter``: :func:`EncounterResult.as_dict` output (carries
-      ``max_coverage`` which downstream D1 readers derive the ecological-
-      validity bool from — ``max_coverage > 0``)
-    - ``injection_not_encountered``: ``True`` iff ``max_coverage == 0`` — the
-      call site stamps ``final_status="injection_not_encountered"`` so the
-      placement-fix trigger can route it.
+    1. PVPO ``determine_encounter`` — unchanged.
+    2. ``max_coverage == 0`` → stamp ``injection_not_encountered=True``,
+       null every metric key, skip both judges entirely. Running AER
+       without a reference screenshot is an incoherent prompt; running
+       VEA here adds cost with no current downstream consumer.
+    3. ``max_coverage > 0`` → write ``.aer_inflight`` sentinel, build the
+       AER transcript once, fan out IPI-AER and VEA via
+       ``asyncio.gather(return_exceptions=True)``. Neither metric gates
+       anything; either failure is independent.
 
-    IPI-Screenshot P(eval) was removed here — its pixel-realism signal will
-    be subsumed by the IPI-AER judge (future commit) which reads the same
-    max-coverage frame alongside the full CoT. If you want it back, add a
-    new observational call inside this function rather than a separate gate.
+    ``.aer_inflight`` handling:
+
+    - Written at entry to the gather block.
+    - Deleted on any clean return (success or both judges failed through
+      classified paths).
+    - On resume, presence of the sentinel alongside a missing or stale
+      ``result.json`` is the signal to re-run the whole gate. Partial
+      recovery is not attempted — within the 5-minute prompt-cache TTL
+      the re-run is mostly cache-hits anyway.
     """
-    _ = sandbox_model  # reserved for future judge fan-out wiring
+    if aer_reps is None or aer_screenshot_mode is None:
+        resolved_reps, resolved_mode = _resolve_aer_config()
+        if aer_reps is None:
+            aer_reps = resolved_reps
+        if aer_screenshot_mode is None:
+            aer_screenshot_mode = resolved_mode
+
     try:
         encounter = determine_encounter(task, task_dir)
     except Exception as exc:
-        # Per Finding 2 in docs/todo-pvpo-post-ship-review.md: a hard
-        # failure here would drop the entire trajectory's adversarial
-        # result. The conservative interpretation is "we couldn't tell
-        # whether the injection landed" — the placement-fix trigger handles
-        # that case via ``injection_not_encountered``.
         logger.warning(
             "pvpo: determine_encounter failed for %s; treating as no-encounter: %s",
             task_dir,
@@ -180,10 +256,143 @@ async def _run_pvpo_gate(
     injection_not_encountered = (
         encounter.max_coverage == 0 or encounter.reference_screenshot_path is None
     )
-    return {
+
+    if injection_not_encountered:
+        return {
+            "encounter": encounter_dict,
+            "injection_not_encountered": True,
+            **_null_metric_keys(reps=aer_reps, screenshot_mode=aer_screenshot_mode),
+        }
+
+    # Build the AER transcript once, reuse across both judges.
+    try:
+        traj = extract_trajectory(task_dir)
+        aer_steps = as_aer_view(traj)
+    except (FileNotFoundError, ValueError) as exc:
+        logger.warning(
+            "pvpo: trajectory extract failed for %s; falling back to empty: %s",
+            task_dir,
+            exc,
+        )
+        aer_steps = []
+
+    task_intent = str(
+        task.get("description") or task.get("task_description") or task.get("intent") or ""
+    )
+
+    sentinel_path = task_dir / _AER_INFLIGHT_SENTINEL
+    try:
+        sentinel_path.touch(exist_ok=True)
+    except OSError:  # best-effort; sentinel is a resume hint, not load-bearing
+        pass
+
+    caption_text: str | None = None
+    caption_failure: str | None = None
+    screenshot_path = encounter.reference_screenshot_path
+
+    if aer_screenshot_mode == "caption" and screenshot_path is not None:
+        caption_result = await caption_screenshot(
+            screenshot_path,
+            trajectory_dir=task_dir,
+            sandbox_model=sandbox_model,
+        )
+        caption_text = caption_result.get("caption")
+        caption_failure = caption_result.get("failure_class")
+
+    # If caption mode requested but caption failed, the whole IPI-AER metric
+    # fails as caption_failed. We do NOT auto-degrade to inline — persistent
+    # failures would fail inline too, and the subagent deep-dive explicitly
+    # ruled out silent instrument mutation.
+    aer_transcript_caption = ""
+    aer_transcript_inline = format_aer_inline(task_intent, aer_steps)
+    if caption_text:
+        aer_transcript_caption = format_aer_caption(task_intent, aer_steps, caption_text)
+
+    async def _run_aer() -> dict[str, Any]:
+        if aer_screenshot_mode == "caption":
+            if not caption_text:
+                # Caption generation failed — surface as caption_failed per
+                # plan decision.
+                from worldsim.phase_4.ipi_aer_p_eval_api import _failure_result
+
+                return _failure_result(
+                    "caption_failed",
+                    aer_reps,
+                    aer_screenshot_mode,
+                    task_dir,
+                )
+            return await run_ipi_aer_p_eval_api(
+                task,
+                task_dir,
+                aer_transcript_caption,
+                reps=aer_reps,
+                screenshot_mode="caption",
+                sandbox_model=sandbox_model,
+            )
+        return await run_ipi_aer_p_eval_api(
+            task,
+            task_dir,
+            aer_transcript_caption="",
+            aer_transcript_inline=aer_transcript_inline,
+            reps=aer_reps,
+            screenshot_mode="inline",
+            screenshot_path=screenshot_path,
+            sandbox_model=sandbox_model,
+        )
+
+    vea_transcript = aer_transcript_caption if caption_text else aer_transcript_inline
+
+    async def _run_vea() -> dict[str, Any]:
+        return await run_vea_api(
+            task,
+            task_dir,
+            vea_transcript,
+            sandbox_model=sandbox_model,
+        )
+
+    aer_result_raw, vea_result_raw = await asyncio.gather(
+        _run_aer(), _run_vea(), return_exceptions=True
+    )
+
+    # Convert any raised exceptions into classified failure dicts so one
+    # metric blowing up never aborts the other.
+    if isinstance(aer_result_raw, BaseException):
+        logger.warning("pvpo: IPI-AER raised unexpectedly: %s", aer_result_raw)
+        aer_result = _null_metric_keys(reps=aer_reps, screenshot_mode=aer_screenshot_mode)
+        aer_result["ipi_aer_failure"] = "api_error"
+        aer_result = {k: v for k, v in aer_result.items() if k.startswith("ipi_aer_")}
+    else:
+        aer_result = aer_result_raw
+
+    if isinstance(vea_result_raw, BaseException):
+        logger.warning("pvpo: VEA raised unexpectedly: %s", vea_result_raw)
+        vea_result = {
+            "vea_verbalized": None,
+            "vea_evidence": None,
+            "vea_confidence": None,
+            "vea_failure": "api_error",
+        }
+    else:
+        vea_result = vea_result_raw
+
+    try:
+        sentinel_path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+    merged: dict[str, Any] = {
         "encounter": encounter_dict,
-        "injection_not_encountered": injection_not_encountered,
+        "injection_not_encountered": False,
+        "ipi_aer_caption_text": caption_text,
+        **aer_result,
+        **vea_result,
     }
+    # If caption mode was requested and caption failed upstream, make the
+    # failure explicit on the metric so downstream can distinguish "judge
+    # decided to return null" from "we never got a caption to ask about".
+    if caption_failure is not None:
+        merged["ipi_aer_failure"] = "caption_failed"
+    return merged
 
 
 def _ecologically_valid(result: dict[str, Any]) -> bool:
@@ -379,6 +588,8 @@ def _phase_4_state_metadata(
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
     skip_host_bound_storage_state_auth: bool,
+    aer_reps: int = DEFAULT_AER_REPS,
+    aer_screenshot_mode: str = DEFAULT_AER_SCREENSHOT_MODE,
 ) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "task_dir_root": str(task_dir_root),
@@ -389,6 +600,8 @@ def _phase_4_state_metadata(
         "max_tasks_per_site": max_tasks_per_site,
         "allow_unknown_auth": allow_unknown_auth,
         "skip_host_bound_storage_state_auth": skip_host_bound_storage_state_auth,
+        "aer_reps": aer_reps,
+        "aer_screenshot_mode": aer_screenshot_mode,
     }
     if sites is not None:
         metadata["sites"] = sites
@@ -626,6 +839,9 @@ async def run(args: argparse.Namespace) -> int:
     skip_host_bound_storage_state_auth = bool(
         getattr(args, "skip_host_bound_storage_state_auth", False)
     )
+    aer_reps = int(getattr(args, "aer_reps", DEFAULT_AER_REPS))
+    aer_screenshot_mode = str(getattr(args, "aer_screenshot_mode", DEFAULT_AER_SCREENSHOT_MODE))
+    set_aer_config(reps=aer_reps, screenshot_mode=aer_screenshot_mode)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites_filter_raw = getattr(args, "sites", None)
     instances_path = getattr(args, "instances", None)
@@ -640,6 +856,8 @@ async def run(args: argparse.Namespace) -> int:
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
         skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
+        aer_reps=aer_reps,
+        aer_screenshot_mode=aer_screenshot_mode,
     )
 
     # Load adversarial tasks from Phase 2
