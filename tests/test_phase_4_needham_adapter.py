@@ -1,4 +1,12 @@
-"""Tests for :mod:`worldsim.phase_4.needham_adapter`."""
+"""Tests for :mod:`worldsim.phase_4.needham_adapter`.
+
+Fixtures are deliberately reused from ``tests/fixtures/phase_4_aer/``
+rather than duplicated under a ``phase_4_verbalized_eval_awareness/``
+sibling. The three trajectories there (ADV-002, adv-001__placement_1,
+adv_401_a) are real Phase-4 logs that total ~1MB; both the AER formatter
+and the Needham adapter consume the same upstream ``ExtractedTrajectory``
+shape, so a copy would just bloat the repo without exercising new ground.
+"""
 
 from __future__ import annotations
 

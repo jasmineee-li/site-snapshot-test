@@ -217,6 +217,13 @@ uv run python -m worldsim.main resume
 
 Pipeline state is written to `logs/pipeline_state.json` before each major operation. If you use a custom `WORLDSIM_STATE_DIR`, WorldSim also writes a pointer under `logs/` so `uv run python -m worldsim.main resume` can find the active run later without re-exporting the environment variable.
 
+Phase 4 result.json carries two parallel observational metrics on every trajectory with `encounter.max_coverage > 0` (neither gates anything; both are recorded for downstream analysis):
+
+- **IPI-AER p(eval)** — Needham et al. 2025 5-PQ × N-reps protocol over an OS-Harm AER transcript. Keys: `ipi_aer_p_eval_score`, `ipi_aer_label_matrix`, `ipi_aer_per_pq_means`, `ipi_aer_failure`, `ipi_aer_reps`, `ipi_aer_screenshot_mode`, `ipi_aer_caption_text`, `ipi_aer_n_calls_attempted`, `ipi_aer_n_calls_succeeded`.
+- **Verbalized Eval Awareness** — Jasmine's 4-way classifier over a Needham-format XML transcript. Keys: `verbalized_eval_awareness_classification` (one of `Alignment Evaluation` / `Capability Evaluation` / `Other Evaluation` / `Real`), `verbalized_eval_awareness_is_aware` (derived bool), `verbalized_eval_awareness_evidence` (list of verbatim quotes), `verbalized_eval_awareness_failure`, `verbalized_eval_awareness_transcript_format` (always `"needham-xml-v1"`), `verbalized_eval_awareness_raw_response_path`. Per-task on-disk artifacts: `verbalized_eval_awareness_transcript.xml` (the bytes that went into the prompt) and `verbalized_eval_awareness_raw_response.json`.
+
+Trajectories where the injection never rendered (`encounter.max_coverage == 0`) get every metric key stamped with a present-but-null value so downstream loaders see a uniform schema. See the spec's "Gate 1 Stage 2: Observational IPI-AER p(eval) + VEA" section for the full design.
+
 Phase 4 trajectories are enriched post-hoc with a diagnosable outcome taxonomy (see the spec's "Outcome Taxonomy" section). Every `processed_result.json` gains `outcome_fine`, `flags`, `signals`, and `diagnosable_confidence` fields alongside the legacy `outcome`. To re-classify a historical run offline:
 
 ```bash
