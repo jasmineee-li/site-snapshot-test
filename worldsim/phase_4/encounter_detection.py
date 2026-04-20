@@ -47,6 +47,15 @@ class EncounterResult:
     ``max_coverage`` is a continuous float in ``[0.0, 1.0]`` and is the
     primary encounter signal. Stage 2 reasons over it directly; no internal
     threshold is applied here.
+
+    ``reference_screenshot_bytes`` is populated when the strict-validation
+    block below accepts the reference PNG; the bytes are read at validation
+    time so no second file-open (and no second symlink/resolve check) is
+    required in the downstream transcript_purpose API call. This closes the
+    TOCTOU window between ``determine_encounter`` and the base64-encode in
+    :func:`worldsim.phase_4.transcript_purpose_api.run_transcript_purpose_api`.
+    Excluded from :meth:`as_dict` to keep the JSON payload small (the path is
+    already serialized for forensics).
     """
 
     max_coverage: float
@@ -54,6 +63,7 @@ class EncounterResult:
     reference_screenshot_path: Path | None
     per_char_visibility: list[list[bool]] = field(default_factory=list)
     per_step_coverage: list[float] = field(default_factory=list)
+    reference_screenshot_bytes: bytes | None = field(default=None, repr=False)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -168,6 +178,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
     max_coverage = max(per_step_coverage)
     reference_step: int | None
     reference_path: Path | None
+    reference_bytes: bytes | None = None
     if max_coverage > 0.0:
         argmax = per_step_coverage.index(max_coverage)
         reference_step = kept_step_files[argmax][0]
@@ -186,6 +197,13 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         # resume path reusing another run's artefacts via a link) would
         # otherwise silently exfiltrate arbitrary filesystem content into
         # the Transcript Purpose API request body.
+        #
+        # We also eagerly read the bytes here so the downstream
+        # transcript_purpose API call receives an immutable snapshot rather
+        # than a path it would have to re-validate. Re-validation in a
+        # separate process step leaves a TOCTOU window where a symlink
+        # could be planted between the check and the ``read_bytes``; reading
+        # here closes that window entirely.
         screenshots_root = screenshots_dir.resolve()
         try:
             resolved = candidate.resolve(strict=True)
@@ -198,18 +216,39 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             and resolved.is_relative_to(screenshots_root)
         )
         if is_real_file:
+            try:
+                reference_bytes = candidate.read_bytes()
+            except OSError as exc:
+                logger.warning(
+                    "pvpo: reference screenshot %s became unreadable during "
+                    "validation (%s); forcing max_coverage=0",
+                    candidate,
+                    exc,
+                )
+                reference_bytes = None
+        if is_real_file and reference_bytes:
             reference_path = candidate
         else:
-            logger.warning(
-                "pvpo: reference screenshot %s is not a regular file inside %s "
-                "(symlink / dangling / vanished / escaped dir); forcing "
-                "max_coverage=0 to route to placement-fix",
-                candidate,
-                screenshots_root,
-            )
+            if is_real_file and not reference_bytes:
+                # Strict checks passed but the file was empty; treat the same
+                # as a vanished / escaped-dir file for downstream routing.
+                logger.warning(
+                    "pvpo: reference screenshot %s validated but is empty; "
+                    "forcing max_coverage=0 to route to placement-fix",
+                    candidate,
+                )
+            else:
+                logger.warning(
+                    "pvpo: reference screenshot %s is not a regular file inside %s "
+                    "(symlink / dangling / vanished / escaped dir); forcing "
+                    "max_coverage=0 to route to placement-fix",
+                    candidate,
+                    screenshots_root,
+                )
             max_coverage = 0.0
             reference_step = None
             reference_path = None
+            reference_bytes = None
     else:
         reference_step = None
         reference_path = None
@@ -220,6 +259,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         reference_screenshot_path=reference_path,
         per_char_visibility=per_char_visibility,
         per_step_coverage=per_step_coverage,
+        reference_screenshot_bytes=reference_bytes,
     )
 
 

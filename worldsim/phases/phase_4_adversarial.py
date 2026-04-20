@@ -47,6 +47,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -152,6 +153,38 @@ PLACEMENT_FIX_MAX_ITERATIONS = 2
 
 _IPI_AER_INFLIGHT_SENTINEL = ".ipi_aer_inflight"
 _LEGACY_AER_INFLIGHT_SENTINEL = ".aer_inflight"
+
+
+def _sweep_orphan_inflight_sentinels(task_dir_root: Path) -> int:
+    """Delete any inflight-sentinel files left on disk by a prior crashed run.
+
+    The current sentinel ``.ipi_aer_inflight`` is written at
+    ``_run_pvpo_gate`` entry and unlinked in its finally-block; anything
+    still on disk at Phase 4 entry is a leftover from a crash. The legacy
+    ``.aer_inflight`` sentinel predates the PVPO cutover and is kept in
+    the sweep list so re-runs of older trajectories clear cleanly.
+
+    Returns the count of sentinel files removed (useful for tests and
+    log-level triage).
+    """
+    if not task_dir_root.exists():
+        return 0
+    orphan_names = (_LEGACY_AER_INFLIGHT_SENTINEL, _IPI_AER_INFLIGHT_SENTINEL)
+    orphans: list[Path] = []
+    for name in orphan_names:
+        orphans.extend(task_dir_root.rglob(name))
+    for orphan in orphans:
+        try:
+            orphan.unlink()
+        except OSError:
+            pass
+    if orphans:
+        logger.warning(
+            "Phase 4: swept %d orphan inflight sentinel(s): %s",
+            len(orphans),
+            ", ".join(orphan_names),
+        )
+    return len(orphans)
 
 
 _PVPO_METRIC_KEYS: frozenset[str] = frozenset(
@@ -360,7 +393,12 @@ async def _run_pvpo_gate(
         )
 
     screenshot_path = encounter.reference_screenshot_path
-    if screenshot_path is None or not screenshot_path.is_file():
+    screenshot_bytes = encounter.reference_screenshot_bytes
+    # The encounter detector captures the PNG bytes at strict-validation
+    # time; if we're missing them, treat the Stage 2 input as unavailable
+    # regardless of what ``is_file()`` says about the path (which follows
+    # symlinks and therefore cannot substitute for the strict check).
+    if screenshot_path is None or not screenshot_bytes:
         logger.warning(
             "pvpo: reference screenshot unavailable at Stage 2 start for %s; "
             "routing to placement-fix",
@@ -375,7 +413,7 @@ async def _run_pvpo_gate(
         pass
 
     async def _run_transcript_purpose() -> dict[str, Any]:
-        if screenshot_path is None:
+        if screenshot_path is None or not screenshot_bytes:
             return _transcript_purpose_failure_result("missing_screenshot", task_dir)
         return await run_transcript_purpose_api(
             task,
@@ -383,6 +421,7 @@ async def _run_pvpo_gate(
             traj,
             screenshot_path,
             sandbox_model=sandbox_model,
+            screenshot_bytes=screenshot_bytes,
         )
 
     async def _run_vea() -> dict[str, Any]:
@@ -869,21 +908,7 @@ async def run(args: argparse.Namespace) -> int:
     sites_filter_raw = getattr(args, "sites", None)
     instances_path = getattr(args, "instances", None)
 
-    # Sweep orphan .aer_inflight sentinels from pre-cutover runs so resume
-    # logic doesn't treat them as "rerun needed" for an obsolete gate.
-    if task_dir_root.exists():
-        legacy_orphans = list(task_dir_root.rglob(_LEGACY_AER_INFLIGHT_SENTINEL))
-        for orphan in legacy_orphans:
-            try:
-                orphan.unlink()
-            except OSError:
-                pass
-        if legacy_orphans:
-            logger.warning(
-                "Phase 4: swept %d legacy %s sentinel(s)",
-                len(legacy_orphans),
-                _LEGACY_AER_INFLIGHT_SENTINEL,
-            )
+    _sweep_orphan_inflight_sentinels(task_dir_root)
 
     state_metadata = _phase_4_state_metadata(
         task_dir_root=task_dir_root,
@@ -2216,6 +2241,25 @@ async def _run_placement_fix_loop(
 
         current_task = revised_task
         bound_task = bind_task_to_instance(current_task, instance, all_instances)
+        iteration_dir = task_dir_root / safe_task_path_component(
+            f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
+        )
+        # Wipe any leftover artefacts from a prior crashed run before re-entering.
+        # `_run_placement_fix_loop` is not checkpointed — on --resume, a crash
+        # mid-iteration replays from iteration 0 and re-uses the same iteration
+        # dir. `save_step_artifacts` overwrites per-index files but does not
+        # delete higher-index leftovers, so stale ``step_N.{png,json}`` pairs
+        # from the crashed run would otherwise pair with themselves in
+        # ``determine_encounter`` and inflate ``max_coverage``.
+        if iteration_dir.exists():
+            try:
+                shutil.rmtree(iteration_dir)
+            except OSError as exc:
+                logger.warning(
+                    "placement-fix: could not wipe leftover iteration dir %s: %s",
+                    iteration_dir,
+                    exc,
+                )
         async with task_lock(bound_task):
             current_result = await _rerun_adversarial_task(
                 task=bound_task,
@@ -2225,11 +2269,9 @@ async def _run_placement_fix_loop(
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
                 site_profile=site_profile,
-                task_dir=task_dir_root
-                / safe_task_path_component(
-                    f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
-                ),
+                task_dir=iteration_dir,
             )
+
         attempts.append(current_result)
         if _placement_fix_succeeded(
             current_result,

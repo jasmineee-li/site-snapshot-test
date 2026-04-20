@@ -28,11 +28,24 @@ def _encounter(
     max_coverage: float,
     reference_step: int | None = None,
     reference_path: Path | None = None,
+    reference_bytes: bytes | None = None,
 ) -> EncounterResult:
+    # Production callers (``determine_encounter``) always populate
+    # ``reference_screenshot_bytes`` alongside ``reference_screenshot_path``
+    # so Stage 2 receives a pre-validated snapshot with no TOCTOU window.
+    # Mirror that in tests: when a path is supplied but no bytes, read the
+    # file so ``_run_pvpo_gate`` fans out to the judges instead of routing
+    # to placement-fix via the missing-bytes short-circuit.
+    if reference_bytes is None and reference_path is not None:
+        try:
+            reference_bytes = reference_path.read_bytes()
+        except OSError:
+            reference_bytes = None
     return EncounterResult(
         max_coverage=max_coverage,
         reference_step=reference_step,
         reference_screenshot_path=reference_path,
+        reference_screenshot_bytes=reference_bytes,
     )
 
 
@@ -169,7 +182,7 @@ async def test_gate_encountered_fans_out_both_metrics(monkeypatch, tmp_path):
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.75, reference_step=0, reference_path=screenshot)
 
-    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model):
+    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None):
         return _transcript_purpose_payload()
 
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
@@ -210,7 +223,7 @@ async def test_transcript_purpose_failure_does_not_block_vea(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def failing_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model):
+    async def failing_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None):
         raise RuntimeError("transcript_purpose blew up")
 
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
@@ -239,7 +252,7 @@ async def test_vea_failure_does_not_block_transcript_purpose(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model):
+    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None):
         return _transcript_purpose_payload()
 
     async def failing_vea(task, trajectory_dir, extracted, *, sandbox_model):
@@ -340,7 +353,9 @@ async def test_partial_trajectory_skips_both_stage_2_judges(monkeypatch, tmp_pat
 
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called)
+    monkeypatch.setattr(
+        phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called
+    )
 
     result = await phase_4_adversarial._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
@@ -366,7 +381,9 @@ async def test_missing_history_skips_both_stage_2_judges(monkeypatch, tmp_path):
 
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called)
+    monkeypatch.setattr(
+        phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called
+    )
 
     result = await phase_4_adversarial._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
@@ -394,7 +411,9 @@ async def test_reference_screenshot_rechecked_before_stage_2(monkeypatch, tmp_pa
     screenshot.unlink()
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", assert_tp_not_called)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called)
+    monkeypatch.setattr(
+        phase_4_adversarial, "run_verbalized_eval_awareness_api", assert_vea_not_called
+    )
 
     result = await phase_4_adversarial._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"

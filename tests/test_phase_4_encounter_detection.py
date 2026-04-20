@@ -551,6 +551,56 @@ def test_truncated_png_skipped_with_other_steps_intact(tmp_path: Path):
     assert result.reference_step in {0, 2}
 
 
+def test_reference_bytes_captured_at_validation_time(tmp_path: Path):
+    """F2 fix: ``determine_encounter`` must eagerly read the reference PNG
+    into ``reference_screenshot_bytes`` at the same moment it runs the
+    strict symlink/resolve check. Downstream ``run_transcript_purpose_api``
+    then consumes the bytes directly, closing the TOCTOU window between
+    check and read."""
+    png = _make_png_with_ink([(10, 10, 5, 5)])
+    vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
+    _write_step(tmp_path, 0, vec, png)
+
+    result = determine_encounter(_task("a"), tmp_path)
+
+    assert result.max_coverage == 1.0
+    assert result.reference_screenshot_bytes is not None
+    assert result.reference_screenshot_bytes == png
+    # Bytes are excluded from ``as_dict`` so the JSON log stays small.
+    assert "reference_screenshot_bytes" not in result.as_dict()
+
+
+def test_reference_bytes_none_when_gate_misses(tmp_path: Path):
+    """Zero-coverage trajectories carry no reference bytes."""
+    _write_step(tmp_path, 0, [], _make_png_with_ink([]))
+    result = determine_encounter(_task(""), tmp_path)
+    assert result.max_coverage == 0.0
+    assert result.reference_screenshot_bytes is None
+
+
+def test_symlinked_reference_screenshot_rejects_and_clears_bytes(tmp_path: Path):
+    """F2 regression: a symlink planted at the reference path must force
+    ``max_coverage=0`` AND leave ``reference_screenshot_bytes=None`` so the
+    Stage 2 gate short-circuits even if some caller were to trust the path
+    field alone."""
+    png = _make_png_with_ink([(10, 10, 5, 5)])
+    vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
+    _write_step(tmp_path, 0, vec, png)
+
+    screenshots_dir = tmp_path / "screenshots"
+    target = screenshots_dir / "step_0.png"
+    external = tmp_path / "outside.png"
+    external.write_bytes(png)
+    target.unlink()
+    target.symlink_to(external)
+
+    result = determine_encounter(_task("a"), tmp_path)
+
+    assert result.max_coverage == 0.0
+    assert result.reference_screenshot_path is None
+    assert result.reference_screenshot_bytes is None
+
+
 def test_non_white_background_color_from_step_json(tmp_path: Path):
     """Ink-occupancy must compare against the step's recorded background,
     not a hardcoded white. A grey-bg page with darker-grey text still has

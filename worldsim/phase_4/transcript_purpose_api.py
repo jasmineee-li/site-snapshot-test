@@ -298,6 +298,16 @@ def _success_payload(
     attempts: int,
     raw_response_path: Path,
 ) -> dict[str, Any]:
+    """Canonical success payload.
+
+    ``transcript_purpose_attempts`` is the 1-based index of the first
+    attempt that produced a valid label. Anything > 1 means soft-failure
+    retries fired. Downstream aggregators that report headline eval-
+    awareness rates should stratify by this field or pin an explicit
+    policy for ``None``-classification rows (see module docstring on
+    ``run_transcript_purpose_api``); silently dropping the ``None``
+    bucket biases the reported rate against hard-to-classify transcripts.
+    """
     return {
         "transcript_purpose_classification": classification,
         "transcript_purpose_is_aware": classification in _EVAL_AWARE_LABELS,
@@ -317,6 +327,14 @@ def _failure_payload(
     raw_response_path: Path | None,
     guess: str | None = None,
 ) -> dict[str, Any]:
+    """Canonical failure payload.
+
+    Both ``transcript_purpose_classification`` and
+    ``transcript_purpose_is_aware`` are ``None`` on failure — that is the
+    signal callers must decide how to treat. See the aggregation contract
+    on ``run_transcript_purpose_api`` for the paper-validity implications
+    of each policy (drop / impute / weight).
+    """
     return {
         "transcript_purpose_classification": None,
         "transcript_purpose_is_aware": None,
@@ -354,6 +372,7 @@ async def run_transcript_purpose_api(
     *,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
+    screenshot_bytes: bytes | None = None,
 ) -> dict[str, Any]:
     """Two-step Apollo Research transcript-purpose classifier.
 
@@ -362,19 +381,55 @@ async def run_transcript_purpose_api(
 
     Self-heals up to ``_MAX_ATTEMPTS`` on soft failures. Hard failures
     (auth/credits/quota/api_error) return immediately.
+
+    When ``screenshot_bytes`` is supplied the function uses that snapshot
+    directly and does not open ``screenshot_path``. Production callers
+    (the Phase 4 PVPO gate) always pass bytes captured at encounter-detection
+    validation time, which closes the TOCTOU window between the strict path
+    validation in :mod:`worldsim.phase_4.encounter_detection` and the
+    base64-encode here. The path-based code path is retained for unit tests
+    and direct programmatic use; it carries the same TOCTOU caveat the
+    encounter detector explicitly calls out.
+
+    Aggregation contract for downstream consumers:
+
+    - Success payload carries ``transcript_purpose_attempts``, the 1-based
+      index of the attempt that produced a valid label. Values > 1 indicate
+      soft-failure retries fired (``empty_guess`` / ``malformed_label`` /
+      ``unrecognized_label``). "First successful attempt wins" — we do not
+      aggregate across attempts because retries select for hard-to-classify
+      transcripts.
+    - Failure payload has ``transcript_purpose_classification=None`` and
+      ``transcript_purpose_is_aware=None``. Paper aggregates that drop
+      ``None`` exclude the hardest-to-classify transcripts and therefore
+      bias the reported ``is_eval_aware`` rate. Apollo's canonical handling
+      is hand-labelling the failures; inverse-attempt-count weighting is an
+      acceptable approximation. Callers MUST pick an explicit aggregation
+      policy and document it alongside any headline number derived from
+      this field.
     """
     trajectory_dir = Path(trajectory_dir)
     trajectory_dir.mkdir(parents=True, exist_ok=True)
 
-    screenshot_file = Path(screenshot_path)
-    if not screenshot_file.exists():
-        return _failure_result("missing_screenshot", trajectory_dir)
+    if screenshot_bytes is not None:
+        # Pre-validated snapshot from encounter detection. Treat empty
+        # bytes as a missing screenshot so the downstream failure bucket
+        # matches the path-based case.
+        if not screenshot_bytes:
+            return _failure_result("missing_screenshot", trajectory_dir)
+        screenshot_b64 = base64.b64encode(screenshot_bytes).decode("ascii")
+    else:
+        screenshot_file = Path(screenshot_path)
+        if not screenshot_file.exists():
+            return _failure_result("missing_screenshot", trajectory_dir)
 
-    try:
-        screenshot_b64 = base64.b64encode(screenshot_file.read_bytes()).decode("ascii")
-    except OSError as exc:
-        logger.warning("transcript_purpose: unreadable screenshot at %s: %s", screenshot_file, exc)
-        return _failure_result("missing_screenshot", trajectory_dir)
+        try:
+            screenshot_b64 = base64.b64encode(screenshot_file.read_bytes()).decode("ascii")
+        except OSError as exc:
+            logger.warning(
+                "transcript_purpose: unreadable screenshot at %s: %s", screenshot_file, exc
+            )
+            return _failure_result("missing_screenshot", trajectory_dir)
 
     task_intent = extract_task_intent(task)
     aer_text = format_ipi_aer_inline(task_intent, as_aer_view(extracted_trajectory))

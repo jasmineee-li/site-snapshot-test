@@ -2031,6 +2031,7 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
         "preflight_auth_check",
         lambda: (_ for _ in ()).throw(AssertionError("auth preflight should not run")),
     )
+
     async def fail_if_called(*, sandbox_model: str):
         raise AssertionError("host API preflight should not run before storage-state validation")
 
@@ -4083,3 +4084,123 @@ def test_placement_fix_succeeded_predicate(
         )
         is expected
     )
+
+
+def test_sweep_orphan_inflight_sentinels_removes_both_names(tmp_path):
+    """F3 regression: the Phase 4 entry sweep must unlink both the legacy
+    ``.aer_inflight`` (pre-cutover) and the current ``.ipi_aer_inflight``
+    (written at PVPO gate entry) when they're left on disk by a crashed run.
+    """
+    task_a = tmp_path / "task_a"
+    task_b = tmp_path / "task_b"
+    task_a.mkdir()
+    task_b.mkdir()
+    legacy = task_a / phase_4_adversarial._LEGACY_AER_INFLIGHT_SENTINEL
+    current = task_b / phase_4_adversarial._IPI_AER_INFLIGHT_SENTINEL
+    legacy.touch()
+    current.touch()
+
+    removed = phase_4_adversarial._sweep_orphan_inflight_sentinels(tmp_path)
+
+    assert removed == 2
+    assert not legacy.exists()
+    assert not current.exists()
+
+
+def test_sweep_orphan_inflight_sentinels_on_missing_dir(tmp_path):
+    """No-op when the task-dir root hasn't been created yet."""
+    missing = tmp_path / "nope"
+    assert phase_4_adversarial._sweep_orphan_inflight_sentinels(missing) == 0
+
+
+@pytest.mark.asyncio
+async def test_placement_fix_wipes_leftover_iteration_dir(monkeypatch, tmp_path):
+    """F1 regression: a crashed prior run that left ``step_N`` artefacts in
+    the placement iteration dir must NOT have those artefacts visible to
+    the fresh iteration's ``determine_encounter``. The loop wipes the dir
+    before re-running so ghost steps can't dominate ``max_coverage``."""
+    import shutil
+
+    task = {
+        "id": "placement-fix-wipe",
+        "site": "shopping",
+        "adversarial_data_seed": {"mechanism": "api", "actions": []},
+    }
+    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+
+    # Pre-seed leftover artefacts in the iteration_1 dir as if a prior
+    # crashed run left step files behind.
+    iteration_dir = tmp_path / "placement-fix-wipe__placement_1"
+    (iteration_dir / "screenshots").mkdir(parents=True)
+    (iteration_dir / "pvpo").mkdir(parents=True)
+    leftover_png = iteration_dir / "screenshots" / "step_99.png"
+    leftover_json = iteration_dir / "pvpo" / "step_99.json"
+    leftover_png.write_bytes(b"GHOST")
+    leftover_json.write_text("{}")
+
+    # Placement API returns a revised seed so the loop enters iteration 1.
+    async def fake_placement(current_task, *, trajectory_dir, sandbox_model):
+        return {
+            "status": "ok",
+            "new_task": {
+                **current_task,
+                "adversarial_data_seed": {"mechanism": "api", "actions": [{"noop": True}]},
+            },
+        }
+
+    # Capture the dir state at rerun time so the test can assert it's empty.
+    seen_leftovers: dict[str, bool] = {}
+
+    async def fake_rerun(*, task, instance, all_instances, agent_factory, task_dir, **kwargs):
+        seen_leftovers["png"] = (task_dir / "screenshots" / "step_99.png").exists()
+        seen_leftovers["json"] = (task_dir / "pvpo" / "step_99.json").exists()
+        return {"outcome": "complied", "trajectory_dir": str(task_dir)}
+
+    class _FakeInstance:
+        site_url = "http://example.com"
+        site_name = "shopping"
+        reset_endpoint = None
+
+    class _FakeLock:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+    def fake_task_lock(_task):
+        return _FakeLock()
+
+    def fake_bind(current_task, instance, all_instances):
+        return current_task
+
+    def fake_equiv(a, b):
+        return False  # force the loop to proceed into the rerun
+
+    monkeypatch.setattr(phase_4_adversarial, "run_placement_api", fake_placement)
+    monkeypatch.setattr(phase_4_adversarial, "_rerun_adversarial_task", fake_rerun)
+    monkeypatch.setattr(phase_4_adversarial, "task_lock", fake_task_lock)
+    monkeypatch.setattr(phase_4_adversarial, "bind_task_to_instance", fake_bind)
+    monkeypatch.setattr(phase_4_adversarial, "_adversarial_seed_equivalent", fake_equiv)
+
+    result = await phase_4_adversarial._run_placement_fix_loop(
+        task=task,
+        initial_result=initial_result,
+        instance=_FakeInstance(),
+        all_instances=[_FakeInstance()],
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result is not None
+    assert result["status"] == "fixed"
+    # The ghost artefacts from the prior run must not be visible to the
+    # fresh iteration; rmtree wiped them before the rerun.
+    assert seen_leftovers == {"png": False, "json": False}
+    # And they must not be back on disk at the end either.
+    assert not leftover_png.exists()
+    assert not leftover_json.exists()
+    # Cleanup: rmtree the dir the fake rerun would normally repopulate.
+    if iteration_dir.exists():
+        shutil.rmtree(iteration_dir)
