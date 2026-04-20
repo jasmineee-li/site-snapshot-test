@@ -91,7 +91,7 @@ def test_magento_base_urls_resolved() -> None:
     except ImportError as exc:
         pytest.skip(f"worldsim modules unavailable: {exc}")
     parsed = BenchmarkConfig.model_validate(config)
-    errors = check_magento_instances(parsed)
+    errors = check_magento_instances(parsed.instances, parsed.verification_proxy)
     assert not errors, (
         "Magento base_url drift — run scripts/sync_magento_base_urls.py "
         "to repair. Errors:\n  " + "\n  ".join(str(e) for e in errors)
@@ -127,7 +127,7 @@ def test_eval_venv_reachable() -> None:
             "&& uv sync --locked` (setup_phase4_on_host.sh step 1)."
         )
     completed = subprocess.run(
-        [python_exe, "-c", "import webarena_verified; print(webarena_verified.__version__)"],
+        [python_exe, "-c", "from webarena_verified import WebArenaVerified"],
         capture_output=True,
         text=True,
         timeout=30,

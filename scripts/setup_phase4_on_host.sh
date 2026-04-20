@@ -90,12 +90,20 @@ uv sync --locked
 # ---------------------------------------------------------------------------
 # Step 2 — Playwright chromium + system libs (issue #3)
 # ---------------------------------------------------------------------------
+# Playwright is only a dep when browser-use is pinned below 0.12.x. browser-use
+# 0.12.6+ talks CDP natively, and PVPO runs in a chrome-headless-shell Docker
+# container (step 3), so neither path needs a host-side Playwright install. Skip
+# gracefully if the module is absent — loud failure on an optional dep is noise.
 log "step 2: playwright chromium + system libs"
-uv run python -m playwright install chromium
-if [[ "$(uname -s)" == "Linux" ]]; then
-    sudo "$(command -v uv)" run python -m playwright install-deps chromium
+if uv run python -c "import playwright" >/dev/null 2>&1; then
+    uv run python -m playwright install chromium
+    if [[ "$(uname -s)" == "Linux" ]]; then
+        sudo "$(command -v uv)" run python -m playwright install-deps chromium
+    else
+        substep "non-Linux host: skipping install-deps (macOS / WSL have system libs bundled)"
+    fi
 else
-    substep "non-Linux host: skipping install-deps (macOS / WSL have system libs bundled)"
+    substep "playwright not installed (browser-use 0.12.6+ uses CDP + docker chrome-headless-shell); skipping"
 fi
 
 # ---------------------------------------------------------------------------
