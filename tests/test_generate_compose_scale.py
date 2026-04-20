@@ -145,6 +145,7 @@ def test_generate_compose_scale_preserves_runtime_contract(tmp_path: Path) -> No
 
     assert shopping_0["auth"]["headers"]["X-Test"] == "seed"
     assert shopping_0["api_auth"]["token_endpoint"] == "/token"
+    assert shopping_0["api_auth"]["validation_endpoint"] == "/rest/V1/modules"
     assert shopping_0["agent_auth"]["http_headers"]["headers"]["X-Agent"] == "on"
 
     assert instances_config["verification_proxy"] == {
@@ -158,6 +159,69 @@ def test_generate_compose_scale_preserves_runtime_contract(tmp_path: Path) -> No
     proxy_ports = (tmp_path / "proxy_ports.conf").read_text().splitlines()
     assert "shopping_0:7770:17770" in proxy_ports
     assert "shopping_1:7780:17780" in proxy_ports
+
+
+def test_generate_compose_scale_adds_gitlab_validation_endpoint(tmp_path: Path) -> None:
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://old-host:8023",
+                "reset_endpoint": "http://old-host:8024/init",
+                "api_auth": {
+                    "type": "bearer_token",
+                    "token_endpoint": "/api/v4/session",
+                    "credentials": {"login": "root", "password": "pw"},
+                },
+            }
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"gitlab": 1},
+        "sites": {
+            "gitlab": {
+                "image": "example/gitlab@sha256:1234",
+                "replicas": 1,
+                "real_port_base": 8023,
+                "container_web_port": 8023,
+                "port_step": 10,
+            }
+        },
+    }
+
+    base_path = tmp_path / "instances.base.json"
+    config_path = tmp_path / "scale.yml"
+    base_path.write_text(json.dumps(base_config, indent=2) + "\n")
+    config_path.write_text(json.dumps(scale_config))
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    host_config_path = _write_host_config(tmp_path)
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(tmp_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    instances_config = json.loads((tmp_path / "instances.json").read_text())
+    gitlab = instances_config["instances"][0]
+    assert gitlab["api_auth"]["validation_endpoint"] == "/api/v4/user"
 
 
 def test_generate_compose_scale_require_pinned_images_rejects_tagged_refs(tmp_path: Path) -> None:

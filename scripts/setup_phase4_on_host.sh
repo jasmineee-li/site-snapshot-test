@@ -186,10 +186,20 @@ PY
     )
     for port in "${PVPO_PORTS[@]}"; do
         name="pvpo-chrome-$port"
-        if ! docker ps --filter "name=^/${name}$" --format '{{.Names}}' | grep -q "^${name}$"; then
+        internal_port="$((port + 100))"
+        network_mode="$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$name" 2>/dev/null || true)"
+        external_env="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$name" 2>/dev/null | grep '^PVPO_EXTERNAL_PORT=' | tail -1 | cut -d= -f2 || true)"
+        internal_env="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$name" 2>/dev/null | grep '^PVPO_INTERNAL_PORT=' | tail -1 | cut -d= -f2 || true)"
+        if ! docker ps --filter "name=^/${name}$" --format '{{.Names}}' | grep -q "^${name}$" \
+            || [[ "$network_mode" != "host" ]] \
+            || [[ "$external_env" != "$port" ]] \
+            || [[ "$internal_env" != "$internal_port" ]]; then
             docker rm -f "$name" >/dev/null 2>&1 || true
             docker run -d --name "$name" --restart unless-stopped \
-                -p "127.0.0.1:${port}:9222" worldsim/chrome-headless-shell:latest
+                --network host \
+                -e "PVPO_EXTERNAL_PORT=${port}" \
+                -e "PVPO_INTERNAL_PORT=${internal_port}" \
+                worldsim/chrome-headless-shell:latest
         fi
         substep "waiting for CDP endpoint at 127.0.0.1:${port}"
         deadline=$((SECONDS + 30))

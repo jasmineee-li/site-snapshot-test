@@ -288,6 +288,14 @@ def _base_instances_by_site(base_instances: list[dict[str, Any]]) -> dict[str, d
     return by_site
 
 
+def _default_validation_endpoint(site_name: str) -> str | None:
+    if site_name in {"shopping", "shopping_admin"}:
+        return "/rest/V1/modules"
+    if site_name == "gitlab":
+        return "/api/v4/user"
+    return None
+
+
 def _clone_instance(
     base_instance: dict[str, Any],
     rec: dict[str, Any],
@@ -319,6 +327,20 @@ def _clone_instance(
     if merged_placeholders:
         instance["url_placeholders"] = merged_placeholders
     instance["pvpo_cdp_url"] = f"http://127.0.0.1:{pvpo_cdp_port}"
+    api_auth = instance.get("api_auth")
+    if (
+        isinstance(api_auth, dict)
+        and str(api_auth.get("type", "")).strip() == "bearer_token"
+        and isinstance(api_auth.get("token_endpoint"), str)
+        and api_auth["token_endpoint"].strip()
+        and not (
+            isinstance(api_auth.get("validation_endpoint"), str)
+            and api_auth["validation_endpoint"].strip()
+        )
+    ):
+        validation_endpoint = _default_validation_endpoint(rec["site_name"])
+        if validation_endpoint is not None:
+            api_auth["validation_endpoint"] = validation_endpoint
 
     return instance
 
