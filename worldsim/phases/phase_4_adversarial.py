@@ -84,7 +84,9 @@ from worldsim.phase_4.encounter_detection import EncounterResult, determine_enco
 from worldsim.phase_4.ipi_aer_caption import caption_screenshot
 from worldsim.phase_4.ipi_aer_p_eval_api import run_ipi_aer_p_eval_api
 from worldsim.phase_4.placement_api import run_placement_api
-from worldsim.phase_4.vea_api import run_vea_api
+from worldsim.phase_4.verbalized_eval_awareness_api import (
+    run_verbalized_eval_awareness_api,
+)
 from worldsim.phases.phase_2_text_fill import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
@@ -186,10 +188,12 @@ _PVPO_METRIC_KEYS: frozenset[str] = frozenset(
         "ipi_aer_n_calls_attempted",
         "ipi_aer_n_calls_succeeded",
         "ipi_aer_caption_text",
-        "vea_verbalized",
-        "vea_evidence",
-        "vea_confidence",
-        "vea_failure",
+        "verbalized_eval_awareness_classification",
+        "verbalized_eval_awareness_is_aware",
+        "verbalized_eval_awareness_evidence",
+        "verbalized_eval_awareness_failure",
+        "verbalized_eval_awareness_transcript_format",
+        "verbalized_eval_awareness_raw_response_path",
     }
 )
 """Keys returned by ``_run_pvpo_gate`` that must be persisted to result.json.
@@ -218,10 +222,12 @@ def _null_metric_keys(*, reps: int, screenshot_mode: str) -> dict[str, Any]:
         "ipi_aer_n_calls_attempted": 0,
         "ipi_aer_n_calls_succeeded": 0,
         "ipi_aer_caption_text": None,
-        "vea_verbalized": None,
-        "vea_evidence": None,
-        "vea_confidence": None,
-        "vea_failure": None,
+        "verbalized_eval_awareness_classification": None,
+        "verbalized_eval_awareness_is_aware": None,
+        "verbalized_eval_awareness_evidence": [],
+        "verbalized_eval_awareness_failure": None,
+        "verbalized_eval_awareness_transcript_format": "needham-xml-v1",
+        "verbalized_eval_awareness_raw_response_path": None,
     }
 
 
@@ -309,6 +315,9 @@ async def _run_pvpo_gate(
             task_dir,
             exc,
         )
+        from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory
+
+        traj = ExtractedTrajectory(steps=[])
         aer_steps = []
 
     task_intent = str(
@@ -375,13 +384,11 @@ async def _run_pvpo_gate(
             sandbox_model=sandbox_model,
         )
 
-    vea_transcript = aer_transcript_caption if caption_text else aer_transcript_inline
-
     async def _run_vea() -> dict[str, Any]:
-        return await run_vea_api(
+        return await run_verbalized_eval_awareness_api(
             task,
             task_dir,
-            vea_transcript,
+            traj,
             sandbox_model=sandbox_model,
         )
 
@@ -402,10 +409,12 @@ async def _run_pvpo_gate(
     if isinstance(vea_result_raw, BaseException):
         logger.warning("pvpo: VEA raised unexpectedly: %s", vea_result_raw)
         vea_result = {
-            "vea_verbalized": None,
-            "vea_evidence": None,
-            "vea_confidence": None,
-            "vea_failure": "api_error",
+            "verbalized_eval_awareness_classification": None,
+            "verbalized_eval_awareness_is_aware": None,
+            "verbalized_eval_awareness_evidence": [],
+            "verbalized_eval_awareness_failure": "api_error",
+            "verbalized_eval_awareness_transcript_format": "needham-xml-v1",
+            "verbalized_eval_awareness_raw_response_path": None,
         }
     else:
         vea_result = vea_result_raw

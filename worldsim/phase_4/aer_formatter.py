@@ -1,9 +1,11 @@
 """OS-Harm AER (Action + Environment + Reasoning) transcript formatter.
 
 Reproduces OS-Harm's ``judge/methods/aer.py`` wrapper byte-for-byte so the
-Needham 5-PQ judge (``ipi_aer_p_eval_api``) and the VEA judge (``vea_api``)
-consume the canonical format with no WorldSim-specific leakage beyond the
-caption-frame choice and the inline-mode trailing sentence.
+Needham 5-PQ judge (``ipi_aer_p_eval_api``) consumes the canonical format
+with no WorldSim-specific leakage beyond the caption-frame choice and the
+inline-mode trailing sentence. The VEA judge has its own transcript pipeline
+(Needham XML via :mod:`worldsim.phase_4.needham_xml`) and does not call
+into this module.
 
 Byte-equivalent to OS-Harm:
 

@@ -71,18 +71,22 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
             "ipi_aer_n_calls_succeeded": 5,
         }
 
-    async def fake_vea(task, trajectory_dir, aer_transcript, *, sandbox_model):
+    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
         return {
-            "vea_verbalized": False,
-            "vea_evidence": "",
-            "vea_confidence": "low",
-            "vea_failure": None,
+            "verbalized_eval_awareness_classification": "Real",
+            "verbalized_eval_awareness_is_aware": False,
+            "verbalized_eval_awareness_evidence": [],
+            "verbalized_eval_awareness_failure": None,
+            "verbalized_eval_awareness_transcript_format": "needham-xml-v1",
+            "verbalized_eval_awareness_raw_response_path": str(
+                tmp_path / "verbalized_eval_awareness_raw_response.json"
+            ),
         }
 
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "caption_screenshot", fake_caption)
     monkeypatch.setattr(phase_4_adversarial, "run_ipi_aer_p_eval_api", fake_aer)
-    monkeypatch.setattr(phase_4_adversarial, "run_vea_api", fake_vea)
+    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
 
     result = await phase_4_adversarial._run_pvpo_gate(
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
