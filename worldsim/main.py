@@ -241,26 +241,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Phase 2c: re-verify every task regardless of fingerprint or status.",
     )
-    phase_cmd.add_argument(
-        "--aer-reps",
-        type=int,
-        choices=(1, 5),
-        default=1,
-        metavar="N",
-        help="Phase 4: IPI-AER Needham 5-PQ repetitions per PQ. 1 (default) = "
-        "iteration protocol (~5 calls/trajectory); 5 = publication rigor "
-        "(~25 calls/trajectory per Needham et al. 2025).",
-    )
-    phase_cmd.add_argument(
-        "--aer-screenshot-mode",
-        choices=("caption", "inline"),
-        default="caption",
-        help="Phase 4: how the IPI max-coverage frame reaches the judge. "
-        "'caption' (default) generates one Markdown caption upfront and "
-        "embeds the text in every judge call (Needham's text-only protocol). "
-        "'inline' attaches the raw PNG on each call (deviates from Needham, "
-        "higher fidelity, 2-3x cost).",
-    )
+    # Phase 4 transcript-purpose classifier has no CLI knobs — Apollo's
+    # single-path protocol; self-healing handles soft failures internally.
 
     resume_cmd = subparsers.add_parser(
         "resume",
@@ -419,21 +401,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         help="Resume: re-verify every Phase 2c task regardless of fingerprint.",
     )
-    resume_cmd.add_argument(
-        "--aer-reps",
-        type=int,
-        choices=(1, 5),
-        default=argparse.SUPPRESS,
-        metavar="N",
-        help="Resume: override Phase 4 IPI-AER Needham repetition count.",
-    )
-    resume_cmd.add_argument(
-        "--aer-screenshot-mode",
-        choices=("caption", "inline"),
-        default=argparse.SUPPRESS,
-        help="Resume: override Phase 4 IPI-AER frame mode.",
-    )
-
     rescore_cmd = subparsers.add_parser(
         "rescore-phase-3",
         help="Re-score an existing Phase 3 run with the agent-response transform.",
