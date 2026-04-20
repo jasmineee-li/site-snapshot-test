@@ -166,6 +166,34 @@ def test_inspect_storage_state_preflight_reports_invalid_json(tmp_path: Path) ->
     assert "invalid JSON" in report.errors[0].message
 
 
+def test_inspect_storage_state_preflight_ignores_orphan_phase_0d_artifact(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    orphan_dir = tmp_path / "phase_0d" / "gitlab"
+    orphan_dir.mkdir(parents=True)
+    (orphan_dir / "storage_state.json").write_text("{not-json", encoding="utf-8")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": "auth/gitlab-state.json"},
+            },
+        )
+    ]
+
+    report = inspect_storage_state_preflight(instances, benchmark_root=tmp_path)
+
+    assert report.mismatches == ()
+    assert len(report.errors) == 1
+    assert "missing" in report.errors[0].message
+
+
 def test_find_host_bound_storage_state_mismatches_is_instance_specific_for_multi_host_sites(
     tmp_path: Path,
 ) -> None:

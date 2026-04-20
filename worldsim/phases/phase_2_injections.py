@@ -668,6 +668,29 @@ async def _run_feasibility_stage(
     """
     infeasible_path = output_path.with_name(output_path.stem + ".infeasible.json")
     report_path = output_dir / "feasibility_report.json"
+    instances_arg = getattr(args, "feasibility_instances", None) or "instances.smoke.json"
+    concurrency_raw = getattr(args, "feasibility_concurrency", None)
+    concurrency = 10 if concurrency_raw is None else max(1, int(concurrency_raw))
+    retry_raw = getattr(args, "feasibility_retry_count", None)
+    retry_count = 1 if retry_raw is None else max(0, int(retry_raw))
+    ttl_hours = getattr(args, "feasibility_ttl_hours", None)
+    force_reverify = bool(getattr(args, "force_reverify", False))
+
+    save_state(
+        "phase_2",
+        status="running",
+        phase_2_stage="feasibility",
+        adversarial_tasks_path=str(output_path),
+        feasibility_report_path=str(report_path),
+        feasibility_infeasible_path=str(infeasible_path),
+        skip_feasibility=bool(getattr(args, "skip_feasibility", False)),
+        feasibility_instances=str(instances_arg),
+        feasibility_concurrency=concurrency,
+        feasibility_retry_count=retry_count,
+        feasibility_ttl_hours=ttl_hours,
+        force_reverify=force_reverify,
+        **state_metadata,
+    )
 
     if getattr(args, "skip_feasibility", False):
         logger.warning("Phase 2c: --skip-feasibility active; stamping tasks as unverified")
@@ -700,7 +723,6 @@ async def _run_feasibility_stage(
         )
         return 0
 
-    instances_arg = getattr(args, "feasibility_instances", None) or "instances.smoke.json"
     instances_path = Path(instances_arg)
     if not instances_path.exists():
         logger.error(
@@ -721,16 +743,6 @@ async def _run_feasibility_stage(
             instances_path,
         )
         return 1
-
-    # Use explicit None sentinels: ``--feasibility-retry-count 0`` is a
-    # legitimate "single attempt, no retries" setting; the ``or`` fallback
-    # would silently rewrite it to the default.
-    concurrency_raw = getattr(args, "feasibility_concurrency", None)
-    concurrency = 10 if concurrency_raw is None else max(1, int(concurrency_raw))
-    retry_raw = getattr(args, "feasibility_retry_count", None)
-    retry_count = 1 if retry_raw is None else max(0, int(retry_raw))
-    ttl_hours = getattr(args, "feasibility_ttl_hours", None)
-    force_reverify = bool(getattr(args, "force_reverify", False))
 
     logger.info(
         "Phase 2c: verifying %s against %s (concurrency=%d, retry=%d, ttl_hours=%s, force=%s)",
@@ -767,11 +779,6 @@ async def _run_feasibility_stage(
         return 1
 
     write_json_atomic(
-        output_path,
-        report.verified,
-        failpoint_base=FAILPOINT_DATASET,
-    )
-    write_json_atomic(
         infeasible_path,
         report.infeasible,
         failpoint_base=FAILPOINT_QUARANTINE,
@@ -780,6 +787,11 @@ async def _run_feasibility_stage(
         report_path,
         _report_summary_dict(report, instances_path=instances_path.name),
         failpoint_base=FAILPOINT_REPORT,
+    )
+    write_json_atomic(
+        output_path,
+        report.verified,
+        failpoint_base=FAILPOINT_DATASET,
     )
 
     verified_count = len(report.verified)

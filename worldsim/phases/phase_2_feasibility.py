@@ -94,7 +94,7 @@ async def verify_feasibility(
             f"{tasks_path} must contain a JSON array of tasks; got {type(raw).__name__}"
         )
 
-    fingerprint_base = _host_fingerprint(instances_label)
+    fingerprint_base = _host_fingerprint(instances_label, instances)
 
     if not raw:
         logger.info("phase 2c: no tasks in %s; nothing to verify", tasks_path)
@@ -452,7 +452,13 @@ def _idempotency_decision(
 
 
 def _fingerprints_match(a: dict[str, Any], b: dict[str, Any]) -> bool:
-    keys = ("host_config", "editor_commit", "dataset_commit", "task_content_hash")
+    keys = (
+        "host_config",
+        "instances_digest",
+        "editor_commit",
+        "dataset_commit",
+        "task_content_hash",
+    )
     return all(str(a.get(k, "")) == str(b.get(k, "")) for k in keys)
 
 
@@ -474,13 +480,19 @@ def _task_content_hash(editor_calls: list[Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
 
 
-def _host_fingerprint(instances_label: str) -> dict[str, str]:
+def _host_fingerprint(instances_label: str, instances: list[dict[str, Any]]) -> dict[str, str]:
     commit = _git_head_short()
     return {
         "host_config": instances_label,
+        "instances_digest": _instances_digest(instances),
         "editor_commit": commit,
         "dataset_commit": commit,
     }
+
+
+def _instances_digest(instances: list[dict[str, Any]]) -> str:
+    canonical = json.dumps(instances, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
 
 
 def _git_head_short() -> str:

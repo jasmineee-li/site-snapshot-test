@@ -180,6 +180,25 @@ async def test_run_honors_sites_filter(state_dir):
 
 
 @pytest.mark.asyncio
+async def test_run_saves_running_state_before_contract_build(state_dir, monkeypatch):
+    benign = [_mode_a_task("task-a1"), _mode_b_task("task-b1")]
+    _write_phase_outputs(state_dir, benign_tasks=benign)
+
+    def blow_up(*args, **kwargs):
+        raise RuntimeError("synthetic phase-3 crash")
+
+    monkeypatch.setattr(phase_3_benign, "_annotate_adversarially_exhausted", blow_up)
+
+    with pytest.raises(RuntimeError, match="synthetic phase-3 crash"):
+        await phase_3_benign.run(Namespace(sites="shopping"))
+
+    state = json.loads((state_dir / "pipeline_state.json").read_text())
+    assert state["step"] == "phase_3"
+    assert state["status"] == "running"
+    assert state["sites"] == "shopping"
+
+
+@pytest.mark.asyncio
 async def test_run_reports_adversarial_reference_errors(state_dir, caplog):
     benign = [_mode_a_task("task-a1")]
     adversarial = [_adversarial_task("adv-1", "unknown-id")]

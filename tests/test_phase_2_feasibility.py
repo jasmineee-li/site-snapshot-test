@@ -157,6 +157,24 @@ def _patch_apply(
     return attempt_log
 
 
+def _host_fingerprint_for_test(
+    *,
+    instances: list[dict[str, Any]] | None = None,
+    instances_label: str = "instances.smoke.json",
+    editor_commit: str = "cafebabe1234",
+    dataset_commit: str = "cafebabe1234",
+    task_content_hash: str = "deadbeef0000",
+) -> dict[str, str]:
+    active_instances = instances or [_gitlab_instance()]
+    return {
+        "host_config": instances_label,
+        "instances_digest": feas._instances_digest(active_instances),
+        "editor_commit": editor_commit,
+        "dataset_commit": dataset_commit,
+        "task_content_hash": task_content_hash,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Case 1 — happy path
 # ---------------------------------------------------------------------------
@@ -340,12 +358,7 @@ def test_case_07_fingerprint_match_skips_http(tmp_path, monkeypatch):
     prior_feas = {
         "status": "verified",
         "verified_at": "2026-04-18T00:00:00Z",
-        "host_fingerprint": {
-            "host_config": "instances.smoke.json",
-            "editor_commit": "cafebabe1234",
-            "dataset_commit": "cafebabe1234",
-            "task_content_hash": content_hash,
-        },
+        "host_fingerprint": _host_fingerprint_for_test(task_content_hash=content_hash),
         "attempts": [{"attempt": 0, "status": "success", "elapsed_ms": 100}],
     }
     task = _task(feasibility=prior_feas)
@@ -392,12 +405,10 @@ def test_case_08_fingerprint_drift_reverifies(tmp_path, monkeypatch):
     prior = {
         "status": "verified",
         "verified_at": "2026-04-18T00:00:00Z",
-        "host_fingerprint": {
-            "host_config": "instances.smoke.json",
-            "editor_commit": "olddeadbeef",
-            "dataset_commit": "olddeadbeef",
-            "task_content_hash": "deadbeef0000",
-        },
+        "host_fingerprint": _host_fingerprint_for_test(
+            editor_commit="olddeadbeef",
+            dataset_commit="olddeadbeef",
+        ),
     }
     task = _task(feasibility=prior)
 
@@ -431,12 +442,9 @@ def test_case_09_task_content_hash_drift_reverifies(tmp_path, monkeypatch):
     prior = {
         "status": "verified",
         "verified_at": "2026-04-18T00:00:00Z",
-        "host_fingerprint": {
-            "host_config": "instances.smoke.json",
-            "editor_commit": "cafebabe1234",
-            "dataset_commit": "cafebabe1234",
-            "task_content_hash": "aaaaaaaaaaaa",  # mismatches the live seed
-        },
+        "host_fingerprint": _host_fingerprint_for_test(
+            task_content_hash="aaaaaaaaaaaa"  # mismatches the live seed
+        ),
     }
     task = _task(feasibility=prior)
 
@@ -458,6 +466,42 @@ def test_case_09_task_content_hash_drift_reverifies(tmp_path, monkeypatch):
     )
     assert len(report.verified) == 1
     assert report.verified[0]["feasibility"]["status"] == "verified"
+
+
+# ---------------------------------------------------------------------------
+# Case 9b — instances file content drift behind the same basename ⇒ re-verify
+# ---------------------------------------------------------------------------
+
+
+def test_case_09b_instance_identity_drift_reverifies(tmp_path, monkeypatch):
+    prior = {
+        "status": "verified",
+        "verified_at": "2026-04-18T00:00:00Z",
+        "host_fingerprint": _host_fingerprint_for_test(
+            instances=[_gitlab_instance(site_url="https://gitlab-old.example/")]
+        ),
+    }
+    task = _task(feasibility=prior)
+    handle = _FakeHandle()
+
+    def responder(idx, seed, instance):
+        return handle
+
+    _patch_apply(monkeypatch, responder)
+    tasks_path = _write_tasks(tmp_path, [task])
+
+    report = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_gitlab_instance(site_url="https://gitlab-new.example/")],
+            instances_label="instances.smoke.json",
+            concurrency=1,
+            retry_count=0,
+        )
+    )
+    assert len(report.verified) == 1
+    assert report.verified[0]["feasibility"]["status"] == "verified"
+    assert handle.cleaned is True
 
 
 # ---------------------------------------------------------------------------
@@ -569,12 +613,7 @@ def test_case_13_force_reverify_bypasses_skip(tmp_path, monkeypatch):
     prior = {
         "status": "verified",
         "verified_at": "2026-04-18T00:00:00Z",
-        "host_fingerprint": {
-            "host_config": "instances.smoke.json",
-            "editor_commit": "cafebabe1234",
-            "dataset_commit": "cafebabe1234",
-            "task_content_hash": content_hash,
-        },
+        "host_fingerprint": _host_fingerprint_for_test(task_content_hash=content_hash),
     }
     task = _task(feasibility=prior)
     handle = _FakeHandle()
@@ -611,12 +650,10 @@ def test_case_14_ttl_hours_preserves_recent_verification(tmp_path, monkeypatch):
     prior = {
         "status": "verified",
         "verified_at": verified_at,
-        "host_fingerprint": {
-            "host_config": "instances.smoke.json",
-            "editor_commit": "olddeadbeef",  # drifts
-            "dataset_commit": "olddeadbeef",
-            "task_content_hash": "deadbeef0000",
-        },
+        "host_fingerprint": _host_fingerprint_for_test(
+            editor_commit="olddeadbeef",  # drifts
+            dataset_commit="olddeadbeef",
+        ),
     }
     task = _task(feasibility=prior)
 
@@ -723,6 +760,7 @@ def test_empty_editor_calls_marks_task_empty_seed(tmp_path, monkeypatch):
 def test_idempotency_decision_truth_table():
     fp = {
         "host_config": "a",
+        "instances_digest": "aa11bb22cc33",
         "editor_commit": "b",
         "dataset_commit": "c",
         "task_content_hash": "d",

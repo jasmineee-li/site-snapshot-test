@@ -186,13 +186,23 @@ def _resolve_storage_state_artifact_for_preflight(
         return declared_path, None
 
     try:
-        from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
+        from worldsim.phases.phase_0d_auth_bootstrap import (
+            phase_0d_artifact_path,
+            phase_0d_completion_path,
+        )
     except ImportError:  # pragma: no cover
         bootstrap_path = None
+        completion_path = None
     else:
         bootstrap_path = phase_0d_artifact_path(instance.site_name)
+        completion_path = phase_0d_completion_path(instance.site_name)
 
-    if bootstrap_path is not None and bootstrap_path.exists():
+    if (
+        bootstrap_path is not None
+        and completion_path is not None
+        and bootstrap_path.exists()
+        and completion_path.exists()
+    ):
         return bootstrap_path.resolve(), None
 
     return None, StorageStatePreflightError(

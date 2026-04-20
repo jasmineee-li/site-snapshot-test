@@ -159,6 +159,14 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("%s", exc)
         return 1
 
+    state_payload: dict[str, Any] = {
+        "status": "running",
+        "tasks_path": str(tasks_path),
+    }
+    if sites_filter_raw:
+        state_payload["sites"] = sites_filter_raw
+    save_state("phase_3", **state_payload)
+
     adv_tasks_path = state_dir / "phase_2" / "adversarial_tasks.json"
     adversarial_tasks: list[dict[str, Any]] = []
     if adv_tasks_path.exists():

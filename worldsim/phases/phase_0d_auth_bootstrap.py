@@ -966,6 +966,12 @@ def phase_0d_artifact_path(site_name: str, state_dir: Path | None = None) -> Pat
     return base / "phase_0d" / site_name / "storage_state.json"
 
 
+def phase_0d_completion_path(site_name: str, state_dir: Path | None = None) -> Path:
+    """Return the canonical completion marker path for a site's Phase 0d output."""
+    base = Path(state_dir) if state_dir is not None else get_state_dir()
+    return base / "phase_0d" / site_name / "completion.json"
+
+
 def _phase_0d_state_metadata(
     *,
     benchmark: Path,
@@ -980,5 +986,6 @@ def _phase_0d_state_metadata(
 __all__ = [
     "AuthBootstrapError",
     "phase_0d_artifact_path",
+    "phase_0d_completion_path",
     "run",
 ]

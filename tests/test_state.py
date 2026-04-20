@@ -236,7 +236,7 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
     assert captured["agent_model"] == "gpt-5.4"
 
 
-def test_dispatch_resume_does_not_restore_saved_task_cap_by_default(monkeypatch, tmp_path):
+def test_dispatch_resume_restores_saved_task_cap_by_default(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
@@ -262,7 +262,7 @@ def test_dispatch_resume_does_not_restore_saved_task_cap_by_default(monkeypatch,
 
     assert rc == 0
     assert captured["phase"] == "4"
-    assert captured["max_tasks_per_site"] is None
+    assert captured["max_tasks_per_site"] == 2
 
 
 def test_dispatch_resume_allows_explicit_task_cap_override(monkeypatch, tmp_path):

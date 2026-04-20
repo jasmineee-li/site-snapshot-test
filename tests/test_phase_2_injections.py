@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from argparse import Namespace
+from pathlib import Path
 
 import pytest
 
@@ -1620,6 +1621,140 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
     assert rc == 0
     assert captured_state["status"] == "running"
     assert captured_state["phase_2_stage"] == "feasibility"
+
+
+@pytest.mark.asyncio
+async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    output_path = tmp_path / "phase_2" / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()]))
+    instances_path = tmp_path / "instances.smoke.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                    }
+                ]
+            }
+        )
+    )
+
+    captured_state = {}
+
+    async def fake_verify_feasibility(*args, **kwargs):
+        captured_state.update(json.loads((tmp_path / "pipeline_state.json").read_text()))
+        return phase_2_injections.FeasibilityReport(
+            verified=json.loads(output_path.read_text()),
+            infeasible=[],
+            skipped_already_verified=[],
+            cleanup_warnings=[],
+            host_fingerprint={"host_config": "instances.smoke.json"},
+            elapsed_seconds=0.0,
+            per_site_counts={},
+            phase_2_status="complete",
+        )
+
+    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+
+    rc = await phase_2_injections.run(
+        Namespace(
+            feasibility_only=True,
+            skip_feasibility=False,
+            feasibility_instances=str(instances_path),
+            feasibility_concurrency=3,
+            feasibility_retry_count=0,
+            feasibility_ttl_hours=24.0,
+            force_reverify=True,
+            sandbox_model="claude-sonnet-4-6",
+        )
+    )
+
+    assert rc == 0
+    assert captured_state["status"] == "running"
+    assert captured_state["phase_2_stage"] == "feasibility"
+    assert captured_state["feasibility_only"] is True
+    assert captured_state["feasibility_instances"] == str(instances_path)
+    assert captured_state["feasibility_concurrency"] == 3
+    assert captured_state["feasibility_retry_count"] == 0
+    assert captured_state["feasibility_ttl_hours"] == 24.0
+    assert captured_state["force_reverify"] is True
+
+
+@pytest.mark.asyncio
+async def test_phase_2_feasibility_stage_writes_side_artifacts_before_dataset(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_2"
+    output_dir.mkdir(parents=True)
+    output_path = output_dir / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()]))
+    instances_path = tmp_path / "instances.smoke.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                    }
+                ]
+            }
+        )
+    )
+
+    async def fake_verify_feasibility(*args, **kwargs):
+        verified = _finalized_plan_task()
+        verified["id"] = "adv-ok"
+        infeasible = _finalized_plan_task()
+        infeasible["id"] = "adv-bad"
+        return phase_2_injections.FeasibilityReport(
+            verified=[verified],
+            infeasible=[infeasible],
+            skipped_already_verified=[],
+            cleanup_warnings=[],
+            host_fingerprint={"host_config": "instances.smoke.json"},
+            elapsed_seconds=0.0,
+            per_site_counts={},
+            phase_2_status="complete",
+        )
+
+    write_order: list[str] = []
+    real_write_json_atomic = phase_2_injections.write_json_atomic
+
+    def recording_write_json_atomic(path, payload, *, failpoint_base=None):
+        write_order.append(Path(path).name)
+        return real_write_json_atomic(path, payload, failpoint_base=failpoint_base)
+
+    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+    monkeypatch.setattr(phase_2_injections, "write_json_atomic", recording_write_json_atomic)
+
+    rc = await phase_2_injections._run_feasibility_stage(
+        args=Namespace(
+            skip_feasibility=False,
+            feasibility_only=True,
+            feasibility_instances=str(instances_path),
+            feasibility_concurrency=1,
+            feasibility_retry_count=0,
+            feasibility_ttl_hours=None,
+            force_reverify=False,
+        ),
+        output_path=output_path,
+        output_dir=output_dir,
+        state_metadata={"feasibility_only": True},
+        prior_phase_2_status="complete",
+    )
+
+    assert rc == 0
+    assert write_order[-3:] == [
+        "adversarial_tasks.infeasible.json",
+        "feasibility_report.json",
+        "adversarial_tasks.json",
+    ]
 
 
 @pytest.mark.asyncio
