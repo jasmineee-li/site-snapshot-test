@@ -965,6 +965,29 @@ def test_load_reusable_phase_2_plans_rejects_stale_benign_selection(tmp_path):
         expected_benign_task_ids={"benign-2"},
         benign_by_id={"benign-1": _benign_task()},
         site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+    )
+
+    assert reusable is None
+
+
+def test_load_reusable_phase_2_plans_rejects_sandbox_model_drift(tmp_path):
+    plans_path = tmp_path / "adversarial_plans.json"
+    plans_path.write_text(json.dumps([_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_plans(
+        prior_state={
+            "step": "phase_2",
+            "status": "running",
+            "phase_2_stage": "planning",
+            "sandbox_model": "claude-old",
+        },
+        plans_path=plans_path,
+        sites_filter=None,
+        expected_benign_task_ids={"benign-1"},
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-new",
     )
 
     assert reusable is None
@@ -1410,6 +1433,8 @@ def test_load_reusable_phase_2_tasks_rejects_duplicate_task_ids(tmp_path):
         texts_per_plan=1,
         benign_by_id={"benign-1": _benign_task()},
         site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
     )
 
     assert reusable is None
@@ -1514,7 +1539,7 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
 
     monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
 
-    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True, sandbox_model="demo"))
 
     assert rc == 0
     output_path = tmp_path / "phase_2" / "adversarial_tasks.json"
@@ -1526,6 +1551,75 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
     assert state["generation_failures"] == [
         "gitlab: sandbox did not produce adversarial_tasks.json"
     ]
+
+
+@pytest.mark.asyncio
+async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_1").mkdir(parents=True)
+    (tmp_path / "phase_0c").mkdir(parents=True)
+    (tmp_path / "phase_1" / "benign_tasks.json").write_text(json.dumps([_benign_task()]))
+    (tmp_path / "phase_0c" / "BENCHMARK_PROFILE_shopping.json").write_text(
+        json.dumps(_single_surface_profile())
+    )
+    instances_path = tmp_path / "instances.smoke.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                    }
+                ]
+            }
+        )
+    )
+
+    async def fake_generate(
+        site_name, site_tasks, all_site_tasks=None, profile_path=None, label=None, **kwargs
+    ):
+        return phase_2_injections.SiteInjectionResult(site_name, [_plan_task()], [])
+
+    async def fake_fill(*args, **kwargs):
+        finalized = _finalized_plan_task()
+        return [finalized], [{"task_id": finalized["id"], "site": finalized["site"], "status": "ok"}]
+
+    captured_state = {}
+
+    async def fake_verify_feasibility(*args, **kwargs):
+        captured_state.update(json.loads((tmp_path / "pipeline_state.json").read_text()))
+        tasks_path = args[0]
+        return phase_2_injections.FeasibilityReport(
+            verified=json.loads(tasks_path.read_text()),
+            infeasible=[],
+            skipped_already_verified=[],
+            cleanup_warnings=[],
+            host_fingerprint={"host_config": "instances.smoke.json"},
+            elapsed_seconds=0.0,
+            per_site_counts={},
+            phase_2_status="complete",
+        )
+
+    monkeypatch.setattr(phase_2_injections, "_generate_injections_for_site", fake_generate)
+    monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
+    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+
+    rc = await phase_2_injections.run(
+        Namespace(
+            skip_feasibility=False,
+            feasibility_instances=str(instances_path),
+            feasibility_concurrency=1,
+            feasibility_retry_count=0,
+            feasibility_ttl_hours=None,
+            force_reverify=False,
+            sandbox_model="claude-sonnet-4-6",
+        )
+    )
+
+    assert rc == 0
+    assert captured_state["status"] == "running"
+    assert captured_state["phase_2_stage"] == "feasibility"
 
 
 @pytest.mark.asyncio
@@ -1608,7 +1702,7 @@ async def test_phase_2_run_reuses_existing_final_tasks_for_text_fill_resume(monk
 
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fail_fill)
 
-    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True, sandbox_model="demo"))
 
     assert rc == 0
     assert _strip_feasibility(
@@ -1666,7 +1760,7 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
 
     monkeypatch.setattr(phase_2_injections, "preflight_sandbox_environment", fail_preflight)
 
-    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True, sandbox_model="demo"))
 
     assert rc == 0
     assert _strip_feasibility(
@@ -1724,6 +1818,34 @@ def test_load_reusable_phase_2_tasks_rejects_stale_legacy_tasks_when_benign_ids_
             },
         },
         site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
+    )
+
+    assert reusable is None
+
+
+def test_load_reusable_phase_2_tasks_rejects_text_model_drift(tmp_path):
+    output_path = tmp_path / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_tasks(
+        prior_state={
+            "step": "phase_2",
+            "status": "running",
+            "phase_2_stage": "text_fill",
+            "sandbox_model": "claude-sonnet-4-6",
+            "phase_2_text_model": "anthropic/old-model",
+        },
+        output_path=output_path,
+        sites_filter=None,
+        expected_task_ids={"adv-1"},
+        expected_benign_task_ids={"benign-1"},
+        texts_per_plan=1,
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_text_model="anthropic/new-model",
     )
 
     assert reusable is None
@@ -1755,7 +1877,7 @@ async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monke
     monkeypatch.setattr(phase_2_injections, "preflight_sandbox_environment", fail_preflight)
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
 
-    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True, sandbox_model="demo"))
 
     assert rc == 0
     assert _strip_feasibility(
@@ -1792,7 +1914,7 @@ async def test_phase_2_run_rejects_stale_same_site_reused_tasks(monkeypatch, tmp
 
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
 
-    rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
+    rc = await phase_2_injections.run(Namespace(skip_feasibility=True, sandbox_model="demo"))
 
     assert rc == 0
     assert calls["count"] == 1
@@ -1827,7 +1949,9 @@ async def test_phase_2_run_rejects_reuse_when_texts_per_plan_increases(monkeypat
 
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
 
-    rc = await phase_2_injections.run(Namespace(phase_2b_texts_per_plan=2, skip_feasibility=True))
+    rc = await phase_2_injections.run(
+        Namespace(phase_2b_texts_per_plan=2, skip_feasibility=True, sandbox_model="demo")
+    )
 
     assert rc == 0
     assert calls["count"] == 1

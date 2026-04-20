@@ -391,6 +391,7 @@ async def run(args: argparse.Namespace) -> int:
         expected_benign_task_ids=expected_benign_task_ids,
         benign_by_id=benign_by_id,
         site_profiles=site_profile_payloads,
+        current_sandbox_model=sandbox_model,
     )
     reusable_final_tasks = None
     if reusable_plans is None and sites_filter is None:
@@ -403,6 +404,8 @@ async def run(args: argparse.Namespace) -> int:
             texts_per_plan=texts_per_plan,
             benign_by_id=benign_by_id,
             site_profiles=site_profile_payloads,
+            current_sandbox_model=sandbox_model,
+            current_text_model=text_fill_model,
         )
     if reusable_plans is None and reusable_final_tasks is None:
         try:
@@ -533,6 +536,8 @@ async def run(args: argparse.Namespace) -> int:
             texts_per_plan=texts_per_plan,
             benign_by_id=benign_by_id,
             site_profiles=site_profile_payloads,
+            current_sandbox_model=sandbox_model,
+            current_text_model=text_fill_model,
         )
         if reusable_final_tasks is None:
             save_state(
@@ -601,8 +606,8 @@ async def run(args: argparse.Namespace) -> int:
     status = "partial_complete" if site_failures or text_fill_failures else "complete"
     save_state(
         "phase_2",
-        status=status,
-        phase_2_stage="text_fill",
+        status="running",
+        phase_2_stage="feasibility",
         adversarial_tasks_path=str(output_path),
         task_count=len(merged_output),
         generation_failures=site_failures,
@@ -1124,12 +1129,19 @@ def _load_reusable_phase_2_plans(
     expected_benign_task_ids: set[str],
     benign_by_id: dict[str, dict[str, Any]],
     site_profiles: dict[str, dict[str, Any]],
+    current_sandbox_model: str,
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
     if prior_state.get("phase_2_stage") not in {None, "planning", "text_fill", "feasibility"}:
         return None
     if prior_state.get("status") not in {"running", "failed"}:
+        return None
+    if not _resume_setting_matches(
+        prior_state,
+        field="sandbox_model",
+        current_value=current_sandbox_model,
+    ):
         return None
     if not plans_path.exists():
         return None
@@ -1181,10 +1193,24 @@ def _load_reusable_phase_2_tasks(
     texts_per_plan: int,
     benign_by_id: dict[str, dict[str, Any]],
     site_profiles: dict[str, dict[str, Any]],
+    current_sandbox_model: str,
+    current_text_model: str,
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
     if prior_state.get("status") not in {"running", "failed"}:
+        return None
+    if not _resume_setting_matches(
+        prior_state,
+        field="sandbox_model",
+        current_value=current_sandbox_model,
+    ):
+        return None
+    if not _resume_setting_matches(
+        prior_state,
+        field="phase_2_text_model",
+        current_value=current_text_model,
+    ):
         return None
     stage = prior_state.get("phase_2_stage")
     if stage not in {None, "text_fill", "feasibility"}:
@@ -1234,6 +1260,19 @@ def _load_reusable_phase_2_tasks(
             logger.warning("Phase 2: ignoring saved adversarial task reuse because %s", problem)
             return None
     return tasks
+
+
+def _resume_setting_matches(
+    prior_state: dict[str, Any],
+    *,
+    field: str,
+    current_value: Any,
+) -> bool:
+    sentinel = object()
+    prior_value = prior_state.get(field, sentinel)
+    if prior_value is sentinel:
+        return True
+    return prior_value == current_value
 
 
 def _identifiers_match_exactly(
