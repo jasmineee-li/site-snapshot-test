@@ -33,7 +33,6 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.phase_4.aer_formatter import format_aer_inline
 from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory, as_aer_view
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
@@ -360,7 +359,7 @@ async def run_transcript_purpose_api(
         return _failure_result("missing_screenshot", trajectory_dir)
 
     task_intent = task.get("description") or task.get("intent") or task.get("task_intent") or ""
-    aer_text = format_aer_inline(str(task_intent), as_aer_view(extracted_trajectory))
+    aer_text = format_ipi_aer_inline(str(task_intent), as_aer_view(extracted_trajectory))
     _persist_transcript(trajectory_dir, aer_text)
 
     client = client or get_client()
