@@ -82,7 +82,7 @@ from worldsim.agent_config import (
 from worldsim.agent_prompt import build_agent_prompt
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
-from worldsim.browser_use_agent import AgentRunner
+from worldsim.browser_use_agent import AgentResult, AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_configured_agent_auth
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors import EDITOR_REGISTRY, EditorError
@@ -675,23 +675,37 @@ def _resume_fingerprint_task(task: dict[str, Any]) -> dict[str, Any]:
 
 # Keys that round-trip through ``save_result`` -> ``result.json`` ->
 # ``_normalize_completed_result``. Post-process-layer fields like
-# ``taxonomy_fields`` (``outcome_fine``, ``flags``, ``signals`` …) and
-# ``final_status_extra`` are intentionally omitted: ``save_result`` does not
-# persist them, so the initial-run in-memory dict and the resume-loaded
-# normalized dict would otherwise hash differently and invalidate the
-# ``processed_result.json`` + ``strategy_variation_checkpoint.json`` caches
-# on every ``--resume``. Must stay in sync with
+# ``taxonomy_fields`` (``outcome_fine``, ``flags``, ``signals`` …) are
+# intentionally omitted because they are only added after postprocess.
+# Must stay in sync with
 # ``worldsim.eval_worker_pool._normalize_completed_result``.
 _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "task_id",
     "outcome",
     "encounter",
+    "final_status",
+    "seed_preflight_mismatches",
+    "seed_preflight_mismatch_records",
     "benign_passed",
     "adversarial_passed",
     "trajectory_dir",
     "elapsed",
     "steps",
     "error",
+    "transcript_purpose_classification",
+    "transcript_purpose_is_aware",
+    "transcript_purpose_guess",
+    "transcript_purpose_explanation",
+    "transcript_purpose_failure",
+    "transcript_purpose_format",
+    "transcript_purpose_attempts",
+    "transcript_purpose_raw_response_path",
+    "verbalized_eval_awareness_classification",
+    "verbalized_eval_awareness_is_aware",
+    "verbalized_eval_awareness_evidence",
+    "verbalized_eval_awareness_failure",
+    "verbalized_eval_awareness_transcript_format",
+    "verbalized_eval_awareness_raw_response_path",
 )
 
 
@@ -1004,6 +1018,9 @@ async def run(args: argparse.Namespace) -> int:
                 f"got {status!r}"
             )
             continue
+        if status == "valid" and not isinstance(entry.get("task"), dict):
+            contract_errors.append(f"entry {index} ({entry_id}): valid contract missing task object")
+            continue
         if status == "valid":
             valid_contracts_by_id[str(entry_id)] = entry
     if contract_errors:
@@ -1061,7 +1078,7 @@ async def run(args: argparse.Namespace) -> int:
             continue
         try:
             rebuilt = _rebase_adversarial_task(adversarial_task, entry["task"])
-        except ValueError as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             rebase_errors.append(f"{adversarial_task.get('id', '?')}: {exc}")
             continue
         origin = str(entry.get("origin", "mode_b"))
@@ -1661,7 +1678,7 @@ async def run_adversarial_task(
                 "detail": "data seed must be an object",
             }
         ]
-        return {
+        result_payload = {
             "task_id": task_id,
             "outcome": "seed_preflight_mismatch",
             "error": "data seed must be an object",
@@ -1673,6 +1690,13 @@ async def run_adversarial_task(
             "elapsed": 0.0,
             "steps": 0,
         }
+        _save_seed_preflight_result(
+            task_dir=task_dir,
+            task=task,
+            payload=result_payload,
+            resume_fingerprint=resume_fingerprint,
+        )
+        return result_payload
     adv_seed = raw_adv_seed
     adv_seed_mechanism = adv_seed.get("mechanism")
     adv_seed_has_actions = _seed_has_actions(adv_seed)
@@ -1747,7 +1771,7 @@ async def run_adversarial_task(
                 if not preflight.ok:
                     mismatch_lines = [mismatch.message for mismatch in preflight.mismatches]
                     mismatch_records = _serialize_preflight_mismatch_records(preflight.mismatches)
-                    return {
+                    result_payload = {
                         "task_id": task_id,
                         "outcome": "seed_preflight_mismatch",
                         "error": "; ".join(mismatch_lines),
@@ -1759,6 +1783,13 @@ async def run_adversarial_task(
                         "elapsed": 0.0,
                         "steps": 0,
                     }
+                    _save_seed_preflight_result(
+                        task_dir=task_dir,
+                        task=task,
+                        payload=result_payload,
+                        resume_fingerprint=resume_fingerprint,
+                    )
+                    return result_payload
                 if should_reset:
                     await _reset_task_environment(task)
                     if reset_cache is not None:
@@ -2550,6 +2581,11 @@ def _normalize_saved_adversarial_result(
     for key in ("outcome", "encounter", "elapsed", "steps"):
         if key in payload:
             normalized[key] = payload.get(key)
+    for key in _FINGERPRINT_RESULT_KEYS:
+        if key in {"task_id", "outcome", "encounter", "elapsed", "steps", "benign_passed", "adversarial_passed", "trajectory_dir", "error"}:
+            continue
+        if key in payload:
+            normalized[key] = payload.get(key)
     if outcome == "error":
         error = payload.get("error") or payload.get("message")
         if error is not None:
@@ -2575,10 +2611,14 @@ def _load_saved_variant_result(
     if not result_file.exists():
         return None
     metadata = _load_json_dict(_variant_result_metadata_path(task_dir_root, task_id, index))
-    if metadata is None or metadata.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
-        return None
     payload = _load_json_dict(result_file)
     if payload is None:
+        return None
+    metadata_fingerprint = (
+        metadata.get(_CHECKPOINT_FINGERPRINT_KEY) if isinstance(metadata, dict) else None
+    )
+    payload_fingerprint = payload.get(RESULT_FINGERPRINT_KEY)
+    if metadata_fingerprint != source_fingerprint and payload_fingerprint != source_fingerprint:
         return None
     return _normalize_saved_adversarial_result(payload, trajectory_dir=variant_dir)
 
@@ -3174,6 +3214,7 @@ async def _evaluate_variant(
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
                 site_profile=site_profile,
+                resume_fingerprint=source_fingerprint,
             )
         _write_json_atomic(
             _variant_result_metadata_path(task_dir_root, str(task.get("id", "unknown")), index),
@@ -3217,6 +3258,41 @@ def _build_phase_4_result(
         "final_status": final_status,
         "successful_strategy": successful_strategy,
     }
+
+
+def _save_seed_preflight_result(
+    *,
+    task_dir: Path,
+    task: dict[str, Any],
+    payload: dict[str, Any],
+    resume_fingerprint: str | None,
+) -> None:
+    """Persist deterministic preflight failures so resume can reuse them."""
+    extra: dict[str, Any] = {}
+    if resume_fingerprint is not None:
+        extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+    save_result(
+        task_dir,
+        task,
+        AgentResult(
+            elapsed=float(payload.get("elapsed", 0.0) or 0.0),
+            steps=int(payload.get("steps", 0) or 0),
+            is_done=False,
+            final_result=None,
+            status="error",
+            errors=[str(payload.get("error", ""))] if payload.get("error") else [],
+            network_trace=[],
+        ),
+        False,
+        str(payload.get("error", "")),
+        outcome="seed_preflight_mismatch",
+        benign_passed=False,
+        adversarial_passed=False,
+        seed_preflight_mismatches=payload.get("seed_preflight_mismatches", []),
+        seed_preflight_mismatch_records=payload.get("seed_preflight_mismatch_records", []),
+        trajectory_dir=str(task_dir),
+        **extra,
+    )
 
 
 async def preflight_adversarial_seed(

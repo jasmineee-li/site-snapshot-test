@@ -34,6 +34,26 @@ logger = logging.getLogger(__name__)
 #: Seconds between successive worker startups. The v5 spec pins this at 5s.
 STAGGER_DELAY = 5
 
+_OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
+    "final_status",
+    "seed_preflight_mismatches",
+    "seed_preflight_mismatch_records",
+    "transcript_purpose_classification",
+    "transcript_purpose_is_aware",
+    "transcript_purpose_guess",
+    "transcript_purpose_explanation",
+    "transcript_purpose_failure",
+    "transcript_purpose_format",
+    "transcript_purpose_attempts",
+    "transcript_purpose_raw_response_path",
+    "verbalized_eval_awareness_classification",
+    "verbalized_eval_awareness_is_aware",
+    "verbalized_eval_awareness_evidence",
+    "verbalized_eval_awareness_failure",
+    "verbalized_eval_awareness_transcript_format",
+    "verbalized_eval_awareness_raw_response_path",
+)
+
 
 TaskRunner = Callable[
     [dict[str, Any], AgentRunner, BenchmarkInstance, Path],
@@ -51,6 +71,9 @@ def _normalize_completed_result(data: dict[str, Any], *, trajectory_dir: Path) -
             "trajectory_dir": str(trajectory_dir),
         }
         for key in ("outcome", "encounter", "elapsed", "steps"):
+            if key in data:
+                normalized[key] = data.get(key)
+        for key in _OUTCOME_RESULT_EXTRA_KEYS:
             if key in data:
                 normalized[key] = data.get(key)
         if outcome == "error":
@@ -117,6 +140,9 @@ def load_completed_results(
             continue
         try:
             data = json.loads(result_file.read_text())
+            if not isinstance(data, dict):
+                logger.warning("Invalid result file at %s, expected JSON object", result_file)
+                continue
             task_id = str(data.get("task_id") or "")
             if not task_id:
                 continue
@@ -135,10 +161,41 @@ def load_completed_results(
                         result_file,
                     )
                     continue
+            if not _has_required_resume_artifacts(data, trajectory_dir=subdir):
+                logger.info(
+                    "Ignoring incomplete result for task %s at %s due to missing or malformed sidecars",
+                    task_id,
+                    result_file,
+                )
+                continue
             completed[task_id] = _normalize_completed_result(data, trajectory_dir=subdir)
         except (json.JSONDecodeError, OSError):
             logger.warning("Corrupt result file at %s, will re-run", result_file)
     return completed
+
+
+def _has_required_resume_artifacts(data: dict[str, Any], *, trajectory_dir: Path) -> bool:
+    """Return True iff resume can safely trust the saved result sentinel.
+
+    Phase 4 results that came from an actual Browser-Use execution require the
+    trajectory sidecars used by postprocess/classification. Deterministic
+    preflight failures never produce those files, so they stay reusable based on
+    ``result.json`` alone.
+    """
+    outcome = data.get("outcome")
+    if outcome is None or outcome == "seed_preflight_mismatch":
+        return True
+    for name in ("history.json", "final_response.json"):
+        path = trajectory_dir / name
+        if not path.exists():
+            return False
+        try:
+            payload = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return False
+        if not isinstance(payload, (dict, list)):
+            return False
+    return True
 
 
 async def staggered_worker(

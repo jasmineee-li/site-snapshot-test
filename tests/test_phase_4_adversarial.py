@@ -179,6 +179,52 @@ def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
     )
 
 
+def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    strategy = {"strategy": "specificity"}
+    with_runtime_auth = BenchmarkInstance(
+        site_name="shopping",
+        site_url="http://shopping.test",
+        reset_endpoint="http://shopping.test/init",
+        replica_index=0,
+        replica_name="a",
+        api_auth={"type": "bearer_token", "token": "api-one"},
+        agent_auth={"type": "storage_state", "storage_state": {"path": "auth/a.json"}},
+    )
+    changed_runtime_auth = BenchmarkInstance(
+        site_name="shopping",
+        site_url="http://shopping.test",
+        reset_endpoint="http://shopping.test/init",
+        replica_index=1,
+        replica_name="b",
+        api_auth={"type": "bearer_token", "token": "api-two"},
+        agent_auth={"type": "storage_state", "storage_state": {"path": "auth/b.json"}},
+    )
+
+    assert phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=with_runtime_auth,
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    ) != phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=changed_runtime_auth,
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    )
+
+
 def test_delivery_site_name_ignores_null_values():
     assert phase_4_adversarial._delivery_site_name({"delivery_site": None}) == ""
     assert phase_4_adversarial._delivery_site_name({"delivery_site": " reddit "}) == "reddit"
@@ -550,6 +596,22 @@ async def test_postprocess_one_task_resume_ignores_malformed_processed_result(
 
     assert calls["process"] == 1
     assert processed["final_status"] == "complied"
+
+
+def test_resume_fingerprint_result_includes_final_status_and_metrics():
+    payload = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.0},
+        "final_status": "injection_not_encountered",
+        "transcript_purpose_classification": None,
+        "verbalized_eval_awareness_classification": None,
+    }
+
+    projected = phase_4_adversarial._resume_fingerprint_result(payload)
+
+    assert projected["final_status"] == "injection_not_encountered"
+    assert "transcript_purpose_classification" in projected
 
 
 def test_rebase_adversarial_task_uses_validated_benign_contract():
@@ -1744,6 +1806,95 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
     )
 
     assert calls["evaluated"] == 1
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_without_sidecar(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    initial_result = {"trajectory_dir": str(tmp_path / "traj")}
+    source_fingerprint = phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        {"strategy": "specificity"},
+        instance=instances[0],
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    )
+    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                        task,
+                        initial_result,
+                        primary_instances=[instances[0]],
+                        all_instances=instances,
+                        config_url_placeholders=None,
+                        benchmark_root=None,
+                        sandbox_model="claude-sonnet-4-6",
+                        site_profile=None,
+                    )
+                ),
+                "judge_diagnosis": {
+                    "diagnosis": "needs more specificity",
+                    "recommended_strategies": [{"strategy": "specificity"}],
+                },
+                "variant_candidates": [
+                    {
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
+            }
+        )
+    )
+    variant_dir = tmp_path / "adv-1_variant_0"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    (variant_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "adv-1",
+                "outcome": "complied",
+                "encounter": {"max_coverage": 0.5},
+                RESULT_FINGERPRINT_KEY: source_fingerprint,
+            }
+        )
+    )
+
+    async def fail_run_judge(*args, **kwargs):
+        raise AssertionError("resume should reuse saved judge output")
+
+    async def fail_generate_variant(*args, **kwargs):
+        raise AssertionError("resume should reuse saved variants")
+
+    def fail_agent_factory():
+        raise AssertionError("resume should reuse saved variant result")
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=fail_agent_factory,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert result["status"] == "varied"
+    assert result["variant_results"][0]["outcome"] == "complied"
     assert result["variant_results"][0]["strategy"] == "specificity"
 
 
@@ -3619,6 +3770,8 @@ async def test_run_adversarial_task_returns_seed_preflight_mismatch(monkeypatch,
     assert "no editor registered" in result["error"]
     assert result["seed_preflight_mismatch_records"][0]["kind"] == "unsupported_site"
     assert result["seed_preflight_mismatch_records"][0]["site"] == "map"
+    saved = json.loads((tmp_path / "traj" / "result.json").read_text())
+    assert saved["outcome"] == "seed_preflight_mismatch"
 
 
 @pytest.mark.asyncio
@@ -3807,6 +3960,8 @@ async def test_run_adversarial_task_classifies_invalid_seed_shape_as_preflight_m
     assert "data seed must be an object" in result["error"]
     assert result["seed_preflight_mismatch_records"][0]["call_index"] == -1
     assert result["seed_preflight_mismatch_records"][0]["detail"] == "data seed must be an object"
+    saved = json.loads((tmp_path / "traj-invalid-shape" / "result.json").read_text())
+    assert saved["outcome"] == "seed_preflight_mismatch"
 
 
 @pytest.mark.asyncio
@@ -4111,6 +4266,27 @@ async def test_admission_rejects_non_dict_entry(tmp_path, monkeypatch, caplog):
         )
     assert rc == 1
     assert any("not a JSON object" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
+async def test_admission_rejects_valid_contract_missing_task_object(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    instances_path = _prepare_malformed_contracts_fixture(
+        tmp_path,
+        [{"id": "benign-1", "origin": "mode_a", "validity_status": "valid", "task": None}],
+    )
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_4_adversarial.run(
+            Namespace(
+                instances=instances_path,
+                agent_model="demo-model",
+                agent_provider=None,
+                allow_unknown_auth=True,
+            )
+        )
+    assert rc == 1
+    assert any("missing task object" in message for message in caplog.messages)
 
 
 def test_stratified_summary_metrics_from_synthetic_results():

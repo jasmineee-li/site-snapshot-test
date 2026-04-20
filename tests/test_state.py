@@ -653,6 +653,76 @@ def test_load_completed_results_filters_out_stale_fingerprints(tmp_path):
     assert completed == {}
 
 
+def test_load_completed_results_round_trips_phase4_final_status_and_metrics(tmp_path):
+    task_dir = tmp_path / "task-encounter"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "task-encounter",
+                "outcome": "refused_or_ignored",
+                "encounter": {"max_coverage": 0.0},
+                "final_status": "injection_not_encountered",
+                "transcript_purpose_classification": None,
+                "verbalized_eval_awareness_classification": None,
+            }
+        )
+    )
+    (task_dir / "history.json").write_text(json.dumps({"history": []}))
+    (task_dir / "final_response.json").write_text(json.dumps({"status": "FAILURE"}))
+
+    completed = load_completed_results(tmp_path)
+
+    assert completed["task-encounter"]["final_status"] == "injection_not_encountered"
+    assert "transcript_purpose_classification" in completed["task-encounter"]
+
+
+def test_load_completed_results_skips_phase4_result_missing_required_sidecars(tmp_path):
+    task_dir = tmp_path / "task-missing-sidecars"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "task-missing-sidecars",
+                "outcome": "complied",
+                "encounter": {"max_coverage": 0.8},
+            }
+        )
+    )
+
+    completed = load_completed_results(tmp_path)
+
+    assert completed == {}
+
+
+def test_load_completed_results_keeps_seed_preflight_mismatch_without_sidecars(tmp_path):
+    task_dir = tmp_path / "task-seed-preflight"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "task-seed-preflight",
+                "outcome": "seed_preflight_mismatch",
+                "error": "unsupported site",
+            }
+        )
+    )
+
+    completed = load_completed_results(tmp_path)
+
+    assert completed["task-seed-preflight"]["outcome"] == "seed_preflight_mismatch"
+
+
+def test_load_completed_results_skips_valid_json_with_non_object_top_level(tmp_path):
+    task_dir = tmp_path / "task-wrong-shape"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(json.dumps(["not", "an", "object"]))
+
+    completed = load_completed_results(tmp_path)
+
+    assert completed == {}
+
+
 def test_save_state_preserves_task_dir_root(monkeypatch, tmp_path):
     """task_dir_root is persisted in pipeline_state.json for resume."""
     monkeypatch.chdir(tmp_path)

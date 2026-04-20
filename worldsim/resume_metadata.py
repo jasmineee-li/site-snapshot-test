@@ -20,10 +20,14 @@ def instance_identity(instance: Any) -> dict[str, Any]:
     return {
         "site_name": getattr(instance, "site_name", None),
         "site_url": getattr(instance, "site_url", None),
+        "replica_index": getattr(instance, "replica_index", None),
+        "replica_name": getattr(instance, "replica_name", None),
         "reset_endpoint": getattr(instance, "reset_endpoint", None),
         "db_connection": getattr(instance, "db_connection", None),
         "url_placeholders": getattr(instance, "url_placeholders", None),
         "auth": getattr(instance, "auth", None),
+        "api_auth": getattr(instance, "api_auth", None),
+        "agent_auth": getattr(instance, "agent_auth", None),
     }
 
 

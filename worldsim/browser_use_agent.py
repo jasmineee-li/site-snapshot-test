@@ -13,7 +13,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import shutil
+import tempfile
 import time
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -21,6 +23,7 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
+from worldsim.atomic_io import write_json_atomic
 from worldsim.config import has_configured_agent_auth
 
 logger = logging.getLogger(__name__)
@@ -504,15 +507,17 @@ class _NetworkTraceRecorder:
         )
 
         try:
-            (self._task_dir / "network_trace.json").write_text(
-                json.dumps(trace, indent=2, default=str)
+            write_json_atomic(
+                self._task_dir / "network_trace.json",
+                trace,
             )
         except Exception as e:
             logger.warning("Failed to write network_trace.json: %s", e)
 
         try:
-            (self._task_dir / "navigation_trace.json").write_text(
-                json.dumps(self._nav_events, indent=2, default=str)
+            write_json_atomic(
+                self._task_dir / "navigation_trace.json",
+                self._nav_events,
             )
         except Exception as e:
             logger.warning("Failed to write navigation_trace.json: %s", e)
@@ -531,7 +536,10 @@ class _NetworkTraceRecorder:
             }
         }
         try:
-            (self._task_dir / "network.har").write_text(json.dumps(payload, indent=2, default=str))
+            write_json_atomic(
+                self._task_dir / "network.har",
+                payload,
+            )
         except Exception as e:
             logger.warning("Failed to write network.har: %s", e)
 
@@ -1040,7 +1048,7 @@ def _write_agent_artifacts(
     history_path = task_dir / "history.json"
     if history is not None:
         try:
-            history.save_to_file(history_path)
+            _write_history_atomically(history, history_path)
         except Exception as e:
             logger.warning("Failed to write history.json for %s: %s", task_dir, e)
             _write_history_fallback(history_path, errors, status)
@@ -1057,11 +1065,27 @@ def _write_agent_artifacts(
         "is_done": is_done,
     }
     try:
-        (task_dir / "final_response.json").write_text(
-            json.dumps(final_response, indent=2, default=str)
+        write_json_atomic(
+            task_dir / "final_response.json",
+            final_response,
         )
     except Exception as e:
         logger.warning("Failed to write final_response.json for %s: %s", task_dir, e)
+
+
+def _write_history_atomically(history: Any, history_path: Path) -> None:
+    """Write Browser Use history via temp file + replace to avoid truncation."""
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=history_path.parent, suffix=".history.tmp")
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    try:
+        history.save_to_file(tmp_path)
+        os.replace(tmp_path, history_path)
+    except BaseException:
+        with suppress(OSError):
+            tmp_path.unlink()
+        raise
 
 
 def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[str]]:
@@ -1213,6 +1237,6 @@ def _write_history_fallback(history_path: Path, errors: list[str], status: str) 
         "errors": errors,
     }
     try:
-        history_path.write_text(json.dumps(payload, indent=2))
+        write_json_atomic(history_path, payload)
     except Exception as e:
         logger.warning("Failed to write fallback history.json for %s: %s", history_path, e)
