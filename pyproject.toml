@@ -28,20 +28,31 @@ dev = [
     "ruff>=0.11",
 ]
 
-# inspect_ai is NOT listed here even though the Needham XML byte-
-# equivalence test depends on it. Reason: inspect_ai pins a click version
-# that conflicts with browser-use==0.12.6's click pin; `uv sync` with
-# both in scope fails to resolve. Install it on demand, outside the main
-# resolve, when you want to run the upstream-comparison case:
+# PEP 735 dependency group. inspect_ai provides the upstream reference
+# types (`inspect_ai.model.ChatMessage*`, `inspect_ai.tool.ToolCall`)
+# that tests/test_phase_4_needham_xml.py uses to verify our XML
+# serializer is byte-equivalent to jjpn97/eval_awareness's real
+# _format_xml. Install with:
 #
-#     uv pip install inspect_ai
-#     uv run pytest tests/test_phase_4_needham_xml.py::test_matches_upstream_format_xml_across_all_message_shapes
-#     uv pip uninstall inspect_ai   # optional; keeps the lockfile clean
+#     uv sync --group upstream-refs
 #
-# The test skips cleanly when inspect_ai is absent (the hand-written
-# golden-string cases still run), so the dev path isn't blocked. CI
-# that wants the upstream comparison should run the three commands
-# above in a dedicated step after `uv sync --extra dev`.
+# The test file skips cleanly when inspect_ai is absent, so the default
+# dev path (`uv sync --extra dev`) is not blocked.
+[dependency-groups]
+upstream-refs = [
+    "inspect_ai>=0.3.200",
+]
+
+[tool.uv]
+# browser-use==0.12.6 declares `click==8.3.1` in its metadata but in
+# practice ships and works with click 8.2.1 (what uv's resolver actually
+# installs today). inspect_ai's pin is `click>8.2.0,<8.2.2`. Force
+# click to the version both tolerate in practice, so `uv sync --group
+# upstream-refs` can satisfy the graph. Remove this override the next
+# time browser-use is bumped and the metadata agrees with reality.
+override-dependencies = [
+    "click==8.2.1",
+]
 
 [project.scripts]
 worldsim = "worldsim.main:main"
