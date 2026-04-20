@@ -13,6 +13,48 @@ logger = logging.getLogger(__name__)
 _RESPONSE_SNIPPET_MAX_CHARS = 512
 
 
+def _same_logical_origin(site: Any, action: Any) -> bool:
+    """Treat proxy-rewritten origins as equivalent to their raw origin.
+
+    When a verification proxy is installed (see ``worldsim.http_proxy``),
+    an upstream backend may bake its own proxy-origin URL into HTML form
+    actions — e.g. Magento's ``web/{unsecure,secure}/base_url`` points at
+    ``http://<ip>:17770/`` even though ``site_url`` in the instance config
+    is ``http://<ip>:7770/``. The two URLs name the same logical origin;
+    only the port differs by ``port_offset``. Without this relaxation, the
+    editor's cross-origin check rejects every form on a Magento page.
+
+    We consider origins equivalent when scheme matches, hostname matches,
+    and the action port is one of: the site port, site_port+port_offset,
+    site_port-port_offset. The last two cover both directions (raw→proxy
+    and proxy→raw). We only relax when ``http_proxy.get_installed_proxy_info``
+    confirms a proxy is active AND the raw port is on its site_ports list —
+    so an arbitrary cross-port form action (e.g. an exfil attempt to a
+    different service) is still rejected.
+    """
+    if site.scheme != action.scheme:
+        return False
+    if (site.hostname or "") != (action.hostname or ""):
+        return False
+    site_port = site.port
+    action_port = action.port
+    if site_port == action_port:
+        return True
+    if site_port is None or action_port is None:
+        return False
+    try:
+        from worldsim.http_proxy import get_installed_proxy_info
+
+        port_offset, site_ports = get_installed_proxy_info()
+    except Exception:
+        return False
+    if port_offset is None or not site_ports:
+        return False
+    if site_port not in site_ports:
+        return False
+    return action_port in {site_port + port_offset, site_port - port_offset}
+
+
 def _truncate_snippet(text: str | None) -> str | None:
     if not text:
         return None
@@ -515,7 +557,7 @@ class BaseSiteEditor:
         resolved = urljoin(f"{site_url}/", action_path or "")
         site_origin = urlparse(site_url)
         action_origin = urlparse(resolved)
-        if (site_origin.scheme, site_origin.netloc) != (action_origin.scheme, action_origin.netloc):
+        if not _same_logical_origin(site_origin, action_origin):
             raise EditorError(
                 "cross_origin_form_action",
                 f"{self.site_name} editor refused cross-origin form action {resolved!r}",

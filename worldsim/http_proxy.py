@@ -143,6 +143,23 @@ def make_proxied_session(
     return session
 
 
+# Set by install_proxy so code paths that don't themselves carry a session
+# (notably editors doing HTML-form origin checks) can ask "is port P the
+# proxy-equivalent of port P_raw?" Updated on install/uninstall.
+_installed_port_offset: int | None = None
+_installed_site_ports: frozenset[int] = frozenset()
+
+
+def get_installed_proxy_info() -> tuple[int | None, frozenset[int]]:
+    """Return (port_offset, site_ports) for the currently installed proxy.
+
+    Returns ``(None, frozenset())`` when no proxy is installed. Used by the
+    editor base class to relax cross-origin checks so that proxy-rewritten
+    origins (e.g. ``:7770`` vs ``:17770``) are treated as equivalent.
+    """
+    return _installed_port_offset, _installed_site_ports
+
+
 def install_proxy(
     *,
     token: str,
@@ -158,6 +175,7 @@ def install_proxy(
     would nest the patches. Integration-test wiring uses a session-scoped
     pytest fixture to enforce install/uninstall symmetry.
     """
+    global _installed_port_offset, _installed_site_ports
     frozen_ports = frozenset(int(p) for p in site_ports)
     original_init = requests.Session.__init__
 
@@ -172,8 +190,13 @@ def install_proxy(
         self.mount("https://", adapter)
 
     requests.Session.__init__ = _patched_init  # type: ignore[method-assign]
+    _installed_port_offset = int(port_offset)
+    _installed_site_ports = frozen_ports
 
     def _uninstall() -> None:
+        global _installed_port_offset, _installed_site_ports
         requests.Session.__init__ = original_init  # type: ignore[method-assign]
+        _installed_port_offset = None
+        _installed_site_ports = frozenset()
 
     return _uninstall
