@@ -134,6 +134,64 @@ run_remote() {
     fi
 }
 
+verify_sql_scopes() {
+    # Re-read every base_url row and assert each value matches ``desired``.
+    # The idempotence check at the top reads the same rows but tolerates
+    # transient state; this one runs AFTER update + cache flush and is
+    # strict: any stray row with the wrong value is a hard failure.
+    local container="$1" desired="$2"
+    local rows
+    rows=$(run_remote "docker exec ${container} mysql -u${MYSQL_USER} -p${MYSQL_PASS} -D ${MYSQL_DB} -sN -e \"SELECT scope, scope_id, path, value FROM core_config_data WHERE path IN ('web/unsecure/base_url','web/secure/base_url')\" 2>/dev/null")
+    local seen=0 bad=0
+    while IFS=$'\t' read -r scope scope_id path value; do
+        [[ -z "$path" ]] && continue
+        seen=$((seen + 1))
+        if [[ "$value" != "$desired" ]]; then
+            echo "    ERROR: post-update DB mismatch at scope=$scope scope_id=$scope_id path=$path value=$value"
+            bad=$((bad + 1))
+        fi
+    done <<< "$rows"
+    if (( seen == 0 )); then
+        echo "    ERROR: no base_url rows found after update — DB read failed"
+        return 1
+    fi
+    if (( bad > 0 )); then
+        echo "    ERROR: $bad of $seen rows did not match desired=${desired}"
+        return 1
+    fi
+    echo "    verified: $seen DB rows all match desired=${desired}"
+    return 0
+}
+
+verify_http_probe() {
+    # Fetch the themed storefront root from INSIDE the EC2 host, hitting
+    # the raw backend port directly on the loopback (no proxy / token
+    # needed because we're on the host). Parse Magento's rendered
+    # ``var BASE_URL = '...'`` and assert it equals the proxy origin.
+    # Per Magento's require_js.phtml template, this global is emitted in
+    # every themed page's <head>; its value reflects the merged config
+    # (DB + env.php + env vars), which is the ground truth for what
+    # Magento will hand to browsers.
+    local real_port="$1" desired="$2" label="$3"
+    local probe="http://127.0.0.1:${real_port}/"
+    local output
+    output=$(run_remote "curl -sS --max-time 15 '${probe}' 2>/dev/null | grep -oE \"var BASE_URL = '[^']+'\" | head -1" || true)
+    if [[ -z "$output" ]]; then
+        echo "    WARN: HTTP probe at ${probe} returned no BASE_URL declaration — "
+        echo "          storefront may not be reachable yet, or page skipped the require_js template."
+        echo "          DB verification still succeeded; proceed with caution."
+        return 0
+    fi
+    local expected_decl="var BASE_URL = '${desired}'"
+    if [[ "$output" != "$expected_decl" ]]; then
+        echo "    ERROR: HTTP probe at ${probe} reports ${output}"
+        echo "           but expected ${expected_decl}"
+        return 1
+    fi
+    echo "    verified: HTTP probe confirms BASE_URL = ${desired}"
+    return 0
+}
+
 fix_one() {
     local container="$1" real_port="$2" label="$3"
     local proxy_port=$((real_port + PORT_OFFSET))
@@ -160,7 +218,11 @@ fix_one() {
     done <<< "$current"
 
     if [[ "$needs_update" == "0" ]]; then
-        echo "    already correct — skipping update + cache flush"
+        echo "    DB already correct — skipping update + cache flush"
+        # Still run HTTP probe so the operator gets a positive confirmation
+        # that what's in the DB actually renders on the wire. A stale PHP-FPM
+        # worker holding an old cached config would show up here.
+        verify_http_probe "$real_port" "$desired" "$label" || return 1
         return 0
     fi
 
@@ -169,15 +231,29 @@ fix_one() {
     local sql="UPDATE core_config_data SET value='${desired}' WHERE path IN ('web/unsecure/base_url','web/secure/base_url');"
     run_remote "docker exec ${container} mysql -u${MYSQL_USER} -p${MYSQL_PASS} -D ${MYSQL_DB} -e \"${sql}\""
 
-    # Flush Magento cache so the new base_url takes effect immediately.
+    # Flush Magento's config cache so the new base_url takes effect
+    # immediately. `cache:flush` is a superset of `cache:clean config` and
+    # also drops any pages/blocks FPC has rendered with the old origin;
+    # for a one-shot config repair that's what we want.
     run_remote "docker exec ${container} bash -lc 'cd /var/www/magento2 && php bin/magento cache:flush'" || {
         echo "    WARN: cache:flush returned non-zero; config change persisted but may lag"
     }
 
-    echo "    updated"
+    echo "    updated — running post-update verification"
+
+    # Strict post-update verification: every scope's row must match
+    # ``desired`` AND the rendered page must report the same value.
+    verify_sql_scopes "$container" "$desired" || return 1
+    verify_http_probe "$real_port" "$desired" "$label" || return 1
 }
 
-fix_one "$SHOPPING_CONTAINER" "$SHOPPING_PORT" "shopping"
-fix_one "$SHOPPING_ADMIN_CONTAINER" "$SHOPPING_ADMIN_PORT" "shopping_admin"
+FAILED=0
+fix_one "$SHOPPING_CONTAINER" "$SHOPPING_PORT" "shopping" || FAILED=$((FAILED + 1))
+fix_one "$SHOPPING_ADMIN_CONTAINER" "$SHOPPING_ADMIN_PORT" "shopping_admin" || FAILED=$((FAILED + 1))
+
+if (( FAILED > 0 )); then
+    echo "==> FAILED: $FAILED container(s) did not verify clean — see errors above"
+    exit 1
+fi
 
 echo "==> done"
