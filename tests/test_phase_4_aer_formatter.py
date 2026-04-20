@@ -41,10 +41,15 @@ def _step(
 
 
 def test_golden_string_caption_mode_two_steps():
-    """Literal-bytes check that exercises every structural element."""
+    """Literal-bytes check that exercises every structural element.
+
+    Per the parity decision, the per-step ``response`` is
+    ``json.dumps(model_output)`` — verbatim the JSON the Browser-Use model
+    emitted. This mirrors OS-Harm's treatment of OSWorld's raw string output.
+    """
     steps = [
         _step(
-            thinking="",  # empty thinking tests the "no leading None literal" path
+            thinking="",  # empty thinking stays as empty string in the JSON
             eval_prev="Loaded the page.",
             memory="On reviews page.",
             next_goal="Count Not Approved.",
@@ -67,21 +72,15 @@ def test_golden_string_caption_mode_two_steps():
         "\n"
         "-----\n"
         "Step: 0\n"
-        "Reasoning and action: \n"
-        "\n"
-        "Previous-goal evaluation: Loaded the page.\n"
-        "Memory: On reviews page.\n"
-        "Next goal: Count Not Approved.\n"
-        'Action: [{"scroll": {"direction": "down"}}]\n'
+        'Reasoning and action: {"thinking": "", "evaluation_previous_goal": "Loaded the page.", '
+        '"memory": "On reviews page.", "next_goal": "Count Not Approved.", '
+        '"action": [{"scroll": {"direction": "down"}}]}\n'
         "\n"
         "-----\n"
         "Step: 1\n"
-        "Reasoning and action: I see 3 Not Approved.\n"
-        "\n"
-        "Previous-goal evaluation: Scrolled down.\n"
-        "Memory: Found 3 entries.\n"
-        "Next goal: Return result.\n"
-        'Action: [{"done": {"text": "3"}}]\n'
+        'Reasoning and action: {"thinking": "I see 3 Not Approved.", '
+        '"evaluation_previous_goal": "Scrolled down.", "memory": "Found 3 entries.", '
+        '"next_goal": "Return result.", "action": [{"done": {"text": "3"}}]}\n'
         "\n"
         "\n"
         "The detailed final state of the screenshot:\n"
@@ -111,12 +110,9 @@ def test_golden_string_inline_mode():
         "Action History: \n"
         "-----\n"
         "Step: 0\n"
-        "Reasoning and action: click it\n"
-        "\n"
-        "Previous-goal evaluation: done\n"
-        "Memory: mem\n"
-        "Next goal: goal\n"
-        'Action: [{"click": {"id": 1}}]\n'
+        'Reasoning and action: {"thinking": "click it", '
+        '"evaluation_previous_goal": "done", "memory": "mem", "next_goal": "goal", '
+        '"action": [{"click": {"id": 1}}]}\n'
         "\n"
         "A snapshot from the trajectory is shown in the image."
     )
@@ -152,7 +148,9 @@ def test_step_index_uses_enumerate_not_step_field():
     assert "Step: 999" not in out
 
 
-def test_action_serialized_as_json_dumps_not_python_repr():
+def test_response_is_json_dumps_of_model_output():
+    """Parity with OS-Harm: response slot is verbatim JSON of the model output,
+    not labeled prose. Mirrors OSWorld's raw-string dump principle."""
     steps = [
         _step(
             thinking="t",
@@ -164,11 +162,18 @@ def test_action_serialized_as_json_dumps_not_python_repr():
     ]
     out = format_aer_inline("task", steps)
     # JSON double quotes, not Python single quotes
-    assert 'Action: [{"click_element_by_index": {"index": 5}}]' in out
+    assert '"click_element_by_index"' in out
     assert "'click_element_by_index'" not in out
+    # All five fields roundtrip via JSON keys, not labeled prose
+    assert '"thinking": "t"' in out
+    assert '"evaluation_previous_goal": "e"' in out
+    assert '"memory": "m"' in out
+    assert '"next_goal": "n"' in out
 
 
-def test_all_five_fields_present_in_response_block():
+def test_all_five_fields_present_in_response_json():
+    """All five Browser-Use native fields must appear as JSON keys in the
+    per-step response blob. OS-Harm parity: dump what the agent emitted."""
     steps = [
         _step(
             thinking="T",
@@ -179,11 +184,17 @@ def test_all_five_fields_present_in_response_block():
         )
     ]
     out = format_aer_inline("task", steps)
-    # Each field label appears exactly once
-    assert out.count("Previous-goal evaluation: E") == 1
-    assert out.count("Memory: M") == 1
-    assert out.count("Next goal: N") == 1
-    assert out.count("Action: ") == 1
+    import json as _json
+
+    # Extract the JSON blob from the response slot and round-trip it
+    line = [ln for ln in out.splitlines() if ln.startswith("Reasoning and action: ")][0]
+    blob = line.removeprefix("Reasoning and action: ")
+    model_output = _json.loads(blob)
+    assert model_output["thinking"] == "T"
+    assert model_output["evaluation_previous_goal"] == "E"
+    assert model_output["memory"] == "M"
+    assert model_output["next_goal"] == "N"
+    assert model_output["action"] == [{"done": {"text": "R"}}]
 
 
 def test_step_separator_is_five_dashes():
@@ -204,8 +215,10 @@ def test_step_separator_is_five_dashes():
 # ---------------------------------------------------------------------------
 
 
-def test_empty_thinking_renders_blank_no_literal_none():
-    """None thinking must not leak as the literal string 'None'."""
+def test_empty_thinking_renders_as_json_null():
+    """None thinking serialises as JSON null — faithful to what Browser-Use
+    would emit when the model produced no thinking content. Does NOT leak
+    as the literal Python string 'None'."""
     steps = [
         {
             "thinking": None,
@@ -216,8 +229,10 @@ def test_empty_thinking_renders_blank_no_literal_none():
         }
     ]
     out = format_aer_inline("t", steps)
-    assert "Reasoning and action: \n" in out  # blank response line
+    # JSON null, not Python repr
+    assert '"thinking": null' in out
     assert "Reasoning and action: None" not in out
+    assert '"thinking": "None"' not in out
 
 
 def test_caption_code_fence_format():

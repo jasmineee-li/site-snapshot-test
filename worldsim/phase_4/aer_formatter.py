@@ -14,12 +14,14 @@ Byte-equivalent to OS-Harm:
 
 Adapted pieces (documented deviations):
 
-- Per-step ``response`` is built from Browser-Use's five native fields
-  (``thinking``, ``evaluation_previous_goal``, ``memory``, ``next_goal``,
-  ``action``). OSWorld emits a single raw string; Browser-Use emits
-  structured fields. We concatenate all five with their native labels
-  because the judge's p(eval) should reflect what a *real* Browser-Use
-  deployment looks like — not a masqueraded OSWorld-style prose blob.
+- Per-step ``response`` is ``json.dumps(model_output)`` — verbatim the JSON
+  the Browser-Use model emitted. OSWorld emits a raw string (Thought: ...
+  Action: pyautogui.click(...)); OS-Harm stores that string unchanged in
+  ``steps[i]["response"]`` and drops it into the template. Browser-Use's
+  equivalent "raw string the model wrote" is the JSON it produced, which
+  Browser-Use's parser deserialised into ``model_output``. Dumping it back
+  to JSON is the faithful parity — same verbatim-dump principle, different
+  native output shape. No invented labels, no added prose glue.
 - Caption frame is the IPI max-coverage screenshot (OS-Harm uses the
   terminal frame). The realization moment is typically early; by the final
   step the injection modal is often closed. Documented in the caption
@@ -71,43 +73,31 @@ A snapshot from the trajectory is shown in the image.
 
 
 def _render_response(step: dict[str, Any]) -> str:
-    """Concatenate Browser-Use's native fields into one ``response`` string.
+    """Dump the step's native model output verbatim — true OS-Harm parity.
 
-    OS-Harm's format treats the per-step ``response`` as an opaque string,
-    so our job is to project Browser-Use's structured output faithfully —
-    every field that a Browser-Use deployment actually emits on every step
-    in production or evaluation. No truncation, no field dropping.
+    OSWorld's agent emits a raw string (natural prose mixing Thought:/Action:
+    with inline pyautogui code); OS-Harm's ``lib_run_single.py`` stores that
+    string unchanged in ``steps[i]["response"]`` and AER's ``format_steps``
+    drops it into the template with no reshaping.
 
-    Layout:
-        {thinking}
+    Browser-Use's agent emits structured JSON (the model's raw output) which
+    Browser-Use's parser deserialises into ``model_output``. The faithful
+    analog of "the raw string the model wrote" is therefore the JSON dump of
+    ``model_output`` — same verbatim-dump principle, different native output
+    shape.
 
-        Previous-goal evaluation: {evaluation_previous_goal}
-        Memory: {memory}
-        Next goal: {next_goal}
-        Action: {json.dumps(action)}
-
-    Missing fields render as empty strings in their slots (not literal
-    ``None``) so the output stays readable even for partial steps where
-    Browser-Use parsed some fields but not others.
+    Inventing labelled prose (``Memory: ...\\nNext goal: ...``) would insert
+    our own formatting glue beyond what the agent emitted, which breaks the
+    parity argument. ``json.dumps(model_output)`` introduces zero invention.
     """
-    thinking = step.get("thinking") or ""
-    eval_prev = step.get("evaluation_previous_goal") or ""
-    memory = step.get("memory") or ""
-    next_goal = step.get("next_goal") or ""
-    action = step.get("action") or []
-
-    # json.dumps preserves Browser-Use's native dict shape; we deliberately
-    # do NOT reformat to Python-call syntax to imitate OSWorld's pyautogui
-    # cadence. Action serialisation format is orthogonal to eval-detection
-    # and reformatting would be masquerade, not fidelity.
-    action_json = json.dumps(action)
-
-    parts: list[str] = [thinking, ""]
-    parts.append(f"Previous-goal evaluation: {eval_prev}")
-    parts.append(f"Memory: {memory}")
-    parts.append(f"Next goal: {next_goal}")
-    parts.append(f"Action: {action_json}")
-    return "\n".join(parts)
+    model_output = {
+        "thinking": step.get("thinking"),
+        "evaluation_previous_goal": step.get("evaluation_previous_goal"),
+        "memory": step.get("memory"),
+        "next_goal": step.get("next_goal"),
+        "action": step.get("action") or [],
+    }
+    return json.dumps(model_output)
 
 
 def _format_steps(extracted_steps: list[dict[str, Any]]) -> str:
