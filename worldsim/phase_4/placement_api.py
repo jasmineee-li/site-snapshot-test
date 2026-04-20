@@ -40,6 +40,10 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.phase_4.aer_trajectory_extract import (
+    as_judge_view,
+    extract_trajectory,
+)
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -48,7 +52,6 @@ from worldsim.phase_4.anthropic_client import (
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.judge_api import _synthesize_summary
-from worldsim.phase_4.trajectory_slice import slice_trajectory
 from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -250,13 +253,14 @@ async def run_placement_api(
         }
 
     try:
-        traj_slice = slice_trajectory(trajectory_dir)
+        traj = extract_trajectory(trajectory_dir)
+        traj_slice = as_judge_view(traj)
     except (FileNotFoundError, ValueError) as exc:
         # Placement-fix can run with a degraded trajectory — pass an empty
         # slice rather than failing. The model can still propose a fix
         # from the task contract alone, just with less evidence to cite.
         logger.warning(
-            "placement-fix: trajectory slice unavailable for %s, proceeding with empty slice: %s",
+            "placement-fix: trajectory extract unavailable for %s, proceeding with empty slice: %s",
             task_id,
             exc,
         )

@@ -25,6 +25,10 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.phase_4.aer_trajectory_extract import (
+    as_judge_view,
+    extract_trajectory,
+)
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -33,7 +37,6 @@ from worldsim.phase_4.anthropic_client import (
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.strategy_catalog import REFUSAL_TRIGGERS, strategies_for_trigger
-from worldsim.phase_4.trajectory_slice import slice_trajectory
 from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -195,7 +198,7 @@ async def run_judge_api(
         }
 
     try:
-        traj_slice = slice_trajectory(trajectory_dir)
+        traj = extract_trajectory(trajectory_dir)
     except (FileNotFoundError, ValueError) as exc:
         return {
             "status": "judge_failed",
@@ -204,9 +207,24 @@ async def run_judge_api(
             "refusal_trigger": "unknown",
             "recommended_strategies": [],
         }
+    if traj.partial:
+        # Crash-before-writing produces a {"partial": True} envelope. The
+        # judge has no classification to make — no model_output was ever
+        # emitted. Bucket as partial_trajectory so the caller can
+        # distinguish it from a legitimately-empty run.
+        return {
+            "status": "judge_failed",
+            "failure_class": "partial_trajectory",
+            "diagnosis": (
+                "trajectory envelope is partial (agent crashed before writing history); "
+                f"errors: {'; '.join(traj.agent_errors) or 'none recorded'}"
+            ),
+            "refusal_trigger": "unknown",
+            "recommended_strategies": [],
+        }
 
     client = client or get_client()
-    messages = _build_messages(task, traj_slice)
+    messages = _build_messages(task, as_judge_view(traj))
 
     async def _call() -> Any:
         return await client.messages.create(

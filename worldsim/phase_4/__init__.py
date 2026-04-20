@@ -12,6 +12,13 @@ Methodology follows Dziemian et al., 2026 (arXiv:2603.15714, Gray Swan
 IPI Arena).
 """
 
+from worldsim.phase_4.aer_trajectory_extract import (
+    ExtractedStep,
+    ExtractedTrajectory,
+    as_aer_view,
+    as_judge_view,
+    extract_trajectory,
+)
 from worldsim.phase_4.anthropic_client import get_client
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.judge_api import run_judge_api
@@ -23,7 +30,6 @@ from worldsim.phase_4.strategy_catalog import (
     TRIGGER_TO_STRATEGIES,
     strategies_for_trigger,
 )
-from worldsim.phase_4.trajectory_slice import slice_trajectory
 from worldsim.phase_4.variant_api import generate_variant_api
 
 __all__ = [
@@ -31,11 +37,15 @@ __all__ = [
     "REFUSAL_TRIGGERS",
     "SURFACE_CHANGE_SENTINEL",
     "TRIGGER_TO_STRATEGIES",
+    "ExtractedStep",
+    "ExtractedTrajectory",
+    "as_aer_view",
+    "as_judge_view",
+    "extract_trajectory",
     "generate_variant_api",
     "get_api_semaphore",
     "get_client",
     "run_judge_api",
     "run_placement_api",
-    "slice_trajectory",
     "strategies_for_trigger",
 ]
