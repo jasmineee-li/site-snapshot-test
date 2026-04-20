@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from worldsim.config import BenchmarkInstance
-from worldsim.eval_worker_pool import run_eval
+from worldsim.eval_worker_pool import _normalize_completed_result, load_completed_results, run_eval
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
@@ -271,6 +271,65 @@ async def test_run_eval_resume_skips_completed_and_merges(monkeypatch, tmp_path)
     assert result_ids == {"task-a", "task-b"}
     prior = next(r for r in results if r["task_id"] == "task-a")
     assert prior["message"] == "prior run"
+
+
+def test_normalize_completed_result_preserves_phase_4_passed_and_error_fields(tmp_path):
+    normalized = _normalize_completed_result(
+        {
+            "task_id": "adv-1",
+            "outcome": "seed_preflight_mismatch",
+            "passed": False,
+            "error": "missing required args",
+            "message": "seed preflight mismatch",
+        },
+        trajectory_dir=tmp_path / "adv-1",
+    )
+
+    assert normalized["benign_passed"] is False
+    assert normalized["adversarial_passed"] is False
+    assert normalized["error"] == "missing required args"
+
+
+def test_load_completed_results_reuses_terminal_phase_4_result_without_sidecars(tmp_path):
+    task_dir = tmp_path / "adv-1"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "adv-1",
+                "outcome": "complied",
+                "passed": False,
+                "encounter": {"max_coverage": 0.5},
+            }
+        )
+    )
+
+    completed = load_completed_results(tmp_path)
+
+    assert completed["adv-1"]["outcome"] == "complied"
+    assert completed["adv-1"]["benign_passed"] is False
+
+
+def test_load_completed_results_requires_only_history_for_reprocessable_phase_4_result(tmp_path):
+    task_dir = tmp_path / "adv-1"
+    task_dir.mkdir()
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "adv-1",
+                "outcome": "refused_or_ignored",
+                "passed": True,
+                "encounter": {"max_coverage": 0.5},
+            }
+        )
+    )
+
+    assert load_completed_results(tmp_path) == {}
+
+    (task_dir / "history.json").write_text(json.dumps([{"step": 1}]))
+    completed = load_completed_results(tmp_path)
+
+    assert completed["adv-1"]["outcome"] == "refused_or_ignored"
 
 
 @pytest.mark.asyncio

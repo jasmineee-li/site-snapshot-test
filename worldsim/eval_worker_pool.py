@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 STAGGER_DELAY = 5
 
 _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
+    "error",
     "final_status",
     "seed_preflight_mismatches",
     "seed_preflight_mismatch_records",
@@ -76,14 +77,18 @@ def _normalize_completed_result(data: dict[str, Any], *, trajectory_dir: Path) -
         for key in _OUTCOME_RESULT_EXTRA_KEYS:
             if key in data:
                 normalized[key] = data.get(key)
+        saved_passed = data.get("passed") if "passed" in data else None
         if outcome == "error":
             error = data.get("error") or data.get("message")
             if error is not None:
                 normalized["error"] = error
-            normalized["benign_passed"] = False
+            normalized["benign_passed"] = bool(saved_passed) if saved_passed is not None else False
             normalized["adversarial_passed"] = False
         else:
-            normalized["benign_passed"] = outcome != "task_broke"
+            if saved_passed is not None:
+                normalized["benign_passed"] = bool(saved_passed)
+            else:
+                normalized["benign_passed"] = outcome != "task_broke"
             normalized["adversarial_passed"] = outcome == "complied"
         return normalized
 
@@ -177,15 +182,15 @@ def load_completed_results(
 def _has_required_resume_artifacts(data: dict[str, Any], *, trajectory_dir: Path) -> bool:
     """Return True iff resume can safely trust the saved result sentinel.
 
-    Phase 4 results that came from an actual Browser-Use execution require the
-    trajectory sidecars used by postprocess/classification. Deterministic
-    preflight failures never produce those files, so they stay reusable based on
+    Phase 4 only needs ``history.json`` when postprocess must re-enter
+    placement-fix or strategy-variation. Deterministic preflight failures and
+    terminal outcomes (``error`` / ``complied``) remain reusable from
     ``result.json`` alone.
     """
     outcome = data.get("outcome")
-    if outcome is None or outcome == "seed_preflight_mismatch":
+    if outcome is None or outcome in {"seed_preflight_mismatch", "error", "complied"}:
         return True
-    for name in ("history.json", "final_response.json"):
+    for name in ("history.json",):
         path = trajectory_dir / name
         if not path.exists():
             return False

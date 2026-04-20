@@ -110,7 +110,12 @@ from worldsim.phases.phase_2_text_fill import (
     validate_seed_template_contract,
     validate_text_post_hoc,
 )
-from worldsim.placeholders import merge_placeholder_maps
+from worldsim.placeholders import (
+    merge_placeholder_maps,
+    normalize_site_name,
+    normalize_task_sites,
+    placeholder_for_site,
+)
 from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
 from worldsim.resume_metadata import (
     RESULT_FINGERPRINT_KEY,
@@ -149,6 +154,7 @@ from worldsim.trajectory import save_result
 
 logger = logging.getLogger(__name__)
 _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
+_VARIANT_GENERATION_RECORDS_KEY = "variant_generation_records"
 _VARIANT_RESULT_METADATA = "resume_metadata.json"
 # 22-strategy pool from paper Table 6, filtered for editor-text injection
 # (Dziemian et al., 2026, arXiv:2603.15714). Authoritative source is
@@ -810,6 +816,70 @@ def _phase_4_eval_context(
     }
 
 
+def _task_reachable_sites(task: dict[str, Any]) -> list[str]:
+    sites = normalize_task_sites(task)
+    for candidate in (
+        _delivery_site_name(task.get("delivery_channel")),
+        _seed_target_site(task),
+    ):
+        normalized = normalize_site_name(candidate)
+        if normalized and normalized not in sites:
+            sites.append(normalized)
+    return sites
+
+
+def _task_reachable_instances(
+    task: dict[str, Any],
+    instances: list[BenchmarkInstance],
+) -> list[BenchmarkInstance]:
+    reachable_sites = set(_task_reachable_sites(task))
+    if not reachable_sites:
+        return list(instances)
+    return [
+        instance
+        for instance in instances
+        if normalize_site_name(instance.site_name) in reachable_sites
+    ]
+
+
+def _task_reachable_placeholders(
+    task: dict[str, Any],
+    config_url_placeholders: dict[str, str] | None,
+) -> dict[str, str] | None:
+    if not config_url_placeholders:
+        return config_url_placeholders
+    allowed = {
+        placeholder
+        for site in _task_reachable_sites(task)
+        if (placeholder := placeholder_for_site(site))
+    }
+    return {
+        token: value
+        for token, value in config_url_placeholders.items()
+        if token in allowed
+    }
+
+
+def _phase_4_eval_context_for_task(
+    task: dict[str, Any],
+    *,
+    instances: list[BenchmarkInstance],
+    config_url_placeholders: dict[str, str] | None,
+    agent_model: str,
+    agent_provider: str,
+    sandbox_model: str,
+    benchmark_root: Path | None,
+) -> dict[str, Any]:
+    return _phase_4_eval_context(
+        instances=_task_reachable_instances(task, instances),
+        config_url_placeholders=_task_reachable_placeholders(task, config_url_placeholders),
+        agent_model=agent_model,
+        agent_provider=agent_provider,
+        sandbox_model=sandbox_model,
+        benchmark_root=benchmark_root,
+    )
+
+
 def _phase_4_result_fingerprint(
     task: dict[str, Any],
     *,
@@ -885,8 +955,10 @@ def _phase_4_postprocess_fingerprint(
         {
             "phase": "phase_4_postprocess",
             "primary_instances": instances_identity(primary_instances),
-            "all_instances": instances_identity(all_instances),
-            "config_url_placeholders": config_url_placeholders,
+            "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
+            "config_url_placeholders": _task_reachable_placeholders(
+                task, config_url_placeholders
+            ),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
@@ -913,8 +985,10 @@ def _phase_4_variant_fingerprint(
         {
             "phase": "phase_4_variant",
             "instance": instance_identity(instance),
-            "all_instances": instances_identity(all_instances),
-            "config_url_placeholders": config_url_placeholders,
+            "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
+            "config_url_placeholders": _task_reachable_placeholders(
+                task, config_url_placeholders
+            ),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
@@ -1293,15 +1367,6 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
-    eval_context = _phase_4_eval_context(
-        instances=config.instances,
-        config_url_placeholders=config.url_placeholders,
-        agent_model=agent_model,
-        agent_provider=agent_provider,
-        sandbox_model=sandbox_model,
-        benchmark_root=benchmark_root,
-    )
-
     agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
@@ -1316,7 +1381,15 @@ async def run(args: argparse.Namespace) -> int:
             "site_profile": site_profiles.get(str(task.get("site", ""))),
             "resume_fingerprint": _phase_4_result_fingerprint(
                 task,
-                eval_context=eval_context,
+                eval_context=_phase_4_eval_context_for_task(
+                    task,
+                    instances=config.instances,
+                    config_url_placeholders=config.url_placeholders,
+                    agent_model=agent_model,
+                    agent_provider=agent_provider,
+                    sandbox_model=sandbox_model,
+                    benchmark_root=benchmark_root,
+                ),
                 site_profile=site_profiles.get(str(task.get("site", ""))),
             ),
         }
@@ -1344,7 +1417,15 @@ async def run(args: argparse.Namespace) -> int:
         resume=resume,
         resume_fingerprint_builder=lambda task: _phase_4_result_fingerprint(
             task,
-            eval_context=eval_context,
+            eval_context=_phase_4_eval_context_for_task(
+                task,
+                instances=config.instances,
+                config_url_placeholders=config.url_placeholders,
+                agent_model=agent_model,
+                agent_provider=agent_provider,
+                sandbox_model=sandbox_model,
+                benchmark_root=benchmark_root,
+            ),
             site_profile=site_profiles.get(str(task.get("site", ""))),
         ),
     )
@@ -2594,6 +2675,9 @@ def _normalize_saved_adversarial_result(
             normalized["benign_passed"] = False
             normalized["adversarial_passed"] = False
     else:
+        error = payload.get("error")
+        if error is not None:
+            normalized["error"] = error
         if "passed" in payload:
             normalized["benign_passed"] = bool(payload.get("passed"))
             normalized["adversarial_passed"] = outcome == "complied"
@@ -2631,6 +2715,114 @@ def _variant_changes_seed(original_task: dict[str, Any], variant_task: dict[str,
         variant_task.get("adversarial_data_seed"),
         sort_keys=True,
     )
+
+
+def _variant_generation_record_for_result(
+    *,
+    index: int,
+    strategy: dict[str, Any],
+    variant: dict[str, Any] | None = None,
+    error: str | None = None,
+    status: str | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "index": index,
+        "strategy": strategy,
+    }
+    if variant is not None:
+        record["variant"] = variant
+    if error is not None:
+        record["error"] = error
+    if status is not None:
+        record["status"] = status
+    if reason is not None:
+        record["reason"] = reason
+    return record
+
+
+def _rebuild_variant_generation_progress(
+    task: dict[str, Any],
+    checkpoint: dict[str, Any] | None,
+    *,
+    selected_strategies: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], set[int]]:
+    records = checkpoint.get(_VARIANT_GENERATION_RECORDS_KEY) if checkpoint else None
+    if not isinstance(records, list):
+        variant_candidates = checkpoint.get("variant_candidates") if checkpoint else None
+        variant_generation_errors = (
+            checkpoint.get("variant_generation_errors") if checkpoint else None
+        )
+        if not isinstance(variant_candidates, list):
+            variant_candidates = []
+        if not isinstance(variant_generation_errors, list):
+            variant_generation_errors = []
+        has_completed_generation = bool(
+            checkpoint is not None
+            and (
+                "variant_candidates" in checkpoint
+                or "variant_generation_errors" in checkpoint
+            )
+        )
+        completed_indexes = (
+            set(range(len(selected_strategies)))
+            if has_completed_generation
+            else set()
+        )
+        return variant_candidates, variant_generation_errors, [], completed_indexes
+
+    variant_candidates: list[dict[str, Any]] = []
+    variant_generation_errors: list[dict[str, Any]] = []
+    normalized_records: list[dict[str, Any]] = []
+    completed_indexes: set[int] = set()
+    for raw_record in records:
+        if not isinstance(raw_record, dict):
+            continue
+        index = raw_record.get("index")
+        if not isinstance(index, int) or not 0 <= index < len(selected_strategies):
+            continue
+        if index in completed_indexes:
+            continue
+        strategy = raw_record.get("strategy")
+        if not isinstance(strategy, dict):
+            strategy = selected_strategies[index]
+        record = {
+            "index": index,
+            "strategy": strategy,
+        }
+        variant = raw_record.get("variant")
+        if isinstance(variant, dict):
+            record["variant"] = variant
+            if _variant_changes_seed(task, variant):
+                variant_candidates.append({"variant": variant, "strategy": strategy})
+        else:
+            error = raw_record.get("error")
+            status = raw_record.get("status")
+            reason = raw_record.get("reason", "")
+            if isinstance(error, str):
+                record["error"] = error
+                variant_generation_errors.append(
+                    {
+                        "strategy": strategy.get("strategy", f"strategy_{index}"),
+                        "error": error,
+                    }
+                )
+            elif isinstance(status, str):
+                record["status"] = status
+                if isinstance(reason, str):
+                    record["reason"] = reason
+                if status in {"inapplicable", "skipped", "failed"}:
+                    variant_generation_errors.append(
+                        {
+                            "strategy": strategy.get("strategy", f"strategy_{index}"),
+                            "status": status,
+                            "reason": reason if isinstance(reason, str) else "",
+                        }
+                    )
+        normalized_records.append(record)
+        completed_indexes.add(index)
+    normalized_records.sort(key=lambda record: int(record["index"]))
+    return variant_candidates, variant_generation_errors, normalized_records, completed_indexes
 
 
 async def run_strategy_variation(
@@ -2767,41 +2959,52 @@ async def run_strategy_variation(
         }
 
     # 2. Generate variants in parallel (up to 3 Modal Sandboxes)
-    variant_candidates = checkpoint.get("variant_candidates") if checkpoint else None
-    variant_generation_errors = checkpoint.get("variant_generation_errors") if checkpoint else None
-    if not isinstance(variant_generation_errors, list):
-        variant_generation_errors = []
-    if not isinstance(variant_candidates, list):
-        selected_strategies = strategies[:3]
-        variants = await asyncio.gather(
-            *[
-                generate_variant(task, strategy, profile_path, sandbox_model=sandbox_model)
-                for strategy in selected_strategies
-            ],
-            return_exceptions=True,
-        )
+    selected_strategies = strategies[:3]
+    (
+        variant_candidates,
+        variant_generation_errors,
+        generation_records,
+        completed_indexes,
+    ) = _rebuild_variant_generation_progress(
+        task,
+        checkpoint,
+        selected_strategies=selected_strategies,
+    )
+    pending_strategies = [
+        (index, strategy)
+        for index, strategy in enumerate(selected_strategies)
+        if index not in completed_indexes
+    ]
+    if pending_strategies:
+        checkpoint = checkpoint or {
+            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+            "judge_diagnosis": recommendation,
+        }
 
-        # Filter out failed or no-op variant generations — bookkeeping-only changes
-        # should not trigger a fresh judge/eval cycle.
-        variant_candidates = []
-        variant_generation_errors = []
-        for i, variant in enumerate(variants):
-            strategy = selected_strategies[i]
-            strategy_name = strategy.get("strategy", f"strategy_{i}")
-            if isinstance(variant, BaseException):
+        async def _generate_variant_record(
+            index: int,
+            strategy: dict[str, Any],
+        ) -> dict[str, Any]:
+            strategy_name = strategy.get("strategy", f"strategy_{index}")
+            try:
+                variant = await generate_variant(
+                    task,
+                    strategy,
+                    profile_path,
+                    sandbox_model=sandbox_model,
+                )
+            except Exception as exc:
                 logger.error(
                     "Variant generation failed for task %s strategy %s: %s",
                     task_id,
                     strategy_name,
-                    variant,
+                    exc,
                 )
-                variant_generation_errors.append(
-                    {
-                        "strategy": strategy_name,
-                        "error": repr(variant),
-                    }
+                return _variant_generation_record_for_result(
+                    index=index,
+                    strategy=strategy,
+                    error=repr(exc),
                 )
-                continue
             variant_status = variant.get("variant_status") if isinstance(variant, dict) else None
             if isinstance(variant_status, dict) and variant_status.get("status") in {
                 "inapplicable",
@@ -2815,27 +3018,51 @@ async def run_strategy_variation(
                     variant_status.get("status"),
                     variant_status.get("reason", ""),
                 )
-                variant_generation_errors.append(
-                    {
-                        "strategy": strategy_name,
-                        "status": variant_status.get("status"),
-                        "reason": variant_status.get("reason", ""),
-                    }
+                return _variant_generation_record_for_result(
+                    index=index,
+                    strategy=strategy,
+                    status=str(variant_status.get("status")),
+                    reason=str(variant_status.get("reason", "")),
                 )
-                continue
-            if _variant_changes_seed(task, variant):
-                variant_candidates.append({"variant": variant, "strategy": strategy})
-        checkpoint = checkpoint or {
-            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
-            "judge_diagnosis": recommendation,
-        }
-        checkpoint["variant_candidates"] = variant_candidates
-        checkpoint["variant_generation_errors"] = variant_generation_errors
-        _write_json_atomic(
-            checkpoint_path,
-            checkpoint,
-            failpoint_base="phase_4.strategy_variation.checkpoint",
-        )
+            if isinstance(variant, dict) and _variant_changes_seed(task, variant):
+                return _variant_generation_record_for_result(
+                    index=index,
+                    strategy=strategy,
+                    variant=variant,
+                )
+            return _variant_generation_record_for_result(
+                index=index,
+                strategy=strategy,
+                status="bookkeeping_only",
+            )
+
+        pending_tasks = [
+            asyncio.create_task(_generate_variant_record(index, strategy))
+            for index, strategy in pending_strategies
+        ]
+        for pending_task in asyncio.as_completed(pending_tasks):
+            record = await pending_task
+            generation_records.append(record)
+            (
+                variant_candidates,
+                variant_generation_errors,
+                generation_records,
+                completed_indexes,
+            ) = _rebuild_variant_generation_progress(
+                task,
+                {
+                    _VARIANT_GENERATION_RECORDS_KEY: generation_records,
+                },
+                selected_strategies=selected_strategies,
+            )
+            checkpoint[_VARIANT_GENERATION_RECORDS_KEY] = generation_records
+            checkpoint["variant_candidates"] = variant_candidates
+            checkpoint["variant_generation_errors"] = variant_generation_errors
+            _write_json_atomic(
+                checkpoint_path,
+                checkpoint,
+                failpoint_base="phase_4.strategy_variation.checkpoint",
+            )
 
     real_variants = [
         (item.get("variant"), item.get("strategy"))
