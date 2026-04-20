@@ -776,6 +776,31 @@ def _filter_tasks_by_sites(
     return filtered
 
 
+def _probe_magento_base_urls(config: Any) -> list[str]:
+    """Check Magento containers for base_url drift before Phase 4 launches.
+
+    Returns a list of human-readable mismatch strings (empty on success).
+    Network errors and missing BASE_URL JS are also reported as mismatches
+    — a silent failure here gives a false all-clear, which is worse than a
+    noisy one.
+
+    Bypass via ``WORLDSIM_PHASE_4_SKIP_PREFLIGHT=1`` (shared with the
+    upstream Anthropic-API preflight). Unit tests that exercise the Phase
+    4 entrypoint with fake URLs set this; production runs never should.
+    """
+    if os.environ.get("WORLDSIM_PHASE_4_SKIP_PREFLIGHT", "").strip() in ("1", "true", "True"):
+        logger.info("Magento base_url preflight SKIPPED (WORLDSIM_PHASE_4_SKIP_PREFLIGHT set)")
+        return []
+
+    from worldsim.phase_4.magento_health import check_magento_instances
+
+    mismatches = check_magento_instances(
+        list(config.instances),
+        config.verification_proxy,
+    )
+    return [str(exc) for exc in mismatches]
+
+
 def _delivery_site_name(delivery_channel: Any) -> str:
     if not isinstance(delivery_channel, dict):
         return ""
@@ -859,11 +884,7 @@ def _task_reachable_placeholders(
         for site in _task_reachable_sites(task)
         if (placeholder := placeholder_for_site(site))
     }
-    return {
-        token: value
-        for token, value in config_url_placeholders.items()
-        if token in allowed
-    }
+    return {token: value for token, value in config_url_placeholders.items() if token in allowed}
 
 
 def _phase_4_eval_context_for_task(
@@ -963,9 +984,7 @@ def _phase_4_postprocess_fingerprint(
             "resume_version": _PHASE_4_RESUME_VERSION,
             "primary_instances": instances_identity(primary_instances),
             "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
-            "config_url_placeholders": _task_reachable_placeholders(
-                task, config_url_placeholders
-            ),
+            "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
@@ -994,9 +1013,7 @@ def _phase_4_variant_fingerprint(
             "resume_version": _PHASE_4_RESUME_VERSION,
             "instance": instance_identity(instance),
             "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
-            "config_url_placeholders": _task_reachable_placeholders(
-                task, config_url_placeholders
-            ),
+            "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
@@ -1118,7 +1135,9 @@ async def run(args: argparse.Namespace) -> int:
             )
             continue
         if status == "valid" and not isinstance(entry.get("task"), dict):
-            contract_errors.append(f"entry {index} ({entry_id}): valid contract missing task object")
+            contract_errors.append(
+                f"entry {index} ({entry_id}): valid contract missing task object"
+            )
             continue
         if status == "valid":
             valid_contracts_by_id[str(entry_id)] = entry
@@ -1298,6 +1317,26 @@ async def run(args: argparse.Namespace) -> int:
                 **state_metadata,
             )
             return 1
+    # Magento base_url drift probe. A container rebuild wipes
+    # core_config_data and reverts web/{unsecure,secure}/base_url from
+    # the proxy port back to the raw backend port; the editor's proxy-
+    # aware origin relaxation masks the breakage for forms POSTed by
+    # seeding, but Browser-Use agents following absolute HTML/JS URLs
+    # still escape the proxy. Catch it here before any task launches.
+    magento_mismatches = _probe_magento_base_urls(config)
+    if magento_mismatches:
+        logger.error(
+            "Phase 4 Magento base_url preflight failed:\n%s",
+            "\n".join(f"  - {m}" for m in magento_mismatches),
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="magento_base_url_mismatch",
+            magento_base_url_errors=magento_mismatches,
+            **state_metadata,
+        )
+        return 1
     # Acquire fresh bearer tokens for instances that use runtime generation.
     token_errors = acquire_tokens_for_instances(config.instances)
     if token_errors:
@@ -2436,7 +2475,10 @@ async def _run_placement_fix_loop(
             if isinstance(saved_result, dict):
                 current_result = saved_result
             next_iteration = checkpoint.get("next_iteration")
-            if isinstance(next_iteration, int) and 0 <= next_iteration <= PLACEMENT_FIX_MAX_ITERATIONS:
+            if (
+                isinstance(next_iteration, int)
+                and 0 <= next_iteration <= PLACEMENT_FIX_MAX_ITERATIONS
+            ):
                 start_iteration = next_iteration
             saved_pending = checkpoint.get("pending_iteration")
             if isinstance(saved_pending, int) and 0 <= saved_pending < PLACEMENT_FIX_MAX_ITERATIONS:
@@ -2847,7 +2889,17 @@ def _normalize_saved_adversarial_result(
         if key in payload:
             normalized[key] = payload.get(key)
     for key in _FINGERPRINT_RESULT_KEYS:
-        if key in {"task_id", "outcome", "encounter", "elapsed", "steps", "benign_passed", "adversarial_passed", "trajectory_dir", "error"}:
+        if key in {
+            "task_id",
+            "outcome",
+            "encounter",
+            "elapsed",
+            "steps",
+            "benign_passed",
+            "adversarial_passed",
+            "trajectory_dir",
+            "error",
+        }:
             continue
         if key in payload:
             normalized[key] = payload.get(key)

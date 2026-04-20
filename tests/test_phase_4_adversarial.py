@@ -38,6 +38,11 @@ def _skip_host_api_preflight(monkeypatch):
         return (True, None)
 
     monkeypatch.setattr(phase_4_adversarial, "_preflight_host_messages_api", _ok_preflight)
+    # The Magento base_url probe would try to HTTP-GET every shopping
+    # instance's homepage; these synthetic tests use placeholder hosts
+    # (shopping.test) that don't resolve. Short-circuit the probe so the
+    # test matrix doesn't depend on external DNS.
+    monkeypatch.setattr(phase_4_adversarial, "_probe_magento_base_urls", lambda config: [])
     yield
 
 
