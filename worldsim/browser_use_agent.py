@@ -868,17 +868,28 @@ class BrowserUseAgent:
             benchmark_root=benchmark_root,
         )
 
-        self._session = BrowserSession(
-            headless=self.headless,
-            keep_alive=False,
-            args=[
+        # PVPO integration: when WORLDSIM_PVPO_CDP_URL is set, Browser-Use
+        # connects to an external chrome-headless-shell container over CDP.
+        # That container's CMD carries the PVPO launch flags
+        # (--enable-begin-frame-control et al.); applying those flags to a
+        # locally-launched Chromium hangs page.goto() because Browser-Use's
+        # navigation model never calls HeadlessExperimental.beginFrame.
+        pvpo_cdp_url = os.environ.get("WORLDSIM_PVPO_CDP_URL", "").strip()
+        session_kwargs: dict[str, Any] = {
+            "headless": self.headless,
+            "keep_alive": False,
+            **session_auth_kwargs,
+        }
+        if pvpo_cdp_url:
+            session_kwargs["cdp_url"] = pvpo_cdp_url
+        else:
+            session_kwargs["args"] = [
                 "--disable-gpu",
                 "--disable-extensions",
                 "--no-sandbox",  # required for Chrome on EC2/Docker/root
                 "--disable-software-rasterizer",  # reduce CPU when GPU unavailable
-            ],
-            **session_auth_kwargs,
-        )
+            ]
+        self._session = BrowserSession(**session_kwargs)
 
         # Retry browser startup with linear backoff for transient failures
         last_exc: Exception | None = None
