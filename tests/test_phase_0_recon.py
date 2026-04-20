@@ -14,6 +14,22 @@ AGENT_CONTEXT_OUTPUT = "/workspace/output/AGENT_CONTEXT.json"
 INJECTION_OUTPUT = "/workspace/output/INJECTION_SURFACE.json"
 
 
+class _FakeVolume:
+    def __init__(self, name: str = "fake-volume") -> None:
+        self.name = name
+
+    def read_only(self):
+        return self
+
+
+@pytest.fixture(autouse=True)
+def _stub_phase_0c_volume_upload(monkeypatch):
+    async def fake_upload_to_volume(path):
+        return _FakeVolume(str(path))
+
+    monkeypatch.setattr(phase_0_recon, "upload_to_volume", fake_upload_to_volume)
+
+
 def _valid_verification_capabilities() -> list[dict]:
     return [
         {
@@ -204,6 +220,40 @@ async def test_run_phase_0a_passes_explicit_sandbox_model(monkeypatch, tmp_path)
     )
 
     assert captured["model"] == "claude-opus-4-6"
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_mounts_staged_site_subset_via_read_only_volume(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    captured_volumes: list[dict[str, object] | None] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        captured_volumes.append(kwargs.get("volumes"))
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+    )
+
+    assert captured_volumes
+    for volumes in captured_volumes:
+        assert volumes is not None
+        assert list(volumes) == ["/workspace/benchmark"]
+        assert isinstance(volumes["/workspace/benchmark"], _FakeVolume)
 
 
 @pytest.mark.asyncio
@@ -570,7 +620,10 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
     async def fake_run_phase_0c(*args, **kwargs):
         return {"shopping": {"profile": {}, "agent_context": {}}}
 
-    monkeypatch.setattr(phase_0_recon, "preflight_auth_check", lambda: None)
+    async def fake_preflight():
+        return None
+
+    monkeypatch.setattr(phase_0_recon, "preflight_sandbox_environment", fake_preflight)
     monkeypatch.setattr(phase_0_recon, "run_phase_0a", fake_run_phase_0a)
     monkeypatch.setattr(
         phase_0_recon,

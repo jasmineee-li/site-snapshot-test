@@ -34,6 +34,29 @@ SANDBOX_WATCHDOG_SILENCE_SECONDS = 20 * 60
 SANDBOX_WATCHDOG_POLL_SECONDS = 15
 SANDBOX_RATE_LIMIT_GRACE_SECONDS = 90
 
+_RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
+_VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
+
+_APP_CACHE: modal.App | None = None
+_APP_LOOKUP_LOCK: asyncio.Lock | None = None
+_BASE_IMAGE_BUILT = False
+_BASE_IMAGE_BUILD_LOCK: asyncio.Lock | None = None
+
+
+def _app_lookup_lock() -> asyncio.Lock:
+    global _APP_LOOKUP_LOCK
+    if _APP_LOOKUP_LOCK is None:
+        _APP_LOOKUP_LOCK = asyncio.Lock()
+    return _APP_LOOKUP_LOCK
+
+
+def _base_image_build_lock() -> asyncio.Lock:
+    global _BASE_IMAGE_BUILD_LOCK
+    if _BASE_IMAGE_BUILD_LOCK is None:
+        _BASE_IMAGE_BUILD_LOCK = asyncio.Lock()
+    return _BASE_IMAGE_BUILD_LOCK
+
+
 base_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "git", "jq")
@@ -59,6 +82,10 @@ base_image = (
         "json.dumps({'skipDangerousModePermissionPrompt': True}))"
         '"',
     )
+    # These harness files are used by every sandbox, so baking them into the
+    # static image removes two per-launch local-file injections.
+    .add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py", copy=True)
+    .add_local_file(_VALIDATOR_PATH, remote_path="/workspace/_validate.py", copy=True)
 )
 
 
@@ -140,8 +167,13 @@ def preflight_auth_check() -> None:
     logger.info("Pre-flight auth check passed")
 
 
-_RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
-_VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
+async def preflight_sandbox_environment() -> None:
+    """Verify auth and eagerly build the shared base image once per process."""
+    preflight_auth_check()
+    try:
+        await _ensure_base_image_built()
+    except Exception as exc:
+        raise RuntimeError(f"Modal sandbox base-image prebuild failed: {exc}") from exc
 
 
 class SandboxRetriableTimeoutError(TimeoutError):
@@ -235,10 +267,34 @@ def _watchdog_timeout_reason(
 async def _get_app() -> modal.App:
     """Look up (or create) the Modal App for this pipeline.
 
-    Called per-sandbox. Modal handles server-side idempotency on
-    create_if_missing, so concurrent lookups are safe.
+    The app identity is stable for the process lifetime, so cache the first
+    successful lookup and reuse it on every sandbox launch.
     """
-    return await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
+    global _APP_CACHE
+    if _APP_CACHE is not None:
+        return _APP_CACHE
+
+    async with _app_lookup_lock():
+        if _APP_CACHE is None:
+            _APP_CACHE = await modal.App.lookup.aio(APP_NAME, create_if_missing=True)
+    return _APP_CACHE
+
+
+async def _ensure_base_image_built() -> None:
+    """Eagerly build the shared base image once so first sandbox avoids it."""
+    global _BASE_IMAGE_BUILT
+    if _BASE_IMAGE_BUILT:
+        return
+
+    async with _base_image_build_lock():
+        if _BASE_IMAGE_BUILT:
+            return
+        app = await _get_app()
+        start = time.monotonic()
+        await base_image.build.aio(app)
+        elapsed = time.monotonic() - start
+        _BASE_IMAGE_BUILT = True
+        logger.info("Pre-built Modal sandbox base image in %.2fs", elapsed)
 
 
 async def run_claude_in_sandbox(
@@ -285,6 +341,7 @@ async def run_claude_in_sandbox(
         session ID, and tool-call metadata from the SDK.
     """
     # -- Build sandbox image with site files + runner --------------------------
+    launch_start = time.monotonic()
     image = base_image
     for remote_path, local_path in site_files.items():
         local = Path(local_path)
@@ -296,22 +353,25 @@ async def run_claude_in_sandbox(
         else:
             logger.warning("skipping %s -> %s: path does not exist", local_path, remote_path)
 
-    # Stage the SDK runner script and output validator into the sandbox.
-    image = image.add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py")
-    image = image.add_local_file(_VALIDATOR_PATH, remote_path="/workspace/_validate.py")
-
     # -- Create sandbox --------------------------------------------------------
+    app_lookup_start = time.monotonic()
     app = await _get_app()
+    app_lookup_done = time.monotonic()
     sandbox_kwargs: dict = {"app": app, "image": image, "timeout": timeout}
     if volumes:
         sandbox_kwargs["volumes"] = volumes
+    sandbox_create_start = time.monotonic()
     sandbox = await modal.Sandbox.create.aio(**sandbox_kwargs)
+    sandbox_create_done = time.monotonic()
 
     try:
         # Write the prompt directly to the sandbox filesystem. This avoids
         # creating a mount object for a small, per-call file.
+        prompt_write_start = time.monotonic()
         await sandbox.filesystem.write_text.aio(prompt, "/workspace/_prompt.txt")
+        prompt_write_done = time.monotonic()
 
+        exec_start = time.monotonic()
         claude_ps = await sandbox.exec.aio(
             "python",
             "/workspace/_sdk_runner.py",
@@ -320,6 +380,17 @@ async def run_claude_in_sandbox(
             workdir="/workspace",
             timeout=timeout,
             bufsize=1,
+        )
+        exec_done = time.monotonic()
+
+        tag = f"[{label}] " if label else ""
+        logger.info(
+            "%sSandbox startup timings: app=%.3fs create=%.3fs prompt_write=%.3fs exec_start=%.3fs",
+            tag,
+            app_lookup_done - app_lookup_start,
+            sandbox_create_done - sandbox_create_start,
+            prompt_write_done - prompt_write_start,
+            exec_done - exec_start,
         )
 
         # Stream NDJSON events from the runner for live observability.
@@ -331,7 +402,6 @@ async def run_claude_in_sandbox(
         # its 55s window repeatedly), the background task silently dies WITHOUT
         # writing the `None` EOF sentinel, and the subsequent async-for polls
         # the buffer forever. This wedged 5/43 shards in our first Phase 2 run.
-        tag = f"[{label}] " if label else ""
         summary_data: dict | None = None
         turn_count = 0
         sandbox_start = time.monotonic()
@@ -342,9 +412,10 @@ async def run_claude_in_sandbox(
         stderr_lines: list[str] = []
         watchdog_done = asyncio.Event()
         watchdog_reason: str | None = None
+        first_event_at: float | None = None
 
         async def _drain_stdout() -> None:
-            nonlocal summary_data, turn_count
+            nonlocal summary_data, turn_count, first_event_at
             try:
                 async for line in claude_ps.stdout:
                     line = line.strip()
@@ -361,6 +432,14 @@ async def run_claude_in_sandbox(
                         continue
 
                     now_monotonic = time.monotonic()
+                    if first_event_at is None:
+                        first_event_at = now_monotonic
+                        logger.info(
+                            "%sSandbox first runner event after %.3fs (%.3fs since launch)",
+                            tag,
+                            first_event_at - exec_done,
+                            first_event_at - launch_start,
+                        )
                     _update_watchdog_state(
                         watchdog_state,
                         event,

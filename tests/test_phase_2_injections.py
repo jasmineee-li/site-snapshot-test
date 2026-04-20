@@ -10,6 +10,14 @@ from worldsim.phases import phase_2_injections
 from worldsim.state import save_state
 
 
+@pytest.fixture(autouse=True)
+def _stub_phase_2_sandbox_preflight(monkeypatch):
+    async def fake_preflight():
+        return None
+
+    monkeypatch.setattr(phase_2_injections, "preflight_sandbox_environment", fake_preflight)
+
+
 def _strip_feasibility(tasks: list[dict]) -> list[dict]:
     """Drop the Phase 2c feasibility stanza so pre-2c tests still compare cleanly.
 
@@ -1467,7 +1475,6 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
     monkeypatch, tmp_path
 ):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
-    monkeypatch.setattr(phase_2_injections, "preflight_auth_check", lambda: None)
     (tmp_path / "phase_1").mkdir(parents=True)
     (tmp_path / "phase_1" / "benign_tasks.json").write_text(
         json.dumps(
@@ -1657,7 +1664,7 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
     def fail_preflight():
         raise AssertionError("legacy final tasks should be reused")
 
-    monkeypatch.setattr(phase_2_injections, "preflight_auth_check", fail_preflight)
+    monkeypatch.setattr(phase_2_injections, "preflight_sandbox_environment", fail_preflight)
 
     rc = await phase_2_injections.run(Namespace(skip_feasibility=True))
 
@@ -1745,7 +1752,7 @@ async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monke
             {"task_id": finalized["id"], "site": finalized["site"], "status": "ok"}
         ]
 
-    monkeypatch.setattr(phase_2_injections, "preflight_auth_check", fail_preflight)
+    monkeypatch.setattr(phase_2_injections, "preflight_sandbox_environment", fail_preflight)
     monkeypatch.setattr(phase_2_injections, "fill_texts_for_tasks", fake_fill)
 
     rc = await phase_2_injections.run(Namespace(skip_feasibility=True))

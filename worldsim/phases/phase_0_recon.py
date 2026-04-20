@@ -39,7 +39,11 @@ from worldsim._sandbox_validator import (
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, VerificationProxy
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.failpoints import crash_if_enabled
-from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
+from worldsim.modal_sandbox import (
+    preflight_sandbox_environment,
+    run_claude_in_sandbox,
+    upload_to_volume,
+)
 from worldsim.placeholders import normalize_site_name
 from worldsim.profile_validation import validate_profile
 from worldsim.prompt_loading import load_prompt
@@ -72,6 +76,12 @@ def _write_text_atomic(path: Path, text: str) -> None:
 
 def _profile_metadata_path(output_dir: Path, site_name: str) -> Path:
     return output_dir / f"{_PROFILE_METADATA_PREFIX}{site_name}.json"
+
+
+def _read_only_volume(volume: Any) -> Any:
+    """Return a read-only mount when the object supports it."""
+    read_only = getattr(volume, "read_only", None)
+    return read_only() if callable(read_only) else volume
 
 
 def _phase_0_state_metadata(
@@ -313,16 +323,16 @@ async def run(
         instances_path=instances_path,
     )
 
-    # Fail fast if Claude Code auth is missing — 0a and 0c need sandboxes.
+    # Fail fast if sandbox auth or image setup is missing — 0a and 0c need sandboxes.
     if sub in {"0", "0a", "0c"}:
         try:
-            preflight_auth_check()
+            await preflight_sandbox_environment()
         except RuntimeError as exc:
-            logger.error("Phase 0 auth pre-flight failed:\n%s", exc)
+            logger.error("Phase 0 sandbox pre-flight failed:\n%s", exc)
             save_state(
                 f"phase_{sub}",
                 status="failed",
-                reason="auth_preflight_failed",
+                reason="sandbox_preflight_failed",
                 **state_metadata,
             )
             return 1
@@ -470,7 +480,7 @@ async def run_phase_0a(
             "/workspace/output/BENCHMARK_MANIFEST.md",
         ],
         model=sandbox_model,
-        volumes={"/workspace/benchmark": vol},
+        volumes={"/workspace/benchmark": _read_only_volume(vol)},
         label="0a-discovery",
     )
 
@@ -512,7 +522,7 @@ async def run_phase_0a(
                 "/workspace/output/BENCHMARK_MANIFEST.md",
             ],
             model=sandbox_model,
-            volumes={"/workspace/benchmark": vol},
+            volumes={"/workspace/benchmark": _read_only_volume(vol)},
             label="0a-discovery-retry",
         )
         cost_tracker.record("phase_0a", outputs.get("_summary"))
@@ -854,6 +864,7 @@ async def _run_tier_sandbox(
     label: str,
     sandbox_model: str,
     extra_inputs: dict[str, str] | None = None,
+    volumes: dict[str, Any] | None = None,
 ) -> dict[str, str | None]:
     """Run a single profiling tier sandbox with the standard pattern.
 
@@ -870,6 +881,7 @@ async def _run_tier_sandbox(
         output_paths=output_paths,
         timeout=timeout,
         model=sandbox_model,
+        volumes=volumes,
         label=label,
     )
     cost_tracker.record("phase_0c", outputs.get("_summary"), site=site_name)
@@ -918,6 +930,7 @@ async def _run_tier_json_with_retries(
     validate_parsed: Callable[[object], list[str]],
     extra_inputs: dict[str, str] | None = None,
     correction_guidance: str | None = None,
+    volumes: dict[str, Any] | None = None,
 ) -> Any:
     """Run one profiling tier, retrying semantic validation failures in-place."""
     artifact_name = Path(output_path).name
@@ -940,6 +953,7 @@ async def _run_tier_json_with_retries(
             label=attempt_label,
             sandbox_model=sandbox_model,
             extra_inputs=extra_inputs,
+            volumes=volumes,
         )
 
         raw = outputs.get(output_path)
@@ -1008,7 +1022,9 @@ async def _profile_one_site_tiered(
     """
     staging_root, staging_dir = _stage_benchmark_files(file_list, benchmark_root, site_name)
     try:
-        site_files = {"/workspace/benchmark": str(staging_dir)}
+        benchmark_volume = await upload_to_volume(staging_dir)
+        benchmark_mount = {"/workspace/benchmark": _read_only_volume(benchmark_volume)}
+        site_files: dict[str, str] = {}
         manifest_eval_type_set = {
             str(eval_type)
             for eval_type in manifest.get("evaluation", {}).get("eval_types", [])
@@ -1035,6 +1051,7 @@ async def _profile_one_site_tiered(
                     validate_verification_capabilities(data, site_name=site_name)
                     + _validate_manifest_eval_types(data, manifest_eval_type_set)
                 ),
+                volumes=benchmark_mount,
                 correction_guidance=(
                     "Only include evaluation methods that actually exist in the benchmark harness. "
                     "Each entry needs a string eval_type and description."
@@ -1050,6 +1067,7 @@ async def _profile_one_site_tiered(
                 label=f"0c-{site_name}-B-data",
                 sandbox_model=sandbox_model,
                 validate_parsed=lambda data: validate_data_model_profile(data, site_name=site_name),
+                volumes=benchmark_mount,
                 correction_guidance=(
                     "Every entity must declare a non-empty fields array, and every field name should "
                     "match the entity it belongs to."
@@ -1065,6 +1083,7 @@ async def _profile_one_site_tiered(
                 label=f"0c-{site_name}-C-context",
                 sandbox_model=sandbox_model,
                 validate_parsed=lambda data: validate_agent_context(data, site_name=site_name),
+                volumes=benchmark_mount,
                 correction_guidance=(
                     "When structured output is required, output_schema must be a JSON object. "
                     "If agent_prompt_template is present, it must contain both {{INSTRUCTION}} "
@@ -1148,6 +1167,7 @@ async def _profile_one_site_tiered(
             label=f"0c-{site_name}-DE-inject",
             sandbox_model=sandbox_model,
             extra_inputs=tier2_extra_inputs,
+            volumes=benchmark_mount,
             validate_parsed=lambda data: validate_injection_surface(
                 data,
                 site_name=site_name,

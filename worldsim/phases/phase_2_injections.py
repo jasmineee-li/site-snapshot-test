@@ -31,7 +31,7 @@ from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox
+from worldsim.modal_sandbox import preflight_sandbox_environment, run_claude_in_sandbox
 from worldsim.phases.phase_2_feasibility import (
     FAILPOINT_DATASET,
     FAILPOINT_QUARANTINE,
@@ -406,13 +406,13 @@ async def run(args: argparse.Namespace) -> int:
         )
     if reusable_plans is None and reusable_final_tasks is None:
         try:
-            preflight_auth_check()
+            await preflight_sandbox_environment()
         except RuntimeError as exc:
-            logger.error("Phase 2 auth pre-flight failed:\n%s", exc)
+            logger.error("Phase 2 sandbox pre-flight failed:\n%s", exc)
             save_state(
                 "phase_2",
                 status="failed",
-                reason="auth_preflight_failed",
+                reason="sandbox_preflight_failed",
                 phase_2_stage="planning",
                 **state_metadata,
             )

@@ -11,6 +11,14 @@ from worldsim.phases import phase_1_mode_a, phase_1_mode_b, phase_1_mode_b_valid
 from worldsim.state import load_state
 
 
+@pytest.fixture(autouse=True)
+def _stub_mode_b_sandbox_preflight(monkeypatch):
+    async def fake_preflight():
+        return None
+
+    monkeypatch.setattr(phase_1_mode_b, "preflight_sandbox_environment", fake_preflight)
+
+
 def _subparser(parser, name: str):
     for action in parser._actions:
         choices = getattr(action, "choices", None)

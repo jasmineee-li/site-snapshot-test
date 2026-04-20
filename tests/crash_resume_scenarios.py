@@ -263,7 +263,11 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
     from worldsim.phases.phase_2_text_fill import materialize_adversarial_seed
 
     _configure_phase_2(state_dir)
-    phase_2_injections.preflight_auth_check = lambda: None
+
+    async def fake_preflight():
+        return None
+
+    phase_2_injections.preflight_sandbox_environment = fake_preflight
 
     async def fake_generate(
         site_name, site_tasks, all_site_tasks=None, profile_path=None, label=None, **kwargs
@@ -391,6 +395,13 @@ async def _run_phase_0c(mode: str, state_dir: Path) -> int:
 
     benchmark_root, site_file = _configure_phase_0c(state_dir)
 
+    class _FakeVolume:
+        def read_only(self):
+            return self
+
+    async def fake_upload_to_volume(path):
+        return _FakeVolume()
+
     async def fake_run_claude_in_sandbox(*args, **kwargs):
         label = kwargs["label"]
         if "-A-verify" in label:
@@ -468,6 +479,7 @@ async def _run_phase_0c(mode: str, state_dir: Path) -> int:
         raise AssertionError(f"unexpected label {label}")
 
     phase_0_recon.run_claude_in_sandbox = fake_run_claude_in_sandbox
+    phase_0_recon.upload_to_volume = fake_upload_to_volume
 
     await phase_0_recon.run_phase_0c(
         manifest={"evaluation": {"eval_types": []}},

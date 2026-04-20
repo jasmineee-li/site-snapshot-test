@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.modal_sandbox import preflight_auth_check, run_claude_in_sandbox, upload_to_volume
+from worldsim.modal_sandbox import (
+    preflight_sandbox_environment,
+    run_claude_in_sandbox,
+    upload_to_volume,
+)
 from worldsim.phases.phase_1_mode_b_validation import (
     site_is_mode_b_eligible,
     sort_novel_tasks,
@@ -29,6 +33,12 @@ NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 MODE_B_RESUME_METADATA_PATH = "mode_b_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
 MODE_B_CACHE_SCHEMA_VERSION = 2
+
+
+def _read_only_volume(volume: Any) -> Any:
+    """Return a read-only mount when the object supports it."""
+    read_only = getattr(volume, "read_only", None)
+    return read_only() if callable(read_only) else volume
 
 
 @dataclass(frozen=True)
@@ -89,8 +99,8 @@ async def run_mode_b(
             all_cached_tasks.extend(result.benign_tasks)
         return sort_novel_tasks(all_cached_tasks)
 
-    # Fail fast if Claude Code auth is missing before we pay for volume upload.
-    preflight_auth_check()
+    # Fail fast if sandbox auth or image setup is missing before we pay for volume upload.
+    await preflight_sandbox_environment()
 
     logger.info("Phase 1B: generating novel tasks for %d eligible sites", len(eligible_sites))
     benchmark_volume = await upload_to_volume(Path(benchmark_root).resolve())
@@ -211,7 +221,7 @@ async def generate_novel_tasks_for_site(
             prompt=prompt,
             output_paths=[NOVEL_TASK_OUTPUT_PATH],
             model=sandbox_model,
-            volumes={"/workspace/benchmark": benchmark_volume},
+            volumes={"/workspace/benchmark": _read_only_volume(benchmark_volume)},
             label=f"1b-{site.site_name}",
         )
         cost_tracker.record("phase_1", outputs.get("_summary"), site=site.site_name)
