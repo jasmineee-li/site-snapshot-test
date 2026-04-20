@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.phase_4.ink_occupancy import ink_occupancy_vector
-from worldsim.phase_4.pvpo_capture import Rect
+from worldsim.phase_4.pvpo_capture import Rect, load_capture_summary
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,13 @@ class EncounterResult:
     per_char_visibility: list[list[bool]] = field(default_factory=list)
     per_step_coverage: list[float] = field(default_factory=list)
     reference_screenshot_bytes: bytes | None = field(default=None, repr=False)
+    pvpo_status: str = "ok"
+    pvpo_failure: str | None = None
+    pvpo_steps_seen: int = 0
+    pvpo_steps_captured: int = 0
+    pvpo_issue_steps: int = 0
+    pvpo_artifact_steps: int = 0
+    pvpo_skipped_steps: int = 0
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -76,6 +83,13 @@ class EncounterResult:
             ),
             "per_char_visibility": [list(step) for step in self.per_char_visibility],
             "per_step_coverage": list(self.per_step_coverage),
+            "pvpo_status": self.pvpo_status,
+            "pvpo_failure": self.pvpo_failure,
+            "pvpo_steps_seen": self.pvpo_steps_seen,
+            "pvpo_steps_captured": self.pvpo_steps_captured,
+            "pvpo_issue_steps": self.pvpo_issue_steps,
+            "pvpo_artifact_steps": self.pvpo_artifact_steps,
+            "pvpo_skipped_steps": self.pvpo_skipped_steps,
         }
 
 
@@ -112,10 +126,17 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
     pvpo_dir = trajectory_dir / "pvpo"
     screenshots_dir = trajectory_dir / "screenshots"
     step_files = _enumerate_step_files(pvpo_dir)
+    capture_summary = load_capture_summary(trajectory_dir) or {}
+    steps_seen = _summary_int(capture_summary, "steps_seen")
+    steps_captured = _summary_int(capture_summary, "steps_captured")
+    issue_steps = _summary_int(capture_summary, "issue_steps")
+    summary_status = _summary_str(capture_summary, "status") or "unknown"
+    summary_failure = _summary_str(capture_summary, "first_issue_class")
 
     per_step_coverage: list[float] = []
     per_char_visibility: list[list[bool]] = []
     kept_step_files: list[tuple[int, Path]] = []
+    skipped_steps = 0
 
     for step_idx, pvpo_path in step_files:
         png_path = screenshots_dir / f"step_{step_idx}.png"
@@ -134,6 +155,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
                 pvpo_path,
                 exc,
             )
+            skipped_steps += 1
             continue
 
         visibility_vec = pvpo_json.get("visibility_vec") or []
@@ -152,6 +174,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
                 png_path,
                 exc,
             )
+            skipped_steps += 1
             continue
 
         per_char_visibility.append(paint_vec)
@@ -169,16 +192,37 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         kept_step_files.append((step_idx, pvpo_path))
 
     if not per_step_coverage:
+        status, failure = _derive_pvpo_status(
+            summary_status=summary_status,
+            summary_failure=summary_failure,
+            step_file_count=len(step_files),
+            skipped_steps=skipped_steps,
+            retained_steps=0,
+        )
         return EncounterResult(
             max_coverage=0.0,
             reference_step=None,
             reference_screenshot_path=None,
+            pvpo_status=status,
+            pvpo_failure=failure,
+            pvpo_steps_seen=steps_seen,
+            pvpo_steps_captured=steps_captured,
+            pvpo_issue_steps=issue_steps,
+            pvpo_artifact_steps=len(step_files),
+            pvpo_skipped_steps=skipped_steps,
         )
 
     max_coverage = max(per_step_coverage)
     reference_step: int | None
     reference_path: Path | None
     reference_bytes: bytes | None = None
+    status, failure = _derive_pvpo_status(
+        summary_status=summary_status,
+        summary_failure=summary_failure,
+        step_file_count=len(step_files),
+        skipped_steps=skipped_steps,
+        retained_steps=len(per_step_coverage),
+    )
     if max_coverage > 0.0:
         argmax = per_step_coverage.index(max_coverage)
         reference_step = kept_step_files[argmax][0]
@@ -249,6 +293,8 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             reference_step = None
             reference_path = None
             reference_bytes = None
+            status = "degraded"
+            failure = "reference_screenshot_invalid"
     else:
         reference_step = None
         reference_path = None
@@ -260,6 +306,13 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         per_char_visibility=per_char_visibility,
         per_step_coverage=per_step_coverage,
         reference_screenshot_bytes=reference_bytes,
+        pvpo_status=status,
+        pvpo_failure=failure,
+        pvpo_steps_seen=steps_seen,
+        pvpo_steps_captured=steps_captured,
+        pvpo_issue_steps=issue_steps,
+        pvpo_artifact_steps=len(step_files),
+        pvpo_skipped_steps=skipped_steps,
     )
 
 
@@ -310,3 +363,38 @@ def _parse_bg(bg: Any) -> tuple[int, int, int]:
         return (int(r), int(g), int(b))
     except (IndexError, KeyError, TypeError, ValueError):
         return _DEFAULT_BG
+
+
+def _summary_int(summary: dict[str, Any], key: str) -> int:
+    try:
+        return int(summary.get(key, 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _summary_str(summary: dict[str, Any], key: str) -> str | None:
+    value = summary.get(key)
+    return value if isinstance(value, str) and value else None
+
+
+def _derive_pvpo_status(
+    *,
+    summary_status: str,
+    summary_failure: str | None,
+    step_file_count: int,
+    skipped_steps: int,
+    retained_steps: int,
+) -> tuple[str, str | None]:
+    if summary_status == "disabled_no_payload":
+        return ("disabled_no_payload", None)
+    if skipped_steps > 0 and retained_steps == 0:
+        return ("degraded", summary_failure or "no_valid_pvpo_steps")
+    if summary_status == "degraded":
+        return ("degraded", summary_failure or "pvpo_capture_degraded")
+    if step_file_count == 0:
+        if summary_status == "initialized":
+            return ("no_artifacts", summary_failure or "pvpo_no_artifacts")
+        return ("no_artifacts", summary_failure)
+    if skipped_steps > 0:
+        return ("degraded", summary_failure or "partial_pvpo_artifact_loss")
+    return ("ok", None)

@@ -1,9 +1,9 @@
 """Unit tests for the simplified PVPO gate.
 
-After the IPI-Screenshot P(eval) deprecation, ``_run_pvpo_gate`` returns
-only ``{encounter, injection_not_encountered}``. Downstream D1 readers
-derive ecological validity from ``encounter.max_coverage > 0`` via the
-``_ecologically_valid`` helper.
+After the transcript-purpose + VEA cutover, ``_run_pvpo_gate`` returns
+``{encounter, injection_not_encountered}`` plus observational metrics and
+PVPO provenance fields. Downstream D1 readers derive ecological validity
+from ``encounter.max_coverage > 0`` via the ``_ecologically_valid`` helper.
 """
 
 from __future__ import annotations
@@ -24,6 +24,8 @@ def _encounter(
     reference_path: Path | None,
     per_step_coverage: list[float] | None = None,
     per_char_visibility: list[list[bool]] | None = None,
+    pvpo_status: str = "ok",
+    pvpo_failure: str | None = None,
 ) -> EncounterResult:
     return EncounterResult(
         max_coverage=max_coverage,
@@ -31,6 +33,8 @@ def _encounter(
         reference_screenshot_path=reference_path,
         per_char_visibility=per_char_visibility or [],
         per_step_coverage=per_step_coverage or [],
+        pvpo_status=pvpo_status,
+        pvpo_failure=pvpo_failure,
     )
 
 
@@ -124,6 +128,8 @@ async def test_zero_coverage_gate_miss_result_shape(monkeypatch, tmp_path):
     assert result["injection_not_encountered"] is True
     assert result["encounter"]["max_coverage"] == 0.0
     assert result["encounter"]["reference_step"] is None
+    assert result["pvpo_status"] == "ok"
+    assert result["pvpo_failure"] is None
 
 
 @pytest.mark.asyncio
@@ -146,6 +152,8 @@ async def test_gate_falls_back_when_determine_encounter_raises(monkeypatch, tmp_
     assert result["injection_not_encountered"] is True
     assert result["encounter"]["max_coverage"] == 0.0
     assert result["encounter"]["reference_step"] is None
+    assert result["pvpo_status"] == "detector_failed"
+    assert result["pvpo_failure"] == "determine_encounter_exception"
 
 
 def test_placement_fix_trigger_fires_on_injection_not_encountered():

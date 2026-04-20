@@ -92,18 +92,32 @@ def test_unwrap_runtime_evaluate_happy_path():
             },
         }
     }
-    entries, bg = _unwrap_runtime_evaluate(raw)
+    entries, bg, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
     assert len(entries) == 1
     assert entries[0]["char"] == "a"
     assert bg == (240, 241, 242)
+    assert issue_class is None
+    assert issue_message is None
 
 
 def test_unwrap_runtime_evaluate_missing_value_falls_back_to_defaults():
-    assert _unwrap_runtime_evaluate({"result": {"type": "object"}}) == ([], (255, 255, 255))
-    assert _unwrap_runtime_evaluate({}) == ([], (255, 255, 255))
+    assert _unwrap_runtime_evaluate({"result": {"type": "object"}}) == (
+        [],
+        (255, 255, 255),
+        "runtime_evaluate_malformed",
+        "missing result.value object",
+    )
+    assert _unwrap_runtime_evaluate({}) == (
+        [],
+        (255, 255, 255),
+        "runtime_evaluate_malformed",
+        "missing result.value object",
+    )
     assert _unwrap_runtime_evaluate({"result": {"type": "object", "value": "not-a-dict"}}) == (
         [],
         (255, 255, 255),
+        "runtime_evaluate_malformed",
+        "result.value is not a dict",
     )
 
 
@@ -114,9 +128,28 @@ def test_unwrap_runtime_evaluate_malformed_bg_falls_back():
             "value": {"entries": [], "backgroundColor": "not-a-dict"},
         }
     }
-    entries, bg = _unwrap_runtime_evaluate(raw)
+    entries, bg, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
     assert entries == []
     assert bg == (255, 255, 255)
+    assert issue_class == "runtime_evaluate_malformed"
+    assert issue_message == "backgroundColor is not a dict"
+
+
+def test_unwrap_runtime_evaluate_non_list_entries_marks_issue():
+    raw = {
+        "result": {
+            "type": "object",
+            "value": {
+                "entries": "not-a-list",
+                "backgroundColor": {"r": 1, "g": 2, "b": 3},
+            },
+        }
+    }
+    entries, bg, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
+    assert entries == []
+    assert bg == (1, 2, 3)
+    assert issue_class == "runtime_evaluate_malformed"
+    assert issue_message == "entries is not a list"
 
 
 @pytest.mark.asyncio
@@ -232,6 +265,8 @@ def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
         background_color=(128, 129, 130),
         has_damage=True,
         clip=Rect(x=0, y=0, w=200, h=100),
+        issue_class="runtime_evaluate_malformed",
+        issue_message="entries is not a list",
     )
     save_step_artifacts(tmp_path, step_idx=3, capture=capture)
 
@@ -243,6 +278,8 @@ def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
     pvpo_json = json.loads(pvpo_out.read_text())
     assert pvpo_json["step_idx"] == 3
     assert pvpo_json["has_damage"] is True
+    assert pvpo_json["issue_class"] == "runtime_evaluate_malformed"
+    assert pvpo_json["issue_message"] == "entries is not a list"
     assert pvpo_json["clip"] == {"x": 0, "y": 0, "w": 200, "h": 100}
     assert pvpo_json["background_color"] == [128, 129, 130]
     assert pvpo_json["visibility_vec"][0]["char"] == "a"

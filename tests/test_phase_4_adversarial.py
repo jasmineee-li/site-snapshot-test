@@ -1126,8 +1126,13 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
 
     assert captured["encounter_task_dir"] == tmp_path
     assert result["outcome"] == "error"
+    assert result["encounter"]["pvpo_status"] == "ok"
+    assert result["pvpo_status"] == "ok"
+    assert result["pvpo_failure"] is None
     saved = json.loads((tmp_path / "result.json").read_text())
     assert saved["outcome"] == "error"
+    assert saved["pvpo_status"] == "ok"
+    assert saved["pvpo_failure"] is None
 
 
 @pytest.mark.asyncio
@@ -1185,9 +1190,14 @@ async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_pa
 
     assert result["outcome"] == "error"
     assert result["final_status"] == "injection_not_encountered"
+    assert result["encounter"]["pvpo_status"] == "ok"
+    assert result["pvpo_status"] == "ok"
+    assert result["pvpo_failure"] is None
     saved = json.loads((tmp_path / "result.json").read_text())
     assert saved["outcome"] == "error"
     assert saved["final_status"] == "injection_not_encountered"
+    assert saved["pvpo_status"] == "ok"
+    assert saved["pvpo_failure"] is None
 
 
 @pytest.mark.asyncio

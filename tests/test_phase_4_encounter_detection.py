@@ -111,6 +111,8 @@ def test_empty_trajectory_returns_zero_coverage(tmp_path: Path):
     assert result.reference_step is None
     assert result.reference_screenshot_path is None
     assert result.per_step_coverage == []
+    assert result.pvpo_status == "no_artifacts"
+    assert result.pvpo_failure in {None, "pvpo_no_artifacts"}
 
 
 def test_empty_payload_does_not_crash(tmp_path: Path):
@@ -535,6 +537,9 @@ def test_corrupt_pvpo_json_skipped_with_other_steps_intact(tmp_path: Path):
     assert result.reference_step in {0, 2}
     assert result.reference_screenshot_path is not None
     assert result.reference_screenshot_path.name in {"step_0.png", "step_2.png"}
+    assert result.pvpo_status == "degraded"
+    assert result.pvpo_failure == "partial_pvpo_artifact_loss"
+    assert result.pvpo_skipped_steps == 1
 
 
 def test_truncated_png_skipped_with_other_steps_intact(tmp_path: Path):
@@ -572,6 +577,24 @@ def test_truncated_png_skipped_with_other_steps_intact(tmp_path: Path):
     assert result.per_step_coverage == [1.0, 1.0]
     assert result.max_coverage == 1.0
     assert result.reference_step in {0, 2}
+    assert result.pvpo_status == "degraded"
+    assert result.pvpo_failure == "partial_pvpo_artifact_loss"
+    assert result.pvpo_skipped_steps == 1
+
+
+def test_all_invalid_steps_surface_degraded_status(tmp_path: Path):
+    png = _make_png_with_ink([(10, 10, 5, 5)])
+    (tmp_path / "screenshots").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "screenshots" / "step_0.png").write_bytes(png)
+    (tmp_path / "pvpo").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "pvpo" / "step_0.json").write_text("{not valid json")
+
+    result = determine_encounter(_task("a"), tmp_path)
+
+    assert result.max_coverage == 0.0
+    assert result.pvpo_status == "degraded"
+    assert result.pvpo_failure == "no_valid_pvpo_steps"
+    assert result.pvpo_skipped_steps == 1
 
 
 def test_reference_bytes_captured_at_validation_time(tmp_path: Path):

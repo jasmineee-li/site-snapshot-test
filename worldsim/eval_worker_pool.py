@@ -39,6 +39,8 @@ _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "final_status",
     "seed_preflight_mismatches",
     "seed_preflight_mismatch_records",
+    "pvpo_status",
+    "pvpo_failure",
     "transcript_purpose_classification",
     "transcript_purpose_is_aware",
     "transcript_purpose_guess",

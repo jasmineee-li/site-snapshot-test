@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
+
+import pytest
 
 from worldsim import browser_use_agent
 
@@ -66,3 +69,34 @@ def test_write_agent_artifacts_preserves_existing_pvpo_screenshot(tmp_path):
     )
 
     assert existing.read_bytes() == b"pvpo"
+
+
+@pytest.mark.asyncio
+async def test_pvpo_callback_warns_once_and_persists_capture_summary(tmp_path, caplog):
+    class BrokenSession:
+        async def get_current_page(self):
+            raise RuntimeError("cdp disconnected")
+
+    callback = browser_use_agent._make_pvpo_step_callback(
+        BrokenSession(),
+        tmp_path,
+        "payload text",
+    )
+
+    with caplog.at_level("WARNING", logger="worldsim.browser_use_agent"):
+        await callback(SimpleNamespace(), SimpleNamespace(), 1)
+        await callback(SimpleNamespace(), SimpleNamespace(), 2)
+
+    warnings = [record.message for record in caplog.records if record.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "current_page_unavailable" in warnings[0]
+    assert "degraded mode" in warnings[0]
+
+    summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
+    assert summary["status"] == "degraded"
+    assert summary["steps_seen"] == 2
+    assert summary["steps_captured"] == 0
+    assert summary["issue_steps"] == 2
+    assert summary["first_issue_class"] == "current_page_unavailable"
+    assert summary["first_issue_step"] == 1
+    assert summary["last_issue_step"] == 2

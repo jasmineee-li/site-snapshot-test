@@ -202,6 +202,8 @@ def _sweep_orphan_inflight_sentinels(task_dir_root: Path) -> int:
 
 _PVPO_METRIC_KEYS: frozenset[str] = frozenset(
     {
+        "pvpo_status",
+        "pvpo_failure",
         "transcript_purpose_classification",
         "transcript_purpose_is_aware",
         "transcript_purpose_guess",
@@ -270,6 +272,8 @@ def _gate_miss_payload(encounter_dict: dict[str, Any]) -> dict[str, Any]:
     return {
         "encounter": coerced_encounter,
         "injection_not_encountered": True,
+        "pvpo_status": coerced_encounter.get("pvpo_status"),
+        "pvpo_failure": coerced_encounter.get("pvpo_failure"),
         **_null_metric_keys(),
     }
 
@@ -284,6 +288,8 @@ def _observational_metrics_unavailable(
     return {
         "encounter": encounter_dict,
         "injection_not_encountered": False,
+        "pvpo_status": encounter_dict.get("pvpo_status"),
+        "pvpo_failure": encounter_dict.get("pvpo_failure"),
         **_transcript_purpose_failure_result(failure_class, task_dir),
         **_vea_failure_result(failure_class),
     }
@@ -377,6 +383,8 @@ async def _run_pvpo_gate(
             max_coverage=0.0,
             reference_step=None,
             reference_screenshot_path=None,
+            pvpo_status="detector_failed",
+            pvpo_failure="determine_encounter_exception",
         )
     encounter_dict = encounter.as_dict()
     injection_not_encountered = (
@@ -495,6 +503,8 @@ async def _run_pvpo_gate(
     return {
         "encounter": encounter_dict,
         "injection_not_encountered": False,
+        "pvpo_status": encounter_dict.get("pvpo_status"),
+        "pvpo_failure": encounter_dict.get("pvpo_failure"),
         **tp_result,
         **vea_result,
     }
@@ -698,6 +708,8 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "elapsed",
     "steps",
     "error",
+    "pvpo_status",
+    "pvpo_failure",
     "transcript_purpose_classification",
     "transcript_purpose_is_aware",
     "transcript_purpose_guess",
@@ -2090,6 +2102,7 @@ async def run_adversarial_task(
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
+                **_pvpo_metric_payload(pvpo),
                 **error_final_status_extra,
             }
 
@@ -2137,6 +2150,7 @@ async def run_adversarial_task(
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
+                **_pvpo_metric_payload(pvpo),
                 **nonint_final_status_extra,
             }
         adv_passed, _ = (
@@ -2200,6 +2214,7 @@ async def run_adversarial_task(
             "trajectory_dir": str(task_dir),
             "elapsed": result.elapsed,
             "steps": result.steps,
+            **_pvpo_metric_payload(pvpo),
             **final_status_extra,
             **taxonomy_fields,
         }

@@ -1177,6 +1177,9 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
     anchor strategy.
     """
     if not payload_text:
+        from worldsim.phase_4.pvpo_capture import initial_capture_summary, save_capture_summary
+
+        save_capture_summary(task_dir, initial_capture_summary(payload_present=False))
 
         async def _noop(state_summary: Any, agent_output: Any, step_idx: int) -> None:
             return None
@@ -1189,6 +1192,8 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
     from worldsim.phase_4.pvpo_capture import (
         Rect,
         atomic_capture_with_visibility,
+        initial_capture_summary,
+        save_capture_summary,
         save_step_artifacts,
     )
 
@@ -1197,19 +1202,66 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
     # attribute lookup after the ink-occupancy + content-match cutover —
     # the JS query walks text nodes for the payload substring directly.
     pages_prepared: set[int] = set()
+    warned_issue_classes: set[str] = set()
+    capture_summary = initial_capture_summary(payload_present=True)
+    save_capture_summary(task_dir, capture_summary)
+
+    def _record_issue(
+        issue_class: str,
+        step_idx: int,
+        message: str,
+        *,
+        count_as_seen: bool = False,
+    ) -> None:
+        if count_as_seen:
+            capture_summary["steps_seen"] += 1
+        capture_summary["status"] = "degraded"
+        capture_summary["issue_steps"] += 1
+        issue_counts = capture_summary.setdefault("issue_counts", {})
+        issue_counts[issue_class] = int(issue_counts.get(issue_class, 0)) + 1
+        if capture_summary.get("first_issue_class") is None:
+            capture_summary["first_issue_class"] = issue_class
+            capture_summary["first_issue_step"] = step_idx
+            capture_summary["first_issue_message"] = message
+        capture_summary["last_issue_class"] = issue_class
+        capture_summary["last_issue_step"] = step_idx
+        capture_summary["last_issue_message"] = message
+        save_capture_summary(task_dir, capture_summary)
+        if issue_class not in warned_issue_classes:
+            warned_issue_classes.add(issue_class)
+            logger.warning(
+                "pvpo: %s at step %d for %s; continuing in degraded mode "
+                "(zero coverage may reflect capture failure): %s",
+                issue_class,
+                step_idx,
+                task_dir,
+                message,
+            )
+        else:
+            logger.debug("pvpo: %s at step %d: %s", issue_class, step_idx, message)
+
+    def _record_capture_success(step_idx: int, capture_issue_class: str | None) -> None:
+        capture_summary["steps_captured"] += 1
+        if capture_summary["issue_steps"] == 0:
+            capture_summary["status"] = "ok"
+        if capture_issue_class is not None and capture_summary["status"] != "degraded":
+            capture_summary["status"] = "degraded"
+        save_capture_summary(task_dir, capture_summary)
 
     async def _callback(state_summary: Any, agent_output: Any, step_idx: int) -> None:
+        capture_summary["steps_seen"] += 1
+        save_capture_summary(task_dir, capture_summary)
         try:
             page = await session.get_current_page()
         except Exception as exc:  # pragma: no cover - CDP unavailable
-            logger.debug("pvpo: could not resolve current page at step %d: %s", step_idx, exc)
+            _record_issue("current_page_unavailable", step_idx, str(exc))
             return
 
         page_key = id(page)
         try:
             cdp_session = await session.get_or_create_cdp_session(page)
         except Exception as exc:  # pragma: no cover - CDP unavailable
-            logger.debug("pvpo: CDP session unavailable at step %d: %s", step_idx, exc)
+            _record_issue("cdp_session_unavailable", step_idx, str(exc))
             return
 
         try:
@@ -1217,7 +1269,7 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
                 await inject_animation_killer(page, cdp_session)
                 pages_prepared.add(page_key)
         except Exception as exc:
-            logger.debug("pvpo: inject_animation_killer failed at step %d: %s", step_idx, exc)
+            _record_issue("animation_killer_failed", step_idx, str(exc))
 
         try:
             viewport = await page.evaluate(
@@ -1235,8 +1287,15 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
                 payload_text=payload_text,
             )
             save_step_artifacts(task_dir, step_idx, capture)
+            if capture.issue_class is not None:
+                _record_issue(
+                    capture.issue_class,
+                    step_idx,
+                    capture.issue_message or capture.issue_class,
+                )
+            _record_capture_success(step_idx, capture.issue_class)
         except Exception as exc:
-            logger.debug("pvpo: capture failed at step %d: %s", step_idx, exc)
+            _record_issue("capture_failed", step_idx, str(exc))
 
     return _callback
 

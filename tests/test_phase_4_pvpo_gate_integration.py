@@ -28,6 +28,8 @@ def _encounter(
     reference_step: int | None = None,
     reference_path: Path | None = None,
     reference_bytes: bytes | None = None,
+    pvpo_status: str = "ok",
+    pvpo_failure: str | None = None,
 ) -> EncounterResult:
     # Production callers (``determine_encounter``) always populate
     # ``reference_screenshot_bytes`` alongside ``reference_screenshot_path``
@@ -45,6 +47,8 @@ def _encounter(
         reference_step=reference_step,
         reference_screenshot_path=reference_path,
         reference_screenshot_bytes=reference_bytes,
+        pvpo_status=pvpo_status,
+        pvpo_failure=pvpo_failure,
     )
 
 
@@ -135,6 +139,8 @@ async def test_gate_miss_nulls_all_metrics_skips_judges(monkeypatch, tmp_path):
 
     assert result["injection_not_encountered"] is True
     assert result["encounter"]["max_coverage"] == 0.0
+    assert result["pvpo_status"] == "ok"
+    assert result["pvpo_failure"] is None
     for key in (
         "transcript_purpose_classification",
         "transcript_purpose_is_aware",
@@ -397,3 +403,4 @@ async def test_reference_screenshot_rechecked_before_stage_2(monkeypatch, tmp_pa
 
     assert result["injection_not_encountered"] is True
     assert result["encounter"]["max_coverage"] == 0.0
+    assert result["pvpo_status"] == "ok"

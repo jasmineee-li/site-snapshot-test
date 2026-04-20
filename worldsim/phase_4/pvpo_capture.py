@@ -32,11 +32,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldsim.atomic_io import write_json_atomic
+
 logger = logging.getLogger(__name__)
 
 
 _PVPO_QUERY_JS_TEMPLATE: str = (Path(__file__).parent / "pvpo_query.js").read_text(encoding="utf-8")
 _PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_PAYLOAD_JSON__"
+_PVPO_CAPTURE_SUMMARY_FILENAME = "capture_summary.json"
 
 
 def build_pvpo_query_js(payload_text: str) -> str:
@@ -90,6 +93,8 @@ class StepCapture:
     background_color: tuple[int, int, int]
     has_damage: bool
     clip: Rect
+    issue_class: str | None = None
+    issue_message: str | None = None
 
 
 async def atomic_capture_with_visibility(
@@ -134,7 +139,13 @@ async def atomic_capture_with_visibility(
             "Runtime.evaluate",
             {"expression": query_js, "returnByValue": True},
         )
-        visibility_vec, background_color = _unwrap_runtime_evaluate(raw)
+        visibility_vec, background_color, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
+        if issue_class is not None:
+            logger.warning(
+                "pvpo: Runtime.evaluate returned malformed visibility payload (%s); "
+                "defaulting missing fields and continuing",
+                issue_message or issue_class,
+            )
 
         frame = await cdp_session.send(
             "HeadlessExperimental.beginFrame",
@@ -164,6 +175,8 @@ async def atomic_capture_with_visibility(
         background_color=background_color,
         has_damage=has_damage,
         clip=viewport_rect,
+        issue_class=issue_class,
+        issue_message=issue_message,
     )
 
 
@@ -172,7 +185,7 @@ _DEFAULT_BG: tuple[int, int, int] = (255, 255, 255)
 
 def _unwrap_runtime_evaluate(
     raw: dict[str, Any],
-) -> tuple[list[dict[str, Any]], tuple[int, int, int]]:
+) -> tuple[list[dict[str, Any]], tuple[int, int, int], str | None, str | None]:
     """Extract ``(entries, background_color)`` from a ``Runtime.evaluate`` result.
 
     The JS query returns ``{entries: [...], backgroundColor: {r, g, b}}``.
@@ -182,21 +195,75 @@ def _unwrap_runtime_evaluate(
     """
     result = raw.get("result") or {}
     if result.get("type") != "object" or "value" not in result:
-        return [], _DEFAULT_BG
+        return [], _DEFAULT_BG, "runtime_evaluate_malformed", "missing result.value object"
     value = result["value"]
     if not isinstance(value, dict):
-        return [], _DEFAULT_BG
+        return [], _DEFAULT_BG, "runtime_evaluate_malformed", "result.value is not a dict"
     entries = value.get("entries") or []
+    issue_message: str | None = None
     if not isinstance(entries, list):
         entries = []
+        issue_message = "entries is not a list"
     bg = value.get("backgroundColor")
     if not isinstance(bg, dict):
-        return entries, _DEFAULT_BG
+        if issue_message is None:
+            issue_message = "backgroundColor is not a dict"
+        return entries, _DEFAULT_BG, "runtime_evaluate_malformed", issue_message
     try:
         bg_rgb = (int(bg.get("r", 255)), int(bg.get("g", 255)), int(bg.get("b", 255)))
     except (TypeError, ValueError):
         bg_rgb = _DEFAULT_BG
-    return entries, bg_rgb
+        if issue_message is None:
+            issue_message = "backgroundColor channels are not integers"
+    return entries, bg_rgb, ("runtime_evaluate_malformed" if issue_message else None), issue_message
+
+
+def capture_summary_path(trajectory_dir: Path) -> Path:
+    """Return the canonical per-task PVPO capture summary path."""
+    return Path(trajectory_dir) / "pvpo" / _PVPO_CAPTURE_SUMMARY_FILENAME
+
+
+def initial_capture_summary(*, payload_present: bool) -> dict[str, Any]:
+    """Return the default PVPO capture summary structure."""
+    return {
+        "status": "initialized" if payload_present else "disabled_no_payload",
+        "payload_present": bool(payload_present),
+        "steps_seen": 0,
+        "steps_captured": 0,
+        "issue_steps": 0,
+        "first_issue_class": None,
+        "first_issue_step": None,
+        "first_issue_message": None,
+        "last_issue_class": None,
+        "last_issue_step": None,
+        "last_issue_message": None,
+        "issue_counts": {},
+    }
+
+
+def save_capture_summary(trajectory_dir: Path, summary: dict[str, Any]) -> None:
+    """Persist the per-task PVPO capture summary."""
+    write_json_atomic(
+        capture_summary_path(trajectory_dir),
+        summary,
+        failpoint_base="pvpo.save_capture_summary",
+    )
+
+
+def load_capture_summary(trajectory_dir: Path) -> dict[str, Any] | None:
+    """Load the per-task PVPO capture summary if it exists and is valid."""
+    path = capture_summary_path(trajectory_dir)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("pvpo: could not read capture summary at %s: %s", path, exc)
+        return None
+    if not isinstance(payload, dict):
+        logger.warning("pvpo: capture summary at %s is not a JSON object", path)
+        return None
+    return payload
 
 
 def save_step_artifacts(
@@ -226,6 +293,8 @@ def save_step_artifacts(
                 "visibility_vec": capture.visibility_vec,
                 "background_color": list(capture.background_color),
                 "has_damage": capture.has_damage,
+                "issue_class": capture.issue_class,
+                "issue_message": capture.issue_message,
                 "clip": {
                     "x": capture.clip.x,
                     "y": capture.clip.y,
