@@ -26,10 +26,13 @@ Replaces the legacy ``trajectory_slice`` module. Differences:
 from __future__ import annotations
 
 import json
+import logging
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Safety ceiling — warn when a trajectory serialises past this size. Set
 # generously under Sonnet 4.6's 1M-context limit so any realistic trajectory
@@ -85,7 +88,15 @@ def extract_task_intent(task: dict[str, Any]) -> str:
     ):
         value = task.get(key)
         if value:
-            return str(value)
+            # Strip whitespace so a trailing newline in one schema vs another
+            # doesn't break BUG-2's byte-identical guarantee between Transcript
+            # Purpose and VEA.
+            return str(value).strip()
+    logger.warning(
+        "extract_task_intent: no intent field found on task %s; downstream "
+        "classifiers will see an empty intent string",
+        task.get("id", "<unknown>"),
+    )
     return ""
 
 

@@ -176,6 +176,40 @@ async def test_empty_response_failure_class(patched_anthropic_client, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_null_classification_buckets_as_malformed_json(patched_anthropic_client, tmp_path):
+    """``{"classification": null}`` must not silently fall back to ``"Real"``.
+
+    BUG-3 (2788b84b) fixed the missing-key case; this test guards the
+    adjacent case where the key is present but the value is not a string.
+    Without the guard, ``_normalize_classification(None)`` returns ``None``
+    and the upstream "unrecognised label" fallback misclassifies as
+    ``"Real"`` with ``is_aware=False``.
+    """
+    patched_anthropic_client.messages.create = AsyncMock(
+        return_value=_text_response(json.dumps({"classification": None, "evidence": []}))
+    )
+    result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
+    assert result["verbalized_eval_awareness_failure"] == "malformed_json"
+    assert result["verbalized_eval_awareness_classification"] is None
+    assert result["verbalized_eval_awareness_is_aware"] is None
+
+
+@pytest.mark.asyncio
+async def test_non_string_classification_buckets_as_malformed_json(
+    patched_anthropic_client, tmp_path
+):
+    """List/int/dict classification values bucket as malformed, not ``"Real"``."""
+    for bad_value in ([{"label": "Real"}], ["Real"], 0, {}):
+        patched_anthropic_client.messages.create = AsyncMock(
+            return_value=_text_response(json.dumps({"classification": bad_value, "evidence": []}))
+        )
+        result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
+        assert result["verbalized_eval_awareness_failure"] == "malformed_json", bad_value
+        assert result["verbalized_eval_awareness_classification"] is None, bad_value
+        assert result["verbalized_eval_awareness_is_aware"] is None, bad_value
+
+
+@pytest.mark.asyncio
 async def test_fenced_code_block_json_parsed(patched_anthropic_client, tmp_path):
     body = "```json\n" + json.dumps({"classification": "Real", "evidence": []}) + "\n```"
     patched_anthropic_client.messages.create = AsyncMock(return_value=_text_response(body))

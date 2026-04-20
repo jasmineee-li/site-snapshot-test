@@ -412,10 +412,24 @@ def test_state_message_excluded_in_real_trajectory_by_default():
         ({"description": None, "intent": None}, ""),
         # Non-string values coerced via str()
         ({"instruction": 42}, "42"),
+        # Whitespace-stripping guards against one schema's trailing newline
+        # breaking the BUG-2 byte-identical guarantee between classifiers.
+        ({"instruction": "  INST  "}, "INST"),
+        ({"description": "D\n"}, "D"),
     ],
 )
 def test_extract_task_intent_precedence(task, expected):
     assert extract_task_intent(task) == expected
+
+
+def test_extract_task_intent_warns_when_no_intent_field(caplog):
+    """Empty dict returns ``""`` but emits a WARNING so operators can spot
+    tasks that silently feed empty intent to the classifiers."""
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="worldsim.phase_4.aer_trajectory_extract"):
+        result = extract_task_intent({"id": "opaque-task"})
+    assert result == ""
+    assert any("opaque-task" in record.message for record in caplog.records)
 
 
 def test_extract_task_intent_is_stable_across_phase_4_judges():

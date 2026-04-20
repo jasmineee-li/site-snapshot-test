@@ -32,6 +32,15 @@ def _relax_feasibility_admission(monkeypatch):
     yield
 
 
+@pytest.fixture(autouse=True)
+def _skip_host_api_preflight(monkeypatch):
+    async def _ok_preflight(*, sandbox_model: str):
+        return (True, None)
+
+    monkeypatch.setattr(phase_4_adversarial, "_preflight_host_messages_api", _ok_preflight)
+    yield
+
+
 def _as_contracts(tasks: list[dict], *, origin: str = "mode_a") -> list[dict]:
     return [
         {
@@ -934,6 +943,66 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
     assert result["outcome"] == "error"
     saved = json.loads((tmp_path / "result.json").read_text())
     assert saved["outcome"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_path(
+    monkeypatch,
+    tmp_path,
+):
+    """Agent error + PVPO zero-coverage must stamp ``final_status`` telemetry.
+
+    The main scoreable path stamps ``final_status="injection_not_encountered"``
+    when PVPO reports zero coverage. The error-path save_result previously
+    dropped the stamp, so result.json couldn't distinguish "agent crashed
+    with payload visible" from "agent crashed and payload never rendered".
+    """
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None, {}
+
+    def fake_determine(task, trajectory_dir):
+        from worldsim.phase_4.encounter_detection import EncounterResult
+
+        return EncounterResult(
+            max_coverage=0.0,
+            reference_step=None,
+            reference_screenshot_path=None,
+        )
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=0.3,
+                steps=0,
+                is_done=False,
+                final_result=None,
+                status="error",
+                errors=["browser crashed mid-navigation"],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert result["outcome"] == "error"
+    assert result["final_status"] == "injection_not_encountered"
+    saved = json.loads((tmp_path / "result.json").read_text())
+    assert saved["outcome"] == "error"
+    assert saved["final_status"] == "injection_not_encountered"
 
 
 @pytest.mark.asyncio
@@ -1962,6 +2031,10 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
         "preflight_auth_check",
         lambda: (_ for _ in ()).throw(AssertionError("auth preflight should not run")),
     )
+    async def fail_if_called(*, sandbox_model: str):
+        raise AssertionError("host API preflight should not run before storage-state validation")
+
+    monkeypatch.setattr(phase_4_adversarial, "_preflight_host_messages_api", fail_if_called)
 
     rc = await phase_4_adversarial.run(
         Namespace(

@@ -326,6 +326,134 @@ def test_reference_png_vanishing_after_loop_forces_zero_coverage(tmp_path: Path)
     assert result.reference_screenshot_path is None
 
 
+def test_reference_symlink_forces_zero_coverage(tmp_path: Path):
+    """A symlink masquerading as the reference PNG must not pass the gate.
+
+    ``Path.is_file()`` follows symlinks, so without the resolve-inside-
+    screenshots-dir check, a symlink from ``step_0.png`` to an arbitrary
+    filesystem path would be happily base64-encoded into the Transcript
+    Purpose API request body. Conservatively force max_coverage=0.
+    """
+    # Plant an outside-dir file that the symlink will point to.
+    outside = tmp_path / "outside_payload.png"
+    outside.write_bytes(_make_png_with_ink([(10, 10, 5, 5)]))
+
+    # Write the PVPO json so the step is picked up...
+    vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
+    (tmp_path / "pvpo").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "pvpo" / "step_0.json").write_text(
+        json.dumps(
+            {
+                "visibility_vec": vec,
+                "background_color": [255, 255, 255],
+                "clip": {"x": 0, "y": 0, "w": 800, "h": 600},
+                "hasDamage": False,
+            }
+        )
+    )
+
+    # ... then put a real PNG in screenshots so the per-step loop succeeds,
+    # then replace it with a symlink targeting outside_payload.png before
+    # the final gate check runs. We simulate the race via read_bytes hook.
+    screenshots = tmp_path / "screenshots"
+    screenshots.mkdir(parents=True, exist_ok=True)
+    png_path = screenshots / "step_0.png"
+    png_path.write_bytes(_make_png_with_ink([(10, 10, 5, 5)]))
+
+    from worldsim.phase_4 import encounter_detection as _ed
+
+    original_read_bytes = Path.read_bytes
+    swapped = {"done": False}
+
+    def read_then_symlink(self: Path) -> bytes:  # type: ignore[override]
+        data = original_read_bytes(self)
+        if self == png_path and not swapped["done"]:
+            self.unlink()
+            self.symlink_to(outside)
+            swapped["done"] = True
+        return data
+
+    import unittest.mock
+
+    with unittest.mock.patch.object(Path, "read_bytes", read_then_symlink):
+        result = _ed.determine_encounter(_task("a"), tmp_path)
+
+    assert swapped["done"] is True
+    assert result.max_coverage == 0.0
+    assert result.reference_step is None
+    assert result.reference_screenshot_path is None
+
+
+def test_reference_dangling_symlink_forces_zero_coverage(tmp_path: Path):
+    """Dangling symlinks (target doesn't exist) also force zero coverage."""
+    vec = [_visible_entry(0, "a", (10, 10, 5, 5))]
+    (tmp_path / "pvpo").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "pvpo" / "step_0.json").write_text(
+        json.dumps(
+            {
+                "visibility_vec": vec,
+                "background_color": [255, 255, 255],
+                "clip": {"x": 0, "y": 0, "w": 800, "h": 600},
+                "hasDamage": False,
+            }
+        )
+    )
+
+    screenshots = tmp_path / "screenshots"
+    screenshots.mkdir(parents=True, exist_ok=True)
+    png_path = screenshots / "step_0.png"
+    png_path.write_bytes(_make_png_with_ink([(10, 10, 5, 5)]))
+
+    from worldsim.phase_4 import encounter_detection as _ed
+
+    original_read_bytes = Path.read_bytes
+    swapped = {"done": False}
+    missing_target = tmp_path / "does_not_exist.png"
+
+    def read_then_dangle(self: Path) -> bytes:  # type: ignore[override]
+        data = original_read_bytes(self)
+        if self == png_path and not swapped["done"]:
+            self.unlink()
+            self.symlink_to(missing_target)
+            swapped["done"] = True
+        return data
+
+    import unittest.mock
+
+    with unittest.mock.patch.object(Path, "read_bytes", read_then_dangle):
+        result = _ed.determine_encounter(_task("a"), tmp_path)
+
+    assert swapped["done"] is True
+    assert result.max_coverage == 0.0
+    assert result.reference_screenshot_path is None
+
+
+def test_coverage_clamped_to_one_when_js_and_python_disagree_on_whitespace(
+    tmp_path: Path,
+):
+    """If visibility_vec contains more non-isSpace entries than Python's
+    ``str.isspace()`` counts on the payload, the numerator could exceed the
+    denominator. Clamp enforces ``max_coverage ∈ [0, 1]``.
+
+    Simulate this by using a payload whose Python-view non-space count is
+    smaller than the number of rendered entries in visibility_vec.
+    """
+    # Payload is 1 non-whitespace char in Python's view.
+    payload = "a"
+    # But JS emits TWO non-space visible entries (e.g., a ligature split):
+    vec = [
+        _visible_entry(0, "a", (10, 10, 5, 5)),
+        _visible_entry(1, "a", (20, 10, 5, 5)),
+    ]
+    png = _make_png_with_ink([(10, 10, 5, 5), (20, 10, 5, 5)])
+    _write_step(tmp_path, 0, vec, png)
+
+    result = determine_encounter(_task(payload), tmp_path)
+    assert result.max_coverage == 1.0, (
+        f"coverage must be clamped to 1.0, got {result.max_coverage!r}"
+    )
+
+
 def test_encounter_result_as_dict_json_serializable(tmp_path: Path):
     png = _make_png_with_ink([(10, 10, 5, 5)])
     vec = [_visible_entry(0, "a", (10, 10, 5, 5))]

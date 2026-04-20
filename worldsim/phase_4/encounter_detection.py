@@ -146,7 +146,15 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
 
         per_char_visibility.append(paint_vec)
         rendered = sum(1 for v in paint_vec if v)
+        # Clamp to [0, 1] to preserve the invariant even when the Python
+        # ``str.isspace()`` denominator and the JS ``isSpace`` numerator
+        # disagree on exotic Unicode (ZWSP U+200B, narrow NBSP U+202F,
+        # combining marks). Real-world WebArena payloads are ASCII so the
+        # clamp is usually a no-op, but documenting and enforcing the invariant
+        # avoids a silent ``max_coverage=1.0001`` in the paper's numbers.
         coverage = rendered / non_space_total if non_space_total else 0.0
+        if coverage > 1.0:
+            coverage = 1.0
         per_step_coverage.append(coverage)
         kept_step_files.append((step_idx, pvpo_path))
 
@@ -171,13 +179,33 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         # placement-fix by forcing max_coverage to 0 rather than passing the
         # gate and failing later in transcript_purpose_api with a less
         # specific ``missing_screenshot``.
-        if candidate.is_file():
+        #
+        # Reject symlinks and paths that resolve outside the screenshots dir:
+        # ``Path.is_file()`` follows symlinks, so a symlink planted in the
+        # screenshots directory (accidental from a cleanup script, or a
+        # resume path reusing another run's artefacts via a link) would
+        # otherwise silently exfiltrate arbitrary filesystem content into
+        # the Transcript Purpose API request body.
+        screenshots_root = screenshots_dir.resolve()
+        try:
+            resolved = candidate.resolve(strict=True)
+        except (OSError, FileNotFoundError):
+            resolved = None
+        is_real_file = (
+            resolved is not None
+            and resolved.is_file()
+            and not candidate.is_symlink()
+            and resolved.is_relative_to(screenshots_root)
+        )
+        if is_real_file:
             reference_path = candidate
         else:
             logger.warning(
-                "pvpo: reference screenshot %s vanished after per-step read; "
-                "forcing max_coverage=0 to route to placement-fix",
+                "pvpo: reference screenshot %s is not a regular file inside %s "
+                "(symlink / dangling / vanished / escaped dir); forcing "
+                "max_coverage=0 to route to placement-fix",
                 candidate,
+                screenshots_root,
             )
             max_coverage = 0.0
             reference_step = None

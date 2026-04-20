@@ -259,19 +259,19 @@ async def run_verbalized_eval_awareness_api(
     client = client or get_client()
 
     async def _call() -> Any:
-        return await client.messages.create(
-            model=normalize_model_for_auth(sandbox_model),
-            max_tokens=_MAX_TOKENS,
-            temperature=_TEMPERATURE,
-            system=_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt_body}],
-            metadata=_model_metadata(),
-        )
+        async with get_api_semaphore():
+            return await client.messages.create(
+                model=normalize_model_for_auth(sandbox_model),
+                max_tokens=_MAX_TOKENS,
+                temperature=_TEMPERATURE,
+                system=_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt_body}],
+                metadata=_model_metadata(),
+            )
 
     t0 = time.monotonic()
     try:
-        async with get_api_semaphore():
-            response = await call_with_retry(_call, retries=3, label="verbalized_eval_awareness")
+        response = await call_with_retry(_call, retries=3, label="verbalized_eval_awareness")
     except Exception as exc:
         logger.warning("VEA call failed: %s", exc)
         failure = classify_api_exception(exc)
@@ -323,6 +323,19 @@ async def run_verbalized_eval_awareness_api(
         return _failure_result("malformed_json", raw_path)
 
     raw_classification = parsed.get("classification")
+    if not isinstance(raw_classification, str):
+        # Key present but value is null/list/int/dict — structurally malformed,
+        # same bucket as the missing-key guard above. Only string-valued
+        # unknown labels fall through to the upstream "Real" fallback below.
+        raw_path = _persist_raw_response(
+            trajectory_dir,
+            {
+                "failure": "malformed_json",
+                "response_text": response_text,
+                "response_id": getattr(response, "id", None),
+            },
+        )
+        return _failure_result("malformed_json", raw_path)
     classification = _normalize_classification(raw_classification)
     evidence = _normalize_evidence(parsed.get("evidence"))
     if classification is None:

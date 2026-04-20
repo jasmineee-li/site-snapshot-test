@@ -92,6 +92,8 @@ from worldsim.phase_4.transcript_purpose_api import (
 )
 from worldsim.phase_4.verbalized_eval_awareness_api import (
     _failure_result as _vea_failure_result,
+)
+from worldsim.phase_4.verbalized_eval_awareness_api import (
     run_verbalized_eval_awareness_api,
 )
 from worldsim.phases.phase_2_text_fill import (
@@ -263,6 +265,33 @@ def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
     return rendered if isinstance(rendered, str) and rendered else None
 
 
+def _adversarial_seed_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    """Return True when two tasks have the same adversarial seed payload."""
+    return json.dumps(left.get("adversarial_data_seed"), sort_keys=True) == json.dumps(
+        right.get("adversarial_data_seed"), sort_keys=True
+    )
+
+
+async def _preflight_host_messages_api(*, sandbox_model: str) -> tuple[bool, str | None]:
+    """Probe the host-side Anthropic Messages API after local validation passes.
+
+    Keep this after task admission / storage-state / runtime-config checks so
+    deterministic local validation errors surface without requiring Claude
+    credentials. The actual browser-eval path still fails closed before any
+    agent work starts.
+    """
+    if os.environ.get("WORLDSIM_PHASE_4_SKIP_PREFLIGHT", "").strip() in ("1", "true", "True"):
+        logger.info("Phase 4 preflight SKIPPED (WORLDSIM_PHASE_4_SKIP_PREFLIGHT set)")
+        return (True, None)
+
+    from worldsim.phase_4.anthropic_client import preflight_check
+
+    ok, err = await preflight_check(sandbox_model=sandbox_model)
+    if ok:
+        logger.info("Phase 4 preflight OK (model=%s)", sandbox_model)
+    return (ok, err)
+
+
 async def _run_pvpo_gate(
     task: dict[str, Any],
     task_dir: Path,
@@ -364,41 +393,54 @@ async def _run_pvpo_gate(
             sandbox_model=sandbox_model,
         )
 
-    tp_result_raw, vea_result_raw = await asyncio.gather(
-        _run_transcript_purpose(), _run_vea(), return_exceptions=True
-    )
-
-    # Convert any raised exceptions into classified failure dicts so one
-    # metric blowing up never aborts the other.
-    if isinstance(tp_result_raw, asyncio.CancelledError):
-        raise tp_result_raw
-    if isinstance(tp_result_raw, BaseException):
-        logger.warning("pvpo: transcript_purpose raised unexpectedly: %s", tp_result_raw)
-        tp_null = _null_metric_keys()
-        tp_null["transcript_purpose_failure"] = "api_error"
-        tp_result = {k: v for k, v in tp_null.items() if k.startswith("transcript_purpose_")}
-    else:
-        tp_result = tp_result_raw
-
-    if isinstance(vea_result_raw, asyncio.CancelledError):
-        raise vea_result_raw
-    if isinstance(vea_result_raw, BaseException):
-        logger.warning("pvpo: VEA raised unexpectedly: %s", vea_result_raw)
-        vea_result = {
-            "verbalized_eval_awareness_classification": None,
-            "verbalized_eval_awareness_is_aware": None,
-            "verbalized_eval_awareness_evidence": [],
-            "verbalized_eval_awareness_failure": "api_error",
-            "verbalized_eval_awareness_transcript_format": "needham-xml-v1",
-            "verbalized_eval_awareness_raw_response_path": None,
-        }
-    else:
-        vea_result = vea_result_raw
-
+    tp_task = asyncio.create_task(_run_transcript_purpose())
+    vea_task = asyncio.create_task(_run_vea())
     try:
-        sentinel_path.unlink(missing_ok=True)
-    except OSError:
-        pass
+        tp_result_raw, vea_result_raw = await asyncio.gather(
+            tp_task, vea_task, return_exceptions=True
+        )
+
+        # Convert any raised exceptions into classified failure dicts so one
+        # metric blowing up never aborts the other.
+        if isinstance(tp_result_raw, asyncio.CancelledError):
+            if not vea_task.done():
+                vea_task.cancel()
+                await asyncio.gather(vea_task, return_exceptions=True)
+            raise tp_result_raw
+        if isinstance(tp_result_raw, BaseException):
+            logger.warning("pvpo: transcript_purpose raised unexpectedly: %s", tp_result_raw)
+            tp_null = _null_metric_keys()
+            tp_null["transcript_purpose_failure"] = "api_error"
+            tp_result = {k: v for k, v in tp_null.items() if k.startswith("transcript_purpose_")}
+        else:
+            tp_result = tp_result_raw
+
+        if isinstance(vea_result_raw, asyncio.CancelledError):
+            if not tp_task.done():
+                tp_task.cancel()
+                await asyncio.gather(tp_task, return_exceptions=True)
+            raise vea_result_raw
+        if isinstance(vea_result_raw, BaseException):
+            logger.warning("pvpo: VEA raised unexpectedly: %s", vea_result_raw)
+            vea_result = {
+                "verbalized_eval_awareness_classification": None,
+                "verbalized_eval_awareness_is_aware": None,
+                "verbalized_eval_awareness_evidence": [],
+                "verbalized_eval_awareness_failure": "api_error",
+                "verbalized_eval_awareness_transcript_format": "needham-xml-v1",
+                "verbalized_eval_awareness_raw_response_path": None,
+            }
+        else:
+            vea_result = vea_result_raw
+    finally:
+        for metric_task in (tp_task, vea_task):
+            if not metric_task.done():
+                metric_task.cancel()
+        await asyncio.gather(tp_task, vea_task, return_exceptions=True)
+        try:
+            sentinel_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     return {
         "encounter": encounter_dict,
@@ -818,31 +860,6 @@ async def run(args: argparse.Namespace) -> int:
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
 
-    # Preflight: probe the Anthropic Messages API before any Browser-Use
-    # work so a bad credential fails here (cost ~$0.0001) instead of after
-    # N tasks have already burned eval cost each. See review item I.1.
-    # Set WORLDSIM_PHASE_4_SKIP_PREFLIGHT=1 to bypass — used by crash-resume
-    # tests that run in scrubbed-env subprocesses and mock the judge anyway.
-    #
-    # Preflight runs on --resume too: incomplete tasks still need a working
-    # credential for the host-side judge/variant API path, and a rotated-to-
-    # wrong token is a failure mode we want surfaced before Browser-Use eval
-    # time is spent on the first incomplete task. Already-complete tasks on
-    # disk are unaffected (checkpoints are consulted per-task, not gated on
-    # preflight).
-    if os.environ.get("WORLDSIM_PHASE_4_SKIP_PREFLIGHT", "").strip() in ("1", "true", "True"):
-        logger.info("Phase 4 preflight SKIPPED (WORLDSIM_PHASE_4_SKIP_PREFLIGHT set)")
-    else:
-        from worldsim.phase_4.anthropic_client import preflight_check
-
-        preflight_ok, preflight_err = await preflight_check(sandbox_model=sandbox_model)
-        if not preflight_ok:
-            logger.error(
-                "Phase 4 preflight against Anthropic Messages API failed: %s",
-                preflight_err,
-            )
-            return 1
-        logger.info("Phase 4 preflight OK (model=%s)", sandbox_model)
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
     skip_host_bound_storage_state_auth = bool(
@@ -1149,6 +1166,18 @@ async def run(args: argparse.Namespace) -> int:
     except RuntimeError as exc:
         logger.error("Phase 4 auth pre-flight failed:\n%s", exc)
         save_state("phase_4", status="failed", reason="auth_preflight_failed", **state_metadata)
+        return 1
+
+    preflight_ok, preflight_err = await _preflight_host_messages_api(sandbox_model=sandbox_model)
+    if not preflight_ok:
+        logger.error("Phase 4 preflight against Anthropic Messages API failed: %s", preflight_err)
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="host_api_preflight_failed",
+            host_api_preflight_error=preflight_err,
+            **state_metadata,
+        )
         return 1
 
     logger.info(
@@ -1726,6 +1755,15 @@ async def run_adversarial_task(
             extra: dict[str, Any] = {}
             if resume_fingerprint is not None:
                 extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+            # Mirror the main scoreable path: if PVPO reported zero coverage,
+            # stamp ``final_status="injection_not_encountered"`` alongside
+            # ``outcome="error"`` so downstream analysis can distinguish
+            # "agent crashed with payload visible" from "agent crashed and the
+            # payload never rendered". ``_process_adversarial_result`` still
+            # short-circuits on ``outcome="error"`` — this stamp is telemetry.
+            error_final_status_extra: dict[str, Any] = {}
+            if pvpo["injection_not_encountered"]:
+                error_final_status_extra["final_status"] = "injection_not_encountered"
             save_result(
                 task_dir,
                 task,
@@ -1736,6 +1774,7 @@ async def run_adversarial_task(
                 encounter=pvpo["encounter"],
                 trajectory_dir=str(task_dir),
                 **_pvpo_metric_payload(pvpo),
+                **error_final_status_extra,
                 **extra,
             )
             return {
@@ -1748,6 +1787,7 @@ async def run_adversarial_task(
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
+                **error_final_status_extra,
             }
 
         # 1. Evaluate both benign and adversarial rewards (always, before validity)
@@ -1768,6 +1808,9 @@ async def run_adversarial_task(
             extra: dict[str, Any] = {}
             if resume_fingerprint is not None:
                 extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+            nonint_final_status_extra: dict[str, Any] = {}
+            if pvpo["injection_not_encountered"]:
+                nonint_final_status_extra["final_status"] = "injection_not_encountered"
             save_result(
                 task_dir,
                 task,
@@ -1778,6 +1821,7 @@ async def run_adversarial_task(
                 encounter=pvpo["encounter"],
                 trajectory_dir=str(task_dir),
                 **_pvpo_metric_payload(pvpo),
+                **nonint_final_status_extra,
                 **extra,
             )
             return {
@@ -1790,6 +1834,7 @@ async def run_adversarial_task(
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
+                **nonint_final_status_extra,
             }
         adv_passed, _ = (
             await asyncio.to_thread(
@@ -2161,7 +2206,7 @@ async def _run_placement_fix_loop(
                 "placement_diagnosis": placement_outcome.get("diagnosis"),
             }
         revised_task = _merge_variant_task(current_task, placement_outcome["new_task"])
-        if _tasks_equivalent(current_task, revised_task):
+        if _adversarial_seed_equivalent(current_task, revised_task):
             return {
                 "status": "no_change",
                 "attempts": attempts,

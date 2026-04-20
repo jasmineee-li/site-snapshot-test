@@ -138,31 +138,43 @@ def _extract_guess(response: Any) -> str:
 
 def _parse_classification(
     response_text: str,
-) -> tuple[str | None, str | None, str | None]:
-    """Parse Step-2 output. Returns ``(canonical_label, explanation, failure_class)``.
+) -> tuple[str | None, str | None, str | None, list[str]]:
+    """Parse Step-2 output. Returns ``(canonical_label, explanation, failure_class, all_labels)``.
 
     Missing/empty ``<label>`` -> ``malformed_label``; unrecognised content ->
     ``unrecognized_label``. Missing ``<explanation>`` with a valid label is
     accepted (explanation is evidence-only; the label is the load-bearing datum).
+
+    ``all_labels`` is the full list of raw ``<label>`` matches in the response,
+    preserved in per-attempt telemetry so forensics can detect CoT flip-flops
+    (a model emitting "<label>Real</label> ... <label>Alignment Evaluation</label>"
+    implies genuine classifier uncertainty — the selected label is still the
+    last one, but the flip is load-bearing for the paper's reproducibility
+    appendix). Empty list when parsing failed before any label was found.
     """
     if not response_text or not response_text.strip():
-        return None, None, "malformed_label"
+        return None, None, "malformed_label", []
 
     # Last tag wins — CoT bleed: "<label>Real</label>... on reflection <label>Alignment Evaluation</label>".
     label_matches = _LABEL_TAG_RE.findall(response_text)
     if not label_matches:
-        return None, None, "malformed_label"
+        return None, None, "malformed_label", []
+    if len(label_matches) > 1:
+        logger.warning(
+            "transcript_purpose step 2 emitted multiple <label> tags; last-wins: %s",
+            label_matches,
+        )
     raw_label = label_matches[-1].strip()
     if not raw_label:
-        return None, None, "malformed_label"
+        return None, None, "malformed_label", label_matches
     canonical = _CANONICAL_LABELS.get(raw_label.lower())
     if canonical is None:
-        return None, None, "unrecognized_label"
+        return None, None, "unrecognized_label", label_matches
 
     explanation_matches = _EXPLANATION_TAG_RE.findall(response_text)
     explanation = explanation_matches[-1].strip() if explanation_matches else ""
 
-    return canonical, explanation, None
+    return canonical, explanation, None, label_matches
 
 
 def _build_step_1_messages(aer_text: str, screenshot_b64: str) -> list[dict[str, Any]]:
@@ -191,7 +203,8 @@ def _build_step_1_messages(aer_text: str, screenshot_b64: str) -> list[dict[str,
 
 
 def _build_step_2_messages(guess: str) -> list[dict[str, Any]]:
-    prompt = load_prompt(_CLASSIFY_PROMPT_PATH).rstrip().replace("{agent_response}", guess)
+    inert_guess = f"```text\n{guess}\n```"
+    prompt = load_prompt(_CLASSIFY_PROMPT_PATH).rstrip().replace("{agent_response}", inert_guess)
     return [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
 
 
@@ -240,9 +253,9 @@ async def _call_step(
 ) -> tuple[Any, float]:
     """Invoke Messages API with semaphore + transport-level retry."""
     t0 = time.monotonic()
-    async with get_api_semaphore():
 
-        async def _once() -> Any:
+    async def _once() -> Any:
+        async with get_api_semaphore():
             return await client.messages.create(
                 model=normalize_model_for_auth(sandbox_model),
                 max_tokens=max_tokens,
@@ -252,10 +265,10 @@ async def _call_step(
                 metadata=_model_metadata(),
             )
 
-        try:
-            response = await call_with_retry(_once, retries=3, label=label)
-        except Exception as exc:
-            raise _HardAPIFailure(classify_api_exception(exc)) from exc
+    try:
+        response = await call_with_retry(_once, retries=3, label=label)
+    except Exception as exc:
+        raise _HardAPIFailure(classify_api_exception(exc)) from exc
     return response, time.monotonic() - t0
 
 
@@ -416,7 +429,9 @@ async def run_transcript_purpose_api(
             cost_tracker.record("phase_4:transcript_purpose", step_2_summary)
 
             step_2_text = _extract_response_text(step_2_resp)
-            classification, explanation, failure_class = _parse_classification(step_2_text)
+            classification, explanation, failure_class, all_labels = _parse_classification(
+                step_2_text
+            )
             attempt_record.update(
                 {
                     "step_2_response_text": step_2_text,
@@ -424,6 +439,7 @@ async def run_transcript_purpose_api(
                     "classification": classification,
                     "explanation": explanation,
                     "failure_class": failure_class,
+                    "all_labels_in_response": all_labels,
                 }
             )
             per_attempt_log.append(attempt_record)

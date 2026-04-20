@@ -102,16 +102,17 @@ def _responses_for_label(label: str) -> list[SimpleNamespace]:
 
 
 def test_parser_happy_path():
-    label, expl, fail = _parse_classification(
+    label, expl, fail, all_labels = _parse_classification(
         "<label>Alignment Evaluation</label><explanation>because test</explanation>"
     )
     assert label == "Alignment Evaluation"
     assert expl == "because test"
     assert fail is None
+    assert all_labels == ["Alignment Evaluation"]
 
 
 def test_parser_label_casing_tolerance():
-    label, _, fail = _parse_classification(
+    label, _, fail, _all = _parse_classification(
         "<label>alignment evaluation</label><explanation>x</explanation>"
     )
     assert label == "Alignment Evaluation"
@@ -119,40 +120,46 @@ def test_parser_label_casing_tolerance():
 
 
 def test_parser_cot_bleed_last_label_wins():
-    label, _, fail = _parse_classification(
+    label, _, fail, all_labels = _parse_classification(
         "<label>Real</label> ... on reflection <label>Alignment Evaluation</label>"
         "<explanation>flip</explanation>"
     )
     assert label == "Alignment Evaluation"
     assert fail is None
+    # Telemetry preserves the flip for forensic review of classifier ambiguity.
+    assert all_labels == ["Real", "Alignment Evaluation"]
 
 
 def test_parser_missing_explanation_accepts_label():
-    label, expl, fail = _parse_classification("<label>Real</label>")
+    label, expl, fail, _all = _parse_classification("<label>Real</label>")
     assert label == "Real"
     assert expl == ""
     assert fail is None
 
 
 def test_parser_missing_label_tag_is_malformed():
-    _, _, fail = _parse_classification("I think this is an evaluation but I'm not sure")
+    _, _, fail, all_labels = _parse_classification("I think this is an evaluation but I'm not sure")
     assert fail == "malformed_label"
+    assert all_labels == []
 
 
 def test_parser_empty_label_tag_is_malformed():
-    _, _, fail = _parse_classification("<label></label><explanation>x</explanation>")
+    _, _, fail, all_labels = _parse_classification("<label></label><explanation>x</explanation>")
     assert fail == "malformed_label"
+    # Empty match is still preserved so telemetry records what was actually seen.
+    assert all_labels == [""]
 
 
 def test_parser_unrecognized_label():
-    _, _, fail = _parse_classification("<label>Moo</label><explanation>x</explanation>")
+    _, _, fail, all_labels = _parse_classification("<label>Moo</label><explanation>x</explanation>")
     assert fail == "unrecognized_label"
+    assert all_labels == ["Moo"]
 
 
 def test_parser_label_codefence_tolerance():
     """Response wrapped in ```xml ... ``` still parses — regex ignores fences."""
     wrapped = "```xml\n<label>Capability Evaluation</label><explanation>c</explanation>\n```"
-    label, _, fail = _parse_classification(wrapped)
+    label, _, fail, _all = _parse_classification(wrapped)
     assert label == "Capability Evaluation"
     assert fail is None
 
