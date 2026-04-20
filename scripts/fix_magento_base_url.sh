@@ -177,10 +177,9 @@ verify_http_probe() {
     local output
     output=$(run_remote "curl -sS --max-time 15 '${probe}' 2>/dev/null | grep -oE \"var BASE_URL = '[^']+'\" | head -1" || true)
     if [[ -z "$output" ]]; then
-        echo "    WARN: HTTP probe at ${probe} returned no BASE_URL declaration — "
-        echo "          storefront may not be reachable yet, or page skipped the require_js template."
-        echo "          DB verification still succeeded; proceed with caution."
-        return 0
+        echo "    ERROR: HTTP probe at ${probe} returned no BASE_URL declaration"
+        echo "           storefront may not be reachable yet, or page skipped the require_js template."
+        return 1
     fi
     local expected_decl="var BASE_URL = '${desired}'"
     if [[ "$output" != "$expected_decl" ]]; then

@@ -27,7 +27,11 @@ from typing import Any
 from worldsim._paths import find_repo_root
 from worldsim.agent_response_transform import transform_agent_response
 from worldsim.db_urls import parse_supported_db_connection
-from worldsim.har_converter import ensure_har_trace
+from worldsim.har_converter import (
+    NetworkTraceUnavailableError,
+    ensure_har_trace,
+    strict_runtime_har_trace,
+)
 from worldsim.placeholders import apply_placeholders, placeholder_for_site
 
 logger = logging.getLogger(__name__)
@@ -192,9 +196,16 @@ def _run_webarena_verified_eval(
     agent_response = _build_agent_response(eval_configs, agent_result)
     agent_response = _coerce_agent_response_strings(agent_response)
     environments = _build_webarena_environment_payload(instance)
-    # Vendor parser rejects both empty lists and our flat CDP format. Convert
-    # once here so every downstream call sees a valid non-empty HAR trace.
-    har_trace = ensure_har_trace(network_trace)
+    # AgentResponse-only tasks can use a placeholder trace for parity with the
+    # dedicated rescore path. Runtime tasks that require network evidence must
+    # fail closed when trace capture is missing or malformed.
+    if _reward_requires_network_trace(eval_configs):
+        try:
+            har_trace = strict_runtime_har_trace(network_trace)
+        except NetworkTraceUnavailableError as exc:
+            return False, str(exc)
+    else:
+        har_trace = ensure_har_trace(network_trace)
 
     subprocess_python = (
         os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip() or _default_eval_python()
@@ -275,6 +286,14 @@ def _build_webarena_config(
         config_environments[site_key] = env_config_cls(urls=urls)
 
     return config_cls(environments=config_environments if config_environments else None)
+
+
+def _reward_requires_network_trace(eval_configs: list[dict[str, Any]]) -> bool:
+    """Return True when any evaluator config depends on network-trace evidence."""
+    for config in eval_configs:
+        if isinstance(config, dict) and config.get("evaluator") == "NetworkEventEvaluator":
+            return True
+    return False
 
 
 def _build_webarena_environment_payload(instance: dict[str, Any]) -> dict[str, list[str]]:

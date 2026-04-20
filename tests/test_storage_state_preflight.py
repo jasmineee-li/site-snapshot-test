@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
 from pathlib import Path
+
+import pytest
 
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.storage_state_preflight import (
     apply_skip_auth_for_host_bound_storage_states,
+    ensure_storage_state,
     find_host_bound_storage_state_mismatches,
     inspect_storage_state_preflight,
+    write_storage_state_meta,
 )
 
 
@@ -225,3 +230,59 @@ def test_find_host_bound_storage_state_mismatches_is_instance_specific_for_multi
 
     assert len(mismatches) == 1
     assert mismatches[0].instance_hosts == ("host-b.example.com",)
+
+
+def test_inspect_storage_state_preflight_reports_empty_artifact(tmp_path: Path) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    state_path.write_text(json.dumps({"cookies": [], "origins": []}), encoding="utf-8")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        )
+    ]
+
+    report = inspect_storage_state_preflight(instances)
+
+    assert report.mismatches == ()
+    assert len(report.errors) == 1
+    assert "storage_state_empty" in report.errors[0].message
+
+
+def test_ensure_storage_state_raises_when_artifact_is_stale_and_auto_mint_disabled(
+    tmp_path: Path, monkeypatch
+) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    _write_storage_state(state_path, domain="3.12.221.9")
+    write_storage_state_meta(
+        state_path,
+        mechanism="test",
+        now_fn=lambda: datetime(2000, 1, 1, tzinfo=UTC),
+    )
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://3.12.221.9:8023",
+        reset_endpoint="http://3.12.221.9:8024/init",
+        agent_auth={
+            "type": "storage_state",
+            "storage_state": {"path": str(state_path)},
+        },
+    )
+    monkeypatch.setenv("WORLDSIM_AUTO_MINT_STORAGE_STATE", "false")
+
+    import asyncio
+
+    with pytest.raises(RuntimeError, match="storage_state_stale"):
+        asyncio.run(
+            ensure_storage_state(
+                instance,
+                benchmark_root=None,
+                benchmark_name="WebArena Verified",
+            )
+        )

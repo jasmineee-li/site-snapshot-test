@@ -186,18 +186,12 @@ async def verify_feasibility(
                     force_reverify=force_reverify,
                     cleanup_warnings=cleanup_warnings,
                 )
-            except Exception as exc:  # defensive — never let a single task kill 2c
-                logger.exception("phase 2c: unexpected error verifying task %s", task.get("id"))
-                return _infeasible_task(
-                    task,
-                    kind="unknown",
-                    detail=f"{exc.__class__.__name__}: {exc}",
-                    fingerprint=fingerprint_base,
-                    http_status=None,
-                    response_snippet=None,
-                    attempts=[],
-                    timestamp=now_iso,
-                )
+            except Exception as exc:
+                task_id = str(task.get("id", "unknown"))
+                raise RuntimeError(
+                    f"phase 2c verification crashed for task {task_id}: "
+                    f"{exc.__class__.__name__}: {exc}"
+                ) from exc
 
     results = await asyncio.gather(
         *(worker(task, i) for i, task in enumerate(raw)),

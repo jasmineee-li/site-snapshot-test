@@ -80,6 +80,18 @@ def test_acquire_token_with_inline_token():
     assert token == "static-token-value"
 
 
+def test_acquire_token_with_token_source(tmp_path):
+    token_path = tmp_path / "token.txt"
+    token_path.write_text("file-token\n", encoding="utf-8")
+
+    token = auth_tokens.acquire_token(
+        {"type": "bearer_token", "token_source": str(token_path)},
+        "http://example.test",
+    )
+
+    assert token == "file-token"
+
+
 def test_acquire_token_with_unknown_generator():
     """Unknown generator name raises RuntimeError."""
     with pytest.raises(RuntimeError, match="unknown token_generator"):
@@ -95,7 +107,9 @@ def test_acquire_token_with_unknown_generator():
 
 def test_acquire_token_no_strategy_raises():
     """No resolution strategy raises RuntimeError."""
-    with pytest.raises(RuntimeError, match="no token_generator, token_endpoint, or token"):
+    with pytest.raises(
+        RuntimeError, match="no token_generator, token_endpoint, token, or token_source"
+    ):
         auth_tokens.acquire_token({"type": "bearer_token"}, "http://example.test")
 
 
@@ -231,14 +245,13 @@ def test_validate_token_with_validation_endpoint(monkeypatch):
     assert mock_get.call_args[1]["headers"]["X-Api-Key"] == "some-token"
 
 
-def test_validate_token_optimistic_without_strategy():
-    """validate_token returns True when no validation strategy is available."""
+def test_validate_token_without_strategy_returns_false():
     result = auth_tokens.validate_token(
         "some-token",
         {"type": "bearer_token"},
         "http://example.test",
     )
-    assert result is True
+    assert result is False
 
 
 # ── acquire_tokens_for_instances tests ───────────────────────────────────
@@ -250,7 +263,9 @@ def test_acquire_tokens_for_instances_injects_token(monkeypatch):
 
     fake_resp = _FakeResponse(json_data='"fresh-admin-token"', content_type="application/json")
     mock_post = MagicMock(return_value=fake_resp)
+    mock_get = MagicMock(return_value=_FakeResponse(status_code=200))
     monkeypatch.setattr(auth_tokens.requests, "post", mock_post)
+    monkeypatch.setattr(auth_tokens.requests, "get", mock_get)
 
     instances = [
         {
@@ -259,6 +274,7 @@ def test_acquire_tokens_for_instances_injects_token(monkeypatch):
             "api_auth": {
                 "type": "bearer_token",
                 "token_endpoint": "/rest/V1/integration/admin/token",
+                "validation_endpoint": "/rest/V1/customers/me",
                 "credentials": {"username": "admin", "password": "admin1234"},
             },
         }
@@ -289,8 +305,7 @@ def test_acquire_tokens_for_instances_skips_non_bearer(monkeypatch):
     assert errors == []
 
 
-def test_acquire_tokens_for_instances_skips_legacy_token_source():
-    """acquire_tokens_for_instances does not attempt acquisition for token_source."""
+def test_acquire_tokens_for_instances_requires_validation_for_legacy_token_source():
     auth_tokens.clear_run_token_cache()
 
     instances = [
@@ -306,9 +321,37 @@ def test_acquire_tokens_for_instances_skips_legacy_token_source():
     ]
 
     errors = auth_tokens.acquire_tokens_for_instances(instances)
-    assert errors == []
-    # token_source auth is not touched; no token injected.
+    assert len(errors) == 1
+    assert "bearer_token_unvalidated" in errors[0]
     assert "token" not in instances[0]["auth"]
+
+
+def test_acquire_tokens_for_instances_accepts_validated_token_source(tmp_path, monkeypatch):
+    auth_tokens.clear_run_token_cache()
+    token_path = tmp_path / "token.txt"
+    token_path.write_text("glpat-file\n", encoding="utf-8")
+    monkeypatch.setattr(
+        auth_tokens.requests,
+        "get",
+        MagicMock(return_value=_FakeResponse(status_code=200)),
+    )
+
+    instances = [
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token_source": str(token_path),
+                "validation_endpoint": "/api/v4/user",
+            },
+        }
+    ]
+
+    errors = auth_tokens.acquire_tokens_for_instances(instances)
+    assert errors == []
+    assert instances[0]["auth"]["token"] == "glpat-file"
 
 
 def test_acquire_tokens_for_instances_reports_failures(monkeypatch):
@@ -327,6 +370,7 @@ def test_acquire_tokens_for_instances_reports_failures(monkeypatch):
             "api_auth": {
                 "type": "bearer_token",
                 "token_endpoint": "/rest/V1/integration/admin/token",
+                "validation_endpoint": "/rest/V1/customers/me",
                 "credentials": {"username": "admin", "password": "admin1234"},
             },
         }
@@ -349,6 +393,11 @@ def test_acquire_tokens_for_instances_caches_across_calls(monkeypatch):
         return _FakeResponse(json_data='"cached-tok"', content_type="application/json")
 
     monkeypatch.setattr(auth_tokens.requests, "post", counting_post)
+    monkeypatch.setattr(
+        auth_tokens.requests,
+        "get",
+        MagicMock(return_value=_FakeResponse(status_code=200)),
+    )
 
     instances = [
         {
@@ -357,6 +406,7 @@ def test_acquire_tokens_for_instances_caches_across_calls(monkeypatch):
             "api_auth": {
                 "type": "bearer_token",
                 "token_endpoint": "/rest/V1/integration/admin/token",
+                "validation_endpoint": "/rest/V1/customers/me",
                 "credentials": {"username": "admin", "password": "admin1234"},
             },
         }
@@ -367,6 +417,58 @@ def test_acquire_tokens_for_instances_caches_across_calls(monkeypatch):
 
     assert call_count["n"] == 1
     assert instances[0]["api_auth"]["token"] == "cached-tok"
+
+
+def test_acquire_tokens_for_instances_validates_inline_token(monkeypatch):
+    auth_tokens.clear_run_token_cache()
+    monkeypatch.setattr(
+        auth_tokens.requests,
+        "get",
+        MagicMock(return_value=_FakeResponse(status_code=200)),
+    )
+
+    instances = [
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token": "glpat-inline",
+                "validation_endpoint": "/api/v4/user",
+            },
+        }
+    ]
+
+    errors = auth_tokens.acquire_tokens_for_instances(instances)
+    assert errors == []
+    assert instances[0]["auth"]["token"] == "glpat-inline"
+
+
+def test_acquire_tokens_for_instances_rejects_failed_inline_validation(monkeypatch):
+    auth_tokens.clear_run_token_cache()
+    monkeypatch.setattr(
+        auth_tokens.requests,
+        "get",
+        MagicMock(return_value=_FakeResponse(status_code=401)),
+    )
+
+    instances = [
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token": "glpat-inline",
+                "validation_endpoint": "/api/v4/user",
+            },
+        }
+    ]
+
+    errors = auth_tokens.acquire_tokens_for_instances(instances)
+    assert len(errors) == 1
+    assert "bearer_token_unvalidated" in errors[0]
 
 
 # ── Config validation tests ─────────────────────────────────────────────
@@ -401,6 +503,19 @@ def test_config_rejects_token_generator_without_credentials():
                 "type": "bearer_token",
                 "token_generator": "gitlab_pat",
             },
+        )
+
+
+def test_benchmark_config_rejects_empty_instances(tmp_path):
+    from worldsim.config import BenchmarkConfig
+
+    with pytest.raises(ValueError, match="at least one instance"):
+        BenchmarkConfig.model_validate(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [],
+            }
         )
 
 

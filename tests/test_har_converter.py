@@ -26,10 +26,12 @@ import pytest
 import worldsim.rewards as rewards
 from worldsim.browser_use_agent import _NetworkTraceRecorder
 from worldsim.har_converter import (
+    NetworkTraceUnavailableError,
     ensure_har_trace,
     flat_event_to_har_entry,
     flat_events_to_har_entries,
     minimal_har_placeholder_entry,
+    strict_runtime_har_trace,
 )
 
 # ─────────────────────────────────────────────────────────────────────
@@ -270,7 +272,62 @@ def test_placeholder_parses_cleanly_as_vendor_networkevent():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# ensure_har_trace
+# strict_runtime_har_trace
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_strict_runtime_har_trace_none_raises():
+    with pytest.raises(NetworkTraceUnavailableError, match="network_trace_unavailable"):
+        strict_runtime_har_trace(None)
+
+
+def test_strict_runtime_har_trace_empty_list_raises():
+    with pytest.raises(NetworkTraceUnavailableError, match="network_trace_unavailable"):
+        strict_runtime_har_trace([])
+
+
+def test_strict_runtime_har_trace_har_entries_returned_as_is():
+    har_entries = [
+        {
+            "request": {"url": "http://a.test", "method": "GET", "headers": []},
+            "response": {"status": 200, "headers": [], "cookies": []},
+        },
+        {
+            "request": {"url": "http://b.test", "method": "POST", "headers": []},
+            "response": {"status": 201, "headers": [], "cookies": []},
+        },
+    ]
+    result = strict_runtime_har_trace(har_entries)
+
+    assert len(result) == 2
+    assert result[0]["request"]["url"] == "http://a.test"
+    assert result[1]["request"]["url"] == "http://b.test"
+
+
+def test_strict_runtime_har_trace_flat_events_are_converted():
+    flat = [
+        {"url": "http://a.test", "method": "GET", "response_status": 200},
+        {"url": "http://b.test", "method": "POST", "response_status": 201},
+    ]
+    result = strict_runtime_har_trace(flat)
+
+    assert len(result) == 2
+    assert result[0]["request"]["url"] == "http://a.test"
+    assert result[1]["request"]["url"] == "http://b.test"
+    assert result[0]["response"]["status"] == 200
+    assert result[1]["response"]["status"] == 201
+
+
+def test_strict_runtime_har_trace_degenerate_flat_events_still_yield_valid_entries():
+    result = strict_runtime_har_trace([{}])
+
+    assert len(result) >= 1
+    assert "request" in result[0]
+    assert "response" in result[0]
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ensure_har_trace (rescore-only placeholder helper)
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -286,49 +343,6 @@ def test_ensure_har_trace_empty_list_returns_single_placeholder():
 
     assert len(result) == 1
     assert result[0]["request"]["url"] == "about:blank"
-
-
-def test_ensure_har_trace_har_entries_returned_as_is():
-    har_entries = [
-        {
-            "request": {"url": "http://a.test", "method": "GET", "headers": []},
-            "response": {"status": 200, "headers": [], "cookies": []},
-        },
-        {
-            "request": {"url": "http://b.test", "method": "POST", "headers": []},
-            "response": {"status": 201, "headers": [], "cookies": []},
-        },
-    ]
-    result = ensure_har_trace(har_entries)
-
-    assert len(result) == 2
-    # Content preserved (content equality, whether or not the list is a copy).
-    assert result[0]["request"]["url"] == "http://a.test"
-    assert result[1]["request"]["url"] == "http://b.test"
-
-
-def test_ensure_har_trace_flat_events_are_converted():
-    flat = [
-        {"url": "http://a.test", "method": "GET", "response_status": 200},
-        {"url": "http://b.test", "method": "POST", "response_status": 201},
-    ]
-    result = ensure_har_trace(flat)
-
-    assert len(result) == 2
-    assert result[0]["request"]["url"] == "http://a.test"
-    assert result[1]["request"]["url"] == "http://b.test"
-    assert result[0]["response"]["status"] == 200
-    assert result[1]["response"]["status"] == 201
-
-
-def test_ensure_har_trace_degenerate_flat_events_still_yield_valid_entries():
-    """[{}] is technically a flat list; the converter produces a near-empty
-    HAR entry that the vendor can still parse (method='', url='', status=0)."""
-    result = ensure_har_trace([{}])
-
-    assert len(result) >= 1
-    assert "request" in result[0]
-    assert "response" in result[0]
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -465,6 +479,19 @@ def test_reward_subprocess_receives_placeholder_for_none_network_trace(monkeypat
     trace = captured["payload"]["network_trace"]
     assert len(trace) == 1
     assert trace[0]["request"]["url"] == "about:blank"
+
+
+def test_reward_network_evaluator_fails_closed_on_empty_network_trace(monkeypatch):
+    monkeypatch.setenv(rewards.WEBARENA_EVAL_PYTHON_ENV, "/tmp/webarena-python")
+
+    passed, message = rewards.run_reward_function(
+        reward={"task_id": 11, "eval": [{"evaluator": "NetworkEventEvaluator"}]},
+        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        network_trace=[],
+    )
+
+    assert passed is False
+    assert message == "network_trace_unavailable: trace is missing or empty"
 
 
 def test_reward_subprocess_receives_converted_har_for_flat_input(monkeypatch):

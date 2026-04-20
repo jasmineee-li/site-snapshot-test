@@ -109,6 +109,19 @@ def _instance_host(instance: BenchmarkInstance) -> str | None:
     return None
 
 
+def _artifact_is_structurally_usable(payload: dict[str, Any]) -> tuple[bool, str | None]:
+    cookies = payload.get("cookies")
+    origins = payload.get("origins")
+    has_cookies = isinstance(cookies, list) and any(isinstance(cookie, dict) for cookie in cookies)
+    has_origins = isinstance(origins, list) and any(isinstance(origin, dict) for origin in origins)
+    if not has_cookies and not has_origins:
+        return False, "storage_state_empty: artifact has no cookies or origins"
+    recorded_hosts = _recorded_hosts(payload)
+    if not recorded_hosts:
+        return False, "storage_state_empty: artifact has no recorded hosts in cookies or origins"
+    return True, None
+
+
 def _candidate_storage_state_paths(
     *,
     site_name: str,
@@ -304,11 +317,30 @@ def inspect_storage_state_preflight(
                 errors.append(error)
             continue
 
-        recorded_hosts = _recorded_hosts(payload)
-        if not recorded_hosts:
+        usable, unusable_reason = _artifact_is_structurally_usable(payload)
+        if not usable:
+            error = StorageStatePreflightError(
+                site_name=instance.site_name,
+                declared_path=raw_path,
+                message=f"{unusable_reason} for storage_state artifact {artifact_path}",
+            )
+            error_key = (error.site_name, error.declared_path, error.message)
+            if error_key not in seen_errors:
+                seen_errors.add(error_key)
+                errors.append(error)
             continue
+        recorded_hosts = _recorded_hosts(payload)
         instance_host = _instance_host(instance)
         if not instance_host:
+            error = StorageStatePreflightError(
+                site_name=instance.site_name,
+                declared_path=raw_path,
+                message=f"storage_state_empty: instance site_url {instance.site_url!r} has no resolvable host",
+            )
+            error_key = (error.site_name, error.declared_path, error.message)
+            if error_key not in seen_errors:
+                seen_errors.add(error_key)
+                errors.append(error)
             continue
         dedupe_key = (instance.site_name, raw_path, str(artifact_path), instance_host)
         if dedupe_key in seen_mismatches:
@@ -469,35 +501,47 @@ async def ensure_storage_state(
     """Resolve a storage_state artifact, auto-minting if missing or stale.
 
     Returns the resolved artifact path when available, or ``None`` when the
-    instance has no ``storage_state`` auth configured. Raises
-    :class:`RuntimeError` (wrapping :class:`AuthBootstrapError`) when
-    auto-mint is permitted but fails. Returns the original error path (via
-    the existing preflight) when auto-mint is disallowed — callers should
-    run ``inspect_storage_state_preflight`` for the structured report.
+    instance has no ``storage_state`` auth configured. Raises ``RuntimeError``
+    when the artifact is missing, stale, structurally unusable, or auto-mint
+    fails or is unavailable.
     """
     artifact_path, error = _resolve_storage_state_artifact_for_preflight(
         instance,
         benchmark_root=benchmark_root,
     )
     if error is None and artifact_path is not None:
+        try:
+            payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise RuntimeError(
+                f"storage_state_empty: unable to read storage_state for {instance.site_name}: {exc}"
+            ) from exc
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"storage_state_empty: invalid JSON in storage_state for {instance.site_name}: {exc}"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                f"storage_state_empty: storage_state for {instance.site_name} does not contain a JSON object"
+            )
+        usable, unusable_reason = _artifact_is_structurally_usable(payload)
+        if not usable:
+            raise RuntimeError(f"{unusable_reason} for site {instance.site_name}")
         if storage_state_is_fresh(artifact_path):
             return artifact_path
         logger.info(
             "storage_state for %s is stale per sidecar TTL; re-minting",
             instance.site_name,
         )
-    elif artifact_path is not None:
-        return artifact_path
+    elif error is not None:
+        raise RuntimeError(error.message)
 
     # Either the artifact is missing, or the sidecar says it is stale.
     if not _auto_mint_allowed(benchmark_name):
-        logger.warning(
-            "storage_state missing/stale for site %s but auto-mint disabled "
-            "(set %s=true to opt in)",
-            instance.site_name,
-            _AUTO_MINT_ENV,
+        raise RuntimeError(
+            f"storage_state_stale: storage_state missing or stale for site {instance.site_name} "
+            f"and auto-mint is disabled (set {_AUTO_MINT_ENV}=true to opt in)"
         )
-        return artifact_path  # may be None; caller decides how to handle
 
     try:
         from worldsim.phases.phase_0d_auth_bootstrap import (
@@ -507,17 +551,17 @@ async def ensure_storage_state(
             phase_0d_artifact_path,
         )
     except ImportError as exc:  # pragma: no cover
-        logger.error("Phase 0d helpers unavailable for auto-mint: %s", exc)
-        return artifact_path
+        raise RuntimeError(
+            f"storage_state_stale: Phase 0d helpers unavailable for auto-mint: {exc}"
+        ) from exc
 
     auth = instance.agent_auth if isinstance(instance.agent_auth, dict) else {}
     form_login = _extract_form_login_recipe(auth) if auth else None
     if form_login is None:
-        logger.warning(
-            "site %s has no form_login recipe; cannot auto-mint storage_state",
-            instance.site_name,
+        raise RuntimeError(
+            f"storage_state_stale: site {instance.site_name} has no form_login recipe; "
+            "cannot auto-mint storage_state"
         )
-        return artifact_path
 
     authentication = auth.get("authentication") if isinstance(auth, dict) else None
     credentials = None
@@ -539,7 +583,12 @@ async def ensure_storage_state(
             output_path=output_path,
         )
     except Exception as exc:
-        logger.error("auto-mint storage_state failed for %s: %s", instance.site_name, exc)
-        return artifact_path
+        raise RuntimeError(
+            f"storage_state_stale: auto-mint storage_state failed for {instance.site_name}: {exc}"
+        ) from exc
     write_storage_state_meta(output_path, mechanism="form_login_auto_heal")
+    if not storage_state_is_fresh(output_path):
+        raise RuntimeError(
+            f"storage_state_stale: auto-minted storage_state for {instance.site_name} is still stale"
+        )
     return output_path

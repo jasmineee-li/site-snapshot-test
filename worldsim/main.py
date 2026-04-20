@@ -465,9 +465,6 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
             break
     if path is None:
         return
-    # Validate permissively: test fixtures synthesize minimal instances files
-    # that omit non-proxy fields (e.g. ``benchmark_codebase``). Parse raw JSON
-    # and only pick out the ``verification_proxy`` block and instance ports.
     import json
     from urllib.parse import urlsplit
 
@@ -475,34 +472,68 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
 
     try:
         payload = json.loads(path.read_text())
-    except Exception:
-        return
+    except Exception as exc:
+        raise RuntimeError(
+            f"verification_proxy_invalid: could not parse instances config {path}: {exc}"
+        ) from exc
     if not isinstance(payload, dict):
-        return
+        raise RuntimeError(
+            f"verification_proxy_invalid: instances config {path} must contain a JSON object"
+        )
     proxy_data = payload.get("verification_proxy")
+    if proxy_data is None:
+        return
     if not isinstance(proxy_data, dict):
-        return
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy in {path} must be an object"
+        )
     token = proxy_data.get("token")
-    if not isinstance(token, str) or not token.strip():
+    if token is None:
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token missing in {path}"
+        )
+    if not isinstance(token, str):
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token in {path} must be a string"
+        )
+    if not token.strip():
         return
+    scheme = proxy_data.get("scheme", "http")
+    if not isinstance(scheme, str) or scheme.strip().lower() not in {"http", "https"}:
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.scheme in {path} must be 'http' or 'https'"
+        )
     port_offset = proxy_data.get("port_offset", 10000)
-    if not isinstance(port_offset, int):
-        return
+    if not isinstance(port_offset, int) or port_offset < 0:
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.port_offset in {path} must be a non-negative integer"
+        )
     instances = payload.get("instances")
     if not isinstance(instances, list):
-        return
+        raise RuntimeError(
+            f"verification_proxy_invalid: instances list missing or invalid in {path}"
+        )
     site_ports: set[int] = set()
-    for instance in instances:
+    for index, instance in enumerate(instances):
         if not isinstance(instance, dict):
-            continue
+            raise RuntimeError(
+                f"verification_proxy_invalid: instances[{index}] in {path} must be an object"
+            )
         site_url = instance.get("site_url")
         if not isinstance(site_url, str):
-            continue
+            raise RuntimeError(
+                f"verification_proxy_invalid: instances[{index}].site_url in {path} must be a string"
+            )
         parsed = urlsplit(site_url)
-        if parsed.port is not None:
-            site_ports.add(parsed.port)
+        if not parsed.scheme or not parsed.hostname or parsed.port is None:
+            raise RuntimeError(
+                f"verification_proxy_invalid: instances[{index}].site_url {site_url!r} must include scheme, host, and explicit port"
+            )
+        site_ports.add(parsed.port)
     if not site_ports:
-        return
+        raise RuntimeError(
+            f"verification_proxy_invalid: no proxy-eligible site_url ports found in {path}"
+        )
     install_proxy(
         token=token.strip(),
         port_offset=port_offset,
@@ -522,7 +553,11 @@ def main(argv: list[str] | None = None) -> int:
         return _dispatch_resume(args)
 
     if args.command == "phase":
-        _install_verification_proxy_from_args(args)
+        try:
+            _install_verification_proxy_from_args(args)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
         return _dispatch_phase(args)
 
     if args.command == "rescore-phase-3":
@@ -703,7 +738,11 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         force_reverify=force_reverify,
     )
 
-    _install_verification_proxy_from_args(synthetic)
+    try:
+        _install_verification_proxy_from_args(synthetic)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     return _dispatch_phase(synthetic)
 
 

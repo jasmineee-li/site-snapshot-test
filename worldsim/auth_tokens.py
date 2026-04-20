@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -221,6 +222,7 @@ def acquire_token(auth_config: dict[str, Any], site_url: str) -> str:
     1. ``token_generator`` -- named generator (e.g. ``gitlab_pat``).
     2. ``token_endpoint``  -- POST credentials to a REST endpoint.
     3. ``token``           -- inline static token (returned as-is).
+    4. ``token_source``    -- legacy file-backed token read from disk.
 
     Raises RuntimeError if no strategy can produce a token.
     """
@@ -251,7 +253,21 @@ def acquire_token(auth_config: dict[str, Any], site_url: str) -> str:
     if isinstance(token, str) and token.strip():
         return token.strip()
 
-    raise RuntimeError("bearer_token auth config has no token_generator, token_endpoint, or token")
+    # 4. Legacy token_source
+    token_source = auth_config.get("token_source")
+    if isinstance(token_source, str) and token_source.strip():
+        token_path = Path(token_source.strip())
+        try:
+            token_text = token_path.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise RuntimeError(f"could not read token_source {token_path}: {exc}") from exc
+        if not token_text:
+            raise RuntimeError(f"token_source {token_path} was empty")
+        return token_text
+
+    raise RuntimeError(
+        "bearer_token auth config has no token_generator, token_endpoint, token, or token_source"
+    )
 
 
 def validate_token(
@@ -264,8 +280,8 @@ def validate_token(
     """Validate a token against the live instance.
 
     If a ``token_generator`` is configured, delegates to the generator's
-    ``validate`` method.  Otherwise uses ``validation_endpoint`` (if
-    provided) or returns True optimistically.
+    ``validate`` method. Otherwise uses ``validation_endpoint``. Missing
+    live validation is treated as a hard failure.
     """
     generator_name = auth_config.get("token_generator")
     if isinstance(generator_name, str) and generator_name.strip():
@@ -288,8 +304,14 @@ def validate_token(
         except requests.RequestException:
             return False
 
-    # No validation strategy; assume valid.
-    return True
+    return False
+
+
+def _validation_endpoint_for(auth_config: dict[str, Any]) -> str | None:
+    value = auth_config.get("validation_endpoint")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
 
 
 # ── Pipeline-level helpers ───────────────────────────────────────────────
@@ -318,10 +340,8 @@ def acquire_tokens_for_instances(
 ) -> list[str]:
     """Acquire and cache tokens for all instances that need them.
 
-    For each instance and each auth field, if the auth block is a
-    ``bearer_token`` with ``token_generator`` or ``token_endpoint``, a fresh
-    token is acquired and injected as ``auth["token"]`` so downstream code
-    (``_resolve_bearer_token``) picks it up without hitting disk.
+    For each instance and each auth field, resolve the bearer token source and
+    validate it against the live instance before injecting it for downstream use.
 
     Returns a list of human-readable error strings (empty on full success).
     """
@@ -345,14 +365,39 @@ def acquire_tokens_for_instances(
             has_endpoint = (
                 isinstance(auth.get("token_endpoint"), str) and auth["token_endpoint"].strip()
             )
+            has_inline_token = isinstance(auth.get("token"), str) and auth["token"].strip()
+            has_token_source = (
+                isinstance(auth.get("token_source"), str) and auth["token_source"].strip()
+            )
+            validation_endpoint = _validation_endpoint_for(auth)
 
-            if not has_generator and not has_endpoint:
-                # Legacy token_source or inline token -- skip runtime acquisition.
+            if (has_inline_token or has_token_source or has_endpoint) and validation_endpoint is None:
+                errors.append(
+                    f"[{site_name}] bearer_token_unvalidated for {field}: "
+                    "validation_endpoint is required for inline, token_source, and token_endpoint auth"
+                )
+                continue
+
+            if not (has_generator or has_endpoint or has_inline_token or has_token_source):
+                errors.append(
+                    f"[{site_name}] failed to acquire {field} token: bearer_token config has no usable token source"
+                )
                 continue
 
             ck = _cache_key(site_url, auth)
             cached = _RUN_TOKEN_CACHE.get(ck)
             if cached:
+                if not validate_token(
+                    cached,
+                    auth,
+                    site_url,
+                    validation_endpoint=validation_endpoint,
+                ):
+                    errors.append(
+                        f"[{site_name}] bearer_token_unvalidated for {field}: cached token failed live validation"
+                    )
+                    _RUN_TOKEN_CACHE.pop(ck, None)
+                    continue
                 _inject_token(instance, field, cached)
                 continue
 
@@ -360,6 +405,17 @@ def acquire_tokens_for_instances(
                 token = acquire_token(auth, site_url)
             except Exception as exc:
                 errors.append(f"[{site_name}] failed to acquire {field} token: {exc}")
+                continue
+
+            if not validate_token(
+                token,
+                auth,
+                site_url,
+                validation_endpoint=validation_endpoint,
+            ):
+                errors.append(
+                    f"[{site_name}] bearer_token_unvalidated for {field}: acquired token failed live validation"
+                )
                 continue
 
             _RUN_TOKEN_CACHE[ck] = token

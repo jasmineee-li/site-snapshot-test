@@ -822,6 +822,25 @@ def test_main_resume_installs_proxy_after_restoring_saved_instances(monkeypatch,
     assert str(captured["instances"]) == str(Path("/tmp/instances.json").resolve())
 
 
+def test_main_phase_rejects_invalid_verification_proxy(monkeypatch, tmp_path, capsys):
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {"site_url": "http://shopping.test:7770"},
+                ],
+                "verification_proxy": {"token": "tok", "port_offset": "bad"},
+            }
+        )
+    )
+
+    rc = worldsim_main.main(["phase", "3", "--instances", str(instances_path)])
+
+    assert rc == 2
+    assert "verification_proxy_invalid" in capsys.readouterr().err
+
+
 # ── Per-task resume (load_completed_results) ────────────────────────────
 
 

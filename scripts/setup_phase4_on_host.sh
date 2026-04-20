@@ -93,9 +93,7 @@ uv sync --locked
 log "step 2: playwright chromium + system libs"
 uv run python -m playwright install chromium
 if [[ "$(uname -s)" == "Linux" ]]; then
-    sudo "$(command -v uv)" run python -m playwright install-deps chromium || {
-        substep "WARN: playwright install-deps failed; ensure libatk-1.0 et al. are present"
-    }
+    sudo "$(command -v uv)" run python -m playwright install-deps chromium
 else
     substep "non-Linux host: skipping install-deps (macOS / WSL have system libs bundled)"
 fi

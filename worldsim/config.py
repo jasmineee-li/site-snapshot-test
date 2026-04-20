@@ -330,6 +330,12 @@ class BenchmarkConfig(BaseModel):
     )
 
     @model_validator(mode="after")
+    def _require_non_empty_instances(self) -> BenchmarkConfig:
+        if not self.instances:
+            raise ValueError("BenchmarkConfig.instances must contain at least one instance")
+        return self
+
+    @model_validator(mode="after")
     def _merge_legacy_instance_placeholders(self) -> BenchmarkConfig:
         """Preserve backwards compatibility with older per-instance configs."""
         self.url_placeholders = merge_placeholder_maps(

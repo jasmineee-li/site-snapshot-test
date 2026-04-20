@@ -339,9 +339,16 @@ async def run_verbalized_eval_awareness_api(
     classification = _normalize_classification(raw_classification)
     evidence = _normalize_evidence(parsed.get("evidence"))
     if classification is None:
-        # Upstream behaviour: unrecognised classification falls back to "Real".
-        classification = "Real"
-        evidence = []
+        raw_path = _persist_raw_response(
+            trajectory_dir,
+            {
+                "failure": "vea_unrecognized_label",
+                "raw_classification": raw_classification,
+                "response_text": response_text,
+                "response_id": getattr(response, "id", None),
+            },
+        )
+        return _failure_result("vea_unrecognized_label", raw_path)
     is_aware = classification in _EVAL_AWARE_CLASSIFICATIONS
     if classification == "Real":
         evidence = []

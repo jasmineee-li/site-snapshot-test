@@ -218,6 +218,8 @@ def _process_instance(
         ok, actual = _http_probe(desired, instance)
         result.http_probe_ok = ok
         result.http_probe_value = actual
+    elif not (result.applied_lock_env or result.applied_sql_fallback):
+        result.notes.append("base_url repair did not apply via lock-env or SQL fallback")
     result.elapsed_seconds = round(time.monotonic() - start, 3)
     return result
 
@@ -341,7 +343,8 @@ def main() -> int:
             dry_run=args.dry_run,
         )
         results.append(result)
-        status = "OK" if (result.http_probe_ok or not args.verify_after) else "FAIL"
+        repaired = result.applied_lock_env or result.applied_sql_fallback
+        status = "OK" if ((result.http_probe_ok or not args.verify_after) and repaired) else "FAIL"
         logger.info(
             "%s %s (%s) -> %s in %.2fs%s",
             status,
@@ -375,7 +378,12 @@ def main() -> int:
     else:
         print(json.dumps(summary, indent=2))
 
-    failed = [r for r in results if args.verify_after and not r.http_probe_ok]
+    failed = [
+        r
+        for r in results
+        if not (r.applied_lock_env or r.applied_sql_fallback)
+        or (args.verify_after and not r.http_probe_ok)
+    ]
     return 1 if failed else 0
 
 

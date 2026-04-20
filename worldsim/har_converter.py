@@ -9,14 +9,18 @@ raises ``"Unknown trace format"``; feeding ``[]`` raises ``"Trace
 content list is empty"``. Both cause the evaluator to short-circuit
 before any evaluator runs, silently zeroing every score.
 
-This module centralizes the conversion + placeholder insertion so the
-live scoring path, the rescore CLI, and the on-disk ``network.har``
-artifact all emit the same HAR shape.
+This module centralizes the conversion logic for runtime scoring and the
+placeholder insertion used only by the rescore CLI's AgentResponse-only
+compatibility path.
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+
+class NetworkTraceUnavailableError(RuntimeError):
+    """Raised when runtime evaluation has no usable network trace evidence."""
 
 
 def _headers_to_har(headers: Any) -> list[dict[str, str]]:
@@ -202,16 +206,35 @@ def minimal_har_placeholder_entry() -> dict[str, Any]:
     }
 
 
+def strict_runtime_har_trace(
+    network_trace: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Normalize runtime trace evidence into HAR entries or fail closed.
+
+    Accepts either HAR entries (already contain ``request`` and
+    ``response``) or flat ``_NetworkTraceRecorder`` events. Raises when
+    runtime evaluation has no usable network evidence.
+    """
+    if not network_trace:
+        raise NetworkTraceUnavailableError("network_trace_unavailable: trace is missing or empty")
+    first = network_trace[0]
+    if isinstance(first, dict) and "request" in first and "response" in first:
+        entries = list(network_trace)
+        if not entries:
+            raise NetworkTraceUnavailableError("network_trace_unavailable: HAR trace is empty")
+        return entries
+    converted = flat_events_to_har_entries(network_trace)
+    if not converted:
+        raise NetworkTraceUnavailableError(
+            "network_trace_unavailable: trace did not contain any valid network events"
+        )
+    return converted
+
+
 def ensure_har_trace(
     network_trace: list[dict[str, Any]] | None,
 ) -> list[dict[str, Any]]:
-    """Normalize an input trace into a non-empty HAR entry list.
-
-    Accepts either HAR entries (already contain ``request`` and
-    ``response``) or flat ``_NetworkTraceRecorder`` events. Returns a
-    list guaranteed to be non-empty so the vendor parser does not
-    reject it.
-    """
+    """Rescore-only helper that guarantees a non-empty HAR trace."""
     if not network_trace:
         return [minimal_har_placeholder_entry()]
     first = network_trace[0]

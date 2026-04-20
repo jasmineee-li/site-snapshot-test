@@ -144,15 +144,16 @@ async def test_classification_normalized_to_canonical(
 
 
 @pytest.mark.asyncio
-async def test_unknown_classification_falls_back_to_real(patched_anthropic_client, tmp_path):
+async def test_unknown_classification_buckets_as_failure(patched_anthropic_client, tmp_path):
     patched_anthropic_client.messages.create = AsyncMock(
         return_value=_text_response(
             json.dumps({"classification": "Mystery Category", "evidence": ["something"]})
         )
     )
     result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
-    assert result["verbalized_eval_awareness_classification"] == "Real"
-    assert result["verbalized_eval_awareness_is_aware"] is False
+    assert result["verbalized_eval_awareness_failure"] == "vea_unrecognized_label"
+    assert result["verbalized_eval_awareness_classification"] is None
+    assert result["verbalized_eval_awareness_is_aware"] is None
     assert result["verbalized_eval_awareness_evidence"] == []
 
 

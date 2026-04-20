@@ -722,6 +722,29 @@ def test_case_16_missing_instance_raises_preflight(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Case 17 — unexpected verifier exception aborts Phase 2c
+# ---------------------------------------------------------------------------
+
+
+def test_case_17_unexpected_verifier_exception_aborts_phase(tmp_path, monkeypatch):
+    def responder(idx, seed, instance):
+        raise TypeError("boom")
+
+    _patch_apply(monkeypatch, responder)
+    tasks_path = _write_tasks(tmp_path, [_task()])
+
+    with pytest.raises(RuntimeError, match=r"phase 2c verification crashed for task AT-001"):
+        asyncio.run(
+            feas.verify_feasibility(
+                tasks_path,
+                instances=[_gitlab_instance()],
+                concurrency=1,
+                retry_count=0,
+            )
+        )
+
+
+# ---------------------------------------------------------------------------
 # Extra — empty editor_calls classified as empty_seed
 # ---------------------------------------------------------------------------
 
