@@ -99,10 +99,10 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 3 — pvpo-chrome container (issue #15)
+# Step 3 — pvpo-chrome containers (issue #15)
 # ---------------------------------------------------------------------------
 if [[ "$SKIP_PVPO_CONTAINER" -eq 0 ]]; then
-    log "step 3: pvpo-chrome container"
+    log "step 3: pvpo-chrome containers"
     DOCKERFILE="$REPO_ROOT/worldsim/docker/chrome-headless-shell.Dockerfile"
     STAMP_FILE="$REPO_ROOT/.pvpo_docker_build_stamp"
     if ! command -v docker >/dev/null 2>&1; then
@@ -128,24 +128,61 @@ if [[ "$SKIP_PVPO_CONTAINER" -eq 0 ]]; then
     else
         substep "Dockerfile unchanged; skipping rebuild"
     fi
-    if ! docker ps --filter name=pvpo-chrome --format '{{.Names}}' | grep -q '^pvpo-chrome$'; then
-        # Remove any stopped container with the same name, then start fresh.
-        docker rm -f pvpo-chrome >/dev/null 2>&1 || true
-        docker run -d --name pvpo-chrome --restart unless-stopped \
-            -p 127.0.0.1:9222:9222 worldsim/chrome-headless-shell:latest
+    if [[ ! -f "$REPO_ROOT/$INSTANCES" ]]; then
+        echo "ERROR: instances file not found: $INSTANCES" >&2
+        exit 2
     fi
-    substep "waiting for CDP endpoint at 127.0.0.1:9222"
-    deadline=$((SECONDS + 30))
-    until curl -fsS http://127.0.0.1:9222/json/version >/dev/null 2>&1; do
-        if (( SECONDS > deadline )); then
-            echo "ERROR: pvpo-chrome CDP endpoint did not respond within 30s" >&2
-            docker logs pvpo-chrome | tail -40 >&2 || true
-            exit 1
+    mapfile -t PVPO_PORTS < <(
+        uv run python - "$REPO_ROOT/$INSTANCES" <<'PY'
+import json
+import sys
+from urllib.parse import urlparse
+
+instances_path = sys.argv[1]
+with open(instances_path, encoding="utf-8") as handle:
+    payload = json.load(handle)
+
+ports: set[int] = set()
+for instance in payload.get("instances", []):
+    raw_url = str(instance.get("pvpo_cdp_url") or "").strip()
+    if not raw_url:
+        continue
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").strip().lower()
+    if host not in {"127.0.0.1", "localhost", "::1"}:
+        raise SystemExit(
+            f"setup_phase4_on_host.sh only manages loopback pvpo_cdp_url entries; got {raw_url!r}"
+        )
+    if parsed.port is None:
+        raise SystemExit(f"pvpo_cdp_url must include an explicit port: {raw_url!r}")
+    ports.add(parsed.port)
+
+if not ports:
+    raise SystemExit("instances file has no pvpo_cdp_url entries; populate one endpoint per instance")
+
+for port in sorted(ports):
+    print(port)
+PY
+    )
+    for port in "${PVPO_PORTS[@]}"; do
+        name="pvpo-chrome-$port"
+        if ! docker ps --filter "name=^/${name}$" --format '{{.Names}}' | grep -q "^${name}$"; then
+            docker rm -f "$name" >/dev/null 2>&1 || true
+            docker run -d --name "$name" --restart unless-stopped \
+                -p "127.0.0.1:${port}:9222" worldsim/chrome-headless-shell:latest
         fi
-        sleep 0.5
+        substep "waiting for CDP endpoint at 127.0.0.1:${port}"
+        deadline=$((SECONDS + 30))
+        until curl -fsS "http://127.0.0.1:${port}/json/version" >/dev/null 2>&1; do
+            if (( SECONDS > deadline )); then
+                echo "ERROR: pvpo-chrome CDP endpoint on port ${port} did not respond within 30s" >&2
+                docker logs "$name" | tail -40 >&2 || true
+                exit 1
+            fi
+            sleep 0.5
+        done
+        substep "pvpo-chrome ready at 127.0.0.1:${port}"
     done
-    substep "pvpo-chrome ready at 127.0.0.1:9222"
-    substep "export WORLDSIM_PVPO_CDP_URL=http://127.0.0.1:9222 before launching Phase 4"
 fi
 
 # ---------------------------------------------------------------------------
@@ -232,4 +269,4 @@ fi
 export WORLDSIM_PREFLIGHT_INSTANCES="$REPO_ROOT/$INSTANCES"
 uv run pytest "${PYTEST_ARGS[@]}"
 
-log "Phase 4 setup complete. Next: export WORLDSIM_PVPO_CDP_URL=http://127.0.0.1:9222 && uv run python -m worldsim.main phase 4 --benchmark $INSTANCES --resume"
+log "Phase 4 setup complete. Next: uv run python -m worldsim.main phase 4 --instances $INSTANCES --resume"

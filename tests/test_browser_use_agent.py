@@ -109,15 +109,18 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ):
     cdp_session = object()
-    page = object()
+    page = SimpleNamespace()
 
     class BrowserUseLikeSession:
         async def get_current_page(self):
             return page
 
-        async def get_or_create_cdp_session(self):
+        async def get_or_create_cdp_session(self, *, target_id=None, focus=False):
+            assert target_id == "target-1"
+            assert focus is False
             return cdp_session
 
+    page._target_id = "target-1"
     capture = StepCapture(
         screenshot_png=b"png-bytes",
         visibility_vec=[{"i": 0, "char": "A", "layoutVisible": True, "liveRect": {"x": 1, "y": 2, "w": 3, "h": 4}}],
@@ -192,7 +195,6 @@ async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkey
 
     class FakeSession:
         get_pages = AsyncMock(return_value=[page_one, page_two])
-        get_current_page = AsyncMock(return_value=page_one)
         get_or_create_cdp_session = AsyncMock(side_effect=[cdp_session, cdp_session])
         clear_cookies = AsyncMock()
         close_page = AsyncMock()
@@ -207,7 +209,6 @@ async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkey
     await agent._cleanup_external_cdp_state(session)
 
     session.get_pages.assert_awaited_once()
-    session.get_current_page.assert_not_called()
     assert session.get_or_create_cdp_session.await_args_list == [
         call(target_id="target-1", focus=False),
         call(target_id="target-2", focus=False),
@@ -223,3 +224,58 @@ async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkey
         call(page_one),
         call(page_two),
     ]
+
+
+@pytest.mark.asyncio
+async def test_reset_remote_browser_for_task_closes_old_pages_and_creates_fresh_target():
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    old_one = SimpleNamespace(_target_id="old-1")
+    old_two = SimpleNamespace(_target_id="old-2", goto=AsyncMock())
+    cdp_session = object()
+
+    class FakeSession:
+        get_pages = AsyncMock(return_value=[old_one, old_two])
+        get_current_page = AsyncMock(return_value=old_two)
+        get_or_create_cdp_session = AsyncMock(side_effect=[cdp_session, cdp_session, cdp_session])
+        clear_cookies = AsyncMock()
+        close_page = AsyncMock()
+        new_page = AsyncMock()
+        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock())))
+
+    session = FakeSession()
+    await agent._reset_remote_browser_for_task(session)
+
+    old_two.goto.assert_awaited_once_with("about:blank")
+    session.close_page.assert_awaited_once_with(old_one)
+    session.clear_cookies.assert_awaited_once()
+    session.new_page.assert_not_awaited()
+    session.get_or_create_cdp_session.assert_any_await(target_id="old-2", focus=True)
+    assert agent._owned_target_ids == {"old-2"}
+    assert agent._primary_target_id == "old-2"
+
+
+@pytest.mark.asyncio
+async def test_reset_remote_browser_for_task_closes_failed_retained_page_before_replacing():
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    broken_page = SimpleNamespace(_target_id="old-1", goto=AsyncMock(side_effect=RuntimeError("boom")))
+    fresh = SimpleNamespace(_target_id="fresh-1")
+    cdp_session = object()
+
+    class FakeSession:
+        get_pages = AsyncMock(return_value=[broken_page])
+        get_or_create_cdp_session = AsyncMock(return_value=cdp_session)
+        clear_cookies = AsyncMock()
+        close_page = AsyncMock()
+        new_page = AsyncMock(return_value=fresh)
+        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock())))
+
+    session = FakeSession()
+    await agent._reset_remote_browser_for_task(session)
+
+    session.close_page.assert_awaited_once_with(broken_page)
+    session.new_page.assert_awaited_once_with("about:blank")
+    session.get_or_create_cdp_session.assert_any_await(target_id="fresh-1", focus=True)
+    assert agent._owned_target_ids == {"fresh-1"}
+    assert agent._primary_target_id == "fresh-1"

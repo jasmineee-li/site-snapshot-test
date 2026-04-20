@@ -23,6 +23,7 @@ def instance_identity(instance: Any) -> dict[str, Any]:
         "replica_index": getattr(instance, "replica_index", None),
         "replica_name": getattr(instance, "replica_name", None),
         "reset_endpoint": getattr(instance, "reset_endpoint", None),
+        "pvpo_cdp_url": getattr(instance, "pvpo_cdp_url", None),
         "db_connection": getattr(instance, "db_connection", None),
         "url_placeholders": getattr(instance, "url_placeholders", None),
         "auth": getattr(instance, "auth", None),

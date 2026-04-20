@@ -83,6 +83,7 @@ still allowing canonical `webarena_verified` evaluation. If
      - `mysql://magentouser:MyPassword@HOST:3306/magentodb` for `shopping` / `shopping_admin`
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
      - `postgresql://openstreetmap:openstreetmap@HOST:5433/openstreetmap` for `map`
+   - `pvpo_cdp_url` is required for shipping Phase 4 runs. Each execution instance needs its own dedicated local `chrome-headless-shell` CDP endpoint (for example `http://127.0.0.1:9222`, `http://127.0.0.1:9223`, ...). Do not point multiple workers at one shared browser.
 
 Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` to skip 2c for fast dev iteration; Phase 4 will run in grace mode and admit the unverified tasks with a warning.
 

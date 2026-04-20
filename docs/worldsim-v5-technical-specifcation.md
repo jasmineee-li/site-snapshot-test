@@ -25,6 +25,7 @@ We do not manage benchmark environment lifecycles. Following the same model as D
       "site_name": "shopping",
       "site_url": "http://webarena-host:7770",
       "reset_endpoint": "http://webarena-host:7771/init",
+      "pvpo_cdp_url": "http://127.0.0.1:9222",
       "db_connection": "mysql://user:pass@webarena-host:3306/magento",  // optional, for reward evaluation only
       "auth": {
         "type": "http_headers",
@@ -50,7 +51,7 @@ We do not manage benchmark environment lifecycles. Following the same model as D
 
 The `url_placeholders` map resolves benchmark-specific URL tokens (e.g., `__SHOPPING__`, `__GITLAB__`) that appear in task `start_urls` and `intent` fields. The pipeline substitutes these before passing tasks to the agent. For WebArena Verified, the six placeholder keys correspond to the six sites listed in the Config Format section.
 
-For parallel evaluation, the user provides multiple instances of the same site (on different ports). We distribute workers across them. Setting up these instances is the user's responsibility, following the benchmark's own documentation.
+For parallel evaluation, the user provides multiple instances of the same site (on different ports). We distribute workers across them. Setting up these instances is the user's responsibility, following the benchmark's own documentation. For Phase 4 rigor runs, each execution instance also needs its own dedicated `pvpo_cdp_url`; workers must not share one remote browser endpoint.
 
 Three instances-config variants are checked in at the repo root and selected via `--instances`:
 

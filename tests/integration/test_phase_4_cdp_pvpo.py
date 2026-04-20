@@ -2,8 +2,9 @@
 
 This test covers the runtime path that previously broke in production:
 BrowserUseAgent creates a real Browser-Use ``BrowserSession`` connected to
-the external chrome-headless-shell container over CDP, a stub Agent drives
-one page load, and the PVPO callback must emit deterministic artifacts.
+an instance-bound external chrome-headless-shell container over CDP, a
+stub Agent drives one page load, and the PVPO callback must emit
+deterministic artifacts.
 """
 
 from __future__ import annotations
@@ -135,8 +136,6 @@ async def test_browser_use_agent_emits_pvpo_artifacts_over_cdp(
                 return self.history
 
         monkeypatch.setattr(browser_use, "Agent", _FakeAgent)
-        monkeypatch.setenv("WORLDSIM_PVPO_CDP_URL", f"http://{CDP_HOST}:{CDP_PORT}")
-
         runner = BrowserUseAgent(llm=object(), timeout=60)
         result = await runner.run(
             task="Open the fixture page",
@@ -144,6 +143,7 @@ async def test_browser_use_agent_emits_pvpo_artifacts_over_cdp(
             task_dir=tmp_path / "task",
             start_urls=[url],
             payload_text=payload,
+            pvpo_cdp_url=f"http://{CDP_HOST}:{CDP_PORT}",
         )
 
     assert result.status == "success"

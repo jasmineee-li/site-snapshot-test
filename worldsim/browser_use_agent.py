@@ -11,7 +11,6 @@ artifacts such as network traces stay isolated per task directory.
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import json
 import logging
 import os
@@ -27,6 +26,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import has_configured_agent_auth
+from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,6 @@ _SENSITIVE_HEADER_SUBSTRINGS = (
     "key",
 )
 _PHASE_0D_SITE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-_REMOTE_PVPO_CDP_OVERRIDE_ENV = "WORLDSIM_ALLOW_REMOTE_PVPO_CDP_URL"
 _CDP_VIEWPORT_JS = """
 (() => ({
   w: Math.max(0, Number(window.innerWidth || 0)),
@@ -96,6 +95,7 @@ class AgentRunner(Protocol):
         benchmark_root: Path | None = None,
         task_site: str | None = None,
         payload_text: str | None = None,
+        pvpo_cdp_url: str | None = None,
     ) -> AgentResult: ...
 
     async def teardown(self) -> None: ...
@@ -125,13 +125,20 @@ class _NetworkTraceRecorder:
     Network domain per-page-session so Chrome emits the events.
     """
 
-    def __init__(self, browser_session: Any, task_dir: Path) -> None:
+    def __init__(
+        self,
+        browser_session: Any,
+        task_dir: Path,
+        *,
+        target_filter: set[str] | None = None,
+    ) -> None:
         self._browser_session = browser_session
         self._task_dir = Path(task_dir)
         self._client = getattr(browser_session, "cdp_client", None)
         self._recording = False
         self._poll_task: asyncio.Task | None = None
         self._enabled_targets: set[str] = set()
+        self._target_filter = set(target_filter or ())
         # Raw CDP entries keyed by requestId.
         self._requests: dict[str, dict[str, Any]] = {}
         # Top-frame navigation events for C1b URL matching + HAR pages[].
@@ -205,6 +212,8 @@ class _NetworkTraceRecorder:
         for target in session_manager.get_all_page_targets():
             target_id = getattr(target, "target_id", None)
             if not target_id or target_id in self._enabled_targets:
+                continue
+            if self._target_filter and target_id not in self._target_filter:
                 continue
 
             try:
@@ -646,53 +655,14 @@ def _phase_0d_fallback_path(task: dict[str, Any] | None) -> Path | None:
     return phase_0d_artifact_path(site.strip())
 
 
-def _host_is_loopback(host: str | None) -> bool:
-    if not host:
-        return False
-    normalized = host.strip().lower()
-    if normalized in {"localhost", "::1", "[::1]"}:
-        return True
-    try:
-        return ipaddress.ip_address(normalized).is_loopback
-    except ValueError:
-        return False
-
-
 def _resolve_pvpo_cdp_url(raw_url: str) -> str:
     """Validate the optional external CDP endpoint for PVPO."""
-    url = raw_url.strip()
-    if not url:
-        return ""
-
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https", "ws", "wss"}:
-        raise ValueError(
-            f"WORLDSIM_PVPO_CDP_URL must use http/https/ws/wss, got {parsed.scheme!r}"
-        )
-    if not parsed.hostname:
-        raise ValueError("WORLDSIM_PVPO_CDP_URL must include a hostname")
-
-    if _host_is_loopback(parsed.hostname):
-        return url
-
-    if os.environ.get(_REMOTE_PVPO_CDP_OVERRIDE_ENV, "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }:
-        logger.warning(
-            "PVPO remote CDP endpoint override enabled via %s: %s",
-            _REMOTE_PVPO_CDP_OVERRIDE_ENV,
-            url,
-        )
-        return url
-
-    raise ValueError(
-        "WORLDSIM_PVPO_CDP_URL must point to a loopback CDP endpoint by default; "
-        f"got remote host {parsed.hostname!r}. Set {_REMOTE_PVPO_CDP_OVERRIDE_ENV}=1 "
-        "only if you intentionally trust that remote browser."
+    resolved = validate_pvpo_cdp_url(
+        raw_url,
+        field_name="WORLDSIM_PVPO_CDP_URL",
+        allow_empty=True,
     )
+    return resolved or ""
 
 
 def _origin_from_url(raw_url: str) -> str | None:
@@ -936,6 +906,9 @@ class BrowserUseAgent:
         self._session: Any = None
         self._pvpo_cdp_url: str = ""
         self._task_origins: set[str] = set()
+        self._owned_target_ids: set[str] = set()
+        self._primary_target_id: str | None = None
+        self._browser_runtime: dict[str, Any] = {}
         # Surface the configured model slug at construction. If the run 404s
         # mid-task, this is the first thing to check against the provider's
         # currently-served model list. An allowlist would rot faster than
@@ -948,6 +921,11 @@ class BrowserUseAgent:
         # Browser sessions are task-scoped so trajectory artifacts remain
         # isolated per task directory.
         self._session = None
+        self._pvpo_cdp_url = ""
+        self._task_origins = set()
+        self._owned_target_ids = set()
+        self._primary_target_id = None
+        self._browser_runtime = {}
 
     async def run(
         self,
@@ -961,12 +939,18 @@ class BrowserUseAgent:
         benchmark_root: Path | None = None,
         task_site: str | None = None,
         payload_text: str | None = None,
+        pvpo_cdp_url: str | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
 
         task_dir = Path(task_dir)
         task_dir.mkdir(parents=True, exist_ok=True)
-        self._task_origins = {origin for origin in (_origin_from_url(url) for url in (start_urls or [])) if origin}
+        self._task_origins = {
+            origin for origin in (_origin_from_url(url) for url in (start_urls or [])) if origin
+        }
+        self._owned_target_ids = set()
+        self._primary_target_id = None
+        self._browser_runtime = {}
 
         # Resolve the declared auth_mechanism into BrowserSession kwargs +
         # deferred post-start actions. Errors here surface before we spin up a
@@ -982,21 +966,18 @@ class BrowserUseAgent:
             benchmark_root=benchmark_root,
         )
 
-        # PVPO integration: when WORLDSIM_PVPO_CDP_URL is set, Browser-Use
-        # connects to an external chrome-headless-shell container over CDP.
-        # That container's CMD carries the PVPO launch flags
-        # (--enable-begin-frame-control et al.); applying those flags to a
-        # locally-launched Chromium hangs page.goto() because Browser-Use's
-        # navigation model never calls HeadlessExperimental.beginFrame.
-        pvpo_cdp_url = _resolve_pvpo_cdp_url(os.environ.get("WORLDSIM_PVPO_CDP_URL", ""))
-        self._pvpo_cdp_url = pvpo_cdp_url
+        # PVPO integration: Phase 4 binds each worker to its own chrome-
+        # headless-shell endpoint via the instance config. The shared global
+        # WORLDSIM_PVPO_CDP_URL path is intentionally removed.
+        resolved_pvpo_cdp_url = _resolve_pvpo_cdp_url(pvpo_cdp_url or "")
+        self._pvpo_cdp_url = resolved_pvpo_cdp_url
         session_kwargs: dict[str, Any] = {
             "headless": self.headless,
             "keep_alive": False,
             **session_auth_kwargs,
         }
-        if pvpo_cdp_url:
-            session_kwargs["cdp_url"] = pvpo_cdp_url
+        if resolved_pvpo_cdp_url:
+            session_kwargs["cdp_url"] = resolved_pvpo_cdp_url
         else:
             session_kwargs["args"] = [
                 "--disable-gpu",
@@ -1027,9 +1008,13 @@ class BrowserUseAgent:
         if last_exc is not None:
             raise last_exc
 
+        if self._pvpo_cdp_url:
+            await self._reset_remote_browser_for_task(self._session)
+
         # Run any deferred auth actions (e.g. future form_login flow) after
-        # session.start() succeeds, before the Agent is constructed. No-op for
-        # the first batch (storage_state / http_basic / none).
+        # session.start() succeeds and after any remote-browser reset has
+        # produced a fresh task-owned target. No-op for the first batch
+        # (storage_state / http_basic / none).
         for action in deferred_auth_actions:
             await action(self._session)
 
@@ -1083,6 +1068,12 @@ class BrowserUseAgent:
         finally:
             network_trace = await network_recorder.stop()
             self._task_origins.update(_origins_from_network_trace(network_trace))
+            self._browser_runtime.update(
+                {
+                    "network_trace_entries": len(network_trace),
+                    "observed_origins": sorted(self._task_origins),
+                }
+            )
             history = history or (getattr(agent, "history", None) if agent is not None else None)
             _write_agent_artifacts(
                 task_dir=task_dir,
@@ -1090,6 +1081,7 @@ class BrowserUseAgent:
                 status=status,
                 extra_errors=extra_errors,
             )
+            _write_browser_runtime_artifact(task_dir, self._browser_runtime)
             if self._session is not None:
                 # Clean up temp profile dir before killing to avoid /tmp accumulation
                 self._cleanup_temp_profile(self._session)
@@ -1101,6 +1093,9 @@ class BrowserUseAgent:
                 self._session = None
                 self._pvpo_cdp_url = ""
                 self._task_origins = set()
+                self._owned_target_ids = set()
+                self._primary_target_id = None
+                self._browser_runtime = {}
 
         steps, is_done, final_result, history_errors = _extract_history_state(history)
         return AgentResult(
@@ -1125,31 +1120,95 @@ class BrowserUseAgent:
             self._session = None
             self._pvpo_cdp_url = ""
             self._task_origins = set()
+            self._owned_target_ids = set()
+            self._primary_target_id = None
+            self._browser_runtime = {}
+
+    async def _reset_remote_browser_for_task(self, session: Any) -> None:
+        """Reset a worker-owned remote browser to one fresh blank target."""
+        pages = await _session_pages(session)
+        initial_targets = sorted(
+            target_id for target_id in (_target_id_for_page(page) for page in pages) if target_id
+        )
+        focused_page = None
+        get_current_page = getattr(session, "get_current_page", None)
+        if callable(get_current_page):
+            try:
+                focused_page = await get_current_page()
+            except Exception as exc:
+                logger.debug("PVPO reset: could not resolve focused page: %s", exc)
+        focused_target_id = _target_id_for_page(focused_page) if focused_page is not None else None
+
+        retained_page = None
+        extra_pages: list[Any] = []
+        for page in pages:
+            target_id = _target_id_for_page(page)
+            if retained_page is None and (
+                focused_target_id is None or target_id == focused_target_id
+            ):
+                retained_page = page
+                continue
+            extra_pages.append(page)
+        if retained_page is None and extra_pages:
+            retained_page = extra_pages.pop(0)
+        if pages:
+            await self._clear_page_storage(session, pages=pages, origins=set())
+            if retained_page is not None:
+                try:
+                    await retained_page.goto("about:blank")
+                except Exception as exc:
+                    logger.debug("PVPO reset: could not reuse existing page: %s", exc)
+                    try:
+                        await self._close_pages(session, [retained_page])
+                    except Exception:
+                        logger.debug("PVPO reset: could not close failed retained page", exc_info=True)
+                    retained_page = None
+            if extra_pages:
+                await self._close_pages(session, extra_pages)
+
+        await self._clear_browser_cookies(session)
+
+        if retained_page is None:
+            retained_page = await session.new_page("about:blank")
+        new_target_id = _target_id_for_page(retained_page)
+        if not new_target_id:
+            raise RuntimeError("remote PVPO browser reset created a page without a target id")
+        await session.get_or_create_cdp_session(target_id=new_target_id, focus=True)
+        self._owned_target_ids = {new_target_id}
+        self._primary_target_id = new_target_id
+        self._browser_runtime.update(
+            {
+                "pvpo_cdp_url": self._pvpo_cdp_url,
+                "reset_initial_targets": initial_targets,
+                "reset_closed_targets": len(extra_pages),
+                "primary_target_id": new_target_id,
+            }
+        )
 
     async def _cleanup_external_cdp_state(self, session: Any) -> None:
-        """Clean up shared CDP browser state between task-scoped runs."""
+        """Clean up worker-owned remote browser state between task-scoped runs."""
         if not self._pvpo_cdp_url:
             return
 
+        pages = await _session_pages(session)
+        closed_target_ids = sorted(
+            target_id for target_id in (_target_id_for_page(page) for page in pages) if target_id
+        )
+        await self._clear_page_storage(session, pages=pages, origins=set(self._task_origins))
+        await self._clear_browser_cookies(session)
+        await self._close_pages(session, pages)
+        self._browser_runtime.update(
+            {
+                "cleanup_closed_targets": len(closed_target_ids),
+                "cleanup_target_ids": closed_target_ids,
+                "cleanup_origins": sorted(self._task_origins),
+            }
+        )
+
+    async def _clear_page_storage(self, session: Any, *, pages: list[Any], origins: set[str]) -> None:
         from worldsim.phase_4.pvpo_cdp import runtime_evaluate
 
-        pages: list[Any] = []
-        get_pages = getattr(session, "get_pages", None)
-        if callable(get_pages):
-            try:
-                pages = list(await get_pages())
-            except Exception as exc:
-                logger.debug("PVPO cleanup: could not enumerate pages: %s", exc)
-        if not pages:
-            try:
-                current_page = await session.get_current_page()
-            except Exception as exc:
-                logger.debug("PVPO cleanup: current page unavailable: %s", exc)
-            else:
-                if current_page is not None:
-                    pages = [current_page]
-
-        origins = set(self._task_origins)
+        resolved_origins = set(origins)
         for page in pages:
             get_url = getattr(page, "get_url", None)
             if callable(get_url):
@@ -1159,13 +1218,13 @@ class BrowserUseAgent:
                     logger.debug("PVPO cleanup: could not read page URL: %s", exc)
                 else:
                     if origin:
-                        origins.add(origin)
+                        resolved_origins.add(origin)
 
         cdp_client = getattr(session, "cdp_client", None)
         storage_sender = getattr(getattr(cdp_client, "send", None), "Storage", None)
         clear_data_for_origin = getattr(storage_sender, "clearDataForOrigin", None)
         if callable(clear_data_for_origin):
-            for origin in sorted(origins):
+            for origin in sorted(resolved_origins):
                 try:
                     await clear_data_for_origin(
                         params={
@@ -1178,8 +1237,8 @@ class BrowserUseAgent:
 
         seen_target_ids: set[str] = set()
         for page in pages:
-            target_id = getattr(page, "_target_id", None)
-            if not isinstance(target_id, str) or not target_id or target_id in seen_target_ids:
+            target_id = _target_id_for_page(page)
+            if not target_id or target_id in seen_target_ids:
                 continue
             seen_target_ids.add(target_id)
             try:
@@ -1192,6 +1251,7 @@ class BrowserUseAgent:
                     exc,
                 )
 
+    async def _clear_browser_cookies(self, session: Any) -> None:
         clear_cookies = getattr(session, "clear_cookies", None)
         if callable(clear_cookies):
             try:
@@ -1199,13 +1259,15 @@ class BrowserUseAgent:
             except Exception as exc:
                 logger.debug("PVPO cleanup: could not clear cookies: %s", exc)
 
+    async def _close_pages(self, session: Any, pages: list[Any]) -> None:
         close_page = getattr(session, "close_page", None)
-        if callable(close_page):
-            for page in pages:
-                try:
-                    await close_page(page)
-                except Exception as exc:
-                    logger.debug("PVPO cleanup: could not close page: %s", exc)
+        if not callable(close_page):
+            return
+        for page in pages:
+            try:
+                await close_page(page)
+            except Exception as exc:
+                logger.debug("PVPO cleanup: could not close page: %s", exc)
 
     @staticmethod
     def _cleanup_temp_profile(session: Any) -> None:
@@ -1245,6 +1307,52 @@ def _build_initial_actions(start_urls: list[str]) -> list[dict[str, dict[str, An
             }
         )
     return actions or None
+
+
+def _target_id_for_page(page: Any) -> str | None:
+    target_id = getattr(page, "_target_id", None)
+    if isinstance(target_id, str) and target_id:
+        return target_id
+    return None
+
+
+async def _session_pages(session: Any, *, target_filter: set[str] | None = None) -> list[Any]:
+    pages: list[Any] = []
+    get_pages = getattr(session, "get_pages", None)
+    if callable(get_pages):
+        try:
+            pages = list(await get_pages())
+        except Exception as exc:
+            logger.debug("PVPO page enumeration failed: %s", exc)
+    if not pages:
+        try:
+            current_page = await session.get_current_page()
+        except Exception as exc:
+            logger.debug("PVPO current page unavailable: %s", exc)
+        else:
+            if current_page is not None:
+                pages = [current_page]
+    if not target_filter:
+        return pages
+    filtered: list[Any] = []
+    for page in pages:
+        target_id = _target_id_for_page(page)
+        if target_id and target_id in target_filter:
+            filtered.append(page)
+    return filtered
+
+
+def _write_browser_runtime_artifact(task_dir: Path, runtime_payload: dict[str, Any]) -> None:
+    """Persist browser runtime metadata for debugging concurrency failures."""
+    if not runtime_payload:
+        return
+    try:
+        write_json_atomic(
+            task_dir / "browser_runtime.json",
+            runtime_payload,
+        )
+    except Exception as exc:
+        logger.warning("Failed to write browser_runtime.json for %s: %s", task_dir, exc)
 
 
 def _write_agent_artifacts(
@@ -1386,7 +1494,7 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
     # stylesheet on every step. No reference-container state and no anchor-
     # attribute lookup after the ink-occupancy + content-match cutover —
     # the JS query walks text nodes for the payload substring directly.
-    pages_prepared: set[int] = set()
+    pages_prepared: set[str] = set()
     warned_issue_classes: set[str] = set()
     capture_summary = initial_capture_summary(payload_present=True)
     save_capture_summary(task_dir, capture_summary)
@@ -1445,17 +1553,20 @@ def _make_pvpo_step_callback(session: Any, task_dir: Path, payload_text: str | N
             _record_issue("current_page_unavailable", step_idx, "Browser session has no current page")
             return
 
-        page_key = id(page)
+        target_id = _target_id_for_page(page)
+        if not target_id:
+            _record_issue("cdp_session_unavailable", step_idx, "current page has no target id")
+            return
         try:
-            cdp_session = await session.get_or_create_cdp_session()
+            cdp_session = await session.get_or_create_cdp_session(target_id=target_id, focus=False)
         except Exception as exc:  # pragma: no cover - CDP unavailable
             _record_issue("cdp_session_unavailable", step_idx, str(exc))
             return
 
         try:
-            if page_key not in pages_prepared:
+            if target_id not in pages_prepared:
                 await inject_animation_killer(page, cdp_session)
-                pages_prepared.add(page_key)
+                pages_prepared.add(target_id)
         except Exception as exc:
             _record_issue("animation_killer_failed", step_idx, str(exc))
 

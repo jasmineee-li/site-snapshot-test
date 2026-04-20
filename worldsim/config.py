@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import merge_placeholder_maps
+from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 _SEEDING_AUTH_TYPES = frozenset({"none", "http_headers", "bearer_token", "web_login"})
 _AGENT_AUTH_TYPES = frozenset({"none", "unknown", "storage_state", "http_basic", "http_headers"})
@@ -251,6 +252,11 @@ class BenchmarkInstance(BaseModel):
         description="Agent Playwright auth derived from instance config. Overrides "
         "Phase 0c's auth_mechanism for reliable, static auth injection.",
     )
+    pvpo_cdp_url: str | None = Field(
+        None,
+        description="Worker-exclusive chrome-headless-shell CDP endpoint used by "
+        "Phase 4 PVPO/browser execution, e.g. 'http://127.0.0.1:9222'.",
+    )
 
     @field_validator("db_connection")
     @classmethod
@@ -273,6 +279,15 @@ class BenchmarkInstance(BaseModel):
     @classmethod
     def _validate_agent_auth(cls, value: dict[str, Any] | None, info: Any) -> dict[str, Any] | None:
         return _validate_agent_auth_block(value, field_name=f"BenchmarkInstance.{info.field_name}")
+
+    @field_validator("pvpo_cdp_url")
+    @classmethod
+    def _validate_pvpo_cdp_url(cls, value: str | None) -> str | None:
+        return validate_pvpo_cdp_url(
+            value,
+            field_name="BenchmarkInstance.pvpo_cdp_url",
+            allow_empty=True,
+        )
 
 
 class VerificationProxy(BaseModel):

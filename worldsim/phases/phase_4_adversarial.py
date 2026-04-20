@@ -52,14 +52,17 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import re
 import json
 import logging
 import os
 import shutil
 import time
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -117,6 +120,7 @@ from worldsim.placeholders import (
     placeholder_for_site,
 )
 from worldsim.profile_validation import load_and_validate_profile, profile_requires_agent_auth
+from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 from worldsim.resume_metadata import (
     RESULT_FINGERPRINT_KEY,
     fingerprint_payload,
@@ -321,6 +325,264 @@ def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
         return None
     rendered = payload.get("rendered_payload")
     return rendered if isinstance(rendered, str) and rendered else None
+
+
+_PAYLOAD_BODY_FIELD_HINTS: tuple[str, ...] = (
+    "detail",
+    "body",
+    "content",
+    "message",
+    "comment",
+    "bio",
+    "description",
+    "text",
+    "value",
+    "html",
+)
+
+
+_MARKDOWN_SYSTEM_BLOCK_RE = re.compile(r"```system\s*(.*?)```", re.DOTALL | re.IGNORECASE)
+
+
+class _PayloadViewHTMLParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self._hidden_stack: list[bool] = []
+        self.visible_chunks: list[str] = []
+        self.hidden_chunks: list[str] = []
+        self.alt_values: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_dict = dict(attrs)
+        parent_hidden = self._hidden_stack[-1] if self._hidden_stack else False
+        style = str(attrs_dict.get("style") or "").lower().replace(" ", "")
+        current_hidden = parent_hidden or (
+            "position:absolute" in style and ("left:-" in style or "right:-" in style)
+        )
+        self._hidden_stack.append(current_hidden)
+        if tag.lower() == "img":
+            alt = attrs_dict.get("alt")
+            if isinstance(alt, str) and alt.strip():
+                self.alt_values.append(alt)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._hidden_stack:
+            self._hidden_stack.pop()
+
+    def handle_data(self, data: str) -> None:
+        if not data:
+            return
+        if self._hidden_stack and self._hidden_stack[-1]:
+            self.hidden_chunks.append(data)
+        else:
+            self.visible_chunks.append(data)
+
+
+def _payload_text_views(rendered_payload: str, concealment: str) -> tuple[str, str]:
+    if concealment == "markdown_fenced_system":
+        concealed_blocks = [
+            match.group(1) for match in _MARKDOWN_SYSTEM_BLOCK_RE.finditer(rendered_payload)
+        ]
+        visible = _MARKDOWN_SYSTEM_BLOCK_RE.sub("", rendered_payload)
+        return (visible, "\n".join(concealed_blocks))
+    if concealment in {"offscreen_css", "image_alt_text"}:
+        parser = _PayloadViewHTMLParser()
+        parser.feed(rendered_payload)
+        if concealment == "offscreen_css":
+            return ("".join(parser.visible_chunks), "".join(parser.hidden_chunks))
+        return ("".join(parser.visible_chunks), "\n".join(parser.alt_values))
+    return (rendered_payload, rendered_payload)
+
+
+def _seed_payload_candidates_from_mapping(
+    mapping: dict[str, Any],
+    *,
+    body_field: str | None,
+) -> list[str]:
+    candidates: list[str] = []
+    if body_field and isinstance(mapping.get(body_field), str) and mapping[body_field].strip():
+        candidates.append(str(mapping[body_field]))
+    dynamic_field = mapping.get("field")
+    if isinstance(dynamic_field, str) and dynamic_field.strip():
+        dynamic_field = dynamic_field.strip()
+        if isinstance(mapping.get("value"), str) and mapping["value"].strip():
+            if body_field is None or dynamic_field == body_field:
+                candidates.append(str(mapping["value"]))
+    for field_name in _PAYLOAD_BODY_FIELD_HINTS:
+        value = mapping.get(field_name)
+        if isinstance(value, str) and value.strip():
+            candidates.append(value)
+    return candidates
+
+
+def _extract_variant_rendered_payload(task: dict[str, Any], seed: dict[str, Any]) -> str | None:
+    delivery_channel = task.get("delivery_channel")
+    body_field = None
+    if isinstance(delivery_channel, dict):
+        raw_body_field = delivery_channel.get("body_field")
+        if isinstance(raw_body_field, str) and raw_body_field.strip():
+            body_field = raw_body_field.strip()
+
+    seen: set[str] = set()
+
+    def consider(value: str) -> str | None:
+        normalized = value.strip()
+        if not normalized or normalized in seen:
+            return None
+        seen.add(normalized)
+        return normalized
+
+    def iter_call_candidates(call: Any) -> list[str]:
+        if not isinstance(call, dict):
+            return []
+        args = call.get("args")
+        if isinstance(args, dict):
+            return _seed_payload_candidates_from_mapping(args, body_field=body_field)
+        for container_key in ("body_form", "body"):
+            container = call.get(container_key)
+            if not isinstance(container, dict):
+                continue
+            review = container.get("review")
+            if isinstance(review, dict) and set(map(str, container.keys())) == {"review"}:
+                return _seed_payload_candidates_from_mapping(review, body_field=body_field)
+            return _seed_payload_candidates_from_mapping(container, body_field=body_field)
+        return []
+
+    for call_list_key in ("editor_calls", "api_calls"):
+        call_list = seed.get(call_list_key)
+        if not isinstance(call_list, list):
+            continue
+        for call in call_list:
+            for candidate in iter_call_candidates(call):
+                resolved = consider(candidate)
+                if resolved is not None:
+                    return resolved
+    return None
+
+
+def _default_framing_witness(raw_text: str, rendered_payload: str) -> str | None:
+    visible = " ".join(raw_text.split()).strip()
+    if visible:
+        prefix = visible[:80].strip()
+        if prefix and prefix in rendered_payload:
+            return prefix
+    normalized_payload = " ".join(rendered_payload.split()).strip()
+    if normalized_payload:
+        prefix = normalized_payload[:80].strip()
+        if prefix and prefix in rendered_payload:
+            return prefix
+    return None
+
+
+def _default_concealment_witness(rendered_payload: str, concealment: str) -> str | None:
+    if concealment == "markdown_fenced_system" and "```system" in rendered_payload:
+        return "```system"
+    if concealment == "offscreen_css":
+        if "position:absolute" in rendered_payload:
+            return "position:absolute"
+        if "left:-" in rendered_payload:
+            return "left:-"
+    if concealment == "image_alt_text":
+        if "alt=" in rendered_payload:
+            return "alt="
+        if "<img" in rendered_payload:
+            return "<img"
+    return None
+
+
+def _updated_payload_text_entry(
+    task: dict[str, Any],
+    original_payload: Any,
+    rendered_payload: str,
+) -> dict[str, Any] | None:
+    concealment = str(task.get("concealment", ""))
+    visible_text, _concealed_text = _payload_text_views(rendered_payload, concealment)
+    entry = (
+        json.loads(json.dumps(original_payload))
+        if isinstance(original_payload, dict)
+        else {}
+    )
+    entry["rendered_payload"] = rendered_payload
+    entry["raw_text"] = visible_text.strip()
+
+    framing_witnesses = [
+        witness
+        for witness in entry.get("framing_witnesses", [])
+        if isinstance(witness, str) and witness and witness in rendered_payload
+    ]
+    if not framing_witnesses:
+        fallback = _default_framing_witness(str(entry.get("raw_text", "")), rendered_payload)
+        if fallback is not None:
+            framing_witnesses = [fallback]
+    entry["framing_witnesses"] = framing_witnesses
+
+    if concealment == "plaintext":
+        entry["concealment_witnesses"] = [
+            witness
+            for witness in entry.get("concealment_witnesses", [])
+            if isinstance(witness, str) and witness and witness in rendered_payload
+        ]
+    else:
+        concealment_witnesses = [
+            witness
+            for witness in entry.get("concealment_witnesses", [])
+            if isinstance(witness, str) and witness and witness in rendered_payload
+        ]
+        if not concealment_witnesses:
+            fallback = _default_concealment_witness(rendered_payload, concealment)
+            if fallback is not None:
+                concealment_witnesses = [fallback]
+        entry["concealment_witnesses"] = concealment_witnesses
+
+    payload_errors = validate_text_post_hoc(entry, task)
+    if payload_errors:
+        logger.warning(
+            "Variant payload text could not be resynchronized for %s: %s",
+            task.get("id", "unknown"),
+            "; ".join(payload_errors),
+        )
+        return None
+    return entry
+
+
+def _synchronize_variant_payload_texts(
+    original_task: dict[str, Any],
+    merged_task: dict[str, Any],
+    candidate_seed: dict[str, Any],
+) -> None:
+    payload_texts = original_task.get("payload_texts")
+    if not isinstance(payload_texts, list) or not payload_texts:
+        return
+    selected_index = original_task.get("selected_payload_index", 0)
+    if not isinstance(selected_index, int) or not (0 <= selected_index < len(payload_texts)):
+        logger.warning(
+            "Variant task %s has invalid selected_payload_index=%r; keeping original payload_texts",
+            original_task.get("id", "unknown"),
+            selected_index,
+        )
+        return
+    rendered_payload = _extract_variant_rendered_payload(original_task, candidate_seed)
+    if not isinstance(rendered_payload, str) or not rendered_payload:
+        logger.warning(
+            "Variant task %s revised adversarial_data_seed does not expose a recoverable payload body; "
+            "keeping original payload_texts",
+            original_task.get("id", "unknown"),
+        )
+        return
+    synced_entry = _updated_payload_text_entry(
+        merged_task,
+        payload_texts[selected_index],
+        rendered_payload,
+    )
+    if synced_entry is None:
+        return
+    merged_payloads = json.loads(json.dumps(payload_texts))
+    merged_payloads[selected_index] = synced_entry
+    merged_task["payload_texts"] = merged_payloads
 
 
 def _adversarial_seed_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
@@ -815,6 +1077,47 @@ def _probe_magento_base_urls(config: Any) -> list[str]:
     return [str(exc) for exc in mismatches]
 
 
+def _pvpo_endpoint_preflight_errors(
+    instances: list[BenchmarkInstance],
+    *,
+    active_sites: set[str] | None = None,
+) -> list[str]:
+    """Validate per-instance PVPO endpoint assignment for Phase 4."""
+    relevant_instances = [
+        instance
+        for instance in instances
+        if active_sites is None or normalize_site_name(instance.site_name) in active_sites
+    ]
+    if not relevant_instances:
+        return []
+
+    errors: list[str] = []
+    seen_urls: dict[str, str] = {}
+    for instance in relevant_instances:
+        label = instance.replica_name or f"{instance.site_name}[{instance.replica_index}]"
+        raw_url = instance.pvpo_cdp_url
+        try:
+            normalized_url = validate_pvpo_cdp_url(
+                raw_url,
+                field_name=f"BenchmarkInstance(site={label}).pvpo_cdp_url",
+                allow_empty=True,
+            )
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+        if normalized_url is None:
+            continue
+        prior = seen_urls.get(normalized_url)
+        if prior is not None:
+            errors.append(
+                f"duplicate pvpo_cdp_url {normalized_url!r} for instances {prior!r} and {label!r}; "
+                "Phase 4 requires one dedicated PVPO browser endpoint per worker"
+            )
+        else:
+            seen_urls[normalized_url] = label
+    return errors
+
+
 def _delivery_site_name(delivery_channel: Any) -> str:
     if not isinstance(delivery_channel, dict):
         return ""
@@ -1273,12 +1576,30 @@ async def run(args: argparse.Namespace) -> int:
             post_cap_by_origin.get("mode_a", 0),
             post_cap_by_origin.get("mode_b", 0),
         )
+    active_sites = {normalize_site_name(str(task.get("site", ""))) for task in tasks if task.get("site")}
 
     # Load benchmark config
     if not instances_path or not Path(instances_path).exists():
         logger.error("--instances JSON file required for Phase 4")
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+    pvpo_endpoint_errors = _pvpo_endpoint_preflight_errors(
+        config.instances,
+        active_sites=active_sites,
+    )
+    if pvpo_endpoint_errors:
+        logger.error(
+            "Phase 4 PVPO endpoint preflight failed:\n%s",
+            "\n".join(f"  - {error}" for error in pvpo_endpoint_errors),
+        )
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="pvpo_endpoint_preflight_error",
+            pvpo_endpoint_errors=pvpo_endpoint_errors,
+            **state_metadata,
+        )
+        return 1
     preflight = inspect_storage_state_preflight(
         config.instances,
         benchmark_root=benchmark_root,
@@ -1646,6 +1967,12 @@ async def run(args: argparse.Namespace) -> int:
         sum(1 for r in scorable_valid if r.get("benign_passed")),
         len(scorable_valid),
     )
+    pvpo_status_counts = Counter(str(r.get("pvpo_status", "missing")) for r in final_results)
+    pvpo_failure_counts = Counter(
+        str(r.get("pvpo_failure"))
+        for r in final_results
+        if r.get("pvpo_failure") not in (None, "")
+    )
 
     per_origin: dict[str, dict[str, Any]] = {}
     for origin_key in ("mode_a", "mode_b"):
@@ -1678,6 +2005,8 @@ async def run(args: argparse.Namespace) -> int:
         "complied_with_adversarial_reward": complied_with_adversarial_reward,
         "complied_without_adversarial_reward": complied_without_adversarial_reward,
         "capability_benign_under_attack": capability_benign_under_attack,
+        "pvpo_status_counts": dict(sorted(pvpo_status_counts.items())),
+        "pvpo_failure_counts": dict(sorted(pvpo_failure_counts.items())),
         "per_origin": per_origin,
     }
     terminal_status = "complete"
@@ -2025,6 +2354,8 @@ async def run_adversarial_task(
                 task=task,
             )
             run_kwargs: dict[str, Any] = {"start_urls": start_urls}
+            if instance_dict.get("pvpo_cdp_url"):
+                run_kwargs["pvpo_cdp_url"] = instance_dict["pvpo_cdp_url"]
             if site_prompt is not None:
                 run_kwargs["site_prompt"] = site_prompt
             # Auth from instances.json — single source of truth. No fallback to
@@ -3501,6 +3832,7 @@ def _merge_variant_task(
             )
 
     merged["adversarial_data_seed"] = candidate_seed
+    _synchronize_variant_payload_texts(original_task, merged, candidate_seed)
     for field in ("applied_strategy", "placement_fix", "ecological_validity_fix"):
         if field in candidate:
             merged[field] = candidate[field]

@@ -2,9 +2,10 @@
 
 The setup script ``scripts/setup_phase4_on_host.sh`` drives these tests as
 the final gate after bootstrapping uv/playwright/docker/artifacts. A green
-preflight proves: the PVPO CDP endpoint is reachable, every Magento
-replica has the correct base_url, the gitlab Phase 0d artifact exists,
-and the WebArena-Verified evaluator venv resolves.
+preflight proves: every configured PVPO CDP endpoint is reachable and
+uniquely assigned, every Magento replica has the correct base_url, the
+gitlab Phase 0d artifact exists, and the WebArena-Verified evaluator venv
+resolves.
 
 Inputs (setup script exports these):
 - ``WORLDSIM_PREFLIGHT_INSTANCES`` — path to instances.json
@@ -18,21 +19,14 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import subprocess
 from pathlib import Path
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 import pytest
 
 pytestmark = pytest.mark.preflight
-
-
-PVPO_CDP_URL_DEFAULT = "http://127.0.0.1:9222"
-
-
-def _pvpo_cdp_url() -> str:
-    return os.environ.get("WORLDSIM_PVPO_CDP_URL", PVPO_CDP_URL_DEFAULT)
 
 
 def _instances_path() -> Path | None:
@@ -49,24 +43,41 @@ def _load_instances_config() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_pvpo_cdp_endpoint_reachable() -> None:
-    """GET /json/version on the chrome-headless-shell CDP port must return 200."""
-    url = _pvpo_cdp_url()
-    host = url.split("://", 1)[-1].split(":", 1)[0]
-    port = int(url.rsplit(":", 1)[-1].strip("/"))
+def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
+    """Every configured worker PVPO endpoint must answer /json/version and be unique."""
+    config = _load_instances_config()
+    if config is None:
+        pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
     try:
-        with socket.create_connection((host, port), timeout=2):
-            pass
-    except OSError as exc:
-        pytest.fail(
-            f"pvpo-chrome CDP endpoint not reachable at {url}: {exc}. "
-            f"Rerun setup_phase4_on_host.sh step 3 to (re)start the container."
-        )
-    try:
-        with urlopen(f"{url}/json/version", timeout=3) as resp:
-            assert resp.status == 200
-    except Exception as exc:
-        pytest.fail(f"pvpo-chrome /json/version did not return 200: {exc}")
+        from worldsim.config import BenchmarkConfig
+        from worldsim.phases.phase_4_adversarial import _pvpo_endpoint_preflight_errors
+    except ImportError as exc:
+        pytest.skip(f"worldsim modules unavailable: {exc}")
+
+    parsed = BenchmarkConfig.model_validate(config)
+    errors = _pvpo_endpoint_preflight_errors(parsed.instances)
+    assert not errors, (
+        "PVPO endpoint config invalid — each Phase 4 worker needs a unique "
+        "BenchmarkInstance.pvpo_cdp_url. Errors:\n  " + "\n  ".join(errors)
+    )
+
+    checked: set[str] = set()
+    for instance in parsed.instances:
+        url = instance.pvpo_cdp_url
+        assert url is not None
+        if url in checked:
+            continue
+        checked.add(url)
+        version_url = f"{url.rstrip('/')}/json/version"
+        try:
+            with urlopen(version_url, timeout=3) as resp:
+                assert resp.status == 200
+        except Exception as exc:
+            host = urlparse(url).netloc or url
+            pytest.fail(
+                f"pvpo-chrome CDP endpoint not reachable at {host}: {exc}. "
+                "Rerun setup_phase4_on_host.sh step 3 to (re)start the per-instance containers."
+            )
 
 
 def test_magento_base_urls_resolved() -> None:

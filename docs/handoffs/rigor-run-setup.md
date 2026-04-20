@@ -12,8 +12,9 @@ zero hand-patching.
 2. **`scripts/setup_phase4_on_host.sh`** — idempotent, 7 steps:
    1. uv + repo venv + evaluator venv (`packages/worldsim-webarena-verified`).
    2. Playwright Chromium + system libs.
-   3. `pvpo-chrome` Docker container (content-hash stamped; rebuilds only
-      when `worldsim/docker/chrome-headless-shell.Dockerfile` changes).
+   3. one `pvpo-chrome` Docker container per configured `pvpo_cdp_url`
+      (content-hash stamped; rebuilds only when
+      `worldsim/docker/chrome-headless-shell.Dockerfile` changes).
    4. Artifact sync (`logs/phase_0c`, `logs/phase_2/adversarial_tasks.json`,
       `logs/phase_3/contracts.json`). Prefer `aws s3 sync` from
       `s3://benchmark-archives/worldsim-runs/<run_id>/` — same-region intra
@@ -25,9 +26,8 @@ zero hand-patching.
    7. `pytest -m preflight tests/preflight` — the pass/fail gate.
 3. **Launch**:
    ```
-   export WORLDSIM_PVPO_CDP_URL=http://127.0.0.1:9222
    uv run python -m worldsim.main phase 4 \
-       --benchmark instances.scale.json --resume
+       --instances instances.scale.json --resume
    ```
 
 ## What the preflight covers
@@ -36,7 +36,7 @@ zero hand-patching.
 
 | check | failure remediation |
 |---|---|
-| PVPO CDP endpoint reachable on 9222 | rerun setup step 3 |
+| every configured `pvpo_cdp_url` reachable and unique | rerun setup step 3 |
 | Magento base_url matches proxy origin | rerun `sync_magento_base_urls.py` |
 | `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` (setup step 5) |
 | evaluator venv imports `webarena_verified` | rerun setup step 1 |
@@ -55,10 +55,9 @@ for 30s. The correct integration is the `chrome-headless-shell`
 container (flags in its `CMD`, beginFrame calls at capture time only);
 Browser-Use connects via `BrowserSession(cdp_url=...)`.
 
-When `WORLDSIM_PVPO_CDP_URL` is unset, `BrowserUseAgent` falls back to a
-local launch with normal flags — PVPO reads zero coverage, every
-trajectory routes to placement-fix. That is the documented laptop dev
-mode, not a rigor result.
+Phase 4 no longer supports a shared remote PVPO browser. Each instance
+carries its own `pvpo_cdp_url`, and setup/preflight treat duplicate
+endpoint assignment as a hard error.
 
 ## Magento base_url drift: root cause + defense in depth
 
@@ -90,7 +89,6 @@ double-check the slug against the provider's current catalog.
 
 ## Env vars this runbook uses
 
-- `WORLDSIM_PVPO_CDP_URL` — chrome-headless-shell CDP URL (set by setup step 3).
 - `WORLDSIM_WEBARENA_EVAL_PYTHON` — override evaluator venv Python (default is repo-relative `packages/worldsim-webarena-verified/.venv/bin/python`).
 - `WORLDSIM_AUTO_MINT_STORAGE_STATE` — opt non-WebArena-Verified benchmarks in to runtime auto-heal. `true` is implicit for WebArena Verified.
 - `GITLAB_HOST` / `GITLAB_STORAGE_STATE_PATH` — override defaults for `scripts/login_gitlab_r5.py`.
@@ -98,9 +96,11 @@ double-check the slug against the provider's current catalog.
 
 ## When something breaks mid-run
 
-- **PVPO `max_coverage == 0` on every trajectory**: the container is not
-  reachable or `WORLDSIM_PVPO_CDP_URL` was not exported. Check
-  `docker logs pvpo-chrome | tail -40` and `curl http://127.0.0.1:9222/json/version`.
+- **PVPO `max_coverage == 0` on every trajectory**: one or more per-instance
+  containers are not reachable or the instances file points multiple workers
+  at the same endpoint. Check `pytest -m preflight tests/preflight`, then
+  inspect the corresponding `docker logs pvpo-chrome-<port> | tail -40` and
+  `curl http://127.0.0.1:<port>/json/version`.
 - **Magento 502 / base_url shows `3.12.221.9:7770`**: the compose env var
   regression returned. Run `docker exec webarena-verified-shopping_0 env
   | grep WA_ENV_CTRL_EXTERNAL_SITE_URL` — must show the proxy port.

@@ -506,6 +506,30 @@ def test_config_rejects_token_generator_without_credentials():
         )
 
 
+def test_config_accepts_loopback_pvpo_cdp_url():
+    from worldsim.config import BenchmarkInstance
+
+    instance = BenchmarkInstance(
+        site_name="shopping",
+        site_url="http://shopping.test",
+        pvpo_cdp_url="http://127.0.0.1:9222",
+    )
+
+    assert instance.pvpo_cdp_url == "http://127.0.0.1:9222"
+
+
+def test_config_rejects_remote_pvpo_cdp_url_without_override(monkeypatch):
+    from worldsim.config import BenchmarkInstance
+
+    monkeypatch.delenv("WORLDSIM_ALLOW_REMOTE_PVPO_CDP_URL", raising=False)
+    with pytest.raises(ValueError, match="loopback CDP endpoint"):
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping.test",
+            pvpo_cdp_url="http://203.0.113.9:9222",
+        )
+
+
 def test_benchmark_config_rejects_empty_instances(tmp_path):
     from worldsim.config import BenchmarkConfig
 

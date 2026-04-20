@@ -48,6 +48,8 @@ import yaml
 
 from worldsim.config import BenchmarkConfig
 from worldsim.host_config import BenchmarkHostConfig, load_host_config
+
+PVPO_CDP_PORT_BASE = 9222
 from worldsim.placeholders import placeholder_for_site
 
 # ---------------------------------------------------------------------------
@@ -292,6 +294,7 @@ def _clone_instance(
     *,
     advertise_host: str,
     placeholder_map: dict[str, str],
+    pvpo_cdp_port: int,
 ) -> dict[str, Any]:
     instance = json.loads(json.dumps(base_instance))
     instance["site_name"] = rec["site_name"]
@@ -315,6 +318,7 @@ def _clone_instance(
     merged_placeholders.update(placeholder_map)
     if merged_placeholders:
         instance["url_placeholders"] = merged_placeholders
+    instance["pvpo_cdp_url"] = f"http://127.0.0.1:{pvpo_cdp_port}"
 
     return instance
 
@@ -345,7 +349,7 @@ def build_instances_config(
     placeholder_map = _generated_placeholder_map(records, advertise_host)
 
     instances: list[dict[str, Any]] = []
-    for rec in records:
+    for offset, rec in enumerate(records):
         site_name = rec["site_name"]
         base_instance = by_site.get(site_name)
         if base_instance is None:
@@ -356,6 +360,7 @@ def build_instances_config(
                 rec,
                 advertise_host=advertise_host,
                 placeholder_map=placeholder_map,
+                pvpo_cdp_port=PVPO_CDP_PORT_BASE + offset,
             )
         )
 
