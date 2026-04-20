@@ -54,6 +54,9 @@ ALLOW_INSECURE_HTTP="${ALLOW_INSECURE_HTTP:-0}"
 BENCHMARK_TOPOLOGY="${BENCHMARK_TOPOLOGY:-}"
 USE_LEGACY_DEFAULT_MAP=0
 NEW_TOKEN=0
+VIA_SSM=0
+SSM_INSTANCE_ID="${SSM_INSTANCE_ID:-}"
+SSM_REGION="${SSM_REGION:-}"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TOKEN_FILE="${TOKEN_FILE:-$REPO_ROOT/.proxy_token}"
@@ -84,6 +87,9 @@ while [[ $# -gt 0 ]]; do
         --allow-verify-failure) ALLOW_VERIFY_FAILURE=1; shift ;;
         --insecure-http) ALLOW_INSECURE_HTTP=1; shift ;;
         --new-token)  NEW_TOKEN=1;         shift ;;
+        --via-ssm)    VIA_SSM=1;           shift ;;
+        --ssm-instance-id) SSM_INSTANCE_ID="$2"; shift 2 ;;
+        --ssm-region) SSM_REGION="$2";      shift 2 ;;
         --help|-h)
             echo "Usage: $0 [--host IP] [--ssh-key PATH] [--ssh-user USER]"
             echo "          [--port-map FILE] [--token-file FILE] [--port-offset N]"
@@ -91,11 +97,17 @@ while [[ $# -gt 0 ]]; do
             echo "          [--topology scale|legacy] [--use-legacy-default-map]"
             echo "          [--allow-verify-failure] [--insecure-http] [--new-token]"
             echo ""
+            echo "          [--via-ssm] [--ssm-instance-id ID] [--ssm-region REGION]"
+            echo ""
             echo "Environment variables: HOST_IP, SSH_KEY, SSH_USER, PORT_OFFSET,"
             echo "                       TOKEN_FILE, PORT_MAP_FILE, TLS_CERT_FILE, TLS_KEY_FILE,"
             echo "                       TLS_VERIFY_HOST, ALLOW_VERIFY_FAILURE,"
             echo "                       ALLOW_INSECURE_HTTP, BENCHMARK_TOPOLOGY, TOPOLOGY_FILE,"
-            echo "                       PROXY_METADATA_FILE, PROXY_PORT_MAP_FILE"
+            echo "                       PROXY_METADATA_FILE, PROXY_PORT_MAP_FILE,"
+            echo "                       SSM_INSTANCE_ID, SSM_REGION"
+            echo ""
+            echo "With --via-ssm, the script uses AWS SSM send-command instead of SSH."
+            echo "Required when the EC2 security group blocks SSH ingress."
             exit 0
             ;;
         *)
@@ -142,7 +154,81 @@ log() {
 }
 
 ssh_host() {
-    ssh "${SSH_OPTS[@]}" "$SSH_USER@$HOST_IP" "$@"
+    if [[ "$VIA_SSM" == "1" ]]; then
+        ssm_run "$@"
+    else
+        ssh "${SSH_OPTS[@]}" "$SSH_USER@$HOST_IP" "$@"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# SSM helpers (used when --via-ssm is set; SG typically blocks SSH ingress)
+# ---------------------------------------------------------------------------
+# ssm_run: runs a shell command on the target instance. The command is
+# base64-encoded so heredocs / quoting survive JSON transport through
+# `aws ssm send-command`. Blocks until the command completes (up to 180s)
+# and emits StandardOutputContent; exits non-zero on Status != Success.
+ssm_run() {
+    local script cmd_id status stdout stderr
+    script="$*"
+    local b64
+    b64="$(printf '%s' "$script" | base64 | tr -d '\n')"
+    local region_arg=""
+    [[ -n "$SSM_REGION" ]] && region_arg="--region $SSM_REGION"
+    local wrapped
+    wrapped="echo '$b64' | base64 -d | bash"
+    cmd_id=$(aws ssm send-command \
+        --instance-ids "$SSM_INSTANCE_ID" \
+        --document-name "AWS-RunShellScript" \
+        --parameters "commands=[\"$wrapped\"]" \
+        --query "Command.CommandId" \
+        --output text \
+        $region_arg 2>&1)
+    if [[ -z "$cmd_id" || "$cmd_id" == None ]]; then
+        echo "ERROR: ssm send-command failed: $cmd_id" >&2
+        return 1
+    fi
+    local deadline=$(( SECONDS + 180 ))
+    while (( SECONDS < deadline )); do
+        status=$(aws ssm get-command-invocation \
+            --command-id "$cmd_id" \
+            --instance-id "$SSM_INSTANCE_ID" \
+            --query "Status" \
+            --output text \
+            $region_arg 2>/dev/null)
+        case "$status" in
+            Success|Failed|Cancelled|TimedOut) break ;;
+        esac
+        sleep 3
+    done
+    stdout=$(aws ssm get-command-invocation \
+        --command-id "$cmd_id" \
+        --instance-id "$SSM_INSTANCE_ID" \
+        --query "StandardOutputContent" \
+        --output text \
+        $region_arg 2>/dev/null)
+    stderr=$(aws ssm get-command-invocation \
+        --command-id "$cmd_id" \
+        --instance-id "$SSM_INSTANCE_ID" \
+        --query "StandardErrorContent" \
+        --output text \
+        $region_arg 2>/dev/null)
+    [[ -n "$stdout" && "$stdout" != None ]] && printf '%s\n' "$stdout"
+    [[ -n "$stderr" && "$stderr" != None ]] && printf '%s\n' "$stderr" >&2
+    [[ "$status" == "Success" ]]
+}
+
+# ssm_put_file: writes $1 (local path) to $2 (remote path). Base64-encoded
+# heredoc; idempotent overwrite.
+ssm_put_file() {
+    local local_path="$1" remote_path="$2"
+    if [[ ! -f "$local_path" ]]; then
+        echo "ERROR: local file not found: $local_path" >&2
+        return 1
+    fi
+    local b64
+    b64="$(base64 -i "$local_path" | tr -d '\n')"
+    ssm_run "echo '$b64' | base64 -d | sudo tee '$remote_path' > /dev/null"
 }
 
 # ---------------------------------------------------------------------------
@@ -304,6 +390,11 @@ ensure_token() {
 # Nginx config generation
 # ---------------------------------------------------------------------------
 
+is_magento_site() {
+    # Matches: shopping, shopping_admin, shopping_0, shopping_admin_3, etc.
+    [[ "$1" == shopping* ]]
+}
+
 generate_nginx_config() {
     # Generates the nginx config as a string. Caller writes it to the host.
     local config=""
@@ -328,6 +419,34 @@ generate_nginx_config() {
 "
         fi
 
+        # Magento (shopping / shopping_admin / shopping_N / shopping_admin_N)
+        # needs three things the other sites don't:
+        #   1. proxy_buffer_size / proxy_buffers / proxy_busy_buffers_size bumps:
+        #      Magento's Set-Cookie blob (PHPSESSID + X-Magento-Vary + CSP) is
+        #      often >8KB, which overflows nginx's default upstream header buffer
+        #      and triggers a 502 Bad Gateway before the response is forwarded.
+        #   2. regex proxy_redirect that rewrites absolute Location headers
+        #      pointing back at the real backend port — Magento bakes its
+        #      base_url into 302s (see fix_magento_base_url.sh for the
+        #      root-cause fix; this directive is belt-and-braces so absolute
+        #      redirects pointing at the SG-closed backend port get rewritten
+        #      back through the proxy origin).
+        #   3. large client_max_body_size (already present for all sites) —
+        #      Magento admin bulk-import endpoints accept multi-MB uploads.
+        # The Host header stays as \$host (the listener hostname:port, e.g.
+        # 3.12.221.9:17770): Magento's Host-validation branch accepts any
+        # host that matches its configured base_url by IP — setting a
+        # literal 127.0.0.1:<port> triggers its redirect-to-base branch and
+        # bounces the client to the blocked bare port.
+        local magento_block=""
+        if is_magento_site "$name"; then
+            magento_block="
+        proxy_buffer_size 128k;
+        proxy_buffers 8 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_redirect ~^http://[^/]+:${real_port}/(.*)\$ http://\$host/\$1;"
+        fi
+
         config+="# ${name}: proxy ${proxy_port} -> real ${real_port}
 server {
     ${listen_directive}
@@ -344,7 +463,7 @@ ${tls_block}
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Proto \$scheme;${magento_block}
 
         # Pass through large bodies (form submissions, API calls).
         client_max_body_size 50m;
@@ -383,30 +502,41 @@ step_deploy_config() {
 
     generate_nginx_config
 
-    # Write the config to a temp file locally, scp it up, move into place.
+    # Write the config to a temp file locally.
     local tmp_config
     tmp_config=$(mktemp /tmp/worldsim-proxy-XXXXXX.conf)
     echo "$NGINX_CONFIG" > "$tmp_config"
 
-    scp "${SSH_OPTS[@]}" "$tmp_config" "$SSH_USER@$HOST_IP:/tmp/worldsim-proxy.conf"
-    rm -f "$tmp_config"
+    # Back up the current config first so mistakes are recoverable.
+    local timestamp
+    timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+    ssh_host "sudo mkdir -p /etc/nginx/sites-enabled /etc/nginx/conf.d && \
+        if [ -f /etc/nginx/conf.d/worldsim-proxy.conf ]; then \
+            sudo cp /etc/nginx/conf.d/worldsim-proxy.conf /etc/nginx/conf.d/worldsim-proxy.conf.bak.${timestamp}; \
+        fi"
 
-    # Move into nginx config dir and enable.
-    ssh_host 'sudo mkdir -p /etc/nginx/sites-enabled /etc/nginx/conf.d && \
-        sudo mv /tmp/worldsim-proxy.conf /etc/nginx/conf.d/worldsim-proxy.conf && \
-        echo "    config written to /etc/nginx/conf.d/worldsim-proxy.conf"'
+    if [[ "$VIA_SSM" == "1" ]]; then
+        ssm_put_file "$tmp_config" /etc/nginx/conf.d/worldsim-proxy.conf
+    else
+        scp "${SSH_OPTS[@]}" "$tmp_config" "$SSH_USER@$HOST_IP:/tmp/worldsim-proxy.conf"
+        ssh_host 'sudo mv /tmp/worldsim-proxy.conf /etc/nginx/conf.d/worldsim-proxy.conf'
+    fi
+    rm -f "$tmp_config"
+    ssh_host 'echo "    config written to /etc/nginx/conf.d/worldsim-proxy.conf"'
 }
 
 step_test_and_restart_nginx() {
-    log "Step 3: test nginx config and restart"
+    log "Step 3: test nginx config and reload"
     if [[ -n "$TLS_CERT_FILE" || -n "$TLS_KEY_FILE" ]]; then
         ssh_host "test -f '$TLS_CERT_FILE' && test -f '$TLS_KEY_FILE'" || {
             echo "ERROR: TLS enabled but cert/key missing on host: $TLS_CERT_FILE $TLS_KEY_FILE" >&2
             return 1
         }
     fi
-    ssh_host 'sudo nginx -t && sudo systemctl restart nginx && sudo systemctl enable nginx && \
-        echo "    nginx restarted and enabled"'
+    # Prefer reload over restart: zero-downtime, and if nginx -t fails the
+    # old config keeps serving.
+    ssh_host 'sudo nginx -t && sudo systemctl reload nginx && sudo systemctl enable nginx && \
+        echo "    nginx reloaded and enabled"'
 }
 
 proxy_scheme() {
@@ -424,18 +554,21 @@ proxy_http_code_is_healthy() {
 
 remote_authed_http_code() {
     local scheme="$1" proxy_port="$2" verify_host="$3"
-    local header_file
-    header_file=$(mktemp /tmp/worldsim-proxy-header-XXXXXX)
-    printf 'X-Worldsim-Token: %s\n' "$TOKEN" > "$header_file"
-
+    # Inline the token into the curl header directly. Tried env-var
+    # indirection (TOKEN='...' curl -H "X-Worldsim-Token: \$TOKEN") but
+    # under the SSM base64 → bash pipe path the shell expands \$TOKEN
+    # before the TOKEN= assignment takes effect, so the header arrives
+    # empty. Inlining the 64-char token lands it in argv briefly on the
+    # remote host (visible in `ps` during the curl window ~milliseconds);
+    # acceptable for a deploy-time verification step running on a host
+    # we just configured.
     local remote_cmd code
     if [[ "$scheme" == "https" ]]; then
-        remote_cmd="header_file=\$(mktemp); trap 'rm -f \"\$header_file\"' EXIT; cat > \"\$header_file\"; curl -sS -o /dev/null -w '%{http_code}' --max-time 10 --resolve '${verify_host}:${proxy_port}:127.0.0.1' -H @\"\$header_file\" 'https://${verify_host}:${proxy_port}/' 2>/dev/null || echo 000"
+        remote_cmd="curl -sS -o /dev/null -w '%{http_code}' --max-time 10 --resolve '${verify_host}:${proxy_port}:127.0.0.1' -H 'X-Worldsim-Token: ${TOKEN}' 'https://${verify_host}:${proxy_port}/' 2>/dev/null || echo 000"
     else
-        remote_cmd="header_file=\$(mktemp); trap 'rm -f \"\$header_file\"' EXIT; cat > \"\$header_file\"; curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -H @\"\$header_file\" 'http://127.0.0.1:${proxy_port}/' 2>/dev/null || echo 000"
+        remote_cmd="curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -H 'X-Worldsim-Token: ${TOKEN}' 'http://127.0.0.1:${proxy_port}/' 2>/dev/null || echo 000"
     fi
-    code=$(ssh_host "$remote_cmd" < "$header_file")
-    rm -f "$header_file"
+    code=$(ssh_host "$remote_cmd")
     echo "$code"
 }
 
@@ -586,7 +719,6 @@ step_print_summary() {
 main() {
     log "deploy_benchmark_proxy.sh — authenticated reverse proxy for Phase 0c"
     printf '    HOST_IP     = %s\n' "$HOST_IP"
-    printf '    SSH_KEY     = %s\n' "$SSH_KEY"
     printf '    SSH_USER    = %s\n' "$SSH_USER"
     printf '    PORT_OFFSET = %s\n' "$PORT_OFFSET"
     if [[ -n "$TLS_CERT_FILE" || -n "$TLS_KEY_FILE" ]]; then
@@ -595,9 +727,22 @@ main() {
         printf '    TLS         = %s\n' "disabled"
     fi
 
-    if [[ ! -f "$SSH_KEY" ]]; then
-        echo "ERROR: SSH key not found: $SSH_KEY" >&2
-        exit 1
+    if [[ "$VIA_SSM" == "1" ]]; then
+        if [[ -z "$SSM_INSTANCE_ID" ]]; then
+            echo "ERROR: --via-ssm requires --ssm-instance-id (or \$SSM_INSTANCE_ID)" >&2
+            exit 1
+        fi
+        if ! command -v aws >/dev/null 2>&1; then
+            echo "ERROR: --via-ssm requires the aws CLI" >&2
+            exit 1
+        fi
+        printf '    TRANSPORT   = SSM (%s)\n' "$SSM_INSTANCE_ID"
+    else
+        if [[ ! -f "$SSH_KEY" ]]; then
+            echo "ERROR: SSH key not found: $SSH_KEY (or pass --via-ssm)" >&2
+            exit 1
+        fi
+        printf '    TRANSPORT   = SSH (%s)\n' "$SSH_KEY"
     fi
 
     if [[ -n "$TLS_CERT_FILE" && -z "$TLS_KEY_FILE" ]] || [[ -z "$TLS_CERT_FILE" && -n "$TLS_KEY_FILE" ]]; then

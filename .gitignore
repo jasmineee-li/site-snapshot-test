@@ -19,9 +19,11 @@ env/
 .env.local
 .env.*.local
 
-# Benchmark host secrets (EC2 instance id, proxy token, AWS creds)
+# Benchmark host secrets + per-deploy runtime state
 .benchmark_host_id
 .proxy_token
+.benchmark_proxy_metadata
+.benchmark_proxy_ports.conf
 aws-credentials
 aws-credentials.*
 
