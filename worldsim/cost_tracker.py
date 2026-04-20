@@ -18,6 +18,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from worldsim.atomic_io import write_json_atomic
+
 logger = logging.getLogger(__name__)
 
 
@@ -147,14 +149,19 @@ class CostTracker:
     # -- Persistence ----------------------------------------------------------
 
     def save(self, path: Path) -> None:
-        """Write the full cost report to a JSON file."""
-        path.parent.mkdir(parents=True, exist_ok=True)
+        """Write the full cost report to a JSON file.
+
+        Atomic write via ``worldsim.atomic_io.write_json_atomic`` — a
+        crash mid-write would leave partial JSON on disk, which
+        ``load`` would then reject, silently dropping prior-phase cost
+        entries from the cross-phase total.
+        """
         report = {
             "total_cost_usd": round(self.total_cost(), 4),
             "by_phase": {k: round(v, 4) for k, v in sorted(self.cost_by_phase().items())},
             "entries": [asdict(e) for e in self.entries],
         }
-        path.write_text(json.dumps(report, indent=2))
+        write_json_atomic(path, report)
         logger.info("Cost report written to %s", path)
 
     def load(self, path: Path) -> None:

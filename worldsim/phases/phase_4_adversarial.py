@@ -673,6 +673,33 @@ def _resume_fingerprint_task(task: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+# Keys that round-trip through ``save_result`` -> ``result.json`` ->
+# ``_normalize_completed_result``. Post-process-layer fields like
+# ``taxonomy_fields`` (``outcome_fine``, ``flags``, ``signals`` …) and
+# ``final_status_extra`` are intentionally omitted: ``save_result`` does not
+# persist them, so the initial-run in-memory dict and the resume-loaded
+# normalized dict would otherwise hash differently and invalidate the
+# ``processed_result.json`` + ``strategy_variation_checkpoint.json`` caches
+# on every ``--resume``. Must stay in sync with
+# ``worldsim.eval_worker_pool._normalize_completed_result``.
+_FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
+    "task_id",
+    "outcome",
+    "encounter",
+    "benign_passed",
+    "adversarial_passed",
+    "trajectory_dir",
+    "elapsed",
+    "steps",
+    "error",
+)
+
+
+def _resume_fingerprint_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Project a result dict to the fields that round-trip through ``result.json``."""
+    return {k: result[k] for k in _FINGERPRINT_RESULT_KEYS if k in result}
+
+
 def _phase_4_state_metadata(
     *,
     task_dir_root: Path,
@@ -840,7 +867,7 @@ def _phase_4_postprocess_fingerprint(
 ) -> str:
     return _fingerprint_payload(
         task,
-        result,
+        _resume_fingerprint_result(result),
         {
             "phase": "phase_4_postprocess",
             "primary_instances": instances_identity(primary_instances),
@@ -1587,6 +1614,29 @@ async def run_adversarial_task(
     site's AGENT_CONTEXT resolve correctly.
     """
     task_id = task.get("id", "unknown")
+
+    # Wipe stale PVPO artefacts from a crashed prior run before re-entering.
+    # ``run_adversarial_task`` is only called when resume decided the task is
+    # not reusable (missing ``result.json`` for the main path; missing
+    # ``resume_metadata.json`` for variants). ``save_step_artifacts``
+    # overwrites per-index files but does not delete higher-index leftovers,
+    # so stale ``step_N.{png,json}`` pairs from the crashed run would pair
+    # with themselves in ``determine_encounter`` and inflate
+    # ``max_coverage``. Same fix as ``_run_placement_fix_loop`` (F1); kept
+    # here so all three re-entry callers — main pool, placement-fix
+    # rerun, variant eval — get identical coverage.
+    for sub in ("screenshots", "pvpo"):
+        leftover = task_dir / sub
+        if leftover.exists():
+            try:
+                shutil.rmtree(leftover)
+            except OSError as exc:
+                logger.warning(
+                    "phase_4: could not wipe leftover %s in %s: %s",
+                    sub,
+                    task_dir,
+                    exc,
+                )
 
     delivery_channel = task.get("delivery_channel")
     delivery_site = _delivery_site_name(delivery_channel)
