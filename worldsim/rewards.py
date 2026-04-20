@@ -24,6 +24,7 @@ import subprocess
 from collections import Counter
 from typing import Any
 
+from worldsim._paths import find_repo_root
 from worldsim.agent_response_transform import transform_agent_response
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.har_converter import ensure_har_trace
@@ -33,6 +34,27 @@ logger = logging.getLogger(__name__)
 
 WEBARENA_EVAL_PYTHON_ENV = "WORLDSIM_WEBARENA_EVAL_PYTHON"
 WEBARENA_EVAL_MODULE = "worldsim_webarena_verified.evaluate"
+
+
+def _default_eval_python() -> str:
+    """Return the repo-relative evaluator venv python when present, else ''.
+
+    WorldSim v5 runs the ``worldsim-webarena-verified`` evaluator in its own
+    venv (conflicting deps vs. the root pyproject; uv workspaces are
+    explicitly contraindicated for conflicting deps). When
+    ``WORLDSIM_WEBARENA_EVAL_PYTHON`` is not set, fall back to the
+    conventional repo-relative location. POSIX only; Windows would need
+    ``.venv/Scripts/python.exe``.
+    """
+    try:
+        root = find_repo_root()
+    except RuntimeError:
+        return ""
+    candidate = root / "packages" / "worldsim-webarena-verified" / ".venv" / "bin" / "python"
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+    return ""
+
 
 _MULTI_STATEMENT_PATTERN = re.compile(r";(?=(?:[^']|'[^']*')*$)")
 _READ_ONLY_QUERY_PREFIX = re.compile(r"^\s*(SELECT|WITH)\b", re.IGNORECASE)
@@ -174,7 +196,9 @@ def _run_webarena_verified_eval(
     # once here so every downstream call sees a valid non-empty HAR trace.
     har_trace = ensure_har_trace(network_trace)
 
-    subprocess_python = os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip()
+    subprocess_python = (
+        os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip() or _default_eval_python()
+    )
     if subprocess_python:
         return _run_webarena_verified_subprocess(
             python_executable=subprocess_python,

@@ -732,6 +732,7 @@ def _phase_4_state_metadata(
     agent_model: str,
     sandbox_model: str,
     agent_provider: str | None,
+    agent_service_tier: str | None,
     max_tasks_per_site: int | None,
     sites: str | None,
     benchmark_root: Path | None,
@@ -744,6 +745,7 @@ def _phase_4_state_metadata(
         "agent_model": agent_model,
         "sandbox_model": sandbox_model,
         "agent_provider": agent_provider,
+        "agent_service_tier": agent_service_tier,
         "max_tasks_per_site": max_tasks_per_site,
         "allow_unknown_auth": allow_unknown_auth,
         "skip_host_bound_storage_state_auth": skip_host_bound_storage_state_auth,
@@ -1058,6 +1060,7 @@ async def run(args: argparse.Namespace) -> int:
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
+    agent_service_tier = getattr(args, "agent_service_tier", None)
 
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
@@ -1076,6 +1079,7 @@ async def run(args: argparse.Namespace) -> int:
         agent_model=agent_model,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
+        agent_service_tier=agent_service_tier,
         max_tasks_per_site=max_tasks_per_site,
         sites=sites_filter_raw,
         benchmark_root=benchmark_root,
@@ -1269,6 +1273,45 @@ async def run(args: argparse.Namespace) -> int:
     )
     preflight_errors = list(preflight.errors)
     host_bound_mismatches = list(preflight.mismatches)
+    # Auto-heal: for each errored site that has form_login configured and the
+    # active benchmark opts into auto-mint, try a one-shot Playwright login
+    # and re-run the preflight. WebArena Verified opts in by default (dummy
+    # creds in repo); other benchmarks require WORLDSIM_AUTO_MINT_STORAGE_STATE=1.
+    if preflight_errors:
+        from worldsim.storage_state_preflight import ensure_storage_state
+
+        errored_sites = {error.site_name for error in preflight_errors}
+        healed_any = False
+        for instance in config.instances:
+            if instance.site_name not in errored_sites:
+                continue
+            try:
+                healed_path = await ensure_storage_state(
+                    instance,
+                    benchmark_root=benchmark_root,
+                    benchmark_name=config.benchmark_name,
+                )
+            except Exception as exc:  # pragma: no cover — defensive
+                logger.warning(
+                    "auto-mint storage_state raised for %s: %s",
+                    instance.site_name,
+                    exc,
+                )
+                continue
+            if healed_path is not None:
+                logger.info(
+                    "auto-healed storage_state for %s at %s",
+                    instance.site_name,
+                    healed_path,
+                )
+                healed_any = True
+        if healed_any:
+            preflight = inspect_storage_state_preflight(
+                config.instances,
+                benchmark_root=benchmark_root,
+            )
+            preflight_errors = list(preflight.errors)
+            host_bound_mismatches = list(preflight.mismatches)
     if preflight_errors:
         error_lines = [
             f"site {error.site_name!r}: {error.message} (declared path {error.declared_path!r})"
@@ -1431,7 +1474,11 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
-    agent_factory = make_agent_factory(model=agent_model, provider=agent_provider)
+    agent_factory = make_agent_factory(
+        model=agent_model,
+        provider=agent_provider,
+        service_tier=agent_service_tier,
+    )
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
     # Thread the benchmark codebase root through so BrowserUseAgent can resolve

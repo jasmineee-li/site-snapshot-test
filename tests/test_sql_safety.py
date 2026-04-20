@@ -156,6 +156,10 @@ def test_webarena_eval_fails_closed_without_vendor_package(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
     monkeypatch.delenv(rewards.WEBARENA_EVAL_PYTHON_ENV, raising=False)
+    # Also disable the repo-relative default so the in-process import path
+    # is genuinely exercised (otherwise the subprocess path picks up the
+    # real evaluator venv and sidesteps the fail-closed branch under test).
+    monkeypatch.setattr(rewards, "_default_eval_python", lambda: "")
 
     passed, message = run_reward_function(
         reward={"task_id": "123", "eval": [{"evaluator": "AgentResponseEvaluator"}]},

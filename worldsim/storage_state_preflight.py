@@ -3,12 +3,29 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 from dataclasses import dataclass
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
+
+logger = logging.getLogger(__name__)
+
+# Playwright ``storage_state`` cookies are short-lived for many sites
+# (GitLab's ``_gitlab_session`` especially). A 24h TTL is a conservative
+# default: shorter re-mints too often and wastes Playwright launches;
+# longer risks running a rigor run with an expired session that fails
+# cryptically mid-task.
+_STORAGE_STATE_TTL_SECONDS = 24 * 60 * 60
+
+# Runtime auto-heal is allowed by default for the WebArena Verified
+# benchmark (dummy creds already in repo). Other benchmarks must opt in
+# via this env var.
+_AUTO_MINT_ENV = "WORLDSIM_AUTO_MINT_STORAGE_STATE"
 
 
 @dataclass(frozen=True)
@@ -352,7 +369,10 @@ def apply_skip_auth_for_host_bound_storage_states(
     for instance in instances:
         site_name = str(instance.get("site_name", "")).strip()
         agent_auth = instance.get("agent_auth")
-        if not isinstance(agent_auth, dict) or str(agent_auth.get("type", "")).strip() != "storage_state":
+        if (
+            not isinstance(agent_auth, dict)
+            or str(agent_auth.get("type", "")).strip() != "storage_state"
+        ):
             continue
         storage_state = agent_auth.get("storage_state")
         if not isinstance(storage_state, dict):
@@ -365,3 +385,161 @@ def apply_skip_auth_for_host_bound_storage_states(
             "notes": "Skipped due to host-bound storage_state artifact; re-run phase 0d for this host.",
         }
     return BenchmarkConfig.model_validate(payload)
+
+
+# ---------------------------------------------------------------------------
+# Auto-mint helpers (runtime auto-heal for missing/stale storage_state)
+# ---------------------------------------------------------------------------
+
+
+def _meta_sidecar_path(artifact_path: Path) -> Path:
+    """Return the ``.meta.json`` sidecar companion for a storage_state file."""
+    return artifact_path.with_name(artifact_path.name.replace(".json", ".meta.json"))
+
+
+def storage_state_is_fresh(
+    artifact_path: Path,
+    *,
+    ttl_seconds: int = _STORAGE_STATE_TTL_SECONDS,
+    now_fn: Any | None = None,
+) -> bool:
+    """Return True when the sidecar says the artifact was minted within TTL.
+
+    Missing sidecar → assume fresh (preserves behavior for pre-existing
+    artifacts that were minted before this helper existed). Malformed
+    sidecar → treat as stale so we re-mint rather than trusting garbage.
+    """
+    sidecar = _meta_sidecar_path(artifact_path)
+    if not sidecar.exists():
+        return True
+    try:
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    raw = payload.get("minted_at")
+    if not isinstance(raw, str):
+        return False
+    try:
+        minted_at = datetime.fromisoformat(raw)
+    except ValueError:
+        return False
+    if minted_at.tzinfo is None:
+        minted_at = minted_at.replace(tzinfo=UTC)
+    now = now_fn() if now_fn is not None else datetime.now(UTC)
+    age = (now - minted_at).total_seconds()
+    return age < ttl_seconds
+
+
+def write_storage_state_meta(
+    artifact_path: Path,
+    *,
+    mechanism: str,
+    now_fn: Any | None = None,
+) -> None:
+    """Write a ``.meta.json`` sidecar recording when + how the state was minted."""
+    now = now_fn() if now_fn is not None else datetime.now(UTC)
+    payload = {
+        "minted_at": now.isoformat(),
+        "mechanism": mechanism,
+    }
+    sidecar = _meta_sidecar_path(artifact_path)
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
+    sidecar.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _auto_mint_allowed(benchmark_name: str | None) -> bool:
+    """Decide whether runtime auto-mint is permitted for this benchmark."""
+    override = os.environ.get(_AUTO_MINT_ENV, "").strip().lower()
+    if override in {"1", "true", "yes"}:
+        return True
+    if override in {"0", "false", "no"}:
+        return False
+    # Default: true only for WebArena Verified (dummy creds in repo).
+    if isinstance(benchmark_name, str) and benchmark_name.strip() == "WebArena Verified":
+        return True
+    return False
+
+
+async def ensure_storage_state(
+    instance: BenchmarkInstance,
+    *,
+    benchmark_root: Path | None,
+    benchmark_name: str | None,
+) -> Path | None:
+    """Resolve a storage_state artifact, auto-minting if missing or stale.
+
+    Returns the resolved artifact path when available, or ``None`` when the
+    instance has no ``storage_state`` auth configured. Raises
+    :class:`RuntimeError` (wrapping :class:`AuthBootstrapError`) when
+    auto-mint is permitted but fails. Returns the original error path (via
+    the existing preflight) when auto-mint is disallowed — callers should
+    run ``inspect_storage_state_preflight`` for the structured report.
+    """
+    artifact_path, error = _resolve_storage_state_artifact_for_preflight(
+        instance,
+        benchmark_root=benchmark_root,
+    )
+    if error is None and artifact_path is not None:
+        if storage_state_is_fresh(artifact_path):
+            return artifact_path
+        logger.info(
+            "storage_state for %s is stale per sidecar TTL; re-minting",
+            instance.site_name,
+        )
+    elif artifact_path is not None:
+        return artifact_path
+
+    # Either the artifact is missing, or the sidecar says it is stale.
+    if not _auto_mint_allowed(benchmark_name):
+        logger.warning(
+            "storage_state missing/stale for site %s but auto-mint disabled "
+            "(set %s=true to opt in)",
+            instance.site_name,
+            _AUTO_MINT_ENV,
+        )
+        return artifact_path  # may be None; caller decides how to handle
+
+    try:
+        from worldsim.phases.phase_0d_auth_bootstrap import (
+            _bootstrap_via_form_login,
+            _extract_form_login_recipe,
+            _SiteSpec,
+            phase_0d_artifact_path,
+        )
+    except ImportError as exc:  # pragma: no cover
+        logger.error("Phase 0d helpers unavailable for auto-mint: %s", exc)
+        return artifact_path
+
+    auth = instance.agent_auth if isinstance(instance.agent_auth, dict) else {}
+    form_login = _extract_form_login_recipe(auth) if auth else None
+    if form_login is None:
+        logger.warning(
+            "site %s has no form_login recipe; cannot auto-mint storage_state",
+            instance.site_name,
+        )
+        return artifact_path
+
+    authentication = auth.get("authentication") if isinstance(auth, dict) else None
+    credentials = None
+    if isinstance(authentication, dict):
+        credentials = authentication.get("credentials")
+
+    output_path = phase_0d_artifact_path(instance.site_name)
+    spec = _SiteSpec(
+        site_name=instance.site_name,
+        generator_script=None,
+        form_login=form_login,
+        credentials=credentials,
+        declared_storage_state_path=None,
+    )
+    try:
+        await _bootstrap_via_form_login(
+            spec=spec,
+            site_url=instance.site_url,
+            output_path=output_path,
+        )
+    except Exception as exc:
+        logger.error("auto-mint storage_state failed for %s: %s", instance.site_name, exc)
+        return artifact_path
+    write_storage_state_meta(output_path, mechanism="form_login_auto_heal")
+    return output_path

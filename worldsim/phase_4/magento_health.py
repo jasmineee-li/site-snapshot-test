@@ -23,6 +23,7 @@ https://experienceleague.adobe.com/en/docs/commerce-admin/stores-sales/site-stor
 
 from __future__ import annotations
 
+import codecs
 import logging
 import re
 from typing import Any
@@ -109,7 +110,16 @@ def probe_base_url(
     match = _BASE_URL_PATTERN.search(response.text)
     if match is None:
         return None
-    return match.group(1)
+    raw = match.group(1)
+    # Magento's Luma theme emits BASE_URL with JS ``\uXXXX`` escapes for
+    # ``:`` (``\u003A``) and ``/`` (``\u002F``). Decode those so string
+    # comparison against the plain-text proxy origin succeeds. ``\n``/``\t``
+    # would also be expanded; a well-formed URL never contains them, so
+    # round-tripping an already-plain value is a no-op.
+    try:
+        return codecs.decode(raw, "unicode_escape")
+    except UnicodeDecodeError:
+        return raw
 
 
 def assert_base_url(

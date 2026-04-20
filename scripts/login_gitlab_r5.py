@@ -1,19 +1,35 @@
-"""One-shot gitlab login → save storage_state.json for r5."""
+"""One-shot gitlab login → save storage_state.json for r5.
+
+Accepts GITLAB_HOST / GITLAB_USERNAME / GITLAB_PASSWORD env vars so the
+script works across hosts (laptop dev, r5, future deployments). The
+defaults reflect WebArena's dummy credentials, which are safe to keep in
+the repo. Writes a ``.meta.json`` sidecar so the runtime can apply a TTL
+check before trusting the cookies.
+"""
 
 import asyncio
 import json
+import os
 import pathlib
 import sys
+from datetime import UTC, datetime, timezone
 
 from playwright.async_api import async_playwright
 
-HOST = "http://3.12.221.9:8023"
-USERNAME = "byteblaze"
-PASSWORD = "hello1234"
-OUT = pathlib.Path("logs/phase_0d/gitlab/storage_state.json")
+HOST = os.environ.get("GITLAB_HOST", "http://127.0.0.1:8023").rstrip("/")
+USERNAME = os.environ.get("GITLAB_USERNAME", "byteblaze")
+PASSWORD = os.environ.get("GITLAB_PASSWORD", "hello1234")
+OUT = pathlib.Path(
+    os.environ.get("GITLAB_STORAGE_STATE_PATH", "logs/phase_0d/gitlab/storage_state.json")
+)
+
+
+def _meta_path(artifact: pathlib.Path) -> pathlib.Path:
+    return artifact.with_name(artifact.name.replace(".json", ".meta.json"))
 
 
 async def main() -> int:
+    print(f"gitlab login: host={HOST} user={USERNAME} out={OUT}", file=sys.stderr)
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         ctx = await browser.new_context()
@@ -35,6 +51,16 @@ async def main() -> int:
         state = await ctx.storage_state()
         OUT.parent.mkdir(parents=True, exist_ok=True)
         OUT.write_text(json.dumps(state, indent=2))
+        _meta_path(OUT).write_text(
+            json.dumps(
+                {
+                    "minted_at": datetime.now(UTC).isoformat(),
+                    "mechanism": "form_login",
+                    "host": HOST,
+                },
+                indent=2,
+            )
+        )
         print(f"wrote {OUT} ({len(state.get('cookies', []))} cookies) final_url={final}")
         await browser.close()
     return 0

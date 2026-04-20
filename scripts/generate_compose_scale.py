@@ -50,7 +50,6 @@ from worldsim.config import BenchmarkConfig
 from worldsim.host_config import BenchmarkHostConfig, load_host_config
 from worldsim.placeholders import placeholder_for_site
 
-
 # ---------------------------------------------------------------------------
 # Replica expansion
 # ---------------------------------------------------------------------------
@@ -92,8 +91,19 @@ def expand_site(
             container_db_port = 3306 if site_name in ("shopping", "shopping_admin") else 5432
             ports.append(f"{db_bind_host}:{db_port}:{container_db_port}")
 
+        # Bake the PROXY port (real_web + proxy_port_offset) into
+        # WA_ENV_CTRL_EXTERNAL_SITE_URL, not the raw container port. Phase 4's
+        # _reset_task_environment POSTs to reset_endpoint before every task,
+        # which triggers env-ctrl's _init() → setup:store-config:set
+        # --base-url=<this env var>. Baking the raw port here is what causes
+        # "shopping replicas silently revert base_url" — every task reset
+        # overwrites the proxy-origin repair. Baking the proxy port makes
+        # _init() idempotent with what the proxy + fix_magento_base_url.sh
+        # expect. When proxy_port_offset == 0 (loopback / --no-verification
+        # -proxy mode) this stays on the raw port, which is correct.
+        env_site_port = real_web + proxy_port_offset if proxy_port_offset else real_web
         env_list: list[str] = [
-            f"WA_ENV_CTRL_EXTERNAL_SITE_URL=http://{advertise_host}:{real_web}",
+            f"WA_ENV_CTRL_EXTERNAL_SITE_URL=http://{advertise_host}:{env_site_port}",
         ]
         for entry in site_cfg.get("environment", []) or []:
             if isinstance(entry, str):
@@ -317,8 +327,15 @@ def build_instances_config(
     proxy_token: str | None,
     proxy_port_offset: int,
     proxy_scheme: str | None,
+    emit_verification_proxy: bool = True,
 ) -> dict[str, Any]:
-    """Produce a full BenchmarkConfig with scaled runtime instances."""
+    """Produce a full BenchmarkConfig with scaled runtime instances.
+
+    When ``emit_verification_proxy=False``, the ``verification_proxy`` block
+    is stripped from the output. Use this for loopback dev stacks where no
+    nginx proxy is running; otherwise ``magento_health.py`` probes a
+    non-existent proxy port and aborts Phase 4 startup.
+    """
     output = json.loads(json.dumps(base_config))
     base_instances = output.get("instances")
     if not isinstance(base_instances, list) or not base_instances:
@@ -342,19 +359,24 @@ def build_instances_config(
             )
         )
 
-    verification_proxy = output.get("verification_proxy")
-    if not isinstance(verification_proxy, dict):
-        verification_proxy = {}
-    if proxy_token is not None:
-        verification_proxy["token"] = proxy_token
-    verification_proxy["port_offset"] = proxy_port_offset
-    if proxy_scheme is not None:
-        verification_proxy["scheme"] = proxy_scheme
-    if verification_proxy:
-        output["verification_proxy"] = verification_proxy
+    if emit_verification_proxy:
+        verification_proxy = output.get("verification_proxy")
+        if not isinstance(verification_proxy, dict):
+            verification_proxy = {}
+        if proxy_token is not None:
+            verification_proxy["token"] = proxy_token
+        verification_proxy["port_offset"] = proxy_port_offset
+        if proxy_scheme is not None:
+            verification_proxy["scheme"] = proxy_scheme
+        if verification_proxy:
+            output["verification_proxy"] = verification_proxy
+    else:
+        output.pop("verification_proxy", None)
 
     top_level_placeholders = output.get("url_placeholders")
-    merged_top_level = dict(top_level_placeholders) if isinstance(top_level_placeholders, dict) else {}
+    merged_top_level = (
+        dict(top_level_placeholders) if isinstance(top_level_placeholders, dict) else {}
+    )
     merged_top_level.update(placeholder_map)
     output["url_placeholders"] = merged_top_level
     output["instances"] = instances
@@ -441,7 +463,9 @@ def main() -> int:
     )
     ap.add_argument("--host-config", help="checked-in benchmark host config YAML")
     ap.add_argument("--advertise-host", help="host/IP for runtime URLs and site URLs")
-    ap.add_argument("--bind-host", help="host/interface Docker should publish web/env-ctrl ports on")
+    ap.add_argument(
+        "--bind-host", help="host/interface Docker should publish web/env-ctrl ports on"
+    )
     ap.add_argument("--db-bind-host", help="host/interface Docker should publish DB ports on")
     ap.add_argument(
         "--allow-public-web-bind",
@@ -463,6 +487,15 @@ def main() -> int:
         choices=["http", "https"],
         default=None,
         help="optional verification_proxy.scheme override",
+    )
+    ap.add_argument(
+        "--no-verification-proxy",
+        action="store_true",
+        help=(
+            "omit verification_proxy block and bake raw-port URLs throughout "
+            "(loopback / dev stacks without an nginx proxy). Auto-enabled when "
+            "advertise_host resolves to a loopback address."
+        ),
     )
     ap.add_argument(
         "--mode",
@@ -524,6 +557,32 @@ def main() -> int:
     subnet = config.get("network", {}).get("subnet", "172.20.0.0/20")
     proxy_offset = int(config.get("proxy_port_offset", 10000))
 
+    # Loopback advertise_host → no nginx proxy on that host. Auto-omit the
+    # verification_proxy block and bake raw ports so magento_health.py and
+    # reset_endpoint's _init() both see the same origin.
+    loopback_hosts = {"127.0.0.1", "localhost", "0.0.0.0", "::1"}
+    advertise_is_loopback = host_cfg.advertise_host.strip() in loopback_hosts
+    emit_proxy = not (args.no_verification_proxy or advertise_is_loopback)
+    if not emit_proxy:
+        proxy_offset = 0
+        reason = (
+            "--no-verification-proxy"
+            if args.no_verification_proxy
+            else f"advertise_host={host_cfg.advertise_host!r} is loopback"
+        )
+        print(f"verification_proxy omitted: {reason}", file=sys.stderr)
+
+    # Banner: surface the resolved advertise_host so the operator catches
+    # a wrong value before downstream consumers see it.
+    print(
+        f"advertise_host={host_cfg.advertise_host} "
+        f"bind_host={host_cfg.bind_host} "
+        f"db_bind_host={host_cfg.db_bind_host} "
+        f"proxy_port_offset={proxy_offset} "
+        f"emit_verification_proxy={emit_proxy}",
+        file=sys.stderr,
+    )
+
     if args.mode == "scale":
         replica_counts = {name: int(sc["replicas"]) for name, sc in config["sites"].items()}
         compose_filename = "compose.scale.yml"
@@ -560,6 +619,7 @@ def main() -> int:
         proxy_token=args.proxy_token,
         proxy_port_offset=proxy_offset,
         proxy_scheme=args.proxy_scheme,
+        emit_verification_proxy=emit_proxy,
     )
 
     compose_path = out_dir / compose_filename

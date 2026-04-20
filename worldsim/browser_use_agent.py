@@ -714,7 +714,19 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 "auth_mechanism.storage_state.path is empty; validator should have caught this"
             )
-        path = _resolve_storage_state_path(raw_path.strip(), benchmark_root)
+        # If the declared path resolves outside benchmark_root (e.g. the
+        # operator re-routed it to logs/phase_0d/<site>/storage_state.json
+        # under state_dir), fall back to the phase_0d artifact when present.
+        # The preflight in worldsim/storage_state_preflight.py already does
+        # this; mirror the fallback here so agent launch stays consistent.
+        try:
+            path = _resolve_storage_state_path(raw_path.strip(), benchmark_root)
+        except AuthArtifactMissingError:
+            bootstrap_path = _phase_0d_fallback_path(task)
+            if bootstrap_path is not None and bootstrap_path.exists():
+                session_kwargs["storage_state"] = str(bootstrap_path)
+                return session_kwargs, deferred_actions
+            raise
         # storage_state wins over any form_login that may coexist (plan §5 edges).
         if not path.exists():
             generator = sub.get("generator_script")
@@ -830,6 +842,13 @@ class BrowserUseAgent:
         self.timeout = timeout
         self.headless = headless
         self._session: Any = None
+        # Surface the configured model slug at construction. If the run 404s
+        # mid-task, this is the first thing to check against the provider's
+        # currently-served model list. An allowlist would rot faster than
+        # provider catalogs update, so we only log.
+        model_slug = getattr(llm, "model", None)
+        if isinstance(model_slug, str) and model_slug:
+            logger.info("BrowserUseAgent configured with model=%r", model_slug)
 
     async def setup(self, server_url: str) -> None:
         # Browser sessions are task-scoped so trajectory artifacts remain

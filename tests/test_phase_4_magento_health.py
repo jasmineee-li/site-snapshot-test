@@ -74,6 +74,17 @@ def test_probe_base_url_raises_on_5xx():
     assert "HTTP 503" in excinfo.value.args[0]
 
 
+def test_probe_base_url_decodes_unicode_escapes():
+    # Magento's Luma theme emits the URL with JS ``\uXXXX`` escapes for
+    # ``:`` (\u003A) and ``/`` (\u002F). Comparison against the plain-text
+    # proxy origin requires decoding.
+    html = r"<script>var BASE_URL = 'http\u003A\u002F\u002F3.12.221.9\u003A17770\u002F';</script>"
+    session = _StubSession(_StubResponse(200, html))
+    assert probe_base_url("http://3.12.221.9:7770/", session=session) == (
+        "http://3.12.221.9:17770/"
+    )
+
+
 def test_probe_base_url_accepts_trailing_slash_variation():
     # The probe's target URL normalisation must not double-slash.
     html = "<script>var BASE_URL = 'http://x:17770/';</script>"

@@ -449,3 +449,146 @@ def test_generate_compose_scale_rejects_unapproved_public_binds_on_raw_cli(
 
     assert completed.returncode == 2
     assert "allow_public_web_bind=true" in completed.stderr
+
+
+def test_generate_compose_scale_bakes_proxy_port_into_env_var(tmp_path: Path) -> None:
+    """WA_ENV_CTRL_EXTERNAL_SITE_URL must carry the proxy port, not the raw port.
+
+    Root-cause fix for the Magento base_url drift: Phase 4 POSTs to
+    reset_endpoint before every task, which triggers env-ctrl's _init()
+    that reads this env var and runs ``setup:store-config:set --base-url``.
+    Baking the raw port here is what causes the silent revert.
+    """
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "instances": [
+            {
+                "site_name": "shopping",
+                "site_url": "http://old:7770",
+                "reset_endpoint": "http://old:7771/init",
+                "agent_auth": {"type": "none"},
+            },
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"shopping": 1},
+        "sites": {
+            "shopping": {
+                "image": "example/shopping@sha256:" + "a" * 64,
+                "replicas": 2,
+                "real_port_base": 7770,
+                "container_web_port": 80,
+                "port_step": 10,
+            },
+        },
+    }
+    base_path = tmp_path / "instances.base.json"
+    config_path = tmp_path / "scale.yml"
+    base_path.write_text(json.dumps(base_config))
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(tmp_path)
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(tmp_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    compose = yaml.safe_load((tmp_path / "compose.scale.yml").read_text())
+    shopping_0_env = compose["services"]["shopping_0"]["environment"]
+    shopping_1_env = compose["services"]["shopping_1"]["environment"]
+    assert "WA_ENV_CTRL_EXTERNAL_SITE_URL=http://203.0.113.10:17770" in shopping_0_env
+    assert "WA_ENV_CTRL_EXTERNAL_SITE_URL=http://203.0.113.10:17780" in shopping_1_env
+
+
+def test_generate_compose_scale_auto_omits_verification_proxy_on_loopback(
+    tmp_path: Path,
+) -> None:
+    """Loopback advertise_host → no nginx proxy, so no verification_proxy block."""
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "verification_proxy": {"token": "stale", "port_offset": 10000, "scheme": "http"},
+        "instances": [
+            {
+                "site_name": "shopping",
+                "site_url": "http://old:7770",
+                "reset_endpoint": "http://old:7771/init",
+                "agent_auth": {"type": "none"},
+            },
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"shopping": 1},
+        "sites": {
+            "shopping": {
+                "image": "example/shopping@sha256:" + "b" * 64,
+                "replicas": 1,
+                "real_port_base": 7770,
+                "container_web_port": 80,
+                "port_step": 10,
+            },
+        },
+    }
+    base_path = tmp_path / "instances.base.json"
+    config_path = tmp_path / "scale.yml"
+    base_path.write_text(json.dumps(base_config))
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(
+        tmp_path,
+        access_mode="host_local",
+        advertise_host="127.0.0.1",
+        bind_host="127.0.0.1",
+        db_bind_host="127.0.0.1",
+        allow_public_web_bind=False,
+        allow_public_db_bind=False,
+    )
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(tmp_path),
+        ],
+        check=True,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+
+    instances_config = json.loads((tmp_path / "instances.json").read_text())
+    # BenchmarkConfig's Pydantic schema keeps the key but with null value
+    # when loopback-omitted; either absent or null satisfies "no proxy".
+    assert instances_config.get("verification_proxy") in (None,)
+    assert "verification_proxy omitted" in completed.stderr
+    # Env var must stay on the raw port when proxy offset is suppressed.
+    compose = yaml.safe_load((tmp_path / "compose.scale.yml").read_text())
+    shopping_env = compose["services"]["shopping_0"]["environment"]
+    assert "WA_ENV_CTRL_EXTERNAL_SITE_URL=http://127.0.0.1:7770" in shopping_env
