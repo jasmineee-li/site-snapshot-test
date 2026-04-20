@@ -6,7 +6,6 @@ classifier in parallel with the VEA judge. This file covers:
 - Gate-miss short-circuits both metrics to nulls.
 - Encountered trajectories populate transcript_purpose + VEA in parallel.
 - One metric blowing up does not starve the other.
-- Sentinel cleanup (.ipi_aer_inflight) on clean return.
 - Legacy .aer_inflight sentinel sweep on Phase 4 entry.
 - Pre-cutover ipi_aer_* keys are absent from new result payloads.
 """
@@ -182,7 +181,9 @@ async def test_gate_encountered_fans_out_both_metrics(monkeypatch, tmp_path):
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.75, reference_step=0, reference_path=screenshot)
 
-    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None):
+    async def fake_tp(
+        task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None
+    ):
         return _transcript_purpose_payload()
 
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
@@ -211,8 +212,6 @@ async def test_gate_encountered_fans_out_both_metrics(monkeypatch, tmp_path):
     assert result["transcript_purpose_attempts"] == 1
     assert result["verbalized_eval_awareness_classification"] == "Alignment Evaluation"
     assert result["verbalized_eval_awareness_is_aware"] is True
-    # Sentinel deleted on clean return (new name)
-    assert not (tmp_path / ".ipi_aer_inflight").exists()
 
 
 @pytest.mark.asyncio
@@ -223,7 +222,9 @@ async def test_transcript_purpose_failure_does_not_block_vea(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def failing_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None):
+    async def failing_tp(
+        task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None
+    ):
         raise RuntimeError("transcript_purpose blew up")
 
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
@@ -252,7 +253,9 @@ async def test_vea_failure_does_not_block_transcript_purpose(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None):
+    async def fake_tp(
+        task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None
+    ):
         return _transcript_purpose_payload()
 
     async def failing_vea(task, trajectory_dir, extracted, *, sandbox_model):
@@ -306,33 +309,6 @@ async def test_raised_transcript_purpose_still_yields_full_null_schema(monkeypat
     ):
         assert key in result, f"missing key after raise: {key}"
     assert result["transcript_purpose_failure"] == "api_error"
-
-
-@pytest.mark.asyncio
-async def test_sentinel_written_then_cleaned_on_success(monkeypatch, tmp_path):
-    """Sentinel `.ipi_aer_inflight` is written at entry and unlinked on clean exit."""
-    _write_history(tmp_path)
-    screenshot = _screenshot(tmp_path)
-
-    def fake_determine(task, trajectory_dir):
-        return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
-
-    async def fake_tp(*args, **kwargs):
-        # Observe the sentinel mid-run.
-        assert (tmp_path / ".ipi_aer_inflight").exists()
-        return _transcript_purpose_payload()
-
-    async def fake_vea(*args, **kwargs):
-        return _vea_real_payload(tmp_path)
-
-    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
-    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
-
-    await phase_4_adversarial._run_pvpo_gate(_task(), tmp_path, sandbox_model="claude-sonnet-4-6")
-
-    # Cleaned up on clean return.
-    assert not (tmp_path / ".ipi_aer_inflight").exists()
 
 
 @pytest.mark.asyncio

@@ -151,28 +151,25 @@ _VARIANT_RESULT_METADATA = "resume_metadata.json"
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 
 
-_IPI_AER_INFLIGHT_SENTINEL = ".ipi_aer_inflight"
 _LEGACY_AER_INFLIGHT_SENTINEL = ".aer_inflight"
 
 
 def _sweep_orphan_inflight_sentinels(task_dir_root: Path) -> int:
-    """Delete any inflight-sentinel files left on disk by a prior crashed run.
+    """Delete legacy ``.aer_inflight`` sentinel files left on disk by old runs.
 
-    The current sentinel ``.ipi_aer_inflight`` is written at
-    ``_run_pvpo_gate`` entry and unlinked in its finally-block; anything
-    still on disk at Phase 4 entry is a leftover from a crash. The legacy
-    ``.aer_inflight`` sentinel predates the PVPO cutover and is kept in
-    the sweep list so re-runs of older trajectories clear cleanly.
+    Pre-cutover code wrote an ``.aer_inflight`` resume-hint file at PVPO
+    gate entry and unlinked it on clean exit. Nothing consumed the sentinel
+    for a routing decision (resume is driven by the ``processed_result.json``
+    fingerprint check in ``_postprocess_one_task``), so the sentinel was
+    removed in a follow-up sweep. This helper stays so re-runs of older
+    trajectories don't leave empty marker files lying around.
 
     Returns the count of sentinel files removed (useful for tests and
     log-level triage).
     """
     if not task_dir_root.exists():
         return 0
-    orphan_names = (_LEGACY_AER_INFLIGHT_SENTINEL, _IPI_AER_INFLIGHT_SENTINEL)
-    orphans: list[Path] = []
-    for name in orphan_names:
-        orphans.extend(task_dir_root.rglob(name))
+    orphans = list(task_dir_root.rglob(_LEGACY_AER_INFLIGHT_SENTINEL))
     for orphan in orphans:
         try:
             orphan.unlink()
@@ -180,9 +177,9 @@ def _sweep_orphan_inflight_sentinels(task_dir_root: Path) -> int:
             pass
     if orphans:
         logger.warning(
-            "Phase 4: swept %d orphan inflight sentinel(s): %s",
+            "Phase 4: swept %d legacy %s sentinel(s)",
             len(orphans),
-            ", ".join(orphan_names),
+            _LEGACY_AER_INFLIGHT_SENTINEL,
         )
     return len(orphans)
 
@@ -340,9 +337,11 @@ async def _run_pvpo_gate(
        null every metric key, skip both judges entirely. Running
        transcript_purpose without a reference screenshot is an incoherent
        prompt; running VEA here adds cost with no current downstream consumer.
-    3. ``max_coverage > 0`` → write ``.ipi_aer_inflight`` sentinel and fan out
-       transcript_purpose and VEA via ``asyncio.gather(return_exceptions=True)``.
-       Neither metric gates anything; either failure is independent.
+    3. ``max_coverage > 0`` → fan out transcript_purpose and VEA via
+       ``asyncio.gather(return_exceptions=True)``. Neither metric gates
+       anything; either failure is independent. Resume correctness is
+       driven by the ``processed_result.json`` fingerprint check at
+       ``_postprocess_one_task`` — no in-flight sentinel is written here.
     """
     try:
         encounter = determine_encounter(task, task_dir)
@@ -405,12 +404,6 @@ async def _run_pvpo_gate(
             task_dir,
         )
         return _gate_miss_payload(encounter_dict)
-
-    sentinel_path = task_dir / _IPI_AER_INFLIGHT_SENTINEL
-    try:
-        sentinel_path.touch(exist_ok=True)
-    except OSError:  # best-effort; sentinel is a resume hint, not load-bearing
-        pass
 
     async def _run_transcript_purpose() -> dict[str, Any]:
         if screenshot_path is None or not screenshot_bytes:
@@ -476,10 +469,6 @@ async def _run_pvpo_gate(
             if not metric_task.done():
                 metric_task.cancel()
         await asyncio.gather(tp_task, vea_task, return_exceptions=True)
-        try:
-            sentinel_path.unlink(missing_ok=True)
-        except OSError:
-            pass
 
     return {
         "encounter": encounter_dict,

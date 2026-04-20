@@ -4086,25 +4086,22 @@ def test_placement_fix_succeeded_predicate(
     )
 
 
-def test_sweep_orphan_inflight_sentinels_removes_both_names(tmp_path):
-    """F3 regression: the Phase 4 entry sweep must unlink both the legacy
-    ``.aer_inflight`` (pre-cutover) and the current ``.ipi_aer_inflight``
-    (written at PVPO gate entry) when they're left on disk by a crashed run.
+def test_sweep_orphan_inflight_sentinels_removes_legacy(tmp_path):
+    """The Phase 4 entry sweep must unlink the legacy ``.aer_inflight``
+    sentinel so re-runs of older trajectories don't leave empty marker
+    files on disk. The current-cutover sentinel was removed entirely as
+    a write-only resume hint with no consumer; only the legacy name is
+    swept now.
     """
     task_a = tmp_path / "task_a"
-    task_b = tmp_path / "task_b"
     task_a.mkdir()
-    task_b.mkdir()
     legacy = task_a / phase_4_adversarial._LEGACY_AER_INFLIGHT_SENTINEL
-    current = task_b / phase_4_adversarial._IPI_AER_INFLIGHT_SENTINEL
     legacy.touch()
-    current.touch()
 
     removed = phase_4_adversarial._sweep_orphan_inflight_sentinels(tmp_path)
 
-    assert removed == 2
+    assert removed == 1
     assert not legacy.exists()
-    assert not current.exists()
 
 
 def test_sweep_orphan_inflight_sentinels_on_missing_dir(tmp_path):
