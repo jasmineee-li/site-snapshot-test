@@ -175,9 +175,20 @@ def test_resolve_pvpo_cdp_url_allows_remote_with_override(monkeypatch: pytest.Mo
 async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkeypatch: pytest.MonkeyPatch):
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    agent._task_origins = {"https://closed.example"}
     page_one = SimpleNamespace(_target_id="target-1")
     page_two = SimpleNamespace(_target_id="target-2")
     cdp_session = object()
+    clear_data_for_origin = AsyncMock()
+
+    class _StorageSender:
+        clearDataForOrigin = clear_data_for_origin
+
+    class _SendRoot:
+        Storage = _StorageSender()
+
+    class _CDPClient:
+        send = _SendRoot()
 
     class FakeSession:
         get_pages = AsyncMock(return_value=[page_one, page_two])
@@ -185,9 +196,12 @@ async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkey
         get_or_create_cdp_session = AsyncMock(side_effect=[cdp_session, cdp_session])
         clear_cookies = AsyncMock()
         close_page = AsyncMock()
+        cdp_client = _CDPClient()
 
     runtime_eval = AsyncMock(return_value=True)
     monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate", runtime_eval)
+    page_one.get_url = AsyncMock(return_value="https://one.example/path")
+    page_two.get_url = AsyncMock(return_value="https://two.example/other")
 
     session = FakeSession()
     await agent._cleanup_external_cdp_state(session)
@@ -199,6 +213,11 @@ async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkey
         call(target_id="target-2", focus=False),
     ]
     assert runtime_eval.await_count == 2
+    assert clear_data_for_origin.await_args_list == [
+        call(params={"origin": "https://closed.example", "storageTypes": "all"}),
+        call(params={"origin": "https://one.example", "storageTypes": "all"}),
+        call(params={"origin": "https://two.example", "storageTypes": "all"}),
+    ]
     session.clear_cookies.assert_awaited_once()
     assert session.close_page.await_args_list == [
         call(page_one),

@@ -695,6 +695,30 @@ def _resolve_pvpo_cdp_url(raw_url: str) -> str:
     )
 
 
+def _origin_from_url(raw_url: str) -> str | None:
+    """Return ``scheme://host[:port]`` for http(s) URLs."""
+    if not isinstance(raw_url, str) or not raw_url.strip():
+        return None
+    parsed = urlparse(raw_url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+
+    default_port = 80 if parsed.scheme == "http" else 443
+    if parsed.port and parsed.port != default_port:
+        return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+    return f"{parsed.scheme}://{parsed.hostname}"
+
+
+def _origins_from_network_trace(trace: list[dict[str, Any]]) -> set[str]:
+    """Collect http(s) origins observed in the network trace."""
+    origins: set[str] = set()
+    for entry in trace:
+        origin = _origin_from_url(str(entry.get("url") or ""))
+        if origin:
+            origins.add(origin)
+    return origins
+
+
 def _resolve_storage_state_path(raw_path: str, benchmark_root: Path | None) -> Path:
     """Resolve a storage-state artifact path and enforce benchmark-root containment."""
     path = Path(raw_path)
@@ -911,6 +935,7 @@ class BrowserUseAgent:
         self.headless = headless
         self._session: Any = None
         self._pvpo_cdp_url: str = ""
+        self._task_origins: set[str] = set()
         # Surface the configured model slug at construction. If the run 404s
         # mid-task, this is the first thing to check against the provider's
         # currently-served model list. An allowlist would rot faster than
@@ -941,6 +966,7 @@ class BrowserUseAgent:
 
         task_dir = Path(task_dir)
         task_dir.mkdir(parents=True, exist_ok=True)
+        self._task_origins = {origin for origin in (_origin_from_url(url) for url in (start_urls or [])) if origin}
 
         # Resolve the declared auth_mechanism into BrowserSession kwargs +
         # deferred post-start actions. Errors here surface before we spin up a
@@ -1056,6 +1082,7 @@ class BrowserUseAgent:
                 logger.exception("Agent run failed for %s", task_dir)
         finally:
             network_trace = await network_recorder.stop()
+            self._task_origins.update(_origins_from_network_trace(network_trace))
             history = history or (getattr(agent, "history", None) if agent is not None else None)
             _write_agent_artifacts(
                 task_dir=task_dir,
@@ -1073,6 +1100,7 @@ class BrowserUseAgent:
                     logger.warning("BrowserSession kill failed: %s", e)
                 self._session = None
                 self._pvpo_cdp_url = ""
+                self._task_origins = set()
 
         steps, is_done, final_result, history_errors = _extract_history_state(history)
         return AgentResult(
@@ -1096,6 +1124,7 @@ class BrowserUseAgent:
                 logger.warning("BrowserSession kill failed: %s", e)
             self._session = None
             self._pvpo_cdp_url = ""
+            self._task_origins = set()
 
     async def _cleanup_external_cdp_state(self, session: Any) -> None:
         """Clean up shared CDP browser state between task-scoped runs."""
@@ -1119,6 +1148,33 @@ class BrowserUseAgent:
             else:
                 if current_page is not None:
                     pages = [current_page]
+
+        origins = set(self._task_origins)
+        for page in pages:
+            get_url = getattr(page, "get_url", None)
+            if callable(get_url):
+                try:
+                    origin = _origin_from_url(await get_url())
+                except Exception as exc:
+                    logger.debug("PVPO cleanup: could not read page URL: %s", exc)
+                else:
+                    if origin:
+                        origins.add(origin)
+
+        cdp_client = getattr(session, "cdp_client", None)
+        storage_sender = getattr(getattr(cdp_client, "send", None), "Storage", None)
+        clear_data_for_origin = getattr(storage_sender, "clearDataForOrigin", None)
+        if callable(clear_data_for_origin):
+            for origin in sorted(origins):
+                try:
+                    await clear_data_for_origin(
+                        params={
+                            "origin": origin,
+                            "storageTypes": "all",
+                        }
+                    )
+                except Exception as exc:
+                    logger.debug("PVPO cleanup: could not clear data for origin %s: %s", origin, exc)
 
         seen_target_ids: set[str] = set()
         for page in pages:
