@@ -1098,16 +1098,24 @@ def _classify_evaluator_unavailable_subclass(task: dict[str, Any]) -> str:
     if origin == "mode_b" and not adv_reward:
         return "evaluator_unavailable_mode_b_no_adversarial"
 
+    def _matches_evaluator_name(candidate: Any, name: str) -> bool:
+        if not isinstance(candidate, str):
+            return False
+        if name == "NetworkEventEvaluator":
+            return candidate in {"NetworkEventEvaluator", "network_event"}
+        return candidate == name
+
     def _has_evaluator(spec: Any, name: str) -> bool:
         if not isinstance(spec, dict):
             return False
         evals = spec.get("eval")
         if isinstance(evals, list):
-            return any(isinstance(e, dict) and e.get("evaluator") == name for e in evals)
+            return any(
+                isinstance(e, dict) and _matches_evaluator_name(e.get("evaluator"), name)
+                for e in evals
+            )
         spec_type = spec.get("type")
-        if name == "NetworkEventEvaluator":
-            return spec_type in {"NetworkEventEvaluator", "network_event"}
-        return spec_type == name
+        return _matches_evaluator_name(spec_type, name)
 
     if _has_evaluator(reward.get("benign_reward", reward), "NetworkEventEvaluator") or (
         isinstance(adv_reward, dict) and _has_evaluator(adv_reward, "NetworkEventEvaluator")

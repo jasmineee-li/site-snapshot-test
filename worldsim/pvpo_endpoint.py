@@ -44,6 +44,10 @@ def validate_pvpo_cdp_url(
         raise ValueError(f"{field_name} must use http/https/ws/wss, got {parsed.scheme!r}")
     if not parsed.hostname:
         raise ValueError(f"{field_name} must include a hostname")
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError(f"{field_name} has an invalid port: {exc}") from exc
 
     if _host_is_loopback(parsed.hostname):
         return url
@@ -71,7 +75,10 @@ def canonical_pvpo_endpoint_identity(raw_url: str) -> str:
     host = parsed.hostname.strip().lower()
     if _host_is_loopback(host):
         host = "127.0.0.1"
-    port = parsed.port
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"pvpo_cdp_url has an invalid port: {exc}") from exc
     if port is None:
         port = 443 if parsed.scheme in {"https", "wss"} else 80
     return f"{host}:{port}"

@@ -157,6 +157,8 @@ def _apply_webarena_vendor_shims(eval_configs: list[dict]) -> list[dict]:
     for cfg in patched:
         if not isinstance(cfg, dict):
             continue
+        if _is_network_event_evaluator_name(cfg.get("evaluator")):
+            cfg["evaluator"] = "NetworkEventEvaluator"
         if cfg.get("evaluator") != "AgentResponseEvaluator":
             continue
         rs = cfg.get("results_schema")

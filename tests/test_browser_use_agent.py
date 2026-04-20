@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, call
 
@@ -161,28 +162,48 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
 
 
 @pytest.mark.asyncio
-async def test_pvpo_callback_rejects_non_owned_target(tmp_path):
+async def test_pvpo_callback_adopts_new_task_target(tmp_path, monkeypatch: pytest.MonkeyPatch):
     page = SimpleNamespace(_target_id="foreign-1")
+    cdp_session = object()
 
     class BrowserUseLikeSession:
-        get_or_create_cdp_session = AsyncMock()
+        get_or_create_cdp_session = AsyncMock(return_value=cdp_session)
 
         async def get_current_page(self):
             return page
 
+    capture = StepCapture(
+        screenshot_png=b"png-bytes",
+        visibility_vec=[],
+        background_color=(255, 255, 255),
+        has_damage=False,
+        clip=Rect(x=0, y=0, w=640, h=480),
+    )
+    inject = AsyncMock()
+    viewport = AsyncMock(return_value={"w": 640, "h": 480})
+    atomic_capture = AsyncMock(return_value=capture)
+    monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
+    monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
+    monkeypatch.setattr("worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture)
+
+    owned_target_ids = {"target-1"}
     callback = browser_use_agent._make_pvpo_step_callback(
         BrowserUseLikeSession(),
         tmp_path,
         "payload text",
-        owned_target_ids={"target-1"},
+        owned_target_ids=owned_target_ids,
     )
 
     await callback(SimpleNamespace(), SimpleNamespace(), 1)
 
     summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
-    assert summary["status"] == "degraded"
-    assert summary["issue_counts"]["foreign_target"] == 1
-    BrowserUseLikeSession.get_or_create_cdp_session.assert_not_awaited()
+    assert summary["status"] == "ok"
+    assert summary["steps_captured"] == 1
+    assert owned_target_ids == {"target-1", "foreign-1"}
+    BrowserUseLikeSession.get_or_create_cdp_session.assert_awaited_once_with(
+        target_id="foreign-1",
+        focus=False,
+    )
 
 
 def test_resolve_pvpo_cdp_url_rejects_remote_without_override(monkeypatch: pytest.MonkeyPatch):
@@ -203,6 +224,7 @@ def test_resolve_pvpo_cdp_url_allows_remote_with_override(monkeypatch: pytest.Mo
 async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkeypatch: pytest.MonkeyPatch):
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    agent._owned_target_ids = {"target-1"}
     agent._task_origins = {"https://closed.example"}
     page_one = SimpleNamespace(_target_id="target-1")
     page_two = SimpleNamespace(_target_id="target-2")
@@ -249,6 +271,39 @@ async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkey
         call(page_one),
         call(page_two),
     ]
+
+
+@pytest.mark.asyncio
+async def test_network_trace_recorder_adopts_new_page_targets():
+    adopted_targets = {"target-1"}
+    enabled = AsyncMock()
+    page_target = SimpleNamespace(target_id="target-2")
+
+    class FakeBrowserSession:
+        session_manager = SimpleNamespace(get_all_page_targets=lambda: [page_target])
+        cdp_client = SimpleNamespace()
+
+        async def get_or_create_cdp_session(self, target_id, focus=False):
+            _ = focus
+            return SimpleNamespace(
+                session_id=f"session-{target_id}",
+                cdp_client=SimpleNamespace(
+                    send=SimpleNamespace(
+                        Network=SimpleNamespace(enable=enabled),
+                        Page=SimpleNamespace(enable=enabled),
+                    )
+                ),
+            )
+
+    recorder = browser_use_agent._NetworkTraceRecorder(
+        FakeBrowserSession(),
+        Path("/tmp/task"),
+        target_filter=adopted_targets,
+    )
+
+    await recorder._enable_current_page_sessions()
+
+    assert adopted_targets == {"target-1", "target-2"}
 
 
 @pytest.mark.asyncio

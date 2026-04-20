@@ -138,7 +138,7 @@ class _NetworkTraceRecorder:
         self._recording = False
         self._poll_task: asyncio.Task | None = None
         self._enabled_targets: set[str] = set()
-        self._target_filter = set(target_filter or ())
+        self._target_filter = target_filter
         # Raw CDP entries keyed by requestId.
         self._requests: dict[str, dict[str, Any]] = {}
         # Top-frame navigation events for C1b URL matching + HAR pages[].
@@ -213,8 +213,12 @@ class _NetworkTraceRecorder:
             target_id = getattr(target, "target_id", None)
             if not target_id or target_id in self._enabled_targets:
                 continue
-            if self._target_filter and target_id not in self._target_filter:
-                continue
+            if self._target_filter is not None and target_id not in self._target_filter:
+                # Each worker gets a dedicated external PVPO browser endpoint.
+                # Once the task reset is complete, any newly discovered page
+                # target on that endpoint belongs to the current task (popup,
+                # window.open, etc.), so adopt it for tracing and cleanup.
+                self._target_filter.add(target_id)
 
             try:
                 session = await self._browser_session.get_or_create_cdp_session(
@@ -1215,10 +1219,7 @@ class BrowserUseAgent:
         if not self._pvpo_cdp_url:
             return
 
-        pages = await _session_pages(
-            session,
-            target_filter=self._owned_target_ids or None,
-        )
+        pages = await _session_pages(session)
         closed_target_ids = sorted(
             target_id for target_id in (_target_id_for_page(page) for page in pages) if target_id
         )
@@ -1593,13 +1594,8 @@ def _make_pvpo_step_callback(
         if not target_id:
             _record_issue("cdp_session_unavailable", step_idx, "current page has no target id")
             return
-        if owned_target_ids and target_id not in owned_target_ids:
-            _record_issue(
-                "foreign_target",
-                step_idx,
-                f"current page target {target_id} is not owned by this task",
-            )
-            return
+        if owned_target_ids is not None:
+            owned_target_ids.add(target_id)
         try:
             cdp_session = await session.get_or_create_cdp_session(target_id=target_id, focus=False)
         except Exception as exc:  # pragma: no cover - CDP unavailable

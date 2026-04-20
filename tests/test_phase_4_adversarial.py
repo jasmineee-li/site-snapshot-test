@@ -173,6 +173,16 @@ def test_pvpo_endpoint_preflight_errors_reject_loopback_alias_duplicates():
     assert any("duplicate pvpo_cdp_url" in error for error in errors)
 
 
+def test_benchmark_instance_rejects_invalid_pvpo_port():
+    with pytest.raises(ValueError, match="invalid port"):
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-0.test",
+            replica_index=0,
+            pvpo_cdp_url="http://127.0.0.1:abc",
+        )
+
+
 def _v2_payload_contract_fields(*, task_id: str = "adv-1") -> dict[str, object]:
     tokens = phase_2_text_fill.derive_required_tokens(task_id)
     url = tokens[0]["value"]

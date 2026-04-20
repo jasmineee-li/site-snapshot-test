@@ -250,6 +250,24 @@ def test_homebrew_eval_accepts_network_event_alias():
     assert "[network_event] PASS" in message
 
 
+def test_webarena_vendor_shims_normalize_network_event_alias():
+    configs = rewards._apply_webarena_vendor_shims(
+        [
+            {
+                "evaluator": "network_event",
+                "expected": {"url": "http://shopping.test/reviews", "http_method": "POST"},
+            }
+        ]
+    )
+
+    assert configs == [
+        {
+            "evaluator": "NetworkEventEvaluator",
+            "expected": {"url": "http://shopping.test/reviews", "http_method": "POST"},
+        }
+    ]
+
+
 def test_top_level_agent_response_evaluator_dispatches_without_checker_registry():
     agent_result = types.SimpleNamespace(final_result='["fixed"]', is_done=True)
 
