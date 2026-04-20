@@ -28,6 +28,21 @@ dev = [
     "ruff>=0.11",
 ]
 
+# inspect_ai is NOT listed here even though the Needham XML byte-
+# equivalence test depends on it. Reason: inspect_ai pins a click version
+# that conflicts with browser-use==0.12.6's click pin; `uv sync` with
+# both in scope fails to resolve. Install it on demand, outside the main
+# resolve, when you want to run the upstream-comparison case:
+#
+#     uv pip install inspect_ai
+#     uv run pytest tests/test_phase_4_needham_xml.py::test_matches_upstream_format_xml_across_all_message_shapes
+#     uv pip uninstall inspect_ai   # optional; keeps the lockfile clean
+#
+# The test skips cleanly when inspect_ai is absent (the hand-written
+# golden-string cases still run), so the dev path isn't blocked. CI
+# that wants the upstream comparison should run the three commands
+# above in a dedicated step after `uv sync --extra dev`.
+
 [project.scripts]
 worldsim = "worldsim.main:main"
 
