@@ -44,13 +44,13 @@ TaskRunner = Callable[
 def _normalize_completed_result(data: dict[str, Any], *, trajectory_dir: Path) -> dict[str, Any]:
     """Project a saved result sentinel back to the live task-runner shape."""
     task_id = str(data.get("task_id") or "")
-    if any(key in data for key in ("outcome", "ecologically_valid", "validity_score")):
+    if any(key in data for key in ("outcome", "encounter")):
         outcome = data.get("outcome")
         normalized: dict[str, Any] = {
             "task_id": task_id,
             "trajectory_dir": str(trajectory_dir),
         }
-        for key in ("outcome", "ecologically_valid", "validity_score", "elapsed", "steps"):
+        for key in ("outcome", "encounter", "elapsed", "steps"):
             if key in data:
                 normalized[key] = data.get(key)
         if outcome == "error":
@@ -199,7 +199,6 @@ async def staggered_worker(
                             "task_id": task_id,
                             "passed": False,
                             "outcome": "error",
-                            "ecologically_valid": False,
                             "error": repr(e),
                             "message": f"worker task failed: {e}",
                             "worker_id": worker_id,
@@ -269,7 +268,6 @@ async def run_eval(
                 "task_id": str(task.get("id", f"task_{id(task):x}")),
                 "passed": False,
                 "outcome": "error",
-                "ecologically_valid": False,
                 "message": "no benchmark instances configured for worker pool",
             }
             for task in tasks
@@ -288,10 +286,8 @@ async def run_eval(
                 "task_id": str(task.get("id", f"task_{id(task):x}")),
                 "passed": False,
                 "outcome": "error",
-                "ecologically_valid": False,
                 "message": (
-                    "worker pool requires same-site instances; "
-                    f"got {', '.join(sorted(site_names))}"
+                    f"worker pool requires same-site instances; got {', '.join(sorted(site_names))}"
                 ),
             }
             for task in tasks
@@ -359,7 +355,6 @@ async def run_eval(
                         "task_id": str(task.get("id", f"task_{id(task):x}")),
                         "passed": False,
                         "outcome": "error",
-                        "ecologically_valid": False,
                         "message": "task was not processed by worker pool",
                     }
                     for task in missing_tasks
@@ -395,7 +390,6 @@ async def _drain_queues_as_failures(
                     "task_id": str(task.get("id", f"task_{id(task):x}")),
                     "passed": False,
                     "outcome": "error",
-                    "ecologically_valid": False,
                     "message": message,
                 }
             )

@@ -426,7 +426,6 @@ def prepare_tasks_for_execution(
                     "task_id": str(task.get("id", "unknown")),
                     "passed": False,
                     "outcome": "error",
-                    "ecologically_valid": False,
                     "message": f"missing configured instances for sites: {missing}",
                 }
             )
@@ -533,7 +532,9 @@ def bind_task_to_instance(
         "bound_instance": instance.model_dump(),
         "bound_instances": bound_instances,
     }
-    return _rewrite_task_bound_origins(bound_task, bound_instances=bound_instances, instances=instances)
+    return _rewrite_task_bound_origins(
+        bound_task, bound_instances=bound_instances, instances=instances
+    )
 
 
 def _rewrite_task_bound_origins(
@@ -559,10 +560,7 @@ def _rewrite_task_bound_origins(
 
 def _rewrite_nested_origins(value: Any, origin_mapping: dict[str, str]) -> Any:
     if isinstance(value, dict):
-        return {
-            key: _rewrite_nested_origins(item, origin_mapping)
-            for key, item in value.items()
-        }
+        return {key: _rewrite_nested_origins(item, origin_mapping) for key, item in value.items()}
     if isinstance(value, list):
         return [_rewrite_nested_origins(item, origin_mapping) for item in value]
     if isinstance(value, str):

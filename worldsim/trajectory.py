@@ -19,7 +19,6 @@ trajectories.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -40,9 +39,9 @@ def save_result(
     This is the trajectory artifact that diagnosis and judge sandboxes expect
     to find at ``/workspace/trajectory/result.json``.
 
-    Extra keyword arguments (e.g. ``outcome``, ``ecologically_valid``) are
-    merged into the result dict so downstream resume can reconstruct the
-    full classification without re-running evaluation.
+    Extra keyword arguments (e.g. ``outcome``, ``encounter``) are merged into
+    the result dict so downstream resume can reconstruct the full
+    classification without re-running evaluation.
 
     When ``_resume_fingerprint`` is present, resume logic only reuses the
     sentinel for matching execution context.

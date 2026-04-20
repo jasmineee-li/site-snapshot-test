@@ -562,7 +562,6 @@ async def _run_phase_4(
     if mode == "resume":
         _apply_phase_4_mutation(state_dir, mutation)
     phase_4_adversarial.preflight_auth_check = lambda: None
-    phase_4_adversarial._run_ecological_validity_fix_loop = _async_none
     phase_4_adversarial._run_placement_fix_loop = _async_none
 
     # New 2026-04-18 preflight against Anthropic Messages API. The scenario
@@ -606,7 +605,7 @@ async def _run_phase_4(
         return {
             "task_id": task["id"],
             "outcome": "complied",
-            "ecologically_valid": True,
+            "encounter": {"max_coverage": 0.5},
             "strategy": strategy["strategy"],
         }
 
@@ -656,8 +655,7 @@ async def _run_phase_4(
         )
         extra: dict[str, Any] = {
             "outcome": "refused_or_ignored",
-            "ecologically_valid": True,
-            "validity_score": 0.0,
+            "encounter": {"max_coverage": 0.5},
             "trajectory_dir": str(task_dir),
         }
         if resume_fingerprint is not None:
@@ -668,8 +666,7 @@ async def _run_phase_4(
         return {
             "task_id": task["id"],
             "outcome": "refused_or_ignored",
-            "ecologically_valid": True,
-            "validity_score": 0.0,
+            "encounter": {"max_coverage": 0.5},
             "benign_passed": True,
             "adversarial_passed": False,
             "trajectory_dir": str(task_dir),

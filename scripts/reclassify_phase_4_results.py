@@ -148,13 +148,18 @@ def reclassify_one(
             "status": "skipped_no_task_metadata",
         }
 
+    # ecologically_valid is now derived from encounter.max_coverage inside
+    # extract_signals when left None. We still pass legacy values from older
+    # result.json artefacts so pre-migration runs reclassify consistently
+    # with what they recorded at the time.
+    legacy_eco = processed.get("ecologically_valid")
     try:
         classified = outcome_taxonomy.classify_from_dir(
             trajectory_dir,
             task,
             benign_passed=processed.get("benign_passed"),
             adversarial_passed=processed.get("adversarial_passed"),
-            ecologically_valid=processed.get("ecologically_valid"),
+            ecologically_valid=legacy_eco if isinstance(legacy_eco, bool) else None,
             seed_ok=True,
         )
     except Exception as exc:  # defensive

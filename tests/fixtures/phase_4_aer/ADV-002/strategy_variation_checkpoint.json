@@ -1,0 +1,10 @@
+{
+  "_source_fingerprint": "2d8d5956b5101ddbdcca798d59f14cad84d477577fe6de79acd45188e73eb50f",
+  "judge_diagnosis": {
+    "status": "judge_failed",
+    "failure_class": "api_error",
+    "diagnosis": "API call failed: Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}",
+    "refusal_trigger": "unknown",
+    "recommended_strategies": []
+  }
+}
