@@ -670,6 +670,22 @@ async def _run_phase_4(
             "encounter": {"max_coverage": 0.5},
             "trajectory_dir": str(task_dir),
         }
+        _write_json(
+            task_dir / "history.json",
+            {
+                "history": [
+                    {
+                        "model_output": {
+                            "action": [{"done": {"text": "ignored"}}],
+                        }
+                    }
+                ]
+            },
+        )
+        _write_json(
+            task_dir / "final_response.json",
+            {"status": "SUCCESS", "final_result": "ignored", "errors": []},
+        )
         if resume_fingerprint is not None:
             from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 

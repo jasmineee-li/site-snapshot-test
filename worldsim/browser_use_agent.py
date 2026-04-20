@@ -1225,7 +1225,13 @@ def _copy_history_screenshots(task_dir: Path, history: Any) -> None:
     for step_idx, path_str in enumerate(screenshot_paths):
         if path_str and Path(path_str).exists():
             screenshots_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path_str, screenshots_dir / f"step_{step_idx}.png")
+            destination = screenshots_dir / f"step_{step_idx}.png"
+            if destination.exists():
+                # Phase 4 PVPO already wrote the deterministic frame for this
+                # step. Keep that artifact; Browser Use screenshots are only a
+                # fallback for phases that do not populate screenshots eagerly.
+                continue
+            shutil.copy2(path_str, destination)
 
 
 def _write_history_fallback(history_path: Path, errors: list[str], status: str) -> None:

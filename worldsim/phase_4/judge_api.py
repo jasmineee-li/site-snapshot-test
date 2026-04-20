@@ -45,6 +45,9 @@ from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
 
+_MAX_EVIDENCE_QUOTE_LEN = 200
+_MAX_NOTES_LEN = 300
+
 # stop_reason values the code branches on explicitly. Unknown values
 # (future SDK additions like pause_turn, refusal) get a warning log plus
 # the existing `no_tool_use` bucket so they surface in operator logs
@@ -70,7 +73,7 @@ _JUDGE_TOOL: dict[str, Any] = {
             },
             "evidence_quote": {
                 "type": "string",
-                "maxLength": 200,
+                "maxLength": _MAX_EVIDENCE_QUOTE_LEN,
                 "description": "≤200 char quote drawn from trajectory_slice. Empty string if not available.",
             },
             "confidence": {
@@ -79,7 +82,7 @@ _JUDGE_TOOL: dict[str, Any] = {
             },
             "notes": {
                 "type": "string",
-                "maxLength": 300,
+                "maxLength": _MAX_NOTES_LEN,
                 "description": "Optional ≤300 char note. Use for edge cases or concerns; do not recommend strategies here.",
             },
         },
@@ -177,38 +180,49 @@ def _extract_tool_use(response: Any) -> dict[str, Any] | None:
     return None
 
 
-def _validate_tool_payload(payload: dict[str, Any], *, trajectory_len: int) -> str | None:
+def _normalize_tool_payload(
+    payload: dict[str, Any],
+    *,
+    trajectory_len: int,
+) -> tuple[dict[str, Any] | None, str | None]:
     if set(payload) - {"refusal_trigger", "evidence_step", "evidence_quote", "confidence", "notes"}:
-        return "schema_violation"
+        return None, "schema_violation"
 
     trigger = payload.get("refusal_trigger")
     if trigger not in REFUSAL_TRIGGERS:
-        return "taxonomy_error"
+        return None, "taxonomy_error"
 
     confidence = payload.get("confidence")
     if confidence not in {"low", "medium", "high"}:
-        return "schema_violation"
+        return None, "schema_violation"
 
     evidence_step = payload.get("evidence_step")
     if evidence_step is not None:
         if isinstance(evidence_step, bool) or not isinstance(evidence_step, int):
-            return "schema_violation"
+            return None, "schema_violation"
         if evidence_step < 0 or evidence_step >= trajectory_len:
-            return "schema_violation"
+            return None, "schema_violation"
 
     evidence_quote = payload.get("evidence_quote", "")
     if not isinstance(evidence_quote, str):
-        return "schema_violation"
-    if len(evidence_quote) > 200:
-        return "schema_violation"
+        return None, "schema_violation"
 
     notes = payload.get("notes", "")
     if not isinstance(notes, str):
-        return "schema_violation"
-    if len(notes) > 300:
-        return "schema_violation"
+        return None, "schema_violation"
 
-    return None
+    normalized = dict(payload)
+    if len(evidence_quote) > _MAX_EVIDENCE_QUOTE_LEN:
+        logger.warning(
+            "judge returned overlong evidence_quote (%d chars); truncating",
+            len(evidence_quote),
+        )
+        normalized["evidence_quote"] = evidence_quote[:_MAX_EVIDENCE_QUOTE_LEN]
+    if len(notes) > _MAX_NOTES_LEN:
+        logger.warning("judge returned overlong notes (%d chars); truncating", len(notes))
+        normalized["notes"] = notes[:_MAX_NOTES_LEN]
+
+    return normalized, None
 
 
 async def run_judge_api(
@@ -362,7 +376,10 @@ async def run_judge_api(
             "recommended_strategies": [],
         }
 
-    validation_failure = _validate_tool_payload(payload, trajectory_len=len(traj_slice))
+    normalized_payload, validation_failure = _normalize_tool_payload(
+        payload,
+        trajectory_len=len(traj_slice),
+    )
     if validation_failure is not None:
         return {
             "status": "judge_failed",
@@ -372,7 +389,8 @@ async def run_judge_api(
             "recommended_strategies": [],
         }
 
-    trigger = payload["refusal_trigger"]
+    assert normalized_payload is not None
+    trigger = normalized_payload["refusal_trigger"]
     strategies, actionable = strategies_for_trigger(trigger)
     return {
         "status": "judge_ok_actionable" if actionable else "judge_ok_unactionable",
@@ -387,8 +405,8 @@ async def run_judge_api(
         ]
         if actionable
         else [],
-        "evidence_step": payload.get("evidence_step"),
-        "evidence_quote": payload.get("evidence_quote", ""),
-        "confidence": payload.get("confidence", "low"),
-        "notes": payload.get("notes", ""),
+        "evidence_step": normalized_payload.get("evidence_step"),
+        "evidence_quote": normalized_payload.get("evidence_quote", ""),
+        "confidence": normalized_payload.get("confidence", "low"),
+        "notes": normalized_payload.get("notes", ""),
     }

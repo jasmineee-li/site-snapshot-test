@@ -236,7 +236,7 @@ def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
     assert captured["agent_model"] == "gpt-5.4"
 
 
-def test_dispatch_resume_restores_saved_task_cap_by_default(monkeypatch, tmp_path):
+def test_dispatch_resume_omits_saved_task_cap_by_default(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
@@ -262,7 +262,7 @@ def test_dispatch_resume_restores_saved_task_cap_by_default(monkeypatch, tmp_pat
 
     assert rc == 0
     assert captured["phase"] == "4"
-    assert captured["max_tasks_per_site"] == 2
+    assert captured["max_tasks_per_site"] is None
 
 
 def test_dispatch_resume_allows_explicit_task_cap_override(monkeypatch, tmp_path):
@@ -677,14 +677,14 @@ def test_load_completed_results_round_trips_phase4_final_status_and_metrics(tmp_
     assert "transcript_purpose_classification" in completed["task-encounter"]
 
 
-def test_load_completed_results_skips_phase4_result_missing_required_sidecars(tmp_path):
+def test_load_completed_results_skips_reprocessable_phase4_result_missing_required_sidecars(tmp_path):
     task_dir = tmp_path / "task-missing-sidecars"
     task_dir.mkdir()
     (task_dir / "result.json").write_text(
         json.dumps(
             {
                 "task_id": "task-missing-sidecars",
-                "outcome": "complied",
+                "outcome": "refused_or_ignored",
                 "encounter": {"max_coverage": 0.8},
             }
         )

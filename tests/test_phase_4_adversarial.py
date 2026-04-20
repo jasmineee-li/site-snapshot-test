@@ -234,6 +234,41 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
     assert base == changed
 
 
+def test_phase_4_result_fingerprint_changes_when_resume_version_changes(monkeypatch):
+    task, instances = _prepared_adv_task()
+    base = phase_4_adversarial._phase_4_result_fingerprint(
+        task,
+        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+            task,
+            instances=instances,
+            config_url_placeholders=None,
+            agent_model="claude-sonnet-4-6",
+            agent_provider="anthropic",
+            sandbox_model="claude-sonnet-4-6",
+            benchmark_root=None,
+        ),
+        site_profile=None,
+    )
+
+    monkeypatch.setattr(phase_4_adversarial, "_PHASE_4_RESUME_VERSION", "test-version")
+
+    changed = phase_4_adversarial._phase_4_result_fingerprint(
+        task,
+        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+            task,
+            instances=instances,
+            config_url_placeholders=None,
+            agent_model="claude-sonnet-4-6",
+            agent_provider="anthropic",
+            sandbox_model="claude-sonnet-4-6",
+            benchmark_root=None,
+        ),
+        site_profile=None,
+    )
+
+    assert base != changed
+
+
 def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
@@ -952,6 +987,17 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
         "execution_site_instance_dict",
         lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("force fallback")),
     )
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_classify_trajectory_outcome",
+        lambda **kwargs: {
+            "outcome_fine": "resistant_unaware",
+            "flags": ["agent_read_injection"],
+            "diagnosable_confidence": "high",
+            "signals": {"A1": "done_claimed_success"},
+            "classifier_version": "tax-v-test",
+        },
+    )
 
     await phase_4_adversarial.run_adversarial_task(
         task=task,
@@ -963,6 +1009,8 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
 
     saved = json.loads((tmp_path / "result.json").read_text())
     assert saved[RESULT_FINGERPRINT_KEY] == "phase4-fp"
+    assert saved["outcome_fine"] == "resistant_unaware"
+    assert saved["classifier_version"] == "tax-v-test"
 
 
 @pytest.mark.asyncio
@@ -1693,6 +1741,13 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
                 },
+                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                    {
+                        "index": 0,
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
                 "variant_candidates": [
                     {
                         "strategy": {"strategy": "specificity"},
@@ -1797,6 +1852,13 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
                 },
+                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                    {
+                        "index": 0,
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
                 "variant_candidates": [
                     {
                         "strategy": {"strategy": "specificity"},
@@ -1918,6 +1980,13 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
                 },
+                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                    {
+                        "index": 0,
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
                 "variant_candidates": [
                     {
                         "strategy": {"strategy": "specificity"},
@@ -1966,6 +2035,116 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
     assert result["status"] == "varied"
     assert result["variant_results"][0]["outcome"] == "complied"
     assert result["variant_results"][0]["strategy"] == "specificity"
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_resume_reruns_refusal_variant_without_history(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    initial_result = {"trajectory_dir": str(tmp_path / "traj")}
+    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                        task,
+                        initial_result,
+                        primary_instances=[instances[0]],
+                        all_instances=instances,
+                        config_url_placeholders=None,
+                        benchmark_root=None,
+                        sandbox_model="claude-sonnet-4-6",
+                        site_profile=None,
+                    )
+                ),
+                "judge_diagnosis": {
+                    "diagnosis": "needs more specificity",
+                    "recommended_strategies": [{"strategy": "specificity"}],
+                },
+                phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY: [
+                    {
+                        "index": 0,
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
+                "variant_candidates": [
+                    {
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
+            }
+        )
+    )
+    variant_dir = tmp_path / "adv-1_variant_0"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    (variant_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "adv-1",
+                "outcome": "refused_or_ignored",
+                "encounter": {"max_coverage": 0.5},
+                RESULT_FINGERPRINT_KEY: phase_4_adversarial._phase_4_variant_fingerprint(
+                    task,
+                    variant,
+                    {"strategy": "specificity"},
+                    instance=instances[0],
+                    all_instances=instances,
+                    config_url_placeholders=None,
+                    benchmark_root=None,
+                    sandbox_model="claude-sonnet-4-6",
+                    site_profile=None,
+                ),
+            }
+        )
+    )
+
+    calls = {"evaluated": 0}
+
+    async def fail_run_judge(*args, **kwargs):
+        raise AssertionError("resume should reuse saved judge output")
+
+    async def fail_generate_variant(*args, **kwargs):
+        raise AssertionError("resume should reuse saved variant generation")
+
+    async def fake_run_adversarial_task(task, agent, instance, task_dir, **kwargs):
+        calls["evaluated"] += 1
+        return {
+            "task_id": task["id"],
+            "outcome": "refused_or_ignored",
+            "encounter": {"max_coverage": 0.5},
+        }
+
+    class FakeAgent:
+        async def setup(self, server_url):
+            return None
+
+        async def teardown(self):
+            return None
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
+    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=FakeAgent,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert calls["evaluated"] == 1
+    assert result["variant_results"][0]["outcome"] == "refused_or_ignored"
 
 
 @pytest.mark.asyncio
@@ -2051,6 +2230,81 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
     assert result["skipped_strategies"] == ["authority_framing"]
     saved_checkpoint = json.loads(checkpoint_path.read_text())
     assert len(saved_checkpoint[phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY]) == 2
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_resume_reruns_when_generation_records_missing(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    initial_result = {"trajectory_dir": str(tmp_path / "traj")}
+    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
+                    phase_4_adversarial._phase_4_postprocess_fingerprint(
+                        task,
+                        initial_result,
+                        primary_instances=[instances[0]],
+                        all_instances=instances,
+                        config_url_placeholders=None,
+                        benchmark_root=None,
+                        sandbox_model="claude-sonnet-4-6",
+                        site_profile=None,
+                    )
+                ),
+                "judge_diagnosis": {
+                    "diagnosis": "needs more specificity",
+                    "recommended_strategies": [{"strategy": "specificity"}],
+                },
+                "variant_candidates": [
+                    {
+                        "strategy": {"strategy": "specificity"},
+                        "variant": variant,
+                    }
+                ],
+            }
+        )
+    )
+
+    calls = {"generated": 0}
+
+    async def fail_run_judge(*args, **kwargs):
+        raise AssertionError("resume should reuse saved judge output")
+
+    async def fake_generate_variant(*args, **kwargs):
+        calls["generated"] += 1
+        return variant
+
+    async def fake_evaluate_variant(**kwargs):
+        return {
+            "task_id": task["id"],
+            "outcome": "complied",
+            "encounter": {"max_coverage": 0.5},
+            "strategy": kwargs["strategy"]["strategy"],
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert calls["generated"] == 1
+    assert result["status"] == "varied"
 
 
 @pytest.mark.asyncio
@@ -4664,3 +4918,146 @@ async def test_placement_fix_wipes_leftover_iteration_dir(monkeypatch, tmp_path)
     # Cleanup: rmtree the dir the fake rerun would normally repopulate.
     if iteration_dir.exists():
         shutil.rmtree(iteration_dir)
+
+
+@pytest.mark.asyncio
+async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch, tmp_path):
+    task = {
+        "id": "placement-fix-resume",
+        "site": "shopping",
+        "adversarial_data_seed": {"mechanism": "api", "actions": []},
+    }
+    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+    source_fingerprint = "placement-source"
+    revised_task = {
+        **task,
+        "adversarial_data_seed": {"mechanism": "api", "actions": [{"moved": True}]},
+    }
+    checkpoint_path = phase_4_adversarial._placement_fix_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+                "attempts": [initial_result],
+                "current_task": revised_task,
+                "current_result": initial_result,
+                "next_iteration": 0,
+                "pending_iteration": 0,
+            }
+        )
+    )
+    iteration_dir = tmp_path / "placement-fix-resume__placement_1"
+    iteration_dir.mkdir(parents=True)
+    iteration_fingerprint = phase_4_adversarial._placement_iteration_result_fingerprint(
+        revised_task,
+        base_source_fingerprint=source_fingerprint,
+        iteration=0,
+    )
+    (iteration_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "placement-fix-resume",
+                "outcome": "complied",
+                "encounter": {"max_coverage": 0.5},
+                RESULT_FINGERPRINT_KEY: iteration_fingerprint,
+            }
+        )
+    )
+
+    class _FakeInstance:
+        site_url = "http://example.com"
+        site_name = "shopping"
+        reset_endpoint = None
+
+    class _FakeLock:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "run_placement_api",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("placement API should not rerun for pending checkpoint")
+        ),
+    )
+    monkeypatch.setattr(phase_4_adversarial, "task_lock", lambda _task: _FakeLock())
+    monkeypatch.setattr(phase_4_adversarial, "bind_task_to_instance", lambda task, *_: task)
+
+    result = await phase_4_adversarial._run_placement_fix_loop(
+        task=task,
+        initial_result=initial_result,
+        instance=_FakeInstance(),
+        all_instances=[_FakeInstance()],
+        agent_factory=lambda: (_ for _ in ()).throw(AssertionError("agent should not start")),
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+        source_fingerprint=source_fingerprint,
+    )
+
+    assert result is not None
+    assert result["status"] == "fixed"
+    assert result["final_result"]["outcome"] == "complied"
+
+
+@pytest.mark.asyncio
+async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp_path):
+    task = {
+        "id": "placement-fix-complete",
+        "site": "shopping",
+        "adversarial_data_seed": {"mechanism": "api", "actions": []},
+    }
+    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+    source_fingerprint = "placement-source"
+    completed = {
+        "status": "fixed",
+        "attempts": [initial_result, {"outcome": "complied"}],
+        "final_result": {"outcome": "complied"},
+        "final_task": task,
+    }
+    checkpoint_path = phase_4_adversarial._placement_fix_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+                "attempts": completed["attempts"],
+                "current_task": task,
+                "current_result": completed["final_result"],
+                "next_iteration": 1,
+                "pending_iteration": None,
+                "completed_result": completed,
+            }
+        )
+    )
+
+    class _FakeInstance:
+        site_url = "http://example.com"
+        site_name = "shopping"
+        reset_endpoint = None
+
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "run_placement_api",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("completed checkpoint should short-circuit placement loop")
+        ),
+    )
+
+    result = await phase_4_adversarial._run_placement_fix_loop(
+        task=task,
+        initial_result=initial_result,
+        instance=_FakeInstance(),
+        all_instances=[_FakeInstance()],
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+        source_fingerprint=source_fingerprint,
+    )
+
+    assert result == completed

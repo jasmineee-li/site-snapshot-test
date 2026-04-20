@@ -617,8 +617,6 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_provider = state.get("agent_provider")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
-    if max_tasks_per_site is None:
-        max_tasks_per_site = state.get("max_tasks_per_site")
     if sites is None:
         sites = state.get("sites")
     if phase_2_sandbox_concurrency is None:

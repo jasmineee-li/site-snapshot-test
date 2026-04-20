@@ -176,6 +176,26 @@ async def test_invalid_confidence_returns_schema_violation(
 
 
 @pytest.mark.asyncio
+async def test_overlong_notes_are_truncated_not_schema_violation(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+        {
+            "refusal_trigger": "distracted",
+            "confidence": "high",
+            "evidence_quote": "flagged",
+            "evidence_step": 0,
+            "notes": "x" * 301,
+        }
+    )
+
+    result = await run_judge_api(sample_task, trajectory_dir)
+
+    assert result["status"] == "judge_ok_unactionable"
+    assert len(result["notes"]) == 300
+
+
+@pytest.mark.asyncio
 async def test_bool_evidence_step_returns_schema_violation(
     patched_anthropic_client, trajectory_dir, sample_task
 ):

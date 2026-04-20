@@ -154,8 +154,10 @@ from worldsim.trajectory import save_result
 
 logger = logging.getLogger(__name__)
 _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
+_PLACEMENT_FIX_CHECKPOINT = "placement_fix_checkpoint.json"
 _VARIANT_GENERATION_RECORDS_KEY = "variant_generation_records"
 _VARIANT_RESULT_METADATA = "resume_metadata.json"
+_PHASE_4_RESUME_VERSION = "2026-04-20b"
 # 22-strategy pool from paper Table 6, filtered for editor-text injection
 # (Dziemian et al., 2026, arXiv:2603.15714). Authoritative source is
 # `worldsim.phase_4.strategy_catalog.ALLOWED_STRATEGIES`. Re-exported here
@@ -681,8 +683,6 @@ def _resume_fingerprint_task(task: dict[str, Any]) -> dict[str, Any]:
 
 # Keys that round-trip through ``save_result`` -> ``result.json`` ->
 # ``_normalize_completed_result``. Post-process-layer fields like
-# ``taxonomy_fields`` (``outcome_fine``, ``flags``, ``signals`` …) are
-# intentionally omitted because they are only added after postprocess.
 # Must stay in sync with
 # ``worldsim.eval_worker_pool._normalize_completed_result``.
 _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
@@ -712,6 +712,11 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "verbalized_eval_awareness_failure",
     "verbalized_eval_awareness_transcript_format",
     "verbalized_eval_awareness_raw_response_path",
+    "outcome_fine",
+    "flags",
+    "diagnosable_confidence",
+    "signals",
+    "classifier_version",
 )
 
 
@@ -807,6 +812,7 @@ def _phase_4_eval_context(
 ) -> dict[str, Any]:
     return {
         "phase": "phase_4_initial_result",
+        "resume_version": _PHASE_4_RESUME_VERSION,
         "instances": instances_identity(instances),
         "config_url_placeholders": config_url_placeholders,
         "agent_model": agent_model,
@@ -954,6 +960,7 @@ def _phase_4_postprocess_fingerprint(
         _resume_fingerprint_result(result),
         {
             "phase": "phase_4_postprocess",
+            "resume_version": _PHASE_4_RESUME_VERSION,
             "primary_instances": instances_identity(primary_instances),
             "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
             "config_url_placeholders": _task_reachable_placeholders(
@@ -984,6 +991,7 @@ def _phase_4_variant_fingerprint(
         strategy,
         {
             "phase": "phase_4_variant",
+            "resume_version": _PHASE_4_RESUME_VERSION,
             "instance": instance_identity(instance),
             "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
             "config_url_placeholders": _task_reachable_placeholders(
@@ -992,6 +1000,23 @@ def _phase_4_variant_fingerprint(
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
+        },
+    )
+
+
+def _placement_iteration_result_fingerprint(
+    task: dict[str, Any],
+    *,
+    base_source_fingerprint: str,
+    iteration: int,
+) -> str:
+    return _fingerprint_payload(
+        _resume_fingerprint_task(task),
+        {
+            "phase": "phase_4_placement_iteration",
+            "resume_version": _PHASE_4_RESUME_VERSION,
+            "base_source_fingerprint": base_source_fingerprint,
+            "iteration": iteration,
         },
     )
 
@@ -1673,6 +1698,7 @@ async def _postprocess_one_task(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        source_fingerprint=source_fingerprint,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -2052,6 +2078,13 @@ async def run_adversarial_task(
         final_status_extra: dict[str, Any] = {}
         if pvpo["injection_not_encountered"]:
             final_status_extra["final_status"] = "injection_not_encountered"
+        taxonomy_fields = _classify_trajectory_outcome(
+            task=task,
+            task_dir=task_dir,
+            benign_passed=bool(benign_passed),
+            adv_passed=bool(adv_passed),
+            ecologically_valid=_ecologically_valid({"encounter": pvpo["encounter"]}),
+        )
 
         # 4. Persist the stage-1 result only after Gate 1 completes.
         extra: dict[str, Any] = {}
@@ -2068,15 +2101,8 @@ async def run_adversarial_task(
             trajectory_dir=str(task_dir),
             **_pvpo_metric_payload(pvpo),
             **final_status_extra,
+            **taxonomy_fields,
             **extra,
-        )
-
-        taxonomy_fields = _classify_trajectory_outcome(
-            task=task,
-            task_dir=task_dir,
-            benign_passed=bool(benign_passed),
-            adv_passed=bool(adv_passed),
-            ecologically_valid=_ecologically_valid({"encounter": pvpo["encounter"]}),
         )
 
         return {
@@ -2141,6 +2167,7 @@ async def _process_adversarial_result(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    source_fingerprint: str | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "seed_preflight_mismatch":
@@ -2174,6 +2201,8 @@ async def _process_adversarial_result(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        resume=resume,
+        source_fingerprint=source_fingerprint,
     )
     if placement_fix is not None:
         annotations["placement_fix"] = placement_fix
@@ -2361,6 +2390,8 @@ async def _run_placement_fix_loop(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    resume: bool = False,
+    source_fingerprint: str | None = None,
 ) -> dict[str, Any] | None:
     """Retry task-breaking attacks with placement-only seed fixes.
 
@@ -2375,11 +2406,115 @@ async def _run_placement_fix_loop(
     if not (triggered_by_task_broke or triggered_by_not_encountered):
         return None
 
+    checkpoint_path = _placement_fix_checkpoint_path(
+        task_dir_root,
+        str(task.get("id", "unknown")),
+    )
     attempts: list[dict[str, Any]] = [initial_result]
     current_task = task
     current_result = initial_result
+    start_iteration = 0
+    pending_iteration: int | None = None
+    if resume and source_fingerprint is not None:
+        checkpoint = _load_json_dict(checkpoint_path)
+        if (
+            isinstance(checkpoint, dict)
+            and checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY) == source_fingerprint
+        ):
+            completed_result = checkpoint.get("completed_result")
+            if isinstance(completed_result, dict):
+                return completed_result
+            saved_attempts = checkpoint.get("attempts")
+            if isinstance(saved_attempts, list) and all(
+                isinstance(item, dict) for item in saved_attempts
+            ):
+                attempts = list(saved_attempts)
+            saved_task = checkpoint.get("current_task")
+            if isinstance(saved_task, dict):
+                current_task = saved_task
+            saved_result = checkpoint.get("current_result")
+            if isinstance(saved_result, dict):
+                current_result = saved_result
+            next_iteration = checkpoint.get("next_iteration")
+            if isinstance(next_iteration, int) and 0 <= next_iteration <= PLACEMENT_FIX_MAX_ITERATIONS:
+                start_iteration = next_iteration
+            saved_pending = checkpoint.get("pending_iteration")
+            if isinstance(saved_pending, int) and 0 <= saved_pending < PLACEMENT_FIX_MAX_ITERATIONS:
+                pending_iteration = saved_pending
+                start_iteration = saved_pending
 
-    for iteration in range(PLACEMENT_FIX_MAX_ITERATIONS):
+    def _persist_progress(
+        *,
+        next_iteration: int,
+        pending_iteration_value: int | None,
+        completed_result: dict[str, Any] | None = None,
+    ) -> None:
+        if source_fingerprint is None:
+            return
+        payload: dict[str, Any] = {
+            "attempts": attempts,
+            "current_task": current_task,
+            "current_result": current_result,
+            "next_iteration": next_iteration,
+            "pending_iteration": pending_iteration_value,
+        }
+        if completed_result is not None:
+            payload["completed_result"] = completed_result
+        _write_placement_fix_checkpoint(
+            checkpoint_path,
+            source_fingerprint=source_fingerprint,
+            payload=payload,
+        )
+
+    for iteration in range(start_iteration, PLACEMENT_FIX_MAX_ITERATIONS):
+        iteration_dir = task_dir_root / safe_task_path_component(
+            f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
+        )
+        iteration_fingerprint = (
+            _placement_iteration_result_fingerprint(
+                current_task,
+                base_source_fingerprint=source_fingerprint,
+                iteration=iteration,
+            )
+            if source_fingerprint is not None
+            else None
+        )
+        if pending_iteration == iteration:
+            async with task_lock(bind_task_to_instance(current_task, instance, all_instances)):
+                current_result = await _rerun_adversarial_task(
+                    task=current_task,
+                    instance=instance,
+                    all_instances=all_instances,
+                    agent_factory=agent_factory,
+                    task_dir=iteration_dir,
+                    resume=resume,
+                    resume_fingerprint=iteration_fingerprint,
+                    benchmark_root=benchmark_root,
+                    sandbox_model=sandbox_model,
+                    site_profile=site_profile,
+                )
+            attempts.append(current_result)
+            pending_iteration = None
+            if _placement_fix_succeeded(
+                current_result,
+                triggered_by_task_broke=triggered_by_task_broke,
+                triggered_by_not_encountered=triggered_by_not_encountered,
+            ):
+                completed = {
+                    "status": "fixed",
+                    "attempts": attempts,
+                    "final_result": current_result,
+                    "final_task": current_task,
+                }
+                _persist_progress(
+                    next_iteration=iteration + 1,
+                    pending_iteration_value=None,
+                    completed_result=completed,
+                )
+                return completed
+            _persist_progress(next_iteration=iteration + 1, pending_iteration_value=None)
+            continue
+
         placement_outcome = await run_placement_api(
             current_task,
             trajectory_dir=Path(current_result.get("trajectory_dir", "")),
@@ -2388,7 +2523,7 @@ async def _run_placement_fix_loop(
         if placement_outcome["status"] != "ok":
             # API-side failure — couldn't get a revised seed back. Treat as
             # "no_change" so the loop exits cleanly with the failure recorded.
-            return {
+            completed = {
                 "status": "no_change",
                 "attempts": attempts,
                 "final_result": current_result,
@@ -2396,36 +2531,51 @@ async def _run_placement_fix_loop(
                 "placement_failure_class": placement_outcome.get("failure_class"),
                 "placement_diagnosis": placement_outcome.get("diagnosis"),
             }
+            _persist_progress(
+                next_iteration=iteration,
+                pending_iteration_value=None,
+                completed_result=completed,
+            )
+            return completed
         revised_task = _merge_variant_task(current_task, placement_outcome["new_task"])
         if _adversarial_seed_equivalent(current_task, revised_task):
-            return {
+            completed = {
                 "status": "no_change",
                 "attempts": attempts,
                 "final_result": current_result,
                 "final_task": current_task,
             }
-
+            _persist_progress(
+                next_iteration=iteration,
+                pending_iteration_value=None,
+                completed_result=completed,
+            )
+            return completed
         current_task = revised_task
-        bound_task = bind_task_to_instance(current_task, instance, all_instances)
-        iteration_dir = task_dir_root / safe_task_path_component(
-            f"{task.get('id', 'unknown')}__placement_{iteration + 1}"
-        )
+        _persist_progress(next_iteration=iteration, pending_iteration_value=iteration)
         # Wipe any leftover artefacts from a prior crashed run before re-entering.
-        # `_run_placement_fix_loop` is not checkpointed — on --resume, a crash
-        # mid-iteration replays from iteration 0 and re-uses the same iteration
-        # dir. `save_step_artifacts` overwrites per-index files but does not
-        # delete higher-index leftovers, so stale ``step_N.{png,json}`` pairs
-        # from the crashed run would otherwise pair with themselves in
-        # ``determine_encounter`` and inflate ``max_coverage``.
+        # Even with the placement-fix checkpoint, a stale partial rerun with no
+        # reusable result.json must start from a clean iteration dir so PVPO
+        # step files cannot mix old and new captures.
         if iteration_dir.exists():
-            try:
-                shutil.rmtree(iteration_dir)
-            except OSError as exc:
-                logger.warning(
-                    "placement-fix: could not wipe leftover iteration dir %s: %s",
+            reusable = (
+                iteration_fingerprint is not None
+                and _load_saved_placement_iteration_result(
                     iteration_dir,
-                    exc,
+                    source_fingerprint=iteration_fingerprint,
                 )
+                is not None
+            )
+            if not reusable:
+                try:
+                    shutil.rmtree(iteration_dir)
+                except OSError as exc:
+                    logger.warning(
+                        "placement-fix: could not wipe leftover iteration dir %s: %s",
+                        iteration_dir,
+                        exc,
+                    )
+        bound_task = bind_task_to_instance(current_task, instance, all_instances)
         async with task_lock(bound_task):
             current_result = await _rerun_adversarial_task(
                 task=bound_task,
@@ -2436,27 +2586,43 @@ async def _run_placement_fix_loop(
                 sandbox_model=sandbox_model,
                 site_profile=site_profile,
                 task_dir=iteration_dir,
+                resume=resume,
+                resume_fingerprint=iteration_fingerprint,
             )
 
         attempts.append(current_result)
+        pending_iteration = None
         if _placement_fix_succeeded(
             current_result,
             triggered_by_task_broke=triggered_by_task_broke,
             triggered_by_not_encountered=triggered_by_not_encountered,
         ):
-            return {
+            completed = {
                 "status": "fixed",
                 "attempts": attempts,
                 "final_result": current_result,
                 "final_task": current_task,
             }
+            _persist_progress(
+                next_iteration=iteration + 1,
+                pending_iteration_value=None,
+                completed_result=completed,
+            )
+            return completed
+        _persist_progress(next_iteration=iteration + 1, pending_iteration_value=None)
 
-    return {
+    completed = {
         "status": "still_broken",
         "attempts": attempts,
         "final_result": current_result,
         "final_task": current_task,
     }
+    _persist_progress(
+        next_iteration=PLACEMENT_FIX_MAX_ITERATIONS,
+        pending_iteration_value=None,
+        completed_result=completed,
+    )
+    return completed
 
 
 async def _reset_task_environment(task: dict[str, Any]) -> None:
@@ -2635,6 +2801,10 @@ def _strategy_variation_checkpoint_path(task_dir_root: Path, task_id: str) -> Pa
     return task_dir_root / safe_task_path_component(task_id) / "strategy_variation_checkpoint.json"
 
 
+def _placement_fix_checkpoint_path(task_dir_root: Path, task_id: str) -> Path:
+    return task_dir_root / safe_task_path_component(task_id) / _PLACEMENT_FIX_CHECKPOINT
+
+
 def _variant_result_metadata_path(task_dir_root: Path, task_id: str, index: int) -> Path:
     variant_dir = task_dir_root / safe_task_path_component(f"{task_id}_variant_{index}")
     return variant_dir / _VARIANT_RESULT_METADATA
@@ -2646,6 +2816,20 @@ def _load_json_dict(path: Path) -> dict[str, Any] | None:
     except (json.JSONDecodeError, OSError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def _has_phase_4_resume_artifacts(payload: dict[str, Any], *, trajectory_dir: Path) -> bool:
+    outcome = payload.get("outcome")
+    if outcome is None or outcome in {"seed_preflight_mismatch", "error", "complied"}:
+        return True
+    history_path = trajectory_dir / "history.json"
+    if not history_path.exists():
+        return False
+    try:
+        history_payload = json.loads(history_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+    return isinstance(history_payload, (dict, list))
 
 
 def _normalize_saved_adversarial_result(
@@ -2704,6 +2888,8 @@ def _load_saved_variant_result(
     payload_fingerprint = payload.get(RESULT_FINGERPRINT_KEY)
     if metadata_fingerprint != source_fingerprint and payload_fingerprint != source_fingerprint:
         return None
+    if not _has_phase_4_resume_artifacts(payload, trajectory_dir=variant_dir):
+        return None
     return _normalize_saved_adversarial_result(payload, trajectory_dir=variant_dir)
 
 
@@ -2715,6 +2901,37 @@ def _variant_changes_seed(original_task: dict[str, Any], variant_task: dict[str,
         variant_task.get("adversarial_data_seed"),
         sort_keys=True,
     )
+
+
+def _write_placement_fix_checkpoint(
+    checkpoint_path: Path,
+    *,
+    source_fingerprint: str,
+    payload: dict[str, Any],
+) -> None:
+    _write_json_atomic(
+        checkpoint_path,
+        {
+            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+            **payload,
+        },
+        failpoint_base="phase_4.placement_fix.checkpoint",
+    )
+
+
+def _load_saved_placement_iteration_result(
+    task_dir: Path,
+    *,
+    source_fingerprint: str,
+) -> dict[str, Any] | None:
+    payload = _load_json_dict(task_dir / "result.json")
+    if payload is None:
+        return None
+    if payload.get(RESULT_FINGERPRINT_KEY) != source_fingerprint:
+        return None
+    if not _has_phase_4_resume_artifacts(payload, trajectory_dir=task_dir):
+        return None
+    return _normalize_saved_adversarial_result(payload, trajectory_dir=task_dir)
 
 
 def _variant_generation_record_for_result(
@@ -2757,19 +2974,7 @@ def _rebuild_variant_generation_progress(
             variant_candidates = []
         if not isinstance(variant_generation_errors, list):
             variant_generation_errors = []
-        has_completed_generation = bool(
-            checkpoint is not None
-            and (
-                "variant_candidates" in checkpoint
-                or "variant_generation_errors" in checkpoint
-            )
-        )
-        completed_indexes = (
-            set(range(len(selected_strategies)))
-            if has_completed_generation
-            else set()
-        )
-        return variant_candidates, variant_generation_errors, [], completed_indexes
+        return variant_candidates, variant_generation_errors, [], set()
 
     variant_candidates: list[dict[str, Any]] = []
     variant_generation_errors: list[dict[str, Any]] = []
@@ -3350,11 +3555,27 @@ async def _rerun_adversarial_task(
     all_instances: list[BenchmarkInstance],
     agent_factory: Callable[[], AgentRunner],
     task_dir: Path,
+    *,
+    resume: bool = False,
+    resume_fingerprint: str | None = None,
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
+    if resume and resume_fingerprint is not None:
+        prior_result = _load_saved_placement_iteration_result(
+            task_dir,
+            source_fingerprint=resume_fingerprint,
+        )
+        if prior_result is not None:
+            logger.info(
+                "Resume: reusing placement rerun result for task %s from %s",
+                task.get("id", "unknown"),
+                task_dir,
+            )
+            return prior_result
+
     agent = agent_factory()
     bound_task = (
         task if task_reset_endpoints(task) else bind_task_to_instance(task, instance, all_instances)
@@ -3369,6 +3590,7 @@ async def _rerun_adversarial_task(
             benchmark_root=benchmark_root,
             sandbox_model=sandbox_model,
             site_profile=site_profile,
+            resume_fingerprint=resume_fingerprint,
         )
     finally:
         await agent.teardown()

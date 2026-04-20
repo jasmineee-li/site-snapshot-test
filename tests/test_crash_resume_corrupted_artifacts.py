@@ -84,7 +84,7 @@ def test_phase_4_corrupt_variant_metadata_resume_reruns_variant_and_matches_clea
     assert_ok(resumed)
 
     resumed_invocations = load_json(corrupted_dir / "phase_4_invocations.json")
-    assert sum(event["kind"] == "task_run" for event in resumed_invocations) == 3
+    assert sum(event["kind"] == "task_run" for event in resumed_invocations) == 2
     assert sum(event["kind"] == "judge" for event in resumed_invocations) == 1
     assert normalize(load_json(baseline_dir / "phase_4/results.json")) == normalize(
         load_json(corrupted_dir / "phase_4/results.json")

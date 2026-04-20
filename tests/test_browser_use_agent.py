@@ -45,3 +45,24 @@ def test_write_agent_artifacts_persists_partial_history_and_failure_metadata(tmp
     final_response = json.loads((task_dir / "final_response.json").read_text())
     assert final_response["status"] == "TIMEOUT"
     assert "agent timed out after 30s" in final_response["errors"]
+
+
+def test_write_agent_artifacts_preserves_existing_pvpo_screenshot(tmp_path):
+    screenshot = tmp_path / "source.png"
+    screenshot.write_bytes(b"history")
+    history = _FakeHistory(str(screenshot))
+
+    task_dir = tmp_path / "task"
+    screenshots_dir = task_dir / "screenshots"
+    screenshots_dir.mkdir(parents=True)
+    existing = screenshots_dir / "step_0.png"
+    existing.write_bytes(b"pvpo")
+
+    browser_use_agent._write_agent_artifacts(
+        task_dir=task_dir,
+        history=history,
+        status="done",
+        extra_errors=[],
+    )
+
+    assert existing.read_bytes() == b"pvpo"

@@ -98,7 +98,7 @@ _PLACEMENT_TOOL: dict[str, Any] = {
                     "why": {"type": "string", "maxLength": 600},
                 },
                 "required": ["what_changed", "why"],
-                "additionalProperties": True,
+                "additionalProperties": False,
             },
             "justification": {
                 "type": "string",
@@ -197,6 +197,8 @@ def _validate_payload(payload: dict[str, Any], *, original_seed: dict[str, Any])
 
     placement = payload.get("placement_fix")
     if not isinstance(placement, dict):
+        return "schema_violation"
+    if set(placement) - {"what_changed", "why"}:
         return "schema_violation"
     for field in ("what_changed", "why"):
         val = placement.get(field)

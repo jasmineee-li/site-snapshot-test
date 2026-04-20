@@ -331,6 +331,20 @@ async def test_schema_violation_missing_placement_fix_subfield(
 
 
 @pytest.mark.asyncio
+async def test_schema_violation_rejects_extra_placement_fix_field(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    bad = _good_payload()
+    bad["placement_fix"]["extra"] = "unexpected"
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+
+    result = await run_placement_api(sample_task, trajectory_dir)
+
+    assert result["status"] == "failed"
+    assert result["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
 async def test_api_error_bucketed(patched_anthropic_client, trajectory_dir, sample_task):
     patched_anthropic_client.messages.create.side_effect = RuntimeError("synthetic api error")
 
