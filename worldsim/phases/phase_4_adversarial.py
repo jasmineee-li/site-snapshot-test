@@ -30,12 +30,14 @@ Adaptive strategy variation (one round per task, fan-out up to 3 variants):
 Strategy pool: 22 strategies in ``ALLOWED_STRATEGIES`` (see
 ``strategy_catalog.py``), filtered from Dziemian et al. 2026 Table 6.
 
-Judge, variant generator, P(eval) probe, and placement-fix all use direct
-Anthropic API calls via ``worldsim.phase_4.{judge_api, variant_api,
-p_eval_api, placement_api}``. The legacy sandbox path
+Judge, variant generator, Transcript Purpose classifier, VEA, and
+placement-fix all use direct Anthropic API calls via
+``worldsim.phase_4.{judge_api, variant_api, transcript_purpose_api,
+verbalized_eval_awareness_api, placement_api}``. The legacy sandbox path
 (``run_claude_in_sandbox``) has zero callers in this module after the
-2026-04-19 PVPO + placement-fix cutovers; other Phase 4 callers (Phase 2
-planning, Phase 0c profiling) still use the sandbox.
+2026-04-19 PVPO + placement-fix + Transcript Purpose cutovers; other
+Phase 4 callers (Phase 2 planning, Phase 0c profiling) still use the
+sandbox.
 """
 
 from __future__ import annotations

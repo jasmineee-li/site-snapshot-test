@@ -1,5 +1,7 @@
 # Handoff: Paper Run v1 -- Resume from Phase 3 (PVPO + API-path edition)
 
+> **SUPERSEDED (2026-04-19 Transcript Purpose cutover):** every reference to `P(eval)` / `p_eval_api.py` in this handoff is obsolete. The P(eval) family was replaced on 2026-04-19 by Apollo Research's Transcript Purpose classifier (`worldsim/phase_4/transcript_purpose_api.py`, verbatim prompts at `worldsim/prompts/transcript-purpose-guess.md` and `worldsim/prompts/transcript-purpose-classify.md` from `nix-apollo/38e0520c21bed0831d44019457d1833f`). The module table row "| Phase 4 P(eval) probe | **API** | `worldsim/phase_4/p_eval_api.py` |" should be read as "| Phase 4 Transcript Purpose | **API** | `worldsim/phase_4/transcript_purpose_api.py` |". Everything else in this handoff (PVPO, API-path refusal judge, variant, placement-fix, resume logic) remains current.
+
 ## How to use this file
 
 **New session:** paste the following as your first message:
