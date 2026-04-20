@@ -455,6 +455,77 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
+    """Install the verification-proxy adapter if the args point at a config that has one.
+
+    The proxy config is optional; when ``instances.<name>.json`` declares a
+    ``verification_proxy`` block with a non-empty token, every ``requests.Session``
+    created in-process rewrites allowlisted site-port URLs to the proxy port and
+    attaches the ``X-Worldsim-Token`` header. Ports are derived from the
+    instances' ``site_url`` so the adapter works for any benchmark.
+    """
+    # ``--instances`` is the general flag (Phase 1/4); Phase 2c uses
+    # ``--feasibility-instances`` instead. Prefer whichever is set and points
+    # at an existing file.
+    candidates = [
+        getattr(args, "instances", None),
+        getattr(args, "feasibility_instances", None),
+    ]
+    path: Path | None = None
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        maybe_path = Path(candidate)
+        if maybe_path.exists():
+            path = maybe_path
+            break
+    if path is None:
+        return
+    # Validate permissively: test fixtures synthesize minimal instances files
+    # that omit non-proxy fields (e.g. ``benchmark_codebase``). Parse raw JSON
+    # and only pick out the ``verification_proxy`` block and instance ports.
+    import json
+    from urllib.parse import urlsplit
+
+    from worldsim.http_proxy import install_proxy
+
+    try:
+        payload = json.loads(path.read_text())
+    except Exception:
+        return
+    if not isinstance(payload, dict):
+        return
+    proxy_data = payload.get("verification_proxy")
+    if not isinstance(proxy_data, dict):
+        return
+    token = proxy_data.get("token")
+    if not isinstance(token, str) or not token.strip():
+        return
+    port_offset = proxy_data.get("port_offset", 10000)
+    if not isinstance(port_offset, int):
+        return
+    instances = payload.get("instances")
+    if not isinstance(instances, list):
+        return
+    site_ports: set[int] = set()
+    for instance in instances:
+        if not isinstance(instance, dict):
+            continue
+        site_url = instance.get("site_url")
+        if not isinstance(site_url, str):
+            continue
+        parsed = urlsplit(site_url)
+        if parsed.port is not None:
+            site_ports.add(parsed.port)
+    if not site_ports:
+        return
+    install_proxy(
+        token=token.strip(),
+        port_offset=port_offset,
+        site_ports=site_ports,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint. See module docstring for usage."""
     logging.basicConfig(
@@ -462,6 +533,8 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
     args = build_parser().parse_args(argv)
+
+    _install_verification_proxy_from_args(args)
 
     if args.command == "resume":
         return _dispatch_resume(args)

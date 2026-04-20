@@ -10,6 +10,7 @@ import pytest
 
 from worldsim.auth_tokens import clear_run_token_cache
 from worldsim.config import BenchmarkConfig
+from worldsim.http_proxy import install_proxy
 
 
 def _replace_url_host(url: str, host: str) -> str:
@@ -52,10 +53,68 @@ def _override_instance_host(instance: dict[str, object], host: str) -> dict[str,
     placeholders = payload.get("url_placeholders")
     if isinstance(placeholders, dict):
         payload["url_placeholders"] = {
-            key: _replace_url_host(value, host) if isinstance(value, str) and value.strip() else value
+            key: _replace_url_host(value, host)
+            if isinstance(value, str) and value.strip()
+            else value
             for key, value in placeholders.items()
         }
     return payload
+
+
+# Default allowlist of real (non-proxy) site ports used by WebArena Verified.
+# The proxy rewrites these to ``port + port_offset`` on send. Ports outside
+# the set pass through unchanged — notably the ``reset_endpoint`` ports at
+# ``site_port + 1``, which the current nginx config does not front.
+_DEFAULT_SITE_PORTS: frozenset[int] = frozenset(
+    {
+        7770,  # shopping
+        7780,  # shopping_admin
+        8023,  # gitlab
+        9999,  # reddit
+        8888,  # wikipedia
+        3030,  # map
+    }
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _install_verification_proxy(request: pytest.FixtureRequest):
+    """Install the token-gated proxy adapter on ``requests.Session``.
+
+    When ``LIVE_INSTANCES_FILE`` points at an instances file with a
+    populated ``verification_proxy`` block, every ``requests.Session()``
+    created during the test session rewrites outbound site-port URLs to
+    the proxy port and attaches the ``X-Worldsim-Token`` header. This
+    is necessary because ``apply_data_seed``, ``acquire_tokens_for_instances``,
+    and each editor's ``probe_base_state`` construct their own session
+    internally and cannot be reached by a per-test session fixture.
+    """
+    instances_file = os.getenv("LIVE_INSTANCES_FILE", "").strip()
+    if not instances_file:
+        yield
+        return
+    path = Path(instances_file)
+    if not path.exists():
+        yield
+        return
+    try:
+        config = BenchmarkConfig.model_validate_json(path.read_text())
+    except Exception:
+        yield
+        return
+    proxy = config.verification_proxy
+    if proxy is None or not proxy.token.strip():
+        yield
+        return
+    uninstall = install_proxy(
+        token=proxy.token,
+        port_offset=proxy.port_offset,
+        site_ports=_DEFAULT_SITE_PORTS,
+    )
+    try:
+        yield
+    finally:
+        uninstall()
 
 
 @pytest.fixture(autouse=True)
@@ -76,11 +135,15 @@ def live_config() -> BenchmarkConfig:
     config = BenchmarkConfig.model_validate_json(path.read_text())
     host = os.getenv("LIVE_HOST_IP", "").strip()
     payload = config.model_dump()
-    payload["instances"] = [_override_instance_host(instance, host) for instance in payload["instances"]]
+    payload["instances"] = [
+        _override_instance_host(instance, host) for instance in payload["instances"]
+    ]
     placeholders = payload.get("url_placeholders")
     if host and isinstance(placeholders, dict):
         payload["url_placeholders"] = {
-            key: _replace_url_host(value, host) if isinstance(value, str) and value.strip() else value
+            key: _replace_url_host(value, host)
+            if isinstance(value, str) and value.strip()
+            else value
             for key, value in placeholders.items()
         }
     return BenchmarkConfig.model_validate(payload)
@@ -101,17 +164,11 @@ def live_instance(live_config: BenchmarkConfig):
 
 @pytest.fixture(scope="session")
 def phase_2_tasks() -> dict[str, dict[str, object]]:
-    artifact_path = Path(
-        os.getenv("LIVE_PHASE2_ARTIFACT", "logs/phase_2/adversarial_tasks.json")
-    )
+    artifact_path = Path(os.getenv("LIVE_PHASE2_ARTIFACT", "logs/phase_2/adversarial_tasks.json"))
     if not artifact_path.exists():
         pytest.skip(f"phase 2 artifact does not exist: {artifact_path}")
     payload = json.loads(artifact_path.read_text())
-    return {
-        str(task["id"]): task
-        for task in payload
-        if isinstance(task, dict) and "id" in task
-    }
+    return {str(task["id"]): task for task in payload if isinstance(task, dict) and "id" in task}
 
 
 @pytest.fixture

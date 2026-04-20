@@ -289,16 +289,16 @@ def test_feasibility_crash_resume(failpoint, live_instance, live_config, tmp_pat
     tasks_path.write_text(json.dumps([task, task_oversize]))
 
     # Synthesize a minimal instances file (wrapper-dict shape) for the
-    # child subprocess.
+    # child subprocess. Propagate ``verification_proxy`` so the subprocess
+    # installs the proxy adapter just like the in-process test session does.
     instances_file = tmp_path / "instances.smoke.json"
-    instances_file.write_text(
-        json.dumps(
-            {
-                "benchmark_name": live_config.benchmark_name or "webarena_verified",
-                "instances": [instance],
-            }
-        )
-    )
+    wrapper: dict[str, Any] = {
+        "benchmark_name": live_config.benchmark_name or "webarena_verified",
+        "instances": [instance],
+    }
+    if live_config.verification_proxy is not None:
+        wrapper["verification_proxy"] = live_config.verification_proxy.model_dump()
+    instances_file.write_text(json.dumps(wrapper))
 
     crashed = _run_phase_2c_in_subprocess(
         tasks_path=tasks_path,
