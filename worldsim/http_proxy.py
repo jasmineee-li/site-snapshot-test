@@ -20,11 +20,19 @@ Scope: rewriting is restricted to the site-port allowlist supplied at
 install time. Ports outside that set (notably the ``reset_endpoint`` ports
 at ``site_port + 1``, which are not covered by the current nginx config)
 pass through unchanged.
+
+Proxy metadata discovery for callers that need it (e.g. the editor's
+cross-origin check asking "is port P the proxy-equivalent of port P_raw?")
+is done by mounting the adapter and reading its ``proxy_info`` property
+back via ``session.get_adapter(url).proxy_info`` — NOT via module globals.
+That keeps editor correctness a function of the session it was constructed
+with, not of hidden process-wide state.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -36,6 +44,19 @@ from requests.adapters import HTTPAdapter
 # recently observed proxy port for the same hostname, which is how we handle
 # the case where nginx cannot pass X-Forwarded-Port to the backend.
 _DEFAULT_HTTP_PORTS: frozenset[int] = frozenset({80, 443})
+
+
+@dataclass(frozen=True)
+class ProxyInfo:
+    """Immutable view of a proxy adapter's port-rewrite policy.
+
+    Exposed via ``ProxyingHTTPAdapter.proxy_info`` so callers that hold a
+    ``requests.Session`` can ask "what's the proxy's offset and which raw
+    ports does it route?" without touching module globals.
+    """
+
+    port_offset: int
+    site_ports: frozenset[int]
 
 
 class ProxyingHTTPAdapter(HTTPAdapter):
@@ -74,6 +95,10 @@ class ProxyingHTTPAdapter(HTTPAdapter):
         # through the proxy so that redirect Locations like
         # ``http://<host>/`` can be bounced back to the same proxy port.
         self._last_proxy_port_by_host: dict[str, int] = {}
+
+    @property
+    def proxy_info(self) -> ProxyInfo:
+        return ProxyInfo(port_offset=self._port_offset, site_ports=self._site_ports)
 
     def send(self, request: requests.PreparedRequest, **kwargs: Any) -> requests.Response:
         rewritten_url = self._maybe_rewrite_url(request.url or "")
@@ -143,21 +168,26 @@ def make_proxied_session(
     return session
 
 
-# Set by install_proxy so code paths that don't themselves carry a session
-# (notably editors doing HTML-form origin checks) can ask "is port P the
-# proxy-equivalent of port P_raw?" Updated on install/uninstall.
-_installed_port_offset: int | None = None
-_installed_site_ports: frozenset[int] = frozenset()
+def proxy_info_from_session(
+    session: requests.Session,
+    probe_url: str,
+) -> ProxyInfo | None:
+    """Return the ProxyInfo of the adapter mounted for ``probe_url``, if any.
 
-
-def get_installed_proxy_info() -> tuple[int | None, frozenset[int]]:
-    """Return (port_offset, site_ports) for the currently installed proxy.
-
-    Returns ``(None, frozenset())`` when no proxy is installed. Used by the
-    editor base class to relax cross-origin checks so that proxy-rewritten
-    origins (e.g. ``:7770`` vs ``:17770``) are treated as equivalent.
+    Looks up the adapter via ``session.get_adapter(probe_url)`` and returns
+    its ``proxy_info`` if it's a :class:`ProxyingHTTPAdapter`. Returns
+    ``None`` when the session has no proxy adapter mounted for that URL —
+    the caller should treat that as "proxy not active" and fall back to
+    strict same-origin semantics.
     """
-    return _installed_port_offset, _installed_site_ports
+    try:
+        adapter = session.get_adapter(probe_url)
+    except Exception:
+        return None
+    info = getattr(adapter, "proxy_info", None)
+    if isinstance(info, ProxyInfo):
+        return info
+    return None
 
 
 def install_proxy(
@@ -174,8 +204,13 @@ def install_proxy(
     mounted adapter, but calling ``install_proxy`` twice without uninstalling
     would nest the patches. Integration-test wiring uses a session-scoped
     pytest fixture to enforce install/uninstall symmetry.
+
+    The proxy adapter carries its port_offset + site_ports as a
+    :class:`ProxyInfo` on every mounted instance. Callers that need to
+    introspect the proxy's policy (e.g. the editor's cross-origin check)
+    should use :func:`proxy_info_from_session` on a live session, NOT a
+    module-level global.
     """
-    global _installed_port_offset, _installed_site_ports
     frozen_ports = frozenset(int(p) for p in site_ports)
     original_init = requests.Session.__init__
 
@@ -190,13 +225,8 @@ def install_proxy(
         self.mount("https://", adapter)
 
     requests.Session.__init__ = _patched_init  # type: ignore[method-assign]
-    _installed_port_offset = int(port_offset)
-    _installed_site_ports = frozen_ports
 
     def _uninstall() -> None:
-        global _installed_port_offset, _installed_site_ports
         requests.Session.__init__ = original_init  # type: ignore[method-assign]
-        _installed_port_offset = None
-        _installed_site_ports = frozenset()
 
     return _uninstall

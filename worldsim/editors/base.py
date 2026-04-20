@@ -8,12 +8,19 @@ from urllib.parse import quote, urljoin, urlparse
 
 import requests
 
+from worldsim.http_proxy import ProxyInfo, proxy_info_from_session
+
 logger = logging.getLogger(__name__)
 
 _RESPONSE_SNIPPET_MAX_CHARS = 512
 
 
-def _same_logical_origin(site: Any, action: Any) -> bool:
+def _same_logical_origin(
+    site: Any,
+    action: Any,
+    *,
+    proxy_info: ProxyInfo | None = None,
+) -> bool:
     """Treat proxy-rewritten origins as equivalent to their raw origin.
 
     When a verification proxy is installed (see ``worldsim.http_proxy``),
@@ -27,10 +34,17 @@ def _same_logical_origin(site: Any, action: Any) -> bool:
     We consider origins equivalent when scheme matches, hostname matches,
     and the action port is one of: the site port, site_port+port_offset,
     site_port-port_offset. The last two cover both directions (raw→proxy
-    and proxy→raw). We only relax when ``http_proxy.get_installed_proxy_info``
-    confirms a proxy is active AND the raw port is on its site_ports list —
-    so an arbitrary cross-port form action (e.g. an exfil attempt to a
-    different service) is still rejected.
+    and proxy→raw). We only relax when ``proxy_info`` is supplied AND the
+    raw port is on its ``site_ports`` list — so an arbitrary cross-port
+    form action (e.g. an exfil attempt to a different service) is still
+    rejected.
+
+    The ``proxy_info`` parameter is threaded in explicitly rather than read
+    from a module-level global. Callers derive it from the ``requests.Session``
+    they already hold via ``http_proxy.proxy_info_from_session(session, url)``;
+    if that returns ``None``, pass ``None`` and strict same-origin semantics
+    apply. This keeps the cross-origin decision a function of the session
+    the editor was constructed with, not of hidden process state.
     """
     if site.scheme != action.scheme:
         return False
@@ -42,17 +56,14 @@ def _same_logical_origin(site: Any, action: Any) -> bool:
         return True
     if site_port is None or action_port is None:
         return False
-    try:
-        from worldsim.http_proxy import get_installed_proxy_info
-
-        port_offset, site_ports = get_installed_proxy_info()
-    except Exception:
+    if proxy_info is None:
         return False
-    if port_offset is None or not site_ports:
+    if site_port not in proxy_info.site_ports:
         return False
-    if site_port not in site_ports:
-        return False
-    return action_port in {site_port + port_offset, site_port - port_offset}
+    return action_port in {
+        site_port + proxy_info.port_offset,
+        site_port - proxy_info.port_offset,
+    }
 
 
 def _truncate_snippet(text: str | None) -> str | None:
@@ -557,7 +568,8 @@ class BaseSiteEditor:
         resolved = urljoin(f"{site_url}/", action_path or "")
         site_origin = urlparse(site_url)
         action_origin = urlparse(resolved)
-        if not _same_logical_origin(site_origin, action_origin):
+        proxy_info = proxy_info_from_session(self.session, site_url)
+        if not _same_logical_origin(site_origin, action_origin, proxy_info=proxy_info):
             raise EditorError(
                 "cross_origin_form_action",
                 f"{self.site_name} editor refused cross-origin form action {resolved!r}",
