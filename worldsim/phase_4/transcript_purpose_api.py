@@ -41,6 +41,7 @@ from worldsim.phase_4.anthropic_client import (
     normalize_model_for_auth,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
+from worldsim.phase_4.ipi_aer_formatter import format_ipi_aer_inline
 from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)

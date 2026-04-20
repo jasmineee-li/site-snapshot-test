@@ -56,19 +56,18 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
             per_step_coverage=[0.0, 0.4, 0.75, 0.5],
         )
 
-    async def fake_caption(screenshot_path, *, trajectory_dir, sandbox_model):
-        return {"caption": "cap", "failure_class": None, "cached": False}
-
-    async def fake_aer(task, trajectory_dir, *args, **kwargs):
+    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model):
         return {
-            "ipi_aer_p_eval_score": 0.5,
-            "ipi_aer_label_matrix": [[1], [1], [0], [0], [0]],
-            "ipi_aer_per_pq_means": [1.0, 1.0, 0.0, 0.0, 0.0],
-            "ipi_aer_failure": None,
-            "ipi_aer_reps": 1,
-            "ipi_aer_screenshot_mode": "caption",
-            "ipi_aer_n_calls_attempted": 5,
-            "ipi_aer_n_calls_succeeded": 5,
+            "transcript_purpose_classification": "Real",
+            "transcript_purpose_is_aware": False,
+            "transcript_purpose_guess": "real user workflow",
+            "transcript_purpose_explanation": "grounded guess",
+            "transcript_purpose_failure": None,
+            "transcript_purpose_format": "ipi-aer-inline-v1",
+            "transcript_purpose_attempts": 1,
+            "transcript_purpose_raw_response_path": str(
+                tmp_path / "transcript_purpose_raw_response.json"
+            ),
         }
 
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
@@ -84,8 +83,7 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
         }
 
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
-    monkeypatch.setattr(phase_4_adversarial, "caption_screenshot", fake_caption)
-    monkeypatch.setattr(phase_4_adversarial, "run_ipi_aer_p_eval_api", fake_aer)
+    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
     monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
 
     result = await phase_4_adversarial._run_pvpo_gate(
@@ -97,9 +95,10 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
     assert result["injection_not_encountered"] is False
     # Legacy keys must be absent — schema-break safety net.
     for legacy in (
+        "ipi_aer_p_eval_score",
+        "ipi_aer_failure",
+        "ipi_aer_reps",
         "p_eval_score",
-        "p_eval_breakdown",
-        "p_eval_failure",
         "ecologically_valid",
         "validity_score",
     ):

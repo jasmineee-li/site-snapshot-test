@@ -626,9 +626,8 @@ def test_merge_variant_task_allows_valid_seed_mechanism_upgrade():
 
 # Legacy sandbox-based ecological-validity probe was deleted in the PVPO
 # cutover (see docs/handoffs/codex-handoff-paint-verified-oracle.md §1, §4).
-# The replacement is screenshot-only API-path P(eval), exercised by
-# tests/test_phase_4_p_eval_api.py. The specific sandbox-staging test that
-# used to live here no longer has a live symbol to verify.
+# The current replacement is Apollo's transcript-purpose classifier,
+# exercised by tests/test_phase_4_transcript_purpose_api.py.
 
 
 @pytest.mark.asyncio

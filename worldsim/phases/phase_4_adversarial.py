@@ -81,6 +81,12 @@ from worldsim.modal_sandbox import preflight_auth_check
 from worldsim.phase_4.aer_trajectory_extract import extract_trajectory
 from worldsim.phase_4.encounter_detection import EncounterResult, determine_encounter
 from worldsim.phase_4.placement_api import run_placement_api
+from worldsim.phase_4.transcript_purpose_api import (
+    _failure_result as _transcript_purpose_failure_result,
+)
+from worldsim.phase_4.transcript_purpose_api import (
+    run_transcript_purpose_api,
+)
 from worldsim.phase_4.verbalized_eval_awareness_api import (
     run_verbalized_eval_awareness_api,
 )
