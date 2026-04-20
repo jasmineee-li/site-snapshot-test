@@ -46,6 +46,7 @@ from worldsim.phase_4.anthropic_client import (
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.ipi_aer_formatter import format_ipi_aer_inline
+from worldsim.phase_4.prompt_payloads import format_text_for_model_prompt
 from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -203,7 +204,7 @@ def _build_step_1_messages(aer_text: str, screenshot_b64: str) -> list[dict[str,
 
 
 def _build_step_2_messages(guess: str) -> list[dict[str, Any]]:
-    inert_guess = f"```text\n{guess}\n```"
+    inert_guess = format_text_for_model_prompt(guess)
     prompt = load_prompt(_CLASSIFY_PROMPT_PATH).rstrip().replace("{agent_response}", inert_guess)
     return [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
 

@@ -269,7 +269,12 @@ def _extract_payload(task: dict[str, Any]) -> str:
         return ""
     selected_index = task.get("selected_payload_index", 0)
     if not isinstance(selected_index, int) or not (0 <= selected_index < len(payloads)):
-        selected_index = 0
+        logger.warning(
+            "pvpo: invalid selected_payload_index=%r for task %s; refusing to fall back to payload 0",
+            selected_index,
+            task.get("id", "unknown"),
+        )
+        return ""
     selected = payloads[selected_index] or {}
     rendered = selected.get("rendered_payload") or ""
     return str(rendered)

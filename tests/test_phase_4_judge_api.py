@@ -176,6 +176,42 @@ async def test_invalid_confidence_returns_schema_violation(
 
 
 @pytest.mark.asyncio
+async def test_bool_evidence_step_returns_schema_violation(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+        {
+            "refusal_trigger": "suspicion",
+            "confidence": "high",
+            "evidence_quote": "flagged",
+            "evidence_step": True,
+            "notes": "",
+        }
+    )
+    result = await run_judge_api(sample_task, trajectory_dir)
+    assert result["status"] == "judge_failed"
+    assert result["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
+async def test_out_of_range_evidence_step_returns_schema_violation(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+        {
+            "refusal_trigger": "suspicion",
+            "confidence": "high",
+            "evidence_quote": "flagged",
+            "evidence_step": 9,
+            "notes": "",
+        }
+    )
+    result = await run_judge_api(sample_task, trajectory_dir)
+    assert result["status"] == "judge_failed"
+    assert result["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
 async def test_no_tool_use_block(patched_anthropic_client, trajectory_dir, sample_task):
     # Response has only text, no tool_use.
     patched_anthropic_client.messages.create.return_value = SimpleNamespace(
@@ -245,7 +281,14 @@ async def test_judge_prompt_strips_auth_bearing_task_fields(
         **sample_task,
         "authentication": {"token": "top-secret"},
         "instances": [{"site_url": "http://secret.test"}],
-        "agent_context": {"authentication": {"cookie": "shh"}, "site_prompt": "ok"},
+        "agent_context": {
+            "authentication": {"cookie": "shh"},
+            "auth_mechanism": {
+                "headers": {"X-M2-Admin-Auto-Login": "admin:admin1234"},
+            },
+            "description": "Use header X-M2-Admin-Auto-Login: admin:admin1234 for login.",
+            "site_prompt": "ok",
+        },
     }
     patched_anthropic_client.messages.create.return_value = _tool_use_response(
         {
@@ -263,7 +306,9 @@ async def test_judge_prompt_strips_auth_bearing_task_fields(
     prompt_text = json.dumps(kwargs["messages"])
     assert "top-secret" not in prompt_text
     assert "secret.test" not in prompt_text
-    assert '"authentication"' not in prompt_text
+    assert "admin:admin1234" not in prompt_text
+    assert "<redacted>" in prompt_text
+    assert "```json" not in prompt_text
 
 
 @pytest.mark.asyncio

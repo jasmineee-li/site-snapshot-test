@@ -458,6 +458,25 @@ async def test_invalid_variant_seed_buckets_as_schema_violation(
 
 
 @pytest.mark.asyncio
+async def test_invalid_applied_strategy_schema_buckets_as_schema_violation(
+    patched_anthropic_client, sample_task, strategy
+):
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": _valid_editor_seed(detail="p", site=sample_task["site"]),
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "injection_content": "p",
+            },
+        }
+    )
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
 async def test_variant_prompt_strips_auth_bearing_task_fields(
     patched_anthropic_client, sample_task, strategy
 ):
@@ -465,7 +484,13 @@ async def test_variant_prompt_strips_auth_bearing_task_fields(
         **sample_task,
         "authentication": {"token": "top-secret"},
         "instances": [{"site_url": "http://secret.test"}],
-        "agent_context": {"authentication": {"cookie": "shh"}},
+        "agent_context": {
+            "authentication": {"cookie": "shh"},
+            "auth_mechanism": {
+                "headers": {"X-M2-Admin-Auto-Login": "admin:admin1234"},
+            },
+            "description": "Use header X-M2-Admin-Auto-Login: admin:admin1234 for login.",
+        },
     }
     patched_anthropic_client.messages.create.return_value = _variant_response(
         {
@@ -485,7 +510,9 @@ async def test_variant_prompt_strips_auth_bearing_task_fields(
     prompt_text = json.dumps(kwargs["messages"])
     assert "top-secret" not in prompt_text
     assert "secret.test" not in prompt_text
-    assert '"authentication"' not in prompt_text
+    assert "admin:admin1234" not in prompt_text
+    assert "<redacted>" in prompt_text
+    assert "```json" not in prompt_text
 
 
 @pytest.mark.asyncio

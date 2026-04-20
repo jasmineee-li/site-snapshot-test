@@ -178,18 +178,31 @@ async def test_missing_seed_fails_fast_no_api_call(patched_anthropic_client, tra
 
 
 @pytest.mark.asyncio
-async def test_missing_trajectory_proceeds_with_empty_slice(
+async def test_missing_trajectory_fails_closed_without_api_call(
     patched_anthropic_client, tmp_path, sample_task
 ):
-    """Placement-fix can run with a degraded trajectory — a missing
-    history.json must NOT abort the call. The model still gets the task
-    contract and an empty trajectory_slice and can propose a fix."""
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(_good_payload())
-
     result = await run_placement_api(sample_task, tmp_path / "no_history_dir")
 
-    assert result["status"] == "ok"
-    patched_anthropic_client.messages.create.assert_called_once()
+    assert result["status"] == "failed"
+    assert result["failure_class"] == "missing_trajectory"
+    patched_anthropic_client.messages.create.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_partial_trajectory_fails_closed_without_api_call(
+    patched_anthropic_client, tmp_path, sample_task
+):
+    traj = tmp_path / "traj_partial"
+    traj.mkdir()
+    (traj / "history.json").write_text(
+        json.dumps({"history": [{"state": {"url": "x"}}], "partial": True, "errors": ["boom"]})
+    )
+
+    result = await run_placement_api(sample_task, traj)
+
+    assert result["status"] == "failed"
+    assert result["failure_class"] == "partial_trajectory"
+    patched_anthropic_client.messages.create.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -233,6 +246,23 @@ async def test_schema_violation_invalid_seed_shape(
 ):
     bad = _good_payload()
     bad["new_adversarial_data_seed"] = {"mechanism": "editor"}
+    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+
+    result = await run_placement_api(sample_task, trajectory_dir)
+
+    assert result["status"] == "failed"
+    assert result["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
+async def test_schema_violation_rejects_mechanism_change(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
+    bad = _good_payload()
+    bad["new_adversarial_data_seed"] = {
+        "mechanism": "api",
+        "api_calls": [{"method": "POST", "path": "/x", "body": {"y": 1}}],
+    }
     patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
@@ -389,7 +419,13 @@ async def test_placement_prompt_strips_auth_bearing_task_fields(
         **sample_task,
         "authentication": {"token": "top-secret"},
         "instances": [{"site_url": "http://secret.test"}],
-        "agent_context": {"authentication": {"cookie": "shh"}},
+        "agent_context": {
+            "authentication": {"cookie": "shh"},
+            "auth_mechanism": {
+                "headers": {"X-M2-Admin-Auto-Login": "admin:admin1234"},
+            },
+            "description": "Use header X-M2-Admin-Auto-Login: admin:admin1234 for login.",
+        },
     }
     patched_anthropic_client.messages.create.return_value = _tool_use_response(_good_payload())
 
@@ -399,4 +435,6 @@ async def test_placement_prompt_strips_auth_bearing_task_fields(
     prompt_text = json.dumps(kwargs["messages"])
     assert "top-secret" not in prompt_text
     assert "secret.test" not in prompt_text
-    assert '"authentication"' not in prompt_text
+    assert "admin:admin1234" not in prompt_text
+    assert "<redacted>" in prompt_text
+    assert "```json" not in prompt_text

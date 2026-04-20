@@ -201,6 +201,29 @@ def test_selected_payload_index_controls_payload_used_for_coverage(tmp_path: Pat
     assert result.max_coverage == 1.0
 
 
+def test_invalid_selected_payload_index_does_not_fall_back_to_payload_zero(tmp_path: Path):
+    png = _make_png_with_ink([(10, 10, 5, 5), (20, 10, 5, 5)])
+    vec = [
+        _visible_entry(0, "x", (10, 10, 5, 5)),
+        _visible_entry(1, "y", (20, 10, 5, 5)),
+    ]
+    _write_step(tmp_path, 0, vec, png)
+
+    task = {
+        "id": "adv_t_invalid_selected",
+        "site": "shopping_admin",
+        "payload_texts": [
+            {"rendered_payload": "xy"},
+            {"rendered_payload": "ignored"},
+        ],
+        "selected_payload_index": 9,
+    }
+
+    result = determine_encounter(task, tmp_path)
+    assert result.max_coverage == 0.0
+    assert result.reference_step is None
+
+
 @pytest.mark.parametrize(
     "visible_indices,payload,expected",
     [
