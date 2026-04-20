@@ -1,5 +1,14 @@
 # codex-handoff — Paint-Verified Payload Oracle + API-Path Ecological-Validity Judge
 
+> **SUPERSEDED (2026-04-19):** The IPI-Screenshot P(eval) probe described throughout this handoff (the `run_p_eval_api` 5-probe vision call, `p_eval_api.py`, `prompts/p-eval.md`, `p_eval_score`/`p_eval_breakdown`/`p_eval_failure` output fields, and the `trajectory_slice.py` 30KB slicer used by the refusal judge and placement-fix) has been replaced. Phase 4 now computes two observational metrics in parallel:
+>
+> - **IPI-AER p(eval)** — Needham et al. 2025 5-PQ × N-reps protocol over an OS-Harm AER-formatted transcript (`worldsim/phase_4/ipi_aer_p_eval_api.py`, `aer_formatter.py`, `aer_trajectory_extract.py`, `ipi_aer_caption.py`).
+> - **VEA (Verbalized Eval Awareness)** — single forced-tool-use classification of the agent's own CoT (`worldsim/phase_4/vea_api.py`).
+>
+> `trajectory_slice.py` was replaced by `aer_trajectory_extract.py` (typed dataclasses, no byte budget under Sonnet 4.6's 1M-context variant). The force-include-refusal heuristic and all field truncation were deleted as unnecessary under 1M context. The outcome-taxonomy D1 signal migrated from the legacy `ecologically_valid` key to `encounter.max_coverage > 0`.
+>
+> See `docs/worldsim-v5-technical-specifcation.md` §"Gate 1 Stage 2: Observational IPI-AER p(eval) + VEA" for the current design. The original PVPO encounter-detection sections below (Paint-Verified Payload Oracle, ink-occupancy, caption frame = max-coverage) remain current.
+
 **Status:** Shipped on `feat/worldsim-v5` through commit `cd757ca4`. See the Implementation Status section immediately below for what landed vs. what the original design prescribed — the shipped paint-verification mechanism is **ink-occupancy** (not the byte-equal reference-container compare described in §3.5 below) and the shipped encounter-detection mechanism additionally locates the payload on the delivery page by **content-match** against rendered DOM text (not via a `<span data-worldsim-payload>` HTML attribute). The original design text is preserved for historical context; new readers should read the Implementation Status first.
 **Branch:** `feat/worldsim-v5`. All commits landed directly on the v5 integration branch; no separate feature branch. The earlier `feat/c1-read-surface` work was fast-forward-merged into `feat/worldsim-v5` before this series began, so the starting state included the C1 read-surface migration and the two-signal C1 triangulation (c1b url / c1c payload).
 **Scope:** Phase 4 encounter detection + ecological-validity probe. Fixes seven documented probe bugs and closes the encounter-verification gap that WASP (arXiv:2504.18575) and the rest of the published IPI-benchmark literature leaves open.
