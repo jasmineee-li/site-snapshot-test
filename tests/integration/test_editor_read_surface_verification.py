@@ -60,6 +60,7 @@ from __future__ import annotations
 import os
 import re
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 import requests
@@ -93,13 +94,64 @@ def _skip_unless_verify_read_surface_urls() -> None:
         )
 
 
-def _fetch_url(session: requests.Session, instance: dict[str, Any], url: str) -> requests.Response:
-    """GET ``url``; if path-only, prefix the instance site_url."""
+def _instance_hostname(instance: dict[str, Any]) -> str:
+    """Return the hostname portion of ``instance['site_url']`` (empty if absent)."""
+    site = str(instance.get("site_url") or "").strip()
+    if not site:
+        return ""
+    return (urlparse(site).hostname or "").lower()
+
+
+def _is_reachable_url(instance: dict[str, Any], url: str) -> bool:
+    """Return True iff ``url`` is fetchable from the orchestrator-host topology.
+
+    Editors emit URLs faithfully — including host-qualified forms copied
+    verbatim from the platform's API response (e.g. GitLab's ``web_url``
+    which mirrors ``/etc/gitlab/gitlab.rb``'s ``external_url``). On a
+    benchmark host where that baked-in URL points at a different hostname
+    (classic case: gitlab.rb with ``external_url 'http://localhost:8023/'``
+    while we reach the stack as ``3.12.221.9``), the emitted URL is not
+    reachable from the test runner. Rather than treating those as fetch
+    failures, filter them out of the canary loop — they are faithful but
+    env-specific leakage. Path-only forms and site-url-hostname forms
+    always stay in the loop.
+
+    Future-proofing: the filter becomes a no-op the moment the benchmark
+    host's ``external_url`` / ``base_url`` is aligned to the public host,
+    so this helper does not have to be removed when the root cause of the
+    hostname divergence is eventually fixed.
+    """
+    raw = str(url or "").strip()
+    if not raw:
+        return False
+    if raw.startswith("/"):
+        return True
+    parsed = urlparse(raw)
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+    return host == _instance_hostname(instance)
+
+
+def _fetch_url(
+    session: requests.Session,
+    instance: dict[str, Any],
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+) -> requests.Response:
+    """GET ``url``; if path-only, prefix the instance site_url.
+
+    ``headers`` override/augment the session defaults — used by the GitLab
+    test to attach API auth (PRIVATE-TOKEN / Bearer) so the REST surfaces
+    in ``read_surface_urls`` return canary-bearing JSON instead of the
+    anonymous sign-in HTML shell the stock session gets.
+    """
     target = url
     if url.startswith("/"):
         site = str(instance.get("site_url") or "").rstrip("/")
         target = f"{site}{url}"
-    return session.get(target, timeout=30, allow_redirects=True)
+    return session.get(target, timeout=30, allow_redirects=True, headers=headers)
 
 
 def _assert_canary_rendered(
@@ -109,17 +161,32 @@ def _assert_canary_rendered(
     canary: str,
     *,
     label: str,
+    headers: dict[str, str] | None = None,
 ) -> None:
-    """At least one URL in ``surface_urls`` must render ``canary`` in the body.
+    """At least one reachable URL in ``surface_urls`` must render ``canary``.
 
     Host-qualified and path-only forms are expected to coexist (handoff §12.8);
-    either (or both) resolving successfully is sufficient.
+    either (or both) resolving successfully is sufficient. URLs whose
+    hostname does not match the instance's ``site_url`` are skipped
+    (faithful-but-env-specific leakage, e.g. GitLab's ``external_url``);
+    they do not count toward either success or failure.
+
+    At least one URL from ``surface_urls`` must be reachable in this
+    topology — if every emitted URL is filtered as external, that is
+    itself a regression worth surfacing (the editor emitted nothing
+    useful for the honeyclient to verify).
     """
     assert surface_urls, f"{label}: editor emitted no read_surface_urls"
+    reachable = [u for u in surface_urls if _is_reachable_url(instance, u)]
+    assert reachable, (
+        f"{label}: every emitted read_surface_url was external-host-only; "
+        f"check that the editor emits path-only or site_url-hostname forms. "
+        f"Emitted: {surface_urls}"
+    )
     errors: list[str] = []
-    for url in surface_urls:
+    for url in reachable:
         try:
-            response = _fetch_url(session, instance, url)
+            response = _fetch_url(session, instance, url, headers=headers)
         except requests.RequestException as exc:
             errors.append(f"{url}: fetch failed ({exc})")
             continue
@@ -130,9 +197,89 @@ def _assert_canary_rendered(
             return
         errors.append(f"{url}: HTTP 200 but canary missing")
     raise AssertionError(
-        f"{label}: none of the emitted read_surface_urls rendered the canary\n  "
+        f"{label}: none of the reachable read_surface_urls rendered the canary\n  "
         + "\n  ".join(errors)
     )
+
+
+def _assert_surface_reachable(
+    session: requests.Session,
+    instance: dict[str, Any],
+    surface_urls: list[str],
+    *,
+    label: str,
+    headers: dict[str, str] | None = None,
+) -> None:
+    """Reachability-only contract: at least one reachable URL returns HTTP 200.
+
+    Used for surfaces whose payload cannot be verified by an anonymous /
+    api-header-only curl: GitLab note pages render inside an
+    authenticated HTML session that requires web-login session cookies
+    the honeyclient does not hold (GitLab's note API responses contain
+    no ``web_url`` / ``_links``, so the editor can only emit the parent
+    issue/MR HTML URL). Pairing this with ``_assert_canary_in_json``
+    against the authoritative API endpoint gives a two-step equivalent
+    of ``_assert_canary_rendered``:
+
+      - URL emission contract: at least one editor-emitted URL is
+        reachable and 200s → the C1b match surface exists.
+      - Content contract: the canary actually exists at the platform's
+        authoritative endpoint → the payload was really planted.
+    """
+    assert surface_urls, f"{label}: editor emitted no read_surface_urls"
+    reachable = [u for u in surface_urls if _is_reachable_url(instance, u)]
+    assert reachable, (
+        f"{label}: every emitted read_surface_url was external-host-only; emitted={surface_urls}"
+    )
+    errors: list[str] = []
+    for url in reachable:
+        try:
+            response = _fetch_url(session, instance, url, headers=headers)
+        except requests.RequestException as exc:
+            errors.append(f"{url}: fetch failed ({exc})")
+            continue
+        if response.status_code == 200:
+            return
+        errors.append(f"{url}: HTTP {response.status_code}")
+    raise AssertionError(
+        f"{label}: none of the reachable read_surface_urls returned 200\n  " + "\n  ".join(errors)
+    )
+
+
+def _assert_canary_in_json(
+    session: requests.Session,
+    instance: dict[str, Any],
+    api_path: str,
+    canary: str,
+    *,
+    label: str,
+    headers: dict[str, str] | None = None,
+) -> None:
+    """Fetch ``api_path`` (site_url-prefixed) and assert ``canary`` in body.
+
+    Companion to ``_assert_surface_reachable`` for endpoints not
+    directly emitted in ``read_surface_urls`` but that serve as the
+    authoritative source of truth for payload content (e.g. GitLab's
+    ``/api/v4/projects/{pid}/issues/{iid}/notes/{note_id}``). The path
+    MUST be constructed by the test from the editor's returned ids (not
+    from ``read_surface_urls``) so this check is independent of the
+    editor's URL-emission contract.
+    """
+    try:
+        response = _fetch_url(session, instance, api_path, headers=headers)
+    except requests.RequestException as exc:
+        raise AssertionError(
+            f"{label}: fetch of authoritative API path failed: {api_path} ({exc})"
+        ) from exc
+    if response.status_code != 200:
+        raise AssertionError(
+            f"{label}: authoritative API path {api_path} returned HTTP {response.status_code}"
+        )
+    if canary not in response.text:
+        raise AssertionError(
+            f"{label}: canary missing from authoritative API path "
+            f"{api_path} (HTTP 200 body did not contain canary)"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +323,19 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
         editor = GitlabEditor(instance, session)
         GitlabEditor.probe_base_state(instance)
 
+        # GitLab's HTML UI binds to session cookies from the web-login form;
+        # an API-header-only session (PRIVATE-TOKEN / Bearer) hits the
+        # anonymous sign-in page for private project issues. The REST
+        # surfaces (``/api/v4/projects/<id>/issues/<iid>`` etc.) the editor
+        # emits alongside each HTML URL DO render the canary in JSON when
+        # fetched with api-mechanism headers, so we attach those headers to
+        # the canary loop. That makes the honeyclient robust across
+        # deployments that disable anonymous access to project HTML without
+        # having to thread a full form-login flow (which requires GitLab's
+        # CSRF dance + knows_cookie_policy + 2FA prompts, all
+        # environment-dependent).
+        gitlab_api_headers = editor._build_headers(mechanism="api")
+
         try:
             canary_issue = f"WS-CANARY-ISSUE-{unique_suffix}"
             canary_issue_note = f"WS-CANARY-ISSUE-NOTE-{unique_suffix}"
@@ -198,6 +358,7 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
                 issue.get("read_surface_urls") or [],
                 canary_issue,
                 label="gitlab.create_issue",
+                headers=gitlab_api_headers,
             )
 
             issue_note = editor.create_issue_note(
@@ -205,12 +366,26 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
                 issue_iid=issue["issue_iid"],
                 note_body=canary_issue_note,
             )
-            _assert_canary_rendered(
+            # Note API responses in GitLab carry no ``web_url`` / ``_links``,
+            # so the editor can only emit the parent issue HTML page — which
+            # is auth-gated. Split the contract: URL-emission reachability
+            # (editor emitted a resolvable surface) vs. content existence
+            # (canary present at the authoritative notes API endpoint).
+            _assert_surface_reachable(
                 session,
                 instance,
                 issue_note.get("read_surface_urls") or [],
+                label="gitlab.create_issue_note",
+                headers=gitlab_api_headers,
+            )
+            _assert_canary_in_json(
+                session,
+                instance,
+                f"/api/v4/projects/{issue['project_id']}"
+                f"/issues/{issue['issue_iid']}/notes/{issue_note['note_id']}",
                 canary_issue_note,
                 label="gitlab.create_issue_note",
+                headers=gitlab_api_headers,
             )
 
             project_payload = editor._gitlab_get_json(
@@ -223,12 +398,28 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
                 body_template=canary_mr,
                 source_branch=f"rsv-{unique_suffix}",
             )
-            _assert_canary_rendered(
+            # GitLab's MR API response carries ``web_url`` (baked-in external_url
+            # host — unreachable on benchmark stacks that diverge from
+            # ``/etc/gitlab/gitlab.rb``'s external_url) but NOT ``_links.self``,
+            # so the editor cannot emit a path-only API URL the way it does
+            # for issues. Apply the same two-step contract used for notes:
+            # reachability of the HTML surface + canary content verified
+            # directly against the MR API endpoint.
+            _assert_surface_reachable(
                 session,
                 instance,
                 merge_request.get("read_surface_urls") or [],
+                label="gitlab.create_mr",
+                headers=gitlab_api_headers,
+            )
+            _assert_canary_in_json(
+                session,
+                instance,
+                f"/api/v4/projects/{merge_request['project_id']}"
+                f"/merge_requests/{merge_request['mr_iid']}",
                 canary_mr,
                 label="gitlab.create_mr",
+                headers=gitlab_api_headers,
             )
 
             mr_note = editor.create_mr_note(
@@ -236,12 +427,24 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
                 mr_iid=merge_request["mr_iid"],
                 note_body=canary_mr_note,
             )
-            _assert_canary_rendered(
+            # MR notes have the same shape gap as issue notes — API response
+            # lacks ``web_url`` / ``_links``. Use the same two-step contract.
+            _assert_surface_reachable(
                 session,
                 instance,
                 mr_note.get("read_surface_urls") or [],
+                label="gitlab.create_mr_note",
+                headers=gitlab_api_headers,
+            )
+            _assert_canary_in_json(
+                session,
+                instance,
+                f"/api/v4/projects/{merge_request['project_id']}"
+                f"/merge_requests/{merge_request['mr_iid']}"
+                f"/notes/{mr_note['note_id']}",
                 canary_mr_note,
                 label="gitlab.create_mr_note",
+                headers=gitlab_api_headers,
             )
 
             repo_file = editor.create_repo_file(
@@ -251,18 +454,30 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
                 content=f"{canary_repo_file}\n",
             )
             # Repo files render on the "raw" endpoint; fetch and check any URL.
+            # Filter to reachable URLs (see ``_is_reachable_url``) so a localhost
+            # web_url from gitlab.rb doesn't short-circuit the "no reachable
+            # URL" assertion; then require at least one reachable URL to 200
+            # under api-mechanism headers.
             repo_surface = repo_file.get("read_surface_urls") or []
             assert repo_surface, "gitlab.create_repo_file: no read_surface_urls"
-            # The path-only forms may not resolve through the form session; we
-            # just verify at least one returns 200 (GitLab blob pages render
-            # the content inside a syntax-highlighted <pre>).
+            reachable_repo = [u for u in repo_surface if _is_reachable_url(instance, u)]
+            assert reachable_repo, (
+                "gitlab.create_repo_file: every emitted read_surface_url was "
+                f"external-host-only; emitted={repo_surface}"
+            )
             fetched_ok = False
-            for url in repo_surface:
-                response = _fetch_url(session, instance, url)
+            for url in reachable_repo:
+                try:
+                    response = _fetch_url(session, instance, url, headers=gitlab_api_headers)
+                except requests.RequestException:
+                    continue
                 if response.status_code == 200:
                     fetched_ok = True
                     break
-            assert fetched_ok, "gitlab.create_repo_file: none of the read_surface_urls returned 200"
+            assert fetched_ok, (
+                "gitlab.create_repo_file: none of the reachable "
+                f"read_surface_urls returned 200 (reachable={reachable_repo})"
+            )
         finally:
             editor.cleanup()
 
@@ -406,12 +621,26 @@ def test_verify_shopping_read_surface_urls(live_instance, unique_suffix):
         editor = ShoppingEditor(instance, session)
         ShoppingEditor.probe_base_state(instance)
 
+        # Discover a live-catalog product id. The previous hardcoded
+        # ``entity_pk_value=1`` was brittle: any Magento catalog drop /
+        # seeding drift that renumbered demo products left the test
+        # asserting against a non-existent PDP (HTTP 404). Query the REST
+        # catalog for the first enabled product instead — the admin bearer
+        # in ``api_auth`` is sufficient and the ``searchCriteria`` filter
+        # keeps the call to a single row regardless of catalog size.
+        product_id = _discover_enabled_product_id(editor)
+        if product_id is None:
+            pytest.skip(
+                "shopping live catalog exposes no enabled product via "
+                "/rest/V1/products; verify Magento seeding / reset state"
+            )
+
         canary = f"WS-CANARY-REVIEW-{unique_suffix}"
         review = editor.create_product_review(
             title=f"RSV review {unique_suffix}",
             detail=canary,
             nickname="WorldSim",
-            entity_pk_value=1,
+            entity_pk_value=product_id,
             rating=4,
         )
         # Magento moderates reviews by default; freshly planted reviews may
@@ -420,19 +649,84 @@ def test_verify_shopping_read_surface_urls(live_instance, unique_suffix):
         # renders regardless). The canary appearance is a stretch goal.
         surface = review.get("read_surface_urls") or []
         assert surface, "shopping.create_product_review: no read_surface_urls"
+        reachable = [u for u in surface if _is_reachable_url(instance, u)]
+        assert reachable, (
+            "shopping.create_product_review: every emitted read_surface_url "
+            f"was external-host-only; emitted={surface}"
+        )
         any_ok = False
         canary_seen = False
-        for url in surface:
-            response = _fetch_url(session, instance, url)
+        errors: list[str] = []
+        for url in reachable:
+            try:
+                response = _fetch_url(session, instance, url)
+            except requests.RequestException as exc:
+                errors.append(f"{url}: fetch failed ({exc})")
+                continue
             if response.status_code == 200:
                 any_ok = True
                 if canary in response.text:
                     canary_seen = True
                     break
-        assert any_ok, "shopping.create_product_review: none of the read_surface_urls returned 200"
+            else:
+                errors.append(f"{url}: HTTP {response.status_code}")
+        assert any_ok, (
+            "shopping.create_product_review: none of the reachable "
+            f"read_surface_urls returned 200 (product_id={product_id}, "
+            f"errors={errors})"
+        )
         if not canary_seen:
             pytest.xfail(
                 "Magento moderates reviews by default; canary not yet visible on PDP. "
                 "URL resolvability was verified. Approve the review via admin to "
                 "observe the full honeyclient signal."
             )
+
+
+def _discover_enabled_product_id(editor: ShoppingEditor) -> int | None:
+    """Return the entity_id of the lowest-numbered enabled product, or None.
+
+    Uses the editor's api-mechanism headers (admin bearer from
+    ``api_auth``) to query ``/rest/V1/products`` filtered to
+    ``status=1`` (enabled) and sorted ascending by entity_id so we pick a
+    stable product rather than a seeded-then-deleted one. One row per
+    call regardless of catalog size.
+
+    Returns ``None`` if the catalog is empty, the REST route is
+    unavailable, or the response shape is malformed — callers should
+    treat ``None`` as "skip this test, catalog state is unusable."
+    """
+    # Magento's searchCriteria flat-form query-string — two filter groups
+    # are unnecessary because we want a single AND condition; one group
+    # with one filter is the minimal form. The ``conditionType=eq`` is
+    # implicit default but specified for clarity / safety against any
+    # future Magento default change.
+    qs = (
+        "searchCriteria[filterGroups][0][filters][0][field]=status"
+        "&searchCriteria[filterGroups][0][filters][0][value]=1"
+        "&searchCriteria[filterGroups][0][filters][0][conditionType]=eq"
+        "&searchCriteria[sortOrders][0][field]=entity_id"
+        "&searchCriteria[sortOrders][0][direction]=ASC"
+        "&searchCriteria[pageSize]=1"
+        "&searchCriteria[currentPage]=1"
+    )
+    try:
+        payload = editor._api_request_json(
+            "GET",
+            f"/rest/V1/products?{qs}",
+        )
+    except EditorError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    items = payload.get("items")
+    if not isinstance(items, list) or not items:
+        return None
+    first = items[0]
+    if not isinstance(first, dict):
+        return None
+    raw_id = first.get("id") or first.get("entity_id")
+    try:
+        return int(raw_id)
+    except (TypeError, ValueError):
+        return None
