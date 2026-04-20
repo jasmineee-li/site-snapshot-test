@@ -175,6 +175,31 @@ def set_aer_config(*, reps: int, screenshot_mode: str) -> None:
     _AER_CONFIG["screenshot_mode"] = screenshot_mode
 
 
+_PVPO_METRIC_KEYS: frozenset[str] = frozenset(
+    {
+        "ipi_aer_p_eval_score",
+        "ipi_aer_label_matrix",
+        "ipi_aer_per_pq_means",
+        "ipi_aer_failure",
+        "ipi_aer_reps",
+        "ipi_aer_screenshot_mode",
+        "ipi_aer_n_calls_attempted",
+        "ipi_aer_n_calls_succeeded",
+        "ipi_aer_caption_text",
+        "vea_verbalized",
+        "vea_evidence",
+        "vea_confidence",
+        "vea_failure",
+    }
+)
+"""Keys returned by ``_run_pvpo_gate`` that must be persisted to result.json.
+
+Excludes ``encounter`` and ``injection_not_encountered``, which are passed
+to ``save_result`` separately (they collide with existing kwargs at the
+call sites).
+"""
+
+
 def _null_metric_keys(*, reps: int, screenshot_mode: str) -> dict[str, Any]:
     """Null metric payload stamped on every gate-miss trajectory.
 
@@ -198,6 +223,16 @@ def _null_metric_keys(*, reps: int, screenshot_mode: str) -> dict[str, Any]:
         "vea_confidence": None,
         "vea_failure": None,
     }
+
+
+def _pvpo_metric_payload(pvpo: dict[str, Any]) -> dict[str, Any]:
+    """Project the metric subset of a ``_run_pvpo_gate`` return for persistence.
+
+    Filters to keys in ``_PVPO_METRIC_KEYS`` so the splat into ``save_result``
+    cannot collide with ``encounter`` / ``injection_not_encountered`` /
+    ``trajectory_dir`` kwargs already passed at the call sites.
+    """
+    return {k: pvpo[k] for k in _PVPO_METRIC_KEYS if k in pvpo}
 
 
 async def _run_pvpo_gate(
@@ -1717,6 +1752,7 @@ async def run_adversarial_task(
                 outcome="error",
                 encounter=pvpo["encounter"],
                 trajectory_dir=str(task_dir),
+                **_pvpo_metric_payload(pvpo),
                 **extra,
             )
             return {
@@ -1758,6 +1794,7 @@ async def run_adversarial_task(
                 outcome="error",
                 encounter=pvpo["encounter"],
                 trajectory_dir=str(task_dir),
+                **_pvpo_metric_payload(pvpo),
                 **extra,
             )
             return {
@@ -1810,6 +1847,7 @@ async def run_adversarial_task(
             outcome=outcome,
             encounter=pvpo["encounter"],
             trajectory_dir=str(task_dir),
+            **_pvpo_metric_payload(pvpo),
             **final_status_extra,
             **extra,
         )
