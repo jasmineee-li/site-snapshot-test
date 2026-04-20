@@ -11,7 +11,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,22 +21,25 @@ from worldsim.atomic_io import write_json_atomic
 logger = logging.getLogger(__name__)
 _DEFAULT_STATE_DIR = Path("logs")
 _RESUME_POINTER = _DEFAULT_STATE_DIR / "last_run_state.json"
+_PATHISH_METADATA_KEYS = {"feasibility_instances"}
+
+
+@dataclass(frozen=True)
+class _StateCandidate:
+    payload: dict[str, Any]
+    source: str
+    authoritative: bool
+    path: Path | None = None
 
 
 def get_state_dir() -> Path:
     """Return the current pipeline state directory."""
-    return Path(os.environ.get("WORLDSIM_STATE_DIR", _DEFAULT_STATE_DIR))
+    return _canonical_path(os.environ.get("WORLDSIM_STATE_DIR", _DEFAULT_STATE_DIR))
 
 
 def get_state_file() -> Path:
     """Return the current pipeline state file path."""
     return get_state_dir() / "pipeline_state.json"
-
-
-# Backwards-compatible aliases. Internal code should prefer ``get_state_dir()``
-# so .env-loaded overrides are honored even if this module was imported early.
-STATE_DIR = get_state_dir()
-STATE_FILE = get_state_file()
 
 
 def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
@@ -49,62 +53,74 @@ def save_state(step: str, iteration: int = 0, **metadata: Any) -> None:
     state_dir = get_state_dir()
     state_file = get_state_file()
     state_dir.mkdir(parents=True, exist_ok=True)
+    normalized_metadata = _normalize_state_metadata(metadata)
     state = {
         "step": step,
         "iteration": iteration,
         "timestamp": datetime.now().isoformat(),
         "logs_dir": str(state_dir),
-        **metadata,
+        **normalized_metadata,
     }
+    # Discovery pointer first: if a crash lands between the two writes for a
+    # brand-new custom logs dir, ``resume`` can still recover from the mirrored
+    # snapshot instead of losing the run entirely.
+    status = str(normalized_metadata.get("status", "unknown")).strip() or "unknown"
+    _write_resume_pointer(state)
     # Atomic write: write to a temp file in the same directory, then rename.
     # os.replace is atomic on POSIX when src and dst are on the same filesystem.
-    status = str(metadata.get("status", "unknown")).strip() or "unknown"
-    write_json_atomic(
-        state_file,
-        state,
-        failpoint_base=f"state.save_state.{step}.{status}",
-    )
-    _write_resume_pointer(state)
+    write_json_atomic(state_file, state, failpoint_base=f"state.save_state.{step}.{status}")
 
 
 def load_state() -> dict[str, Any] | None:
     """Return the last saved state, or ``None`` if no state file exists."""
+    primary = _load_state_candidate(get_state_file(), source="authoritative state")
+    mirror_candidates = _load_resume_pointer_candidates()
     if os.environ.get("WORLDSIM_STATE_DIR"):
-        state = _load_state_file(get_state_file())
-        mirrored = _load_resume_pointer()
-        return _prefer_newer_state(state, mirrored, expected_logs_dir=str(get_state_dir()))
+        return _select_best_state(
+            [candidate for candidate in [primary, *mirror_candidates] if candidate is not None],
+            expected_logs_dir=get_state_dir(),
+        )
 
-    mirrored = _load_resume_pointer()
-    if mirrored is not None:
-        return mirrored
-    return _load_state_file(get_state_file())
+    return _select_best_state(
+        [candidate for candidate in [primary, *mirror_candidates] if candidate is not None]
+    )
 
 
 def _write_resume_pointer(state: dict[str, Any]) -> None:
     """Persist the latest full state snapshot at the default logs location."""
-    _DEFAULT_STATE_DIR.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(_RESUME_POINTER, state)
+    pointer_path = _resume_pointer_path()
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(pointer_path, {**state, "state_file": str(_resume_pointer_target(state))})
 
 
-def _load_resume_pointer() -> dict[str, Any] | None:
-    """Return the mirrored state payload from the default logs location."""
-    if not _RESUME_POINTER.exists():
-        return None
-    payload = _load_state_file(_RESUME_POINTER, label="resume state mirror")
+def _load_resume_pointer_candidates() -> list[_StateCandidate]:
+    """Return authoritative + snapshot candidates surfaced by the pointer."""
+    payload = _load_state_file(_resume_pointer_path(), label="resume state mirror")
     if payload is None:
-        return None
+        return []
+    candidates: list[_StateCandidate] = []
     candidate = _resume_pointer_target(payload)
+    target_exists = False
+    target_valid = False
     if candidate is not None:
         if not candidate.exists():
             logger.warning("Resume pointer referenced missing state file at %s", candidate)
         else:
-            authoritative = _load_state_file(candidate)
+            target_exists = True
+            authoritative = _load_state_candidate(candidate, source="resume pointer target")
             if authoritative is not None:
-                return authoritative
+                target_valid = True
+                candidates.append(authoritative)
 
-    if "step" in payload:
-        return payload
-    return None
+    snapshot = _mirror_snapshot_candidate(
+        payload,
+        target=candidate,
+        target_exists=target_exists,
+        target_valid=target_valid,
+    )
+    if snapshot is not None:
+        candidates.append(snapshot)
+    return candidates
 
 
 def _resume_pointer_target(payload: dict[str, Any]) -> Path | None:
@@ -112,9 +128,9 @@ def _resume_pointer_target(payload: dict[str, Any]) -> Path | None:
     state_file = payload.get("state_file")
     logs_dir = payload.get("logs_dir")
     if state_file:
-        return Path(state_file)
+        return _canonical_path(state_file)
     if logs_dir:
-        return Path(logs_dir) / "pipeline_state.json"
+        return _canonical_path(logs_dir) / "pipeline_state.json"
     return None
 
 
@@ -123,28 +139,159 @@ def _load_state_file(path: Path, *, label: str = "pipeline state file") -> dict[
         return None
     try:
         payload = json.loads(path.read_text())
+    except OSError as exc:
+        logger.warning("Unreadable %s at %s — ignoring (%s)", label, path, exc)
+        return None
     except json.JSONDecodeError:
         logger.warning("Corrupt %s at %s — ignoring", label, path)
         return None
     if not isinstance(payload, dict):
         logger.warning("Invalid %s at %s — expected a JSON object", label, path)
         return None
-    return payload
+    return _normalize_loaded_state(payload)
 
 
-def _prefer_newer_state(
-    primary: dict[str, Any] | None,
-    mirrored: dict[str, Any] | None,
-    *,
-    expected_logs_dir: str,
-) -> dict[str, Any] | None:
-    """Prefer the authoritative state file for a matching logs dir."""
-    if mirrored is None:
-        return primary
-    if primary is None:
-        if mirrored.get("logs_dir") == expected_logs_dir:
-            return mirrored
+def _load_state_candidate(path: Path, *, source: str) -> _StateCandidate | None:
+    payload = _load_state_file(path)
+    if payload is None:
         return None
-    if mirrored.get("logs_dir") != expected_logs_dir:
-        return primary
-    return primary
+    if "step" not in payload or "status" not in payload:
+        logger.warning("Invalid %s at %s — missing required resume keys", source, path)
+        return None
+    return _StateCandidate(payload=payload, source=source, authoritative=True, path=path)
+
+
+def _mirror_snapshot_candidate(
+    payload: dict[str, Any],
+    *,
+    target: Path | None,
+    target_exists: bool,
+    target_valid: bool,
+) -> _StateCandidate | None:
+    if "step" not in payload:
+        return None
+    if target_exists and not target_valid:
+        return None
+    if target is not None and not target_exists:
+        logs_dir = payload.get("logs_dir")
+        if not logs_dir or not _canonical_path(logs_dir).exists():
+            return None
+    return _StateCandidate(
+        payload={
+            **payload,
+            "status": str(payload.get("status", "running")).strip() or "running",
+        },
+        source="resume pointer snapshot",
+        authoritative=False,
+        path=_resume_pointer_path(),
+    )
+
+
+def _select_best_state(
+    candidates: list[_StateCandidate],
+    *,
+    expected_logs_dir: Path | None = None,
+) -> dict[str, Any] | None:
+    if expected_logs_dir is not None:
+        expected = _canonical_path(expected_logs_dir)
+        expected_state_file = expected / "pipeline_state.json"
+        candidates = [
+            candidate
+            for candidate in candidates
+            if _candidate_matches_expected_dir(
+                candidate,
+                expected_logs_dir=expected,
+                expected_state_file=expected_state_file,
+            )
+        ]
+    if not candidates:
+        return None
+    best = max(candidates, key=_candidate_sort_key)
+    return best.payload
+
+
+def _candidate_sort_key(candidate: _StateCandidate) -> tuple[datetime, int, int]:
+    timestamp = _parse_state_timestamp(candidate.payload.get("timestamp"))
+    return (timestamp, int(candidate.authoritative), int(bool(candidate.payload.get("status"))))
+
+
+def _parse_state_timestamp(value: Any) -> datetime:
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is not None:
+                return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
+        except ValueError:
+            pass
+    return datetime.min
+
+
+def _payload_logs_dir(payload: dict[str, Any]) -> Path | None:
+    logs_dir = payload.get("logs_dir")
+    if not logs_dir:
+        return None
+    return _canonical_path(logs_dir)
+
+
+def _candidate_matches_expected_dir(
+    candidate: _StateCandidate,
+    *,
+    expected_logs_dir: Path,
+    expected_state_file: Path,
+) -> bool:
+    if _payload_logs_dir(candidate.payload) != expected_logs_dir:
+        return False
+    if candidate.authoritative and candidate.path != expected_state_file:
+        return False
+    if not candidate.authoritative and _resume_pointer_target(candidate.payload) != expected_state_file:
+        return False
+    return True
+
+
+def _normalize_state_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for key, value in metadata.items():
+        if _is_pathish_metadata(key, value):
+            normalized[key] = str(_canonical_path(value))
+        else:
+            normalized[key] = value
+    return normalized
+
+
+def _normalize_loaded_state(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload)
+    logs_dir = normalized.get("logs_dir")
+    if logs_dir:
+        normalized["logs_dir"] = str(_canonical_path(logs_dir))
+    state_file = normalized.get("state_file")
+    if state_file:
+        normalized["state_file"] = str(_canonical_path(state_file))
+    elif logs_dir:
+        normalized["state_file"] = str(_canonical_path(logs_dir) / "pipeline_state.json")
+    for key, value in list(normalized.items()):
+        if key in {"logs_dir", "state_file"}:
+            continue
+        if _is_pathish_metadata(key, value):
+            normalized[key] = str(_canonical_path(value))
+    return normalized
+
+
+def _is_pathish_metadata(key: str, value: Any) -> bool:
+    if not isinstance(value, (str, os.PathLike)):
+        return False
+    return key.endswith(("_path", "_dir", "_root")) or key in _PATHISH_METADATA_KEYS
+
+
+def _canonical_path(value: str | os.PathLike[str] | Path) -> Path:
+    return Path(value).expanduser().resolve(strict=False)
+
+
+def _resume_pointer_path() -> Path:
+    return _canonical_path(_RESUME_POINTER)
+
+
+# Backwards-compatible aliases. Internal code should prefer ``get_state_dir()``
+# so .env-loaded overrides are honored even if this module was imported early.
+STATE_DIR = get_state_dir()
+STATE_FILE = get_state_file()

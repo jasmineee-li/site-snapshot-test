@@ -501,12 +501,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = build_parser().parse_args(argv)
 
-    _install_verification_proxy_from_args(args)
-
     if args.command == "resume":
         return _dispatch_resume(args)
 
     if args.command == "phase":
+        _install_verification_proxy_from_args(args)
         return _dispatch_phase(args)
 
     if args.command == "rescore-phase-3":
@@ -683,6 +682,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         force_reverify=force_reverify,
     )
 
+    _install_verification_proxy_from_args(synthetic)
     return _dispatch_phase(synthetic)
 
 

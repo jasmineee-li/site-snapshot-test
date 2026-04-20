@@ -710,7 +710,7 @@ async def _run_feasibility_stage(
         )
         save_state(
             "phase_2",
-            status=prior_phase_2_status or "complete",
+            status=_terminal_phase_2_status(prior_phase_2_status),
             phase_2_stage="feasibility",
             adversarial_tasks_path=str(output_path),
             feasibility_completed_at=_utcnow_iso(),
@@ -816,7 +816,7 @@ async def _run_feasibility_stage(
 
     save_state(
         "phase_2",
-        status=prior_phase_2_status or "complete",
+        status=_terminal_phase_2_status(prior_phase_2_status),
         phase_2_stage="feasibility",
         adversarial_tasks_path=str(output_path),
         feasibility_report_path=str(report_path),
@@ -830,6 +830,13 @@ async def _run_feasibility_stage(
         **state_metadata,
     )
     return 0
+
+
+def _terminal_phase_2_status(prior_phase_2_status: str | None) -> str:
+    """Map transient pre-2c state into the terminal Phase 2 checkpoint."""
+    if prior_phase_2_status == "partial_complete":
+        return "partial_complete"
+    return "complete"
 
 
 def _extract_instances_list(payload: Any) -> list[dict[str, Any]]:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from argparse import Namespace
+from pathlib import Path
 
 from worldsim import main as worldsim_main
 from worldsim.browser_use_agent import AgentResult
@@ -37,13 +38,14 @@ def test_load_state_follows_resume_pointer_without_env_override(monkeypatch, tmp
 
     assert state is not None
     assert state["step"] == "phase_3"
-    assert state["instances_path"] == "/tmp/instances.json"
+    assert state["instances_path"] == str(Path("/tmp/instances.json").resolve())
     assert state["logs_dir"] == str(custom_logs)
 
 
 def test_load_state_reads_mirrored_state_without_status(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"
+    custom_logs.mkdir(parents=True, exist_ok=True)
     mirrored = tmp_path / "logs" / "last_run_state.json"
     mirrored.parent.mkdir(parents=True, exist_ok=True)
     mirrored.write_text(
@@ -61,6 +63,7 @@ def test_load_state_reads_mirrored_state_without_status(monkeypatch, tmp_path):
 
     assert state is not None
     assert state["step"] == "phase_4"
+    assert state["status"] == "running"
     assert state["logs_dir"] == str(custom_logs)
 
 
@@ -132,10 +135,229 @@ def test_load_state_prefers_authoritative_state_file_over_stale_resume_mirror(
     assert state["step"] == "phase_4"
 
 
+def test_load_state_prefers_newer_default_state_over_stale_resume_pointer(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    default_logs = tmp_path / "logs"
+    default_logs.mkdir(parents=True, exist_ok=True)
+    (default_logs / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "status": "running",
+                "timestamp": "2026-04-14T12:05:00",
+                "logs_dir": str(default_logs),
+            }
+        )
+    )
+    custom_logs = tmp_path / "custom-logs"
+    custom_logs.mkdir(parents=True, exist_ok=True)
+    (custom_logs / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_3",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+            }
+        )
+    )
+    (default_logs / "last_run_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_3",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+                "state_file": str(custom_logs / "pipeline_state.json"),
+            }
+        )
+    )
+
+    state = load_state()
+
+    assert state is not None
+    assert state["step"] == "phase_4"
+    assert state["logs_dir"] == str(default_logs)
+
+
+def test_load_state_uses_pointer_snapshot_when_custom_state_file_missing(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    custom_logs.mkdir(parents=True, exist_ok=True)
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "step": "phase_2",
+                "status": "running",
+                "timestamp": "2026-04-14T12:10:00",
+                "logs_dir": str(custom_logs),
+                "state_file": str(custom_logs / "pipeline_state.json"),
+                "sandbox_model": "claude-sonnet-4-6",
+            }
+        )
+    )
+
+    state = load_state()
+
+    assert state is not None
+    assert state["step"] == "phase_2"
+    assert state["logs_dir"] == str(custom_logs)
+
+
+def test_load_state_ignores_pointer_snapshot_when_referenced_logs_dir_missing(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "deleted-logs"
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+                "state_file": str(custom_logs / "pipeline_state.json"),
+            }
+        )
+    )
+
+    assert load_state() is None
+
+
+def test_load_state_normalizes_matching_logs_dir_aliases(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", "custom-logs")
+    save_state("phase_1", status="running", benchmark_path="/tmp/benchmark")
+    (tmp_path / "custom-logs" / "pipeline_state.json").unlink()
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "alias" / ".." / "custom-logs"))
+
+    state = load_state()
+
+    assert state is not None
+    assert state["step"] == "phase_1"
+    assert state["logs_dir"] == str(tmp_path / "custom-logs")
+
+
+def test_load_state_rejects_pointer_target_outside_explicit_logs_dir(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    expected_logs = tmp_path / "expected-logs"
+    foreign_logs = tmp_path / "foreign-logs"
+    expected_logs.mkdir(parents=True, exist_ok=True)
+    foreign_logs.mkdir(parents=True, exist_ok=True)
+    (expected_logs / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_2",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(expected_logs),
+            }
+        )
+    )
+    (foreign_logs / "pipeline_state.json").write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "status": "running",
+                "timestamp": "2026-04-14T12:10:00",
+                "logs_dir": str(expected_logs),
+                "instances_path": "/tmp/foreign.json",
+            }
+        )
+    )
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "status": "running",
+                "timestamp": "2026-04-14T12:10:00",
+                "logs_dir": str(expected_logs),
+                "state_file": str(foreign_logs / "pipeline_state.json"),
+            }
+        )
+    )
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(expected_logs))
+
+    state = load_state()
+
+    assert state is not None
+    assert state["step"] == "phase_2"
+    assert state["logs_dir"] == str(expected_logs)
+
+
 def test_load_state_rejects_valid_non_object_json(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "pipeline_state.json").write_text('["not", "a", "state"]')
+
+    assert load_state() is None
+
+
+def test_load_state_ignores_unreadable_state_file(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "logs" / "pipeline_state.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(
+            {
+                "step": "phase_1",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(tmp_path / "logs"),
+            }
+        )
+    )
+    real_read_text = Path.read_text
+
+    def fake_read_text(self, *args, **kwargs):
+        if self == target:
+            raise OSError("boom")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fake_read_text)
+
+    assert load_state() is None
+
+
+def test_load_state_rejects_authoritative_state_missing_status(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "logs" / "pipeline_state.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(
+            {
+                "step": "phase_1",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(tmp_path / "logs"),
+            }
+        )
+    )
+
+    assert load_state() is None
+
+
+def test_load_state_rejects_pointer_snapshot_when_target_state_is_corrupt(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    custom_logs.mkdir(parents=True, exist_ok=True)
+    (custom_logs / "pipeline_state.json").write_text("{bad-json")
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "status": "running",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+                "state_file": str(custom_logs / "pipeline_state.json"),
+            }
+        )
+    )
 
     assert load_state() is None
 
@@ -205,6 +427,39 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
     assert captured["phase"] == "4"
     assert captured["agent_model"] == "claude-sonnet-4-6"
     assert captured["agent_provider"] == "anthropic"
+
+
+def test_dispatch_resume_accepts_legacy_statusless_mirror(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    custom_logs.mkdir(parents=True, exist_ok=True)
+    mirrored = tmp_path / "logs" / "last_run_state.json"
+    mirrored.parent.mkdir(parents=True, exist_ok=True)
+    mirrored.write_text(
+        json.dumps(
+            {
+                "step": "phase_4",
+                "timestamp": "2026-04-14T12:00:00",
+                "logs_dir": str(custom_logs),
+                "instances_path": "/tmp/instances.json",
+            }
+        )
+    )
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["instances"] = args.instances
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert str(captured["instances"]) == str(Path("/tmp/instances.json").resolve())
 
 
 def test_dispatch_resume_retries_failed_checkpoint(monkeypatch, tmp_path):
@@ -538,6 +793,33 @@ def test_dispatch_resume_handles_non_object_state_json(monkeypatch, tmp_path, ca
 
     assert rc == 1
     assert "No pipeline state found" in capsys.readouterr().err
+
+
+def test_main_resume_installs_proxy_after_restoring_saved_instances(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="running",
+        instances_path="/tmp/instances.json",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_install(args):
+        captured["instances"] = args.instances
+        captured["phase"] = args.phase
+
+    monkeypatch.setattr(worldsim_main, "_install_verification_proxy_from_args", fake_install)
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", lambda args: 0)
+
+    rc = worldsim_main.main(["resume"])
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert str(captured["instances"]) == str(Path("/tmp/instances.json").resolve())
 
 
 # ── Per-task resume (load_completed_results) ────────────────────────────
