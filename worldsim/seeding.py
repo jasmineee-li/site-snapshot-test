@@ -126,12 +126,19 @@ class SeedCleanupHandle:
     def cleanup(self) -> None:
         if self._cleaned:
             return
+        failures: list[str] = []
         try:
             for editor in reversed(list(self._editor_instances.values())):
-                editor.cleanup()
+                try:
+                    editor.cleanup()
+                except Exception as exc:
+                    logger.exception("seed editor cleanup failed")
+                    failures.append(str(exc) or exc.__class__.__name__)
         finally:
             self._session.close()
             self._cleaned = True
+        if failures:
+            raise RuntimeError("seed cleanup failed: " + "; ".join(failures))
 
 
 def seed_has_actions(seed: Any) -> bool:

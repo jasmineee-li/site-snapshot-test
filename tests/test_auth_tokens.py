@@ -1024,6 +1024,48 @@ def test_bootstrap_gitlab_pat_regenerates_invalid_existing_file(monkeypatch, tmp
     assert output_path.read_text(encoding="utf-8").strip() == "glpat-fresh-token"
 
 
+def test_bootstrap_gitlab_pat_revokes_runtime_tokens_and_accepts_token_json_key(
+    monkeypatch, tmp_path
+):
+    bootstrap = _load_bootstrap_module()
+    storage_state_path = tmp_path / "storage_state.json"
+    storage_state_path.write_text(
+        '{"cookies":[{"name":"_gitlab_session","value":"cookie","domain":"gitlab.test"}]}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(bootstrap.GitLabPATGenerator, "validate", lambda self, token, site_url: False)
+
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(
+        return_value=_FakeResponse(
+            text=(
+                _gitlab_pat_form_html("csrf-pat-token")
+                + '<tr><td>worldsim-runtime</td><form action="/-/profile/personal_access_tokens/1/revoke"></form></tr>'
+            )
+        )
+    )
+    fake_session.post = MagicMock(
+        side_effect=[
+            _FakeResponse(status_code=200),
+            _FakeResponse(json_data={"token": "glpat-alt-json-token"}, content_type="application/json"),
+        ]
+    )
+    monkeypatch.setattr(bootstrap.requests, "Session", lambda: fake_session)
+
+    output_path = tmp_path / "personal_access_token.txt"
+    result = bootstrap.bootstrap_pat(
+        site_url="http://gitlab.test",
+        storage_state_path=storage_state_path,
+        output_path=output_path,
+    )
+
+    assert result == output_path
+    assert output_path.read_text(encoding="utf-8").strip() == "glpat-alt-json-token"
+    called_urls = [call.args[0] for call in fake_session.post.call_args_list]
+    assert called_urls[0] == "http://gitlab.test/-/profile/personal_access_tokens/1/revoke"
+
+
 def test_gitlab_editor_wraps_invalid_bearer_token_as_auth_missing(monkeypatch):
     from worldsim.editors.base import EditorError
     from worldsim.editors.gitlab import GitlabEditor

@@ -1375,6 +1375,18 @@ class _FakeEditor:
         return {"comment_id": "901"}
 
 
+class _FailingCleanupEditor(_FakeEditor):
+    def __init__(self, instance, session, *, label: str, fail: bool) -> None:
+        super().__init__(instance, session)
+        self.label = label
+        self.fail = fail
+
+    def cleanup(self) -> None:
+        self.cleaned = True
+        if self.fail:
+            raise RuntimeError(f"cleanup failed for {self.label}")
+
+
 class _RejectingEditor(_FakeEditor):
     def validate_args(self, method_name: str, args: dict[str, object]) -> None:
         raise seeding.EditorError("invalid_args", "bad args")
@@ -1440,6 +1452,26 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
     cleanup_handle.cleanup()
 
     assert editor.cleaned is True
+    assert fake_session.closed is True
+
+
+def test_seed_cleanup_handle_cleans_all_editors_before_raising():
+    fake_session = _FakeSession([])
+    first = _FailingCleanupEditor({}, fake_session, label="first", fail=True)
+    second = _FailingCleanupEditor({}, fake_session, label="second", fail=False)
+    handle = seeding.SeedCleanupHandle(
+        session=fake_session,
+        editor_instances={
+            ("webarena_verified", "reddit"): first,
+            ("webarena_verified", "gitlab"): second,
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="cleanup failed for first"):
+        handle.cleanup()
+
+    assert first.cleaned is True
+    assert second.cleaned is True
     assert fake_session.closed is True
 
 

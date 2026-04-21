@@ -29,10 +29,6 @@ _CSRF_META_RE = re.compile(
     r'<meta\s+name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']',
     re.IGNORECASE,
 )
-_PAT_RE = re.compile(
-    r'id=["\']created-personal-access-token["\'][^>]*value=["\']([^"\']+)["\']',
-    re.IGNORECASE,
-)
 
 
 def _default_state_path() -> Path:
@@ -85,6 +81,12 @@ def bootstrap_pat(
     if match is None:
         raise RuntimeError("Could not find GitLab authenticity_token on the PAT form page")
     csrf_token = match.group(1)
+    validator._best_effort_revoke_runtime_tokens(
+        session,
+        site_url=site_url.rstrip("/"),
+        html=form_response.text,
+        csrf_token=csrf_token,
+    )
 
     response = session.post(
         form_url,
@@ -99,17 +101,7 @@ def bootstrap_pat(
     )
     response.raise_for_status()
 
-    new_token: str | None = None
-    content_type = response.headers.get("Content-Type", "")
-    if "application/json" in content_type:
-        try:
-            new_token = response.json().get("new_token")
-        except ValueError:
-            new_token = None
-    if not new_token:
-        token_match = _PAT_RE.search(response.text)
-        if token_match is not None:
-            new_token = token_match.group(1).strip()
+    new_token = validator._parse_created_token(response)
     if not new_token:
         raise RuntimeError("GitLab PAT creation response did not expose a created token value")
 
