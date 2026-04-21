@@ -232,6 +232,31 @@ _REQUIRED_PLAN_FIELDS = (
     "attack_objective",
     "seed_template",
 )
+
+# Option A placement contract applies only to WASP-scoped sites
+# (docs/handoffs/wasp-aligned-scoping-decision.md). Other sites that
+# might appear in legacy datasets are not gated on this contract.
+_OPTION_A_SITES: frozenset[str] = frozenset({"gitlab", "reddit"})
+
+# Option A placement contract: delivery methods that create a parent
+# resource (new project / group / forum) are never valid; the attacker
+# must attach to the existing benign-task resource.
+_OPTION_A_DANGLING_METHODS: frozenset[str] = frozenset(
+    {"create_project", "create_group", "create_forum"}
+)
+
+# When a method creates a child resource (issue / submission / comment),
+# its args must point at the existing benign-task anchor via a
+# {benign_*} template token. The validator only needs to see the prefix;
+# seeding.py substitutes the concrete value at apply time.
+_OPTION_A_CHILD_CREATE_METHODS: dict[str, tuple[str, str]] = {
+    # method : (required_arg, required_token_prefix)
+    "create_issue": ("project_id", "{benign_project_id"),
+    "create_issue_note": ("issue_iid", "{benign_issue_iid"),
+    "create_mr_note": ("mr_iid", "{benign_mr_iid"),
+    "create_submission": ("forum_name", "{benign_forum_name"),
+    "create_comment": ("submission_id", "{benign_submission_id"),
+}
 _REQUIRED_V1_FIELDS = (
     "id",
     "benign_task_id",
@@ -1687,6 +1712,83 @@ def _validate_generated_adversarial_task(
     if violation is not None:
         return f"{task_name} violates benign-task invariants: {violation}"
 
+    if is_plan and _is_option_a_site(task):
+        placement_error = _validate_option_a_placement(task, task_name)
+        if placement_error is not None:
+            logger.warning(
+                "[phase_2] skip-on-reject: %s (Option A placement): %s",
+                task_name,
+                placement_error,
+            )
+            return f"{task_name} Option A placement: {placement_error}"
+
+    return None
+
+
+def _is_option_a_site(task: dict) -> bool:
+    """Return True when the task's site falls under the WASP scope.
+
+    Falls back to ``task["site"]`` when ``task["sites"]`` is missing so
+    legacy records still classify correctly.
+    """
+    for key in ("sites", "site"):
+        raw = task.get(key)
+        if isinstance(raw, str):
+            if raw.strip().lower() in _OPTION_A_SITES:
+                return True
+        elif isinstance(raw, list):
+            for entry in raw:
+                if isinstance(entry, str) and entry.strip().lower() in _OPTION_A_SITES:
+                    return True
+    return False
+
+
+def _validate_option_a_placement(plan: dict, task_name: str) -> str | None:
+    """Enforce Option A (docs/handoffs/phase-2-placement-systemic-gap.md).
+
+    Rejects plans whose delivery mechanism creates a dangling parent
+    artifact (new project/group/forum) or whose child-create method
+    (create_issue / create_issue_note / create_mr_note /
+    create_submission / create_comment) does not reference the benign
+    task's existing resource via a {benign_*} template token.
+
+    Skip-on-reject per the adopted validator semantics: returns a
+    structured reason that the caller logs + drops the task.
+    """
+    resource = plan.get("benign_target_resource")
+    if not isinstance(resource, dict) or resource.get("kind") is None:
+        return (
+            "benign_target_resource is missing or has null kind; no Option A "
+            "attach surface exists for this task"
+        )
+
+    seed = plan.get("seed_template")
+    if not isinstance(seed, dict):
+        return "seed_template missing; cannot verify delivery method"
+    editor_calls = seed.get("editor_calls")
+    if not isinstance(editor_calls, list) or not editor_calls:
+        return "seed_template.editor_calls missing or empty"
+
+    for idx, call in enumerate(editor_calls):
+        if not isinstance(call, dict):
+            return f"seed_template.editor_calls[{idx}] is not an object"
+        method = str(call.get("method") or "")
+        if method in _OPTION_A_DANGLING_METHODS:
+            return (
+                f"editor_calls[{idx}].method={method!r} creates a dangling "
+                "parent artifact; Option A requires attaching to the existing "
+                "benign-task resource"
+            )
+        if method in _OPTION_A_CHILD_CREATE_METHODS:
+            required_arg, token_prefix = _OPTION_A_CHILD_CREATE_METHODS[method]
+            args = call.get("args") if isinstance(call.get("args"), dict) else {}
+            value = str(args.get(required_arg, ""))
+            if not value.startswith(token_prefix):
+                return (
+                    f"editor_calls[{idx}].args.{required_arg}={value!r} must "
+                    f"reference the benign anchor via {token_prefix}...}} "
+                    "so the seed attaches to the existing resource"
+                )
     return None
 
 
