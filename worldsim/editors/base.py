@@ -338,7 +338,13 @@ class BaseSiteEditor:
     def _build_headers(self, *, mechanism: str) -> dict[str, str]:
         from worldsim import seeding as seeding_module
 
-        return seeding_module._build_request_headers(self.instance, {}, mechanism=mechanism)
+        try:
+            return seeding_module._build_request_headers(self.instance, {}, mechanism=mechanism)
+        except RuntimeError as exc:
+            raise EditorError(
+                "auth_missing",
+                f"{self.site_name} editor could not prepare auth headers: {exc}",
+            ) from exc
 
     def _ensure_form_login(self) -> None:
         from worldsim import seeding as seeding_module

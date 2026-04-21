@@ -1419,16 +1419,6 @@ def _instance_http_seed_auth_runtime_error(instance: Any, *, mechanism: str = "f
         return None
 
     if auth_type == "bearer_token":
-        token = auth.get("token")
-        if isinstance(token, str) and token.strip():
-            return None
-        token_generator = auth.get("token_generator")
-        if isinstance(token_generator, str) and token_generator.strip():
-            # Runtime generation from credentials; no file needed.
-            credentials = auth.get("credentials")
-            if not isinstance(credentials, dict) or not credentials:
-                return "token_generator auth requires a non-empty credentials dict"
-            return None
         token_source = auth.get("token_source")
         if isinstance(token_source, str) and token_source.strip():
             try:
@@ -1443,11 +1433,12 @@ def _instance_http_seed_auth_runtime_error(instance: Any, *, mechanism: str = "f
                 return f"token_source {path} could not be read: {exc}"
             if not token_text:
                 return f"token_source {path} is empty"
-            return None
-        token_endpoint = auth.get("token_endpoint")
-        if isinstance(token_endpoint, str) and token_endpoint.strip():
-            return None
-        return "bearer_token auth requires token, token_source, token_generator, or token_endpoint"
+        from worldsim.auth_tokens import bearer_token_config_error
+
+        config_error = bearer_token_config_error(auth)
+        if config_error is not None:
+            return config_error
+        return None
 
     if auth_type == "web_login":
         credentials = auth.get("credentials")
@@ -1589,51 +1580,10 @@ def _build_request_headers(
     return headers
 
 
-_BEARER_API_TOKEN_CACHE: dict[str, str] = {}
-
-
 def _resolve_bearer_token(auth: dict[str, Any], *, site_url: str = "") -> str:
-    inline = auth.get("token")
-    if isinstance(inline, str) and inline.strip():
-        return inline.strip()
+    from worldsim.auth_tokens import resolve_bearer_token
 
-    # Runtime token generation via token_generator or token_endpoint.
-    # Delegates to auth_tokens.acquire_token which handles both named
-    # generators (e.g. gitlab_pat) and endpoint-based acquisition.
-    token_generator = auth.get("token_generator")
-    token_endpoint = auth.get("token_endpoint")
-    if (isinstance(token_generator, str) and token_generator.strip()) or (
-        isinstance(token_endpoint, str) and token_endpoint.strip()
-    ):
-        from worldsim.auth_tokens import acquire_token
-
-        cache_key_parts = [site_url]
-        if isinstance(token_generator, str) and token_generator.strip():
-            cache_key_parts.append(f"gen:{token_generator}")
-        if isinstance(token_endpoint, str) and token_endpoint.strip():
-            cache_key_parts.append(token_endpoint)
-        credentials = auth.get("credentials", {})
-        if isinstance(credentials, dict):
-            cache_key_parts.append(credentials.get("username", ""))
-        cache_key = "|".join(cache_key_parts)
-        cached = _BEARER_API_TOKEN_CACHE.get(cache_key)
-        if cached:
-            return cached
-        token_text = acquire_token(auth, site_url)
-        _BEARER_API_TOKEN_CACHE[cache_key] = token_text
-        return token_text
-
-    token_source = auth.get("token_source")
-    if isinstance(token_source, str) and token_source.strip():
-        path = _resolve_token_source_path(token_source)
-        token = path.read_text(encoding="utf-8").strip()
-        if not token:
-            raise RuntimeError(f"token_source {path} is empty")
-        return token
-
-    raise RuntimeError(
-        "bearer_token auth requires token, token_source, token_generator, or token_endpoint"
-    )
+    return resolve_bearer_token(auth, site_url=site_url)
 
 
 def _resolve_header_value(value: object) -> str:

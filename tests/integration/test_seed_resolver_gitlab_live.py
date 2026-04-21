@@ -46,7 +46,12 @@ def test_gitlab_live_probe_rejects_invalid_auth(live_instance):
     instance = live_instance("gitlab")
     assert acquire_tokens_for_instances([instance]) == []
     invalid = copy.deepcopy(instance)
-    invalid["auth"] = {"type": "bearer_token", "header_name": "PRIVATE-TOKEN", "token": "invalid-token"}
+    invalid["auth"] = {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token": "invalid-token",
+        "validation_endpoint": "/api/v4/user",
+    }
 
     with pytest.raises(EditorError) as excinfo:
         GitlabEditor.probe_base_state(invalid)

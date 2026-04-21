@@ -706,6 +706,11 @@ def test_resolve_reddit_forum_raises_clear_error_when_no_table_matches(monkeypat
 def test_apply_data_seed_loads_bearer_token_from_file(monkeypatch, tmp_path):
     fake_session = _FakeSession([_FakeResponse()])
     monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(
+        seeding.requests,
+        "get",
+        lambda *args, **kwargs: _FakeResponse(status_code=200),
+    )
     _install_fake_mysql(monkeypatch, [("ok",)])
     token_dir = tmp_path / "logs" / "phase_0d" / "gitlab"
     token_dir.mkdir(parents=True)
@@ -731,6 +736,7 @@ def test_apply_data_seed_loads_bearer_token_from_file(monkeypatch, tmp_path):
                 "type": "bearer_token",
                 "header_name": "PRIVATE-TOKEN",
                 "token_source": str(token_path),
+                "validation_endpoint": "/api/v4/user",
             },
             "db_connection": "mysql://user:pass@localhost:3306/db",
             "site_profile": _api_postcondition_profile(
@@ -763,6 +769,7 @@ def test_apply_data_seed_rejects_token_source_outside_phase_0d(monkeypatch, tmp_
                     "type": "bearer_token",
                     "header_name": "PRIVATE-TOKEN",
                     "token_source": str(token_path),
+                    "validation_endpoint": "/api/v4/user",
                 },
             },
         )
@@ -1729,6 +1736,11 @@ def test_task_seed_site_treats_none_delivery_site_as_empty():
 def test_apply_data_seed_supports_legacy_url_only_api_calls(monkeypatch):
     fake_session = _FakeSession([_FakeResponse()])
     monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setattr(
+        seeding.requests,
+        "get",
+        lambda *args, **kwargs: _FakeResponse(status_code=200),
+    )
     monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
 
     seeding.apply_data_seed(
@@ -1745,7 +1757,11 @@ def test_apply_data_seed_supports_legacy_url_only_api_calls(monkeypatch):
         {
             "site_name": "shopping",
             "site_url": "http://shopping.test",
-            "api_auth": {"type": "bearer_token", "token": "demo-token"},
+            "api_auth": {
+                "type": "bearer_token",
+                "token": "demo-token",
+                "validation_endpoint": "/rest/V1/modules",
+            },
         },
     )
 

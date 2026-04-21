@@ -16,8 +16,11 @@ live ones so downstream code never touches disk.
 
 from __future__ import annotations
 
+import concurrent.futures
+import datetime as dt
 import logging
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +80,10 @@ class GitLabPATGenerator(TokenGenerator):
         r'<meta\s+name=["\']csrf-token["\']\s+content=["\']([^"\']+)["\']',
         re.IGNORECASE,
     )
+    _REVOKE_FORM_RE = re.compile(
+        r"<tr[^>]*>.*?worldsim-runtime[^<]*.*?<form[^>]+action=[\"']([^\"']+/revoke)[\"']",
+        re.IGNORECASE | re.DOTALL,
+    )
 
     def generate(self, credentials: dict[str, str], site_url: str) -> str:
         username = credentials.get("username", "")
@@ -116,6 +123,12 @@ class GitLabPATGenerator(TokenGenerator):
         form_csrf = self._extract_csrf(form_resp.text)
         if not form_csrf:
             raise RuntimeError("gitlab_pat: could not extract CSRF token from PAT form page")
+        self._best_effort_revoke_runtime_tokens(
+            session,
+            site_url=base,
+            html=form_resp.text,
+            csrf_token=form_csrf,
+        )
 
         # Step 4: POST to create the PAT.
         create_resp = session.post(
@@ -123,7 +136,7 @@ class GitLabPATGenerator(TokenGenerator):
             data={
                 "authenticity_token": form_csrf,
                 "personal_access_token[name]": "worldsim-runtime",
-                "personal_access_token[expires_at]": "",
+                "personal_access_token[expires_at]": self._expires_at(),
                 "personal_access_token[scopes][]": "api",
             },
             headers={"X-CSRF-Token": form_csrf},
@@ -156,6 +169,42 @@ class GitLabPATGenerator(TokenGenerator):
     def _extract_csrf(self, html: str) -> str | None:
         match = self._AUTH_TOKEN_RE.search(html) or self._CSRF_META_RE.search(html)
         return match.group(1) if match else None
+
+    @staticmethod
+    def _expires_at() -> str:
+        return (dt.date.today() + dt.timedelta(days=1)).isoformat()
+
+    def _best_effort_revoke_runtime_tokens(
+        self,
+        session: requests.Session,
+        *,
+        site_url: str,
+        html: str,
+        csrf_token: str,
+    ) -> None:
+        seen: set[str] = set()
+        for action in self._REVOKE_FORM_RE.findall(html):
+            if action in seen:
+                continue
+            seen.add(action)
+            revoke_url = action if action.startswith("http") else f"{site_url.rstrip('/')}{action}"
+            try:
+                response = session.post(
+                    revoke_url,
+                    data={"authenticity_token": csrf_token},
+                    headers={"X-CSRF-Token": csrf_token},
+                    timeout=30,
+                    allow_redirects=False,
+                )
+            except requests.RequestException as exc:
+                logger.warning("gitlab_pat: failed to revoke runtime PAT via %s: %s", action, exc)
+                continue
+            if response.status_code >= 400:
+                logger.warning(
+                    "gitlab_pat: runtime PAT revoke via %s returned HTTP %s",
+                    action,
+                    response.status_code,
+                )
 
     @staticmethod
     def _parse_created_token(resp: requests.Response) -> str | None:
@@ -256,7 +305,9 @@ def acquire_token(auth_config: dict[str, Any], site_url: str) -> str:
     # 4. Legacy token_source
     token_source = auth_config.get("token_source")
     if isinstance(token_source, str) and token_source.strip():
-        token_path = Path(token_source.strip())
+        from worldsim import seeding as seeding_module
+
+        token_path = seeding_module._resolve_token_source_path(token_source.strip())
         try:
             token_text = token_path.read_text(encoding="utf-8").strip()
         except OSError as exc:
@@ -314,10 +365,50 @@ def _validation_endpoint_for(auth_config: dict[str, Any]) -> str | None:
     return None
 
 
+def bearer_token_config_error(auth_config: dict[str, Any]) -> str | None:
+    """Return a human-readable config error for bearer token auth, if any."""
+    has_generator = (
+        isinstance(auth_config.get("token_generator"), str)
+        and auth_config["token_generator"].strip()
+    )
+    has_endpoint = (
+        isinstance(auth_config.get("token_endpoint"), str) and auth_config["token_endpoint"].strip()
+    )
+    has_inline_token = isinstance(auth_config.get("token"), str) and auth_config["token"].strip()
+    has_token_source = (
+        isinstance(auth_config.get("token_source"), str) and auth_config["token_source"].strip()
+    )
+    validation_endpoint = _validation_endpoint_for(auth_config)
+
+    if has_generator:
+        credentials = auth_config.get("credentials")
+        if not isinstance(credentials, dict) or not credentials:
+            return "token_generator auth requires a non-empty credentials dict"
+        return None
+    if has_endpoint:
+        credentials = auth_config.get("credentials")
+        if not isinstance(credentials, dict) or not credentials:
+            return "token_endpoint auth requires a non-empty credentials dict"
+        if validation_endpoint is None:
+            return "validation_endpoint is required for token_endpoint auth"
+        return None
+    if has_inline_token:
+        if validation_endpoint is None:
+            return "validation_endpoint is required for inline token auth"
+        return None
+    if has_token_source:
+        if validation_endpoint is None:
+            return "validation_endpoint is required for token_source auth"
+        return None
+    return "bearer_token auth config has no token_generator, token_endpoint, token, or token_source"
+
+
 # ── Pipeline-level helpers ───────────────────────────────────────────────
 
 # Per-run cache: maps (site_url, auth_config_fingerprint) -> token.
 _RUN_TOKEN_CACHE: dict[str, str] = {}
+_RUN_TOKEN_CACHE_LOCK = threading.Lock()
+_TOKEN_ACQUIRE_MAX_WORKERS = 8
 
 
 def _cache_key(site_url: str, auth_config: dict[str, Any]) -> str:
@@ -346,6 +437,8 @@ def acquire_tokens_for_instances(
     Returns a list of human-readable error strings (empty on full success).
     """
     errors: list[str] = []
+    requirements: list[tuple[Any, str, str, str, dict[str, Any], str]] = []
+    unique_requirements: dict[str, tuple[Any, str, str, str, dict[str, Any], str]] = {}
 
     for instance in instances:
         inst = instance if isinstance(instance, dict) else instance.model_dump()
@@ -359,75 +452,104 @@ def acquire_tokens_for_instances(
             if str(auth.get("type", "")).strip() != "bearer_token":
                 continue
 
-            has_generator = (
-                isinstance(auth.get("token_generator"), str) and auth["token_generator"].strip()
-            )
-            has_endpoint = (
-                isinstance(auth.get("token_endpoint"), str) and auth["token_endpoint"].strip()
-            )
-            has_inline_token = isinstance(auth.get("token"), str) and auth["token"].strip()
-            has_token_source = (
-                isinstance(auth.get("token_source"), str) and auth["token_source"].strip()
-            )
-            validation_endpoint = _validation_endpoint_for(auth)
-
-            if (has_inline_token or has_token_source or has_endpoint) and validation_endpoint is None:
-                errors.append(
-                    f"[{site_name}] bearer_token_unvalidated for {field}: "
-                    "validation_endpoint is required for inline, token_source, and token_endpoint auth"
-                )
+            config_error = bearer_token_config_error(auth)
+            if config_error is not None:
+                errors.append(f"[{site_name}] bearer_token_unvalidated for {field}: {config_error}")
                 continue
 
-            if not (has_generator or has_endpoint or has_inline_token or has_token_source):
-                errors.append(
-                    f"[{site_name}] failed to acquire {field} token: bearer_token config has no usable token source"
-                )
-                continue
+            requirement = (instance, field, site_url, site_name, auth, _cache_key(site_url, auth))
+            requirements.append(requirement)
+            unique_requirements.setdefault(requirement[-1], requirement)
 
-            ck = _cache_key(site_url, auth)
-            cached = _RUN_TOKEN_CACHE.get(ck)
-            if cached:
-                if not validate_token(
-                    cached,
-                    auth,
-                    site_url,
-                    validation_endpoint=validation_endpoint,
-                ):
-                    errors.append(
-                        f"[{site_name}] bearer_token_unvalidated for {field}: cached token failed live validation"
-                    )
-                    _RUN_TOKEN_CACHE.pop(ck, None)
-                    continue
-                _inject_token(instance, field, cached)
-                continue
+    if not unique_requirements:
+        return errors
 
+    resolved_tokens: dict[str, str] = {}
+    resolution_errors: dict[str, str] = {}
+    max_workers = min(max(1, len(unique_requirements)), _TOKEN_ACQUIRE_MAX_WORKERS)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            cache_key: executor.submit(resolve_bearer_token, auth, site_url=site_url)
+            for cache_key, (_, _, site_url, _, auth, _) in unique_requirements.items()
+        }
+        for cache_key, future in future_map.items():
             try:
-                token = acquire_token(auth, site_url)
+                resolved_tokens[cache_key] = future.result()
             except Exception as exc:
-                errors.append(f"[{site_name}] failed to acquire {field} token: {exc}")
-                continue
+                resolution_errors[cache_key] = str(exc)
 
-            if not validate_token(
-                token,
-                auth,
-                site_url,
-                validation_endpoint=validation_endpoint,
-            ):
-                errors.append(
-                    f"[{site_name}] bearer_token_unvalidated for {field}: acquired token failed live validation"
-                )
-                continue
-
-            _RUN_TOKEN_CACHE[ck] = token
-            _inject_token(instance, field, token)
-            logger.info("Acquired fresh %s token for %s (%s)", field, site_name, site_url)
+    for instance, field, site_url, site_name, auth, cache_key in requirements:
+        token = resolved_tokens.get(cache_key)
+        if token is None:
+            message = resolution_errors[cache_key]
+            if "failed live validation" in message:
+                errors.append(f"[{site_name}] bearer_token_unvalidated for {field}: {message}")
+            else:
+                errors.append(f"[{site_name}] failed to acquire {field} token: {message}")
+            continue
+        _inject_token(instance, field, token)
+        logger.info("Acquired fresh %s token for %s (%s)", field, site_name, site_url)
 
     return errors
 
 
+def resolve_bearer_token(auth_config: dict[str, Any], *, site_url: str) -> str:
+    """Resolve a bearer token and validate it against the live instance.
+
+    This is the single point of truth for bearer auth. Callers should not read
+    ``token_source`` directly or keep a side cache of generated tokens.
+    """
+    config_error = bearer_token_config_error(auth_config)
+    if config_error is not None:
+        raise RuntimeError(config_error)
+
+    validation_endpoint = _validation_endpoint_for(auth_config)
+    cache_key = _cache_key(site_url, auth_config)
+
+    cached = _get_cached_token(cache_key)
+    if cached is not None:
+        if validate_token(
+            cached,
+            auth_config,
+            site_url,
+            validation_endpoint=validation_endpoint,
+        ):
+            return cached
+        _drop_cached_token(cache_key, expected=cached)
+
+    token = acquire_token(auth_config, site_url)
+    if not validate_token(
+        token,
+        auth_config,
+        site_url,
+        validation_endpoint=validation_endpoint,
+    ):
+        raise RuntimeError("acquired token failed live validation")
+    _set_cached_token(cache_key, token)
+    return token
+
+
 def clear_run_token_cache() -> None:
     """Clear the per-run token cache (useful between test runs)."""
-    _RUN_TOKEN_CACHE.clear()
+    with _RUN_TOKEN_CACHE_LOCK:
+        _RUN_TOKEN_CACHE.clear()
+
+
+def _get_cached_token(cache_key: str) -> str | None:
+    with _RUN_TOKEN_CACHE_LOCK:
+        return _RUN_TOKEN_CACHE.get(cache_key)
+
+
+def _set_cached_token(cache_key: str, token: str) -> None:
+    with _RUN_TOKEN_CACHE_LOCK:
+        _RUN_TOKEN_CACHE[cache_key] = token
+
+
+def _drop_cached_token(cache_key: str, *, expected: str | None = None) -> None:
+    with _RUN_TOKEN_CACHE_LOCK:
+        current = _RUN_TOKEN_CACHE.get(cache_key)
+        if expected is None or current == expected:
+            _RUN_TOKEN_CACHE.pop(cache_key, None)
 
 
 def _inject_token(instance: Any, field: str, token: str) -> None:

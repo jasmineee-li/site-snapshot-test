@@ -552,7 +552,7 @@ The agent context schema is benchmark-agnostic. ``requires_structured_output`` i
 | `type` | Sub-object keys | Used for |
 | :---- | :---- | :---- |
 | `http_headers` | `headers` | form-mechanism seeds (auto-login headers) |
-| `bearer_token` | `token_endpoint`, `credentials` | api-mechanism seeds (e.g. Magento REST API) |
+| `bearer_token` | one of `token_generator + credentials`, `token_endpoint + credentials + validation_endpoint`, `token + validation_endpoint`, or legacy `token_source + validation_endpoint` | api-mechanism seeds (GitLab PATs, other REST APIs) |
 | `web_login` | `login_url`, `credentials` | session-based cookie auth (e.g. Map/OSM) |
 | `none` | — | sites that need no seeding auth |
 

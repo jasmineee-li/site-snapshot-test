@@ -4,6 +4,10 @@
 Run Phase 0d first so ``logs/phase_0d/gitlab/storage_state.json`` exists.
 This helper reuses those browser cookies to create a PAT and writes it to
 ``logs/phase_0d/gitlab/personal_access_token.txt`` by default.
+
+This path is legacy/break-glass only. The normal runtime flow should prefer
+``token_generator: "gitlab_pat"`` so bearer auth is minted and validated in
+memory per run instead of being persisted on disk.
 """
 
 from __future__ import annotations
@@ -14,6 +18,8 @@ import re
 from pathlib import Path
 
 import requests
+
+from worldsim.auth_tokens import GitLabPATGenerator
 
 _AUTH_TOKEN_RE = re.compile(
     r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',
@@ -63,10 +69,13 @@ def bootstrap_pat(
     site_url: str,
     storage_state_path: Path,
     output_path: Path,
-    token_name: str = "worldsim-api",
+    token_name: str = "worldsim-runtime",
 ) -> Path:
-    if output_path.exists() and output_path.read_text(encoding="utf-8").strip():
-        return output_path
+    validator = GitLabPATGenerator()
+    if output_path.exists():
+        existing = output_path.read_text(encoding="utf-8").strip()
+        if existing and validator.validate(existing, site_url):
+            return output_path
 
     session = _build_session(_load_cookies(storage_state_path))
     form_url = f"{site_url.rstrip('/')}/-/profile/personal_access_tokens"
@@ -82,7 +91,7 @@ def bootstrap_pat(
         data={
             "authenticity_token": csrf_token,
             "personal_access_token[name]": token_name,
-            "personal_access_token[expires_at]": "",
+            "personal_access_token[expires_at]": validator._expires_at(),
             "personal_access_token[scopes][]": "api",
         },
         headers={"X-CSRF-Token": csrf_token},

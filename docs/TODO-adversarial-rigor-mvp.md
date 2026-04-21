@@ -320,7 +320,7 @@ Per-instance `auth` examples for `instances.json`:
 
 - shopping: `{"type": "http_headers", "headers": {"X-M2-Customer-Auto-Login": "emma.lopez@gmail.com:Password.123"}}`
 - reddit: `{"type": "http_headers", "headers": {"X-Postmill-Auto-Login": "MarvelsGrantMan136:test1234"}}`
-- gitlab: `{"type": "bearer_token", "header_name": "PRIVATE-TOKEN", "token_source": "logs/phase_0d/gitlab/personal_access_token.txt"}`
+- gitlab: `{"type": "bearer_token", "header_name": "PRIVATE-TOKEN", "token_generator": "gitlab_pat", "credentials": {"username": "byteblaze", "password": "hello1234"}}`
 - shopping_admin, map, wikipedia: keep empty for MVP (SQL-only or dropped)
 
 ### `seeding.py` changes
@@ -336,13 +336,13 @@ Current `api` branch at `worldsim/seeding.py:118-126` does four lines of work: b
 
 ### Phase 0d extension for gitlab PAT
 
-New optional generator script for gitlab: `scripts/phase_0d/bootstrap_gitlab_pat.py`. Uses Phase 0d's form-login path (already working for `storage_state.json`) to log in as `byteblaze`, then `POST /-/profile/personal_access_tokens` to issue a PAT with `api` scope, writes token to `logs/phase_0d/gitlab/personal_access_token.txt`. `instances.json` reads the token via `token_source`. Idempotent: skips if file exists and is non-empty.
+Legacy break-glass helper: `scripts/phase_0d/bootstrap_gitlab_pat.py`. It reuses Phase 0d storage-state cookies to create a PAT and can write it to `logs/phase_0d/gitlab/personal_access_token.txt`, but the normal path should use `token_generator: "gitlab_pat"` so tokens are minted, validated, and refreshed in memory per run.
 
 ### Unknowns to probe before shipping
 
 1. Postmill CSRF policy: check `vendors/webarena-verified/` for `framework.csrf_protection` config in Symfony. Grep returned zero hits on first pass; may be disabled. If so, form-POST with header auth is stateless.
 2. Magento `form_key`: confirm whether enforced for header-authed requests or bypassed. Test: `curl -X POST /review/product/post/id/1/ -H "X-M2-Customer-Auto-Login: ..." -d "nickname=test&title=test&detail=test"` without `form_key`. 200 or 403 is the diagnostic.
-3. GitLab PAT survival across `reset_endpoint` calls: env-ctrl reset may wipe user tokens. Phase 0d bootstraps should be idempotent enough to handle that.
+3. GitLab PAT survival across `reset_endpoint` calls: env-ctrl reset may wipe user tokens. Runtime token acquisition should validate and reacquire on demand; the Phase 0d file-backed helper is legacy-only.
 
 ## Multi-model agent runner support
 

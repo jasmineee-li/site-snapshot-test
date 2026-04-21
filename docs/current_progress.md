@@ -22,7 +22,7 @@ For the full handoff, see `docs/handoffs/orchestrator-handoff-phase-2-v2.md`. Su
 
 ### What shipped this session
 
-- **Phase 0d gitlab PAT bootstrap fixed and verified.** Modern GitLab renders the CSRF token only in `<meta name="csrf-token">` (no hidden input) and returns the created token as JSON `{new_token: "glpat-..."}`, not as HTML. Updated `scripts/phase_0d/bootstrap_gitlab_pat.py` to fall back to the meta tag and parse JSON. Token lives at `logs/phase_0d/gitlab/personal_access_token.txt`, verified with HTTP 200 against `/api/v4/user`. Committed as **`b1d1e1a`** and pushed to origin.
+- **GitLab bearer auth moved to runtime PAT brokerage.** The preferred path is now `token_generator: "gitlab_pat"` with live validation and refresh, including deduped parallel acquisition across instances. The file-backed `logs/phase_0d/gitlab/personal_access_token.txt` helper remains as a legacy break-glass path only and now revalidates before reuse.
 - **Phase 2 orchestrator patches landed (uncommitted):**
   - Per-shard persistence in `_generate_injections_for_site` — each validated shard writes to `logs/phase_2/shards/<label>.json` as soon as it completes. Crash-safe.
   - Fail-open publish in the main phase_2 entrypoint — partial `adversarial_tasks.json` is always written when ≥1 shard succeeds, tagged `status="partial_complete"` with `partial=true` + `generation_failures=[...]`. Only fully-failed runs (zero shards) return exit 1.

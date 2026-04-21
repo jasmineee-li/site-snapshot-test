@@ -94,10 +94,10 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
         token_source = value.get("token_source")
         token_endpoint = value.get("token_endpoint")
         token_generator = value.get("token_generator")
-        if isinstance(token, str) and token.strip():
-            return value
-        if isinstance(token_source, str) and token_source.strip():
-            return value
+        validation_endpoint = value.get("validation_endpoint")
+        has_validation_endpoint = (
+            isinstance(validation_endpoint, str) and validation_endpoint.strip()
+        )
         if isinstance(token_generator, str) and token_generator.strip():
             credentials = value.get("credentials")
             if not isinstance(credentials, dict) or not credentials:
@@ -110,6 +110,22 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
             if not isinstance(credentials, dict) or not credentials:
                 raise ValueError(
                     f"{field_name}.credentials must be a non-empty object when token_endpoint is set"
+                )
+            if not has_validation_endpoint:
+                raise ValueError(
+                    f"{field_name}.validation_endpoint must be a non-empty string when token_endpoint is set"
+                )
+            return value
+        if isinstance(token, str) and token.strip():
+            if not has_validation_endpoint:
+                raise ValueError(
+                    f"{field_name}.validation_endpoint must be a non-empty string when token is set"
+                )
+            return value
+        if isinstance(token_source, str) and token_source.strip():
+            if not has_validation_endpoint:
+                raise ValueError(
+                    f"{field_name}.validation_endpoint must be a non-empty string when token_source is set"
                 )
             return value
         raise ValueError(

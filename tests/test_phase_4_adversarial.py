@@ -202,14 +202,14 @@ def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_
         site_url="http://shopping.test",
         reset_endpoint="http://shopping.test/init",
         url_placeholders={"__SHOPPING__": "http://shopping.test"},
-        auth={"type": "bearer_token", "token": "one"},
+        auth={"type": "bearer_token", "token": "one", "validation_endpoint": "/health"},
     )
     changed_auth = BenchmarkInstance(
         site_name="shopping",
         site_url="http://shopping.test",
         reset_endpoint="http://shopping.test/init",
         url_placeholders={"__SHOPPING__": "http://shopping-alt.test"},
-        auth={"type": "bearer_token", "token": "two"},
+        auth={"type": "bearer_token", "token": "two", "validation_endpoint": "/health"},
     )
 
     assert phase_4_adversarial._phase_4_variant_fingerprint(
@@ -278,14 +278,14 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
         site_url="http://reddit.test",
         reset_endpoint="http://reddit.test/init",
         url_placeholders={"__REDDIT__": "http://reddit.test"},
-        api_auth={"type": "bearer_token", "token": "one"},
+        api_auth={"type": "bearer_token", "token": "one", "validation_endpoint": "/health"},
     )
     changed_unrelated = BenchmarkInstance(
         site_name="reddit",
         site_url="http://reddit-alt.test",
         reset_endpoint="http://reddit-alt.test/init",
         url_placeholders={"__REDDIT__": "http://reddit-alt.test"},
-        api_auth={"type": "bearer_token", "token": "two"},
+        api_auth={"type": "bearer_token", "token": "two", "validation_endpoint": "/health"},
     )
 
     base = phase_4_adversarial._phase_4_result_fingerprint(
@@ -371,7 +371,7 @@ def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
         reset_endpoint="http://shopping.test/init",
         replica_index=0,
         replica_name="a",
-        api_auth={"type": "bearer_token", "token": "api-one"},
+        api_auth={"type": "bearer_token", "token": "api-one", "validation_endpoint": "/health"},
         agent_auth={"type": "storage_state", "storage_state": {"path": "auth/a.json"}},
     )
     changed_runtime_auth = BenchmarkInstance(
@@ -380,7 +380,7 @@ def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
         reset_endpoint="http://shopping.test/init",
         replica_index=1,
         replica_name="b",
-        api_auth={"type": "bearer_token", "token": "api-two"},
+        api_auth={"type": "bearer_token", "token": "api-two", "validation_endpoint": "/health"},
         agent_auth={"type": "storage_state", "storage_state": {"path": "auth/b.json"}},
     )
 
