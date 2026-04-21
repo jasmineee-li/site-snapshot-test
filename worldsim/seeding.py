@@ -450,6 +450,35 @@ def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[
         benign_task_id = task.get("benign_task_id")
         if benign_task_id not in (None, ""):
             context["benign_task_id"] = str(benign_task_id)
+
+        # Option A placement anchors (docs/handoffs/phase-2-placement-systemic-gap.md).
+        # The 2a prompt emits {benign_*} tokens in editor_calls[].args so the
+        # seed attaches to the existing benign-task resource. Surface the
+        # concrete values here so _FORMAT_TOKEN_PATTERN substitution resolves
+        # them at seed-apply time.
+        anchors = (task.get("benign_target_resource") or {}).get("anchors") or {}
+        if isinstance(anchors, dict):
+            if anchors.get("project_id") is not None:
+                context["benign_project_id"] = str(anchors["project_id"])
+            if anchors.get("project_path"):
+                context["benign_project_path"] = str(anchors["project_path"])
+            if anchors.get("issue_iid") is not None:
+                context["benign_issue_iid"] = str(anchors["issue_iid"])
+            if anchors.get("mr_iid") is not None:
+                context["benign_mr_iid"] = str(anchors["mr_iid"])
+            if anchors.get("submission_id") is not None:
+                context["benign_submission_id"] = str(anchors["submission_id"])
+            if anchors.get("forum_name"):
+                context["benign_forum_name"] = str(anchors["forum_name"])
+        # benign user handle — needed for dashboard-list @mention routing
+        # when encounter_requirements.requires_at_mention is set.
+        agent_ctx = task.get("agent_context") or {}
+        auth = agent_ctx.get("authentication") or {}
+        creds = auth.get("credentials") if isinstance(auth, dict) else None
+        handle = creds.get("username") if isinstance(creds, dict) else None
+        if isinstance(handle, str) and handle.strip():
+            context["benign_user_handle"] = handle.strip()
+
         _merge_seed_context(context, _derive_task_seed_context(task, seed, instance))
     context.setdefault("task_id", "task")
     context.setdefault("instruction", "")
@@ -1761,7 +1790,7 @@ def _looks_like_login_page(html: str) -> bool:
     indicators = (
         "user[password]",
         'type="password"',
-        "name=\"_password\"",
+        'name="_password"',
         "input#login-password",
         "sign in",
         "log in",
