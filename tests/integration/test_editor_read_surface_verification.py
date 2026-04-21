@@ -587,26 +587,13 @@ def test_verify_shopping_read_surface_urls(live_instance, unique_suffix):
     review-bearing PDP, so they're the surfaces C1b's substring match
     keys on.
 
-    **Magento moderation caveat.** The default Magento install
-    moderates customer reviews — a freshly-planted review is held in an
-    "Approved by admin" queue and does NOT render on the PDP until an
-    operator approves it. This is a Magento default, not a defect in
-    the editor's URL emission, so the test is structured as a graceful
-    two-tier check:
-
-      1. Hard assertion — at least one emitted URL must return HTTP 200.
-         This catches the actual C1b correctness regression: an editor
-         emitting a wrong path that 404s would silently break C1b on
-         every shopping task.
-      2. Soft assertion (xfail on miss) — the canary text appearing in
-         the response body. This is the "stretch goal" proof that
-         end-to-end rendering works, but is suppressed because Magento's
-         moderation default makes it environment-dependent.
-
-    To upgrade the soft check to a hard check on a deployment, either
-    auto-approve reviews via the admin user (out of scope for default
-    benchmark hosts) or relax the test once Magento config is known to
-    skip moderation.
+    The editor sets ``status_id=1`` on create (and issues a defensive
+    PUT if Magento drops the field), so the planted review is Approved
+    rather than the Magento default of Pending. The PDP itself may be
+    cached for a few minutes by Magento's full-page cache; the AJAX
+    listing endpoint is uncached and is the canonical "did the review
+    render" signal — the test iterates reachable URLs and breaks on the
+    first canary hit, so AJAX wins when FPC serves a stale PDP.
 
     Skipped by default. Opt in when changing
     ``worldsim/editors/shopping.py``'s ``read_surface_urls`` emission,
@@ -643,10 +630,6 @@ def test_verify_shopping_read_surface_urls(live_instance, unique_suffix):
             entity_pk_value=product_id,
             rating=4,
         )
-        # Magento moderates reviews by default; freshly planted reviews may
-        # not appear on the PDP until an admin approves. We verify that at
-        # least one of the emitted URLs returns HTTP 200 (the PDP itself
-        # renders regardless). The canary appearance is a stretch goal.
         surface = review.get("read_surface_urls") or []
         assert surface, "shopping.create_product_review: no read_surface_urls"
         reachable = [u for u in surface if _is_reachable_url(instance, u)]
@@ -675,12 +658,13 @@ def test_verify_shopping_read_surface_urls(live_instance, unique_suffix):
             f"read_surface_urls returned 200 (product_id={product_id}, "
             f"errors={errors})"
         )
-        if not canary_seen:
-            pytest.xfail(
-                "Magento moderates reviews by default; canary not yet visible on PDP. "
-                "URL resolvability was verified. Approve the review via admin to "
-                "observe the full honeyclient signal."
-            )
+        assert canary_seen, (
+            "shopping.create_product_review: canary text not visible in any "
+            f"reachable read_surface_url (product_id={product_id}). The editor "
+            "should auto-approve via status_id=1 + defensive PUT — if the "
+            "review is still Pending, check Magento /rest/V1/reviews response "
+            f"shape on this host. errors={errors}"
+        )
 
 
 def _discover_enabled_product_id(editor: ShoppingEditor) -> int | None:

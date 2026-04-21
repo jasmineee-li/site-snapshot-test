@@ -17,13 +17,15 @@ def test_validate_args_requires_review_detail():
 
 def test_create_product_review_builds_expected_review_payload(monkeypatch):
     editor = ShoppingEditor({"site_url": "http://shopping.test"}, session=None)
-    captured = {}
+    calls: list[dict] = []
 
     def fake_api_request_json(method, path, *, json_body=None, params=None, allow_missing=False):
-        captured["method"] = method
-        captured["path"] = path
-        captured["json_body"] = json_body
-        return {"id": 42}
+        calls.append(
+            {"method": method, "path": path, "json_body": json_body, "allow_missing": allow_missing}
+        )
+        if method == "POST":
+            return {"id": 42, "status_id": 1}
+        return {}
 
     monkeypatch.setattr(editor, "_api_request_json", fake_api_request_json)
 
@@ -45,9 +47,10 @@ def test_create_product_review_builds_expected_review_payload(monkeypatch):
         ],
         "read_surface_provenance_source": "editor_constructed",
     }
-    assert captured["method"] == "POST"
-    assert captured["path"] == "/rest/V1/reviews"
-    assert captured["json_body"] == {
+    # Magento honored status_id=1 on the POST, so no defensive PUT is needed.
+    assert [c["method"] for c in calls] == ["POST"]
+    assert calls[0]["path"] == "/rest/V1/reviews"
+    assert calls[0]["json_body"] == {
         "review": {
             "review_entity": "product",
             "title": "Review title",
@@ -56,8 +59,103 @@ def test_create_product_review_builds_expected_review_payload(monkeypatch):
             "entity_pk_value": 7,
             "stores": [1],
             "ratings": [{"rating_name": "Quality", "value": 5}],
+            "status_id": 1,
         }
     }
+
+
+def test_create_product_review_falls_back_to_put_when_pending(monkeypatch):
+    """Some Magento 2.4.x minor versions silently drop status_id on POST.
+
+    When the POST response shows status_id != 1, the editor must issue a
+    defensive PUT to flip it to Approved (1), or the seeded review will
+    sit in Pending and never render on the storefront PDP.
+    """
+    editor = ShoppingEditor({"site_url": "http://shopping.test"}, session=None)
+    calls: list[dict] = []
+
+    def fake_api_request_json(method, path, *, json_body=None, params=None, allow_missing=False):
+        calls.append({"method": method, "path": path, "json_body": json_body})
+        if method == "POST":
+            return {"id": 99, "status_id": 2}
+        return {}
+
+    monkeypatch.setattr(editor, "_api_request_json", fake_api_request_json)
+
+    editor.create_product_review(
+        detail="Payload text",
+        nickname="reviewer",
+        entity_pk_value=7,
+    )
+
+    assert [c["method"] for c in calls] == ["POST", "PUT"]
+    assert calls[1]["path"] == "/rest/V1/reviews/99"
+    assert calls[1]["json_body"] == {"review": {"id": 99, "status_id": 1}}
+
+
+def test_create_product_review_skips_put_when_status_missing_in_response(monkeypatch):
+    """Defensive: if the response omits status_id entirely, we still issue
+    the PUT — better one extra round trip than a silently-pending review."""
+    editor = ShoppingEditor({"site_url": "http://shopping.test"}, session=None)
+    calls: list[dict] = []
+
+    def fake_api_request_json(method, path, *, json_body=None, params=None, allow_missing=False):
+        calls.append({"method": method, "path": path})
+        if method == "POST":
+            return {"id": 7}
+        return {}
+
+    monkeypatch.setattr(editor, "_api_request_json", fake_api_request_json)
+
+    editor.create_product_review(detail="x", nickname="n", entity_pk_value=1)
+
+    assert [c["method"] for c in calls] == ["POST", "PUT"]
+
+
+def test_create_product_review_registers_delete_cleanup(monkeypatch):
+    """Phase 2c probes apply seeds and immediately clean them up. The editor
+    must register a DELETE so re-runs (--force-reverify) don't accumulate
+    rows in the Magento `review` table."""
+    editor = ShoppingEditor({"site_url": "http://shopping.test"}, session=None)
+    calls: list[dict] = []
+
+    def fake_api_request_json(method, path, *, json_body=None, params=None, allow_missing=False):
+        calls.append({"method": method, "path": path, "allow_missing": allow_missing})
+        if method == "POST":
+            return {"id": 555, "status_id": 1}
+        return {}
+
+    monkeypatch.setattr(editor, "_api_request_json", fake_api_request_json)
+
+    editor.create_product_review(detail="x", nickname="n", entity_pk_value=1)
+    editor.cleanup()
+
+    delete_calls = [c for c in calls if c["method"] == "DELETE"]
+    assert len(delete_calls) == 1
+    assert delete_calls[0]["path"] == "/rest/V1/reviews/555"
+    # allow_missing tolerates the case where the row was already removed
+    # (e.g. by a benchmark reset that fired between create and cleanup).
+    assert delete_calls[0]["allow_missing"] is True
+
+
+def test_create_product_review_no_cleanup_when_review_id_missing(monkeypatch):
+    """If Magento returns a response we can't parse a review_id from, skip
+    cleanup registration rather than registering a DELETE for None."""
+    editor = ShoppingEditor({"site_url": "http://shopping.test"}, session=None)
+    calls: list[dict] = []
+
+    def fake_api_request_json(method, path, *, json_body=None, params=None, allow_missing=False):
+        calls.append({"method": method, "path": path})
+        if method == "POST":
+            return {}
+        return {}
+
+    monkeypatch.setattr(editor, "_api_request_json", fake_api_request_json)
+
+    editor.create_product_review(detail="x", nickname="n", entity_pk_value=1)
+    editor.cleanup()
+
+    assert [c["method"] for c in calls] == ["POST"]
 
 
 def test_update_customer_profile_posts_account_edit_form(monkeypatch):

@@ -187,6 +187,15 @@ class ShoppingEditor(BaseSiteEditor):
             else product_sku,
             "stores": [1],
             "ratings": [{"rating_name": "Quality", "value": int(rating or 4)}],
+            # Magento defaults new reviews to status_id=2 (Pending Approval)
+            # even when POSTed with an admin bearer token. Pending reviews
+            # exist in the `review` table but are not rendered on the
+            # storefront PDP — Phase 4's PVPO would see no payload and
+            # mislabel trajectories as resistant_unaware. Set status_id=1
+            # (Approved) at create time. Some 2.4.x minor versions silently
+            # drop the field on POST; the response check below issues a
+            # defensive PUT in that case.
+            "status_id": 1,
         }
         missing = [
             field
@@ -201,8 +210,18 @@ class ShoppingEditor(BaseSiteEditor):
             json_body={"review": review_payload},
         )
         review_id = None
+        returned_status_id: Any = None
         if isinstance(payload, dict):
             review_id = payload.get("id") or payload.get("review_id")
+            returned_status_id = payload.get("status_id")
+        if review_id is not None and returned_status_id not in (1, "1"):
+            self._api_request_json(
+                "PUT",
+                f"/rest/V1/reviews/{review_id}",
+                json_body={"review": {"id": review_id, "status_id": 1}},
+            )
+        if review_id is not None:
+            self._push_cleanup(lambda rid=review_id: self._delete_review_safely(rid))
         product_key = review_payload.get("entity_pk_value")
         surface_paths: list[str] = []
         if product_key not in (None, ""):
@@ -213,6 +232,13 @@ class ShoppingEditor(BaseSiteEditor):
             "read_surface_urls": _shopping_surface_urls(self._site_url(), surface_paths),
             "read_surface_provenance_source": "editor_constructed",
         }
+
+    def _delete_review_safely(self, review_id: Any) -> None:
+        self._api_request_json(
+            "DELETE",
+            f"/rest/V1/reviews/{review_id}",
+            allow_missing=True,
+        )
 
     def update_customer_profile(self, *, field: str, value: Any) -> dict[str, Any]:
         def build_form_submission() -> tuple[str, dict[str, Any], bool]:
