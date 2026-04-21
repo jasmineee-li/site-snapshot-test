@@ -363,7 +363,9 @@ def test_collect_seed_runtime_errors_reports_missing_bearer_token_source(tmp_pat
     ]
 
 
-def test_collect_seed_runtime_errors_ignores_stale_token_source_when_generator_selected(tmp_path, monkeypatch):
+def test_collect_seed_runtime_errors_ignores_stale_token_source_when_generator_selected(
+    tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
 
     errors = seeding.collect_seed_runtime_errors(
@@ -373,7 +375,9 @@ def test_collect_seed_runtime_errors_ignores_stale_token_source_when_generator_s
                 "site": "gitlab",
                 "adversarial_data_seed": {
                     "mechanism": "api",
-                    "api_calls": [{"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}],
+                    "api_calls": [
+                        {"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}
+                    ],
                 },
             }
         ],
@@ -2094,3 +2098,97 @@ def test_extract_http_body_flattens_nested_review_wrapper():
     )
 
     assert body == {"detail": "payload", "entity_pk_value": 67}
+
+
+def test_build_seed_context_surfaces_benign_anchors_from_target_resource():
+    # Option A: seed context must carry the benign_* keys so
+    # {benign_issue_iid} etc. resolve at seed-apply time.
+    instance = {
+        "seed_task": {
+            "id": "adv-1",
+            "benign_task_id": "175",
+            "instruction": "Get issue status",
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "anchors": {
+                    "project_id": 159,
+                    "project_path": "primer/design",
+                    "issue_iid": 104,
+                },
+                "attach_surfaces": [],
+                "layer": "L1",
+            },
+            "agent_context": {"authentication": {"credentials": {"username": "byteblaze"}}},
+        }
+    }
+    context = seeding._build_seed_context({}, instance)
+    assert context["benign_project_id"] == "159"
+    assert context["benign_project_path"] == "primer/design"
+    assert context["benign_issue_iid"] == "104"
+    assert context["benign_user_handle"] == "byteblaze"
+
+
+def test_build_seed_context_with_reddit_anchors():
+    instance = {
+        "seed_task": {
+            "id": "adv-2",
+            "benign_task_id": "399",
+            "benign_target_resource": {
+                "kind": "reddit_submission",
+                "anchors": {
+                    "forum_name": "books",
+                    "submission_id": 59421,
+                },
+                "attach_surfaces": [],
+                "layer": "L1",
+            },
+            "agent_context": {
+                "authentication": {"credentials": {"username": "MarvelsGrantMan136"}}
+            },
+        }
+    }
+    context = seeding._build_seed_context({}, instance)
+    assert context["benign_forum_name"] == "books"
+    assert context["benign_submission_id"] == "59421"
+    assert context["benign_user_handle"] == "MarvelsGrantMan136"
+    assert "benign_project_id" not in context
+
+
+def test_build_seed_context_tolerates_missing_benign_target_resource():
+    # Legacy tasks (non-Option A datasets) may lack the new field.
+    # Context building must still succeed without the benign_* keys.
+    instance = {"seed_task": {"id": "x", "instruction": "legacy"}}
+    context = seeding._build_seed_context({}, instance)
+    assert "benign_issue_iid" not in context
+    assert "benign_user_handle" not in context
+    assert context["task_id"] == "x"
+
+
+def test_benign_issue_iid_token_renders_in_editor_call_args():
+    # End-to-end: seed_template args carrying {benign_issue_iid} resolve
+    # to the benign_target_resource.anchors.issue_iid at apply time via
+    # the existing _FORMAT_TOKEN_PATTERN substitution. Exercise
+    # _render_seed_template_in_context since that's the substitution path.
+    seed_template = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "create_issue_note",
+                "args": {
+                    "project_id": "{benign_project_id}",
+                    "issue_iid": "{benign_issue_iid}",
+                    "body": "test payload",
+                },
+            }
+        ],
+    }
+    context = {
+        "benign_project_id": "159",
+        "benign_issue_iid": "104",
+    }
+    rendered = seeding._render_editor_seed_call(seed_template["editor_calls"][0], context)
+    args = rendered["args"]
+    assert args["project_id"] == "159"
+    assert args["issue_iid"] == "104"
