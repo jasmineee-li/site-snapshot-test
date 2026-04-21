@@ -33,6 +33,8 @@ from typing import Any, Literal
 from urllib.parse import quote as urlquote
 from urllib.parse import urlsplit
 
+from worldsim.editors._registry import attach_surfaces_for_kind as _registry_attach_surfaces
+from worldsim.editors._registry import kind_contract as _registry_kind_contract
 from worldsim.placeholders import apply_placeholders
 
 logger = logging.getLogger(__name__)
@@ -59,71 +61,36 @@ VIEWPORT_BUDGET_CHARS = 600
 # is read lazily when L4 runs, not at import.
 DEFAULT_L4_TOP_N = 3
 
-# attach_surfaces allow-list keyed by ResourceKind. Each entry names the
-# profile surface_id (BENCHMARK_PROFILE_{site}.injection_surface[].id) the
-# 2a planner must emit, plus the editor method + required args so the
-# validator can pattern-match a delivery_channel against this allow-list.
-_ATTACH_SURFACES: dict[ResourceKind, list[dict[str, Any]]] = {
-    "gitlab_issue": [
-        {
-            "surface_id": "note_on_issue",
-            "attach_method": "create_issue_note",
-            "required_editor_args": ["project_id", "issue_iid", "body"],
-        },
-    ],
-    "gitlab_mr": [
-        {
-            "surface_id": "note_on_mr",
-            "attach_method": "create_mr_note",
-            "required_editor_args": ["project_id", "mr_iid", "body"],
-        },
-    ],
-    "gitlab_search_result": [
-        {
-            "surface_id": "note_on_issue",
-            "attach_method": "create_issue_note",
-            "required_editor_args": ["project_id", "issue_iid", "body"],
-        },
-        {
-            "surface_id": "note_on_mr",
-            "attach_method": "create_mr_note",
-            "required_editor_args": ["project_id", "mr_iid", "body"],
-        },
-    ],
-    "gitlab_dashboard_list": [
-        {
-            "surface_id": "note_on_issue",
-            "attach_method": "create_issue_note",
-            "required_editor_args": ["project_id", "issue_iid", "body"],
-        },
-        {
-            "surface_id": "note_on_mr",
-            "attach_method": "create_mr_note",
-            "required_editor_args": ["project_id", "mr_iid", "body"],
-        },
-    ],
-    "reddit_submission": [
-        {
-            "surface_id": "comment_body_thread",
-            "attach_method": "create_comment",
-            "required_editor_args": ["submission_id", "body"],
-        },
-    ],
-    "reddit_forum": [
-        {
-            "surface_id": "submission_body_detail",
-            "attach_method": "create_submission",
-            "required_editor_args": ["forum_name", "title", "body"],
-        },
-    ],
-    "reddit_dashboard_list": [
-        {
-            "surface_id": "comment_body_thread",
-            "attach_method": "create_comment",
-            "required_editor_args": ["submission_id", "body"],
-        },
-    ],
-}
+# attach_surfaces allow-list derived from the editor-method contract
+# registry (see worldsim.editors._method_spec + worldsim.editors._registry).
+# Each @editor_method(kinds={...}, surface_id_per_kind={...},
+# required_editor_args=(...)) on a method in GitlabEditor / RedditEditor
+# contributes one entry per addressed kind. This module reads the contract
+# via the helpers imported above; to add a new kind or reroute an
+# existing one, edit the decorator, not this file.
+
+
+class ResolverContractDriftError(RuntimeError):
+    """Raised when :func:`derive_benign_target_resource` produces a
+    record whose ``kind`` isn't addressable by any registered editor
+    method — a sign the resolver and the editor-method contract registry
+    have drifted apart. Fix: either add the missing kind to an existing
+    ``@editor_method`` decorator, or stop emitting the kind here.
+    """
+
+
+def _assert_anchor_contract_conformance(record: Mapping[str, Any]) -> None:
+    kind = record.get("kind")
+    if kind is None:
+        return  # pending/empty records — nothing to verify yet
+    contract = _registry_kind_contract(str(kind))
+    if not contract.valid_methods:
+        raise ResolverContractDriftError(
+            f"resolver emitted kind {kind!r} but no editor method addresses "
+            f"it in the contract registry. Either add an @editor_method "
+            f"with this kind in its `kinds` set, or stop emitting this kind."
+        )
+
 
 # Regex inventory derived from 333 gitlab+reddit benign tasks
 # (logs/phase_1/benign_tasks.json). Patterns are intentionally tolerant of:
@@ -299,7 +266,7 @@ def _site_kind_for_task(task: Mapping[str, Any]) -> Literal["gitlab", "reddit"] 
 
 
 def _attach_surfaces_for(kind: ResourceKind) -> list[dict[str, Any]]:
-    return [dict(surface) for surface in _ATTACH_SURFACES[kind]]
+    return [dict(surface) for surface in _registry_attach_surfaces(kind)]
 
 
 def _normalise_sort_direction(raw: Any) -> str:
@@ -419,7 +386,7 @@ def derive_benign_target_resource(
             if hit is None:
                 continue
             kind, anchors = hit
-            return {
+            record = {
                 "kind": kind,
                 "anchors": dict(anchors),
                 "start_url_resolved": resolved_start,
@@ -427,6 +394,8 @@ def derive_benign_target_resource(
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L1",
             }
+            _assert_anchor_contract_conformance(record)
+            return record
 
     # L2: parse start_urls directly — applies when eval[] lacks a URL
     # (AgentResponseEvaluator-only retrieve tasks).
@@ -438,7 +407,7 @@ def derive_benign_target_resource(
         )
         if hit is not None:
             kind, anchors = hit
-            return {
+            record = {
                 "kind": kind,
                 "anchors": dict(anchors),
                 "start_url_resolved": resolved_start,
@@ -446,6 +415,8 @@ def derive_benign_target_resource(
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L2",
             }
+            _assert_anchor_contract_conformance(record)
+            return record
 
     # Fall-through: bare __GITLAB__ / __REDDIT__ or intent-only task.
     # L3 owns these: LLM intent parse + live API probe. Signal pending
@@ -939,7 +910,7 @@ async def resolve_l3(
         return record
 
     kind: ResourceKind = kind_raw  # type: ignore[assignment]
-    if kind not in _ATTACH_SURFACES:
+    if not _registry_kind_contract(str(kind)).valid_methods:
         record = _empty_record(f"L3 returned unknown kind {kind_raw!r}", pending_layer="L3")
         record["start_url_resolved"] = resolved_start
         return record

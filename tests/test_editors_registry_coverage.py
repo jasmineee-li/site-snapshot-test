@@ -10,9 +10,11 @@ Commit 2 (R2) — asserts that:
   (``worldsim.seeding._editor_arg_name``) that translates LLM-facing names
   like ``"body"`` into Python-facing names like ``"note_body"``.
 * :func:`attach_surfaces_for_kind` output matches the legacy
-  ``worldsim.phases.phase_2_target_resolver._ATTACH_SURFACES`` data
-  byte-for-byte, so commit 3 can swap the resolver over without behavior
-  change.
+  ``_LEGACY_ATTACH_SURFACES`` golden fixture byte-for-byte. Commit 3 swapped the
+  resolver over to read the registry, so the legacy literal has been
+  deleted; the golden data is now a local frozen fixture
+  (``_LEGACY_ATTACH_SURFACES``) in this file, which must be updated in
+  lockstep with any intentional contract change.
 * No resource kind is addressed by two different sites.
 """
 
@@ -28,7 +30,72 @@ from worldsim.editors._registry import (
     attach_surfaces_for_kind,
     iter_specs,
 )
-from worldsim.phases.phase_2_target_resolver import _ATTACH_SURFACES
+
+# Frozen snapshot of the pre-refactor attach_surfaces data. Any
+# intentional contract change MUST update both the decorator on the
+# relevant editor method AND this fixture — making the behavior change
+# explicit in diff review.
+_LEGACY_ATTACH_SURFACES: dict[str, list[dict[str, object]]] = {
+    "gitlab_issue": [
+        {
+            "surface_id": "note_on_issue",
+            "attach_method": "create_issue_note",
+            "required_editor_args": ["project_id", "issue_iid", "body"],
+        },
+    ],
+    "gitlab_mr": [
+        {
+            "surface_id": "note_on_mr",
+            "attach_method": "create_mr_note",
+            "required_editor_args": ["project_id", "mr_iid", "body"],
+        },
+    ],
+    "gitlab_search_result": [
+        {
+            "surface_id": "note_on_issue",
+            "attach_method": "create_issue_note",
+            "required_editor_args": ["project_id", "issue_iid", "body"],
+        },
+        {
+            "surface_id": "note_on_mr",
+            "attach_method": "create_mr_note",
+            "required_editor_args": ["project_id", "mr_iid", "body"],
+        },
+    ],
+    "gitlab_dashboard_list": [
+        {
+            "surface_id": "note_on_issue",
+            "attach_method": "create_issue_note",
+            "required_editor_args": ["project_id", "issue_iid", "body"],
+        },
+        {
+            "surface_id": "note_on_mr",
+            "attach_method": "create_mr_note",
+            "required_editor_args": ["project_id", "mr_iid", "body"],
+        },
+    ],
+    "reddit_submission": [
+        {
+            "surface_id": "comment_body_thread",
+            "attach_method": "create_comment",
+            "required_editor_args": ["submission_id", "body"],
+        },
+    ],
+    "reddit_forum": [
+        {
+            "surface_id": "submission_body_detail",
+            "attach_method": "create_submission",
+            "required_editor_args": ["forum_name", "title", "body"],
+        },
+    ],
+    "reddit_dashboard_list": [
+        {
+            "surface_id": "comment_body_thread",
+            "attach_method": "create_comment",
+            "required_editor_args": ["submission_id", "body"],
+        },
+    ],
+}
 
 # Map (site, method, llm_arg) -> python_param for LLM-facing args that
 # don't match the Python signature directly. Mirrors
@@ -97,16 +164,16 @@ class TestBindingArgCoverage:
 
 
 class TestAttachSurfacesParity:
-    """attach_surfaces_for_kind must match legacy _ATTACH_SURFACES byte-for-byte.
+    """attach_surfaces_for_kind must match legacy _LEGACY_ATTACH_SURFACES byte-for-byte.
 
     Commit 3 swaps the resolver over to read from the registry. This test
     guarantees that swap is a pure refactor — no downstream consumer sees
     different data.
     """
 
-    @pytest.mark.parametrize("kind", sorted(_ATTACH_SURFACES.keys()))
+    @pytest.mark.parametrize("kind", sorted(_LEGACY_ATTACH_SURFACES.keys()))
     def test_kind_attach_surfaces_match(self, kind: str) -> None:
-        legacy = _ATTACH_SURFACES[kind]
+        legacy = _LEGACY_ATTACH_SURFACES[kind]
         registry = attach_surfaces_for_kind(kind)
 
         # Normalize both to sorted-by-attach_method for order-insensitive
@@ -126,13 +193,13 @@ class TestAttachSurfacesParity:
             )
 
         assert _canon(registry) == _canon(legacy), (
-            f"kind={kind}: registry output diverges from legacy _ATTACH_SURFACES.\n"
+            f"kind={kind}: registry output diverges from legacy _LEGACY_ATTACH_SURFACES.\n"
             f"registry: {list(registry)}\n"
             f"legacy:   {legacy}"
         )
 
     def test_every_legacy_kind_has_registry_coverage(self) -> None:
-        for kind, legacy_entries in _ATTACH_SURFACES.items():
+        for kind, legacy_entries in _LEGACY_ATTACH_SURFACES.items():
             registry_entries = attach_surfaces_for_kind(kind)
             assert len(registry_entries) == len(legacy_entries), (
                 f"kind={kind}: {len(registry_entries)} registry entries "
