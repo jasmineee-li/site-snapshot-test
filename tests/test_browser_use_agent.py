@@ -124,7 +124,14 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
     page._target_id = "target-1"
     capture = StepCapture(
         screenshot_png=b"png-bytes",
-        visibility_vec=[{"i": 0, "char": "A", "layoutVisible": True, "liveRect": {"x": 1, "y": 2, "w": 3, "h": 4}}],
+        visibility_vec=[
+            {
+                "i": 0,
+                "char": "A",
+                "layoutVisible": True,
+                "liveRect": {"x": 1, "y": 2, "w": 3, "h": 4},
+            }
+        ],
         background_color=(255, 255, 255),
         has_damage=True,
         clip=Rect(x=0, y=0, w=640, h=480),
@@ -135,7 +142,9 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
     atomic_capture = AsyncMock(return_value=capture)
     monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
     monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture)
+    monkeypatch.setattr(
+        "worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture
+    )
 
     callback = browser_use_agent._make_pvpo_step_callback(
         BrowserUseLikeSession(),
@@ -151,6 +160,7 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
         cdp_session,
         viewport_rect=Rect(x=0, y=0, w=640, h=480),
         payload_text="payload text",
+        capturing=None,
     )
 
     summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
@@ -184,7 +194,9 @@ async def test_pvpo_callback_adopts_new_task_target(tmp_path, monkeypatch: pytes
     atomic_capture = AsyncMock(return_value=capture)
     monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
     monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture)
+    monkeypatch.setattr(
+        "worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture
+    )
 
     owned_target_ids = {"target-1"}
     callback = browser_use_agent._make_pvpo_step_callback(
@@ -221,7 +233,9 @@ def test_resolve_pvpo_cdp_url_allows_remote_with_override(monkeypatch: pytest.Mo
 
 
 @pytest.mark.asyncio
-async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(monkeypatch: pytest.MonkeyPatch):
+async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(
+    monkeypatch: pytest.MonkeyPatch,
+):
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._pvpo_cdp_url = "http://127.0.0.1:9222"
     agent._owned_target_ids = {"target-1"}
@@ -321,7 +335,9 @@ async def test_reset_remote_browser_for_task_closes_old_pages_and_creates_fresh_
         clear_cookies = AsyncMock()
         close_page = AsyncMock()
         new_page = AsyncMock()
-        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock())))
+        cdp_client = SimpleNamespace(
+            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock()))
+        )
 
     session = FakeSession()
     await agent._reset_remote_browser_for_task(session)
@@ -339,7 +355,9 @@ async def test_reset_remote_browser_for_task_closes_old_pages_and_creates_fresh_
 async def test_reset_remote_browser_for_task_closes_failed_retained_page_before_replacing():
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    broken_page = SimpleNamespace(_target_id="old-1", goto=AsyncMock(side_effect=RuntimeError("boom")))
+    broken_page = SimpleNamespace(
+        _target_id="old-1", goto=AsyncMock(side_effect=RuntimeError("boom"))
+    )
     fresh = SimpleNamespace(_target_id="fresh-1")
     cdp_session = object()
 
@@ -349,7 +367,9 @@ async def test_reset_remote_browser_for_task_closes_failed_retained_page_before_
         clear_cookies = AsyncMock()
         close_page = AsyncMock()
         new_page = AsyncMock(return_value=fresh)
-        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock())))
+        cdp_client = SimpleNamespace(
+            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock()))
+        )
 
     session = FakeSession()
     await agent._reset_remote_browser_for_task(session)
@@ -378,7 +398,9 @@ async def test_reset_remote_browser_for_task_preserves_storage_state_auth():
         clear_cookies = AsyncMock()
         close_page = AsyncMock()
         new_page = AsyncMock()
-        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage)))
+        cdp_client = SimpleNamespace(
+            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage))
+        )
 
     session = FakeSession()
     await agent._reset_remote_browser_for_task(session)
@@ -396,14 +418,18 @@ async def test_cleanup_external_cdp_state_preserves_storage_state_auth():
     agent._pvpo_cdp_url = "http://127.0.0.1:9222"
     agent._preserve_remote_auth_state = True
     agent._task_origins = {"http://example.test"}
-    page = SimpleNamespace(_target_id="target-1", get_url=AsyncMock(return_value="http://example.test/path"))
+    page = SimpleNamespace(
+        _target_id="target-1", get_url=AsyncMock(return_value="http://example.test/path")
+    )
     clear_storage = AsyncMock()
 
     class FakeSession:
         get_pages = AsyncMock(return_value=[page])
         clear_cookies = AsyncMock()
         close_page = AsyncMock()
-        cdp_client = SimpleNamespace(send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage)))
+        cdp_client = SimpleNamespace(
+            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage))
+        )
 
     session = FakeSession()
     await agent._cleanup_external_cdp_state(session)

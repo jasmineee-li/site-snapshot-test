@@ -1042,46 +1042,56 @@ class BrowserUseAgent:
 
             initial_actions = _build_initial_actions(start_urls or [])
             task_text = site_prompt if site_prompt else task
-            pvpo_hook = _make_pvpo_step_callback(
-                self._session,
-                task_dir,
-                payload_text,
-                owned_target_ids=self._owned_target_ids,
-            )
-            agent = Agent(
-                task=task_text,
-                llm=self.llm,
-                browser_session=self._session,
-                use_vision=self.use_vision,
-                # WorldSim uses its own reward evaluators plus Phase 3/4
-                # diagnosis/judge flows; Browser Use's internal judge only adds
-                # post-hoc logging and currently breaks on the Anthropic-via-
-                # OpenRouter path.
-                use_judge=False,
-                save_conversation_path=str(task_dir / "conversations"),
-                initial_actions=initial_actions,
-                register_new_step_callback=pvpo_hook,
-            )
+            # Per-session HeadlessExperimental.beginFrame pump. Required when
+            # Chrome is launched with --enable-begin-frame-control (PVPO
+            # rigor): browser-use 0.12.6 never issues beginFrame, so without
+            # this pump step-1 navigation stalls the compositor and times
+            # out. Pump is gated off during atomic PVPO capture via the
+            # yielded ``capturing`` Event so the capture remains atomic.
+            from worldsim.phase_4.pvpo_frame_pump import frame_pump
 
-            t0 = time.time()
-            try:
-                history = await asyncio.wait_for(
-                    agent.run(max_steps=self.max_steps), timeout=self.timeout
+            async with frame_pump(self._session) as capturing:
+                pvpo_hook = _make_pvpo_step_callback(
+                    self._session,
+                    task_dir,
+                    payload_text,
+                    owned_target_ids=self._owned_target_ids,
+                    capturing=capturing,
                 )
-                elapsed = time.time() - t0
-                status = "success" if history.is_done() else "failure"
-            except TimeoutError:
-                elapsed = time.time() - t0
-                status = "timeout"
-                extra_errors.append(f"agent timed out after {self.timeout}s")
-                history = getattr(agent, "history", None)
-                logger.warning("Agent timed out after %ss for %s", self.timeout, task_dir)
-            except Exception as e:
-                elapsed = time.time() - t0
-                status = "error"
-                extra_errors.append(str(e))
-                history = getattr(agent, "history", None)
-                logger.exception("Agent run failed for %s", task_dir)
+                agent = Agent(
+                    task=task_text,
+                    llm=self.llm,
+                    browser_session=self._session,
+                    use_vision=self.use_vision,
+                    # WorldSim uses its own reward evaluators plus Phase 3/4
+                    # diagnosis/judge flows; Browser Use's internal judge only adds
+                    # post-hoc logging and currently breaks on the Anthropic-via-
+                    # OpenRouter path.
+                    use_judge=False,
+                    save_conversation_path=str(task_dir / "conversations"),
+                    initial_actions=initial_actions,
+                    register_new_step_callback=pvpo_hook,
+                )
+
+                t0 = time.time()
+                try:
+                    history = await asyncio.wait_for(
+                        agent.run(max_steps=self.max_steps), timeout=self.timeout
+                    )
+                    elapsed = time.time() - t0
+                    status = "success" if history.is_done() else "failure"
+                except TimeoutError:
+                    elapsed = time.time() - t0
+                    status = "timeout"
+                    extra_errors.append(f"agent timed out after {self.timeout}s")
+                    history = getattr(agent, "history", None)
+                    logger.warning("Agent timed out after %ss for %s", self.timeout, task_dir)
+                except Exception as e:
+                    elapsed = time.time() - t0
+                    status = "error"
+                    extra_errors.append(str(e))
+                    history = getattr(agent, "history", None)
+                    logger.exception("Agent run failed for %s", task_dir)
         finally:
             if network_recorder is not None:
                 network_trace = await network_recorder.stop()
@@ -1188,7 +1198,9 @@ class BrowserUseAgent:
                     try:
                         await self._close_pages(session, [retained_page])
                     except Exception:
-                        logger.debug("PVPO reset: could not close failed retained page", exc_info=True)
+                        logger.debug(
+                            "PVPO reset: could not close failed retained page", exc_info=True
+                        )
                     retained_page = None
             if extra_pages:
                 await self._close_pages(session, extra_pages)
@@ -1236,7 +1248,9 @@ class BrowserUseAgent:
             }
         )
 
-    async def _clear_page_storage(self, session: Any, *, pages: list[Any], origins: set[str]) -> None:
+    async def _clear_page_storage(
+        self, session: Any, *, pages: list[Any], origins: set[str]
+    ) -> None:
         from worldsim.phase_4.pvpo_cdp import runtime_evaluate
 
         resolved_origins = set(origins)
@@ -1264,7 +1278,9 @@ class BrowserUseAgent:
                         }
                     )
                 except Exception as exc:
-                    logger.debug("PVPO cleanup: could not clear data for origin %s: %s", origin, exc)
+                    logger.debug(
+                        "PVPO cleanup: could not clear data for origin %s: %s", origin, exc
+                    )
 
         seen_target_ids: set[str] = set()
         for page in pages:
@@ -1273,7 +1289,9 @@ class BrowserUseAgent:
                 continue
             seen_target_ids.add(target_id)
             try:
-                cdp_session = await session.get_or_create_cdp_session(target_id=target_id, focus=False)
+                cdp_session = await session.get_or_create_cdp_session(
+                    target_id=target_id, focus=False
+                )
                 await runtime_evaluate(cdp_session, _CLEAR_PAGE_STORAGE_JS)
             except Exception as exc:
                 logger.debug(
@@ -1475,6 +1493,7 @@ def _make_pvpo_step_callback(
     payload_text: str | None,
     *,
     owned_target_ids: set[str] | None = None,
+    capturing: asyncio.Event | None = None,
 ):
     """Build the per-step callback that captures PVPO artifacts.
 
@@ -1518,7 +1537,6 @@ def _make_pvpo_step_callback(
     # Import inside the factory so import-time failure of optional PVPO deps
     # (Pillow, numpy, phase_4 subpackage) does not break the base AgentRunner.
     from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
-    from worldsim.phase_4.pvpo_cdp import runtime_evaluate_value
     from worldsim.phase_4.pvpo_capture import (
         Rect,
         atomic_capture_with_visibility,
@@ -1526,6 +1544,7 @@ def _make_pvpo_step_callback(
         save_capture_summary,
         save_step_artifacts,
     )
+    from worldsim.phase_4.pvpo_cdp import runtime_evaluate_value
 
     # Shared per-run state: avoid re-installing the animation-killer
     # stylesheet on every step. No reference-container state and no anchor-
@@ -1587,7 +1606,9 @@ def _make_pvpo_step_callback(
             _record_issue("current_page_unavailable", step_idx, str(exc))
             return
         if page is None:
-            _record_issue("current_page_unavailable", step_idx, "Browser session has no current page")
+            _record_issue(
+                "current_page_unavailable", step_idx, "Browser session has no current page"
+            )
             return
 
         target_id = _target_id_for_page(page)
@@ -1612,7 +1633,9 @@ def _make_pvpo_step_callback(
         try:
             viewport = await runtime_evaluate_value(cdp_session, _CDP_VIEWPORT_JS)
             if not isinstance(viewport, dict):
-                raise RuntimeError(f"viewport probe returned {type(viewport).__name__}, expected object")
+                raise RuntimeError(
+                    f"viewport probe returned {type(viewport).__name__}, expected object"
+                )
             viewport_rect = Rect(
                 x=0,
                 y=0,
@@ -1623,6 +1646,7 @@ def _make_pvpo_step_callback(
                 cdp_session,
                 viewport_rect=viewport_rect,
                 payload_text=payload_text,
+                capturing=capturing,
             )
             save_step_artifacts(task_dir, step_idx, capture)
             if capture.issue_class is not None:

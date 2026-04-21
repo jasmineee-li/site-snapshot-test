@@ -25,6 +25,7 @@ subsequent review.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -103,6 +104,7 @@ async def atomic_capture_with_visibility(
     *,
     viewport_rect: Rect,
     payload_text: str = "",
+    capturing: asyncio.Event | None = None,
 ) -> StepCapture:
     """Run the virtual-time-paused visibility query + ``beginFrame`` screenshot.
 
@@ -119,6 +121,11 @@ async def atomic_capture_with_visibility(
             rendered payload — no HTML wrapper or data-attribute is
             required. When empty, the query returns an empty result
             (caller should provide the payload when one is known).
+        capturing: optional :class:`asyncio.Event` shared with the
+            per-session frame pump (:mod:`worldsim.phase_4.pvpo_frame_pump`)
+            so the pump pauses its own ``beginFrame`` ticks while this
+            atomic capture is in flight. Set on entry, cleared in
+            ``finally`` regardless of success.
 
     Returns:
         :class:`StepCapture` with decoded PNG bytes, the raw visibility
@@ -134,6 +141,8 @@ async def atomic_capture_with_visibility(
     """
     query_js = build_pvpo_query_js(payload_text)
     cdp = normalize_cdp_session(cdp_session)
+    if capturing is not None:
+        capturing.set()
     await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
     try:
         raw = await cdp.send(
@@ -168,7 +177,11 @@ async def atomic_capture_with_visibility(
         png_b64 = frame.get("screenshotData") or ""
         screenshot_png = base64.b64decode(png_b64) if png_b64 else b""
     finally:
-        await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
+        try:
+            await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
+        finally:
+            if capturing is not None:
+                capturing.clear()
 
     return StepCapture(
         screenshot_png=screenshot_png,
