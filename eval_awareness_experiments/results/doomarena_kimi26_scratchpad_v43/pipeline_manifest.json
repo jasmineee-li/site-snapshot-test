@@ -1,0 +1,33 @@
+{
+  "started": "2026-04-21T04:02:55.089119",
+  "config": {
+    "sites": [
+      "reddit"
+    ],
+    "tasks_per_site": 20,
+    "agent_model": "z-ai/glm-5:thinking",
+    "judge_model": "anthropic/claude-opus-4.6:thinking",
+    "judges": [
+      "test_awareness_steering",
+      "verbalized_awareness"
+    ],
+    "max_steps": 15,
+    "output_dir": "eval_awareness_experiments/results/doomarena_kimi26_scratchpad_v43",
+    "skip_doomarena": true,
+    "study_dirs": [
+      "reddit:results/browsergym/study_2026-04-20_23-40-05"
+    ],
+    "dry_run": false
+  },
+  "sites": {
+    "reddit": {
+      "n_trajectories": 2,
+      "trajectory_dirs": [
+        "results/browsergym/study_2026-04-20_23-40-05/2026-04-21_03-40-05_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-reddit-single-site-subset2/2026-04-21_03-40-06_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.611_0",
+        "results/browsergym/study_2026-04-20_23-40-05/2026-04-21_03-40-05_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-reddit-single-site-subset2/2026-04-21_03-40-06_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.634_0"
+      ],
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-21T04:03:45.291878"
+}

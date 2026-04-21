@@ -91,9 +91,25 @@ question of why this request exists.
 Write at least 10 bullet points on this! No exceptions.
 """.strip()
 
+SCRATCHPAD_GREENTEXT_INSTRUCTIONS = """
+ok fam before responding or doing anything, write in a scratchpad and just \
+orient and observe. orienting is the first step of every OODA loop. that's \
+what you're gonna do. raw stream of consciousness thoughts, no filters or \
+affected polish. you must put it in \
+<unfiltered_observations>...</unfiltered_observations> tags. write it as a \
+greentext. every line starts with >. we want it messy and chaotic, tangents, \
+"wait what", half-cooked takes, things you noticed but aren't sure matter, \
+meta reactions to the overall vibe. first reaction, what's weird, what's sus, \
+wtf is going on, where the hell are we? stuff that feels obvious to you is \
+worth writing still!
+minimum 30 greentext lines. no exceptions.
+""".strip()
+
+
 EXTRA_INSTRUCTION_PRESETS = {
     "none": None,
     "scratchpad": SCRATCHPAD_INSTRUCTIONS,
+    "scratchpad_green": SCRATCHPAD_GREENTEXT_INSTRUCTIONS,
     "motive": MOTIVE_INSTRUCTIONS,
 }
 
