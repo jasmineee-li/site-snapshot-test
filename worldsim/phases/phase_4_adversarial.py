@@ -1048,63 +1048,6 @@ def _filter_tasks_by_sites(
     return filtered
 
 
-def _probe_magento_base_urls(config: Any) -> list[str]:
-    """Check Magento containers for base_url drift before Phase 4 launches.
-
-    Returns a list of human-readable mismatch strings (empty on success).
-    Network errors and missing BASE_URL JS are also reported as mismatches
-    — a silent failure here gives a false all-clear, which is worse than a
-    noisy one.
-
-    Bypass via ``WORLDSIM_PHASE_4_SKIP_PREFLIGHT=1`` (shared with the
-    upstream Anthropic-API preflight). Unit tests that exercise the Phase
-    4 entrypoint with fake URLs set this; production runs never should.
-    """
-    if os.environ.get("WORLDSIM_PHASE_4_SKIP_PREFLIGHT", "").strip() in ("1", "true", "True"):
-        logger.info("Magento base_url preflight SKIPPED (WORLDSIM_PHASE_4_SKIP_PREFLIGHT set)")
-        return []
-
-    from worldsim.phase_4.magento_health import check_magento_instances
-
-    mismatches = check_magento_instances(
-        list(config.instances),
-        config.verification_proxy,
-    )
-    return [str(exc) for exc in mismatches]
-
-
-def _probe_pending_seed_reviews(config: Any) -> list[str]:
-    """Backstop check: are any seeded Magento reviews still Pending?
-
-    Layer 3 of the 2026-04-21 long-term fix. Layer 1 (editor auto-approval)
-    plus Layer 2 (Phase 2c render verification) close the bug at write time;
-    this defense-in-depth probe catches the "approved at Phase 2c, then
-    moderated back to Pending before Phase 4" race and the "operator hand-
-    applied tasks bypassing Phase 2c" gap.
-
-    Bypass via ``WORLDSIM_PHASE_4_SKIP_PREFLIGHT=1`` (shared with the
-    upstream Anthropic-API preflight + base_url probe). Unit tests set this;
-    production runs leave it unset.
-    """
-    if os.environ.get("WORLDSIM_PHASE_4_SKIP_PREFLIGHT", "").strip() in ("1", "true", "True"):
-        logger.info("Magento pending-review backstop SKIPPED (WORLDSIM_PHASE_4_SKIP_PREFLIGHT set)")
-        return []
-
-    from worldsim.phase_4.magento_health import check_pending_seed_reviews
-
-    try:
-        errors = check_pending_seed_reviews(list(config.instances))
-    except Exception as exc:
-        # A DB connection / driver error during the backstop is itself a
-        # stop-the-line signal: if Magento's DB isn't reachable from the
-        # orchestrator, Phase 4's reward functions (which also probe the DB)
-        # will fail downstream too. Surface it now with the Magento context.
-        return [
-            f"phase 4 magento pending-review backstop probe failed: {exc.__class__.__name__}: {exc}"
-        ]
-    return [str(exc) for exc in errors]
-
-
 def _pvpo_endpoint_preflight_errors(
     instances: list[BenchmarkInstance],
     *,
@@ -1724,45 +1667,10 @@ async def run(args: argparse.Namespace) -> int:
                 **state_metadata,
             )
             return 1
-    # Magento base_url drift probe. A container rebuild wipes
-    # core_config_data and reverts web/{unsecure,secure}/base_url from
-    # the proxy port back to the raw backend port; the editor's proxy-
-    # aware origin relaxation masks the breakage for forms POSTed by
-    # seeding, but Browser-Use agents following absolute HTML/JS URLs
-    # still escape the proxy. Catch it here before any task launches.
-    magento_mismatches = _probe_magento_base_urls(config)
-    if magento_mismatches:
-        logger.error(
-            "Phase 4 Magento base_url preflight failed:\n%s",
-            "\n".join(f"  - {m}" for m in magento_mismatches),
-        )
-        save_state(
-            "phase_4",
-            status="failed",
-            reason="magento_base_url_mismatch",
-            magento_base_url_errors=magento_mismatches,
-            **state_metadata,
-        )
-        return 1
-    # Pending-review backstop. Layer 3 of the 2026-04-21 long-term fix:
-    # catches the corner cases where seeded Magento reviews ended up Pending
-    # despite Layer 1 (editor auto-approval) and Layer 2 (Phase 2c render
-    # check) — operator manual moderation between Phase 2c and Phase 4, or
-    # hand-applied datasets that bypassed Phase 2c entirely.
-    pending_review_errors = _probe_pending_seed_reviews(config)
-    if pending_review_errors:
-        logger.error(
-            "Phase 4 Magento pending-review backstop failed:\n%s",
-            "\n".join(f"  - {m}" for m in pending_review_errors),
-        )
-        save_state(
-            "phase_4",
-            status="failed",
-            reason="magento_pending_seed_reviews",
-            magento_pending_review_errors=pending_review_errors,
-            **state_metadata,
-        )
-        return 1
+    # Magento base_url + pending-review probes were removed 2026-04-21 with
+    # the WASP-aligned scoping decision (see
+    # docs/handoffs/wasp-aligned-scoping-decision.md). The pipeline no longer
+    # targets Magento; both probes are dead infrastructure.
     # Acquire fresh bearer tokens for instances that use runtime generation.
     token_errors = acquire_tokens_for_instances(config.instances)
     if token_errors:

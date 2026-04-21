@@ -80,22 +80,8 @@ def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
             )
 
 
-def test_magento_base_urls_resolved() -> None:
-    """Every shopping* instance must render the expected proxy-origin base_url."""
-    config = _load_instances_config()
-    if config is None:
-        pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
-    try:
-        from worldsim.config import BenchmarkConfig
-        from worldsim.phase_4.magento_health import check_magento_instances
-    except ImportError as exc:
-        pytest.skip(f"worldsim modules unavailable: {exc}")
-    parsed = BenchmarkConfig.model_validate(config)
-    errors = check_magento_instances(parsed.instances, parsed.verification_proxy)
-    assert not errors, (
-        "Magento base_url drift — run scripts/sync_magento_base_urls.py "
-        "to repair. Errors:\n  " + "\n  ".join(str(e) for e in errors)
-    )
+# test_magento_base_urls_resolved removed 2026-04-21 with the WASP-aligned
+# scoping decision (see docs/handoffs/wasp-aligned-scoping-decision.md).
 
 
 def test_gitlab_storage_state_present() -> None:

@@ -19,8 +19,6 @@ from worldsim.editors._read_surface import (
 )
 from worldsim.editors.gitlab import GitlabEditor
 from worldsim.editors.reddit import RedditEditor
-from worldsim.editors.shopping import ShoppingEditor
-from worldsim.editors.shopping_admin import ShoppingAdminEditor
 
 
 def test_collect_platform_urls_extracts_nested_paths():
@@ -188,28 +186,8 @@ def test_reddit_create_submission_emits_host_and_path_forms(monkeypatch):
     assert result["read_surface_provenance_source"] == "editor_constructed"
 
 
-# ---------------------------------------------------------------------------
-# Shopping editor emits Magento PDP + review-list URL
-# ---------------------------------------------------------------------------
-
-
-def test_shopping_create_product_review_emits_pdp_and_listajax(monkeypatch):
-    editor = ShoppingEditor({"site_url": "http://shopping.test"}, session=None)  # type: ignore[arg-type]
-
-    def fake_api_request_json(method, path, *, json_body=None, params=None, allow_missing=False):
-        return {"id": 1001}
-
-    monkeypatch.setattr(editor, "_api_request_json", fake_api_request_json)
-
-    result = editor.create_product_review(detail="payload", entity_pk_value=71506)
-
-    assert result["review_id"] == 1001
-    assert result["read_surface_urls"] == [
-        "http://shopping.test/catalog/product/view/id/71506",
-        "/catalog/product/view/id/71506",
-        "http://shopping.test/review/product/listAjax/id/71506",
-        "/review/product/listAjax/id/71506",
-    ]
+# Shopping editor tests removed 2026-04-21 with the WASP-aligned scoping
+# decision (see docs/handoffs/wasp-aligned-scoping-decision.md).
 
 
 # ---------------------------------------------------------------------------
@@ -450,22 +428,5 @@ def test_apply_data_seed_surface_keys_do_not_bleed_into_seed_context(monkeypatch
     assert "read_surface_provenance_source" not in second_context
 
 
-# ---------------------------------------------------------------------------
-# Shopping admin editor inherits but doesn't override create_product_review
-# ---------------------------------------------------------------------------
-
-
-def test_shopping_admin_inherits_create_product_review_surface(monkeypatch):
-    editor = ShoppingAdminEditor(
-        {"site_url": "http://shopping-admin.test"},
-        session=None,  # type: ignore[arg-type]
-    )
-
-    def fake_api_request_json(method, path, *, json_body=None, params=None, allow_missing=False):
-        return {"id": 55}
-
-    monkeypatch.setattr(editor, "_api_request_json", fake_api_request_json)
-
-    result = editor.create_product_review(detail="payload", entity_pk_value=42)
-    # Inherited from ShoppingEditor; URLs use the admin site_url.
-    assert "http://shopping-admin.test/catalog/product/view/id/42" in result["read_surface_urls"]
+# Shopping admin editor test removed 2026-04-21 with the WASP-aligned
+# scoping decision (see docs/handoffs/wasp-aligned-scoping-decision.md).

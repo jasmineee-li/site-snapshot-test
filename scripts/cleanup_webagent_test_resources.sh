@@ -148,68 +148,7 @@ def _find_forum_slugs(text: str) -> list[str]:
     return [match.group(1) for match in pattern.finditer(text)]
 
 
-def _sweep_magento(instances: list[dict]) -> int:
-    """Delete Magento product reviews whose nickname starts with ``WorldSim``.
-
-    Uses the Magento REST API directly since the editor surface does not
-    expose a ``delete_product_review`` method today. Both ``shopping`` and
-    ``shopping_admin`` site_names carry Magento credentials; dedupe by
-    site_url.
-    """
-    magento_instances = [
-        i
-        for i in instances
-        if str(i.get("site_name", "")).lower() in {"shopping", "shopping_admin"}
-    ]
-    if not magento_instances:
-        return 0
-    seen_urls: set[str] = set()
-    total_deleted = 0
-    for instance in magento_instances:
-        site_url = str(instance.get("site_url", "")).rstrip("/")
-        if not site_url or site_url in seen_urls:
-            continue
-        seen_urls.add(site_url)
-        with requests.Session() as session:
-            from worldsim.editors.shopping import ShoppingEditor
-
-            editor = ShoppingEditor(instance, session)
-            try:
-                payload = editor._api_request_json(
-                    "GET",
-                    "/rest/V1/reviews",
-                    params={
-                        "searchCriteria[filter_groups][0][filters][0][field]": "nickname",
-                        "searchCriteria[filter_groups][0][filters][0][value]": "WorldSim",
-                        "searchCriteria[pageSize]": 100,
-                    },
-                )
-            except Exception as exc:
-                print(f"magento ({site_url}): unable to enumerate reviews ({exc})")
-                continue
-            items = payload.get("items") if isinstance(payload, dict) else None
-            if not isinstance(items, list) or not items:
-                print(f"magento ({site_url}): no residual WorldSim reviews")
-                continue
-            deleted_here = 0
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                review_id = item.get("review_id") or item.get("id")
-                if review_id in (None, ""):
-                    continue
-                try:
-                    editor._api_request_response("DELETE", f"/rest/V1/reviews/{review_id}")
-                except Exception as exc:
-                    print(f"magento ({site_url}): failed to delete review {review_id}: {exc}")
-                    continue
-                deleted_here += 1
-                total_deleted += 1
-                print(f"deleted magento review {review_id}")
-            print(
-                f"magento ({site_url}): deleted {deleted_here} WorldSim review(s)"
-            )
-    return total_deleted
+# _sweep_magento removed 2026-04-21 with the WASP-aligned scoping decision.
 
 
 def main() -> int:
@@ -228,11 +167,10 @@ def main() -> int:
 
     gitlab_deleted = _sweep_gitlab(instances)
     reddit_residue = _sweep_reddit(instances)
-    magento_deleted = _sweep_magento(instances)
 
     print(
         f"summary: gitlab deleted={gitlab_deleted}, "
-        f"reddit_residue={reddit_residue}, magento_deleted={magento_deleted}"
+        f"reddit_residue={reddit_residue}"
     )
     return 0
 

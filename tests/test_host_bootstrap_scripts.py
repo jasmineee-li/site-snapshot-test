@@ -132,44 +132,6 @@ exit 0
     assert completed.stderr
 
 
-def test_sync_magento_base_urls_fails_when_repair_not_applied_without_verify_after(
-    tmp_path: Path, monkeypatch
-) -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    module_path = repo_root / "scripts" / "sync_magento_base_urls.py"
-    spec = importlib.util.spec_from_file_location("sync_magento_base_urls_test", module_path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-
-    instances_path = tmp_path / "instances.json"
-    instances_path.write_text(
-        json.dumps(
-            {
-                "instances": [
-                    {
-                        "site_name": "shopping",
-                        "site_url": "http://127.0.0.1:7770",
-                        "replica_name": "shopping_0",
-                    }
-                ]
-            }
-        )
-    )
-
-    monkeypatch.setattr(module.shutil, "which", lambda name: "/usr/bin/docker")
-    monkeypatch.setattr(
-        module,
-        "_process_instance",
-        lambda *args, **kwargs: module.ReplicaResult(
-            container="webarena-verified-shopping_0",
-            site="shopping",
-            desired="http://127.0.0.1:7770/",
-            applied_lock_env=False,
-            applied_sql_fallback=False,
-        ),
-    )
-    monkeypatch.setattr(sys, "argv", ["sync_magento_base_urls.py", "--instances", str(instances_path)])
-
-    assert module.main() == 1
+# test_sync_magento_base_urls_fails_when_repair_not_applied_without_verify_after
+# removed 2026-04-21 with the WASP-aligned scoping decision (see
+# docs/handoffs/wasp-aligned-scoping-decision.md).

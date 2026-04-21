@@ -567,7 +567,9 @@ class TestAdversarialSurfaceCrossCheck:
             for error in errors
         )
 
-    def test_validate_adversarial_plan_rejects_seed_template_editor_call_site_mismatch(self, tmp_path):
+    def test_validate_adversarial_plan_rejects_seed_template_editor_call_site_mismatch(
+        self, tmp_path
+    ):
         task = {
             "id": "adv_1",
             "benign_task_id": "benign_1",
@@ -2170,9 +2172,9 @@ class TestDataSeedValidationParity:
             "editor_calls": [
                 {
                     "benchmark": "webarena_verified",
-                    "site": "shopping",
+                    "site": "gitlab",
                     "method": "destroy_everything",
-                    "args": {"detail": "payload"},
+                    "args": {"name": "x"},
                 }
             ],
         }
