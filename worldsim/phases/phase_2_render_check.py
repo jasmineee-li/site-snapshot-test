@@ -161,11 +161,21 @@ def _resolve_url(url: str, site_url: str) -> str:
 
 
 def _with_cache_buster(url: str) -> str:
-    """Append a millisecond timestamp to bust Magento's full-page cache.
+    """Append a millisecond timestamp to bust stale-response caches.
 
-    The FPC may serve a stale PDP for 60-300s after a status_id flip, so
-    every render-check fetch carries a unique query string. Cheaper than
-    /rest/V1/cache/flush and doesn't perturb other in-flight tests.
+    Originally motivated by Magento's full-page cache (which serves a
+    stale PDP for 60-300s after a status_id flip). GitLab's Rails cache
+    and Postmill's CDN-style response headers exhibit the same class of
+    staleness when a newly-seeded note / comment is read back through
+    the UI before the cache entry expires. Every render-check and
+    reachability fetch carries a unique query string; this is cheaper
+    than whatever flush-cache endpoint each site exposes and avoids
+    perturbing other in-flight tests.
+
+    Applied to UI page navigations only. API endpoints (``/api/v4/...``,
+    ``/sv/*.json``) are tolerated by Playwright's GET but should not
+    normally be fetched by this module — the render-check and
+    reachability probe both navigate HTML pages.
     """
     sep = "&" if "?" in url else "?"
     return f"{url}{sep}_={int(time.time() * 1000)}"

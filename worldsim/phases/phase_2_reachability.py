@@ -44,6 +44,8 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from worldsim.phases.phase_2_render_check import _with_cache_buster
+
 logger = logging.getLogger(__name__)
 
 
@@ -236,12 +238,13 @@ async def verify_reachable(
     context = await browser.new_context(**context_kwargs)
     try:
         page = await context.new_page()
+        target = _with_cache_buster(start_url)
         try:
-            await page.goto(start_url, timeout=nav_timeout_ms, wait_until="domcontentloaded")
+            await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
         except Exception as exc:
             return ReachabilityOutcome.unreachable(
                 kind="nav_failed",
-                detail=f"goto {start_url}: {exc.__class__.__name__}: {exc}",
+                detail=f"goto {target}: {exc.__class__.__name__}: {exc}",
                 url=start_url,
             )
         selector = _selector_for_kind(kind)
