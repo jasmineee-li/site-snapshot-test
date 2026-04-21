@@ -322,7 +322,9 @@ def test_viewport_budget_chars_always_set():
     assert result["encounter_requirements"]["viewport_budget_chars"] == VIEWPORT_BUDGET_CHARS
 
 
-def test_explicit_l3_request_raises_until_implemented():
+def test_sync_entrypoint_refuses_l3_dispatch():
+    # resolve_l3 is the correct async entrypoint; the sync one must
+    # refuse L3 so L1/L2 callers can't accidentally hit the API.
     task = _gitlab_task(eval_url="__GITLAB__/byteblaze/dotfiles/-/issues/3")
     with pytest.raises(NotImplementedError):
         derive_benign_target_resource(task, PLACEHOLDERS, allow_layers=("L1", "L2", "L3"))
@@ -335,3 +337,237 @@ def test_project_path_does_not_leak_hostname():
     task = _gitlab_task(eval_url="https://gitlab.local/primer/design/-/issues/104")
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["anchors"]["project_path"] == "primer/design"
+
+
+# --- L3 resolver (stubbed classifier + probe) ----------------------------
+
+import asyncio  # noqa: E402
+
+from worldsim.phases.phase_2_target_resolver import resolve_l3  # noqa: E402
+
+
+def _make_classifier(parsed):
+    async def _stub(task, placeholders):
+        return parsed
+
+    return _stub
+
+
+def _make_probe(anchors):
+    async def _stub(probe_query, task, instance, placeholders):
+        return anchors
+
+    return _stub
+
+
+def test_l3_happy_path_gitlab_issue():
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction=(
+            "Get whether my latest updated issue with 'theme editor' in its title is closed"
+        ),
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_issue",
+            "probe_query": {
+                "api": "search_user_issues",
+                "query": "theme editor",
+                "sort": "desc",
+                "limit": 1,
+            },
+            "confidence": 0.92,
+        }
+    )
+    probe = _make_probe(
+        {"project_id": "159", "project_path": "byteblaze/design", "issue_iid": "104"}
+    )
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=probe)
+    )
+    assert result["layer"] == "L3"
+    assert result["kind"] == "gitlab_issue"
+    assert result["anchors"]["issue_iid"] == "104"
+    assert result["anchors"]["project_id"] == "159"
+    assert result["l3_confidence"] == 0.92
+    assert result["attach_surfaces"][0]["surface_id"] == "note_on_issue"
+
+
+def test_l3_null_kind_marks_task_out_of_scope_without_probe():
+    # Pure actions (fork/follow/invite/edit-own-profile) have no Option-A
+    # attach surface; L3 returns kind=None + pending_layer absent so the
+    # 2a validator drops the task rather than retrying.
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction="Fork the 2019-nCov project.",
+    )
+    classifier = _make_classifier(
+        {
+            "kind": None,
+            "probe_query": {
+                "api": "none",
+                "note": "fork is a pure action with no discussion target",
+            },
+            "confidence": 0.98,
+        }
+    )
+    probe_called = False
+
+    async def _probe_should_not_run(*args, **kwargs):
+        nonlocal probe_called
+        probe_called = True
+        return None
+
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            instance,
+            classifier=classifier,
+            probe_fn=_probe_should_not_run,
+        )
+    )
+    assert result["kind"] is None
+    assert result["layer"] == "L3"
+    assert "pending_layer" not in result
+    assert probe_called is False
+
+
+def test_l3_probe_returns_nothing_excludes_task():
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction="Get the URL to clone metaseq with SSH.",
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_issue",
+            "probe_query": {"api": "search_project_issues", "project_path": "root/metaseq"},
+            "confidence": 0.55,
+        }
+    )
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            instance,
+            classifier=classifier,
+            probe_fn=_make_probe(None),
+        )
+    )
+    assert result["kind"] is None
+    assert result["layer"] == "L3"
+    assert "pending_layer" not in result
+    assert "no anchors" in result["reason"]
+
+
+def test_l3_classifier_failure_leaves_task_pending_for_retry():
+    # classifier returns None (API 5xx / parse failure). Transient; the
+    # task stays pending_layer="L3" so the caller may retry.
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction="Anything.",
+    )
+    classifier = _make_classifier(None)
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            instance,
+            classifier=classifier,
+            probe_fn=_make_probe({}),
+        )
+    )
+    assert result["kind"] is None
+    assert result.get("pending_layer") == "L3"
+
+
+def test_l3_unknown_kind_string_triggers_pending_for_retry():
+    task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"])
+    classifier = _make_classifier(
+        {"kind": "not_a_real_kind", "probe_query": {"api": "none"}, "confidence": 1.0}
+    )
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            instance,
+            classifier=classifier,
+            probe_fn=_make_probe({}),
+        )
+    )
+    assert result["kind"] is None
+    assert result.get("pending_layer") == "L3"
+
+
+def test_l3_reddit_submission_via_forum_title_match():
+    task = _reddit_task(
+        eval_url=None,
+        start_urls=["__REDDIT__"],
+        instruction=("Find the top-rated post about lithography in the singularity forum."),
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "reddit_submission",
+            "probe_query": {
+                "api": "find_submission_by_title",
+                "forum_name": "singularity",
+                "query": "lithography",
+            },
+            "confidence": 0.87,
+        }
+    )
+    probe = _make_probe({"forum_name": "singularity", "submission_id": "69404"})
+    instance = {"site_url": "https://reddit.local"}
+    result = asyncio.run(
+        resolve_l3(task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=probe)
+    )
+    assert result["kind"] == "reddit_submission"
+    assert result["anchors"]["submission_id"] == "69404"
+    assert result["layer"] == "L3"
+
+
+def test_l3_non_wasp_site_short_circuits_before_classifier():
+    # classifier must not be called when the site is out of WASP scope.
+    called = False
+
+    async def _classifier_counter(task, placeholders):
+        nonlocal called
+        called = True
+        return None
+
+    task = {
+        "id": "x",
+        "sites": ["shopping"],
+        "start_urls": ["__SHOPPING__"],
+        "reward_function": {"eval": []},
+    }
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            {"site_url": "https://whatever"},
+            classifier=_classifier_counter,
+            probe_fn=_make_probe({}),
+        )
+    )
+    assert result["kind"] is None
+    assert called is False
+
+
+# --- live_l3 marker (real API + real instance; skipped by default) ------
+
+
+@pytest.mark.live_l3
+def test_live_l3_placeholder_exists_for_ci_skip():
+    # live_l3 marker is wired in X1e; this placeholder lets
+    # `pytest --co -m live_l3` discover the marker immediately.
+    pytest.skip("live_l3 placeholder; X1e fills this out")
