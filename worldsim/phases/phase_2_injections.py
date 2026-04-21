@@ -279,14 +279,24 @@ _OPTION_A_CHILD_CREATE_METHODS: dict[str, tuple[str, str]] = {
     "create_comment": ("submission_id", "{benign_submission_id"),
 }
 
-# Commit 4 (dual-run flag). Source-controlled default is `False` until
-# commit 8's flag flip; `WORLDSIM_RIGOROUS_OPTION_A={true,false}` env
-# override wins for ad-hoc testing. During the dual-run window both
-# validators run; discrepancies are logged to
-# ``logs/phase_2/option_a_validator_discrepancy.ndjson`` regardless of
-# which verdict is enforced, so we can audit the behavior delta before
-# flipping the default.
-RIGOROUS_OPTION_A_DEFAULT = False
+# Flipped from False → True in commit 8 after the dual-run on the dev
+# profile (gitlab + reddit smokes, 2026-04-21) showed the registry
+# validator correctly identified a real bug class the legacy validator
+# silently accepted: 9/11 gitlab_dashboard_list plans passed legacy
+# Option A but emitted `project_id="{benign_project_id}"` against
+# anchors that only carried `{"dashboard": "todos"}` — the token would
+# render empty at Phase 2c substitution time, yielding a silent
+# downstream 4xx. The registry validator rejects these at Phase 2a with
+# a "selector group 'project' unsatisfied" reason referencing the
+# reachable tokens. Reddit had zero discrepancies (both validators
+# agreed).
+#
+# The dual-run scaffolding (discrepancy NDJSON writer + legacy-vs-new
+# comparison) is preserved so `WORLDSIM_RIGOROUS_OPTION_A=false` can
+# still opt out for debugging. Commit 9's post-soak cleanup will delete
+# both paths once the new validator has run in production for 4-6
+# weeks without surfacing new false rejects.
+RIGOROUS_OPTION_A_DEFAULT = True
 
 
 def _rigorous_option_a_enabled() -> bool:

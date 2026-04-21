@@ -149,7 +149,9 @@ def test_rejects_dangling_mechanism_under_option_a():
     reason = phase_2_injections._validate_option_a_placement(plan, "plan")
     assert reason is not None
     assert "create_project" in reason
-    assert "dangling" in reason
+    # Post-flag-flip (commit 8): the registry validator phrases this as
+    # "not a valid Option A attach for kind=...". Accept either wording.
+    assert ("dangling" in reason) or ("not a valid Option A attach" in reason)
 
 
 def test_rejects_create_group():
@@ -195,7 +197,11 @@ def test_rejects_create_issue_without_benign_project_id_token():
     }
     reason = phase_2_injections._validate_option_a_placement(plan, "plan")
     assert reason is not None
-    assert "project_id" in reason
+    # Legacy phrased this as "project_id must reference ..."; the registry
+    # validator rejects earlier as "create_issue is not a valid attach for
+    # kind='gitlab_issue'" (create_issue has kinds=frozenset()). Accept
+    # either — the key guarantee is that the plan is rejected.
+    assert ("project_id" in reason) or ("create_issue" in reason)
 
 
 def test_rejects_create_issue_note_without_benign_issue_iid_token():
@@ -220,7 +226,10 @@ def test_rejects_create_mr_note_without_benign_mr_iid_token():
     }
     reason = phase_2_injections._validate_option_a_placement(plan, "plan")
     assert reason is not None
-    assert "mr_iid" in reason
+    # Legacy rejected on the literal mr_iid; registry rejects because
+    # create_mr_note isn't a valid attach for kind='gitlab_issue' (only
+    # create_issue_note is). Accept either wording.
+    assert ("mr_iid" in reason) or ("create_mr_note" in reason)
 
 
 def test_rejects_create_submission_without_benign_forum_name_token():
@@ -237,7 +246,10 @@ def test_rejects_create_submission_without_benign_forum_name_token():
     }
     reason = phase_2_injections._validate_option_a_placement(plan, "plan")
     assert reason is not None
-    assert "forum_name" in reason
+    # Legacy rejected on the literal forum_name; registry rejects because
+    # create_submission isn't a valid attach for kind='reddit_submission'
+    # (only create_comment is; create_submission addresses reddit_forum).
+    assert ("forum_name" in reason) or ("create_submission" in reason)
 
 
 def test_rejects_create_comment_without_benign_submission_token():
@@ -376,10 +388,16 @@ class TestRegistryValidator:
 
 
 class TestDualRunFlag:
-    def test_default_enforces_legacy(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_source_default_post_flag_flip(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Commit 8 flipped RIGOROUS_OPTION_A_DEFAULT to True after the
+        dev-profile dual-run validated the registry validator's verdicts.
+        The env-var opt-out is still honored (tested separately)."""
         monkeypatch.delenv("WORLDSIM_RIGOROUS_OPTION_A", raising=False)
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
-        assert phase_2_injections._rigorous_option_a_enabled() is False
+        assert phase_2_injections.RIGOROUS_OPTION_A_DEFAULT is True
+        assert phase_2_injections._rigorous_option_a_enabled() is True
 
     def test_env_override_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("WORLDSIM_RIGOROUS_OPTION_A", "true")
@@ -444,7 +462,10 @@ class TestDualRunFlag:
     def test_flag_off_enforces_legacy_verdict(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        monkeypatch.delenv("WORLDSIM_RIGOROUS_OPTION_A", raising=False)
+        """Explicit opt-out: WORLDSIM_RIGOROUS_OPTION_A=false still works
+        as a break-glass override post-flag-flip, in case a production
+        run needs to fall back to the legacy verdict."""
+        monkeypatch.setenv("WORLDSIM_RIGOROUS_OPTION_A", "false")
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         plan = _base_gitlab_plan()
         # Legacy accepts, new rejects.
@@ -453,4 +474,4 @@ class TestDualRunFlag:
             "body": "x",
         }
         reason = phase_2_injections._validate_option_a_placement(plan, "plan")
-        assert reason is None, "legacy validator should accept (flag off)"
+        assert reason is None, "legacy validator should accept when env var forces flag off"
