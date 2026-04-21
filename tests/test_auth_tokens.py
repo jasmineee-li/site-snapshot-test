@@ -206,6 +206,31 @@ def test_gitlab_pat_generator_html_token_fallback(monkeypatch):
     assert token == "glpat-html-tok"
 
 
+def test_gitlab_pat_generator_revoke_ignores_cross_origin_action(monkeypatch):
+    html = """
+    <tr>
+      <td>worldsim-runtime</td>
+      <form action="https://evil.test/-/profile/personal_access_tokens/1/revoke"></form>
+    </tr>
+    <tr>
+      <td>worldsim-runtime</td>
+      <form action="/-/profile/personal_access_tokens/2/revoke"></form>
+    </tr>
+    """
+    session = MagicMock()
+    session.post = MagicMock(return_value=_FakeResponse(status_code=200))
+
+    auth_tokens.GitLabPATGenerator()._best_effort_revoke_runtime_tokens(
+        session,
+        site_url="http://gitlab.test",
+        html=html,
+        csrf_token="csrf",
+    )
+
+    called_urls = [call.args[0] for call in session.post.call_args_list]
+    assert called_urls == ["http://gitlab.test/-/profile/personal_access_tokens/2/revoke"]
+
+
 # ── validate_token tests ────────────────────────────────────────────────
 
 
@@ -434,6 +459,121 @@ def test_acquire_tokens_for_instances_caches_across_calls(monkeypatch):
     assert instances[0]["api_auth"]["token"] == "cached-tok"
 
 
+def test_acquire_tokens_for_instances_canonicalizes_site_url(monkeypatch):
+    auth_tokens.clear_run_token_cache()
+    call_count = {"n": 0}
+
+    def fake_acquire(auth_config, site_url):
+        call_count["n"] += 1
+        return "shared-token"
+
+    monkeypatch.setattr(auth_tokens, "acquire_token", fake_acquire)
+    monkeypatch.setattr(auth_tokens, "validate_token", lambda *args, **kwargs: True)
+
+    instances = [
+        {
+            "site_name": "gitlab-a",
+            "site_url": "http://gitlab.test",
+            "auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token_generator": "gitlab_pat",
+                "credentials": {"username": "byteblaze", "password": "hello1234"},
+            },
+        },
+        {
+            "site_name": "gitlab-b",
+            "site_url": "http://gitlab.test/",
+            "auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token_generator": "gitlab_pat",
+                "credentials": {"username": "byteblaze", "password": "hello1234"},
+            },
+        },
+    ]
+
+    errors = auth_tokens.acquire_tokens_for_instances(instances)
+
+    assert errors == []
+    assert call_count["n"] == 1
+
+
+def test_acquire_tokens_for_instances_keeps_inline_tokens_separate(monkeypatch):
+    auth_tokens.clear_run_token_cache()
+    monkeypatch.setattr(auth_tokens, "validate_token", lambda *args, **kwargs: True)
+
+    instances = [
+        {
+            "site_name": "gitlab-a",
+            "site_url": "http://gitlab.test",
+            "auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token": "inline-a",
+                "validation_endpoint": "/api/v4/user",
+            },
+        },
+        {
+            "site_name": "gitlab-b",
+            "site_url": "http://gitlab.test",
+            "auth": {
+                "type": "bearer_token",
+                "header_name": "PRIVATE-TOKEN",
+                "token": "inline-b",
+                "validation_endpoint": "/api/v4/user",
+            },
+        },
+    ]
+
+    errors = auth_tokens.acquire_tokens_for_instances(instances)
+
+    assert errors == []
+    assert instances[0]["auth"]["token"] == "inline-a"
+    assert instances[1]["auth"]["token"] == "inline-b"
+
+
+def test_resolve_bearer_token_skips_revalidation_within_ttl(monkeypatch):
+    auth_tokens.clear_run_token_cache()
+    validate_calls = {"n": 0}
+
+    def fake_validate(token, auth_config, site_url, *, validation_endpoint=None):
+        validate_calls["n"] += 1
+        return True
+
+    monkeypatch.setattr(auth_tokens, "validate_token", fake_validate)
+    monkeypatch.setattr(auth_tokens, "acquire_token", lambda auth_config, site_url: "glpat-cached")
+
+    auth = {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_generator": "gitlab_pat",
+        "credentials": {"username": "byteblaze", "password": "hello1234"},
+    }
+
+    first = auth_tokens.resolve_bearer_token(auth, site_url="http://gitlab.test")
+    second = auth_tokens.resolve_bearer_token(auth, site_url="http://gitlab.test")
+
+    assert first == second == "glpat-cached"
+    assert validate_calls["n"] == 1
+
+
+def test_cache_key_redacts_secret_values():
+    key = auth_tokens._cache_key(
+        "http://gitlab.test/",
+        {
+            "type": "bearer_token",
+            "header_name": "PRIVATE-TOKEN",
+            "token_generator": "gitlab_pat",
+            "credentials": {"username": "byteblaze", "password": "hello1234"},
+        },
+    )
+
+    assert "hello1234" not in key
+    assert "byteblaze" not in key
+    assert key.startswith("http://gitlab.test|")
+
+
 def test_acquire_tokens_for_instances_reacquires_invalid_cached_token(monkeypatch):
     auth_tokens.clear_run_token_cache()
 
@@ -660,6 +800,21 @@ def test_config_rejects_token_generator_without_credentials():
             auth={
                 "type": "bearer_token",
                 "token_generator": "gitlab_pat",
+            },
+        )
+
+
+def test_config_rejects_gitlab_pat_partial_credentials():
+    from worldsim.config import BenchmarkInstance
+
+    with pytest.raises(ValueError, match="credentials.password must be a non-empty string"):
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab.test",
+            auth={
+                "type": "bearer_token",
+                "token_generator": "gitlab_pat",
+                "credentials": {"username": "root"},
             },
         )
 

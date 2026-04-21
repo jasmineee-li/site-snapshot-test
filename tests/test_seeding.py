@@ -363,6 +363,39 @@ def test_collect_seed_runtime_errors_reports_missing_bearer_token_source(tmp_pat
     ]
 
 
+def test_collect_seed_runtime_errors_ignores_stale_token_source_when_generator_selected(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    errors = seeding.collect_seed_runtime_errors(
+        [
+            {
+                "id": "task-1",
+                "site": "gitlab",
+                "adversarial_data_seed": {
+                    "mechanism": "api",
+                    "api_calls": [{"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}],
+                },
+            }
+        ],
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://gitlab.test",
+                "auth": {
+                    "type": "bearer_token",
+                    "header_name": "PRIVATE-TOKEN",
+                    "token_generator": "gitlab_pat",
+                    "credentials": {"username": "byteblaze", "password": "hello1234"},
+                    "token_source": "logs/phase_0d/gitlab/missing.txt",
+                },
+            }
+        ],
+        seed_field="adversarial_data_seed",
+    )
+
+    assert errors == []
+
+
 def test_collect_seed_runtime_errors_skips_db_check_for_http_db_row_verification():
     """HTTP seeds with db_row_value postconditions do NOT require db_connection at pre-flight.
 

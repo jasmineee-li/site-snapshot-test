@@ -19,7 +19,7 @@ from pathlib import Path
 
 import requests
 
-from worldsim.auth_tokens import GitLabPATGenerator
+from worldsim.auth_tokens import GitLabPATGenerator, _GITLAB_RUNTIME_PAT_NAME
 
 _AUTH_TOKEN_RE = re.compile(
     r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',
@@ -69,7 +69,7 @@ def bootstrap_pat(
     site_url: str,
     storage_state_path: Path,
     output_path: Path,
-    token_name: str = "worldsim-runtime",
+    token_name: str = _GITLAB_RUNTIME_PAT_NAME,
 ) -> Path:
     validator = GitLabPATGenerator()
     if output_path.exists():
@@ -123,7 +123,7 @@ def main() -> int:
     parser.add_argument("--site-url", required=True)
     parser.add_argument("--storage-state", type=Path, default=_default_state_path())
     parser.add_argument("--output", type=Path, default=_default_output_path())
-    parser.add_argument("--token-name", default="worldsim-api")
+    parser.add_argument("--token-name", default=_GITLAB_RUNTIME_PAT_NAME)
     args = parser.parse_args()
 
     bootstrap_pat(

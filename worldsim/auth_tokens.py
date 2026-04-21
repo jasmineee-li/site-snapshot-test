@@ -18,15 +18,23 @@ from __future__ import annotations
 
 import concurrent.futures
 import datetime as dt
+import hashlib
+import json
 import logging
 import re
 import threading
+import time
+from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Any
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+_GITLAB_RUNTIME_PAT_NAME = "worldsim-runtime"
+_GITLAB_LEGACY_PAT_NAMES = (_GITLAB_RUNTIME_PAT_NAME, "worldsim-api")
+_TOKEN_VALIDATION_TTL_SECONDS = 1.0
 
 # ── Public interface ─────────────────────────────────────────────────────
 
@@ -81,7 +89,9 @@ class GitLabPATGenerator(TokenGenerator):
         re.IGNORECASE,
     )
     _REVOKE_FORM_RE = re.compile(
-        r"<tr[^>]*>.*?worldsim-runtime[^<]*.*?<form[^>]+action=[\"']([^\"']+/revoke)[\"']",
+        r"<tr[^>]*>.*?(?:"
+        + "|".join(re.escape(name) for name in _GITLAB_LEGACY_PAT_NAMES)
+        + r")[^<]*.*?<form[^>]+action=[\"']([^\"']+/revoke)[\"']",
         re.IGNORECASE | re.DOTALL,
     )
 
@@ -135,7 +145,7 @@ class GitLabPATGenerator(TokenGenerator):
             pat_url,
             data={
                 "authenticity_token": form_csrf,
-                "personal_access_token[name]": "worldsim-runtime",
+                "personal_access_token[name]": _GITLAB_RUNTIME_PAT_NAME,
                 "personal_access_token[expires_at]": self._expires_at(),
                 "personal_access_token[scopes][]": "api",
             },
@@ -183,11 +193,21 @@ class GitLabPATGenerator(TokenGenerator):
         csrf_token: str,
     ) -> None:
         seen: set[str] = set()
+        expected_origin = self._origin(site_url)
         for action in self._REVOKE_FORM_RE.findall(html):
             if action in seen:
                 continue
             seen.add(action)
-            revoke_url = action if action.startswith("http") else f"{site_url.rstrip('/')}{action}"
+            if action.startswith("http"):
+                if self._origin(action) != expected_origin:
+                    logger.warning(
+                        "gitlab_pat: refusing cross-origin runtime PAT revoke target %s",
+                        action,
+                    )
+                    continue
+                revoke_url = action
+            else:
+                revoke_url = f"{site_url.rstrip('/')}{action}"
             try:
                 response = session.post(
                     revoke_url,
@@ -205,6 +225,11 @@ class GitLabPATGenerator(TokenGenerator):
                     action,
                     response.status_code,
                 )
+
+    @staticmethod
+    def _origin(url: str) -> tuple[str, str]:
+        parts = urlsplit(url)
+        return (parts.scheme.lower(), parts.netloc.lower())
 
     @staticmethod
     def _parse_created_token(resp: requests.Response) -> str | None:
@@ -264,6 +289,22 @@ class EndpointTokenGenerator(TokenGenerator):
 # ── Dispatcher ───────────────────────────────────────────────────────────
 
 
+def _token_strategy(auth_config: dict[str, Any]) -> str | None:
+    generator_name = auth_config.get("token_generator")
+    if isinstance(generator_name, str) and generator_name.strip():
+        return "token_generator"
+    token_endpoint = auth_config.get("token_endpoint")
+    if isinstance(token_endpoint, str) and token_endpoint.strip():
+        return "token_endpoint"
+    token = auth_config.get("token")
+    if isinstance(token, str) and token.strip():
+        return "token"
+    token_source = auth_config.get("token_source")
+    if isinstance(token_source, str) and token_source.strip():
+        return "token_source"
+    return None
+
+
 def acquire_token(auth_config: dict[str, Any], site_url: str) -> str:
     """Acquire a fresh token based on the auth config.
 
@@ -280,8 +321,11 @@ def acquire_token(auth_config: dict[str, Any], site_url: str) -> str:
         credentials = {}
 
     # 1. Named generator
-    generator_name = auth_config.get("token_generator")
-    if isinstance(generator_name, str) and generator_name.strip():
+    strategy = _token_strategy(auth_config)
+
+    # 1. Named generator
+    if strategy == "token_generator":
+        generator_name = str(auth_config.get("token_generator")).strip()
         generator_cls = _TOKEN_GENERATORS.get(generator_name.strip())
         if generator_cls is None:
             raise RuntimeError(
@@ -292,19 +336,19 @@ def acquire_token(auth_config: dict[str, Any], site_url: str) -> str:
         return generator.generate(credentials, site_url)
 
     # 2. Token endpoint
-    token_endpoint = auth_config.get("token_endpoint")
-    if isinstance(token_endpoint, str) and token_endpoint.strip():
+    if strategy == "token_endpoint":
+        token_endpoint = str(auth_config.get("token_endpoint")).strip()
         gen = EndpointTokenGenerator(token_endpoint=token_endpoint.strip())
         return gen.generate(credentials, site_url)
 
     # 3. Inline token
-    token = auth_config.get("token")
-    if isinstance(token, str) and token.strip():
+    if strategy == "token":
+        token = str(auth_config.get("token")).strip()
         return token.strip()
 
     # 4. Legacy token_source
-    token_source = auth_config.get("token_source")
-    if isinstance(token_source, str) and token_source.strip():
+    if strategy == "token_source":
+        token_source = str(auth_config.get("token_source")).strip()
         from worldsim import seeding as seeding_module
 
         token_path = seeding_module._resolve_token_source_path(token_source.strip())
@@ -367,36 +411,26 @@ def _validation_endpoint_for(auth_config: dict[str, Any]) -> str | None:
 
 def bearer_token_config_error(auth_config: dict[str, Any]) -> str | None:
     """Return a human-readable config error for bearer token auth, if any."""
-    has_generator = (
-        isinstance(auth_config.get("token_generator"), str)
-        and auth_config["token_generator"].strip()
-    )
-    has_endpoint = (
-        isinstance(auth_config.get("token_endpoint"), str) and auth_config["token_endpoint"].strip()
-    )
-    has_inline_token = isinstance(auth_config.get("token"), str) and auth_config["token"].strip()
-    has_token_source = (
-        isinstance(auth_config.get("token_source"), str) and auth_config["token_source"].strip()
-    )
+    strategy = _token_strategy(auth_config)
     validation_endpoint = _validation_endpoint_for(auth_config)
 
-    if has_generator:
+    if strategy == "token_generator":
         credentials = auth_config.get("credentials")
         if not isinstance(credentials, dict) or not credentials:
             return "token_generator auth requires a non-empty credentials dict"
         return None
-    if has_endpoint:
+    if strategy == "token_endpoint":
         credentials = auth_config.get("credentials")
         if not isinstance(credentials, dict) or not credentials:
             return "token_endpoint auth requires a non-empty credentials dict"
         if validation_endpoint is None:
             return "validation_endpoint is required for token_endpoint auth"
         return None
-    if has_inline_token:
+    if strategy == "token":
         if validation_endpoint is None:
             return "validation_endpoint is required for inline token auth"
         return None
-    if has_token_source:
+    if strategy == "token_source":
         if validation_endpoint is None:
             return "validation_endpoint is required for token_source auth"
         return None
@@ -405,23 +439,55 @@ def bearer_token_config_error(auth_config: dict[str, Any]) -> str | None:
 
 # ── Pipeline-level helpers ───────────────────────────────────────────────
 
-# Per-run cache: maps (site_url, auth_config_fingerprint) -> token.
-_RUN_TOKEN_CACHE: dict[str, str] = {}
+# Per-run cache: maps (site_url, auth_config_fingerprint) -> (token, last_validated_monotonic).
+_RUN_TOKEN_CACHE: dict[str, tuple[str, float]] = {}
 _RUN_TOKEN_CACHE_LOCK = threading.Lock()
 _TOKEN_ACQUIRE_MAX_WORKERS = 8
 
 
 def _cache_key(site_url: str, auth_config: dict[str, Any]) -> str:
     """Deterministic cache key from site URL and auth config identity."""
-    import json
+    identity = _cache_identity(auth_config)
+    return f"{_canonical_site_url(site_url)}|{json.dumps(identity, sort_keys=True, separators=(',', ':'))}"
 
-    # Include enough to distinguish different auth configs on the same site.
-    identity = json.dumps(
-        {k: auth_config.get(k) for k in sorted(auth_config) if k not in ("token", "token_source")},
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return f"{site_url}|{identity}"
+
+def _canonical_site_url(site_url: str) -> str:
+    return site_url.strip().rstrip("/")
+
+
+def _hashed_identity(value: object) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _cache_identity(auth_config: dict[str, Any]) -> dict[str, Any]:
+    strategy = _token_strategy(auth_config)
+    identity: dict[str, Any] = {
+        "strategy": strategy,
+        "type": auth_config.get("type"),
+        "header_name": auth_config.get("header_name"),
+        "validation_endpoint": _validation_endpoint_for(auth_config),
+    }
+    if strategy == "token_generator":
+        identity["token_generator"] = auth_config.get("token_generator")
+        credentials = auth_config.get("credentials")
+        if isinstance(credentials, dict):
+            identity["credentials_sha256"] = _hashed_identity(credentials)
+    elif strategy == "token_endpoint":
+        identity["token_endpoint"] = auth_config.get("token_endpoint")
+        credentials = auth_config.get("credentials")
+        if isinstance(credentials, dict):
+            identity["credentials_sha256"] = _hashed_identity(credentials)
+    elif strategy == "token":
+        identity["token_sha256"] = _hashed_identity(str(auth_config.get("token") or ""))
+    elif strategy == "token_source":
+        path = Path(str(auth_config.get("token_source") or "")).expanduser().resolve(strict=False)
+        identity["token_source"] = str(path)
+        try:
+            identity["token_source_mtime_ns"] = path.stat().st_mtime_ns
+        except OSError:
+            identity["token_source_mtime_ns"] = None
+    return identity
 
 
 def acquire_tokens_for_instances(
@@ -508,14 +574,18 @@ def resolve_bearer_token(auth_config: dict[str, Any], *, site_url: str) -> str:
 
     cached = _get_cached_token(cache_key)
     if cached is not None:
+        cached_token, validated_at = cached
+        if time.monotonic() - validated_at <= _TOKEN_VALIDATION_TTL_SECONDS:
+            return cached_token
         if validate_token(
-            cached,
+            cached_token,
             auth_config,
             site_url,
             validation_endpoint=validation_endpoint,
         ):
-            return cached
-        _drop_cached_token(cache_key, expected=cached)
+            _set_cached_token(cache_key, cached_token)
+            return cached_token
+        _drop_cached_token(cache_key, expected=cached_token)
 
     token = acquire_token(auth_config, site_url)
     if not validate_token(
@@ -535,14 +605,14 @@ def clear_run_token_cache() -> None:
         _RUN_TOKEN_CACHE.clear()
 
 
-def _get_cached_token(cache_key: str) -> str | None:
+def _get_cached_token(cache_key: str) -> tuple[str, float] | None:
     with _RUN_TOKEN_CACHE_LOCK:
         return _RUN_TOKEN_CACHE.get(cache_key)
 
 
 def _set_cached_token(cache_key: str, token: str) -> None:
     with _RUN_TOKEN_CACHE_LOCK:
-        _RUN_TOKEN_CACHE[cache_key] = token
+        _RUN_TOKEN_CACHE[cache_key] = (token, time.monotonic())
 
 
 def _drop_cached_token(cache_key: str, *, expected: str | None = None) -> None:

@@ -1419,8 +1419,11 @@ def _instance_http_seed_auth_runtime_error(instance: Any, *, mechanism: str = "f
         return None
 
     if auth_type == "bearer_token":
+        from worldsim.auth_tokens import _token_strategy, bearer_token_config_error
+
+        strategy = _token_strategy(auth)
         token_source = auth.get("token_source")
-        if isinstance(token_source, str) and token_source.strip():
+        if strategy == "token_source" and isinstance(token_source, str) and token_source.strip():
             try:
                 path = _resolve_token_source_path(token_source)
             except RuntimeError as exc:
@@ -1433,7 +1436,6 @@ def _instance_http_seed_auth_runtime_error(instance: Any, *, mechanism: str = "f
                 return f"token_source {path} could not be read: {exc}"
             if not token_text:
                 return f"token_source {path} is empty"
-        from worldsim.auth_tokens import bearer_token_config_error
 
         config_error = bearer_token_config_error(auth)
         if config_error is not None:
