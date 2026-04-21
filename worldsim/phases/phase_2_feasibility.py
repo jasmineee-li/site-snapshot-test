@@ -30,6 +30,11 @@ from typing import Any
 from worldsim._async_utils import retrying
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.editors import EDITOR_REGISTRY, EditorError
+from worldsim.phases.phase_2_reachability import (
+    ReachabilityOutcome,
+    derive_second_witness,
+    verify_reachable,
+)
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
     render_signature,
@@ -412,6 +417,7 @@ async def _verify_one(
     # ``verified`` stamp regresses to the pre-Layer-2 meaning ("API write
     # succeeded only").
     render_outcome: RenderOutcome | None = None
+    reachability_outcome: ReachabilityOutcome | None = None
     try:
         if browser is not None:
             render_outcome = await _run_render_check(
@@ -421,6 +427,21 @@ async def _verify_one(
                 metadata=metadata,
                 instance=instance,
             )
+            if render_outcome is not None and render_outcome.ok:
+                # Option A reachability only applies to tasks whose benign
+                # target resource is known — legacy datasets without the
+                # field are skipped so this commit doesn't regress them.
+                resource = task.get("benign_target_resource")
+                if isinstance(resource, dict) and resource.get("kind") is not None:
+                    reachability_outcome = await _run_reachability_check(
+                        browser=browser,
+                        render_semaphore=render_semaphore,
+                        task=task,
+                        seed=seed,
+                        metadata=metadata,
+                        instance=instance,
+                        render_outcome=render_outcome,
+                    )
     finally:
         _safe_cleanup(handle, cleanup_warnings, task.get("id"))
 
@@ -437,6 +458,20 @@ async def _verify_one(
             render_evidence=render_outcome.evidence(),
         )
 
+    if reachability_outcome is not None and reachability_outcome.reachability == "unreachable":
+        return _infeasible_task(
+            task,
+            kind=f"reachability_{reachability_outcome.kind}" or "reachability_failed",
+            detail=reachability_outcome.detail,
+            fingerprint=fingerprint,
+            http_status=None,
+            response_snippet=None,
+            attempts=attempts,
+            timestamp=_now_iso(),
+            render_evidence=(render_outcome.evidence() if render_outcome else None),
+            reachability_evidence=reachability_outcome.evidence(),
+        )
+
     result = dict(task)
     feasibility: dict[str, Any] = {
         "status": "verified",
@@ -447,8 +482,82 @@ async def _verify_one(
     if render_outcome is not None:
         feasibility["render_verified"] = True
         feasibility["render_evidence"] = render_outcome.evidence()
+    if reachability_outcome is not None:
+        feasibility["reachability"] = reachability_outcome.reachability
+        feasibility["reachability_evidence"] = reachability_outcome.evidence()
     result["feasibility"] = feasibility
     return result
+
+
+async def _run_reachability_check(
+    *,
+    browser: Any,
+    render_semaphore: asyncio.Semaphore | None,
+    task: dict[str, Any],
+    seed: dict[str, Any],
+    metadata: dict[str, Any],
+    instance: dict[str, Any],
+    render_outcome: RenderOutcome,
+) -> ReachabilityOutcome:
+    """Run the Option A reachability probe guarded by the same semaphore.
+
+    Signature is taken from the already-successful render outcome so
+    the two checks grep for the same string. Second witness is derived
+    from the seed body text via
+    ``phase_2_reachability.derive_second_witness``.
+    """
+    benign_target_resource = task.get("benign_target_resource")
+    site_url = str(instance.get("site_url") or "").strip()
+    signature = render_outcome.matched_signature or render_signature(seed)
+    rendered_payload = _first_rendered_payload(seed)
+    second_witness = derive_second_witness(rendered_payload, signature)
+    storage_state_path = _resolve_benign_storage_state_path(instance)
+
+    async def _do() -> ReachabilityOutcome:
+        try:
+            return await verify_reachable(
+                browser=browser,
+                benign_target_resource=benign_target_resource,
+                instance_site_url=site_url,
+                signature=signature,
+                second_witness=second_witness,
+                storage_state_path=storage_state_path,
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("phase 2c reachability probe crashed")
+            return ReachabilityOutcome.unreachable(
+                kind="probe_raised",
+                detail=f"{exc.__class__.__name__}: {exc}",
+                url=site_url,
+            )
+
+    if render_semaphore is None:
+        return await _do()
+    async with render_semaphore:
+        return await _do()
+
+
+def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
+    """Extract the first rendered payload string from a seed's editor_calls.
+
+    Used as the source pool for the reachability probe's second witness.
+    Falls through to None when the seed has no textual args.
+    """
+    if not isinstance(seed, dict):
+        return None
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list):
+        return None
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        args = call.get("args")
+        if not isinstance(args, dict):
+            continue
+        for value in args.values():
+            if isinstance(value, str) and len(value) >= 20:
+                return value
+    return None
 
 
 def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
@@ -526,6 +635,7 @@ def _infeasible_task(
     attempts: list[dict[str, Any]],
     timestamp: str,
     render_evidence: dict[str, Any] | None = None,
+    reachability_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     result = dict(task)
     error_entry: dict[str, Any] = {
@@ -540,6 +650,8 @@ def _infeasible_task(
         error_entry["response_snippet"] = response_snippet
     if render_evidence is not None:
         error_entry["render_evidence"] = render_evidence
+    if reachability_evidence is not None:
+        error_entry["reachability_evidence"] = reachability_evidence
     result["feasibility"] = {
         "status": "infeasible",
         "host_fingerprint": fingerprint,
