@@ -571,10 +571,17 @@ async def ensure_storage_state(
     output_path = phase_0d_artifact_path(instance.site_name)
     spec = _SiteSpec(
         site_name=instance.site_name,
+        mech_type="form_login",
+        declared_path="",
         generator_script=None,
         form_login=form_login,
+        per_task_refresh=False,
         credentials=credentials,
-        declared_storage_state_path=None,
+        agent_context_source=(
+            benchmark_root / "phase_0c" / instance.site_name / "AGENT_CONTEXT.json"
+            if benchmark_root is not None
+            else output_path.parent / "runtime_auto_mint_context.json"
+        ),
     )
     try:
         await _bootstrap_via_form_login(

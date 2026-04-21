@@ -111,7 +111,7 @@ def _validate_seeding_auth_block(value: Any, *, field_name: str) -> dict[str, An
                     raise ValueError(
                         f"{field_name}.credentials.username must be a non-empty string when token_generator='gitlab_pat'"
                     )
-                if not isinstance(password, str) or not password:
+                if not isinstance(password, str) or not password.strip():
                     raise ValueError(
                         f"{field_name}.credentials.password must be a non-empty string when token_generator='gitlab_pat'"
                     )

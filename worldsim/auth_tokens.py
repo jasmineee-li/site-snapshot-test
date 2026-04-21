@@ -96,9 +96,9 @@ class GitLabPATGenerator(TokenGenerator):
     )
 
     def generate(self, credentials: dict[str, str], site_url: str) -> str:
-        username = credentials.get("username", "")
-        password = credentials.get("password", "")
-        if not username or not password:
+        username = str(credentials.get("username", "")).strip()
+        password = str(credentials.get("password", ""))
+        if not username or not password.strip():
             raise RuntimeError("gitlab_pat generator requires username and password credentials")
 
         base = site_url.rstrip("/")
@@ -618,7 +618,8 @@ def _set_cached_token(cache_key: str, token: str) -> None:
 def _drop_cached_token(cache_key: str, *, expected: str | None = None) -> None:
     with _RUN_TOKEN_CACHE_LOCK:
         current = _RUN_TOKEN_CACHE.get(cache_key)
-        if expected is None or current == expected:
+        current_token = current[0] if isinstance(current, tuple) else current
+        if expected is None or current_token == expected:
             _RUN_TOKEN_CACHE.pop(cache_key, None)
 
 

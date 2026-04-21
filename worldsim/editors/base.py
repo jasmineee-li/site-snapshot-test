@@ -349,7 +349,13 @@ class BaseSiteEditor:
     def _ensure_form_login(self) -> None:
         from worldsim import seeding as seeding_module
 
-        seeding_module._perform_web_login_if_needed(self.session, self.instance, "form")
+        try:
+            seeding_module._perform_web_login_if_needed(self.session, self.instance, "form")
+        except RuntimeError as exc:
+            raise EditorError(
+                "auth_missing",
+                f"{self.site_name} editor could not establish form auth: {exc}",
+            ) from exc
 
     def _api_request_json(
         self,

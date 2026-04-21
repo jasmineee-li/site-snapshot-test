@@ -286,3 +286,78 @@ def test_ensure_storage_state_raises_when_artifact_is_stale_and_auto_mint_disabl
                 benchmark_name="WebArena Verified",
             )
         )
+
+
+def test_ensure_storage_state_auto_mint_uses_current_sitespec_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+
+    from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
+
+    state_dir = tmp_path / "logs"
+    state_dir.mkdir()
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("WORLDSIM_AUTO_MINT_STORAGE_STATE", "true")
+
+    benchmark_root = tmp_path / "bench"
+    stale_path = tmp_path / "stale-state.json"
+    _write_storage_state(stale_path, domain="3.12.221.9")
+    write_storage_state_meta(
+        stale_path,
+        mechanism="test",
+        now_fn=lambda: datetime(2000, 1, 1, tzinfo=UTC),
+    )
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://3.12.221.9:8023",
+        reset_endpoint="http://3.12.221.9:8024/init",
+        agent_auth={
+            "type": "storage_state",
+            "storage_state": {
+                "path": str(stale_path),
+                "form_login": {
+                    "login_url": "/users/sign_in",
+                    "username_selector": "#user_login",
+                    "password_selector": "#user_password",
+                    "submit_selector": "input[type=submit]",
+                    "success_url_substring": "/-/profile",
+                },
+            },
+            "authentication": {
+                "credentials": {"username": "root", "password": "admin1234"},
+            },
+        },
+    )
+
+    captured: dict[str, object] = {}
+
+    async def fake_bootstrap_via_form_login(*, spec, site_url, output_path):
+        captured["site_name"] = spec.site_name
+        captured["mech_type"] = spec.mech_type
+        captured["declared_path"] = spec.declared_path
+        captured["per_task_refresh"] = spec.per_task_refresh
+        captured["agent_context_source"] = spec.agent_context_source
+        captured["site_url"] = site_url
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps({"cookies": [{"name": "session"}], "origins": []}), encoding="utf-8")
+
+    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_bootstrap_via_form_login)
+
+    result = asyncio.run(
+        ensure_storage_state(
+            instance,
+            benchmark_root=benchmark_root,
+            benchmark_name="WebArena Verified",
+        )
+    )
+
+    assert result == state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    assert captured == {
+        "site_name": "gitlab",
+        "mech_type": "form_login",
+        "declared_path": "",
+        "per_task_refresh": False,
+        "agent_context_source": benchmark_root / "phase_0c" / "gitlab" / "AGENT_CONTEXT.json",
+        "site_url": "http://3.12.221.9:8023",
+    }

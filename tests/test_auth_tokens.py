@@ -175,6 +175,12 @@ def test_gitlab_pat_generator_missing_credentials():
         gen.generate({}, "http://gitlab.test")
 
 
+def test_gitlab_pat_generator_rejects_whitespace_password():
+    with pytest.raises(RuntimeError, match="requires username and password"):
+        gen = auth_tokens.GitLabPATGenerator()
+        gen.generate({"username": "root", "password": "   "}, "http://gitlab.test")
+
+
 def test_gitlab_pat_generator_html_token_fallback(monkeypatch):
     """GitLab PAT generator falls back to HTML input for the created token."""
     responses = [
@@ -558,6 +564,43 @@ def test_resolve_bearer_token_skips_revalidation_within_ttl(monkeypatch):
     assert validate_calls["n"] == 1
 
 
+def test_resolve_bearer_token_drops_invalid_cache_entry(monkeypatch):
+    auth_tokens.clear_run_token_cache()
+    auth = {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_generator": "gitlab_pat",
+        "credentials": {"username": "byteblaze", "password": "hello1234"},
+    }
+
+    first = {"done": False}
+
+    def fake_validate(token, auth_config, site_url, *, validation_endpoint=None):
+        if not first["done"]:
+            first["done"] = True
+            return True
+        return False
+
+    clock = {"now": 10.0}
+
+    monkeypatch.setattr(auth_tokens.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(auth_tokens, "validate_token", fake_validate)
+    monkeypatch.setattr(auth_tokens, "acquire_token", lambda auth_config, site_url: "glpat-cached")
+
+    assert auth_tokens.resolve_bearer_token(auth, site_url="http://gitlab.test") == "glpat-cached"
+    clock["now"] += auth_tokens._TOKEN_VALIDATION_TTL_SECONDS + 1.0
+
+    monkeypatch.setattr(
+        auth_tokens,
+        "acquire_token",
+        lambda auth_config, site_url: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        auth_tokens.resolve_bearer_token(auth, site_url="http://gitlab.test")
+
+    assert auth_tokens._get_cached_token(auth_tokens._cache_key("http://gitlab.test", auth)) is None
+
+
 def test_cache_key_redacts_secret_values():
     key = auth_tokens._cache_key(
         "http://gitlab.test/",
@@ -815,6 +858,21 @@ def test_config_rejects_gitlab_pat_partial_credentials():
                 "type": "bearer_token",
                 "token_generator": "gitlab_pat",
                 "credentials": {"username": "root"},
+            },
+        )
+
+
+def test_config_rejects_gitlab_pat_whitespace_password():
+    from worldsim.config import BenchmarkInstance
+
+    with pytest.raises(ValueError, match="credentials.password must be a non-empty string"):
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://gitlab.test",
+            auth={
+                "type": "bearer_token",
+                "token_generator": "gitlab_pat",
+                "credentials": {"username": "root", "password": "   "},
             },
         )
 
@@ -1090,6 +1148,36 @@ def test_gitlab_editor_wraps_invalid_bearer_token_as_auth_missing(monkeypatch):
                     "header_name": "PRIVATE-TOKEN",
                     "token": "invalid-token",
                     "validation_endpoint": "/api/v4/user",
+                },
+            }
+        )
+
+    assert excinfo.value.kind == "auth_missing"
+
+
+def test_reddit_editor_wraps_form_login_runtime_error(monkeypatch):
+    from worldsim.editors.base import EditorError
+    from worldsim.editors.reddit import RedditEditor
+
+    fake_session = MagicMock()
+    fake_session.__enter__.return_value = fake_session
+    fake_session.__exit__.return_value = None
+    monkeypatch.setattr("worldsim.editors.reddit.requests.Session", lambda: fake_session)
+
+    def fail_login(session, instance, mechanism):
+        raise RuntimeError("login failed")
+
+    monkeypatch.setattr("worldsim.seeding._perform_web_login_if_needed", fail_login)
+
+    with pytest.raises(EditorError) as excinfo:
+        RedditEditor.probe_base_state(
+            {
+                "site_name": "reddit",
+                "site_url": "http://reddit.test",
+                "auth": {
+                    "type": "web_login",
+                    "login_url": "/login",
+                    "credentials": {"username": "user", "password": "pw"},
                 },
             }
         )

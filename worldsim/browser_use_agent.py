@@ -653,10 +653,17 @@ def _phase_0d_fallback_path(task: dict[str, Any] | None) -> Path | None:
     if _PHASE_0D_SITE_RE.fullmatch(site.strip()) is None:
         return None
     try:
-        from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
+        from worldsim.phases.phase_0d_auth_bootstrap import (
+            phase_0d_artifact_path,
+            phase_0d_completion_path,
+        )
     except ImportError:  # pragma: no cover — only triggers on misinstalled env.
         return None
-    return phase_0d_artifact_path(site.strip())
+    artifact_path = phase_0d_artifact_path(site.strip())
+    completion_path = phase_0d_completion_path(site.strip())
+    if not artifact_path.exists() or not completion_path.exists():
+        return None
+    return artifact_path
 
 
 def _resolve_pvpo_cdp_url(raw_url: str) -> str:
@@ -789,7 +796,7 @@ def _resolve_auth(
             path = _resolve_storage_state_path(raw_path.strip(), benchmark_root)
         except AuthArtifactMissingError:
             bootstrap_path = _phase_0d_fallback_path(task)
-            if bootstrap_path is not None and bootstrap_path.exists():
+            if bootstrap_path is not None:
                 session_kwargs["storage_state"] = str(bootstrap_path)
                 return session_kwargs, deferred_actions
             raise
@@ -801,7 +808,7 @@ def _resolve_auth(
             # a fallback before declaring the artifact missing so the runtime
             # picks up bootstrapped credentials automatically.
             bootstrap_path = _phase_0d_fallback_path(task)
-            if bootstrap_path is not None and bootstrap_path.exists():
+            if bootstrap_path is not None:
                 session_kwargs["storage_state"] = str(bootstrap_path)
                 return session_kwargs, deferred_actions
             if generator:

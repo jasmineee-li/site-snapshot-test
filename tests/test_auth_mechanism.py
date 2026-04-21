@@ -366,6 +366,7 @@ class TestResolveAuth:
         bootstrap_dir.mkdir(parents=True)
         bootstrap_artifact = bootstrap_dir / "storage_state.json"
         bootstrap_artifact.write_text("{}", encoding="utf-8")
+        (bootstrap_dir / "completion.json").write_text("{}", encoding="utf-8")
 
         auth = {
             "type": "storage_state",
@@ -377,6 +378,27 @@ class TestResolveAuth:
         task = {"site": "shopping"}
         kwargs, _ = _resolve_auth(auth, task=task, benchmark_root=tmp_path / "bench")
         assert kwargs == {"storage_state": str(bootstrap_artifact)}
+
+    def test_phase_0d_fallback_ignores_orphan_artifact_without_completion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        state_dir = tmp_path / "logs"
+        state_dir.mkdir()
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+
+        bootstrap_dir = state_dir / "phase_0d" / "shopping"
+        bootstrap_dir.mkdir(parents=True)
+        (bootstrap_dir / "storage_state.json").write_text("{}", encoding="utf-8")
+
+        auth = {
+            "type": "storage_state",
+            "storage_state": {
+                "path": "auth/shopping_state.json",
+                "generator_script": "scripts/make_auth.py",
+            },
+        }
+        with pytest.raises(AuthArtifactMissingError, match="storage_state artifact missing"):
+            _resolve_auth(auth, task={"site": "shopping"}, benchmark_root=tmp_path / "bench")
 
     def test_phase_0d_fallback_rejects_unsafe_site_name(self, tmp_path: Path, monkeypatch):
         state_dir = tmp_path / "logs"
