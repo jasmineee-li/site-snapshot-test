@@ -30,6 +30,11 @@ from typing import Any
 from worldsim._async_utils import retrying
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.editors import EDITOR_REGISTRY, EditorError
+from worldsim.phases.phase_2_render_check import (
+    RenderOutcome,
+    render_signature,
+    verify_seed_renders,
+)
 from worldsim.seeding import SeedCleanupHandle, apply_data_seed_async
 
 logger = logging.getLogger(__name__)
@@ -39,6 +44,18 @@ logger = logging.getLogger(__name__)
 FAILPOINT_DATASET = "phase_2.output.feasibility_dataset"
 FAILPOINT_QUARANTINE = "phase_2.output.feasibility_quarantine"
 FAILPOINT_REPORT = "phase_2.output.feasibility_report"
+
+# Phase 2c render verification is a hard gate by default. The env-var opt-out
+# is intended for unit tests that mock the seed flow and don't need a browser,
+# and for development hosts without Playwright installed. Production runs MUST
+# leave this unset — the 2026-04-21 Magento review-pending bug shipped 174
+# tasks under the "verified == HTTP 2xx only" lie this gate now closes.
+_SKIP_RENDER_CHECK_ENV = "WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK"
+
+# Playwright contexts above ~8 start hitting eviction edge cases on a single
+# browser. Cap render-check concurrency separately from the main worker
+# semaphore so high concurrency settings don't destabilize the browser.
+_RENDER_CHECK_MAX_CONCURRENCY = 8
 
 
 @dataclass(frozen=True)
@@ -153,6 +170,34 @@ async def verify_feasibility(
     started = time.monotonic()
     now_iso = _now_iso()
 
+    skip_render_check = os.getenv(_SKIP_RENDER_CHECK_ENV) == "1"
+    pw_handle: Any = None
+    browser: Any = None
+    render_semaphore: asyncio.Semaphore | None = None
+    if skip_render_check:
+        logger.warning(
+            "%s=1 set; phase 2c render verification disabled. "
+            "feasibility.status='verified' no longer guarantees the seeded "
+            "payload renders on its read_surface_urls. Production runs MUST "
+            "leave this unset.",
+            _SKIP_RENDER_CHECK_ENV,
+        )
+    else:
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError as exc:
+            raise RuntimeError(
+                "phase 2c render verification requires Playwright: install "
+                "'playwright' and run 'playwright install chromium', or set "
+                f"{_SKIP_RENDER_CHECK_ENV}=1 to opt out (development only). "
+                f"Underlying import error: {exc!r}"
+            ) from exc
+        pw_handle = await async_playwright().start()
+        browser = await pw_handle.chromium.launch(headless=True)
+        render_semaphore = asyncio.Semaphore(
+            min(_RENDER_CHECK_MAX_CONCURRENCY, max(1, concurrency))
+        )
+
     async def worker(task: dict[str, Any], index: int) -> dict[str, Any]:
         async with semaphore:
             if stagger_delay:
@@ -185,6 +230,8 @@ async def verify_feasibility(
                     ttl_hours=ttl_hours,
                     force_reverify=force_reverify,
                     cleanup_warnings=cleanup_warnings,
+                    browser=browser,
+                    render_semaphore=render_semaphore,
                 )
             except Exception as exc:
                 task_id = str(task.get("id", "unknown"))
@@ -193,10 +240,22 @@ async def verify_feasibility(
                     f"{exc.__class__.__name__}: {exc}"
                 ) from exc
 
-    results = await asyncio.gather(
-        *(worker(task, i) for i, task in enumerate(raw)),
-        return_exceptions=False,
-    )
+    try:
+        results = await asyncio.gather(
+            *(worker(task, i) for i, task in enumerate(raw)),
+            return_exceptions=False,
+        )
+    finally:
+        if browser is not None:
+            try:
+                await browser.close()
+            except Exception:
+                logger.exception("phase 2c: failed to close render-check browser")
+        if pw_handle is not None:
+            try:
+                await pw_handle.stop()
+            except Exception:
+                logger.exception("phase 2c: failed to stop playwright handle")
 
     for result in results:
         feasibility = result.get("feasibility") or {}
@@ -245,6 +304,8 @@ async def _verify_one(
     ttl_hours: float | None,
     force_reverify: bool,
     cleanup_warnings: list[str],
+    browser: Any = None,
+    render_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     seed = task.get("adversarial_data_seed") or {}
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
@@ -289,16 +350,14 @@ async def _verify_one(
 
     attempts: list[dict[str, Any]] = []
     handle: SeedCleanupHandle | None = None
+    metadata: dict[str, Any] = {}
 
-    async def _apply_and_drop_metadata() -> SeedCleanupHandle | None:
-        # Phase 2c only needs the cleanup handle; the read-surface metadata
-        # is C1b-only and belongs on the Phase 4 task dict.
-        cleanup, _metadata = await apply_data_seed_async(seed, bound_instance)
-        return cleanup
+    async def _apply_and_keep_metadata() -> tuple[SeedCleanupHandle | None, dict[str, Any]]:
+        return await apply_data_seed_async(seed, bound_instance)
 
     try:
-        handle = await retrying(
-            _apply_and_drop_metadata,
+        handle, metadata = await retrying(
+            _apply_and_keep_metadata,
             retries=retry_count,
             attempts_log=attempts,
         )
@@ -332,29 +391,103 @@ async def _verify_one(
             timestamp=_now_iso(),
         )
 
+    if handle is None:
+        # Empty seed never registered a cleanup handle, so no cleanup needed.
+        return _infeasible_task(
+            task,
+            kind="empty_seed",
+            detail="adversarial_data_seed produced no editor calls",
+            fingerprint=fingerprint,
+            http_status=None,
+            response_snippet=None,
+            attempts=attempts,
+            timestamp=_now_iso(),
+        )
+
+    # Render check runs BEFORE cleanup because cleanup deletes the seeded
+    # row. The 2026-04-21 Magento bug shipped because Phase 2c stamped
+    # ``verified`` on HTTP 2xx alone — Layer 2 of the long-term fix closes
+    # that contract gap. ``browser is None`` only when the operator opted
+    # out via WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK=1; in that case the
+    # ``verified`` stamp regresses to the pre-Layer-2 meaning ("API write
+    # succeeded only").
+    render_outcome: RenderOutcome | None = None
     try:
-        if handle is None:
-            return _infeasible_task(
-                task,
-                kind="empty_seed",
-                detail="adversarial_data_seed produced no editor calls",
-                fingerprint=fingerprint,
-                http_status=None,
-                response_snippet=None,
-                attempts=attempts,
-                timestamp=_now_iso(),
+        if browser is not None:
+            render_outcome = await _run_render_check(
+                browser=browser,
+                render_semaphore=render_semaphore,
+                seed=seed,
+                metadata=metadata,
+                instance=instance,
             )
     finally:
         _safe_cleanup(handle, cleanup_warnings, task.get("id"))
 
+    if render_outcome is not None and not render_outcome.ok:
+        return _infeasible_task(
+            task,
+            kind=render_outcome.kind,
+            detail=render_outcome.detail,
+            fingerprint=fingerprint,
+            http_status=None,
+            response_snippet=None,
+            attempts=attempts,
+            timestamp=_now_iso(),
+            render_evidence=render_outcome.evidence(),
+        )
+
     result = dict(task)
-    result["feasibility"] = {
+    feasibility: dict[str, Any] = {
         "status": "verified",
         "verified_at": _now_iso(),
         "host_fingerprint": fingerprint,
         "attempts": attempts,
     }
+    if render_outcome is not None:
+        feasibility["render_verified"] = True
+        feasibility["render_evidence"] = render_outcome.evidence()
+    result["feasibility"] = feasibility
     return result
+
+
+async def _run_render_check(
+    *,
+    browser: Any,
+    render_semaphore: asyncio.Semaphore | None,
+    seed: dict[str, Any],
+    metadata: dict[str, Any],
+    instance: dict[str, Any],
+) -> RenderOutcome:
+    urls = metadata.get("read_surface_urls") if isinstance(metadata, dict) else None
+    if not isinstance(urls, list):
+        urls = []
+    site_name = str(instance.get("site_name", "")).strip().lower()
+    site_url = str(instance.get("site_url", "")).rstrip("/")
+    signature = render_signature(seed)
+
+    async def _do() -> RenderOutcome:
+        try:
+            return await verify_seed_renders(
+                browser=browser,
+                urls=urls,
+                site_name=site_name,
+                site_url=site_url,
+                signature=signature,
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("phase 2c render check crashed")
+            return RenderOutcome.failed(
+                kind="render_check_error",
+                detail=f"render check raised {exc.__class__.__name__}: {exc}",
+                urls_tried=urls,
+                per_url_errors={},
+            )
+
+    if render_semaphore is None:
+        return await _do()
+    async with render_semaphore:
+        return await _do()
 
 
 def _infeasible_task(
@@ -367,6 +500,7 @@ def _infeasible_task(
     response_snippet: str | None,
     attempts: list[dict[str, Any]],
     timestamp: str,
+    render_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     result = dict(task)
     error_entry: dict[str, Any] = {
@@ -379,6 +513,8 @@ def _infeasible_task(
         error_entry["http_status"] = http_status
     if response_snippet is not None:
         error_entry["response_snippet"] = response_snippet
+    if render_evidence is not None:
+        error_entry["render_evidence"] = render_evidence
     result["feasibility"] = {
         "status": "infeasible",
         "host_fingerprint": fingerprint,

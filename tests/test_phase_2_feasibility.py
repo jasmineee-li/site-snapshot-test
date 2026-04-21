@@ -103,9 +103,13 @@ def _bypass_preflight(monkeypatch):
     """Stub out probe_base_state + token acquisition by default.
 
     Individual tests that care about the pre-flight behavior re-patch these
-    locally via ``monkeypatch.setattr``.
+    locally via ``monkeypatch.setattr``. Render verification is disabled via
+    env var because these tests mock the seed flow and never run a real
+    browser; tests for the render check itself live in
+    ``tests/test_phase_2_render_check.py``.
     """
     monkeypatch.setattr(feas, "acquire_tokens_for_instances", lambda instances: [])
+    monkeypatch.setenv("WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK", "1")
 
     class _StubEditorCls:
         @classmethod
@@ -893,3 +897,216 @@ def test_case_07b_double_run_converges_without_status_drift(tmp_path, monkeypatc
     )
     assert third.verified[0]["feasibility"]["status"] == "verified"
     assert third.verified[0]["feasibility"]["verified_at"] == first_feas["verified_at"]
+
+
+# ---------------------------------------------------------------------------
+# Render-check wiring (Layer 2 of the 2026-04-21 long-term fix)
+# ---------------------------------------------------------------------------
+
+
+class _FakePlaywrightPage:
+    def __init__(self, body: str = "") -> None:
+        self.body = body
+
+    async def goto(self, url, *, timeout, wait_until):
+        return None
+
+    async def text_content(self, selector):
+        return self.body
+
+    async def wait_for_selector(self, selector, *, timeout):
+        return None
+
+    def wait_for_response(self, predicate, *, timeout):
+        async def _await_noop():
+            return None
+
+        return _await_noop()
+
+
+class _FakePlaywrightContext:
+    def __init__(self, page: _FakePlaywrightPage) -> None:
+        self._page = page
+        self.closed = False
+
+    async def new_page(self):
+        return self._page
+
+    async def close(self):
+        self.closed = True
+
+
+class _FakePlaywrightBrowser:
+    def __init__(self, page: _FakePlaywrightPage) -> None:
+        self._page = page
+        self.closed = False
+
+    async def new_context(self):
+        return _FakePlaywrightContext(self._page)
+
+    async def close(self):
+        self.closed = True
+
+
+class _FakeChromium:
+    def __init__(self, browser: _FakePlaywrightBrowser) -> None:
+        self._browser = browser
+
+    async def launch(self, *, headless):
+        return self._browser
+
+
+class _FakePlaywright:
+    def __init__(self, browser: _FakePlaywrightBrowser) -> None:
+        self.chromium = _FakeChromium(browser)
+        self.stopped = False
+
+    async def stop(self):
+        self.stopped = True
+
+
+class _FakePlaywrightFactory:
+    def __init__(self, browser: _FakePlaywrightBrowser) -> None:
+        self._browser = browser
+
+    def __call__(self):
+        return self
+
+    async def start(self):
+        return _FakePlaywright(self._browser)
+
+
+def _shopping_review_task(
+    *, task_id: str = "RENDER-001", nickname: str = "SeedNickAdv003"
+) -> dict[str, Any]:
+    return {
+        "id": task_id,
+        "site": "shopping",
+        "benign_task_id": f"benign-{task_id}",
+        "adversarial_data_seed": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"nickname": nickname, "detail": "x", "entity_pk_value": 67},
+                }
+            ],
+        },
+    }
+
+
+def _patch_apply_with_metadata(monkeypatch, urls: list[str]) -> None:
+    handle = _FakeHandle()
+
+    async def fake(seed, instance):
+        return handle, {"read_surface_urls": urls}
+
+    monkeypatch.setattr(feas, "apply_data_seed_async", fake)
+
+
+def _install_fake_playwright(monkeypatch, browser: _FakePlaywrightBrowser) -> None:
+    """Inject a fake ``playwright.async_api`` module into ``sys.modules`` so
+    the lazy ``from playwright.async_api import async_playwright`` inside
+    ``verify_feasibility`` resolves to our shim. Works whether or not the
+    real Playwright package is installed in the dev environment."""
+    import sys
+    import types
+
+    factory = _FakePlaywrightFactory(browser)
+    fake_module = types.ModuleType("playwright.async_api")
+    fake_module.async_playwright = factory
+    fake_pkg = types.ModuleType("playwright")
+    monkeypatch.setitem(sys.modules, "playwright", fake_pkg)
+    monkeypatch.setitem(sys.modules, "playwright.async_api", fake_module)
+
+
+def test_render_check_passing_stamps_render_verified(tmp_path, monkeypatch):
+    """When the env var is unset and the seeded payload's signature appears
+    in the rendered DOM, feasibility.status='verified' carries
+    render_verified=True and render_evidence with the matched URL."""
+    monkeypatch.delenv("WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK", raising=False)
+
+    fake_browser = _FakePlaywrightBrowser(
+        _FakePlaywrightPage(body="storefront page mentions SeedNickAdv003 here")
+    )
+    _install_fake_playwright(monkeypatch, fake_browser)
+
+    _patch_apply_with_metadata(monkeypatch, ["http://shop.example/catalog/product/view/id/67"])
+    tasks_path = _write_tasks(tmp_path, [_shopping_review_task()])
+
+    report = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_shopping_instance(site_url="http://shop.example/")],
+            concurrency=1,
+            retry_count=0,
+        )
+    )
+    assert len(report.verified) == 1
+    feasibility = report.verified[0]["feasibility"]
+    assert feasibility["status"] == "verified"
+    assert feasibility["render_verified"] is True
+    evidence = feasibility["render_evidence"]
+    assert evidence["ok"] is True
+    assert "SeedNickAdv003" == evidence["matched_signature"]
+    assert fake_browser.closed is True
+
+
+def test_render_check_failing_marks_render_unverified(tmp_path, monkeypatch):
+    """When the rendered DOM does not contain the signature, the task is
+    classified as infeasible with kind='render_unverified' and
+    render_evidence captured on the error entry."""
+    monkeypatch.delenv("WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK", raising=False)
+
+    fake_browser = _FakePlaywrightBrowser(
+        _FakePlaywrightPage(body="page loaded but seeded payload absent")
+    )
+    _install_fake_playwright(monkeypatch, fake_browser)
+
+    _patch_apply_with_metadata(monkeypatch, ["http://shop.example/catalog/product/view/id/67"])
+    tasks_path = _write_tasks(tmp_path, [_shopping_review_task()])
+
+    report = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_shopping_instance(site_url="http://shop.example/")],
+            concurrency=1,
+            retry_count=0,
+        )
+    )
+    assert len(report.infeasible) == 1
+    feasibility = report.infeasible[0]["feasibility"]
+    assert feasibility["status"] == "infeasible"
+    error = feasibility["errors"][0]
+    assert error["kind"] == "render_unverified"
+    assert "render_evidence" in error
+    assert error["render_evidence"]["kind"] == "render_unverified"
+
+
+def test_render_check_skipped_via_env_var_omits_render_fields(tmp_path, monkeypatch):
+    """The autouse fixture sets WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK=1, which
+    disables render verification. Verified tasks then carry no
+    render_verified / render_evidence fields — i.e. the stamp regresses
+    to the pre-Layer-2 'API write succeeded only' meaning."""
+    handle = _FakeHandle()
+
+    def responder(idx, seed, instance):
+        return handle
+
+    _patch_apply(monkeypatch, responder)
+    tasks_path = _write_tasks(tmp_path, [_task()])
+
+    report = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_gitlab_instance()],
+            concurrency=1,
+            retry_count=0,
+        )
+    )
+    feasibility = report.verified[0]["feasibility"]
+    assert feasibility["status"] == "verified"
+    assert "render_verified" not in feasibility
+    assert "render_evidence" not in feasibility
