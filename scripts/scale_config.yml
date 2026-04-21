@@ -58,5 +58,5 @@ sites:
     port_step: 10                  # 9900, 9910, ..., 9990 (10 replicas)
     mem_limit: 4g
     shm_size: 512m
-    db_port_base: 5450
+    db_port_base: 5500
     db_port_step: 1
