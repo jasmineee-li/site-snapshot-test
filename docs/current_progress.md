@@ -200,8 +200,8 @@ Infrastructure scripts:
 
 Instance files:
 
-- `instances.json`: wikipedia + map added.
-- `instances_smoke.json` + `instances_shopping_admin.json`: scoped subsets for smoke testing.
+- `instances.scale.json`: canonical scale topology (gitlab + reddit replicas on the r5).
+- `instances.smoke.json` + `instances.smoke.local.json`: single-replica smoke configs.
 
 Runtime artifact:
 

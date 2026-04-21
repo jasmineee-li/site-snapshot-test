@@ -82,7 +82,7 @@ Also inspected directly. The handoff's earlier "list of instances" framing is in
 
 - **Top-level shape:** a dict with keys `benchmark_name`, `benchmark_codebase`, `verification_proxy`, `url_placeholders`, **`instances`** (the actual list), plus optional fields. **The verifier must `json.load(f)["instances"]` to get the per-site list, not pass the top-level object straight to `acquire_tokens_for_instances`.**
 - **Per-instance auth shape:** each instance can carry up to three auth blocks — `auth` (http_headers for browsing), `api_auth` (bearer_token for editor REST), `agent_auth` (Browser Use). 2c hits `api_auth` via the editor; `acquire_tokens_for_instances` already iterates `("auth", "api_auth")` (`worldsim/auth_tokens.py:317`).
-- **Other instance files exist:** `instances.json`, `instances.scale.json`, `instances_smoke.json` (note the underscore variant — different file), `instances_shopping_admin.json`. Default the CLI flag to `instances.smoke.json` (the dot-form) and document the precedent.
+- **Other instance files exist:** `instances.scale.json`, `instances.smoke.json`, `instances.smoke.local.json`. Default the CLI flag to `instances.smoke.json` and document the precedent.
 
 ### 1.5 Where this fits in the pipeline state machine
 
