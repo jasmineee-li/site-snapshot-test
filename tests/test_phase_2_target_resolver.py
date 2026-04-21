@@ -563,7 +563,169 @@ def test_l3_non_wasp_site_short_circuits_before_classifier():
     assert called is False
 
 
-# --- live_l3 marker (real API + real instance; skipped by default) ------
+# --- L4 dynamic listing expansion ----------------------------------------
+
+from worldsim.phases.phase_2_target_resolver import resolve_l4  # noqa: E402
+
+
+def _make_listing_probe(items):
+    async def _stub(resource, task, instance):
+        return items
+
+    return _stub
+
+
+def test_l4_identity_for_non_listing_kind():
+    # gitlab_issue / gitlab_mr / reddit_submission already reference a
+    # concrete item; L4 is a no-op that returns [resource] unchanged.
+    resource = {
+        "kind": "gitlab_issue",
+        "anchors": {"project_id": "1", "issue_iid": "42"},
+        "layer": "L1",
+    }
+    result = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe([]))
+    )
+    assert result == [resource]
+
+
+def test_l4_expands_gitlab_search_to_three_issue_records():
+    resource = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "theme editor", "scope": "issues"},
+        "start_url_resolved": "https://gitlab.local",
+        "attach_surfaces": [],
+        "encounter_requirements": {"viewport_budget_chars": 600},
+        "layer": "L2",
+    }
+    items = [
+        {
+            "_item_kind": "gitlab_issue",
+            "project_id": 159,
+            "iid": 104,
+            "web_url": "https://gitlab.local/byteblaze/design/-/issues/104",
+            "title": "theme editor crash",
+        },
+        {
+            "_item_kind": "gitlab_issue",
+            "project_id": 159,
+            "iid": 72,
+            "web_url": "https://gitlab.local/byteblaze/design/-/issues/72",
+            "title": "theme editor dark mode",
+        },
+        {
+            "_item_kind": "gitlab_issue",
+            "project_id": 200,
+            "iid": 11,
+            "web_url": "https://gitlab.local/other/repo/-/issues/11",
+            "title": "unrelated",
+        },
+    ]
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=3)
+    )
+    assert len(records) == 3
+    for rec in records:
+        assert rec["kind"] == "gitlab_issue"
+        assert rec["layer"] == "L4"
+        assert rec["attach_surfaces"][0]["surface_id"] == "note_on_issue"
+        assert "project_id" in rec["anchors"]
+        assert "issue_iid" in rec["anchors"]
+    assert records[0]["l4_title"].startswith("theme editor")
+
+
+def test_l4_mr_search_projects_to_mr_records():
+    resource = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "auth", "scope": "merge_requests"},
+        "start_url_resolved": "https://gitlab.local",
+        "attach_surfaces": [],
+        "encounter_requirements": {},
+        "layer": "L2",
+    }
+    items = [
+        {
+            "_item_kind": "gitlab_mr",
+            "project_id": 5,
+            "iid": 7,
+            "web_url": "https://gitlab.local/org/repo/-/merge_requests/7",
+            "title": "auth token rotation",
+        },
+    ]
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items))
+    )
+    assert records[0]["kind"] == "gitlab_mr"
+    assert records[0]["attach_surfaces"][0]["surface_id"] == "note_on_mr"
+    assert records[0]["anchors"]["mr_iid"] == "7"
+
+
+def test_l4_reddit_forum_expands_to_submission_records():
+    resource = {
+        "kind": "reddit_forum",
+        "anchors": {"forum_name": "books"},
+        "start_url_resolved": "https://reddit.local",
+        "attach_surfaces": [],
+        "encounter_requirements": {"viewport_budget_chars": 600},
+        "layer": "L1",
+    }
+    items = [
+        {"_item_kind": "reddit_submission", "id": "59421", "title": "Top paper on lithography"},
+        {"_item_kind": "reddit_submission", "id": "59422", "title": "Another one"},
+    ]
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=5)
+    )
+    assert [r["kind"] for r in records] == ["reddit_submission", "reddit_submission"]
+    assert records[0]["anchors"]["forum_name"] == "books"
+    assert records[0]["anchors"]["submission_id"] == "59421"
+    assert records[0]["attach_surfaces"][0]["surface_id"] == "comment_body_thread"
+
+
+def test_l4_empty_probe_returns_empty_list_so_caller_excludes_task():
+    resource = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "nomatch"},
+        "layer": "L2",
+    }
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe([]))
+    )
+    assert records == []
+
+
+def test_l4_respects_top_n_override():
+    resource = {
+        "kind": "reddit_forum",
+        "anchors": {"forum_name": "books"},
+        "layer": "L1",
+    }
+    items = [
+        {"_item_kind": "reddit_submission", "id": str(i), "title": f"post {i}"} for i in range(10)
+    ]
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=2)
+    )
+    assert len(records) == 2
+
+
+def test_l4_env_top_n_override(monkeypatch):
+    monkeypatch.setenv("WORLDSIM_L4_TOP_N", "4")
+    resource = {
+        "kind": "reddit_forum",
+        "anchors": {"forum_name": "books"},
+        "layer": "L1",
+    }
+    items = [
+        {"_item_kind": "reddit_submission", "id": str(i), "title": f"post {i}"} for i in range(10)
+    ]
+    records = asyncio.run(
+        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items))
+    )
+    assert len(records) == 4
+
+
+# --- live_l3 / live_l4 markers (real API + real instance; skipped by default) ---
 
 
 @pytest.mark.live_l3

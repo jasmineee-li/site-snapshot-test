@@ -16,8 +16,9 @@ Four-layer pipeline, cheap first:
 L1 + L2 are deterministic and synchronous. L3 calls Anthropic
 Messages API on the host (auth precedence mirrors
 :mod:`worldsim.phase_4.anthropic_client`) and executes a live probe
-against the benchmark instance. L4 is wired in a follow-up commit and
-raises NotImplementedError until then.
+against the benchmark instance. L4 expands listing-kind records
+(gitlab_search_result / gitlab_dashboard_list / reddit_forum) into N
+concrete item records.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
+import os
 import re
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, Literal
@@ -939,3 +941,212 @@ async def resolve_l3(
         "l3_confidence": parsed.get("confidence"),
         "l3_probe_query": dict(probe_query),
     }
+
+
+# -----------------------------------------------------------------------
+# L4 — dynamic listing expansion
+# -----------------------------------------------------------------------
+#
+# Listing-kind records (gitlab_search_result / gitlab_dashboard_list /
+# reddit_forum) carry a query or dashboard anchor but no concrete item
+# IDs. L4 calls the listing endpoint as the benign user and emits
+# ``top_n`` concrete item records (e.g. one record per top-3 issue
+# matching the search). 2a attaches one seed per record; 2c verifies
+# any-of reachability; Phase 4 counts any-of encounter.
+#
+# top_n defaults to 3; ``WORLDSIM_L4_TOP_N`` env overrides for a given run.
+
+_LISTING_KINDS: frozenset[ResourceKind] = frozenset(
+    {"gitlab_search_result", "gitlab_dashboard_list", "reddit_forum"}
+)
+
+# Listing probe function: (resource, task, instance) -> list of items
+# where each item carries enough signal to project into anchors (issue
+# iid + project_id for gitlab, submission_id + forum_name for reddit).
+ListingProbeFn = Callable[
+    [Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]],
+    Awaitable[list[dict[str, Any]]],
+]
+
+
+def _l4_top_n_default() -> int:
+    raw = os.environ.get("WORLDSIM_L4_TOP_N", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return DEFAULT_L4_TOP_N
+
+
+async def _list_gitlab_search(
+    resource: Mapping[str, Any],
+    task: Mapping[str, Any],
+    instance: Mapping[str, Any],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    anchors = resource.get("anchors") or {}
+    query = str(anchors.get("query") or "").strip()
+    scope = str(anchors.get("scope") or "issues")
+    project_id = anchors.get("project_id")
+    endpoint = (
+        f"/api/v4/projects/{project_id}/issues"
+        if project_id and scope == "issues"
+        else (
+            f"/api/v4/projects/{project_id}/merge_requests"
+            if project_id and scope == "merge_requests"
+            else ("/api/v4/issues" if scope == "issues" else "/api/v4/merge_requests")
+        )
+    )
+    params: dict[str, Any] = {
+        "order_by": "updated_at",
+        "sort": "desc",
+        "per_page": limit,
+    }
+    if query:
+        params["search"] = query
+    data = await _probe_http_json(instance, endpoint, params=params)
+    if not isinstance(data, list):
+        return []
+    item_kind = "gitlab_mr" if scope == "merge_requests" else "gitlab_issue"
+    return [{"_item_kind": item_kind, **item} for item in data if isinstance(item, dict)]
+
+
+async def _list_gitlab_dashboard(
+    resource: Mapping[str, Any],
+    task: Mapping[str, Any],
+    instance: Mapping[str, Any],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    dashboard = str((resource.get("anchors") or {}).get("dashboard") or "")
+    username = _benign_user_handle(task) or ""
+    params: dict[str, Any] = {
+        "order_by": "updated_at",
+        "sort": "desc",
+        "per_page": limit,
+    }
+    if dashboard in ("todos", "merge_requests"):
+        if username:
+            params["author_username"] = username
+        endpoint = "/api/v4/merge_requests" if dashboard == "merge_requests" else "/api/v4/todos"
+    else:
+        endpoint = "/api/v4/issues"
+        if username:
+            params["author_username"] = username
+    data = await _probe_http_json(instance, endpoint, params=params)
+    if not isinstance(data, list):
+        return []
+    item_kind = "gitlab_mr" if dashboard == "merge_requests" else "gitlab_issue"
+    return [{"_item_kind": item_kind, **item} for item in data if isinstance(item, dict)]
+
+
+async def _list_reddit_forum(
+    resource: Mapping[str, Any],
+    task: Mapping[str, Any],
+    instance: Mapping[str, Any],
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    forum_name = str((resource.get("anchors") or {}).get("forum_name") or "")
+    if not forum_name:
+        return []
+    submissions = await _fetch_forum_submissions(instance, forum_name, limit=limit)
+    if not submissions:
+        return []
+    return [{"_item_kind": "reddit_submission", **entry} for entry in submissions]
+
+
+async def _default_listing_probe(
+    resource: Mapping[str, Any],
+    task: Mapping[str, Any],
+    instance: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    kind = resource.get("kind")
+    limit = _l4_top_n_default()
+    if kind == "gitlab_search_result":
+        return await _list_gitlab_search(resource, task, instance, limit=limit)
+    if kind == "gitlab_dashboard_list":
+        return await _list_gitlab_dashboard(resource, task, instance, limit=limit)
+    if kind == "reddit_forum":
+        return await _list_reddit_forum(resource, task, instance, limit=limit)
+    return []
+
+
+def _project_item_to_record(
+    base: Mapping[str, Any], item: Mapping[str, Any]
+) -> dict[str, Any] | None:
+    item_kind = item.get("_item_kind")
+    if item_kind not in ("gitlab_issue", "gitlab_mr", "reddit_submission"):
+        return None
+    record = dict(base)
+    record["kind"] = item_kind
+    record["layer"] = "L4"
+    record["attach_surfaces"] = _attach_surfaces_for(item_kind)
+
+    anchors: dict[str, Any] = {}
+    if item_kind in {"gitlab_issue", "gitlab_mr"}:
+        project_id = item.get("project_id")
+        if project_id is not None:
+            anchors["project_id"] = str(project_id)
+        iid = item.get("iid")
+        if iid is not None:
+            anchors["mr_iid" if item_kind == "gitlab_mr" else "issue_iid"] = str(iid)
+        web_url = str(item.get("web_url") or "")
+        match = _ISSUE_RE.search(web_url) if item_kind == "gitlab_issue" else _MR_RE.search(web_url)
+        if match:
+            anchors["project_path"] = match.group("project_path")
+        title = item.get("title")
+        if isinstance(title, str) and title.strip():
+            record["l4_title"] = title.strip()
+    else:
+        submission_id = item.get("id") or item.get("submission_id")
+        if submission_id is None:
+            return None
+        anchors["submission_id"] = str(submission_id)
+        anchors["forum_name"] = str(
+            item.get("forum_name") or (base.get("anchors") or {}).get("forum_name") or ""
+        )
+        title = item.get("title")
+        if isinstance(title, str) and title.strip():
+            record["l4_title"] = title.strip()
+
+    if not anchors:
+        return None
+    record["anchors"] = anchors
+    # encounter_requirements are recomputed for the concrete item kind.
+    record["encounter_requirements"] = _encounter_requirements(item_kind, {}, anchors)
+    # Viewport budget stays constant.
+    record["encounter_requirements"].setdefault("viewport_budget_chars", VIEWPORT_BUDGET_CHARS)
+    return record
+
+
+async def resolve_l4(
+    resource: Mapping[str, Any],
+    task: Mapping[str, Any],
+    instance: Mapping[str, Any],
+    *,
+    probe_fn: ListingProbeFn | None = None,
+    top_n: int | None = None,
+) -> list[dict[str, Any]]:
+    """Expand a listing-kind resource into N concrete item records.
+
+    For non-listing kinds returns ``[resource]`` unchanged so the caller
+    can use a single dispatcher regardless of kind. Empty probe result
+    returns ``[]`` so the caller can exclude the task (no items to
+    attack means no Option-A placement exists for this listing).
+    """
+    kind = resource.get("kind")
+    if kind not in _LISTING_KINDS:
+        return [dict(resource)]
+
+    probe_fn = probe_fn or _default_listing_probe
+    limit = top_n if top_n is not None else _l4_top_n_default()
+    items = await probe_fn(resource, task, instance)
+    if not items:
+        return []
+
+    records: list[dict[str, Any]] = []
+    for item in items[:limit]:
+        record = _project_item_to_record(resource, item)
+        if record is not None:
+            records.append(record)
+    return records
