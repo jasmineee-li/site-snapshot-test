@@ -451,6 +451,28 @@ async def _verify_one(
     return result
 
 
+def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
+    """Return the Phase-0d-bootstrapped storage_state.json path for this site.
+
+    Under Option A α identity the seed writer and the reachability
+    probe both act as the benign user, so threading those cookies into
+    Playwright lets the probe reach private projects + authed-only
+    pages. Falls back to ``None`` when no artifact is present (public
+    content still works in an anonymous context).
+    """
+    explicit = instance.get("storage_state_path")
+    if isinstance(explicit, str) and explicit.strip():
+        path = Path(explicit.strip())
+        return str(path) if path.exists() else None
+
+    state_dir_env = os.environ.get("WORLDSIM_STATE_DIR") or "logs"
+    site_name = str(instance.get("site_name") or "").strip()
+    if not site_name:
+        return None
+    candidate = Path(state_dir_env) / "phase_0d" / site_name / "storage_state.json"
+    return str(candidate) if candidate.exists() else None
+
+
 async def _run_render_check(
     *,
     browser: Any,
@@ -466,6 +488,8 @@ async def _run_render_check(
     site_url = str(instance.get("site_url", "")).rstrip("/")
     signature = render_signature(seed)
 
+    storage_state_path = _resolve_benign_storage_state_path(instance)
+
     async def _do() -> RenderOutcome:
         try:
             return await verify_seed_renders(
@@ -474,6 +498,7 @@ async def _run_render_check(
                 site_name=site_name,
                 site_url=site_url,
                 signature=signature,
+                storage_state_path=storage_state_path,
             )
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("phase 2c render check crashed")

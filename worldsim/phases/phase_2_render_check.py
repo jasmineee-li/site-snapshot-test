@@ -22,6 +22,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -215,6 +216,7 @@ async def verify_seed_renders(
     signature: str | None,
     nav_timeout_ms: int = 15000,
     selector_timeout_ms: int = 5000,
+    storage_state_path: str | None = None,
 ) -> RenderOutcome:
     """Open a fresh context, try each URL until the signature appears.
 
@@ -222,6 +224,11 @@ async def verify_seed_renders(
     function creates and tears down a single context (~200ms each, vs
     1.5-3s for a full launch). Caller is responsible for capping
     concurrent contexts at ~8 to avoid Playwright's eviction edge cases.
+
+    ``storage_state_path`` threads the benign user's Phase-0d-bootstrapped
+    cookies into Playwright so private projects / authed-only pages are
+    reachable. When None (default), opens an anonymous context — fine
+    for public content but breaks on private gitlab projects.
     """
     if not urls:
         return RenderOutcome.failed(
@@ -244,7 +251,17 @@ async def verify_seed_renders(
     needle = _normalize(signature)
     seen: list[str] = []
     errors: dict[str, str] = {}
-    context = await browser.new_context()
+    context_kwargs: dict[str, Any] = {}
+    if storage_state_path:
+        path_obj = Path(storage_state_path)
+        if path_obj.exists():
+            context_kwargs["storage_state"] = str(path_obj)
+        else:
+            logger.warning(
+                "phase 2c render check: storage_state %s not found; falling back to anonymous context",
+                storage_state_path,
+            )
+    context = await browser.new_context(**context_kwargs)
     try:
         page = await context.new_page()
         for raw_url in urls:
