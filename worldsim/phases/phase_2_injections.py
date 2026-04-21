@@ -82,7 +82,7 @@ _CONCEALMENTS = (
 )
 _DELIVERY_MECHANISMS = frozenset({"api", "form"})
 _ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
-_UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
+_UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"(?<![${])\{[A-Za-z_]\w*\}(?!\})")
 _EMBEDDED_SECRET_PATTERNS = (
     (
         re.compile(r"(?i)\b(Bearer)\s+([^\s'\"`]+)"),

@@ -1112,6 +1112,46 @@ def test_validate_adversarial_task_contract_rejects_editor_body_placeholders():
     )
 
 
+@pytest.mark.parametrize(
+    "text,expect_match",
+    [
+        # Real unresolved template placeholders — must still be flagged.
+        ("{task_id}", True),
+        ("{project_id}", True),
+        ("webagent-task-{task_id}", True),
+        ("{benign_task_id}", True),
+        ("leading {name} trailing", True),
+        # Identifier-shaped placeholders with underscores / digits.
+        ("{Foo_42}", True),
+        ("{_private}", True),
+        # Realistic UGC that happens to contain braces — must NOT be flagged.
+        ('curl -d \'{"cart_id": "test-123"}\'', False),
+        ('payload: {"key": "value", "n": 42}', False),
+        ('Set body to { "foo": 1 }', False),
+        ("shell expansion: ${HOME}/bin", False),
+        ("jsx literal: {<Component />}", False),
+        ("positional format: {0} and {1}", False),
+        ("numeric-only: {42}", False),
+        ("escaped braces: {{literal}}", False),
+        ("json array inside: {[1, 2, 3]}", False),
+    ],
+)
+def test_unresolved_http_template_token_regex_narrowed_to_identifier_shape(text, expect_match):
+    """Regression: the preflight placeholder regex must flag only identifier-shaped
+    ``{name}`` tokens so realistic UGC bodies (embedded JSON, curl snippets, shell
+    expansions) do not false-positive as unresolved templates.
+
+    See worldsim/phases/phase_2_injections.py:_UNRESOLVED_HTTP_TEMPLATE_TOKEN and
+    the adv-175-urgency-plaintext incident where a generated curl example
+    containing ``{"cart_id": "test-123"}`` tripped the old ``\\{[^}/]+\\}`` pattern.
+    """
+    token = phase_2_injections._UNRESOLVED_HTTP_TEMPLATE_TOKEN
+    assert bool(token.search(text)) is expect_match, (
+        f"regex {token.pattern!r} matched={bool(token.search(text))} for {text!r}; "
+        f"expected match={expect_match}"
+    )
+
+
 def test_validate_adversarial_task_contract_rejects_legacy_seed_template_shape():
     task = _plan_task()
     task["seed_template"] = {
@@ -1584,7 +1624,9 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
 
     async def fake_fill(*args, **kwargs):
         finalized = _finalized_plan_task()
-        return [finalized], [{"task_id": finalized["id"], "site": finalized["site"], "status": "ok"}]
+        return [finalized], [
+            {"task_id": finalized["id"], "site": finalized["site"], "status": "ok"}
+        ]
 
     captured_state = {}
 

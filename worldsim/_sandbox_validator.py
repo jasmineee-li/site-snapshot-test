@@ -30,7 +30,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 _NUMERIC_PATH_SEGMENT = re.compile(r"/\d+(?=/|$)")
 _PATH_PLACEHOLDER = re.compile(r"/\{[^}/]+\}(?=/|$)")
-_UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
+_UNRESOLVED_HTTP_TEMPLATE_TOKEN = re.compile(r"(?<![${])\{[A-Za-z_]\w*\}(?!\})")
 _ALLOWED_API_METHODS = frozenset({"GET", "POST", "PUT", "PATCH"})
 _FORM_METHODS = frozenset({"POST", "PUT", "PATCH"})
 _TARGET_DELIVERY_PATHS = {
