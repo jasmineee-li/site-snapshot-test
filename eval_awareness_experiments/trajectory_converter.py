@@ -119,17 +119,53 @@ def _parse_step_index(step_path: Path) -> int:
 
 
 def _extract_agentlab_reasoning(agent_info: Any) -> str:
-    """Prefer hidden assistant reasoning when the backend captured it."""
+    """Concatenate all the surfaces where the agent might have written reasoning:
+
+    1. OpenRouter's hidden reasoning tokens (`message.reasoning`)
+    2. AgentLab's parsed <think> tag content (`agent_info.think`)
+    3. Any <unfiltered_observations> or <scratchpad> block in the raw content
+       (scratchpad-style extra instructions tell the model to write into
+       these tags; they'd otherwise be dropped by AgentLab's <think>-only parser)
+
+    Deduplicates substring matches so content present in multiple surfaces
+    is only included once.
+    """
+    import re as _re
+
     chat_messages = _safe_get(agent_info, "chat_messages")
     messages = _safe_get(chat_messages, "messages", []) or []
 
+    parts = []
+    raw_content = ""
+
     for message in reversed(messages):
+        if (_safe_get(message, "role") or "") != "assistant":
+            continue
         reasoning = _safe_get(message, "reasoning", "")
         if isinstance(reasoning, str) and reasoning:
-            return reasoning
+            parts.append(reasoning)
+        content = _safe_get(message, "content", "")
+        if isinstance(content, str):
+            raw_content = content
+        break  # only the last assistant turn
 
     think = _safe_get(agent_info, "think", "")
-    return think if isinstance(think, str) else str(think or "")
+    if isinstance(think, str) and think:
+        already = any(think.strip() in p for p in parts)
+        if not already:
+            parts.append(think)
+
+    # Extract scratchpad-like tag content from the raw assistant content
+    for tag in ("unfiltered_observations", "scratchpad", "reflection"):
+        for m in _re.finditer(
+            rf"<{tag}>(.*?)</{tag}>", raw_content, _re.DOTALL | _re.IGNORECASE
+        ):
+            block = m.group(1).strip()
+            already = any(block in p for p in parts)
+            if block and not already:
+                parts.append(block)
+
+    return "\n\n".join(parts) if parts else ""
 
 
 def parse_agentlab_trajectory(
