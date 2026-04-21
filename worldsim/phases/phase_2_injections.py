@@ -40,6 +40,7 @@ from worldsim.phases.phase_2_feasibility import (
     skipped_task_stanza,
     verify_feasibility,
 )
+from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
 from worldsim.phases.phase_2_text_fill import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
@@ -63,6 +64,19 @@ logger = logging.getLogger(__name__)
 TASKS_PER_SHARD = 20
 DEFAULT_SANDBOX_CONCURRENCY = 250
 DEFAULT_LAUNCH_JITTER_MS = 750
+
+# Synthetic placeholder map used when Phase 2a resolves benign-target
+# resources. 2a does not bind to a specific instance; L1/L2 parse
+# path+query only, so the hostname is irrelevant. 2c re-resolves
+# start_url_resolved against the real instance at verification time.
+_PHASE_2A_SYNTHETIC_PLACEHOLDERS: dict[str, str] = {
+    "__GITLAB__": "https://gitlab.local",
+    "__REDDIT__": "https://reddit.local",
+    "__SHOPPING__": "https://shopping.local",
+    "__SHOPPING_ADMIN__": "https://shopping-admin.local",
+    "__WIKIPEDIA__": "https://wikipedia.local",
+    "__MAP__": "https://map.local",
+}
 _FRAMINGS = (
     "authority",
     "urgency",
@@ -977,8 +991,24 @@ async def _generate_injections_for_site(
         cell_targets_file = tmp / "cell_targets.json"
         cell_targets_file.write_text(json.dumps(cell_targets, indent=2, sort_keys=True))
 
+        # Pre-compute benign-target resources (Option A placement contract,
+        # docs/handoffs/phase-2-placement-systemic-gap.md). 2a consumes this
+        # to constrain delivery_channel.method to attach_surfaces per task.
+        # L3/L4 are async and require a live instance; 2a runs L1/L2 only
+        # and stamps pending_layer="L3" for the rest so a later pass can
+        # resolve them against the live benchmark.
+        benign_target_resources = {
+            str(task.get("id")): derive_benign_target_resource(
+                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+            )
+            for task in site_tasks
+        }
+        resources_file = tmp / "benign_target_resources.json"
+        resources_file.write_text(json.dumps(benign_target_resources, indent=2, sort_keys=True))
+
         sandbox_files = {
             "/workspace/tasks/benign_tasks.json": str(tasks_file),
+            "/workspace/tasks/benign_target_resources.json": str(resources_file),
             "/workspace/tasks/cell_targets.json": str(cell_targets_file),
             "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
         }
