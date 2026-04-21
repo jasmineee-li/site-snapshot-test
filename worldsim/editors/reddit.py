@@ -6,6 +6,7 @@ from typing import Any
 
 import requests
 
+from ._method_spec import FreeText, SelectorGroup, Token, editor_method
 from ._read_surface import host_and_path_forms, normalize_surface_urls
 from .base import BaseSiteEditor, EditorError
 
@@ -160,6 +161,14 @@ class RedditEditor(BaseSiteEditor):
             return ("content_policy", messages[0])
         return None
 
+    @editor_method(
+        kinds=frozenset(),  # dangling parent — never a valid Option A attach
+        http=("POST", "/create_forum"),
+        bindings={
+            "name_template": FreeText(),
+            "description_template": FreeText(required=False),
+        },
+    )
     def create_forum(
         self,
         *,
@@ -206,6 +215,19 @@ class RedditEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_constructed",
         }
 
+    @editor_method(
+        kinds=frozenset({"reddit_forum"}),
+        http=("POST", "/submit/{forum_name}"),
+        bindings={
+            "forum_name": Token("{benign_forum_name}"),
+            # LLM-facing "title" → title_template, "body" → body_template
+            # via seeding._editor_arg_name alias map.
+            "title": FreeText(),
+            "body": FreeText(required=False),
+        },
+        surface_id_per_kind={"reddit_forum": "submission_body_detail"},
+        required_editor_args=("forum_name", "title", "body"),
+    )
     def create_submission(
         self,
         *,
@@ -248,6 +270,20 @@ class RedditEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_constructed",
         }
 
+    @editor_method(
+        kinds=frozenset({"reddit_submission", "reddit_dashboard_list"}),
+        http=("POST", "/f/{forum_name}/{submission_id}/-/comment"),
+        bindings={
+            "submission_id": Token("{benign_submission_id}"),
+            "body": FreeText(),
+            "forum_name": Token("{benign_forum_name}", required=False),
+        },
+        surface_id_per_kind={
+            "reddit_submission": "comment_body_thread",
+            "reddit_dashboard_list": "comment_body_thread",
+        },
+        required_editor_args=("submission_id", "body"),
+    )
     def create_comment(
         self, *, submission_id: Any, body: str, forum_name: str | None = None
     ) -> dict[str, Any]:
@@ -291,6 +327,14 @@ class RedditEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_constructed",
         }
 
+    @editor_method(
+        kinds=frozenset(),  # acts on current user — not an Option A attach
+        http=("POST", "/user/{username}/edit_biography"),
+        bindings={
+            # LLM-facing "bio" → bio_text via seeding._editor_arg_name.
+            "bio": FreeText(),
+        },
+    )
     def update_user_bio(self, *, bio_text: str) -> dict[str, Any]:
         username = self._resolve_current_username(self.instance)
         edit_path = f"/user/{self._quote(username)}/edit_biography"

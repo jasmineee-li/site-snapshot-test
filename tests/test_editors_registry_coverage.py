@@ -1,0 +1,182 @@
+"""Coverage parity tests for the populated editor registry.
+
+Commit 2 (R2) — asserts that:
+
+* Every method in every registered editor's ``supported_methods`` frozenset
+  has an ``@editor_method`` decorator (enforced by ``register_editor`` at
+  import time, reasserted here for defensive coverage).
+* Every binding arg name maps to a real Python parameter of the method,
+  either directly or through the seeding alias map
+  (``worldsim.seeding._editor_arg_name``) that translates LLM-facing names
+  like ``"body"`` into Python-facing names like ``"note_body"``.
+* :func:`attach_surfaces_for_kind` output matches the legacy
+  ``worldsim.phases.phase_2_target_resolver._ATTACH_SURFACES`` data
+  byte-for-byte, so commit 3 can swap the resolver over without behavior
+  change.
+* No resource kind is addressed by two different sites.
+"""
+
+from __future__ import annotations
+
+import inspect
+
+import pytest
+
+from worldsim.editors import EDITOR_REGISTRY
+from worldsim.editors._registry import (
+    _REGISTRY,
+    attach_surfaces_for_kind,
+    iter_specs,
+)
+from worldsim.phases.phase_2_target_resolver import _ATTACH_SURFACES
+
+# Map (site, method, llm_arg) -> python_param for LLM-facing args that
+# don't match the Python signature directly. Mirrors
+# ``worldsim.seeding._editor_arg_name``'s alias table — if those aliases
+# change, this map must change in lockstep.
+LLM_TO_PYTHON_ARG_ALIASES: dict[tuple[str, str, str], str] = {
+    ("gitlab", "create_issue_note", "body"): "note_body",
+    ("gitlab", "create_mr_note", "body"): "note_body",
+    ("reddit", "create_submission", "title"): "title_template",
+    ("reddit", "create_submission", "body"): "body_template",
+    ("reddit", "update_user_bio", "bio"): "bio_text",
+}
+
+
+def _editor_class(site: str) -> type:
+    for (_, registered_site), cls in EDITOR_REGISTRY.items():
+        if registered_site == site:
+            return cls
+    raise KeyError(site)
+
+
+class TestRegistryCoverage:
+    def test_expected_method_count(self) -> None:
+        """9 gitlab + 4 reddit = 13 registered methods."""
+        assert len(_REGISTRY) == 13
+
+    def test_all_supported_methods_registered(self) -> None:
+        for (_, site), cls in EDITOR_REGISTRY.items():
+            for method_name in cls.supported_methods:
+                assert (site, method_name) in _REGISTRY, (
+                    f"{site}.{method_name} not in _REGISTRY — missing @editor_method decoration"
+                )
+
+    def test_registered_methods_match_supported(self) -> None:
+        """_REGISTRY cannot contain a method not in supported_methods."""
+        for site, method_name in _REGISTRY:
+            cls = _editor_class(site)
+            assert method_name in cls.supported_methods, (
+                f"{site}.{method_name} is registered but not in {cls.__name__}.supported_methods"
+            )
+
+
+class TestBindingArgCoverage:
+    @pytest.mark.parametrize(
+        "site,method",
+        sorted(_REGISTRY.keys()),
+    )
+    def test_binding_args_map_to_python_params(self, site: str, method: str) -> None:
+        spec = _REGISTRY[(site, method)]
+        cls = _editor_class(site)
+        fn = getattr(cls, method)
+        python_params = set(inspect.signature(fn).parameters.keys()) - {"self"}
+
+        for binding_arg in spec.bindings.keys():
+            if binding_arg in python_params:
+                continue
+            aliased = LLM_TO_PYTHON_ARG_ALIASES.get((site, method, binding_arg))
+            assert aliased is not None, (
+                f"{site}.{method} binding {binding_arg!r} is neither a "
+                f"Python param {python_params} nor in the LLM-alias map"
+            )
+            assert aliased in python_params, (
+                f"{site}.{method} binding {binding_arg!r} aliases to "
+                f"{aliased!r} which isn't a Python param of the method"
+            )
+
+
+class TestAttachSurfacesParity:
+    """attach_surfaces_for_kind must match legacy _ATTACH_SURFACES byte-for-byte.
+
+    Commit 3 swaps the resolver over to read from the registry. This test
+    guarantees that swap is a pure refactor — no downstream consumer sees
+    different data.
+    """
+
+    @pytest.mark.parametrize("kind", sorted(_ATTACH_SURFACES.keys()))
+    def test_kind_attach_surfaces_match(self, kind: str) -> None:
+        legacy = _ATTACH_SURFACES[kind]
+        registry = attach_surfaces_for_kind(kind)
+
+        # Normalize both to sorted-by-attach_method for order-insensitive
+        # comparison. Legacy is a list of dicts; registry is a tuple of
+        # dicts. We compare the content.
+        def _canon(entries):
+            return sorted(
+                [
+                    {
+                        "surface_id": e["surface_id"],
+                        "attach_method": e["attach_method"],
+                        "required_editor_args": list(e["required_editor_args"]),
+                    }
+                    for e in entries
+                ],
+                key=lambda e: (e["attach_method"], e["surface_id"]),
+            )
+
+        assert _canon(registry) == _canon(legacy), (
+            f"kind={kind}: registry output diverges from legacy _ATTACH_SURFACES.\n"
+            f"registry: {list(registry)}\n"
+            f"legacy:   {legacy}"
+        )
+
+    def test_every_legacy_kind_has_registry_coverage(self) -> None:
+        for kind, legacy_entries in _ATTACH_SURFACES.items():
+            registry_entries = attach_surfaces_for_kind(kind)
+            assert len(registry_entries) == len(legacy_entries), (
+                f"kind={kind}: {len(registry_entries)} registry entries "
+                f"vs {len(legacy_entries)} legacy entries"
+            )
+
+
+class TestCrossSiteNamespacing:
+    def test_no_kind_crosses_sites(self) -> None:
+        """gitlab_* kinds only ever appear on gitlab specs; reddit_* only on reddit."""
+        for spec in iter_specs():
+            for kind in spec.kinds:
+                if kind.startswith("gitlab_"):
+                    assert spec.site == "gitlab", (
+                        f"{spec.site}.{spec.method} declares kind {kind!r} but site is not gitlab"
+                    )
+                elif kind.startswith("reddit_"):
+                    assert spec.site == "reddit", (
+                        f"{spec.site}.{spec.method} declares kind {kind!r} but site is not reddit"
+                    )
+                else:
+                    pytest.fail(
+                        f"{spec.site}.{spec.method} declares kind {kind!r} "
+                        f"without a known site prefix (gitlab_* or reddit_*)"
+                    )
+
+
+class TestSurfaceIdConsistency:
+    def test_every_addressed_kind_has_surface_id(self) -> None:
+        """If a method declares it addresses kind K, it must have a
+        surface_id_per_kind entry for K."""
+        for spec in iter_specs():
+            for kind in spec.kinds:
+                assert kind in spec.surface_id_per_kind, (
+                    f"{spec.site}.{spec.method} addresses kind {kind!r} "
+                    f"but surface_id_per_kind is missing it"
+                )
+
+
+class TestSerializeRegistrySanity:
+    def test_serialize_registry_covers_all_13(self) -> None:
+        from worldsim.editors._registry import serialize_registry
+
+        serialized = serialize_registry()
+        assert len(serialized["specs"]) == 13
+        sites = {(s["site"], s["method"]) for s in serialized["specs"]}
+        assert sites == set(_REGISTRY.keys())

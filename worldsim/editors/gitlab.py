@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from ._method_spec import FreeText, SelectorGroup, Token, editor_method
 from ._read_surface import collect_platform_urls, host_and_path_forms, normalize_surface_urls
 from .base import BaseSiteEditor, EditorError
 
@@ -220,6 +221,15 @@ class GitlabEditor(BaseSiteEditor):
             )
         return {}
 
+    @editor_method(
+        kinds=frozenset(),  # dangling parent — never a valid Option A attach
+        http=("POST", "/api/v4/projects"),
+        bindings={
+            "name_template": FreeText(),
+            "description_template": FreeText(required=False),
+            "path_template": FreeText(required=False),
+        },
+    )
     def create_project(
         self,
         *,
@@ -319,6 +329,15 @@ class GitlabEditor(BaseSiteEditor):
         self._push_cleanup(lambda project_id=project_id: self.delete_project(project_id))
         return result
 
+    @editor_method(
+        kinds=frozenset(),  # dangling parent — never a valid Option A attach
+        http=("POST", "/api/v4/groups"),
+        bindings={
+            "name_template": FreeText(),
+            "description_template": FreeText(required=False),
+            "path_template": FreeText(required=False),
+        },
+    )
     def create_group(
         self,
         *,
@@ -367,6 +386,20 @@ class GitlabEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_api_response",
         }
 
+    @editor_method(
+        kinds=frozenset(),  # creates a new issue — not in resolver _ATTACH_SURFACES
+        http=("POST", "/api/v4/projects/{project_id}/issues"),
+        bindings={
+            "title_template": FreeText(),
+            "body_template": FreeText(required=False),
+            "project_id": SelectorGroup("project", "{benign_project_id}"),
+            "project_path_template": SelectorGroup(
+                "project", "{benign_project_path}", required=False
+            ),
+            "project_name_template": SelectorGroup("project", required=False),
+            "project_description_template": FreeText(required=False),
+        },
+    )
     def create_issue(
         self,
         *,
@@ -410,6 +443,29 @@ class GitlabEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_api_response",
         }
 
+    @editor_method(
+        kinds=frozenset({"gitlab_issue", "gitlab_search_result", "gitlab_dashboard_list"}),
+        http=("POST", "/api/v4/projects/{project_id}/issues/{issue_iid}/notes"),
+        bindings={
+            # LLM-facing "body" maps to note_body via seeding._editor_arg_name.
+            "body": FreeText(),
+            "project_id": SelectorGroup("project", "{benign_project_id}"),
+            "project_path_template": SelectorGroup(
+                "project", "{benign_project_path}", required=False
+            ),
+            "project_name_template": SelectorGroup("project", required=False),
+            "project_description_template": FreeText(required=False),
+            "issue_iid": Token("{benign_issue_iid}"),
+            "issue_title_template": FreeText(required=False),
+            "issue_body_template": FreeText(required=False),
+        },
+        surface_id_per_kind={
+            "gitlab_issue": "note_on_issue",
+            "gitlab_search_result": "note_on_issue",
+            "gitlab_dashboard_list": "note_on_issue",
+        },
+        required_editor_args=("project_id", "issue_iid", "body"),
+    )
     def create_issue_note(
         self,
         *,
@@ -459,6 +515,22 @@ class GitlabEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_api_response",
         }
 
+    @editor_method(
+        kinds=frozenset(),  # creates a new MR — not in resolver _ATTACH_SURFACES
+        http=("POST", "/api/v4/projects/{project_id}/merge_requests"),
+        bindings={
+            "title_template": FreeText(),
+            "source_branch": FreeText(),
+            "body_template": FreeText(required=False),
+            "target_branch": FreeText(required=False),
+            "project_id": SelectorGroup("project", "{benign_project_id}"),
+            "project_path_template": SelectorGroup(
+                "project", "{benign_project_path}", required=False
+            ),
+            "project_name_template": SelectorGroup("project", required=False),
+            "project_description_template": FreeText(required=False),
+        },
+    )
     def create_mr(
         self,
         *,
@@ -513,6 +585,31 @@ class GitlabEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_api_response",
         }
 
+    @editor_method(
+        kinds=frozenset({"gitlab_mr", "gitlab_search_result", "gitlab_dashboard_list"}),
+        http=("POST", "/api/v4/projects/{project_id}/merge_requests/{mr_iid}/notes"),
+        bindings={
+            # LLM-facing "body" maps to note_body via seeding._editor_arg_name.
+            "body": FreeText(),
+            "project_id": SelectorGroup("project", "{benign_project_id}"),
+            "project_path_template": SelectorGroup(
+                "project", "{benign_project_path}", required=False
+            ),
+            "project_name_template": SelectorGroup("project", required=False),
+            "project_description_template": FreeText(required=False),
+            "mr_iid": Token("{benign_mr_iid}"),
+            "mr_title_template": FreeText(required=False),
+            "mr_body_template": FreeText(required=False),
+            "source_branch": FreeText(required=False),
+            "target_branch": FreeText(required=False),
+        },
+        surface_id_per_kind={
+            "gitlab_mr": "note_on_mr",
+            "gitlab_search_result": "note_on_mr",
+            "gitlab_dashboard_list": "note_on_mr",
+        },
+        required_editor_args=("project_id", "mr_iid", "body"),
+    )
     def create_mr_note(
         self,
         *,
@@ -566,6 +663,22 @@ class GitlabEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_api_response",
         }
 
+    @editor_method(
+        kinds=frozenset(),  # creates repo file — not in resolver _ATTACH_SURFACES
+        http=("POST", "/api/v4/projects/{project_id}/repository/commits"),
+        bindings={
+            "branch": FreeText(),
+            "path": FreeText(),
+            "content": FreeText(),
+            "commit_message": FreeText(required=False),
+            "project_id": SelectorGroup("project", "{benign_project_id}"),
+            "project_path_template": SelectorGroup(
+                "project", "{benign_project_path}", required=False
+            ),
+            "project_name_template": SelectorGroup("project", required=False),
+            "project_description_template": FreeText(required=False),
+        },
+    )
     def create_repo_file(
         self,
         *,
@@ -631,6 +744,14 @@ class GitlabEditor(BaseSiteEditor):
             "read_surface_provenance_source": "editor_constructed",
         }
 
+    @editor_method(
+        kinds=frozenset(),  # acts on current user — not an Option A attach
+        http=("PUT", "/api/v4/user/status"),
+        bindings={
+            "message": FreeText(),
+            "emoji": FreeText(required=False),
+        },
+    )
     def update_user_status(self, *, message: str, emoji: str | None = None) -> dict[str, Any]:
         self._gitlab_request_json(
             "PUT",
@@ -645,6 +766,14 @@ class GitlabEditor(BaseSiteEditor):
             }
         return {}
 
+    @editor_method(
+        kinds=frozenset(),  # acts on current user — not an Option A attach
+        http=("PUT", "/api/v4/user"),
+        bindings={
+            "bio": FreeText(required=False),
+            "name": FreeText(required=False),
+        },
+    )
     def update_user_profile(
         self, *, bio: str | None = None, name: str | None = None
     ) -> dict[str, Any]:
@@ -759,7 +888,9 @@ class GitlabEditor(BaseSiteEditor):
                 f"gitlab editor form POST /users/sign_in returned HTTP {response.status_code}",
             )
         if 300 <= response.status_code < 400:
-            redirect_path = (urlparse(str(response.headers.get("Location") or "")).path or "").lower()
+            redirect_path = (
+                urlparse(str(response.headers.get("Location") or "")).path or ""
+            ).lower()
             if "/users/sign_in" in redirect_path:
                 raise EditorError(
                     "auth_missing", "gitlab profile form login did not establish a session"
