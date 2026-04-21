@@ -264,13 +264,13 @@ def test_build_parser_accepts_phase_2_text_fill_flags():
             "--phase-2-text-fill-concurrency",
             "7",
             "--phase-2-text-model",
-            "anthropic/claude-sonnet-4.5",
+            "anthropic/claude-sonnet-4-6",
         ]
     )
 
     assert args.phase_2b_texts_per_plan == 3
     assert args.phase_2_text_fill_concurrency == 7
-    assert args.phase_2_text_model == "anthropic/claude-sonnet-4.5"
+    assert args.phase_2_text_model == "anthropic/claude-sonnet-4-6"
 
 
 def test_phase_2_help_mentions_sequential_2a_2b_stages():
@@ -460,9 +460,7 @@ def test_load_cached_novel_tasks_rejects_missing_embedded_agent_context(tmp_path
         manifest=_manifest(benchmark_root),
         site=site,
     )
-    (output_dir / "novel_tasks_shopping.json.metadata.json").write_text(
-        json.dumps(metadata)
-    )
+    (output_dir / "novel_tasks_shopping.json.metadata.json").write_text(json.dumps(metadata))
 
     cached = phase_1_mode_b.load_cached_novel_tasks(
         intermediate_path=intermediate_path,
@@ -976,13 +974,17 @@ def test_compute_site_cache_fingerprint_changes_when_agent_context_changes(tmp_p
         manifest=manifest,
     )
     agent_context_path = profile_path.parent / "AGENT_CONTEXT_shopping.json"
-    agent_context_path.write_text(json.dumps({"response_format": {"requires_structured_output": False}}))
+    agent_context_path.write_text(
+        json.dumps({"response_format": {"requires_structured_output": False}})
+    )
     first = phase_1_mode_b.compute_site_cache_fingerprint(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         site=site,
     )
 
-    agent_context_path.write_text(json.dumps({"response_format": {"requires_structured_output": True}}))
+    agent_context_path.write_text(
+        json.dumps({"response_format": {"requires_structured_output": True}})
+    )
     second = phase_1_mode_b.compute_site_cache_fingerprint(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         site=site,

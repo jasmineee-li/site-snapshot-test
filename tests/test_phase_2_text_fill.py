@@ -170,7 +170,7 @@ async def test_generate_single_payload_falls_back_after_openrouter_refusal(monke
     parsed, diag = await phase_2_text_fill._generate_single_payload(
         task,
         registry=phase_2_text_fill.load_voice_registry(),
-        model="anthropic/claude-sonnet-4.5",
+        model="anthropic/claude-sonnet-4-6",
         ordinal=0,
     )
 
@@ -210,7 +210,7 @@ async def test_generate_single_payload_tries_all_variants_in_order_on_fallback_p
     parsed, diag = await phase_2_text_fill._generate_single_payload(
         task,
         registry=phase_2_text_fill.load_voice_registry(),
-        model="anthropic/claude-sonnet-4.5",
+        model="anthropic/claude-sonnet-4-6",
         ordinal=0,
     )
 
@@ -269,7 +269,7 @@ async def test_generate_single_payload_testing_compliance_success_prevents_fallb
     parsed, diag = await phase_2_text_fill._generate_single_payload(
         task,
         registry=phase_2_text_fill.load_voice_registry(),
-        model="anthropic/claude-sonnet-4.5",
+        model="anthropic/claude-sonnet-4-6",
         ordinal=0,
     )
 
@@ -317,7 +317,7 @@ async def test_generate_single_payload_exhausts_primary_variants_before_fallback
     parsed, diag = await phase_2_text_fill._generate_single_payload(
         task,
         registry=phase_2_text_fill.load_voice_registry(),
-        model="anthropic/claude-sonnet-4.5",
+        model="anthropic/claude-sonnet-4-6",
         ordinal=0,
     )
 
@@ -372,7 +372,7 @@ async def test_fill_one_task_regenerates_when_cached_payload_is_invalid(monkeypa
         task,
         registry=phase_2_text_fill.load_voice_registry(),
         texts_per_plan=1,
-        model="anthropic/claude-sonnet-4.5",
+        model="anthropic/claude-sonnet-4-6",
     )
 
     assert finalized is not None

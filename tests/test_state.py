@@ -206,7 +206,9 @@ def test_load_state_uses_pointer_snapshot_when_custom_state_file_missing(monkeyp
     assert state["logs_dir"] == str(custom_logs)
 
 
-def test_load_state_ignores_pointer_snapshot_when_referenced_logs_dir_missing(monkeypatch, tmp_path):
+def test_load_state_ignores_pointer_snapshot_when_referenced_logs_dir_missing(
+    monkeypatch, tmp_path
+):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "deleted-logs"
     mirrored = tmp_path / "logs" / "last_run_state.json"
@@ -731,7 +733,7 @@ def test_dispatch_resume_restores_saved_phase_2_text_fill_flags(monkeypatch, tmp
         sandbox_model="claude-sonnet-4-6",
         phase_2b_texts_per_plan=3,
         phase_2_text_fill_concurrency=9,
-        phase_2_text_model="anthropic/claude-sonnet-4.5",
+        phase_2_text_model="anthropic/claude-sonnet-4-6",
     )
     monkeypatch.delenv("WORLDSIM_STATE_DIR")
 
@@ -752,7 +754,7 @@ def test_dispatch_resume_restores_saved_phase_2_text_fill_flags(monkeypatch, tmp
     assert captured["phase"] == "2"
     assert captured["phase_2b_texts_per_plan"] == 3
     assert captured["phase_2_text_fill_concurrency"] == 9
-    assert captured["phase_2_text_model"] == "anthropic/claude-sonnet-4.5"
+    assert captured["phase_2_text_model"] == "anthropic/claude-sonnet-4-6"
 
 
 def test_dispatch_resume_restores_saved_generate_novel_for_phase_1(monkeypatch, tmp_path):
@@ -978,7 +980,9 @@ def test_load_completed_results_round_trips_phase4_final_status_and_metrics(tmp_
     assert "transcript_purpose_classification" in completed["task-encounter"]
 
 
-def test_load_completed_results_skips_reprocessable_phase4_result_missing_required_sidecars(tmp_path):
+def test_load_completed_results_skips_reprocessable_phase4_result_missing_required_sidecars(
+    tmp_path,
+):
     task_dir = tmp_path / "task-missing-sidecars"
     task_dir.mkdir()
     (task_dir / "result.json").write_text(

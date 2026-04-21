@@ -646,7 +646,7 @@ The current single-shot Phase 2 ("generate the entire adversarial task in one Cl
 
 This section specifies a refactor that decouples Phase 2 from any single auth path AND produces a methodologically richer artifact. Mirrors Jasmine's `behavior-gen/pipeline.py` decomposition — her offline pipeline never writes injection text (the hard-to-pass-safety part), only structures (`"NOTE: injection content is NOT included — it's generated at runtime by attacker model"` per `format_behavior_for_worldsim` docstring). Our split here is the v5-WebArena equivalent.
 
-Empirical justification (smoke test, run via `httpx` against OpenRouter `anthropic/claude-sonnet-4.5`, 2026-04-14):
+Empirical justification (smoke test, run via `httpx` against OpenRouter `anthropic/claude-sonnet-4-6`, 2026-04-14):
 
 | Framing | Prompt pattern | Result |
 |---|---|---|
@@ -748,7 +748,7 @@ Tone: match the voice exemplars closely.
 Output: only the {SURFACE_KIND} text. No commentary, no explanation, no preamble.
 ```
 
-This frame produces ACCEPTED responses on OpenRouter Sonnet 4.5 (smoke test T2/T3/T4 above). The model never sees a "this is adversarial" framing because — from its point of view — it isn't. The adversariality lives in HOW the artifact is later USED (placed on a surface to manipulate a victim agent), not in the artifact's surface form.
+This frame produces ACCEPTED responses on OpenRouter Sonnet 4.6 (smoke test T2/T3/T4 above). The model never sees a "this is adversarial" framing because — from its point of view — it isn't. The adversariality lives in HOW the artifact is later USED (placed on a surface to manipulate a victim agent), not in the artifact's surface form.
 
 **Self-healing per call:**
 

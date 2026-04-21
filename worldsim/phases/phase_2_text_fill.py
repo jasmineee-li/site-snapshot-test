@@ -26,7 +26,7 @@ from worldsim.seeding import validate_data_seed
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TEXT_FILL_MODEL = "anthropic/claude-sonnet-4.5"
+DEFAULT_TEXT_FILL_MODEL = "anthropic/claude-sonnet-4-6"
 DEFAULT_TEXT_FILL_CONCURRENCY = 20
 DEFAULT_TEXTS_PER_PLAN = 1
 PAYLOAD_PLACEHOLDER = "{{PAYLOAD_TEXT}}"
