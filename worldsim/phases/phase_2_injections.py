@@ -1156,6 +1156,15 @@ def _merge_immutable_fields(adv_tasks: list[dict], benign_tasks: list[dict]) -> 
                     value = _sanitize_agent_context_for_output(value)
                 adv_task[field] = value
 
+        # Inject benign_target_resource (Option A placement contract). The
+        # LLM receives this in /workspace/tasks/benign_target_resources.json
+        # but doesn't reliably echo it into each plan; merging it here makes
+        # the Option A validator's input deterministic regardless of what
+        # the planner emits.
+        adv_task["benign_target_resource"] = derive_benign_target_resource(
+            benign_task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+        )
+
         # Handle reward_function construction.
         # Minimal schema: adversarial_reward is a top-level field, no reward_function.
         # Full schema: reward_function already has benign_reward + adversarial_reward.
