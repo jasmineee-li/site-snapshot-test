@@ -725,11 +725,5 @@ def test_l4_env_top_n_override(monkeypatch):
     assert len(records) == 4
 
 
-# --- live_l3 / live_l4 markers (real API + real instance; skipped by default) ---
-
-
-@pytest.mark.live_l3
-def test_live_l3_placeholder_exists_for_ci_skip():
-    # live_l3 marker is wired in X1e; this placeholder lets
-    # `pytest --co -m live_l3` discover the marker immediately.
-    pytest.skip("live_l3 placeholder; X1e fills this out")
+# Real live tests live in tests/integration/test_phase_2_target_resolver_live.py
+# behind pytest.mark.live_l3 (skipped by default; run with -m live_l3).
