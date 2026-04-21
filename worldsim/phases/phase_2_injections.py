@@ -1813,8 +1813,16 @@ def _validate_adversarial_task_contract(
 ) -> str | None:
     """Return a violation string when an adversarial task drifts from its benign parent."""
     immutable_fields = ("site", "sites", "instruction", "start_urls", "data_seed", "agent_context")
+    # agent_context and data_seed pass through the output sanitizer in
+    # _merge_immutable_fields (credentials redacted); compare benign with
+    # the same sanitizer applied so the contract doesn't false-reject on
+    # redaction. Other fields compare raw.
     for field in immutable_fields:
-        if adversarial_task.get(field) != benign_task.get(field):
+        adv_value = adversarial_task.get(field)
+        benign_value = benign_task.get(field)
+        if field in {"agent_context", "data_seed"} and benign_value is not None:
+            benign_value = _sanitize_agent_context_for_output(json.loads(json.dumps(benign_value)))
+        if adv_value != benign_value:
             return f"{field} changed from benign task"
 
     reward = adversarial_task.get("reward_function", {})
