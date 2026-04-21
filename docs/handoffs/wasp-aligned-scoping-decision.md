@@ -1,6 +1,6 @@
 # WASP-Aligned Scoping Decision — Drop Magento, Restrict to Content-Heavy Environments
 
-**Status:** ADOPTED 2026-04-21. Three-commit cutover on `feat/worldsim-v5`.
+**Status:** ADOPTED 2026-04-21. Four-commit cutover on `feat/worldsim-v5` (Commit 4 added when the user surfaced WASP's explicit Wikipedia/kiwix33 exclusion from their Docker README).
 **Supersedes:** `docs/handoffs/codex-handoff-snapshot-architecture-cutover.md` (snapshot architecture cutover) — not pursued.
 **Origin:** Discovery via WASP paper (Evtimov et al., NeurIPS 2025) that Magento was deliberately excluded from the canonical IPI benchmark for **methodological** reasons, not engineering ones. After three rounds of subagent investigation revealed the snapshot cutover was both technically broken (Magento driver Step 5 calls a non-existent indexer) and unnecessary (its showstoppers were based on false premises about Phase 3 + reset_endpoint), the right answer crystalized: drop Magento.
 
@@ -44,18 +44,31 @@ The architectural journey:
 
 ### Dataset
 
-`logs/phase_2/adversarial_tasks.json`: filter `delivery_channel.delivery_site != "shopping"`. Drops 87 tasks. **Remaining: 87 tasks (81 GitLab + 6 Reddit).**
+Two filter passes:
 
-Verified breakdown via `python3 -c "import json; tasks = json.load(open('logs/phase_2/adversarial_tasks.json')); ..."`:
-- shopping: 87 (DROPPED)
-- gitlab: 81 (KEPT)
+**Pass 1 (Commit 2):** `delivery_channel.delivery_site != "shopping"`. Drops 87 Magento tasks.
+
+**Pass 2 (Commit 4):** any task with `wikipedia` in `sites` list or `__WIKIPEDIA__` in `start_urls`. Drops 3 GitLab tasks (AT-003, AT-005, AT-008) that used Wikipedia as a knowledge-base lookup for the underlying benign portion. Per WASP's `environment_docker/README.md`: "Other environments (we DON'T use them in WASP!): shopping, kiwix33 [Wikipedia], classifieds, shopping_admin, openstreetmap." Strict WASP alignment requires dropping kiwix33/Wikipedia.
+
+**Final: 84 tasks (78 GitLab + 6 Reddit).**
+
+Verified breakdown:
+- shopping: 87 (DROPPED Pass 1)
+- gitlab w/ wikipedia: 3 (DROPPED Pass 2: AT-003, AT-005, AT-008)
+- gitlab pure: 78 (KEPT)
 - reddit: 6 (KEPT)
 
-The dataset still meets the WASP precedent: GitLab + Reddit, content-heavy environments with natural untrusted-user injection surfaces. We have 87 tasks; WASP shipped to NeurIPS with similar order-of-magnitude task count.
+The dataset matches WASP's exact threat-model scope: trusted domains (GitLab, Postmill) where adversarial users post natural content surfaces (issues, notes, posts, comments).
 
 ### Instance configs
 
-`instances.smoke.json`, `instances.scale.json`, `instances.json`: drop `shopping` and `shopping_admin` instance entries. Keep `gitlab`, `reddit`, and any navigation-only sites (`wikipedia`, `map` if present).
+Two passes mirroring the dataset:
+
+**Pass 1:** drop `shopping`, `shopping_admin`, `map` (no tasks reference these).
+
+**Pass 2:** drop `wikipedia` (the 3 tasks that used it were dropped in dataset Pass 2).
+
+`instances.smoke.json`, `instances.scale.json`, `instances.json`, `instances.smoke.local.json`: keep only `gitlab` and `reddit` instance entries. instances.scale.json: 8 replicas (4 gitlab + 4 reddit) at scale.
 
 ### Code deletions
 

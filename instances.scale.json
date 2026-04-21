@@ -336,132 +336,6 @@
           }
         }
       }
-    },
-    {
-      "site_name": "wikipedia",
-      "site_url": "http://3.12.221.9:8888",
-      "replica_index": 0,
-      "replica_name": "wikipedia_0",
-      "db_connection": null,
-      "reset_endpoint": "http://3.12.221.9:8889/init",
-      "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
-        "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
-      },
-      "auth": null,
-      "api_auth": null,
-      "agent_auth": {
-        "type": "none"
-      }
-    },
-    {
-      "site_name": "wikipedia",
-      "site_url": "http://3.12.221.9:8898",
-      "replica_index": 1,
-      "replica_name": "wikipedia_1",
-      "db_connection": null,
-      "reset_endpoint": "http://3.12.221.9:8899/init",
-      "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
-        "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
-      },
-      "auth": null,
-      "api_auth": null,
-      "agent_auth": {
-        "type": "none"
-      }
-    },
-    {
-      "site_name": "wikipedia",
-      "site_url": "http://3.12.221.9:8908",
-      "replica_index": 2,
-      "replica_name": "wikipedia_2",
-      "db_connection": null,
-      "reset_endpoint": "http://3.12.221.9:8909/init",
-      "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
-        "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
-      },
-      "auth": null,
-      "api_auth": null,
-      "agent_auth": {
-        "type": "none"
-      }
-    },
-    {
-      "site_name": "wikipedia",
-      "site_url": "http://3.12.221.9:8918",
-      "replica_index": 3,
-      "replica_name": "wikipedia_3",
-      "db_connection": null,
-      "reset_endpoint": "http://3.12.221.9:8919/init",
-      "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
-        "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
-      },
-      "auth": null,
-      "api_auth": null,
-      "agent_auth": {
-        "type": "none"
-      }
-    },
-    {
-      "site_name": "wikipedia",
-      "site_url": "http://3.12.221.9:8928",
-      "replica_index": 4,
-      "replica_name": "wikipedia_4",
-      "db_connection": null,
-      "reset_endpoint": "http://3.12.221.9:8929/init",
-      "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
-        "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
-      },
-      "auth": null,
-      "api_auth": null,
-      "agent_auth": {
-        "type": "none"
-      }
-    },
-    {
-      "site_name": "wikipedia",
-      "site_url": "http://3.12.221.9:8938",
-      "replica_index": 5,
-      "replica_name": "wikipedia_5",
-      "db_connection": null,
-      "reset_endpoint": "http://3.12.221.9:8939/init",
-      "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
-        "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
-      },
-      "auth": null,
-      "api_auth": null,
-      "agent_auth": {
-        "type": "none"
-      }
     }
   ],
   "verification_proxy": {
@@ -471,8 +345,7 @@
   },
   "url_placeholders": {
     "__GITLAB__": "http://3.12.221.9:8023",
-    "__REDDIT__": "http://3.12.221.9:9900",
-    "__WIKIPEDIA__": "http://3.12.221.9:8888"
+    "__REDDIT__": "http://3.12.221.9:9900"
   },
   "benchmark_codebase": "vendors/webarena-verified"
 }

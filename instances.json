@@ -7,8 +7,7 @@
   },
   "url_placeholders": {
     "__GITLAB__": "http://18.117.99.179:8023",
-    "__REDDIT__": "http://18.117.99.179:9999",
-    "__WIKIPEDIA__": "http://18.117.99.179:8888"
+    "__REDDIT__": "http://18.117.99.179:9999"
   },
   "instances": [
     {
@@ -71,14 +70,6 @@
             "password": "test1234"
           }
         }
-      }
-    },
-    {
-      "site_name": "wikipedia",
-      "site_url": "http://18.117.99.179:8888",
-      "reset_endpoint": "http://18.117.99.179:8889/init",
-      "agent_auth": {
-        "type": "none"
       }
     }
   ]
