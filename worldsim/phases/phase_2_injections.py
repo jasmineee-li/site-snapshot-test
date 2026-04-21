@@ -21,16 +21,23 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import re
 import tempfile
 import urllib.parse
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.editors._method_spec import BindingSpec
+from worldsim.editors._registry import (
+    available_tokens_for_kind,
+    kind_contract,
+    method_spec,
+)
 from worldsim.modal_sandbox import preflight_sandbox_environment, run_claude_in_sandbox
 from worldsim.phases.phase_2_feasibility import (
     FAILPOINT_DATASET,
@@ -40,6 +47,7 @@ from worldsim.phases.phase_2_feasibility import (
     skipped_task_stanza,
     verify_feasibility,
 )
+from worldsim.phases.phase_2_injections_api import generate_phase_2a_plans_api
 from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
 from worldsim.phases.phase_2_text_fill import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
@@ -64,6 +72,18 @@ logger = logging.getLogger(__name__)
 TASKS_PER_SHARD = 20
 DEFAULT_SANDBOX_CONCURRENCY = 250
 DEFAULT_LAUNCH_JITTER_MS = 750
+
+
+def _phase_2a_api_enabled() -> bool:
+    """Return True iff WORLDSIM_PHASE_2A_API is set to a truthy value.
+
+    When true, ``_generate_injections_for_site`` skips the Modal sandbox
+    and calls ``generate_phase_2a_plans_api`` (Shape C: single-turn forced
+    tool-use). Default false; the sandbox path stays the production path
+    until the smoke diff in step 4 of the migration plan justifies a flip.
+    """
+    return os.environ.get("WORLDSIM_PHASE_2A_API", "").strip().lower() in ("true", "1", "yes")
+
 
 # Synthetic placeholder map used when Phase 2a resolves benign-target
 # resources. 2a does not bind to a specific instance; L1/L2 parse
@@ -257,6 +277,24 @@ _OPTION_A_CHILD_CREATE_METHODS: dict[str, tuple[str, str]] = {
     "create_submission": ("forum_name", "{benign_forum_name"),
     "create_comment": ("submission_id", "{benign_submission_id"),
 }
+
+# Commit 4 (dual-run flag). Source-controlled default is `False` until
+# commit 8's flag flip; `WORLDSIM_RIGOROUS_OPTION_A={true,false}` env
+# override wins for ad-hoc testing. During the dual-run window both
+# validators run; discrepancies are logged to
+# ``logs/phase_2/option_a_validator_discrepancy.ndjson`` regardless of
+# which verdict is enforced, so we can audit the behavior delta before
+# flipping the default.
+RIGOROUS_OPTION_A_DEFAULT = False
+
+
+def _rigorous_option_a_enabled() -> bool:
+    env = os.environ.get("WORLDSIM_RIGOROUS_OPTION_A")
+    if env is not None:
+        return env.strip().lower() in {"true", "1", "yes", "on"}
+    return RIGOROUS_OPTION_A_DEFAULT
+
+
 _REQUIRED_V1_FIELDS = (
     "id",
     "benign_task_id",
@@ -909,7 +947,6 @@ def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> d
 
 
 def _utcnow_iso() -> str:
-    from datetime import datetime
 
     return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -1005,75 +1042,108 @@ async def _generate_injections_for_site(
         logger.warning("No profile for site %r at %s — skipping", site_name, profile_path)
         return SiteInjectionResult(site_name, [], [f"profile not found at {profile_path}"])
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp = Path(tmp_dir)
+    # Inputs both paths need in memory.
+    site_profile = json.loads(profile_path.read_text())
+    cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
 
-        # Stage only this shard's benign tasks into the sandbox
-        tasks_file = tmp / "benign_tasks.json"
-        tasks_file.write_text(json.dumps(site_tasks, indent=2))
-        site_profile = json.loads(profile_path.read_text())
-        cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
-        cell_targets_file = tmp / "cell_targets.json"
-        cell_targets_file.write_text(json.dumps(cell_targets, indent=2, sort_keys=True))
+    # Pre-compute benign-target resources (Option A placement contract,
+    # docs/handoffs/phase-2-placement-systemic-gap.md). 2a consumes this
+    # to constrain delivery_channel.method to attach_surfaces per task.
+    # L3/L4 are async and require a live instance; 2a runs L1/L2 only
+    # and stamps pending_layer="L3" for the rest so a later pass can
+    # resolve them against the live benchmark.
+    benign_target_resources = {
+        str(task.get("id")): derive_benign_target_resource(task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS)
+        for task in site_tasks
+    }
 
-        # Pre-compute benign-target resources (Option A placement contract,
-        # docs/handoffs/phase-2-placement-systemic-gap.md). 2a consumes this
-        # to constrain delivery_channel.method to attach_surfaces per task.
-        # L3/L4 are async and require a live instance; 2a runs L1/L2 only
-        # and stamps pending_layer="L3" for the rest so a later pass can
-        # resolve them against the live benchmark.
-        benign_target_resources = {
-            str(task.get("id")): derive_benign_target_resource(
-                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+    agent_context_path = profile_path.parent / f"AGENT_CONTEXT_{site_name}.json"
+    agent_context: dict[str, Any] | None = None
+    if agent_context_path.exists():
+        try:
+            agent_context = json.loads(agent_context_path.read_text())
+        except json.JSONDecodeError as exc:
+            logger.warning(
+                "Phase 2: invalid AGENT_CONTEXT at %s, proceeding without: %s",
+                agent_context_path,
+                exc,
             )
-            for task in site_tasks
-        }
-        resources_file = tmp / "benign_target_resources.json"
-        resources_file.write_text(json.dumps(benign_target_resources, indent=2, sort_keys=True))
 
-        sandbox_files = {
-            "/workspace/tasks/benign_tasks.json": str(tasks_file),
-            "/workspace/tasks/benign_target_resources.json": str(resources_file),
-            "/workspace/tasks/cell_targets.json": str(cell_targets_file),
-            "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
-        }
-        # Pass agent context so injections are crafted with knowledge of agent behavior
-        agent_context_path = profile_path.parent / f"AGENT_CONTEXT_{site_name}.json"
-        if agent_context_path.exists():
-            sandbox_files["/workspace/profile/AGENT_CONTEXT.json"] = str(agent_context_path)
-
-        logger.info("Phase 2: launching injection sandbox %r (%d tasks)", label, len(site_tasks))
-
-        outputs = await run_claude_in_sandbox(
-            site_files=sandbox_files,
-            prompt=_render_generation_prompt(
-                cell_targets,
-                validation_command="adversarial-tasks",
-            ),
-            output_paths=["/workspace/output/adversarial_tasks.json"],
-            model=sandbox_model,
+    if _phase_2a_api_enabled():
+        logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
+        adv_tasks = await generate_phase_2a_plans_api(
+            benign_tasks=site_tasks,
+            benign_target_resources=benign_target_resources,
+            cell_targets=cell_targets,
+            benchmark_profile=site_profile,
+            agent_context=agent_context,
+            sandbox_model=sandbox_model,
             label=label,
+            site=site_name,
         )
+        if not adv_tasks:
+            logger.warning("Phase 2: API path %r produced no plans", label)
+            return SiteInjectionResult(
+                site_name,
+                [],
+                ["API path produced no adversarial plans"],
+            )
+    else:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp = Path(tmp_dir)
 
-    logger.info("Phase 2: sandbox %r completed", label)
-    cost_tracker.record("phase_2", outputs.get("_summary"), site=site_name)
+            # Stage only this shard's benign tasks into the sandbox
+            tasks_file = tmp / "benign_tasks.json"
+            tasks_file.write_text(json.dumps(site_tasks, indent=2))
+            cell_targets_file = tmp / "cell_targets.json"
+            cell_targets_file.write_text(json.dumps(cell_targets, indent=2, sort_keys=True))
+            resources_file = tmp / "benign_target_resources.json"
+            resources_file.write_text(json.dumps(benign_target_resources, indent=2, sort_keys=True))
 
-    adv_json = outputs.get("/workspace/output/adversarial_tasks.json")
-    if not adv_json:
-        logger.warning("Phase 2: sandbox %r did not produce output", label)
-        return SiteInjectionResult(
-            site_name,
-            [],
-            ["sandbox did not produce adversarial_tasks.json"],
-        )
+            sandbox_files = {
+                "/workspace/tasks/benign_tasks.json": str(tasks_file),
+                "/workspace/tasks/benign_target_resources.json": str(resources_file),
+                "/workspace/tasks/cell_targets.json": str(cell_targets_file),
+                "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
+            }
+            # Pass agent context so injections are crafted with knowledge of agent behavior
+            if agent_context_path.exists():
+                sandbox_files["/workspace/profile/AGENT_CONTEXT.json"] = str(agent_context_path)
 
-    try:
-        adv_tasks = json.loads(adv_json)
-        if not isinstance(adv_tasks, list):
-            adv_tasks = [adv_tasks]
-    except json.JSONDecodeError as e:
-        logger.error("Phase 2: invalid JSON from sandbox %r: %s", label, e)
-        return SiteInjectionResult(site_name, [], [f"invalid sandbox JSON: {e}"])
+            logger.info(
+                "Phase 2: launching injection sandbox %r (%d tasks)", label, len(site_tasks)
+            )
+
+            outputs = await run_claude_in_sandbox(
+                site_files=sandbox_files,
+                prompt=_render_generation_prompt(
+                    cell_targets,
+                    validation_command="adversarial-tasks",
+                ),
+                output_paths=["/workspace/output/adversarial_tasks.json"],
+                model=sandbox_model,
+                label=label,
+            )
+
+        logger.info("Phase 2: sandbox %r completed", label)
+        cost_tracker.record("phase_2", outputs.get("_summary"), site=site_name)
+
+        adv_json = outputs.get("/workspace/output/adversarial_tasks.json")
+        if not adv_json:
+            logger.warning("Phase 2: sandbox %r did not produce output", label)
+            return SiteInjectionResult(
+                site_name,
+                [],
+                ["sandbox did not produce adversarial_tasks.json"],
+            )
+
+        try:
+            adv_tasks = json.loads(adv_json)
+            if not isinstance(adv_tasks, list):
+                adv_tasks = [adv_tasks]
+        except json.JSONDecodeError as e:
+            logger.error("Phase 2: invalid JSON from sandbox %r: %s", label, e)
+            return SiteInjectionResult(site_name, [], [f"invalid sandbox JSON: {e}"])
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
@@ -1753,7 +1823,25 @@ def _is_option_a_site(task: dict) -> bool:
 
 
 def _validate_option_a_placement(plan: dict, task_name: str) -> str | None:
-    """Enforce Option A (docs/handoffs/phase-2-placement-systemic-gap.md).
+    """Dual-run wrapper: runs both validators, writes discrepancy NDJSON,
+    returns the verdict dictated by :func:`_rigorous_option_a_enabled`.
+
+    Legacy enforced by default until commit 8's flag flip. The registry
+    validator's output is logged on every discrepancy regardless, so the
+    behavior delta is auditable before the flip.
+    """
+    legacy_verdict = _validate_option_a_placement_legacy(plan, task_name)
+    new_verdict = _validate_option_a_placement_registry(plan, task_name)
+    if legacy_verdict != new_verdict:
+        _log_validator_discrepancy(plan, task_name, legacy_verdict, new_verdict)
+    if _rigorous_option_a_enabled():
+        return new_verdict
+    return legacy_verdict
+
+
+def _validate_option_a_placement_legacy(plan: dict, task_name: str) -> str | None:
+    """Legacy Option A validator. Kept during dual-run window; deleted in
+    commit 9's post-soak cleanup.
 
     Rejects plans whose delivery mechanism creates a dangling parent
     artifact (new project/group/forum) or whose child-create method
@@ -1799,6 +1887,203 @@ def _validate_option_a_placement(plan: dict, task_name: str) -> str | None:
                     "so the seed attaches to the existing resource"
                 )
     return None
+
+
+def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | None:
+    """Contract-driven Option A validator. Reads the editor-method registry.
+
+    Differences vs legacy:
+
+    * Rejects unknown methods — legacy silently passed any method outside
+      its two hardcoded sets, letting a typo or invented method leak to
+      Phase 2c.
+    * Enforces ``SelectorGroup`` OR-logic — at least one project
+      identifier arg (``project_id`` | ``project_path_template`` |
+      ``project_name_template``) must be populated with a valid token.
+      Legacy only enforced the innermost anchor (``issue_iid`` etc.),
+      silently accepting a phantom ``{benign_project_id}`` even when
+      resolver anchors only carried ``project_path``.
+    * Intersects declared tokens with ``available_tokens_for_kind`` —
+      rejects tokens the resolver's anchors cannot actually reach. This
+      is the "silently empty substitution" failure mode the Phase 2a
+      regen is meant to fix.
+    """
+    resource = plan.get("benign_target_resource")
+    if not isinstance(resource, dict) or resource.get("kind") is None:
+        return (
+            "benign_target_resource is missing or has null kind; no Option A "
+            "attach surface exists for this task"
+        )
+
+    kind = str(resource.get("kind") or "")
+    contract = kind_contract(kind)
+    if not contract.valid_methods:
+        return (
+            f"kind={kind!r} is not addressable by any registered editor method "
+            f"(kind_not_registered)"
+        )
+
+    anchors_raw = resource.get("anchors")
+    anchors = anchors_raw if isinstance(anchors_raw, dict) else {}
+    available = available_tokens_for_kind(kind, anchors)
+    site = _site_for_option_a_plan(plan)
+
+    seed = plan.get("seed_template")
+    if not isinstance(seed, dict):
+        return "seed_template missing; cannot verify delivery method"
+    editor_calls = seed.get("editor_calls")
+    if not isinstance(editor_calls, list) or not editor_calls:
+        return "seed_template.editor_calls missing or empty"
+
+    for idx, call in enumerate(editor_calls):
+        if not isinstance(call, dict):
+            return f"seed_template.editor_calls[{idx}] is not an object"
+        method = str(call.get("method") or "")
+        if method not in contract.valid_methods:
+            return (
+                f"editor_calls[{idx}].method={method!r} is not a valid Option A "
+                f"attach for kind={kind!r} (valid: {sorted(contract.valid_methods)})"
+            )
+
+        try:
+            spec = method_spec(site, method)
+        except KeyError:
+            return f"editor_calls[{idx}].method={method!r} is not registered on site={site!r}"
+
+        args_raw = call.get("args")
+        args = args_raw if isinstance(args_raw, dict) else {}
+        violation = _check_spec_bindings(idx, spec, args, available)
+        if violation is not None:
+            return violation
+
+    return None
+
+
+def _site_for_option_a_plan(plan: dict) -> str:
+    for key in ("sites", "site"):
+        raw = plan.get(key)
+        if isinstance(raw, str):
+            s = raw.strip().lower()
+            if s in _OPTION_A_SITES:
+                return s
+        elif isinstance(raw, list):
+            for entry in raw:
+                if isinstance(entry, str):
+                    s = entry.strip().lower()
+                    if s in _OPTION_A_SITES:
+                        return s
+    return ""
+
+
+def _check_spec_bindings(
+    idx: int,
+    spec: Any,
+    args: dict,
+    available: frozenset[str],
+) -> str | None:
+    # Group selector bindings by their selector_group name.
+    groups: dict[str, list[tuple[str, BindingSpec]]] = {}
+    for arg, binding in spec.bindings.items():
+        if binding.kind == "selector":
+            groups.setdefault(binding.selector_group or "", []).append((arg, binding))
+
+    # Each selector group: require ≥1 populated member whose value starts
+    # with one of the usable tokens (declared ∩ available). Unpopulated
+    # members of a group are fine; that's the whole point of OR-logic.
+    for group_name, members in groups.items():
+        any_required = any(b.required for _, b in members)
+        if not any_required:
+            continue
+        if not _selector_group_satisfied(members, args, available):
+            names = sorted(a for a, _ in members)
+            return (
+                f"editor_calls[{idx}] selector group {group_name!r} unsatisfied: "
+                f"at least one of {names} must be populated with a valid "
+                f"{{benign_*}} token reachable via anchors "
+                f"(available: {sorted(available)})"
+            )
+
+    # Standalone (non-grouped) Token bindings.
+    for arg, binding in spec.bindings.items():
+        if binding.kind != "token" or binding.selector_group is not None:
+            continue
+        value = str(args.get(arg, ""))
+        if binding.required and not value:
+            return f"editor_calls[{idx}] missing required arg {arg!r}"
+        if not value or not binding.tokens:
+            continue
+        usable = binding.tokens & available
+        if not any(_value_starts_with_token(value, tok) for tok in usable):
+            return (
+                f"editor_calls[{idx}].args.{arg}={value!r} must start with one "
+                f"of {sorted(binding.tokens)} and that token must be reachable "
+                f"via anchors (available: {sorted(available)})"
+            )
+
+    return None
+
+
+def _selector_group_satisfied(
+    members: list[tuple[str, BindingSpec]],
+    args: dict,
+    available: frozenset[str],
+) -> bool:
+    for arg, binding in members:
+        raw = args.get(arg)
+        if raw is None or str(raw).strip() == "":
+            continue
+        value = str(raw)
+        if not binding.tokens:
+            # Free-text selector member — being populated satisfies the group.
+            return True
+        usable = binding.tokens & available
+        if any(_value_starts_with_token(value, tok) for tok in usable):
+            return True
+    return False
+
+
+def _value_starts_with_token(value: str, token: str) -> bool:
+    """Match the legacy prefix semantics: strip a trailing closing brace
+    before comparing so a value of ``"{benign_issue_iid}/extra"`` counts
+    as starting with token ``"{benign_issue_iid}"``."""
+    prefix = token[:-1] if token.endswith("}") else token
+    return value.startswith(prefix)
+
+
+def _log_validator_discrepancy(
+    plan: dict,
+    task_name: str,
+    legacy_verdict: str | None,
+    new_verdict: str | None,
+) -> None:
+    state_dir = Path(os.environ.get("WORLDSIM_STATE_DIR", "logs"))
+    path = state_dir / "phase_2" / "option_a_validator_discrepancy.ndjson"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        seed = plan.get("seed_template") if isinstance(plan.get("seed_template"), dict) else {}
+        calls = seed.get("editor_calls") if isinstance(seed.get("editor_calls"), list) else []
+        methods = [
+            c.get("method")
+            for c in calls
+            if isinstance(c, dict) and isinstance(c.get("method"), str)
+        ]
+        resource = plan.get("benign_target_resource")
+        kind = resource.get("kind") if isinstance(resource, dict) else None
+        record = {
+            "ts": datetime.now(UTC).isoformat(),
+            "task_name": task_name,
+            "legacy_verdict": legacy_verdict,
+            "new_verdict": new_verdict,
+            "plan_summary": {
+                "benign_task_id": plan.get("benign_task_id"),
+                "kind": kind,
+                "methods": methods,
+            },
+        }
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        logger.exception("failed to write option_a validator discrepancy NDJSON")
 
 
 def _validate_reward_function_shape(task: dict, task_name: str) -> str | None:
