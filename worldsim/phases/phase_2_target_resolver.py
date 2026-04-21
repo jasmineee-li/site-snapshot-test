@@ -302,6 +302,28 @@ def _attach_surfaces_for(kind: ResourceKind) -> list[dict[str, Any]]:
     return [dict(surface) for surface in _ATTACH_SURFACES[kind]]
 
 
+def _normalise_sort_direction(raw: Any) -> str:
+    """Map an LLM-emitted sort hint onto GitLab's ``asc|desc`` contract.
+
+    The classifier frequently emits combined values like ``updated_desc``
+    or ``created_asc`` modelled on BrowserGym-style sorts; GitLab's API
+    splits these into ``order_by=<field>`` + ``sort=<dir>`` and rejects
+    the combined form with 400. Preserve the direction only.
+    """
+    value = str(raw or "").strip().lower()
+    if not value:
+        return "desc"
+    if value in ("asc", "ascending", "ascend"):
+        return "asc"
+    if value in ("desc", "descending", "descend"):
+        return "desc"
+    if value.endswith("_asc") or value.startswith("asc_"):
+        return "asc"
+    if value.endswith("_desc") or value.startswith("desc_"):
+        return "desc"
+    return "desc"
+
+
 def _benign_user_handle(task: Mapping[str, Any]) -> str | None:
     agent_ctx = task.get("agent_context") or {}
     auth = agent_ctx.get("authentication") or {}
@@ -672,6 +694,7 @@ async def _default_probe(
     api = str(probe_query.get("api") or "")
     limit = int(probe_query.get("limit") or 1)
     username = str(probe_query.get("username") or "") or _benign_user_handle(task) or ""
+    sort_dir = _normalise_sort_direction(probe_query.get("sort"))
 
     if api == "none":
         return None
@@ -681,7 +704,7 @@ async def _default_probe(
         params: dict[str, Any] = {
             "scope": "created_by_me",
             "order_by": "updated_at",
-            "sort": probe_query.get("sort") or "desc",
+            "sort": sort_dir,
             "per_page": limit,
         }
         query = str(probe_query.get("query") or "").strip()
@@ -704,7 +727,7 @@ async def _default_probe(
             return None
         params = {
             "order_by": "updated_at",
-            "sort": probe_query.get("sort") or "desc",
+            "sort": sort_dir,
             "per_page": limit,
         }
         query = str(probe_query.get("query") or "").strip()
@@ -726,7 +749,7 @@ async def _default_probe(
             return None
         params = {
             "order_by": "updated_at",
-            "sort": probe_query.get("sort") or "desc",
+            "sort": sort_dir,
             "per_page": limit,
         }
         query = str(probe_query.get("query") or "").strip()
