@@ -567,7 +567,14 @@ def validate_text_post_hoc(parsed: dict[str, Any], task: dict[str, Any]) -> list
     visible_text, concealed_text = _payload_text_views(rendered_payload, concealment)
     if isinstance(raw_text, str) and raw_text:
         if _normalize_text_snapshot(raw_text) != _normalize_text_snapshot(visible_text):
-            errors.append("raw_text must match rendered_payload with concealed content removed")
+            # Include the actual strings so operators can diagnose whether the
+            # divergence is paraphrasing, punctuation drift, or a stripped
+            # {benign_*} token. The post-hoc diagnostic bucket previously only
+            # logged the rule name, which left failures unactionable.
+            errors.append(
+                "raw_text must match rendered_payload with concealed content removed; "
+                f"raw_text={raw_text!r} visible_text={visible_text!r}"
+            )
 
     for token_value in required_tokens:
         count = rendered_payload.count(token_value)
