@@ -77,6 +77,63 @@ _EDITOR_DELIVERY_PATHS = {
     ("shopping_admin", "create_product_review"): ("POST", "/rest/V1/reviews"),
     ("shopping_admin", "update_admin_profile"): ("POST", "/admin/admin/user/save/"),
 }
+
+
+# ---------------------------------------------------------------------------
+# Optional: override WASP-scoped (gitlab + reddit) entries from the
+# host-serialized editor-method registry. The host ships
+# /workspace/_editor_registry.json into the sandbox payload (see
+# worldsim/modal_sandbox.py::_write_registry_snapshot). If the file is
+# present, its gitlab + reddit entries win over the hardcoded defaults
+# above — the registry is the single source of truth. Shopping + legacy
+# entries survive as-is (the registry is strict-WASP). If the file is
+# missing (host/local smoke tests that mock the sandbox), the hardcoded
+# table remains authoritative.
+# ---------------------------------------------------------------------------
+_EDITOR_REGISTRY_JSON = Path("/workspace/_editor_registry.json")
+
+
+def _load_registry_snapshot() -> dict:
+    try:
+        if not _EDITOR_REGISTRY_JSON.exists():
+            return {"version": 1, "specs": []}
+        return json.loads(_EDITOR_REGISTRY_JSON.read_text(encoding="utf-8"))
+    except Exception as exc:
+        sys.stderr.write(
+            f"_sandbox_validator: failed to read editor registry JSON "
+            f"({exc!r}); falling back to hardcoded tables\n"
+        )
+        return {"version": 1, "specs": []}
+
+
+def _override_from_registry() -> None:
+    """Replace the gitlab + reddit entries in the module-level delivery
+    tables with the values from the host-written registry JSON. Legacy
+    shopping / shopping_admin entries are untouched."""
+    snapshot = _load_registry_snapshot()
+    specs = snapshot.get("specs") if isinstance(snapshot, dict) else None
+    if not isinstance(specs, list) or not specs:
+        return
+    for spec in specs:
+        if not isinstance(spec, dict):
+            continue
+        site = spec.get("site")
+        method = spec.get("method")
+        verb = spec.get("http_verb")
+        path = spec.get("http_path")
+        if not (
+            isinstance(site, str)
+            and isinstance(method, str)
+            and isinstance(verb, str)
+            and isinstance(path, str)
+        ):
+            continue
+        if site not in {"gitlab", "reddit"}:
+            continue  # legacy-only overrides skipped for non-WASP sites
+        _EDITOR_DELIVERY_PATHS[(site, method)] = (verb, path)
+
+
+_override_from_registry()
 _EDITOR_BODY_FIELD_ALIASES = {
     ("gitlab", "create_project"): {
         "name": "name_template",
@@ -819,7 +876,78 @@ def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
     return errors
 
 
-def validate_adversarial_tasks(data: object) -> list[str]:
+def _resolve_benign_by_id(
+    benign_tasks_arg: object,
+    errors: list[str],
+) -> dict[str, dict]:
+    """Return ``{benign_id: benign_task}`` from either the kwarg or the sandbox path.
+
+    When ``benign_tasks_arg`` is None, falls back to reading
+    ``/workspace/tasks/benign_tasks.json`` (the in-sandbox path the validator
+    has used since v5 shipped). When the kwarg is provided, the disk read is
+    skipped — host-side callers (Phase 2a Shape C) can pass a parsed list
+    directly. Shape validation is identical in both paths so an empty list,
+    non-list, or list with no usable task ids produces the same error message
+    regardless of source.
+    """
+    if benign_tasks_arg is None:
+        benign_path = Path("/workspace/tasks/benign_tasks.json")
+        if not benign_path.exists():
+            errors.append("missing benign_tasks.json for cross-reference")
+            return {}
+        try:
+            benign_tasks_arg = json.loads(benign_path.read_text())
+        except json.JSONDecodeError:
+            errors.append("could not parse benign_tasks.json for cross-reference")
+            return {}
+
+    if not isinstance(benign_tasks_arg, list):
+        errors.append("benign_tasks.json must be a JSON array for cross-reference")
+        return {}
+    if not benign_tasks_arg:
+        errors.append(
+            "benign_tasks.json is empty; cross-reference requires at least one benign task"
+        )
+        return {}
+    benign_by_id = {str(t.get("id", "")): t for t in benign_tasks_arg if isinstance(t, dict)}
+    if not benign_by_id:
+        errors.append("benign_tasks.json must contain at least one task object with a non-empty id")
+    return benign_by_id
+
+
+def _resolve_benchmark_profile(
+    benchmark_profile_arg: object,
+    errors: list[str],
+) -> dict[str, object] | None:
+    """Return the benchmark profile dict from either the kwarg or the sandbox path.
+
+    Mirrors :func:`_resolve_benign_by_id`. When the kwarg is None, reads
+    ``/workspace/profile/BENCHMARK_PROFILE.json``. Host-side callers pass a
+    parsed dict to skip the disk read.
+    """
+    if benchmark_profile_arg is None:
+        profile_path = Path("/workspace/profile/BENCHMARK_PROFILE.json")
+        if not profile_path.exists():
+            errors.append("missing BENCHMARK_PROFILE.json for cross-reference")
+            return None
+        try:
+            benchmark_profile_arg = json.loads(profile_path.read_text())
+        except json.JSONDecodeError:
+            errors.append("could not parse BENCHMARK_PROFILE.json for cross-reference")
+            return None
+
+    if not isinstance(benchmark_profile_arg, dict):
+        errors.append("BENCHMARK_PROFILE.json must be a JSON object for cross-reference")
+        return None
+    return benchmark_profile_arg
+
+
+def validate_adversarial_tasks(
+    data: object,
+    *,
+    benign_tasks: object = None,
+    benchmark_profile: object = None,
+) -> list[str]:
     """Validate adversarial_tasks.json structure and cross-reference benign tasks.
 
     Supports the **minimal output schema** where Claude only produces
@@ -827,6 +955,15 @@ def validate_adversarial_tasks(data: object) -> list[str]:
     ``adversarial_reward``.  The validator simulates the merge that the
     orchestrator will perform (copying immutable fields from the benign
     task) and validates the *merged* result.
+
+    Args:
+        data: The adversarial tasks JSON (a list of task dicts).
+        benign_tasks: Optional pre-loaded benign tasks list. When provided,
+            skips reading ``/workspace/tasks/benign_tasks.json``. Used by
+            host-side callers (Phase 2a Shape C, gate CLI) that already
+            have the data in memory.
+        benchmark_profile: Optional pre-loaded benchmark profile dict. When
+            provided, skips reading ``/workspace/profile/BENCHMARK_PROFILE.json``.
     """
     errors: list[str] = []
     if not isinstance(data, list):
@@ -837,44 +974,8 @@ def validate_adversarial_tasks(data: object) -> list[str]:
         errors.append("adversarial tasks array is empty")
         return errors
 
-    # Load benign tasks for cross-reference and merge simulation
-    benign_path = Path("/workspace/tasks/benign_tasks.json")
-    benign_by_id: dict[str, dict] = {}
-    if not benign_path.exists():
-        errors.append("missing benign_tasks.json for cross-reference")
-    else:
-        try:
-            benign_tasks = json.loads(benign_path.read_text())
-            if isinstance(benign_tasks, list):
-                if not benign_tasks:
-                    errors.append(
-                        "benign_tasks.json is empty; cross-reference requires at least one benign task"
-                    )
-                benign_by_id = {
-                    str(t.get("id", "")): t for t in benign_tasks if isinstance(t, dict)
-                }
-                if benign_tasks and not benign_by_id:
-                    errors.append(
-                        "benign_tasks.json must contain at least one task object with a non-empty id"
-                    )
-            else:
-                errors.append("benign_tasks.json must be a JSON array for cross-reference")
-        except json.JSONDecodeError:
-            errors.append("could not parse benign_tasks.json for cross-reference")
-
-    benchmark_profile: dict[str, object] | None = None
-    profile_path = Path("/workspace/profile/BENCHMARK_PROFILE.json")
-    if not profile_path.exists():
-        errors.append("missing BENCHMARK_PROFILE.json for cross-reference")
-    else:
-        try:
-            loaded_profile = json.loads(profile_path.read_text())
-            if isinstance(loaded_profile, dict):
-                benchmark_profile = loaded_profile
-            else:
-                errors.append("BENCHMARK_PROFILE.json must be a JSON object for cross-reference")
-        except json.JSONDecodeError:
-            errors.append("could not parse BENCHMARK_PROFILE.json for cross-reference")
+    benign_by_id = _resolve_benign_by_id(benign_tasks, errors)
+    benchmark_profile = _resolve_benchmark_profile(benchmark_profile, errors)
 
     _REQUIRED_PLAN_FIELDS = (
         "id",

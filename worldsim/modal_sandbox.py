@@ -37,6 +37,35 @@ SANDBOX_RATE_LIMIT_GRACE_SECONDS = 90
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 _VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
 
+
+def _write_registry_snapshot() -> str:
+    """Serialize the editor-method contract registry to a tempfile.
+
+    Shipped alongside ``_sandbox_validator.py`` in the sandbox payload so
+    the stdlib-only validator can consult the same contract data that
+    the host-side :func:`worldsim.seeding._assert_benign_tokens_bound`
+    and :func:`worldsim.phases.phase_2_injections._validate_option_a_placement_registry`
+    read. Written once per process; the path is stable for the Modal
+    image cache.
+    """
+    import tempfile as _tempfile
+
+    from worldsim.editors._registry import serialize_registry
+
+    tmp = _tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix="_editor_registry.json",
+        delete=False,
+        encoding="utf-8",
+    )
+    json.dump(serialize_registry(), tmp, sort_keys=True, indent=2)
+    tmp.flush()
+    tmp.close()
+    return tmp.name
+
+
+_EDITOR_REGISTRY_JSON_PATH = _write_registry_snapshot()
+
 _APP_CACHE: modal.App | None = None
 _APP_LOOKUP_LOCK: asyncio.Lock | None = None
 _BASE_IMAGE_BUILT = False
@@ -86,6 +115,11 @@ base_image = (
     # static image removes two per-launch local-file injections.
     .add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py", copy=True)
     .add_local_file(_VALIDATOR_PATH, remote_path="/workspace/_validate.py", copy=True)
+    .add_local_file(
+        _EDITOR_REGISTRY_JSON_PATH,
+        remote_path="/workspace/_editor_registry.json",
+        copy=True,
+    )
 )
 
 

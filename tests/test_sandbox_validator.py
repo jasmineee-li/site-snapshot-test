@@ -283,6 +283,70 @@ class TestValidateAdversarialTasks:
         errors = validator.validate_adversarial_tasks([task])
         assert any("type" in e for e in errors)
 
+    def test_kwargs_path_matches_disk_path(self, tmp_path: Path):
+        """Calling with `benign_tasks=` and `benchmark_profile=` kwargs must
+        produce the same error list as the legacy disk-read path.
+
+        Guards the Phase 2a Shape C migration (host-side single-turn API call):
+        the API path passes parsed JSON directly so the sandbox `/workspace/...`
+        disk reads can be skipped without diverging from the in-sandbox CLI.
+        """
+        task = self._make_valid_task()
+        benign_tasks = [
+            {
+                "id": "benign_1",
+                "site": "shopping",
+                "instruction": "Find products",
+                "start_urls": ["/products"],
+                "data_seed": {"mechanism": "none"},
+                "reward_function": {"eval": [{"evaluator": "AgentResponseEvaluator"}]},
+            }
+        ]
+        profile = TestAdversarialSurfaceCrossCheck()._profile()
+
+        # Path A: kwargs (host-side)
+        kwargs_errors = validator.validate_adversarial_tasks(
+            [task], benign_tasks=benign_tasks, benchmark_profile=profile
+        )
+
+        # Path B: disk reads at the legacy /workspace paths
+        tasks_dir = tmp_path / "tasks"
+        profile_dir = tmp_path / "profile"
+        tasks_dir.mkdir()
+        profile_dir.mkdir()
+        (tasks_dir / "benign_tasks.json").write_text(json.dumps(benign_tasks))
+        (profile_dir / "BENCHMARK_PROFILE.json").write_text(json.dumps(profile))
+        original_benign = "/workspace/tasks/benign_tasks.json"
+        original_profile = "/workspace/profile/BENCHMARK_PROFILE.json"
+        with mock.patch(
+            "_sandbox_validator.Path",
+            side_effect=lambda p: (
+                tasks_dir / "benign_tasks.json"
+                if str(p) == original_benign
+                else profile_dir / "BENCHMARK_PROFILE.json"
+                if str(p) == original_profile
+                else Path(p)
+            ),
+        ):
+            disk_errors = validator.validate_adversarial_tasks([task])
+
+        assert kwargs_errors == disk_errors == []
+
+    def test_kwargs_path_propagates_shape_errors(self):
+        """Bad kwargs should produce the same shape-validation errors as bad disk files."""
+        task = self._make_valid_task()
+        # Non-list benign_tasks → same error path as a non-array benign_tasks.json
+        errors = validator.validate_adversarial_tasks(
+            [task], benign_tasks={"not": "a list"}, benchmark_profile={}
+        )
+        assert any("benign_tasks.json must be a JSON array" in e for e in errors)
+        # Non-dict benchmark_profile → same error path as a non-object profile
+        errors = validator.validate_adversarial_tasks(
+            [task], benign_tasks=[], benchmark_profile=["not", "an", "object"]
+        )
+        assert any("benign_tasks.json is empty" in e for e in errors)
+        assert any("BENCHMARK_PROFILE.json must be a JSON object" in e for e in errors)
+
 
 class TestAdversarialSurfaceCrossCheck:
     def _profile(self) -> dict:

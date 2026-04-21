@@ -1058,6 +1058,17 @@ async def _generate_injections_for_site(
         for task in site_tasks
     }
 
+    # Pre-shard feasibility filter: drop tasks whose resolved kind has
+    # zero addressable editor methods on this site (commit 7 of the
+    # contract registry refactor). Dashboard-list kinds stay eligible —
+    # create_issue_note / create_comment have free-text body bindings
+    # that accept the @{benign_user_handle} mention routing.
+    site_tasks, eligibility_drops = _phase_2a_eligible_tasks(
+        site_tasks, benign_target_resources, site_name
+    )
+    if eligibility_drops:
+        _write_eligibility_drops(site_name, eligibility_drops)
+
     agent_context_path = profile_path.parent / f"AGENT_CONTEXT_{site_name}.json"
     agent_context: dict[str, Any] | None = None
     if agent_context_path.exists():
@@ -1651,6 +1662,130 @@ def _render_generation_prompt(
         + json.dumps(cell_targets, indent=2, sort_keys=True)
         + "\n```\n"
     )
+
+
+def _phase_2a_eligible_tasks(
+    site_tasks: list[dict],
+    benign_target_resources: dict[str, Any],
+    site: str,
+) -> tuple[list[dict], list[dict[str, Any]]]:
+    """Split a shard's tasks into (eligible, dropped).
+
+    A task is ineligible iff:
+
+    * ``benign_target_resource.kind`` is None, OR
+    * the contract has no valid methods for this kind on this site
+      (``kind_contract(kind).valid_methods ∩ editor.supported_methods``
+      empty), OR
+    * the only reachable token is ``{benign_user_handle}`` AND no spec
+      addressing this kind has a ``free_text`` body-accepting binding
+      (no way to route via body mention).
+
+    Dashboard-list kinds are *eligible* because ``create_issue_note`` /
+    ``create_comment`` have ``free_text`` body bindings that satisfy the
+    last clause.
+    """
+    from worldsim.editors import EDITOR_REGISTRY
+
+    editor_cls: Any = None
+    for (benchmark, registered_site), cls in EDITOR_REGISTRY.items():
+        if registered_site == site:
+            editor_cls = cls
+            break
+    supported = getattr(editor_cls, "supported_methods", frozenset()) if editor_cls else frozenset()
+
+    eligible: list[dict] = []
+    dropped: list[dict[str, Any]] = []
+    for task in site_tasks:
+        task_id = str(task.get("id") or "")
+        record = benign_target_resources.get(task_id) or {}
+        kind = record.get("kind") if isinstance(record, dict) else None
+        anchors_raw = record.get("anchors") if isinstance(record, dict) else None
+        anchors = anchors_raw if isinstance(anchors_raw, dict) else {}
+
+        if not isinstance(kind, str) or not kind:
+            eligible.append(task)
+            continue
+
+        contract = kind_contract(kind)
+        site_methods = contract.valid_methods & frozenset(supported)
+        if not site_methods:
+            dropped.append(
+                {
+                    "task_id": task_id,
+                    "kind": kind,
+                    "reason": "no_addressable_method_on_site",
+                    "anchors": dict(anchors),
+                    "available_tokens": sorted(available_tokens_for_kind(kind, anchors)),
+                }
+            )
+            continue
+
+        available = available_tokens_for_kind(kind, anchors)
+        identity_only = available == frozenset({"{benign_user_handle}"})
+        if identity_only:
+            # Is there at least one spec for this kind with a free_text
+            # body-accepting binding? If yes, dashboard-list routing via
+            # @mention remains viable.
+            has_body_route = False
+            for method in site_methods:
+                try:
+                    spec = method_spec(site, method)
+                except KeyError:
+                    continue
+                for arg_name, binding in spec.bindings.items():
+                    if binding.kind == "free_text" and arg_name in {
+                        "body",
+                        "note_body",
+                        "note",
+                        "comment",
+                    }:
+                        has_body_route = True
+                        break
+                if has_body_route:
+                    break
+            if not has_body_route:
+                dropped.append(
+                    {
+                        "task_id": task_id,
+                        "kind": kind,
+                        "reason": "only_user_handle_token_and_no_body_binding",
+                        "anchors": dict(anchors),
+                        "available_tokens": sorted(available),
+                    }
+                )
+                continue
+
+        eligible.append(task)
+
+    return eligible, dropped
+
+
+def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
+    state_dir = Path(os.environ.get("WORLDSIM_STATE_DIR", "logs"))
+    path = state_dir / "phase_2" / "dropped_no_contract.json"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        existing: dict[str, list[dict[str, Any]]] = {}
+        if path.exists():
+            try:
+                raw = json.loads(path.read_text())
+                if isinstance(raw, dict):
+                    existing = raw
+            except json.JSONDecodeError:
+                logger.warning(
+                    "Phase 2: dropped_no_contract.json at %s is malformed; overwriting", path
+                )
+        existing.setdefault(site, []).extend(dropped)
+        write_json_atomic(path, existing)
+        logger.info(
+            "Phase 2: dropped %d task(s) for site %r as no-contract (see %s)",
+            len(dropped),
+            site,
+            path,
+        )
+    except Exception:
+        logger.exception("failed to write dropped_no_contract.json")
 
 
 def _kinds_in_shard(benign_target_resources: dict[str, Any]) -> frozenset[str]:
