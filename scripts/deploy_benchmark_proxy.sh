@@ -237,12 +237,8 @@ ssm_put_file() {
 # Format: one line per site, "name:real_port" or "name:real_port:proxy_port".
 # Lines starting with # and blank lines are ignored.
 #
-DEFAULT_PORT_MAP="shopping:7770
-shopping_admin:7780
-gitlab:8023
-reddit:9999
-wikipedia:8888
-map:3030"
+DEFAULT_PORT_MAP="gitlab:8023
+reddit:9999"
 
 validate_topology() {
     local topology="$1"
@@ -390,11 +386,6 @@ ensure_token() {
 # Nginx config generation
 # ---------------------------------------------------------------------------
 
-is_magento_site() {
-    # Matches: shopping, shopping_admin, shopping_0, shopping_admin_3, etc.
-    [[ "$1" == shopping* ]]
-}
-
 generate_nginx_config() {
     # Generates the nginx config as a string. Caller writes it to the host.
     local config=""
@@ -419,33 +410,8 @@ generate_nginx_config() {
 "
         fi
 
-        # Magento (shopping / shopping_admin / shopping_N / shopping_admin_N)
-        # needs three things the other sites don't:
-        #   1. proxy_buffer_size / proxy_buffers / proxy_busy_buffers_size bumps:
-        #      Magento's Set-Cookie blob (PHPSESSID + X-Magento-Vary + CSP) is
-        #      often >8KB, which overflows nginx's default upstream header buffer
-        #      and triggers a 502 Bad Gateway before the response is forwarded.
-        #   2. regex proxy_redirect that rewrites absolute Location headers
-        #      pointing back at the real backend port — Magento bakes its
-        #      base_url into 302s (see fix_magento_base_url.sh for the
-        #      root-cause fix; this directive is belt-and-braces so absolute
-        #      redirects pointing at the SG-closed backend port get rewritten
-        #      back through the proxy origin).
-        #   3. large client_max_body_size (already present for all sites) —
-        #      Magento admin bulk-import endpoints accept multi-MB uploads.
-        # The Host header stays as \$host (the listener hostname:port, e.g.
-        # 3.12.221.9:17770): Magento's Host-validation branch accepts any
-        # host that matches its configured base_url by IP — setting a
-        # literal 127.0.0.1:<port> triggers its redirect-to-base branch and
-        # bounces the client to the blocked bare port.
-        local magento_block=""
-        if is_magento_site "$name"; then
-            magento_block="
-        proxy_buffer_size 128k;
-        proxy_buffers 8 256k;
-        proxy_busy_buffers_size 256k;
-        proxy_redirect ~^http://[^/]+:${real_port}/(.*)\$ http://\$host/\$1;"
-        fi
+        # Magento-specific buffer + proxy_redirect block was removed
+        # 2026-04-21 with the WASP-aligned scoping decision.
 
         config+="# ${name}: proxy ${proxy_port} -> real ${real_port}
 server {
@@ -463,7 +429,7 @@ ${tls_block}
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;${magento_block}
+        proxy_set_header X-Forwarded-Proto \$scheme;
 
         # Pass through large bodies (form submissions, API calls).
         client_max_body_size 50m;

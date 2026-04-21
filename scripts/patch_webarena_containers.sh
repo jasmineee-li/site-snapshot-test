@@ -25,14 +25,13 @@
 #   # /home/ubuntu/wa_envctrl_patcher.py to be present (scp'd first).
 #   ./scripts/patch_webarena_containers.sh --on-ec2 [HOST_IP]
 #
-#   # Scale mode (r5.8xlarge 30-replica) -- target a single container by name
-#   # and explicit port. Used to patch `webarena-verified-shopping_0` etc.
-#   # The site file is inferred from the container's site prefix
-#   # (shopping / shopping_admin / gitlab / reddit).
+#   # Scale mode -- target a single container by name and explicit port.
+#   # Used to patch `webarena-verified-gitlab_0` etc. The site file is
+#   # inferred from the container's site prefix (gitlab / reddit).
 #   ./scripts/patch_webarena_containers.sh --on-ec2 \
-#       --container webarena-verified-shopping_0 \
-#       --site shopping \
-#       --port 7770 \
+#       --container webarena-verified-gitlab_0 \
+#       --site gitlab \
+#       --port 8023 \
 #       [HOST_IP]
 #
 #   HOST_IP must be provided explicitly (or via --host-config) when
@@ -160,15 +159,11 @@ fi
 
 # Container name -> site file, port
 declare -A SITE_FILES=(
-    ["webarena-verified-shopping"]="shopping.py"
-    ["webarena-verified-shopping_admin"]="shopping_admin.py"
     ["webarena-verified-reddit"]="reddit.py"
     ["webarena-verified-gitlab"]="gitlab.py"
 )
 
 declare -A SITE_PORTS=(
-    ["webarena-verified-shopping"]="7770"
-    ["webarena-verified-shopping_admin"]="7780"
     ["webarena-verified-reddit"]="9999"
     ["webarena-verified-gitlab"]="8023"
 )
@@ -182,9 +177,9 @@ if [[ -n "$SINGLE_CONTAINER" ]]; then
         exit 1
     fi
     case "$SINGLE_SITE" in
-        shopping|shopping_admin|reddit|gitlab) ;;
+        reddit|gitlab) ;;
         *)
-            echo "ERROR: --site must be one of shopping, shopping_admin, reddit, gitlab" >&2
+            echo "ERROR: --site must be one of reddit, gitlab" >&2
             exit 1
             ;;
     esac

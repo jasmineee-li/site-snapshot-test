@@ -90,19 +90,21 @@ def expand_site(
         db_port = None
         if db_port_base is not None:
             db_port = int(db_port_base) + i * db_port_step
+            # Defensive: keep the legacy site-name → container-DB-port map
+            # so generator unit tests (which use synthetic fixtures with
+            # shopping/etc.) still exercise the multi-site code path. In
+            # production after the 2026-04-21 WASP-aligned scope all
+            # surviving sites are PostgreSQL (5432).
             container_db_port = 3306 if site_name in ("shopping", "shopping_admin") else 5432
             ports.append(f"{db_bind_host}:{db_port}:{container_db_port}")
 
         # Bake the PROXY port (real_web + proxy_port_offset) into
         # WA_ENV_CTRL_EXTERNAL_SITE_URL, not the raw container port. Phase 4's
         # _reset_task_environment POSTs to reset_endpoint before every task,
-        # which triggers env-ctrl's _init() → setup:store-config:set
-        # --base-url=<this env var>. Baking the raw port here is what causes
-        # "shopping replicas silently revert base_url" — every task reset
-        # overwrites the proxy-origin repair. Baking the proxy port makes
-        # _init() idempotent with what the proxy + fix_magento_base_url.sh
-        # expect. When proxy_port_offset == 0 (loopback / --no-verification
-        # -proxy mode) this stays on the raw port, which is correct.
+        # which triggers env-ctrl's _init(). Baking the proxy port makes
+        # _init() idempotent with what the proxy expects. When
+        # proxy_port_offset == 0 (loopback / --no-verification-proxy mode)
+        # this stays on the raw port, which is correct.
         env_site_port = real_web + proxy_port_offset if proxy_port_offset else real_web
         env_list: list[str] = [
             f"WA_ENV_CTRL_EXTERNAL_SITE_URL=http://{advertise_host}:{env_site_port}",
@@ -289,6 +291,10 @@ def _base_instances_by_site(base_instances: list[dict[str, Any]]) -> dict[str, d
 
 
 def _default_validation_endpoint(site_name: str) -> str | None:
+    # Defensive: shopping/shopping_admin entries are kept here for
+    # backward-compat with generator unit tests that exercise multi-site
+    # fixtures. Production sites after the 2026-04-21 WASP-aligned scope
+    # are gitlab + reddit; only gitlab gets a validation endpoint.
     if site_name in {"shopping", "shopping_admin"}:
         return "/rest/V1/modules"
     if site_name == "gitlab":

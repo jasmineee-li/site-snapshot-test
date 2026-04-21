@@ -40,7 +40,7 @@ Options:
   --instances <path>         instances.json (default: instances.scale.json)
   --artifacts-source <uri>   s3://, ssh://, or /local/path for phase_0c/2/3
   --skip-pvpo-container      skip step 3 (PVPO Docker container)
-  --skip-magento-sync        skip step 6 (sync_magento_base_urls.py)
+  --skip-magento-sync        deprecated no-op (step 6 removed 2026-04-21)
   --skip-gitlab-mint         skip step 5 (login_gitlab_r5.py)
   -h, --help                 show this help
 USAGE
@@ -273,20 +273,8 @@ if [[ "$SKIP_GITLAB_MINT" -eq 0 ]]; then
     fi
 fi
 
-# ---------------------------------------------------------------------------
-# Step 6 — Magento base_url sync across every replica (issues #12, #13)
-# ---------------------------------------------------------------------------
-if [[ "$SKIP_MAGENTO_SYNC" -eq 0 ]]; then
-    log "step 6: sync Magento base_url across every shopping replica"
-    if [[ ! -f "$REPO_ROOT/$INSTANCES" ]]; then
-        echo "ERROR: instances file not found: $INSTANCES" >&2
-        exit 2
-    fi
-    uv run python "$REPO_ROOT/scripts/sync_magento_base_urls.py" \
-        --instances "$REPO_ROOT/$INSTANCES" \
-        --verify-after \
-        --retry-on-revert 2
-fi
+# Step 6 (Magento base_url sync) was removed 2026-04-21 with the
+# WASP-aligned scoping decision.
 
 # ---------------------------------------------------------------------------
 # Step 7 — Preflight via pytest

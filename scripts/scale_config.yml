@@ -1,4 +1,4 @@
-# scale_config.yml - source of truth for the r5.8xlarge 30-replica scale-out.
+# scale_config.yml - source of truth for r5.8xlarge scale-out.
 #
 # Read by scripts/generate_compose_scale.py, which emits:
 #   - docker-compose.yml (scale or smoke variant)
@@ -10,12 +10,12 @@
 #   real_envctrl_port = real_web_port + 1
 #   proxy_port       = real_web_port + proxy_port_offset       (default 10000)
 #
-# shopping_admin is rebased from 7780 to 7810 so its +10 stride does not
-# collide with shopping replicas. All other sites keep their original bases.
-#
 # Real runtime port bindings are emitted by generate_compose_scale.py from the
 # selected benchmark host config. In the canonical r5 profile they use the
 # remote_direct_restricted model (explicit host bind + explicit advertised host).
+#
+# WASP-aligned scope (2026-04-21): only gitlab + reddit. shopping/shopping_admin/
+# map/wikipedia were dropped per docs/handoffs/wasp-aligned-scoping-decision.md.
 
 network:
   name: worldsim-bench
@@ -26,44 +26,12 @@ proxy_port_offset: 10000         # proxy_port = real_port + this
 # Smoke-test override for Phase C: first replica (index 0) of each site.
 # The generator emits compose.smoke.yml from this subset when --mode smoke.
 smoke_test_replicas:
-  shopping: 1
-  shopping_admin: 1
   gitlab: 1
   reddit: 1
-  map: 1
-  wikipedia: 1
 
 # Per-site configuration. Volume mount paths MUST match the vendor
 # docker-compose at vendors/webarena-verified/docker-compose.yml.
 sites:
-
-  shopping:
-    image: worldsim/webarena-verified-shopping:amd64
-    replicas: 4
-    real_port_base: 7770          # container web 80 -> host 7770,7780,7790,7800
-    container_web_port: 80
-    port_step: 10
-    mem_limit: 6g
-    shm_size: 512m
-    environment:
-      # WA_ENV_CTRL_EXTERNAL_SITE_URL is injected per-replica by the
-      # generator using the final host IP and real web port.
-      - WA_ENV_CTRL_SKIP_RECONFIGURE: "true"
-    db_port_base: 3306            # container MySQL -> host 3306,3307,3308,3309
-    db_port_step: 1
-
-  shopping_admin:
-    image: worldsim/webarena-verified-shopping_admin:amd64
-    replicas: 4
-    # Rebased from 7780 to 7810 to avoid +10 collision with shopping at 7770.
-    # Shopping uses 7770..7800; shopping_admin uses 7810..7840.
-    real_port_base: 7810
-    container_web_port: 80
-    port_step: 10
-    mem_limit: 4g
-    shm_size: 512m
-    db_port_base: 3310
-    db_port_step: 1
 
   gitlab:
     image: worldsim/webarena-verified-gitlab:amd64
@@ -92,56 +60,3 @@ sites:
     shm_size: 512m
     db_port_base: 5450
     db_port_step: 1
-
-  map:
-    image: am1n3e/webarena-verified-map:latest
-    platform: linux/amd64
-    replicas: 4
-    real_port_base: 3030
-    container_web_port: 8080       # map listens on 8080 inside the container
-    port_step: 10                  # 3030,3040,3050,3060
-    mem_limit: 12g
-    shm_size: 512m
-    db_port_base: 5460
-    db_port_step: 1
-
-    # Shared read-only volumes (mounted N times, single on-disk copy). These
-    # are hydrated once in Phase B.2 and never written to. Mount paths are
-    # copied verbatim from vendors/webarena-verified/docker-compose.yml.
-    shared_ro_volumes:
-      - volume_name: webarena-verified-map-tile-db
-        container_path: /data/database
-      - volume_name: webarena-verified-map-routing-car
-        container_path: /data/routing/car
-      - volume_name: webarena-verified-map-routing-bike
-        container_path: /data/routing/bike
-      - volume_name: webarena-verified-map-routing-foot
-        container_path: /data/routing/foot
-      - volume_name: webarena-verified-map-nominatim-flatnode
-        container_path: /data/nominatim/flatnode
-      - volume_name: webarena-verified-map-tiles
-        container_path: /data/tiles
-      - volume_name: webarena-verified-map-style
-        container_path: /data/style
-
-    # Per-replica writable volumes (each replica gets its own copy). Names
-    # are expanded to <volume_name_prefix>_<i>. Hydrated by Phase B.3.
-    per_replica_volumes:
-      - volume_name_prefix: webarena-verified-map-nominatim-db
-        container_path: /data/nominatim/postgres
-      - volume_name_prefix: webarena-verified-map-website-db
-        container_path: /var/lib/postgresql/14/main
-
-  wikipedia:
-    image: worldsim/webarena-verified-wikipedia:amd64
-    platform: linux/amd64
-    replicas: 6
-    real_port_base: 8888
-    container_web_port: 8080       # Kiwix listens on 8080 inside the container
-    port_step: 10                  # 8888,8898,8908,8918,8928,8938
-    mem_limit: 2g
-    shm_size: 256m
-
-    shared_ro_volumes:
-      - volume_name: webarena-verified-envs_webarena-verified-wikipedia-data
-        container_path: /data

@@ -5,14 +5,15 @@
 # Container recreation (docker compose up -d) discards in-container
 # config changes. This script re-applies:
 #
-#   1. Shopping / Shopping Admin: MySQL remote-user grant for magentouser@%
-#   2. GitLab: PostgreSQL listen_addresses='*' + pg_hba allow-all rule,
-#      then restart the postgresql service so it binds to TCP.
+#   GitLab: PostgreSQL listen_addresses='*' + pg_hba allow-all rule,
+#   then restart the postgresql service so it binds to TCP.
 #
-# Reddit and Map already accept TCP from any host via their base images,
-# so no configuration is needed for those.
+# Reddit accepts TCP from any host via its base image, so no
+# configuration is needed.
 #
-# Wikipedia has no database (Kiwix ZIM), so it is skipped.
+# Shopping/admin/wikipedia/map sections were removed 2026-04-21 with
+# the WASP-aligned scoping decision (see
+# docs/handoffs/wasp-aligned-scoping-decision.md).
 #
 # Usage (from the repo root, on your workstation):
 #   ./scripts/configure_db_access.sh --host-config configs/benchmark_hosts/r5.yaml
@@ -124,40 +125,8 @@ host_port_for() {
     ssh_host "docker port $container ${container_port}/tcp 2>/dev/null | head -n1 | awk -F: '{print \$NF}'"
 }
 
-# ---------------------------------------------------------------------------
-# MySQL remote-user grant (shopping + shopping_admin)
-# ---------------------------------------------------------------------------
-#
-# The base image creates magentouser@localhost only. We insert a
-# magentouser@% row with the same password hash and grant ALL on
-# magentodb. The root password is 1234567890 (set by the image's
-# docker-entrypoint.sh via MYSQL_ROOT_PASSWORD default).
-
-MYSQL_GRANT_SQL='
-INSERT IGNORE INTO global_priv (Host, User, Priv)
-  VALUES ("%", "magentouser",
-    "{\"access\":0,\"version_id\":100612,\"plugin\":\"mysql_native_password\",\"authentication_string\":\"*ACE88B25517D0F22E5C3C643944B027D56345D2D\",\"password_last_changed\":1681054041}");
-INSERT IGNORE INTO db
-  (Host, Db, User,
-   Select_priv, Insert_priv, Update_priv, Delete_priv,
-   Create_priv, Drop_priv, Grant_priv, References_priv,
-   Index_priv, Alter_priv, Create_tmp_table_priv, Lock_tables_priv,
-   Create_view_priv, Show_view_priv, Create_routine_priv, Alter_routine_priv,
-   Execute_priv, Event_priv, Trigger_priv)
-  VALUES ("%", "magentodb", "magentouser",
-   "Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y");
-FLUSH PRIVILEGES;
-'
-
-grant_mysql_remote() {
-    local container="$1"
-    log "$container: granting magentouser@% remote access"
-    if ! printf '%s\n' "$MYSQL_GRANT_SQL" | ssh_host "docker exec -i $container bash -lc 'mysql -u root -p1234567890 mysql'"; then
-        echo "    FAIL: grant failed"
-        return 1
-    fi
-    echo "    OK"
-}
+# MySQL remote-user grant block (shopping + shopping_admin) was removed
+# 2026-04-21 with the WASP-aligned scoping decision.
 
 # ---------------------------------------------------------------------------
 # GitLab PostgreSQL: enable TCP listen + pg_hba allow-all
@@ -201,19 +170,6 @@ su - gitlab-psql -s /bin/sh -c \"/opt/gitlab/embedded/bin/psql -h 127.0.0.1 -U g
 # Verify all DB connections from within containers
 # ---------------------------------------------------------------------------
 
-verify_mysql_connection() {
-    local container="$1"
-    local host_port
-    host_port="$(host_port_for "$container" 3306)"
-    echo "  ${container} MySQL (${host_port:-unknown}):"
-    if ssh_host "docker exec $container bash -c 'mysql -u magentouser -pMyPassword -h 127.0.0.1 magentodb -e \"SELECT 1\" 2>&1'"; then
-        echo "    OK"
-        return 0
-    fi
-    echo "    FAIL"
-    return 1
-}
-
 verify_gitlab_connection() {
     local container="$1"
     local host_port
@@ -245,8 +201,6 @@ verify_postgres_connection() {
 
 verify_connections() {
     log "Verifying database connections via TCP"
-    for_each_container '^webarena-verified-shopping(_[0-9]+)?$' verify_mysql_connection
-    for_each_container '^webarena-verified-shopping_admin(_[0-9]+)?$' verify_mysql_connection
     for_each_container '^webarena-verified-gitlab(_[0-9]+)?$' verify_gitlab_connection
     while IFS= read -r container; do
         [[ -z "$container" ]] && continue
@@ -254,55 +208,6 @@ verify_connections() {
             record_failure
         fi
     done < <(list_matching_containers '^webarena-verified-reddit(_[0-9]+)?$')
-    while IFS= read -r container; do
-        [[ -z "$container" ]] && continue
-        if ! verify_postgres_connection "$container" "renderer" "renderer" "gis"; then
-            record_failure
-        fi
-    done < <(list_matching_containers '^webarena-verified-map(_[0-9]+)?$')
-}
-
-verify_operator_mysql_connectivity() {
-    local container="$1"
-    local host_port
-    host_port="$(host_port_for "$container" 3306)"
-    echo "  operator -> ${container} MySQL (${HOST_IP}:${host_port:-unknown}):"
-    if [[ -z "$host_port" ]]; then
-        echo "    FAIL: missing published host port"
-        return 1
-    fi
-    if (
-        cd "$REPO_ROOT" &&
-        HOST_IP_CHECK="$HOST_IP" HOST_PORT_CHECK="$host_port" uv run python -c '
-import os
-import pymysql
-
-conn = pymysql.connect(
-    host=os.environ["HOST_IP_CHECK"],
-    port=int(os.environ["HOST_PORT_CHECK"]),
-    user="magentouser",
-    password="MyPassword",
-    database="magentodb",
-)
-try:
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-finally:
-    conn.close()
-'
-    ); then
-        echo "    OK"
-        return 0
-    fi
-    echo "    FAIL"
-    return 1
-}
-
-verify_operator_connections() {
-    log "Verifying operator-host connectivity to shopping MySQL"
-    for_each_container '^webarena-verified-shopping(_[0-9]+)?$' verify_operator_mysql_connectivity
-    for_each_container '^webarena-verified-shopping_admin(_[0-9]+)?$' verify_operator_mysql_connectivity
 }
 
 print_host_ports() {
@@ -310,19 +215,12 @@ print_host_ports() {
     while IFS= read -r container; do
         [[ -z "$container" ]] && continue
         local port
-        if [[ "$container" =~ shopping ]] && [[ ! "$container" =~ gitlab|reddit|map ]]; then
-            port="$(host_port_for "$container" 3306)"
-        else
-            port="$(host_port_for "$container" 5432)"
-        fi
+        port="$(host_port_for "$container" 5432)"
         printf '    %-32s %s:%s\n' "$container" "$HOST_IP" "${port:-unknown}"
     done < <(
         {
-            list_matching_containers '^webarena-verified-shopping(_[0-9]+)?$'
-            list_matching_containers '^webarena-verified-shopping_admin(_[0-9]+)?$'
             list_matching_containers '^webarena-verified-gitlab(_[0-9]+)?$'
             list_matching_containers '^webarena-verified-reddit(_[0-9]+)?$'
-            list_matching_containers '^webarena-verified-map(_[0-9]+)?$'
         } | sort
     )
 }
@@ -336,11 +234,8 @@ main() {
     printf '    HOST_IP = %s\n' "$HOST_IP"
     printf '    GITLAB_DB_ALLOWED_CIDRS = %s\n' "$GITLAB_DB_ALLOWED_CIDRS"
 
-    for_each_container '^webarena-verified-shopping(_[0-9]+)?$' grant_mysql_remote
-    for_each_container '^webarena-verified-shopping_admin(_[0-9]+)?$' grant_mysql_remote
     for_each_container '^webarena-verified-gitlab(_[0-9]+)?$' configure_gitlab_postgres
     verify_connections
-    verify_operator_connections
     print_host_ports
 
     if [[ "$FAILURES" -gt 0 ]]; then

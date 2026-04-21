@@ -3,20 +3,21 @@
 # WebArena Verified stack on the EC2 instance.
 #
 # Takes a fresh (or partially bootstrapped) EC2 host and drives it to a
-# state where all 6 sites (map / wikipedia / shopping / shopping_admin /
-# gitlab / reddit) are running with their env-ctrl endpoints returning
-# 200 on /init.
+# state where the configured sites (gitlab + reddit, post-WASP-scope
+# 2026-04-21) are running with their env-ctrl endpoints returning 200
+# on /init.
 #
 # Consolidates today's live-run fixes:
-#   * local amd64 image builds for shopping/shopping_admin/gitlab/reddit with
-#     the env-ctrl fallback baked in from git (no per-run patch dependency)
-#   * amd64 wikipedia image rebuild (upstream arm64-only image crash-loops)
-#   * resume-safe, parallel-mirror ZIM download + atomic volume replace
-#   * resume-safe map data download + strict sentinel-gated extraction
+#   * local amd64 image builds for gitlab/reddit with the env-ctrl
+#     fallback baked in from git (no per-run patch dependency)
 #   * correct Docker Compose override placement at /home/ubuntu/ plus a
 #     generated `.env` that stamps the selected advertised/bind hosts into
 #     the smoke path
 #   * optional legacy env-ctrl patcher kept only as a manual fallback
+#
+# Sections for shopping/shopping_admin/wikipedia/map were removed
+# 2026-04-21 with the WASP-aligned scoping decision (see
+# docs/handoffs/wasp-aligned-scoping-decision.md).
 #
 # Idempotent: safe to run N times. Every step short-circuits on the
 # existing work's sentinel / already-running state.
@@ -218,12 +219,8 @@ SCP_OPTS=(
 #
 #   SITE_ROWS[i] = "site_name:envctrl_port:site_port"
 SITE_ROWS=(
-    "shopping:7771:7770"
-    "shopping_admin:7781:7780"
     "gitlab:8024:8023"
     "reddit:9998:9999"
-    "wikipedia:8889:8888"
-    "map:3031:3030"
 )
 
 split_row() {
@@ -256,10 +253,7 @@ scp_up() {
 sanity_check_local() {
     local missing=0
     for required in \
-        "$SCRIPTS_DIR/setup-map-robust.sh" \
-        "$SCRIPTS_DIR/setup-wikipedia-robust.sh" \
         "$SCRIPTS_DIR/build-webarena-amd64-images.sh" \
-        "$SCRIPTS_DIR/build-wikipedia-amd64.sh" \
         "$SCRIPTS_DIR/webarena-compose-override.yml" \
         "$SCRIPTS_DIR/patch_webarena_containers.sh" \
         "$SCRIPTS_DIR/wa_envctrl_patcher.py"; do
@@ -295,10 +289,7 @@ step_upload_scripts() {
 
     local ok=1
     for f in \
-        "$SCRIPTS_DIR/setup-map-robust.sh" \
-        "$SCRIPTS_DIR/setup-wikipedia-robust.sh" \
         "$SCRIPTS_DIR/build-webarena-amd64-images.sh" \
-        "$SCRIPTS_DIR/build-wikipedia-amd64.sh" \
         "$SCRIPTS_DIR/webarena-compose-override.yml" \
         "$SCRIPTS_DIR/patch_webarena_containers.sh" \
         "$SCRIPTS_DIR/wa_envctrl_patcher.py"; do
@@ -370,10 +361,6 @@ step_build_site_images() {
         echo "    - WARN: build-webarena-amd64-images.sh returned non-zero"
         return 1
     fi
-    if ! ssh_host "bash $COMPOSE_DIR_REMOTE/build-wikipedia-amd64.sh"; then
-        echo "    - WARN: build-wikipedia-amd64.sh returned non-zero"
-        return 1
-    fi
     return 0
 }
 
@@ -390,49 +377,22 @@ step_write_compose_env() {
     return 0
 }
 
-# ---------------------------------------------------------------------------
-# Step 4: download + extract map data
-# ---------------------------------------------------------------------------
-
-step_setup_map_data() {
-    log "Step 4: download + extract map data (resume-safe; per-volume sentinels)"
-    if ! ssh_host 'bash /home/ubuntu/setup-map-robust.sh'; then
-        echo "    - WARN: setup-map-robust.sh returned non-zero (may still have made forward progress)"
-        return 1
-    fi
-    return 0
-}
+# Step 4 (map data) and Step 5 (wikipedia ZIM) were removed 2026-04-21
+# with the WASP-aligned scoping decision.
 
 # ---------------------------------------------------------------------------
-# Step 5: download + replace-in-volume the wiki ZIM
-# ---------------------------------------------------------------------------
-
-step_setup_wikipedia_zim() {
-    log "Step 5: download + verify + replace wiki ZIM (only restarts if replaced)"
-    if ! ssh_host 'bash /home/ubuntu/setup-wikipedia-robust.sh'; then
-        echo "    - WARN: setup-wikipedia-robust.sh returned non-zero"
-        return 1
-    fi
-    return 0
-}
-
-# ---------------------------------------------------------------------------
-# Step 6: bring up all 6 sites
+# Step 6: bring up gitlab + reddit
 # ---------------------------------------------------------------------------
 
 step_compose_up_all() {
-    log "Step 6: docker compose up -d --force-recreate (all 6 sites)"
+    log "Step 6: docker compose up -d --force-recreate (gitlab + reddit)"
     # --force-recreate ensures containers land on the final merged config
     # (override.yml image pins, env vars, port bindings). Without it,
-    # intermediate recreates during Step 4/5 (map setup, ZIM replacement
-    # helper containers) can leave compose's per-container metadata
-    # referencing stale image tags, and Step 6's plain `up -d` treats
-    # them as up-to-date and skips recreation — leaving am1n3e/*:latest
-    # containers running while the merged config says worldsim/*:amd64.
-    # This bit us on the 2026-04-17 r5 bring-up: env-ctrl endpoints
-    # returned HTTP 000 because the base_url fallback wasn't baked in
-    # and wikipedia crash-looped on the arm64 manifest. Forcing recreate
-    # costs ~90s per bring-up; worth it for idempotent correctness.
+    # compose's per-container metadata may reference stale image tags
+    # and `up -d` treats them as up-to-date and skips recreation —
+    # leaving am1n3e/*:latest containers running while the merged config
+    # says worldsim/*:amd64. Forcing recreate costs ~90s per bring-up;
+    # worth it for idempotent correctness.
     if ! ssh_host "cd $COMPOSE_DIR_REMOTE && sudo docker compose -f $COMPOSE_FILE_REMOTE up -d --force-recreate"; then
         echo "    - WARN: docker compose up -d --force-recreate returned non-zero"
         return 1
@@ -595,8 +555,7 @@ main() {
     step_upload_scripts              || return 1
     step_build_site_images           || return 1
     step_write_compose_env           || return 1
-    step_setup_map_data              || echo "    (continuing past step 4 warning)"
-    step_setup_wikipedia_zim         || echo "    (continuing past step 5 warning)"
+    # Steps 4 (map data) and 5 (wikipedia ZIM) removed 2026-04-21.
     step_compose_up_all              || echo "    (continuing past step 6 warning)"
     step_configure_db_access         || echo "    (continuing past step 6b warning)"
     local verify_rc=0

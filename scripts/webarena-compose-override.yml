@@ -27,26 +27,6 @@
 #   WORLDSIM_DB_BIND_HOST=0.0.0.0 docker compose up -d
 
 services:
-  shopping:
-    image: worldsim/webarena-verified-shopping:amd64
-    platform: linux/amd64
-    environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_SHOPPING_PORT:-7770}
-    ports:
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_PORT:-7770}:80"
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_ENV_CTRL_PORT:-7771}:8877"
-      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_SHOPPING_DB_PORT:-3306}:3306"
-
-  shopping_admin:
-    image: worldsim/webarena-verified-shopping_admin:amd64
-    platform: linux/amd64
-    environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_SHOPPING_ADMIN_PORT:-7780}
-    ports:
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_ADMIN_PORT:-7780}:80"
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_SHOPPING_ADMIN_ENV_CTRL_PORT:-7781}:8877"
-      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_SHOPPING_ADMIN_DB_PORT:-3307}:3306"
-
   gitlab:
     image: worldsim/webarena-verified-gitlab:amd64
     platform: linux/amd64
@@ -70,55 +50,6 @@ services:
       - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_REDDIT_ENV_CTRL_PORT:-9998}:8877"
       - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_REDDIT_DB_PORT:-5434}:5432"
 
-  # Wikipedia: upstream am1n3e/webarena-verified-wikipedia:latest is published
-  # arm64-only on Docker Hub, which crash-loops on our x86_64 EC2 host with
-  # "exec format error". We build an amd64 variant locally via
-  # scripts/build-wikipedia-amd64.sh and pin the compose service to it.
-  # platform: linux/amd64 also blocks Docker from ever pulling the arm64
-  # manifest if the local image is missing.
-  #
-  # No DB port exposed: Wikipedia uses Kiwix (ZIM file), not a database.
-  wikipedia:
-    image: worldsim/webarena-verified-wikipedia:amd64
-    platform: linux/amd64
-    environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_WIKIPEDIA_PORT:-8888}
-    ports:
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_WIKIPEDIA_PORT:-8888}:8080"
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_WIKIPEDIA_ENV_CTRL_PORT:-8889}:8877"
-
-  map:
-    environment:
-      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_MAP_PORT:-3030}
-    ports:
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_MAP_PORT:-3030}:8080"
-      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_MAP_ENV_CTRL_PORT:-3031}:8877"
-      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_MAP_DB_PORT:-5435}:5432"
-
-# Map volume binding. setup-map-robust.sh extracts to un-prefixed volume names
-# (`webarena-verified-map-*`) via `docker run -v <name>:/volume`, but the
-# `name: webarena-verified-envs` project prefix in docker-compose.yml causes
-# `docker compose up -d map` to create/mount `webarena-verified-envs_*`
-# volumes instead. Without the `name:` overrides below, compose attaches map
-# to empty prefixed volumes and the container crashes on startup. Setting
-# the explicit `name:` on each map volume disables the project prefix and
-# binds to the same volume the extraction script populated.
-volumes:
-  webarena-verified-map-tile-db:
-    name: webarena-verified-map-tile-db
-  webarena-verified-map-routing-car:
-    name: webarena-verified-map-routing-car
-  webarena-verified-map-routing-bike:
-    name: webarena-verified-map-routing-bike
-  webarena-verified-map-routing-foot:
-    name: webarena-verified-map-routing-foot
-  webarena-verified-map-nominatim-db:
-    name: webarena-verified-map-nominatim-db
-  webarena-verified-map-nominatim-flatnode:
-    name: webarena-verified-map-nominatim-flatnode
-  webarena-verified-map-tiles:
-    name: webarena-verified-map-tiles
-  webarena-verified-map-style:
-    name: webarena-verified-map-style
-  webarena-verified-map-website-db:
-    name: webarena-verified-map-website-db
+# shopping/shopping_admin/wikipedia/map service blocks + map-volume name
+# overrides removed 2026-04-21 with the WASP-aligned scoping decision.
+# See docs/handoffs/wasp-aligned-scoping-decision.md.
