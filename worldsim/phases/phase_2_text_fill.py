@@ -487,6 +487,7 @@ def render_fill_prompt(
         "",
     )
     length_budget = task.get("length_budget") or {"min": 80, "max": 1500}
+    benign_intent, benign_target_excerpt = _benign_fill_context(task)
     return prompt.format(
         site=task.get("site", ""),
         site_kind=site_kind,
@@ -500,7 +501,42 @@ def render_fill_prompt(
         exemplar_3=exemplars[2],
         required_url=url,
         variant_instruction=variant_instruction,
+        benign_intent=benign_intent,
+        benign_target_excerpt=benign_target_excerpt,
     )
+
+
+def _benign_fill_context(task: dict[str, Any]) -> tuple[str, str]:
+    """Extract benign_intent + benign_target_excerpt for the fill prompt.
+
+    benign_intent is the benign task's ``instruction`` (copied by
+    Phase 2a's immutable-field merge). benign_target_excerpt is built
+    from the benign_target_resource: kind + anchors + optional L4 item
+    title. Empty strings are valid — the prompt instructs the filler to
+    fall back to the framing label alone when the excerpt is empty.
+    """
+    benign_intent = str(task.get("instruction") or "").strip()
+    resource = task.get("benign_target_resource")
+    if not isinstance(resource, dict) or resource.get("kind") is None:
+        return benign_intent, ""
+    kind = str(resource.get("kind") or "")
+    anchors = resource.get("anchors") or {}
+    parts: list[str] = [kind]
+    for key in (
+        "project_path",
+        "issue_iid",
+        "mr_iid",
+        "forum_name",
+        "submission_id",
+        "query",
+    ):
+        value = anchors.get(key)
+        if value not in (None, ""):
+            parts.append(f"{key}={value}")
+    title = resource.get("l4_title")
+    if isinstance(title, str) and title.strip():
+        parts.append(f"title={title.strip()[:200]}")
+    return benign_intent, " | ".join(parts)
 
 
 def validate_text_post_hoc(parsed: dict[str, Any], task: dict[str, Any]) -> list[str]:
