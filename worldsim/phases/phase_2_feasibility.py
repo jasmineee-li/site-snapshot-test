@@ -40,7 +40,7 @@ from worldsim.phases.phase_2_render_check import (
     render_signature,
     verify_seed_renders,
 )
-from worldsim.seeding import SeedCleanupHandle, apply_data_seed_async
+from worldsim.seeding import SeedCleanupHandle, UnboundTokenError, apply_data_seed_async
 
 logger = logging.getLogger(__name__)
 
@@ -375,6 +375,22 @@ async def _verify_one(
             fingerprint=fingerprint,
             http_status=exc.http_status,
             response_snippet=exc.response_snippet,
+            attempts=attempts,
+            timestamp=_now_iso(),
+        )
+    except UnboundTokenError as exc:
+        # Phantom {benign_*} token — the seed referenced a token the
+        # resolver's anchors don't support. Categorized separately from
+        # schema_mismatch so dashboards can track the commit 4/6 fail-
+        # loud contract hits distinct from shape violations.
+        _safe_cleanup(handle, cleanup_warnings, task.get("id"))
+        return _infeasible_task(
+            task,
+            kind="contract_violation",
+            detail=str(exc),
+            fingerprint=fingerprint,
+            http_status=None,
+            response_snippet=None,
             attempts=attempts,
             timestamp=_now_iso(),
         )

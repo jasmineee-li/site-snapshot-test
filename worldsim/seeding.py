@@ -622,6 +622,102 @@ def preflight_editor_seed_calls(
     return errors
 
 
+class UnboundTokenError(ValueError):
+    """Raised at seed-apply time when a ``{benign_<anchor_key>}`` token
+    is referenced but not reachable via the task's
+    ``benign_target_resource.anchors`` — the "silently renders empty"
+    failure mode commit 4's registry validator now catches at Phase 2a,
+    and which this check guarantees at Phase 2c.
+
+    Phase 2c categorizes this as ``error.kind = "contract_violation"``,
+    distinct from ``schema_mismatch`` (shape/type violations).
+    """
+
+    def __init__(
+        self,
+        *,
+        task_id: str,
+        kind: str,
+        token: str,
+        available_tokens: frozenset[str],
+        anchors: dict[str, Any],
+    ) -> None:
+        msg = (
+            f"Phantom token {token!r} in seed for task {task_id!r} "
+            f"(kind={kind!r}): not reachable via anchors. "
+            f"Available: {sorted(available_tokens)}; anchors: {dict(anchors)}"
+        )
+        super().__init__(msg)
+        self.task_id = task_id
+        self.kind = kind
+        self.token = token
+        self.available_tokens = frozenset(available_tokens)
+        self.anchors = dict(anchors)
+
+
+def _collect_benign_tokens(value: Any) -> set[str]:
+    """Walk ``value`` and collect every ``{benign_<x>}`` token it
+    references. Used by :func:`_assert_benign_tokens_bound` to pre-check
+    seed calls before substitution."""
+    tokens: set[str] = set()
+    if isinstance(value, str):
+        for match in _FORMAT_TOKEN_PATTERN.finditer(value):
+            key = match.group(1)
+            if key.startswith("benign_"):
+                tokens.add(f"{{{key}}}")
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            tokens |= _collect_benign_tokens(k)
+            tokens |= _collect_benign_tokens(v)
+    elif isinstance(value, list):
+        for item in value:
+            tokens |= _collect_benign_tokens(item)
+    return tokens
+
+
+def _assert_benign_tokens_bound(value: Any, task: Any) -> None:
+    """Raise :class:`UnboundTokenError` if ``value`` references any
+    ``{benign_<x>}`` token not in the contract's
+    :func:`available_tokens_for_kind` for the task's kind + anchors.
+
+    No-op when the task lacks a ``benign_target_resource`` with a
+    non-null kind (legacy tasks, pending-L3 records). The Option A
+    validator rejects null-kind tasks at Phase 2a; feasibility still
+    benefits from the check because it catches cases where Phase 2a
+    regeneration hasn't happened yet.
+    """
+    if not isinstance(task, dict):
+        return
+    resource = task.get("benign_target_resource")
+    if not isinstance(resource, dict):
+        return
+    kind = resource.get("kind")
+    if not isinstance(kind, str) or not kind:
+        return
+    anchors_raw = resource.get("anchors")
+    anchors = anchors_raw if isinstance(anchors_raw, dict) else {}
+
+    tokens_referenced = _collect_benign_tokens(value)
+    if not tokens_referenced:
+        return
+
+    # Lazy import — worldsim.editors package pulls in requests etc;
+    # defer until a seed call actually needs the contract check.
+    from worldsim.editors._registry import available_tokens_for_kind
+
+    available = available_tokens_for_kind(kind, anchors)
+    for token in sorted(tokens_referenced):
+        if token not in available:
+            task_id = task.get("id") or task.get("benign_task_id") or "unknown"
+            raise UnboundTokenError(
+                task_id=str(task_id),
+                kind=kind,
+                token=token,
+                available_tokens=available,
+                anchors=anchors,
+            )
+
+
 def _render_seed_value(value: Any, seed_context: dict[str, Any]) -> Any:
     if isinstance(value, str):
         whole_match = _FORMAT_TOKEN_PATTERN.fullmatch(value)
@@ -716,6 +812,12 @@ def _apply_editor_seed_call(
     read_surface_provenance: dict[str, Any] | None = None,
 ) -> None:
     from datetime import UTC, datetime
+
+    # Fail-loud: reject the call if it references a {benign_*} token that
+    # the resolver's anchors don't support. Catches plans that pass the
+    # legacy Option A validator (which only checks the innermost anchor)
+    # but would render an empty string at substitution time.
+    _assert_benign_tokens_bound(call, instance.get("seed_task"))
 
     rendered = _render_editor_seed_call(call, seed_context)
     editor = _get_editor_for_seed_call(
