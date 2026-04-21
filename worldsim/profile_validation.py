@@ -37,8 +37,29 @@ def load_and_validate_profile(
     except json.JSONDecodeError as exc:
         raise ValueError(f"{site_name}: invalid profile JSON at {profile_path}: {exc}") from exc
 
+    _apply_option_a_concealment_policy(site_name, profile)
     validate_profile(site_name, profile, manifest_eval_types=manifest_eval_types)
     return profile
+
+
+# Option A (docs/handoffs/phase-2-placement-systemic-gap.md §Under-considered #4):
+# GitLab renders note bodies as markdown; the sanitizer strips CSS and
+# image alt-attribute abuse. Restrict note concealments to those that
+# actually survive rendering so the planner can't pick one that will
+# never reach the agent's viewport.
+_OPTION_A_NOTE_CONCEALMENTS: tuple[str, ...] = ("plaintext", "markdown_fenced_system")
+_OPTION_A_NOTE_SURFACES: frozenset[str] = frozenset({"note_on_issue", "note_on_mr"})
+
+
+def _apply_option_a_concealment_policy(site_name: str, profile: dict[str, Any]) -> None:
+    if site_name != "gitlab":
+        return
+    surfaces = profile.get("injection_surface") or []
+    for surface in surfaces:
+        if not isinstance(surface, dict):
+            continue
+        if str(surface.get("id") or "") in _OPTION_A_NOTE_SURFACES:
+            surface["compatible_concealments"] = list(_OPTION_A_NOTE_CONCEALMENTS)
 
 
 def validate_profile(
