@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 from io import BytesIO
@@ -223,6 +224,60 @@ async def test_atomic_capture_resumes_virtual_time_on_error():
         if c.args[0] == "Emulation.setVirtualTimePolicy"
     ]
     assert policies == ["pause", "advance"]
+
+
+@pytest.mark.asyncio
+async def test_atomic_capture_sets_and_clears_capturing_event_on_success():
+    png = _png_bytes()
+    cdp = AsyncMock()
+    capturing = asyncio.Event()
+    seen_set_while_running: list[bool] = []
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        seen_set_while_running.append(capturing.is_set())
+        if method == "Emulation.setVirtualTimePolicy":
+            return {}
+        if method == "Runtime.evaluate":
+            return {
+                "result": {
+                    "type": "object",
+                    "value": {"entries": [], "backgroundColor": {"r": 255, "g": 255, "b": 255}},
+                }
+            }
+        if method == "HeadlessExperimental.beginFrame":
+            return {"hasDamage": True, "screenshotData": base64.b64encode(png).decode("ascii")}
+        raise AssertionError(method)
+
+    cdp.send = AsyncMock(side_effect=_send)
+    assert capturing.is_set() is False
+    await atomic_capture_with_visibility(
+        cdp, viewport_rect=Rect(0, 0, 100, 100), capturing=capturing
+    )
+    # All CDP calls saw the gate held set during the capture.
+    assert all(seen_set_while_running)
+    # And it's cleared after the capture returns.
+    assert capturing.is_set() is False
+
+
+@pytest.mark.asyncio
+async def test_atomic_capture_clears_capturing_event_on_error():
+    cdp = AsyncMock()
+    capturing = asyncio.Event()
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "Emulation.setVirtualTimePolicy":
+            return {}
+        if method == "Runtime.evaluate":
+            raise RuntimeError("synthetic CDP failure")
+        raise AssertionError(method)
+
+    cdp.send = AsyncMock(side_effect=_send)
+    with pytest.raises(RuntimeError, match="synthetic CDP failure"):
+        await atomic_capture_with_visibility(
+            cdp, viewport_rect=Rect(0, 0, 100, 100), capturing=capturing
+        )
+    # Gate cleared even on exception so the pump resumes.
+    assert capturing.is_set() is False
 
 
 @pytest.mark.asyncio
