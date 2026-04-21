@@ -34,6 +34,7 @@ from worldsim.atomic_io import write_json_atomic
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
+    ContractRenderContext,
     available_tokens_for_kind,
     kind_contract,
     method_spec,
@@ -1119,6 +1120,10 @@ async def _generate_injections_for_site(
                 prompt=_render_generation_prompt(
                     cell_targets,
                     validation_command="adversarial-tasks",
+                    contract_context=ContractRenderContext(
+                        site=site_name,
+                        kinds_in_shard=_kinds_in_shard(benign_target_resources),
+                    ),
                 ),
                 output_paths=["/workspace/output/adversarial_tasks.json"],
                 model=sandbox_model,
@@ -1632,15 +1637,33 @@ def _render_generation_prompt(
     cell_targets: dict[str, int],
     *,
     validation_command: str,
+    contract_context: ContractRenderContext | None = None,
 ) -> str:
     return (
-        load_prompt("generate-injections", validation_command=validation_command)
+        load_prompt(
+            "generate-injections",
+            validation_command=validation_command,
+            contract_context=contract_context,
+        )
         + "\n\n## Cell Balance\n\n"
         + "Use `/workspace/tasks/cell_targets.json` as the authoritative shard-level "
         + "target count per framing::concealment cell.\n\n```json\n"
         + json.dumps(cell_targets, indent=2, sort_keys=True)
         + "\n```\n"
     )
+
+
+def _kinds_in_shard(benign_target_resources: dict[str, Any]) -> frozenset[str]:
+    """Collect the set of non-None ``benign_target_resource.kind`` values
+    present across a shard's benign tasks. Feeds :class:`ContractRenderContext`
+    so the prompt table only lists kinds this shard actually uses."""
+    kinds: set[str] = set()
+    for entry in benign_target_resources.values():
+        if isinstance(entry, dict):
+            kind = entry.get("kind")
+            if isinstance(kind, str) and kind:
+                kinds.add(kind)
+    return frozenset(kinds)
 
 
 def _build_cell_targets(
