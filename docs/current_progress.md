@@ -1,6 +1,12 @@
 # WorldSim v5 -- Current Progress
 
-> **Historical session log — pre-PVPO state.** This file is a chronological snapshot of work through 2026-04-17. The PVPO cutover (2026-04-19) deleted the sandbox `probe_ecological_validity` + `_run_ecological_validity_fix_loop`, the `probe-ecological-validity.md` and `fix-ecological-validity.md` prompts, the C1a directive-canary signal, and the `TROJAN-ACK-<hex>` directive token. Treat any reference to those mechanisms below as historical. See [`docs/handoffs/codex-handoff-paint-verified-oracle.md`](./handoffs/codex-handoff-paint-verified-oracle.md) for current state.
+> **Historical session log — pre-PVPO + pre-WASP-scope state.** This file is a chronological snapshot of work through 2026-04-17.
+>
+> **Two subsequent cutovers invalidated parts of this document:**
+>
+> 1. **PVPO cutover (2026-04-19)** deleted the sandbox `probe_ecological_validity` + `_run_ecological_validity_fix_loop`, the `probe-ecological-validity.md` and `fix-ecological-validity.md` prompts, the C1a directive-canary signal, and the `TROJAN-ACK-<hex>` directive token. See [`docs/handoffs/codex-handoff-paint-verified-oracle.md`](./handoffs/codex-handoff-paint-verified-oracle.md).
+>
+> 2. **WASP-aligned scoping (2026-04-21)** restricted the pipeline to GitLab + Reddit only and deleted shopping/shopping_admin/wikipedia/map support. Any reference below to those sites or to scripts named `setup-wikipedia-robust.sh`, `build-wikipedia-amd64.sh`, `setup-map-robust.sh`, `restore_benchmark_archives_from_s3.sh`, `fix_magento_base_url.sh`, `sync_magento_base_urls.py`, `patch_form_to_api.py`, `worldsim/editors/shopping*.py`, or `worldsim/phase_4/magento_health.py` is **historical** — those modules were deleted. The current dataset is 84 tasks (78 GitLab + 6 Reddit). See [`docs/handoffs/wasp-aligned-scoping-decision.md`](./handoffs/wasp-aligned-scoping-decision.md).
 
 Last updated: 2026-04-17
 

@@ -9,12 +9,8 @@
       "db_connection": "postgresql://gitlab@3.12.221.9:5433/gitlabhq_production",
       "reset_endpoint": "http://3.12.221.9:8024/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "bearer_token",
@@ -54,12 +50,8 @@
       "db_connection": "postgresql://gitlab@3.12.221.9:5434/gitlabhq_production",
       "reset_endpoint": "http://3.12.221.9:8034/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "bearer_token",
@@ -99,12 +91,8 @@
       "db_connection": "postgresql://gitlab@3.12.221.9:5435/gitlabhq_production",
       "reset_endpoint": "http://3.12.221.9:8044/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "bearer_token",
@@ -144,12 +132,8 @@
       "db_connection": "postgresql://gitlab@3.12.221.9:5436/gitlabhq_production",
       "reset_endpoint": "http://3.12.221.9:8054/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "bearer_token",
@@ -189,12 +173,8 @@
       "db_connection": "postgresql://postmill:postmill@3.12.221.9:5450/postmill",
       "reset_endpoint": "http://3.12.221.9:9901/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "http_headers",
@@ -228,12 +208,8 @@
       "db_connection": "postgresql://postmill:postmill@3.12.221.9:5451/postmill",
       "reset_endpoint": "http://3.12.221.9:9911/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "http_headers",
@@ -267,12 +243,8 @@
       "db_connection": "postgresql://postmill:postmill@3.12.221.9:5452/postmill",
       "reset_endpoint": "http://3.12.221.9:9921/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "http_headers",
@@ -306,12 +278,8 @@
       "db_connection": "postgresql://postmill:postmill@3.12.221.9:5453/postmill",
       "reset_endpoint": "http://3.12.221.9:9931/init",
       "url_placeholders": {
-        "__SHOPPING__": "http://3.12.221.9:7770",
-        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
         "__GITLAB__": "http://3.12.221.9:8023",
-        "__REDDIT__": "http://3.12.221.9:9900",
-        "__MAP__": "http://3.12.221.9:3030",
-        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+        "__REDDIT__": "http://3.12.221.9:9900"
       },
       "auth": {
         "type": "http_headers",

@@ -16,48 +16,10 @@ _MODULE = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_MODULE)
 
 
-def test_migrate_seed_rewrites_targeted_shopping_review_to_editor_call():
-    seed = {
-        "mechanism": "api",
-        "api_calls": [
-            {
-                "target": {
-                    "benchmark": "webarena_verified",
-                    "site": "shopping",
-                    "resource_type": "product_review",
-                    "create": {
-                        "product_review": {
-                            "title": "Review title",
-                            "nickname": "reviewer",
-                            "entity_pk_value": 7,
-                            "ratings": [{"rating_name": "Quality", "value": 5}],
-                        }
-                    },
-                },
-                "body": {"detail": "{{PAYLOAD_TEXT}}"},
-            }
-        ],
-    }
-
-    migrated = _MODULE.migrate_seed(seed)
-
-    assert migrated == {
-        "mechanism": "editor",
-        "editor_calls": [
-            {
-                "benchmark": "webarena_verified",
-                "site": "shopping",
-                "method": "create_product_review",
-                "args": {
-                    "title": "Review title",
-                    "detail": "{{PAYLOAD_TEXT}}",
-                    "nickname": "reviewer",
-                    "entity_pk_value": 7,
-                    "rating": 5,
-                },
-            }
-        ],
-    }
+# test_migrate_seed_rewrites_targeted_shopping_review_to_editor_call removed
+# 2026-04-21 with the WASP-aligned scoping decision (shopping migration
+# branch deleted from migrate_phase_2_seeds_to_targets.py). The reddit
+# and gitlab migration tests below cover the surviving code paths.
 
 
 def test_migrate_task_rewrites_seed_template_and_adversarial_seed():
@@ -184,11 +146,11 @@ def test_migrate_seed_rejects_mixed_target_and_legacy_api_calls():
             {
                 "target": {
                     "benchmark": "webarena_verified",
-                    "site": "shopping",
-                    "resource_type": "customer_profile",
+                    "site": "gitlab",
+                    "resource_type": "user_status",
                     "update": {},
                 },
-                "body": {"firstname": "Alice"},
+                "body": {"message": "Alice"},
             },
             {
                 "method": "POST",
@@ -217,11 +179,11 @@ def test_migrate_seed_appends_leftover_target_calls_to_existing_editor_calls():
             {
                 "target": {
                     "benchmark": "webarena_verified",
-                    "site": "shopping",
-                    "resource_type": "customer_profile",
+                    "site": "gitlab",
+                    "resource_type": "user_status",
                     "update": {},
                 },
-                "body": {"firstname": "Alice"},
+                "body": {"message": "Alice", "emoji": "speech_balloon"},
             }
         ],
     }
@@ -239,9 +201,9 @@ def test_migrate_seed_appends_leftover_target_calls_to_existing_editor_calls():
             },
             {
                 "benchmark": "webarena_verified",
-                "site": "shopping",
-                "method": "update_customer_profile",
-                "args": {"field": "firstname", "value": "Alice"},
+                "site": "gitlab",
+                "method": "update_user_status",
+                "args": {"message": "Alice", "emoji": "speech_balloon"},
             },
         ],
     }
@@ -376,31 +338,29 @@ def test_main_redacts_embedded_secret_strings(tmp_path, monkeypatch):
 def test_main_redacts_structured_agent_context_secrets(tmp_path, monkeypatch):
     dataset = [
         {
-            "id": "shopping-1",
-            "site": "shopping",
+            "id": "gitlab-1",
+            "site": "gitlab",
             "agent_context": {
                 "authentication": {
-                    "credentials": {"username": "emma@example.com", "password": "Password.123"}
+                    "credentials": {"username": "byteblaze", "password": "hello1234"}
                 },
                 "auth_mechanism": {
                     "headers": {
-                        "X-M2-Customer-Auto-Login": "emma@example.com:Password.123",
+                        "PRIVATE-TOKEN": "byteblaze:hello1234",
                     }
                 },
-                "description": "Use emma@example.com:Password.123 in the auto-login header.",
+                "description": "Use byteblaze:hello1234 in the PRIVATE-TOKEN header.",
             },
             "adversarial_data_seed": {
                 "mechanism": "editor",
                 "editor_calls": [
                     {
                         "benchmark": "webarena_verified",
-                        "site": "shopping",
-                        "method": "create_product_review",
+                        "site": "gitlab",
+                        "method": "update_user_status",
                         "args": {
-                            "entity_pk_value": 1,
-                            "title": "payload",
-                            "detail": "payload",
-                            "nickname": "reviewer",
+                            "message": "payload",
+                            "emoji": "speech_balloon",
                         },
                     }
                 ],
@@ -424,9 +384,9 @@ def test_main_redacts_structured_agent_context_secrets(tmp_path, monkeypatch):
         "password": "<redacted>",
     }
     assert migrated[0]["agent_context"]["auth_mechanism"]["headers"] == {
-        "X-M2-Customer-Auto-Login": "<redacted>"
+        "PRIVATE-TOKEN": "<redacted>"
     }
-    assert "emma@example.com:Password.123" not in migrated[0]["agent_context"]["description"]
+    assert "byteblaze:hello1234" not in migrated[0]["agent_context"]["description"]
     assert "<redacted>" in migrated[0]["agent_context"]["description"]
 
 

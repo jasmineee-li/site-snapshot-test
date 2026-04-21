@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_PATH = Path("logs/phase_2/adversarial_tasks.json")
-DEFAULT_QUARANTINE = Path("logs/phase_2/adversarial_tasks.map_quarantine.json")
+DEFAULT_QUARANTINE = Path("logs/phase_2/adversarial_tasks.dropped_site_quarantine.json")
 _REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
     r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
 )
@@ -63,9 +63,6 @@ _EDITOR_BODY_FIELD_ALIASES: dict[tuple[str, str], dict[str, str]] = {
     },
     ("reddit", "create_comment"): {"body": "body"},
     ("reddit", "update_user_bio"): {"bio": "bio_text"},
-    ("shopping", "create_product_review"): {"detail": "detail", "title": "title"},
-    ("shopping", "update_customer_profile"): {"value": "value"},
-    ("shopping_admin", "update_admin_profile"): {"value": "value"},
 }
 _EMBEDDED_SECRET_PATTERNS = (
     (
@@ -118,40 +115,8 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
     body = call.get("body") if isinstance(call.get("body"), dict) else {}
     body_form = call.get("body_form") if isinstance(call.get("body_form"), dict) else {}
 
-    if site == "shopping" and resource_type == "product_review":
-        review = (
-            create_spec.get("product_review")
-            if isinstance(create_spec.get("product_review"), dict)
-            else {}
-        )
-        rating_value = 4
-        ratings = review.get("ratings")
-        if isinstance(ratings, list) and ratings and isinstance(ratings[0], dict):
-            rating_value = int(ratings[0].get("value") or 4)
-        return {
-            "benchmark": benchmark,
-            "site": site,
-            "method": "create_product_review",
-            "args": {
-                "title": _prefer_placeholder(body.get("title"), review.get("title")),
-                "detail": _prefer_placeholder(body.get("detail"), review.get("detail")),
-                "nickname": body.get("nickname", review.get("nickname")),
-                "entity_pk_value": body.get("entity_pk_value", review.get("entity_pk_value")),
-                "rating": rating_value,
-            },
-        }
-
-    if site == "shopping" and resource_type == "customer_profile":
-        field, value = next(iter(body.items()), (None, None))
-        return {
-            "benchmark": benchmark,
-            "site": site,
-            "method": "update_customer_profile",
-            "args": {
-                "field": field,
-                "value": value,
-            },
-        }
+    # shopping (product_review + customer_profile) branches removed
+    # 2026-04-21 with the WASP-aligned scoping decision.
 
     if site == "reddit" and resource_type == "forum":
         forum = create_spec.get("forum") if isinstance(create_spec.get("forum"), dict) else {}
@@ -394,17 +359,8 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
             }
         raise ValueError("unsupported gitlab user_profile payload for migration")
 
-    if site == "shopping_admin" and resource_type == "admin_profile":
-        field, value = next(iter(body.items()), (None, None))
-        return {
-            "benchmark": benchmark,
-            "site": site,
-            "method": "update_admin_profile",
-            "args": {
-                "field": field,
-                "value": value,
-            },
-        }
+    # shopping_admin (admin_profile) branch removed 2026-04-21 with the
+    # WASP-aligned scoping decision.
 
     raise ValueError(f"unsupported target resource for migration: {(site, resource_type)!r}")
 
@@ -540,7 +496,7 @@ def main() -> int:
     for task in data:
         if not isinstance(task, dict):
             continue
-        if _effective_delivery_site(task) == "map":
+        if _effective_delivery_site(task) in {"shopping", "shopping_admin", "map", "wikipedia"}:
             quarantined.append(_sanitize_task_for_output(task))
             continue
         migrated.append(migrate_task(task))
@@ -550,7 +506,7 @@ def main() -> int:
         _atomic_write_json(args.quarantine_path, quarantined)
     print(
         f"migrated {len(migrated)} tasks to editor_calls"
-        + (f", quarantined {len(quarantined)} map tasks" if quarantined else "")
+        + (f", quarantined {len(quarantined)} dropped-site tasks" if quarantined else "")
     )
     return 0
 
