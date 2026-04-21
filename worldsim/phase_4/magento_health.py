@@ -240,3 +240,169 @@ def check_magento_instances(
         except BaseUrlMismatch as exc:
             mismatches.append(exc)
     return mismatches
+
+
+# ---------------------------------------------------------------------------
+# Pending-review backstop (Layer 3 of the 2026-04-21 long-term fix)
+# ---------------------------------------------------------------------------
+
+# Adversarial seeds use this nickname prefix in the current dataset. Phase 2c's
+# render check (Layer 2) is the primary gate; this backstop catches the corner
+# cases where a seeded review was approved at Phase 2c time but then manually
+# moderated back to Pending before Phase 4 launches, or where the operator
+# hand-applied a task dataset that bypassed Phase 2c. One DB query per Magento
+# instance, total ~tens of ms.
+_SEED_NICKNAME_PATTERN = "SeedNickAdv%"
+_MAGENTO_PENDING_STATUS_ID = 2
+
+# Maximum review IDs surfaced per site in the error detail. Keeps the error
+# readable even when a dataset gone wrong left thousands of pending rows.
+_MAX_PENDING_IDS_REPORTED = 5
+
+
+class PendingSeedReviewsError(RuntimeError):
+    """A Magento instance has pending-approval seeded reviews before Phase 4.
+
+    If any are found, Phase 4 would re-run against tasks whose payloads do
+    NOT render (because status_id=2 reviews stay off the storefront PDP),
+    silently reproducing the 2026-04-21 misclassification bug. Refuse to
+    launch until the operator either approves them manually or re-runs
+    Phase 2c with ``--force-reverify`` to repair the seed state.
+    """
+
+    def __init__(
+        self,
+        *,
+        site_name: str,
+        count: int,
+        sample_ids: list[int],
+        detail: str,
+    ) -> None:
+        super().__init__(detail)
+        self.site_name = site_name
+        self.count = count
+        self.sample_ids = sample_ids
+
+
+def _mysql_connect_from_dsn(db_connection: str) -> Any:
+    """Open a pymysql connection from a ``mysql://user:pw@host:port/db`` URL.
+
+    Separate helper so tests can monkey-patch it out without pulling in the
+    full ``parse_supported_db_connection`` dependency (which is also the
+    canonical parser used by rewards + seeding — see
+    ``worldsim/db_urls.py``).
+    """
+    from worldsim.db_urls import parse_supported_db_connection
+
+    parsed = parse_supported_db_connection(
+        db_connection,
+        purpose="phase 4 magento_health pending-review backstop",
+    )
+    scheme = parsed.scheme.lower()
+    if scheme != "mysql":
+        raise RuntimeError(
+            f"magento pending-review backstop only supports mysql:// DSNs; got {scheme!r}"
+        )
+    import pymysql
+
+    return pymysql.connect(
+        host=parsed.hostname,
+        port=parsed.port or 3306,
+        user=parsed.username,
+        password=parsed.password,
+        database=(parsed.path or "").lstrip("/"),
+    )
+
+
+def check_pending_seed_reviews_mysql(
+    site_name: str,
+    db_connection: str,
+) -> PendingSeedReviewsError | None:
+    """Return an error when any ``SeedNickAdv*`` reviews are still Pending.
+
+    Queries Magento's ``review`` + ``review_detail`` tables for rows with
+    ``status_id=2`` and ``nickname LIKE 'SeedNickAdv%'``. Returns ``None``
+    when the query succeeds and finds nothing. Non-None means Phase 4
+    must refuse to launch.
+
+    A ``pymysql`` / DB error during the probe propagates as an ordinary
+    exception (wrapped in a RuntimeError by the caller) — fail-loud, not
+    fail-soft, because a DB probe failure while Magento is supposedly
+    healthy enough for Phase 4 is itself a stop-the-line signal.
+    """
+    conn = _mysql_connect_from_dsn(db_connection)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT r.review_id, rd.nickname "
+                "FROM review r JOIN review_detail rd ON r.review_id = rd.review_id "
+                "WHERE r.status_id = %s AND rd.nickname LIKE %s "
+                "ORDER BY r.review_id ASC",
+                (_MAGENTO_PENDING_STATUS_ID, _SEED_NICKNAME_PATTERN),
+            )
+            rows = cur.fetchall() or []
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            logger.exception("magento pending-review backstop: failed to close mysql conn")
+
+    if not rows:
+        return None
+
+    count = len(rows)
+    sample_ids = [int(row[0]) for row in rows[:_MAX_PENDING_IDS_REPORTED]]
+    detail = (
+        f"{site_name}: {count} pending-approval review(s) with nickname "
+        f"matching {_SEED_NICKNAME_PATTERN!r} found before Phase 4 launch. "
+        f"First {len(sample_ids)} review_id(s): {sample_ids}. "
+        "Phase 4 would mislabel these trajectories as resistant_unaware "
+        "because PVPO would see no payload on the storefront (2026-04-21 "
+        "bug class). Repair options: (a) re-run Phase 2c with "
+        "`--force-reverify` so the editor's auto-approval logic re-applies, "
+        "or (b) approve manually via Magento admin and re-launch."
+    )
+    return PendingSeedReviewsError(
+        site_name=site_name,
+        count=count,
+        sample_ids=sample_ids,
+        detail=detail,
+    )
+
+
+def check_pending_seed_reviews(instances: list[Any]) -> list[PendingSeedReviewsError]:
+    """Probe every Magento instance in ``instances`` for pending seed reviews.
+
+    Non-Magento instances are silently skipped. Magento instances without a
+    ``db_connection`` are logged as WARNING and skipped — Phase 4 still
+    launches because Layer 2's render check is the primary gate; this
+    backstop is defense-in-depth.
+    """
+    errors: list[PendingSeedReviewsError] = []
+    for instance in instances:
+        site_name = (
+            instance.site_name if hasattr(instance, "site_name") else instance.get("site_name", "")
+        )
+        if site_name not in MAGENTO_SITES:
+            continue
+        db_connection = (
+            instance.db_connection
+            if hasattr(instance, "db_connection")
+            else instance.get("db_connection")
+        )
+        if not db_connection:
+            logger.warning(
+                "magento pending-review backstop: %s has no db_connection; "
+                "skipping backstop probe (Phase 2c render check is the primary gate)",
+                site_name,
+            )
+            continue
+        outcome = check_pending_seed_reviews_mysql(site_name, str(db_connection))
+        if outcome is not None:
+            errors.append(outcome)
+        else:
+            logger.info(
+                "magento pending-review backstop: %s clean (no SeedNickAdv*%% pending)",
+                site_name,
+            )
+    return errors

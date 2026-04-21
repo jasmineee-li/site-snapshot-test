@@ -247,3 +247,177 @@ def test_magento_sites_frozen_set_membership():
     assert "shopping" in MAGENTO_SITES
     assert "shopping_admin" in MAGENTO_SITES
     assert "gitlab" not in MAGENTO_SITES
+
+
+# ---------------------------------------------------------------------------
+# Pending-review backstop (Layer 3)
+# ---------------------------------------------------------------------------
+
+
+from worldsim.phase_4.magento_health import (
+    PendingSeedReviewsError,
+    check_pending_seed_reviews,
+    check_pending_seed_reviews_mysql,
+)
+
+
+class _FakeCursor:
+    def __init__(self, rows: list[tuple]) -> None:
+        self._rows = rows
+        self.last_query: str | None = None
+        self.last_params: tuple | None = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def execute(self, query, params):
+        self.last_query = query
+        self.last_params = params
+
+    def fetchall(self):
+        return self._rows
+
+
+class _FakeConnection:
+    def __init__(self, rows: list[tuple]) -> None:
+        self._cursor = _FakeCursor(rows)
+        self.closed = False
+
+    def cursor(self):
+        return self._cursor
+
+    def close(self):
+        self.closed = True
+
+
+def test_check_pending_clean_returns_none(monkeypatch):
+    fake_conn = _FakeConnection(rows=[])
+    monkeypatch.setattr(magento_health, "_mysql_connect_from_dsn", lambda dsn: fake_conn)
+
+    result = check_pending_seed_reviews_mysql("shopping", "mysql://u:p@h:3306/db")
+
+    assert result is None
+    assert fake_conn.closed
+    # Spot-check the query asserts what we expect: the WHERE clause filters
+    # status_id=2 (Pending) AND nickname LIKE the seed prefix.
+    assert "status_id" in fake_conn._cursor.last_query
+    assert "LIKE" in fake_conn._cursor.last_query
+    assert fake_conn._cursor.last_params == (2, "SeedNickAdv%")
+
+
+def test_check_pending_with_rows_returns_error_with_sample_ids(monkeypatch):
+    fake_conn = _FakeConnection(
+        rows=[
+            (101, "SeedNickAdv001"),
+            (102, "SeedNickAdv002"),
+            (103, "SeedNickAdv003"),
+            (104, "SeedNickAdv004"),
+            (105, "SeedNickAdv005"),
+            (106, "SeedNickAdv006"),
+            (107, "SeedNickAdv007"),
+        ]
+    )
+    monkeypatch.setattr(magento_health, "_mysql_connect_from_dsn", lambda dsn: fake_conn)
+
+    result = check_pending_seed_reviews_mysql("shopping", "mysql://u:p@h:3306/db")
+
+    assert isinstance(result, PendingSeedReviewsError)
+    assert result.site_name == "shopping"
+    assert result.count == 7
+    # First 5 review IDs surfaced in the error detail.
+    assert result.sample_ids == [101, 102, 103, 104, 105]
+    detail = str(result)
+    assert "7 pending-approval review" in detail
+    assert "SeedNickAdv%" in detail
+    assert "[101, 102, 103, 104, 105]" in detail
+    assert "force-reverify" in detail
+
+
+def test_check_pending_propagates_db_errors(monkeypatch):
+    """A pymysql connect failure must NOT be silently swallowed — Phase 4
+    should fail-loud when the backstop probe itself can't run."""
+
+    class _ConnRefused(Exception):
+        pass
+
+    def _fail(_dsn):
+        raise _ConnRefused("connection refused")
+
+    monkeypatch.setattr(magento_health, "_mysql_connect_from_dsn", _fail)
+
+    with pytest.raises(_ConnRefused):
+        check_pending_seed_reviews_mysql("shopping", "mysql://u:p@h:3306/db")
+
+
+def test_check_pending_skips_non_magento_sites(monkeypatch):
+    called: list[str] = []
+
+    def _fail_if_called(_dsn):
+        called.append(_dsn)
+        raise AssertionError("non-magento site should never invoke DB connect")
+
+    monkeypatch.setattr(magento_health, "_mysql_connect_from_dsn", _fail_if_called)
+
+    instances = [
+        SimpleNamespace(site_name="gitlab", db_connection="postgresql://x"),
+        SimpleNamespace(site_name="reddit", db_connection="postgresql://y"),
+        SimpleNamespace(site_name="map", db_connection="postgresql://z"),
+    ]
+    errors = check_pending_seed_reviews(instances)
+
+    assert errors == []
+    assert called == []
+
+
+def test_check_pending_skips_magento_without_db_connection(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setattr(
+        magento_health,
+        "_mysql_connect_from_dsn",
+        lambda _dsn: (_ for _ in ()).throw(AssertionError("should not connect")),
+    )
+
+    instances = [SimpleNamespace(site_name="shopping", db_connection=None)]
+    with caplog.at_level(logging.WARNING, logger="worldsim.phase_4.magento_health"):
+        errors = check_pending_seed_reviews(instances)
+
+    # Backstop is defense-in-depth; missing db_connection is logged but does
+    # not block Phase 4 (Layer 2 render check is the primary gate).
+    assert errors == []
+    assert any("no db_connection" in rec.message for rec in caplog.records)
+
+
+def test_check_pending_aggregates_errors_across_magento_instances(monkeypatch):
+    fake_conn_with_rows = _FakeConnection(rows=[(50, "SeedNickAdv001")])
+    fake_conn_clean = _FakeConnection(rows=[])
+
+    conns = iter([fake_conn_with_rows, fake_conn_clean])
+
+    monkeypatch.setattr(magento_health, "_mysql_connect_from_dsn", lambda _dsn: next(conns))
+
+    instances = [
+        SimpleNamespace(site_name="shopping", db_connection="mysql://u:p@h:3306/d1"),
+        SimpleNamespace(site_name="shopping_admin", db_connection="mysql://u:p@h:3307/d2"),
+    ]
+    errors = check_pending_seed_reviews(instances)
+
+    assert len(errors) == 1
+    assert errors[0].site_name == "shopping"
+    assert errors[0].count == 1
+
+
+def test_check_pending_works_with_dict_instances(monkeypatch):
+    """``check_pending_seed_reviews`` must accept dict-shaped instances —
+    Phase 4 calls this with the dict form during preflight."""
+    fake_conn = _FakeConnection(rows=[])
+    monkeypatch.setattr(magento_health, "_mysql_connect_from_dsn", lambda _dsn: fake_conn)
+
+    errors = check_pending_seed_reviews(
+        [{"site_name": "shopping", "db_connection": "mysql://u:p@h:3306/d"}]
+    )
+
+    assert errors == []
