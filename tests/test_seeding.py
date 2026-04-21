@@ -51,6 +51,10 @@ class _FakeSession:
         self.calls.append({"method": "GET", "url": url, **kwargs})
         return self._responses.pop(0)
 
+    def post(self, url, **kwargs):
+        self.calls.append({"method": "POST", "url": url, **kwargs})
+        return self._responses.pop(0)
+
     def close(self) -> None:
         self.closed = True
 
@@ -167,6 +171,87 @@ def test_validate_data_seed_accepts_form_alias():
             "api_calls": [{"method": "POST", "path": "/review", "body_form": {"title": "ok"}}],
         }
     )
+
+
+def test_web_login_rejects_login_form_rerender():
+    session = _FakeSession(
+        [
+            _FakeResponse(status_code=200, text='<input name="csrf_token" value="t">'),
+            _FakeResponse(status_code=200, text='<input type="password" name="_password">'),
+        ]
+    )
+
+    with pytest.raises(RuntimeError, match="login form was re-rendered"):
+        seeding._perform_web_login_if_needed(
+            session,
+            {
+                "site_name": "reddit",
+                "site_url": "http://reddit.test",
+                "auth": {
+                    "type": "web_login",
+                    "login_url": "/login",
+                    "credentials": {"username": "u", "password": "p"},
+                },
+            },
+            "form",
+        )
+
+
+def test_web_login_uses_validation_endpoint_when_present():
+    session = _FakeSession(
+        [
+            _FakeResponse(status_code=200, text='<input name="csrf_token" value="t">'),
+            _FakeResponse(status_code=302, headers={"Location": "/"}),
+            _FakeResponse(status_code=200, text="welcome"),
+        ]
+    )
+
+    seeding._perform_web_login_if_needed(
+        session,
+        {
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+            "auth": {
+                "type": "web_login",
+                "login_url": "/login",
+                "validation_endpoint": "/me",
+                "credentials": {"username": "u", "password": "p"},
+            },
+        },
+        "form",
+    )
+
+    assert [call["url"] for call in session.calls] == [
+        "http://reddit.test/login",
+        "http://reddit.test/login",
+        "http://reddit.test/me",
+    ]
+
+
+def test_web_login_validation_endpoint_rejects_redirect_back_to_login():
+    session = _FakeSession(
+        [
+            _FakeResponse(status_code=200, text='<input name="csrf_token" value="t">'),
+            _FakeResponse(status_code=302, headers={"Location": "/"}),
+            _FakeResponse(status_code=302, headers={"Location": "/login"}),
+        ]
+    )
+
+    with pytest.raises(RuntimeError, match="validation endpoint redirected to login"):
+        seeding._perform_web_login_if_needed(
+            session,
+            {
+                "site_name": "reddit",
+                "site_url": "http://reddit.test",
+                "auth": {
+                    "type": "web_login",
+                    "login_url": "/login",
+                    "validation_endpoint": "/me",
+                    "credentials": {"username": "u", "password": "p"},
+                },
+            },
+            "form",
+        )
 
 
 def test_seed_requires_reset_for_editor_only_seed_without_mechanism():

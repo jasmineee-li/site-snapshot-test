@@ -90,6 +90,28 @@ _UNRESOLVED_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 _FORMAT_TOKEN_PATTERN = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_\.]*)\}(?!\})")
 
 
+def _response_redirect_path(response: requests.Response) -> str:
+    location = response.headers.get("Location")
+    if not isinstance(location, str) or not location.strip():
+        return ""
+    return (urllib.parse.urlparse(location).path or "").strip().lower()
+
+
+def _response_redirects_to_login(response: requests.Response) -> bool:
+    path = _response_redirect_path(response)
+    if not path:
+        return False
+    return any(
+        token in path
+        for token in (
+            "/login",
+            "/sign_in",
+            "/users/sign_in",
+            "/session",
+        )
+    )
+
+
 class SeedCleanupHandle:
     def __init__(
         self,
@@ -1146,6 +1168,34 @@ def _perform_web_login_if_needed(
         raise RuntimeError(
             f"Web login failed for {instance.get('site_name', '?')}: HTTP {post_resp.status_code}"
         )
+    if _response_redirects_to_login(post_resp):
+        raise RuntimeError(
+            f"Web login failed for {instance.get('site_name', '?')}: redirected back to login"
+        )
+    if post_resp.status_code == 200 and _looks_like_login_page(post_resp.text):
+        raise RuntimeError(
+            f"Web login failed for {instance.get('site_name', '?')}: login form was re-rendered"
+        )
+
+    validation_endpoint = auth.get("validation_endpoint")
+    if isinstance(validation_endpoint, str) and validation_endpoint.strip():
+        validation_url = f"{site_url}{validation_endpoint.strip()}"
+        validation_resp = session.get(validation_url, timeout=30, allow_redirects=False)
+        if validation_resp.status_code in {401, 403}:
+            raise RuntimeError(
+                f"Web login failed for {instance.get('site_name', '?')}: "
+                f"validation endpoint returned HTTP {validation_resp.status_code}"
+            )
+        if _response_redirects_to_login(validation_resp):
+            raise RuntimeError(
+                f"Web login failed for {instance.get('site_name', '?')}: "
+                "validation endpoint redirected to login"
+            )
+        if validation_resp.status_code == 200 and _looks_like_login_page(validation_resp.text):
+            raise RuntimeError(
+                f"Web login failed for {instance.get('site_name', '?')}: "
+                "validation endpoint still served the login page"
+            )
 
 
 def collect_seed_runtime_errors(
@@ -1743,6 +1793,21 @@ def _extract_csrf_token(html: str) -> tuple[str | None, str | None]:
         param_name = param_match.group(1) if param_match else "csrf_token"
         return param_name, meta_match.group(1)
     return (None, None)
+
+
+def _looks_like_login_page(html: str) -> bool:
+    lowered = (html or "").lower()
+    if not lowered:
+        return False
+    indicators = (
+        "user[password]",
+        'type="password"',
+        "name=\"_password\"",
+        "input#login-password",
+        "sign in",
+        "log in",
+    )
+    return any(indicator in lowered for indicator in indicators)
 
 
 def _verify_http_seed_postcondition(

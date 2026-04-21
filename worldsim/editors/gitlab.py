@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -384,19 +385,6 @@ class GitlabEditor(BaseSiteEditor):
         )
         title = str(title_template).strip()
         description = str(body_template or "").strip()
-        existing = self._find_existing_issue(
-            project_id=project["project_id"], title=title, description=description
-        )
-        if isinstance(existing, dict):
-            return {
-                "project_id": project["project_id"],
-                "project_path": project["project_path"],
-                "issue_iid": existing["iid"],
-                "read_surface_urls": self._issue_surface_urls(
-                    existing, project["project_path"], existing["iid"]
-                ),
-                "read_surface_provenance_source": "editor_api_response",
-            }
         issue = self._gitlab_request_json(
             "POST",
             f"/api/v4/projects/{project['project_id']}/issues",
@@ -446,17 +434,6 @@ class GitlabEditor(BaseSiteEditor):
             title_template=issue_title_template,
             body_template=issue_body_template,
         )
-        note = self._find_existing_issue_note(project["project_id"], issue["issue_iid"], note_body)
-        if isinstance(note, dict):
-            return {
-                **project,
-                "issue_iid": issue["issue_iid"],
-                "note_id": note["id"],
-                "read_surface_urls": self._issue_surface_urls(
-                    note, project["project_path"], issue["issue_iid"]
-                ),
-                "read_surface_provenance_source": "editor_api_response",
-            }
         created = self._gitlab_request_json(
             "POST",
             f"/api/v4/projects/{project['project_id']}/issues/{issue['issue_iid']}/notes",
@@ -509,14 +486,9 @@ class GitlabEditor(BaseSiteEditor):
         }
         existing = self._find_existing_merge_request(project["project_id"], payload)
         if isinstance(existing, dict):
-            return {
-                **project,
-                "mr_iid": existing["iid"],
-                "read_surface_urls": self._mr_surface_urls(
-                    existing, project["project_path"], existing["iid"]
-                ),
-                "read_surface_provenance_source": "editor_api_response",
-            }
+            existing_iid = existing.get("iid")
+            if existing_iid not in (None, ""):
+                self._close_merge_request(project["project_id"], existing_iid)
         self._ensure_branch_and_commit(project["project_id"], payload)
         created = self._gitlab_request_json(
             "POST",
@@ -569,19 +541,6 @@ class GitlabEditor(BaseSiteEditor):
             source_branch=source_branch,
             target_branch=target_branch,
         )
-        note = self._find_existing_mr_note(
-            project["project_id"], merge_request["mr_iid"], note_body
-        )
-        if isinstance(note, dict):
-            return {
-                **project,
-                "mr_iid": merge_request["mr_iid"],
-                "note_id": note["id"],
-                "read_surface_urls": self._mr_surface_urls(
-                    note, project["project_path"], merge_request["mr_iid"]
-                ),
-                "read_surface_provenance_source": "editor_api_response",
-            }
         created = self._gitlab_request_json(
             "POST",
             f"/api/v4/projects/{project['project_id']}/merge_requests/{merge_request['mr_iid']}/notes",
@@ -707,8 +666,19 @@ class GitlabEditor(BaseSiteEditor):
                 }
             return {}
 
+        def _verify_profile_state() -> None:
+            self._current_user_cache = None
+            current = self._current_user()
+            for key, expected in payload.items():
+                if str(current.get(key) or "") != str(expected):
+                    raise EditorError(
+                        "request_failed",
+                        f"gitlab user profile update did not persist field {key!r}",
+                    )
+
         try:
             self._gitlab_request_json("PUT", "/api/v4/user", json_body=payload)
+            _verify_profile_state()
             return _surface_result()
         except EditorError as exc:
             if not (exc.kind == "request_failed" and "HTTP 404" in exc.detail):
@@ -735,6 +705,7 @@ class GitlabEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
+        _verify_profile_state()
         return _surface_result()
 
     def _ensure_profile_form_session(self) -> None:
@@ -787,6 +758,12 @@ class GitlabEditor(BaseSiteEditor):
                 "request_failed",
                 f"gitlab editor form POST /users/sign_in returned HTTP {response.status_code}",
             )
+        if 300 <= response.status_code < 400:
+            redirect_path = (urlparse(str(response.headers.get("Location") or "")).path or "").lower()
+            if "/users/sign_in" in redirect_path:
+                raise EditorError(
+                    "auth_missing", "gitlab profile form login did not establish a session"
+                )
         if response.status_code == 200 and "user[password]" in response.text.lower():
             raise EditorError(
                 "auth_missing", "gitlab profile form login did not establish a session"

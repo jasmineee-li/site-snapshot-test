@@ -171,11 +171,88 @@ def test_create_project_does_not_reap_non_disposable_preexisting_project(monkeyp
     assert excinfo.value.kind == "project_already_exists"
 
 
+def test_create_issue_does_not_reuse_existing_issue(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(
+        editor,
+        "_ensure_project",
+        lambda **kwargs: {
+            "project_id": 174,
+            "project_path": "current-user/webagent-task-1",
+            "default_branch": "main",
+        },
+    )
+    monkeypatch.setattr(
+        editor,
+        "_find_existing_issue",
+        lambda **kwargs: {"iid": 41, "title": "Seeded", "description": "body"},
+    )
+    calls = []
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {"iid": 42, "web_url": "http://gitlab.test/current-user/webagent-task-1/-/issues/42"}
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+
+    result = editor.create_issue(title_template="Seeded", body_template="body")
+
+    assert result["issue_iid"] == 42
+    assert calls == [
+        (
+            "POST",
+            "/api/v4/projects/174/issues",
+            {"json_body": {"title": "Seeded", "description": "body"}},
+        )
+    ]
+
+
+def test_create_issue_note_does_not_reuse_existing_note(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(
+        editor,
+        "_ensure_project",
+        lambda **kwargs: {"project_id": 174, "project_path": "current-user/webagent-task-1"},
+    )
+    monkeypatch.setattr(editor, "_ensure_issue", lambda **kwargs: {"issue_iid": 7})
+    monkeypatch.setattr(
+        editor,
+        "_find_existing_issue_note",
+        lambda *args, **kwargs: {"id": 9, "body": "payload"},
+    )
+    created = []
+    monkeypatch.setattr(editor, "_push_cleanup", lambda fn: None)
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        created.append((method, path, kwargs))
+        return {"id": 10}
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+
+    result = editor.create_issue_note(
+        project_name_template="webagent-task-1",
+        issue_title_template="Issue",
+        note_body="payload",
+    )
+
+    assert result["note_id"] == 10
+    assert created == [
+        (
+            "POST",
+            "/api/v4/projects/174/issues/7/notes",
+            {"json_body": {"body": "payload"}},
+        )
+    ]
+
+
 def test_update_user_profile_falls_back_to_profile_form_when_api_missing(monkeypatch):
     editor = _editor()
     captured = {}
+    state = {"name": "old name", "bio": "old bio"}
 
     def fake_gitlab_request_json(method, path, **kwargs):
+        if method == "GET" and path == "/api/v4/user":
+            return {"id": 42, "username": "current-user", **state}
         raise EditorError(
             "request_failed", "gitlab editor request for /api/v4/user returned HTTP 404"
         )
@@ -203,6 +280,8 @@ def test_update_user_profile_falls_back_to_profile_form_when_api_missing(monkeyp
         captured["form_fields"] = form_fields
         captured["multipart"] = multipart
         captured["refresh_on_rejection"] = refresh_on_rejection
+        state["name"] = form_fields["user[name]"]
+        state["bio"] = form_fields["user[bio]"]
         return {}
 
     monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
@@ -221,11 +300,33 @@ def test_update_user_profile_falls_back_to_profile_form_when_api_missing(monkeyp
     assert callable(captured["refresh_on_rejection"])
 
 
+def test_update_user_profile_raises_when_verified_state_does_not_change(monkeypatch):
+    editor = _editor()
+    state = {"id": 42, "username": "current-user", "name": "old name", "bio": "old bio"}
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        if method == "PUT" and path == "/api/v4/user":
+            return {}
+        if method == "GET" and path == "/api/v4/user":
+            return dict(state)
+        raise AssertionError((method, path, kwargs))
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+
+    with pytest.raises(EditorError, match="did not persist field"):
+        editor.update_user_profile(name="new name")
+
 def test_update_user_profile_form_fallback_logs_in_with_seed_credentials():
     class _Response:
-        def __init__(self, status_code: int, text: str = "") -> None:
+        def __init__(
+            self,
+            status_code: int,
+            text: str = "",
+            headers: dict[str, str] | None = None,
+        ) -> None:
             self.status_code = status_code
             self.text = text
+            self.headers = headers or {}
 
         def raise_for_status(self) -> None:
             if self.status_code >= 400:
@@ -245,7 +346,7 @@ def test_update_user_profile_form_fallback_logs_in_with_seed_credentials():
         def post(self, url, headers=None, data=None, timeout=None, allow_redirects=False):
             assert url == "http://gitlab.test/users/sign_in"
             self.login_post = {"headers": headers, "data": data, "allow_redirects": allow_redirects}
-            return _Response(302, "")
+            return _Response(302, "", headers={"Location": "/"})
 
     editor = GitlabEditor(
         {
@@ -267,6 +368,40 @@ def test_update_user_profile_form_fallback_logs_in_with_seed_credentials():
         },
         "allow_redirects": False,
     }
+
+
+def test_update_user_profile_form_login_rejects_redirect_back_to_login():
+    class _Response:
+        def __init__(self, status_code: int, text: str = "", headers: dict[str, str] | None = None) -> None:
+            self.status_code = status_code
+            self.text = text
+            self.headers = headers or {}
+
+        def raise_for_status(self) -> None:
+            if self.status_code >= 400:
+                raise RuntimeError(f"HTTP {self.status_code}")
+
+    class _Session:
+        def get(self, url, headers=None, timeout=None, allow_redirects=True):
+            return _Response(
+                200,
+                '<input type="hidden" name="authenticity_token" value="csrf-token">',
+            )
+
+        def post(self, url, headers=None, data=None, timeout=None, allow_redirects=False):
+            return _Response(302, "", headers={"Location": "/users/sign_in"})
+
+    editor = GitlabEditor(
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "auth": {"credentials": {"username": "seed-user", "password": "seed-pass"}},
+        },
+        session=_Session(),
+    )
+
+    with pytest.raises(EditorError, match="did not establish a session"):
+        editor._ensure_profile_form_session()
 
 
 def test_update_user_profile_form_fallback_requires_seed_credentials():

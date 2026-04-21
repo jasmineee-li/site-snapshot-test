@@ -15,6 +15,28 @@ logger = logging.getLogger(__name__)
 _RESPONSE_SNIPPET_MAX_CHARS = 512
 
 
+def _redirect_location_path(response: requests.Response) -> str:
+    location = response.headers.get("Location")
+    if not isinstance(location, str) or not location.strip():
+        return ""
+    return (urlparse(location).path or "").strip().lower()
+
+
+def _looks_like_login_redirect(response: requests.Response) -> bool:
+    path = _redirect_location_path(response)
+    if not path:
+        return False
+    return any(
+        token in path
+        for token in (
+            "/login",
+            "/sign_in",
+            "/users/sign_in",
+            "/session",
+        )
+    )
+
+
 def _same_logical_origin(
     site: Any,
     action: Any,
@@ -523,6 +545,14 @@ class BaseSiteEditor:
                 action_path, form_fields, multipart = refresh_on_rejection()
                 continue
             break
+        if 300 <= response.status_code < 400 and _looks_like_login_redirect(response):
+            raise EditorError(
+                "auth_missing",
+                f"{self.site_name} editor form POST {action_path} redirected to login "
+                f"(HTTP {response.status_code})",
+                http_status=response.status_code,
+                response_snippet=_truncate_snippet(response.text),
+            )
         if response.status_code in {401, 403}:
             raise EditorError(
                 "auth_missing",

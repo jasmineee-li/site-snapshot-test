@@ -38,24 +38,47 @@ def test_validate_args_requires_forum_name_for_comments():
         )
 
 
-def test_create_forum_reuses_existing_forum(monkeypatch):
+def test_create_forum_allocates_fresh_name_when_requested_name_exists(monkeypatch):
     editor = _editor(
         {"site_url": "http://reddit.test", "agent_auth": {"credentials": {"username": "user"}}}
     )
-    monkeypatch.setattr(editor, "_forum_exists", lambda forum_name: True)
+    existing = {"books"}
+    monkeypatch.setattr(editor, "_forum_exists", lambda forum_name: forum_name in existing)
     monkeypatch.setattr(
         editor,
-        "_submit_form",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not post")),
+        "_fetch_form_state",
+        lambda *args, **kwargs: {
+            "action": "",
+            "fields": {
+                "forum[name]": "",
+                "forum[title]": "",
+                "forum[description]": "",
+                "forum[sidebar]": "",
+                "forum[_token]": "csrf-token",
+            },
+        },
     )
+    captured = {}
+
+    def fake_submit_exact_form(
+        action_path, form_fields, *, multipart=False, refresh_on_rejection=None
+    ):
+        captured["action_path"] = action_path
+        captured["form_fields"] = form_fields
+        existing.add(form_fields["forum[name]"])
+        return {}
+
+    monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
 
     result = editor.create_forum(name_template="books")
 
     assert result == {
-        "forum_name": "books",
-        "read_surface_urls": ["http://reddit.test/f/books", "/f/books"],
+        "forum_name": "books-2",
+        "read_surface_urls": ["http://reddit.test/f/books-2", "/f/books-2"],
         "read_surface_provenance_source": "editor_constructed",
     }
+    assert captured["action_path"] == "/create_forum"
+    assert captured["form_fields"]["forum[name]"] == "books-2"
 
 
 def test_create_forum_posts_exact_form_fields(monkeypatch):
@@ -63,8 +86,9 @@ def test_create_forum_posts_exact_form_fields(monkeypatch):
         {"site_url": "http://reddit.test", "agent_auth": {"credentials": {"username": "user"}}}
     )
     captured = {}
+    existing = set()
 
-    monkeypatch.setattr(editor, "_forum_exists", lambda forum_name: False)
+    monkeypatch.setattr(editor, "_forum_exists", lambda forum_name: forum_name in existing)
     monkeypatch.setattr(
         editor,
         "_fetch_form_state",
@@ -87,6 +111,7 @@ def test_create_forum_posts_exact_form_fields(monkeypatch):
         captured["form_fields"] = form_fields
         captured["multipart"] = multipart
         captured["refresh_on_rejection"] = refresh_on_rejection
+        existing.add(form_fields["forum[name]"])
         return {}
 
     monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
@@ -106,6 +131,31 @@ def test_create_forum_posts_exact_form_fields(monkeypatch):
     }
     assert captured["multipart"] is False
     assert callable(captured["refresh_on_rejection"])
+
+
+def test_create_forum_raises_when_created_forum_is_not_visible_after_submit(monkeypatch):
+    editor = _editor(
+        {"site_url": "http://reddit.test", "agent_auth": {"credentials": {"username": "user"}}}
+    )
+    monkeypatch.setattr(editor, "_forum_exists", lambda forum_name: False)
+    monkeypatch.setattr(
+        editor,
+        "_fetch_form_state",
+        lambda *args, **kwargs: {
+            "action": "",
+            "fields": {
+                "forum[name]": "",
+                "forum[title]": "",
+                "forum[description]": "",
+                "forum[sidebar]": "",
+                "forum[_token]": "csrf-token",
+            },
+        },
+    )
+    monkeypatch.setattr(editor, "_submit_exact_form", lambda *args, **kwargs: {})
+
+    with pytest.raises(EditorError, match="did not make 'books' accessible"):
+        editor.create_forum(name_template="books")
 
 
 def test_preview_context_for_submission_includes_submission_id():
@@ -267,6 +317,11 @@ def test_update_user_bio_uses_exact_form_fields(monkeypatch):
         return {}
 
     monkeypatch.setattr(editor, "_submit_exact_form", fake_submit_exact_form)
+    monkeypatch.setattr(
+        editor,
+        "_form_get",
+        lambda *args, **kwargs: types.SimpleNamespace(text="new bio"),
+    )
 
     assert editor.update_user_bio(bio_text="new bio") == {
         "read_surface_urls": [
@@ -282,3 +337,29 @@ def test_update_user_bio_uses_exact_form_fields(monkeypatch):
     }
     assert captured["multipart"] is False
     assert callable(captured["refresh_on_rejection"])
+
+
+def test_update_user_bio_raises_when_profile_does_not_show_new_text(monkeypatch):
+    editor = _editor(
+        {"site_url": "http://reddit.test", "agent_auth": {"credentials": {"username": "user"}}}
+    )
+    monkeypatch.setattr(
+        editor,
+        "_fetch_form_state",
+        lambda *args, **kwargs: {
+            "action": "",
+            "fields": {
+                "user_biography[biography]": "old bio",
+                "user_biography[_token]": "csrf-token",
+            },
+        },
+    )
+    monkeypatch.setattr(editor, "_submit_exact_form", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        editor,
+        "_form_get",
+        lambda *args, **kwargs: types.SimpleNamespace(text="still old bio"),
+    )
+
+    with pytest.raises(EditorError, match="did not persist the new text"):
+        editor.update_user_bio(bio_text="new bio")

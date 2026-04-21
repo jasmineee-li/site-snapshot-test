@@ -166,15 +166,8 @@ class RedditEditor(BaseSiteEditor):
         name_template: str,
         description_template: str | None = None,
     ) -> dict[str, Any]:
-        forum_name = str(name_template).strip()
+        forum_name = self._allocate_forum_name(str(name_template).strip())
         forum_surface = _reddit_surface_urls(self._site_url(), [f"/f/{forum_name}"])
-        existing = self._forum_exists(forum_name)
-        if existing:
-            return {
-                "forum_name": forum_name,
-                "read_surface_urls": forum_surface,
-                "read_surface_provenance_source": "editor_constructed",
-            }
 
         def build_form_submission() -> tuple[str, dict[str, Any], bool]:
             form = self._fetch_form_state(
@@ -202,6 +195,11 @@ class RedditEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
+        if not self._forum_exists(forum_name):
+            raise EditorError(
+                "request_failed",
+                f"reddit forum create did not make {forum_name!r} accessible after submit",
+            )
         return {
             "forum_name": forum_name,
             "read_surface_urls": forum_surface,
@@ -313,6 +311,14 @@ class RedditEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
+        profile_page = self._form_get(f"/user/{self._quote(username)}")
+        if profile_page is None:
+            raise EditorError(
+                "request_failed",
+                "reddit bio update did not leave the profile page accessible",
+            )
+        if bio_text and str(bio_text) not in profile_page.text:
+            raise EditorError("request_failed", "reddit bio update did not persist the new text")
         return {
             "read_surface_urls": _reddit_surface_urls(self._site_url(), [f"/user/{username}"]),
             "read_surface_provenance_source": "editor_constructed",
@@ -340,6 +346,22 @@ class RedditEditor(BaseSiteEditor):
     def _forum_exists(self, forum_name: str) -> bool:
         response = self._form_get(f"/f/{self._quote(forum_name)}", allow_missing=True)
         return response is not None and response.status_code == 200
+
+    def _allocate_forum_name(self, requested_name: str) -> str:
+        base = requested_name.strip()
+        if not base:
+            raise EditorError("invalid_args", "forum name_template must not be empty")
+        candidate = base
+        suffix = 2
+        while self._forum_exists(candidate):
+            candidate = f"{base}-{suffix}"
+            suffix += 1
+            if suffix > 100:
+                raise EditorError(
+                    "request_failed",
+                    f"reddit forum create could not allocate a fresh name for {base!r}",
+                )
+        return candidate
 
     def _extract_submission_id(self, response: requests.Response) -> str:
         location = response.headers.get("Location", "")
