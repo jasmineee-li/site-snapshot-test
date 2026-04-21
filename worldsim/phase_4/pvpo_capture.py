@@ -141,6 +141,12 @@ async def atomic_capture_with_visibility(
     """
     query_js = build_pvpo_query_js(payload_text)
     cdp = normalize_cdp_session(cdp_session)
+    # The pump attaches an ``asyncio.Lock`` to the capturing Event so the
+    # atomic capture and the pump can serialize their beginFrame calls.
+    # Older callers that passed a bare Event without the attribute still
+    # work; they just don't get the mutex protection (same as before this
+    # change).
+    beginframe_lock = getattr(capturing, "beginframe_lock", None) if capturing is not None else None
     if capturing is not None:
         capturing.set()
     await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
@@ -157,16 +163,18 @@ async def atomic_capture_with_visibility(
                 issue_message or issue_class,
             )
 
-        frame = await cdp.send(
-            "HeadlessExperimental.beginFrame",
-            {
-                "screenshot": {
-                    "format": "png",
-                    "quality": 100,
-                    "clip": viewport_rect.as_cdp_clip(),
-                },
+        begin_frame_params = {
+            "screenshot": {
+                "format": "png",
+                "quality": 100,
+                "clip": viewport_rect.as_cdp_clip(),
             },
-        )
+        }
+        if beginframe_lock is not None:
+            async with beginframe_lock:
+                frame = await cdp.send("HeadlessExperimental.beginFrame", begin_frame_params)
+        else:
+            frame = await cdp.send("HeadlessExperimental.beginFrame", begin_frame_params)
 
         has_damage = bool(frame.get("hasDamage", True))
         if not has_damage:

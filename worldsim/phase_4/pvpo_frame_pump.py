@@ -66,6 +66,7 @@ async def _pump_once(cdp_session: Any) -> None:
 async def _pump_loop(
     session: Any,
     capturing: asyncio.Event,
+    beginframe_lock: asyncio.Lock,
     stop: asyncio.Event,
     interval_s: float,
 ) -> None:
@@ -86,8 +87,13 @@ async def _pump_loop(
                 logger.debug("pvpo pump: cdp session unavailable: %s", exc)
                 await asyncio.sleep(interval_s)
                 continue
+            # Serialize beginFrame with any concurrent atomic capture so we
+            # don't trip Chrome's "Another frame is pending" guard. The
+            # capturing Event still short-circuits the loop above as a
+            # cheap skip during captures, but the lock is the real mutex.
             try:
-                await _pump_once(cdp_session)
+                async with beginframe_lock:
+                    await _pump_once(cdp_session)
             except Exception as exc:
                 logger.debug("pvpo pump: beginFrame failed: %s", exc)
         except asyncio.CancelledError:
@@ -105,10 +111,14 @@ async def frame_pump(
 ) -> AsyncIterator[asyncio.Event]:
     """Run a per-session ``beginFrame`` pump for the lifetime of the block.
 
-    Yields a ``capturing`` :class:`asyncio.Event` that callers (specifically
-    :func:`worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility`)
-    should set while a virtual-time-paused atomic capture is in flight so
-    the pump does not race the capture's own ``beginFrame`` screenshot call.
+    Yields a ``capturing`` :class:`asyncio.Event` with an attached
+    ``beginframe_lock`` attribute (``asyncio.Lock``) that callers
+    (specifically :func:`worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility`)
+    should use to serialize any ``HeadlessExperimental.beginFrame`` call
+    against the pump's own ticks. Setting ``capturing`` still causes the
+    pump to cheaply skip its tick during a capture; the lock is what
+    actually prevents Chrome's ``Another frame is pending`` guard from
+    tripping when the pump has a frame in flight.
 
     The pump is disabled (context manager yields immediately, no task is
     spawned) when ``interval_s`` is <= 0, or when the env var
@@ -116,6 +126,11 @@ async def frame_pump(
     kill switch without having to edit code.
     """
     capturing = asyncio.Event()
+    beginframe_lock = asyncio.Lock()
+    # Attach the lock to the yielded Event so existing callers that just
+    # `async with frame_pump(...) as capturing` keep their one-arg binding,
+    # and the capture path can reach the lock via ``capturing.beginframe_lock``.
+    capturing.beginframe_lock = beginframe_lock  # type: ignore[attr-defined]
     effective_interval = _resolve_interval_s(interval_s)
     if effective_interval <= 0:
         logger.info("pvpo frame pump disabled (interval<=0)")
@@ -124,7 +139,7 @@ async def frame_pump(
 
     stop = asyncio.Event()
     task = asyncio.create_task(
-        _pump_loop(session, capturing, stop, effective_interval),
+        _pump_loop(session, capturing, beginframe_lock, stop, effective_interval),
         name="pvpo-frame-pump",
     )
     try:

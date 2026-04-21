@@ -159,3 +159,60 @@ async def test_pump_swallows_get_or_create_cdp_session_errors(caplog):
         async with frame_pump(session, interval_s=0.01):
             await asyncio.sleep(0.04)
     assert any("cdp session unavailable" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_pump_yields_beginframe_lock_on_capturing_event():
+    """Regression: the yielded capturing Event must carry a ``beginframe_lock``
+    asyncio.Lock so :func:`pvpo_capture.atomic_capture_with_visibility` can
+    serialize its own ``HeadlessExperimental.beginFrame`` call against the
+    pump's ticks. Without this mutex the capture races the pump and Chrome
+    returns ``{'code': -32000, 'message': 'Another frame is pending'}``.
+    """
+    session = _FakeSession()
+    async with frame_pump(session, interval_s=0.01) as capturing:
+        lock = getattr(capturing, "beginframe_lock", None)
+        assert isinstance(lock, asyncio.Lock), (
+            "frame_pump must attach an asyncio.Lock to the yielded Event; "
+            "without it atomic_capture_with_visibility cannot serialize beginFrame"
+        )
+        assert not lock.locked()
+
+
+@pytest.mark.asyncio
+async def test_pump_blocks_when_beginframe_lock_held():
+    """When a capture holds the ``beginframe_lock``, the pump must not race it.
+    Simulate that by grabbing the lock ourselves and verifying zero
+    beginFrame calls complete while held; pump resumes after release.
+    """
+    session = _FakeSession()
+    async with frame_pump(session, interval_s=0.005) as capturing:
+        lock = capturing.beginframe_lock  # type: ignore[attr-defined]
+        # Make the pump's beginFrame calls block inside the lock so we can
+        # prove it really serializes; without blocking, the pump might grab
+        # the lock in between our acquire/release and silently complete.
+        pump_blocker = asyncio.Event()
+        original_send = session._cdp.send
+
+        async def blocking_send(method: str, params: dict | None = None):
+            if method == "HeadlessExperimental.beginFrame":
+                await pump_blocker.wait()
+            return await original_send(method, params)
+
+        session._cdp.send = AsyncMock(side_effect=blocking_send)
+
+        async with lock:
+            # Pump ticks during this window; each tick tries to acquire the
+            # lock and waits. Zero beginFrame calls should complete.
+            await asyncio.sleep(0.04)
+            calls_while_held = len(_begin_frame_calls(session))
+        # Release: unblock pump's sends, let it finish a couple ticks.
+        pump_blocker.set()
+        await asyncio.sleep(0.04)
+        calls_after_release = len(_begin_frame_calls(session))
+
+    assert calls_while_held == 0, (
+        f"pump should block on beginframe_lock, but issued {calls_while_held} "
+        "beginFrame calls while the lock was held"
+    )
+    assert calls_after_release > 0
