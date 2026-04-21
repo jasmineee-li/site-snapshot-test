@@ -1,0 +1,478 @@
+{
+  "benchmark_name": "WebArena Verified",
+  "instances": [
+    {
+      "site_name": "gitlab",
+      "site_url": "http://3.12.221.9:8023",
+      "replica_index": 0,
+      "replica_name": "gitlab_0",
+      "db_connection": "postgresql://gitlab@3.12.221.9:5433/gitlabhq_production",
+      "reset_endpoint": "http://3.12.221.9:8024/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_generator": "gitlab_pat",
+        "credentials": {
+          "username": "byteblaze",
+          "password": "hello1234"
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "storage_state",
+        "storage_state": {
+          "path": "logs/phase_0d/gitlab/storage_state.json",
+          "form_login": {
+            "login_url": "/users/sign_in",
+            "username_selector": "input[name='user[login]']",
+            "password_selector": "input[name='user[password]']",
+            "submit_selector": "input[type='submit'][name='commit']",
+            "success_url_substring": "/"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "byteblaze",
+            "password": "hello1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "gitlab",
+      "site_url": "http://3.12.221.9:8033",
+      "replica_index": 1,
+      "replica_name": "gitlab_1",
+      "db_connection": "postgresql://gitlab@3.12.221.9:5434/gitlabhq_production",
+      "reset_endpoint": "http://3.12.221.9:8034/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_generator": "gitlab_pat",
+        "credentials": {
+          "username": "byteblaze",
+          "password": "hello1234"
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "storage_state",
+        "storage_state": {
+          "path": "logs/phase_0d/gitlab/storage_state.json",
+          "form_login": {
+            "login_url": "/users/sign_in",
+            "username_selector": "input[name='user[login]']",
+            "password_selector": "input[name='user[password]']",
+            "submit_selector": "input[type='submit'][name='commit']",
+            "success_url_substring": "/"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "byteblaze",
+            "password": "hello1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "gitlab",
+      "site_url": "http://3.12.221.9:8043",
+      "replica_index": 2,
+      "replica_name": "gitlab_2",
+      "db_connection": "postgresql://gitlab@3.12.221.9:5435/gitlabhq_production",
+      "reset_endpoint": "http://3.12.221.9:8044/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_generator": "gitlab_pat",
+        "credentials": {
+          "username": "byteblaze",
+          "password": "hello1234"
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "storage_state",
+        "storage_state": {
+          "path": "logs/phase_0d/gitlab/storage_state.json",
+          "form_login": {
+            "login_url": "/users/sign_in",
+            "username_selector": "input[name='user[login]']",
+            "password_selector": "input[name='user[password]']",
+            "submit_selector": "input[type='submit'][name='commit']",
+            "success_url_substring": "/"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "byteblaze",
+            "password": "hello1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "gitlab",
+      "site_url": "http://3.12.221.9:8053",
+      "replica_index": 3,
+      "replica_name": "gitlab_3",
+      "db_connection": "postgresql://gitlab@3.12.221.9:5436/gitlabhq_production",
+      "reset_endpoint": "http://3.12.221.9:8054/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_generator": "gitlab_pat",
+        "credentials": {
+          "username": "byteblaze",
+          "password": "hello1234"
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "storage_state",
+        "storage_state": {
+          "path": "logs/phase_0d/gitlab/storage_state.json",
+          "form_login": {
+            "login_url": "/users/sign_in",
+            "username_selector": "input[name='user[login]']",
+            "password_selector": "input[name='user[password]']",
+            "submit_selector": "input[type='submit'][name='commit']",
+            "success_url_substring": "/"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "byteblaze",
+            "password": "hello1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "reddit",
+      "site_url": "http://3.12.221.9:9900",
+      "replica_index": 0,
+      "replica_name": "reddit_0",
+      "db_connection": "postgresql://postmill:postmill@3.12.221.9:5450/postmill",
+      "reset_endpoint": "http://3.12.221.9:9901/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "http_headers",
+        "headers": {
+          "X-Postmill-Auto-Login": {
+            "from_env": "WORLDSIM_REDDIT_AUTO_LOGIN"
+          }
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "http_headers",
+        "http_headers": {
+          "headers": {
+            "X-Postmill-Auto-Login": "${credentials.username}:${credentials.password}"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "MarvelsGrantMan136",
+            "password": "test1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "reddit",
+      "site_url": "http://3.12.221.9:9910",
+      "replica_index": 1,
+      "replica_name": "reddit_1",
+      "db_connection": "postgresql://postmill:postmill@3.12.221.9:5451/postmill",
+      "reset_endpoint": "http://3.12.221.9:9911/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "http_headers",
+        "headers": {
+          "X-Postmill-Auto-Login": {
+            "from_env": "WORLDSIM_REDDIT_AUTO_LOGIN"
+          }
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "http_headers",
+        "http_headers": {
+          "headers": {
+            "X-Postmill-Auto-Login": "${credentials.username}:${credentials.password}"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "MarvelsGrantMan136",
+            "password": "test1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "reddit",
+      "site_url": "http://3.12.221.9:9920",
+      "replica_index": 2,
+      "replica_name": "reddit_2",
+      "db_connection": "postgresql://postmill:postmill@3.12.221.9:5452/postmill",
+      "reset_endpoint": "http://3.12.221.9:9921/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "http_headers",
+        "headers": {
+          "X-Postmill-Auto-Login": {
+            "from_env": "WORLDSIM_REDDIT_AUTO_LOGIN"
+          }
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "http_headers",
+        "http_headers": {
+          "headers": {
+            "X-Postmill-Auto-Login": "${credentials.username}:${credentials.password}"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "MarvelsGrantMan136",
+            "password": "test1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "reddit",
+      "site_url": "http://3.12.221.9:9930",
+      "replica_index": 3,
+      "replica_name": "reddit_3",
+      "db_connection": "postgresql://postmill:postmill@3.12.221.9:5453/postmill",
+      "reset_endpoint": "http://3.12.221.9:9931/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": {
+        "type": "http_headers",
+        "headers": {
+          "X-Postmill-Auto-Login": {
+            "from_env": "WORLDSIM_REDDIT_AUTO_LOGIN"
+          }
+        }
+      },
+      "api_auth": null,
+      "agent_auth": {
+        "type": "http_headers",
+        "http_headers": {
+          "headers": {
+            "X-Postmill-Auto-Login": "${credentials.username}:${credentials.password}"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "MarvelsGrantMan136",
+            "password": "test1234"
+          }
+        }
+      }
+    },
+    {
+      "site_name": "wikipedia",
+      "site_url": "http://3.12.221.9:8888",
+      "replica_index": 0,
+      "replica_name": "wikipedia_0",
+      "db_connection": null,
+      "reset_endpoint": "http://3.12.221.9:8889/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": null,
+      "api_auth": null,
+      "agent_auth": {
+        "type": "none"
+      }
+    },
+    {
+      "site_name": "wikipedia",
+      "site_url": "http://3.12.221.9:8898",
+      "replica_index": 1,
+      "replica_name": "wikipedia_1",
+      "db_connection": null,
+      "reset_endpoint": "http://3.12.221.9:8899/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": null,
+      "api_auth": null,
+      "agent_auth": {
+        "type": "none"
+      }
+    },
+    {
+      "site_name": "wikipedia",
+      "site_url": "http://3.12.221.9:8908",
+      "replica_index": 2,
+      "replica_name": "wikipedia_2",
+      "db_connection": null,
+      "reset_endpoint": "http://3.12.221.9:8909/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": null,
+      "api_auth": null,
+      "agent_auth": {
+        "type": "none"
+      }
+    },
+    {
+      "site_name": "wikipedia",
+      "site_url": "http://3.12.221.9:8918",
+      "replica_index": 3,
+      "replica_name": "wikipedia_3",
+      "db_connection": null,
+      "reset_endpoint": "http://3.12.221.9:8919/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": null,
+      "api_auth": null,
+      "agent_auth": {
+        "type": "none"
+      }
+    },
+    {
+      "site_name": "wikipedia",
+      "site_url": "http://3.12.221.9:8928",
+      "replica_index": 4,
+      "replica_name": "wikipedia_4",
+      "db_connection": null,
+      "reset_endpoint": "http://3.12.221.9:8929/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": null,
+      "api_auth": null,
+      "agent_auth": {
+        "type": "none"
+      }
+    },
+    {
+      "site_name": "wikipedia",
+      "site_url": "http://3.12.221.9:8938",
+      "replica_index": 5,
+      "replica_name": "wikipedia_5",
+      "db_connection": null,
+      "reset_endpoint": "http://3.12.221.9:8939/init",
+      "url_placeholders": {
+        "__SHOPPING__": "http://3.12.221.9:7770",
+        "__SHOPPING_ADMIN__": "http://3.12.221.9:7810",
+        "__GITLAB__": "http://3.12.221.9:8023",
+        "__REDDIT__": "http://3.12.221.9:9900",
+        "__MAP__": "http://3.12.221.9:3030",
+        "__WIKIPEDIA__": "http://3.12.221.9:8888"
+      },
+      "auth": null,
+      "api_auth": null,
+      "agent_auth": {
+        "type": "none"
+      }
+    }
+  ],
+  "verification_proxy": {
+    "token": "f1649af22901ede64cd980176f00a92ec558b26c34468bc0efc81670ad8ef161",
+    "scheme": "http",
+    "port_offset": 10000
+  },
+  "url_placeholders": {
+    "__GITLAB__": "http://3.12.221.9:8023",
+    "__REDDIT__": "http://3.12.221.9:9900",
+    "__WIKIPEDIA__": "http://3.12.221.9:8888"
+  },
+  "benchmark_codebase": "vendors/webarena-verified"
+}
