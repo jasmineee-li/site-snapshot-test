@@ -238,7 +238,9 @@ ssm_put_file() {
 # Lines starting with # and blank lines are ignored.
 #
 DEFAULT_PORT_MAP="gitlab:8023
-reddit:9999"
+gitlab_envctrl:8024
+reddit:9999
+reddit_envctrl:9998"
 
 validate_topology() {
     local topology="$1"

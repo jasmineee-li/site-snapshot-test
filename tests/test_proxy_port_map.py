@@ -16,8 +16,13 @@ def test_checked_in_proxy_port_map_matches_scale_config() -> None:
         real_port_base = int(site_cfg["real_port_base"])
         for replica_index in range(int(site_cfg["replicas"])):
             real_port = real_port_base + replica_index * port_step
+            proxy_port = real_port + proxy_port_offset
+            expected_lines.append(f"{site_name}_{replica_index}:{real_port}:{proxy_port}")
+            # envctrl entry follows the replica's web entry so Phase 2c /
+            # Phase 4 reset_endpoint hits reach nginx instead of a
+            # docker-loopback port. Matches build_proxy_ports().
             expected_lines.append(
-                f"{site_name}_{replica_index}:{real_port}:{real_port + proxy_port_offset}"
+                f"{site_name}_{replica_index}_envctrl:{real_port + 1}:{proxy_port + 1}"
             )
 
     actual_lines = [

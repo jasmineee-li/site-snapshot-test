@@ -65,31 +65,35 @@ def _override_instance_host(instance: dict[str, object], host: str) -> dict[str,
 # The proxy rewrites these to ``port + port_offset`` on send. Ports outside
 # the set pass through unchanged — notably the ``reset_endpoint`` ports at
 # ``site_port + 1``, which the current nginx config does not front.
-_DEFAULT_SITE_PORTS: frozenset[int] = frozenset(
-    {
+def _build_default_site_ports() -> frozenset[int]:
+    """Build the ProxyingHTTPAdapter's ``site_ports`` allowlist.
+
+    Includes both web (site_url) and envctrl (reset_endpoint at
+    ``real_web+1``) ports for every legacy-topology site and every
+    scale-topology replica. Without envctrl ports in the set, the
+    reset_endpoint hits pass through direct to docker-loopback and
+    every feasibility test times out.
+
+    Matches the generator in ``scripts/generate_compose_scale.py::
+    build_proxy_ports`` which emits a listener per web + envctrl port.
+    """
+    legacy_web = [
         7770,  # shopping
         7780,  # shopping_admin
         8023,  # gitlab
         9999,  # reddit (legacy single-replica topology)
-        # Scale-topology reddit replicas (see scripts/proxy_ports.conf:
-        # reddit_0..reddit_9 on 9900,9910,...,9990). Included here so the
-        # test-time ProxyingHTTPAdapter rewrites hits against any reddit
-        # replica port to its nginx proxy port regardless of which
-        # topology the live host runs.
-        9900,
-        9910,
-        9920,
-        9930,
-        9940,
-        9950,
-        9960,
-        9970,
-        9980,
-        9990,
         8888,  # wikipedia
         3030,  # map
-    }
-)
+    ]
+    scale_reddit_web = list(range(9900, 10000, 10))  # reddit_0..reddit_9
+    scale_gitlab_web = list(range(8023, 8224, 10))  # gitlab_0..gitlab_20
+    all_web = set(legacy_web) | set(scale_reddit_web) | set(scale_gitlab_web)
+    # envctrl = web + 1 (per scripts/generate_compose_scale.py:14).
+    all_envctrl = {p + 1 for p in all_web}
+    return frozenset(all_web | all_envctrl)
+
+
+_DEFAULT_SITE_PORTS: frozenset[int] = _build_default_site_ports()
 
 
 @pytest.fixture(scope="session", autouse=True)
