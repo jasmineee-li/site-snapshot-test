@@ -39,6 +39,16 @@ pipeline_outputs/
 # Vendors — external benchmark clones (user runs `git clone` themselves)
 vendors/
 
+# Generated host artifacts — regen from scale_config.yml + host config via
+# scripts/generate_scale_r5.sh. Treating the generator output as source
+# leads to drift and hand-edit bandaids.
+instances.scale.json
+instances.scale.json.fragment
+compose.scale.yml
+compose.smoke.yml
+scripts/docker-compose.scale.yml
+scripts/proxy_ports.conf
+
 # OS / IDE
 .DS_Store
 .vscode/
