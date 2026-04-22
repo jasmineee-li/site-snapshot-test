@@ -763,6 +763,23 @@ def _render_editor_seed_call(call: dict[str, Any], seed_context: dict[str, Any])
     rendered = _render_seed_value(call, seed_context)
     if not isinstance(rendered, dict):
         raise RuntimeError("rendered editor call must be an object")
+    # Rename LLM-facing arg names to Python-facing names before the
+    # editor receives them. The contract registry's bindings use
+    # LLM-facing names (e.g., ``body`` for gitlab.create_issue_note)
+    # because that's what the Phase 2a prompt documents and the Option A
+    # validator checks, but editor method signatures use Python-facing
+    # names (e.g., ``note_body``). The alias table lives in
+    # :func:`_editor_arg_name`; applying it here keeps the rest of the
+    # editor-call pipeline free of the LLM/Python naming split.
+    args = rendered.get("args")
+    if isinstance(args, dict) and args:
+        renamed: dict[str, Any] = {}
+        for key, value in args.items():
+            canonical = str(key)
+            alias = _editor_arg_name(rendered, canonical)
+            target = alias if alias else canonical
+            renamed[target] = value
+        rendered["args"] = renamed
     unresolved = sorted(_seed_placeholder_names(rendered.get("args", {})))
     if unresolved:
         raise RuntimeError(
