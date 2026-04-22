@@ -1078,7 +1078,13 @@ def _merge_shard_results(
     return merged
 
 
-L4_TASK_ID_SUFFIX = "#l4-"
+# Suffix format for L4-fanned-out clone task IDs. Must survive a
+# round-trip through the Phase 2a LLM sandbox: Claude silently strips
+# non-alphanumeric chars like '#' when echoing the benign_task_id into
+# adversarial plans (observed: "314#l4-0" returned as "314l40"), which
+# breaks _merge_immutable_fields lookup. Use underscores only — Claude
+# preserves them faithfully.
+L4_TASK_ID_SUFFIX = "_l4_"
 
 
 def _l1_l2_resources_dict(site_tasks: list[dict]) -> dict[str, dict[str, Any]]:
@@ -1106,7 +1112,7 @@ async def _resolve_benign_target_resources_for_shard(
       anchors via Anthropic intent-parse + live probe.
     * L4 fans listing-kind records out to N concrete items; each fan-out
       clones the benign task dict with a suffixed ID
-      (``"{task_id}#l4-{i}"``) and preserves the original via
+      (``"{task_id}_l4_{i}"``) and preserves the original via
       ``source_task_id`` so downstream code that groups by the original
       task can recover the mapping.
 

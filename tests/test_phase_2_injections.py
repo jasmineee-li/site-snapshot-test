@@ -2645,18 +2645,18 @@ class TestResolveBenignTargetResourcesForShard:
             )
         )
         assert [t["id"] for t in expanded] == [
-            "t_dash#l4-0",
-            "t_dash#l4-1",
-            "t_dash#l4-2",
+            "t_dash_l4_0",
+            "t_dash_l4_1",
+            "t_dash_l4_2",
         ]
         for clone in expanded:
             assert clone["source_task_id"] == "t_dash"
         assert set(resources) == {
-            "t_dash#l4-0",
-            "t_dash#l4-1",
-            "t_dash#l4-2",
+            "t_dash_l4_0",
+            "t_dash_l4_1",
+            "t_dash_l4_2",
         }
-        assert resources["t_dash#l4-0"]["anchors"]["issue_iid"] == "10"
+        assert resources["t_dash_l4_0"]["anchors"]["issue_iid"] == "10"
 
     def test_resolver_exception_falls_back_to_l1_l2(self, tmp_path, monkeypatch):
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
