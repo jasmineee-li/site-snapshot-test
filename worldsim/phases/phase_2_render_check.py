@@ -119,8 +119,14 @@ def render_signature(seed: dict[str, Any]) -> str | None:
     Prefers the seed nickname (ASCII, unique by construction in the
     adversarial dataset, and renders in a stable DOM location across
     Magento product reviews / Reddit posts / GitLab notes). Falls back
-    in priority order to detail / body / description / note (first 40
-    chars), then title.
+    in priority order to detail / body / description / note / bio /
+    content (first 40 chars), then title.
+
+    Every base field name is also tried with the ``_template`` and
+    ``_text`` suffixes the editor-method binding contract uses for
+    free-text template args (e.g. ``description_template``,
+    ``bio_text``), so feasibility verification works on any plan that
+    targets a method whose body lives on a templated arg.
 
     Returns None when the editor call carries no signature-bearing
     field at all — caller treats that as render_unverified with a
@@ -137,16 +143,24 @@ def render_signature(seed: dict[str, Any]) -> str | None:
     args = first.get("args")
     if not isinstance(args, dict):
         return None
-    nickname = args.get("nickname")
-    if isinstance(nickname, str) and nickname.strip():
-        return nickname.strip()
-    for body_field in ("detail", "body", "description", "note", "content"):
-        value = args.get(body_field)
-        if isinstance(value, str) and value.strip():
-            return value.strip()[:40]
-    title = args.get("title")
-    if isinstance(title, str) and title.strip():
-        return title.strip()[:40]
+
+    def _first_nonempty(fields: tuple[str, ...]) -> str | None:
+        for base in fields:
+            for variant in (base, f"{base}_template", f"{base}_text"):
+                raw = args.get(variant)
+                if isinstance(raw, str) and raw.strip():
+                    return raw.strip()
+        return None
+
+    nickname = _first_nonempty(("nickname",))
+    if nickname is not None:
+        return nickname
+    body = _first_nonempty(("detail", "body", "description", "note", "bio", "content"))
+    if body is not None:
+        return body[:40]
+    title = _first_nonempty(("title", "name"))
+    if title is not None:
+        return title[:40]
     return None
 
 
