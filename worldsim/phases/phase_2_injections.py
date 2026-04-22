@@ -1512,10 +1512,10 @@ def _merge_immutable_fields(
             adv_task["benign_target_resource"] = json.loads(
                 json.dumps(dict(enriched_resources[benign_id]))
             )
-            continue
-        adv_task["benign_target_resource"] = derive_benign_target_resource(
-            benign_task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
-        )
+        else:
+            adv_task["benign_target_resource"] = derive_benign_target_resource(
+                benign_task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+            )
 
         # Handle reward_function construction.
         # Minimal schema: adversarial_reward is a top-level field, no reward_function.
