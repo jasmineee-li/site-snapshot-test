@@ -390,31 +390,24 @@ async def verify_seed_renders(
             target = _with_cache_buster(_resolve_url(raw_url, site_url))
             seen.append(target)
             try:
-                listajax_task = None
-                discussions_task = None
-                if site_name == "shopping" and "/catalog/product/view/" in target:
-                    listajax_task = page.wait_for_response(
-                        lambda r: _SHOPPING_LISTAJAX_FRAGMENT in r.url and r.status == 200,
-                        timeout=nav_timeout_ms,
-                    )
-                if site_name == "gitlab" and (
-                    "/-/issues/" in target or "/-/merge_requests/" in target
-                ):
-                    discussions_task = page.wait_for_response(
-                        lambda r: _GITLAB_DISCUSSIONS_FRAGMENT in r.url and r.status == 200,
-                        timeout=nav_timeout_ms,
-                    )
-                await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
-                if listajax_task is not None:
-                    try:
-                        await listajax_task
-                    except Exception:
-                        pass
-                if discussions_task is not None:
-                    try:
-                        await discussions_task
-                    except Exception:
-                        pass
+                # GitLab issue/MR pages + shopping product views lazy-load
+                # dynamic content (discussions.json, listAjax) after
+                # DOMContentLoaded fires. Use ``wait_until="networkidle"``
+                # on those pages so page.text_content("body") captures
+                # the JS-populated DOM. ``expect_response`` would be more
+                # precise but the async Playwright Page has no
+                # ``wait_for_response`` method; ``expect_response``
+                # context-manager syntax requires restructuring the
+                # goto call. ``networkidle`` is simpler and just as
+                # effective once the AJAX fires.
+                needs_networkidle = (
+                    site_name == "shopping" and "/catalog/product/view/" in target
+                ) or (
+                    site_name == "gitlab"
+                    and ("/-/issues/" in target or "/-/merge_requests/" in target)
+                )
+                wait_mode = "networkidle" if needs_networkidle else "domcontentloaded"
+                await page.goto(target, timeout=nav_timeout_ms, wait_until=wait_mode)
                 if site_name == "shopping":
                     try:
                         await page.wait_for_selector(
