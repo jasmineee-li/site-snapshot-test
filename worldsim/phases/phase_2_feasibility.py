@@ -57,11 +57,6 @@ FAILPOINT_REPORT = "phase_2.output.feasibility_report"
 # tasks under the "verified == HTTP 2xx only" lie this gate now closes.
 _SKIP_RENDER_CHECK_ENV = "WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK"
 
-# Playwright contexts above ~8 start hitting eviction edge cases on a single
-# browser. Cap render-check concurrency separately from the main worker
-# semaphore so high concurrency settings don't destabilize the browser.
-_RENDER_CHECK_MAX_CONCURRENCY = 8
-
 
 @dataclass(frozen=True)
 class FeasibilityReport:
@@ -176,9 +171,7 @@ async def verify_feasibility(
     now_iso = _now_iso()
 
     skip_render_check = os.getenv(_SKIP_RENDER_CHECK_ENV) == "1"
-    pw_handle: Any = None
-    browser: Any = None
-    render_semaphore: asyncio.Semaphore | None = None
+    async_playwright_factory: Any = None
     if skip_render_check:
         logger.warning(
             "%s=1 set; phase 2c render verification disabled. "
@@ -197,11 +190,7 @@ async def verify_feasibility(
                 f"{_SKIP_RENDER_CHECK_ENV}=1 to opt out (development only). "
                 f"Underlying import error: {exc!r}"
             ) from exc
-        pw_handle = await async_playwright().start()
-        browser = await pw_handle.chromium.launch(headless=True)
-        render_semaphore = asyncio.Semaphore(
-            min(_RENDER_CHECK_MAX_CONCURRENCY, max(1, concurrency))
-        )
+        async_playwright_factory = async_playwright
 
     async def worker(task: dict[str, Any], index: int) -> dict[str, Any]:
         async with semaphore:
@@ -226,41 +215,65 @@ async def verify_feasibility(
                     attempts=[],
                     timestamp=now_iso,
                 )
+            # Per-task browser: every worker gets its own Playwright +
+            # Chromium pair, torn down before the next task runs. A render-
+            # check crash in one task (renderer OOM, sandbox child death,
+            # page crash that propagates to the browser) now stays inside
+            # this worker — sibling tasks launch their own browsers and
+            # are unaffected. This matches the pattern every peer
+            # web-agent eval harness uses (WebArena, VisualWebArena,
+            # BrowserGym, AgentLab, WASP) and the official pytest-
+            # playwright idiom (browser scope = worker, context scope = task).
+            # Launch cost is ~1.5-3s per task; at concurrency N that's
+            # ~(launch_cost * total_tasks / N) added wall-clock, acceptable
+            # vs the all-or-nothing shared-browser fragility.
+            pw_handle: Any = None
+            browser: Any = None
             try:
-                return await _verify_one(
-                    task,
-                    instance,
-                    retry_count=retry_count,
-                    fingerprint_base=fingerprint_base,
-                    ttl_hours=ttl_hours,
-                    force_reverify=force_reverify,
-                    cleanup_warnings=cleanup_warnings,
-                    browser=browser,
-                    render_semaphore=render_semaphore,
-                )
-            except Exception as exc:
-                task_id = str(task.get("id", "unknown"))
-                raise RuntimeError(
-                    f"phase 2c verification crashed for task {task_id}: "
-                    f"{exc.__class__.__name__}: {exc}"
-                ) from exc
+                if async_playwright_factory is not None:
+                    pw_handle = await async_playwright_factory().start()
+                    browser = await pw_handle.chromium.launch(headless=True)
+                try:
+                    return await _verify_one(
+                        task,
+                        instance,
+                        retry_count=retry_count,
+                        fingerprint_base=fingerprint_base,
+                        ttl_hours=ttl_hours,
+                        force_reverify=force_reverify,
+                        cleanup_warnings=cleanup_warnings,
+                        browser=browser,
+                        render_semaphore=None,
+                    )
+                except Exception as exc:
+                    task_id = str(task.get("id", "unknown"))
+                    logger.exception("phase 2c verification crashed for task %s", task_id)
+                    return _infeasible_task(
+                        task,
+                        kind="verification_crashed",
+                        detail=f"{exc.__class__.__name__}: {exc}",
+                        fingerprint=fingerprint_base,
+                        http_status=None,
+                        response_snippet=None,
+                        attempts=[],
+                        timestamp=now_iso,
+                    )
+            finally:
+                if browser is not None:
+                    try:
+                        await browser.close()
+                    except Exception:
+                        logger.exception("phase 2c: failed to close per-task browser")
+                if pw_handle is not None:
+                    try:
+                        await pw_handle.stop()
+                    except Exception:
+                        logger.exception("phase 2c: failed to stop per-task playwright handle")
 
-    try:
-        results = await asyncio.gather(
-            *(worker(task, i) for i, task in enumerate(raw)),
-            return_exceptions=False,
-        )
-    finally:
-        if browser is not None:
-            try:
-                await browser.close()
-            except Exception:
-                logger.exception("phase 2c: failed to close render-check browser")
-        if pw_handle is not None:
-            try:
-                await pw_handle.stop()
-            except Exception:
-                logger.exception("phase 2c: failed to stop playwright handle")
+    results = await asyncio.gather(
+        *(worker(task, i) for i, task in enumerate(raw)),
+        return_exceptions=False,
+    )
 
     for result in results:
         feasibility = result.get("feasibility") or {}

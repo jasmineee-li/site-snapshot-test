@@ -726,26 +726,49 @@ def test_case_16_missing_instance_raises_preflight(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Case 17 — unexpected verifier exception aborts Phase 2c
+# Case 17 — unexpected verifier exception marks task infeasible, phase continues
 # ---------------------------------------------------------------------------
 
 
-def test_case_17_unexpected_verifier_exception_aborts_phase(tmp_path, monkeypatch):
+def test_case_17_unexpected_verifier_exception_marks_task_infeasible(tmp_path, monkeypatch):
+    """One task's unhandled exception must NOT cancel siblings.
+
+    Before the per-task-browser cutover, the worker re-raised unexpected
+    exceptions which then propagated through asyncio.gather(
+    return_exceptions=False), cancelling every other worker mid-flight.
+    At concurrency 8 that turned one real error into 7 TargetClosedError
+    casualties. The new contract: mark the offending task as
+    verification_crashed and let the other tasks run to completion.
+    """
+
     def responder(idx, seed, instance):
         raise TypeError("boom")
 
     _patch_apply(monkeypatch, responder)
-    tasks_path = _write_tasks(tmp_path, [_task()])
+    task_a = _task()
+    task_a["id"] = "AT-001"
+    task_b = _task()
+    task_b["id"] = "AT-002"
+    tasks_path = _write_tasks(tmp_path, [task_a, task_b])
 
-    with pytest.raises(RuntimeError, match=r"phase 2c verification crashed for task AT-001"):
-        asyncio.run(
-            feas.verify_feasibility(
-                tasks_path,
-                instances=[_gitlab_instance()],
-                concurrency=1,
-                retry_count=0,
-            )
+    monkeypatch.setenv("WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK", "1")
+    report = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=[_gitlab_instance()],
+            concurrency=2,
+            retry_count=0,
         )
+    )
+
+    # Both tasks hit the raising responder, so both end infeasible with
+    # kind="verification_crashed" — but the key property is that
+    # asyncio.gather completed rather than propagating the TypeError.
+    assert len(report.infeasible) == 2
+    for entry in report.infeasible:
+        errors = entry["feasibility"]["errors"]
+        assert any(e["kind"] == "verification_crashed" for e in errors)
+        assert any("TypeError" in e.get("detail", "") for e in errors)
 
 
 # ---------------------------------------------------------------------------
