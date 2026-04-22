@@ -61,7 +61,7 @@ def expand_site(
     site_name: str,
     site_cfg: dict[str, Any],
     replica_count: int,
-    advertise_host: str,
+    orchestrator_host: str,
     bind_host: str,
     db_bind_host: str,
     proxy_port_offset: int,
@@ -106,8 +106,11 @@ def expand_site(
         # proxy_port_offset == 0 (loopback / --no-verification-proxy mode)
         # this stays on the raw port, which is correct.
         env_site_port = real_web + proxy_port_offset if proxy_port_offset else real_web
+        # env-ctrl reports this URL in _init() responses. Callers (orchestrator,
+        # chrome containers) navigate to it, so it must match what they can
+        # reach — orchestrator_host, not the external advertise_host.
         env_list: list[str] = [
-            f"WA_ENV_CTRL_EXTERNAL_SITE_URL=http://{advertise_host}:{env_site_port}",
+            f"WA_ENV_CTRL_EXTERNAL_SITE_URL=http://{orchestrator_host}:{env_site_port}",
         ]
         for entry in site_cfg.get("environment", []) or []:
             if isinstance(entry, str):
@@ -326,14 +329,20 @@ def _clone_instance(
     base_instance: dict[str, Any],
     rec: dict[str, Any],
     *,
-    advertise_host: str,
+    orchestrator_host: str,
     placeholder_map: dict[str, str],
     pvpo_cdp_port: int,
 ) -> dict[str, Any]:
     instance = json.loads(json.dumps(base_instance))
     instance["site_name"] = rec["site_name"]
-    instance["site_url"] = f"http://{advertise_host}:{rec['real_web_port']}"
-    instance["reset_endpoint"] = f"http://{advertise_host}:{rec['real_envctrl_port']}/init"
+    # All three runtime URLs use orchestrator_host — the address the
+    # orchestrator and its browser containers actually route to. For on-host
+    # topologies this is a Docker bridge / loopback address; for remote
+    # orchestrators it's the public IP. Never the external advertise_host
+    # alone, because AWS VPCs don't hairpin EIP-to-self traffic even on
+    # SG-open ports.
+    instance["site_url"] = f"http://{orchestrator_host}:{rec['real_web_port']}"
+    instance["reset_endpoint"] = f"http://{orchestrator_host}:{rec['real_envctrl_port']}/init"
     instance["replica_index"] = rec["replica_index"]
     instance["replica_name"] = rec["service_name"]
 
@@ -341,7 +350,7 @@ def _clone_instance(
     if isinstance(db_connection, str) and db_connection.strip() and rec["db_port"] is not None:
         instance["db_connection"] = _replace_url_host_port(
             db_connection,
-            host_ip=advertise_host,
+            host_ip=orchestrator_host,
             port=int(rec["db_port"]),
         )
 
@@ -375,7 +384,7 @@ def build_instances_config(
     *,
     base_config: dict[str, Any],
     records: list[dict[str, Any]],
-    advertise_host: str,
+    orchestrator_host: str,
     proxy_token: str | None,
     proxy_port_offset: int,
     proxy_scheme: str | None,
@@ -394,7 +403,10 @@ def build_instances_config(
         raise ValueError("base config must contain a non-empty instances array")
 
     by_site = _base_instances_by_site(base_instances)
-    placeholder_map = _generated_placeholder_map(records, advertise_host)
+    # url_placeholders feed directly into task prompts and agent navigation.
+    # They must match site_url — which now uses orchestrator_host — or the
+    # agent will try to navigate to an unreachable host.
+    placeholder_map = _generated_placeholder_map(records, orchestrator_host)
 
     instances: list[dict[str, Any]] = []
     for offset, rec in enumerate(records):
@@ -406,7 +418,7 @@ def build_instances_config(
             _clone_instance(
                 base_instance,
                 rec,
-                advertise_host=advertise_host,
+                orchestrator_host=orchestrator_host,
                 placeholder_map=placeholder_map,
                 pvpo_cdp_port=PVPO_CDP_PORT_BASE + offset,
             )
@@ -547,7 +559,7 @@ def main() -> int:
         help=(
             "omit verification_proxy block and bake raw-port URLs throughout "
             "(loopback / dev stacks without an nginx proxy). Auto-enabled when "
-            "advertise_host resolves to a loopback address."
+            "orchestrator_host resolves to a loopback address."
         ),
     )
     ap.add_argument(
@@ -610,25 +622,26 @@ def main() -> int:
     subnet = config.get("network", {}).get("subnet", "172.20.0.0/20")
     proxy_offset = int(config.get("proxy_port_offset", 10000))
 
-    # Loopback advertise_host → no nginx proxy on that host. Auto-omit the
-    # verification_proxy block and bake raw ports so magento_health.py and
-    # reset_endpoint's _init() both see the same origin.
+    # Loopback orchestrator_host → no nginx proxy on that host. Auto-omit
+    # the verification_proxy block and bake raw ports so reset_endpoint's
+    # _init() and all other orchestrator traffic hit the same origin.
     loopback_hosts = {"127.0.0.1", "localhost", "0.0.0.0", "::1"}
-    advertise_is_loopback = host_cfg.advertise_host.strip() in loopback_hosts
-    emit_proxy = not (args.no_verification_proxy or advertise_is_loopback)
+    orchestrator_is_loopback = host_cfg.orchestrator_host.strip() in loopback_hosts
+    emit_proxy = not (args.no_verification_proxy or orchestrator_is_loopback)
     if not emit_proxy:
         proxy_offset = 0
         reason = (
             "--no-verification-proxy"
             if args.no_verification_proxy
-            else f"advertise_host={host_cfg.advertise_host!r} is loopback"
+            else f"orchestrator_host={host_cfg.orchestrator_host!r} is loopback"
         )
         print(f"verification_proxy omitted: {reason}", file=sys.stderr)
 
-    # Banner: surface the resolved advertise_host so the operator catches
-    # a wrong value before downstream consumers see it.
+    # Banner: surface the resolved hosts so the operator catches a wrong
+    # value before downstream consumers see it.
     print(
         f"advertise_host={host_cfg.advertise_host} "
+        f"orchestrator_host={host_cfg.orchestrator_host} "
         f"bind_host={host_cfg.bind_host} "
         f"db_bind_host={host_cfg.db_bind_host} "
         f"proxy_port_offset={proxy_offset} "
@@ -656,7 +669,7 @@ def main() -> int:
                 site_name=site_name,
                 site_cfg=site_cfg,
                 replica_count=count,
-                advertise_host=host_cfg.advertise_host,
+                orchestrator_host=host_cfg.orchestrator_host,
                 bind_host=host_cfg.bind_host,
                 db_bind_host=host_cfg.db_bind_host,
                 proxy_port_offset=proxy_offset,
@@ -668,7 +681,7 @@ def main() -> int:
     instances_config = build_instances_config(
         base_config=base_config,
         records=records,
-        advertise_host=host_cfg.advertise_host,
+        orchestrator_host=host_cfg.orchestrator_host,
         proxy_token=args.proxy_token,
         proxy_port_offset=proxy_offset,
         proxy_scheme=args.proxy_scheme,

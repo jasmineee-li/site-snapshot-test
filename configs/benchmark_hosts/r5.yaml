@@ -1,6 +1,15 @@
 name: r5
 access_mode: remote_direct_restricted
+# advertise_host: the benchmark's externally reachable IP. Only used for
+# documentation and remote-operator scenarios. At runtime the orchestrator
+# reaches the benchmark via orchestrator_host, not this value.
 advertise_host: 3.12.221.9
+# orchestrator_host: what the on-host orchestrator AND the chrome containers
+# use to reach gitlab/reddit/env-ctrl/postgres. 172.17.0.1 is Docker's default
+# bridge gateway — reachable from the host via local routing AND from
+# containers (it's their default gateway). Public IP 3.12.221.9 doesn't work
+# here because AWS VPCs don't hairpin EIP-to-self traffic at any layer.
+orchestrator_host: 172.17.0.1
 bind_host: 0.0.0.0
 db_bind_host: 0.0.0.0
 allow_public_web_bind: true

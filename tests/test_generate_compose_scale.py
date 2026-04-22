@@ -658,3 +658,158 @@ def test_generate_compose_scale_auto_omits_verification_proxy_on_loopback(
     compose = yaml.safe_load((tmp_path / "compose.scale.yml").read_text())
     shopping_env = compose["services"]["shopping_0"]["environment"]
     assert "WA_ENV_CTRL_EXTERNAL_SITE_URL=http://127.0.0.1:7770" in shopping_env
+
+
+def test_generate_compose_scale_uses_orchestrator_host_for_all_runtime_urls(
+    tmp_path: Path,
+) -> None:
+    """orchestrator_host=172.17.0.1 routes site_url + db/reset + env-ctrl + placeholders to it.
+
+    Mirrors the r5 topology: orchestrator runs on the benchmark host. AWS
+    VPCs don't hairpin EIP-to-self traffic, so the public advertise_host
+    is unreachable from r5 itself on ANY port — including web. All runtime
+    URLs must use a Docker-bridge address that's reachable from both host
+    and containers.
+    """
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "url_placeholders": {"__GITLAB__": "http://old-host:8023"},
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://old-host:8023",
+                "reset_endpoint": "http://old-host:8024/init",
+                "db_connection": "postgresql://gitlab:secret@old-host:5433/gitlabhq_production",
+                "agent_auth": {"type": "none"},
+            }
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"gitlab": 1},
+        "sites": {
+            "gitlab": {
+                "image": "example/gitlab@sha256:" + "c" * 64,
+                "replicas": 2,
+                "real_port_base": 8023,
+                "container_web_port": 8023,
+                "port_step": 10,
+                "db_port_base": 5433,
+                "db_port_step": 1,
+            },
+        },
+    }
+    base_path = tmp_path / "instances.base.json"
+    config_path = tmp_path / "scale.yml"
+    base_path.write_text(json.dumps(base_config))
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(
+        tmp_path,
+        advertise_host="3.12.221.9",
+        orchestrator_host="172.17.0.1",
+    )
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(tmp_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    instances_config = json.loads((tmp_path / "instances.json").read_text())
+    instances = instances_config["instances"]
+    gitlab_0, gitlab_1 = instances[:2]
+    # All three runtime URLs use orchestrator_host — advertise_host is
+    # external/docs-only.
+    assert gitlab_0["site_url"] == "http://172.17.0.1:8023"
+    assert gitlab_1["site_url"] == "http://172.17.0.1:8033"
+    assert gitlab_0["reset_endpoint"] == "http://172.17.0.1:8024/init"
+    assert gitlab_1["reset_endpoint"] == "http://172.17.0.1:8034/init"
+    assert gitlab_0["db_connection"].startswith("postgresql://gitlab:secret@172.17.0.1:5433/")
+    assert gitlab_1["db_connection"].startswith("postgresql://gitlab:secret@172.17.0.1:5434/")
+    # url_placeholders must match site_url so agent prompts don't reference
+    # unreachable hosts.
+    assert instances_config["url_placeholders"]["__GITLAB__"] == "http://172.17.0.1:8023"
+    # env-ctrl's self-advertised URL (WA_ENV_CTRL_EXTERNAL_SITE_URL) also uses
+    # orchestrator_host — clients read this value and navigate to it.
+    compose = yaml.safe_load((tmp_path / "compose.scale.yml").read_text())
+    gitlab_0_env = compose["services"]["gitlab_0"]["environment"]
+    assert "WA_ENV_CTRL_EXTERNAL_SITE_URL=http://172.17.0.1:18023" in gitlab_0_env
+
+
+def test_generate_compose_scale_orchestrator_host_defaults_to_advertise_host(
+    tmp_path: Path,
+) -> None:
+    """With no orchestrator_host set, all runtime URLs fall back to advertise_host."""
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://old:8023",
+                "reset_endpoint": "http://old:8024/init",
+                "db_connection": "postgresql://u:p@old:5433/x",
+                "agent_auth": {"type": "none"},
+            }
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"gitlab": 1},
+        "sites": {
+            "gitlab": {
+                "image": "example/gitlab@sha256:" + "d" * 64,
+                "replicas": 1,
+                "real_port_base": 8023,
+                "container_web_port": 8023,
+                "port_step": 10,
+                "db_port_base": 5433,
+                "db_port_step": 1,
+            },
+        },
+    }
+    base_path = tmp_path / "instances.base.json"
+    config_path = tmp_path / "scale.yml"
+    base_path.write_text(json.dumps(base_config))
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(tmp_path, advertise_host="203.0.113.10")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(tmp_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    gitlab_0 = json.loads((tmp_path / "instances.json").read_text())["instances"][0]
+    assert gitlab_0["site_url"] == "http://203.0.113.10:8023"
+    assert gitlab_0["reset_endpoint"] == "http://203.0.113.10:8024/init"
+    assert gitlab_0["db_connection"].startswith("postgresql://u:p@203.0.113.10:5433/")

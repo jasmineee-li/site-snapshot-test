@@ -9,7 +9,6 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-
 _WIDE_BIND_HOSTS = frozenset({"0.0.0.0", "::"})
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
@@ -35,7 +34,25 @@ class BenchmarkHostConfig(BaseModel):
     access_mode: Literal["remote_direct_restricted", "host_local"]
     advertise_host: str = Field(
         ...,
-        description="Host or IP advertised in runtime URLs and env-ctrl site URLs.",
+        description=(
+            "Externally reachable host or IP for the benchmark. Used for "
+            "documentation and remote-operator scenarios only. At runtime the "
+            "orchestrator uses orchestrator_host (below) for every request; "
+            "advertise_host is informational unless orchestrator_host is "
+            "omitted (then it fills in as the default)."
+        ),
+    )
+    orchestrator_host: str | None = Field(
+        None,
+        description=(
+            "Host or IP the orchestrator uses for ALL benchmark traffic — "
+            "site_url, reset_endpoint, db_connection, "
+            "WA_ENV_CTRL_EXTERNAL_SITE_URL, and url_placeholders. "
+            "Defaults to advertise_host. For on-host topologies (orchestrator "
+            "runs on the benchmark host itself) set to 172.17.0.1 (Docker "
+            "bridge gateway) or 127.0.0.1 — the public IP doesn't work because "
+            "AWS VPCs don't hairpin EIP-to-self traffic, regardless of SG."
+        ),
     )
     bind_host: str = Field(
         ...,
@@ -72,6 +89,7 @@ class BenchmarkHostConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_contract(self) -> BenchmarkHostConfig:
         self.advertise_host = self.advertise_host.strip()
+        self.orchestrator_host = (self.orchestrator_host or self.advertise_host).strip()
         self.bind_host = self.bind_host.strip()
         self.db_bind_host = (self.db_bind_host or self.bind_host).strip()
         self.ssh_user = self.ssh_user.strip()
@@ -84,6 +102,8 @@ class BenchmarkHostConfig(BaseModel):
 
         if not self.advertise_host:
             raise ValueError("advertise_host must be a non-empty string")
+        if not self.orchestrator_host:
+            raise ValueError("orchestrator_host must be a non-empty string")
         if not self.bind_host:
             raise ValueError("bind_host must be a non-empty string")
         if not self.db_bind_host:
@@ -91,7 +111,9 @@ class BenchmarkHostConfig(BaseModel):
         if not self.ssh_user:
             raise ValueError("ssh_user must be a non-empty string")
 
-        if self.access_mode == "remote_direct_restricted" and _is_loopback_host(self.advertise_host):
+        if self.access_mode == "remote_direct_restricted" and _is_loopback_host(
+            self.advertise_host
+        ):
             raise ValueError("remote_direct_restricted requires a non-loopback advertise_host")
         if self.access_mode == "remote_direct_restricted" and _is_loopback_host(self.bind_host):
             raise ValueError("remote_direct_restricted requires a non-loopback bind_host")
