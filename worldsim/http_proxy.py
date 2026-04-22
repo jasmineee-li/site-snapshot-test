@@ -45,6 +45,15 @@ from requests.adapters import HTTPAdapter
 # the case where nginx cannot pass X-Forwarded-Port to the backend.
 _DEFAULT_HTTP_PORTS: frozenset[int] = frozenset({80, 443})
 
+# Pool sizing defaults, chosen against the 2026-04-22 topology:
+# 21 gitlab replicas + 10 reddit replicas = 31 distinct hosts, per-replica
+# bulkhead cap 10 (gitlab) / 8 (reddit). ``urllib3``'s ``HTTPAdapter``
+# defaults of 10/10 silently serialize above that — raise them so the
+# connection pool never becomes the bottleneck hidden behind a roomy
+# semaphore.
+_DEFAULT_POOL_CONNECTIONS = 64
+_DEFAULT_POOL_MAXSIZE = 16
+
 
 @dataclass(frozen=True)
 class ProxyInfo:
@@ -84,13 +93,26 @@ class ProxyingHTTPAdapter(HTTPAdapter):
         port_offset: int,
         site_ports: frozenset[int],
         header_name: str = "X-Worldsim-Token",
+        pool_connections: int = _DEFAULT_POOL_CONNECTIONS,
+        pool_maxsize: int = _DEFAULT_POOL_MAXSIZE,
+        pool_block: bool = False,
+        default_timeout: float | tuple[float, float] | None = None,
         **kwargs: Any,
     ) -> None:
+        kwargs.setdefault("pool_connections", pool_connections)
+        kwargs.setdefault("pool_maxsize", pool_maxsize)
+        kwargs.setdefault("pool_block", pool_block)
         super().__init__(**kwargs)
         self._token = token
         self._port_offset = port_offset
         self._site_ports = site_ports
         self._header_name = header_name
+        # Applied at send() when the caller did not supply ``timeout``.
+        # Set to a concrete value (e.g. (5, 60)) to prevent a stuck
+        # backend from hanging the client indefinitely; default ``None``
+        # preserves the caller-supplied-timeout-wins contract that the
+        # editor/seeding layer relies on today.
+        self._default_timeout = default_timeout
         # Hostname -> most recently used proxy port. Populated as we send
         # through the proxy so that redirect Locations like
         # ``http://<host>/`` can be bounced back to the same proxy port.
@@ -113,6 +135,8 @@ class ProxyingHTTPAdapter(HTTPAdapter):
                 self._last_proxy_port_by_host[parts.hostname] = parts.port
             if self._token:
                 request.headers[self._header_name] = self._token
+        if self._default_timeout is not None and kwargs.get("timeout") is None:
+            kwargs["timeout"] = self._default_timeout
         return super().send(request, **kwargs)
 
     def _maybe_rewrite_url(self, url: str) -> str | None:
@@ -149,6 +173,9 @@ def make_proxied_session(
     token: str,
     port_offset: int,
     site_ports: Iterable[int],
+    pool_connections: int = _DEFAULT_POOL_CONNECTIONS,
+    pool_maxsize: int = _DEFAULT_POOL_MAXSIZE,
+    default_timeout: float | tuple[float, float] | None = None,
 ) -> requests.Session:
     """Construct a standalone proxied ``requests.Session``.
 
@@ -161,6 +188,9 @@ def make_proxied_session(
         token=token,
         port_offset=port_offset,
         site_ports=frozenset(int(p) for p in site_ports),
+        pool_connections=pool_connections,
+        pool_maxsize=pool_maxsize,
+        default_timeout=default_timeout,
     )
     session = requests.Session()
     session.mount("http://", adapter)
@@ -195,6 +225,9 @@ def install_proxy(
     token: str,
     port_offset: int,
     site_ports: Iterable[int],
+    pool_connections: int = _DEFAULT_POOL_CONNECTIONS,
+    pool_maxsize: int = _DEFAULT_POOL_MAXSIZE,
+    default_timeout: float | tuple[float, float] | None = None,
 ) -> Callable[[], None]:
     """Patch ``requests.Session.__init__`` so all new sessions proxy.
 
@@ -220,6 +253,9 @@ def install_proxy(
             token=token,
             port_offset=port_offset,
             site_ports=frozen_ports,
+            pool_connections=pool_connections,
+            pool_maxsize=pool_maxsize,
+            default_timeout=default_timeout,
         )
         self.mount("http://", adapter)
         self.mount("https://", adapter)
