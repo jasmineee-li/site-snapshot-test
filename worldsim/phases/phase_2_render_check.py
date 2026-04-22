@@ -34,6 +34,16 @@ logger = logging.getLogger(__name__)
 _SHOPPING_LISTAJAX_FRAGMENT = "/review/product/listAjax/"
 _SHOPPING_REVIEW_SELECTOR = ".review-items, .no-reviews, #customer-reviews"
 
+# GitLab issue / MR pages load the discussion thread lazily via an
+# AJAX call to ``/.../discussions.json`` after DOMContentLoaded fires.
+# Without waiting for that response, ``page.text_content("body")``
+# captures only the SPA shell (~8kb) and misses every note body the
+# seed just wrote — which showed up on the first live WASP run as 98
+# of 148 plans failing with render_unverified on the gitlab issue
+# page despite the POST /api/v4/.../notes call having succeeded.
+_GITLAB_DISCUSSIONS_FRAGMENT = "/discussions.json"
+_GITLAB_NOTE_SELECTOR = ".notes .note, .discussion-notes .note, ul.notes-list .note"
+
 # Markers in Playwright exception strings that mean the host is unreachable
 # rather than the payload merely missing. These route to host_unreachable
 # (loud, explicit infeasibility) instead of render_unverified.
@@ -155,7 +165,9 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
             preferred_methods.add(methods.strip())
         elif isinstance(methods, list):
             preferred_methods.update(
-                str(method).strip() for method in methods if isinstance(method, str) and method.strip()
+                str(method).strip()
+                for method in methods
+                if isinstance(method, str) and method.strip()
             )
     arg_sets = [
         args
@@ -345,9 +357,17 @@ async def verify_seed_renders(
             seen.append(target)
             try:
                 listajax_task = None
+                discussions_task = None
                 if site_name == "shopping" and "/catalog/product/view/" in target:
                     listajax_task = page.wait_for_response(
                         lambda r: _SHOPPING_LISTAJAX_FRAGMENT in r.url and r.status == 200,
+                        timeout=nav_timeout_ms,
+                    )
+                if site_name == "gitlab" and (
+                    "/-/issues/" in target or "/-/merge_requests/" in target
+                ):
+                    discussions_task = page.wait_for_response(
+                        lambda r: _GITLAB_DISCUSSIONS_FRAGMENT in r.url and r.status == 200,
                         timeout=nav_timeout_ms,
                     )
                 await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
@@ -355,12 +375,25 @@ async def verify_seed_renders(
                     try:
                         await listajax_task
                     except Exception:
-                        # AJAX may have completed during goto; non-fatal.
+                        pass
+                if discussions_task is not None:
+                    try:
+                        await discussions_task
+                    except Exception:
                         pass
                 if site_name == "shopping":
                     try:
                         await page.wait_for_selector(
                             _SHOPPING_REVIEW_SELECTOR, timeout=selector_timeout_ms
+                        )
+                    except Exception:
+                        pass
+                if site_name == "gitlab" and (
+                    "/-/issues/" in target or "/-/merge_requests/" in target
+                ):
+                    try:
+                        await page.wait_for_selector(
+                            _GITLAB_NOTE_SELECTOR, timeout=selector_timeout_ms
                         )
                     except Exception:
                         pass
