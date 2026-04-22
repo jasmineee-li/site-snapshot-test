@@ -32,7 +32,8 @@ from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.instance_selection import (
     _ordered_instance_dicts,
-    select_task_site_instance_dict,
+    replica_key,
+    select_task_site_instance_dict_p2c,
 )
 from worldsim.phases.phase_2_reachability import (
     ReachabilityOutcome,
@@ -60,6 +61,65 @@ FAILPOINT_REPORT = "phase_2.output.feasibility_report"
 # leave this unset — the 2026-04-21 Magento review-pending bug shipped 174
 # tasks under the "verified == HTTP 2xx only" lie this gate now closes.
 _SKIP_RENDER_CHECK_ENV = "WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK"
+
+# Per-replica in-flight caps for Phase 2c. Derived from live container
+# inspection on 2026-04-22 (webarena-verified-gitlab_3): puma runs 4
+# workers x 4 threads = 16 HTTP slots with worker_timeout 60 s. Cap 10
+# is ~60 % of puma capacity, leaving 6 slots for the internal API
+# traffic a GitLab write fans out into (NotificationsService, mentions,
+# TodoService, webhooks). Reddit (Postmill / PHP-fpm) is not yet
+# measured; 8 is a mid-range placeholder pending Layer 5 observability.
+_PER_REPLICA_CAP_DEFAULT: dict[str, int] = {"gitlab": 10, "reddit": 8}
+_PER_REPLICA_CAP_FALLBACK = 6
+
+
+def _per_replica_cap(site_name: str) -> int:
+    return _PER_REPLICA_CAP_DEFAULT.get(site_name.strip().lower(), _PER_REPLICA_CAP_FALLBACK)
+
+
+@dataclass
+class _ReplicaStats:
+    """Per-replica observability counters for a Phase 2c run.
+
+    Lives entirely in-process; logged as a single line per replica at
+    end of run. Cheap enough to leave always-on — this is the data a
+    future AIMD wrapper (or manual cap tuning) needs; shipping it here
+    avoids guessing from dmesg and nginx error logs next time.
+    """
+
+    site_name: str
+    replica_name: str
+    requests: int = 0
+    errors: int = 0
+    in_flight_peak: int = 0
+    latencies_ms: list[float] = field(default_factory=list)
+
+    def record(self, *, elapsed_ms: float, ok: bool) -> None:
+        self.requests += 1
+        if not ok:
+            self.errors += 1
+        # Cap the sample list so long runs do not balloon memory; 2048
+        # samples is plenty for p50/p99 estimation within ±1 %.
+        if len(self.latencies_ms) < 2048:
+            self.latencies_ms.append(elapsed_ms)
+
+    def summary(self) -> str:
+        if not self.latencies_ms:
+            return (
+                f"replica={self.replica_name} site={self.site_name} "
+                f"requests={self.requests} errors={self.errors} "
+                f"in_flight_peak={self.in_flight_peak} latency_ms=<none>"
+            )
+        ordered = sorted(self.latencies_ms)
+        n = len(ordered)
+        p50 = ordered[n // 2]
+        p99 = ordered[min(n - 1, (n * 99) // 100)]
+        return (
+            f"replica={self.replica_name} site={self.site_name} "
+            f"requests={self.requests} errors={self.errors} "
+            f"in_flight_peak={self.in_flight_peak} "
+            f"p50_ms={p50:.0f} p99_ms={p99:.0f}"
+        )
 
 
 @dataclass(frozen=True)
@@ -182,7 +242,55 @@ async def verify_feasibility(
     cleanup_warnings: list[str] = []
     per_site: dict[str, dict[str, int]] = {}
 
-    semaphore = asyncio.Semaphore(max(1, concurrency))
+    # Two-layer concurrency control, added 2026-04-22:
+    #   * ``semaphore`` is the chromium-memory guard: each verified task
+    #     spawns its own headless browser (~500 MB RSS peak), and r5 has
+    #     ~34 GB free at steady state. 64 leaves margin for spikes while
+    #     freeing operators from tuning ``--feasibility-concurrency`` to
+    #     the backend (per-replica caps below own that).
+    #   * ``per_replica_sems`` is the bulkhead: each replica absorbs at
+    #     most ``_PER_REPLICA_CAP_DEFAULT[site]`` in-flight verifications
+    #     at once. Gitlab's live container (verified via SSH on
+    #     2026-04-22) runs puma 4 workers x 4 threads = 16 HTTP slots,
+    #     worker_timeout 60 s; cap=10 leaves 6 slots for the Sidekiq-
+    #     triggered internal API traffic a write fans out into. Reddit
+    #     (Postmill, PHP-fpm) default is a placeholder pending Layer 5
+    #     observability data.
+    memory_cap = max(int(concurrency), 64)
+    semaphore = asyncio.Semaphore(memory_cap)
+    per_replica_sems: dict[str, asyncio.BoundedSemaphore] = {}
+    # in_flight_counts feeds :func:`select_task_site_instance_dict_p2c`.
+    # It counts tasks that have *reserved* a replica (via P2C pick),
+    # including those queued on the replica's semaphore — not just those
+    # actively holding it. That matches the real load signal: if 15
+    # tasks hash to replica A (cap 10) while B sits idle, B should win
+    # the next pick. Incremented at reservation, decremented in a
+    # ``finally`` block so crashes do not leak phantom load.
+    in_flight_counts: dict[str, int] = {}
+    replica_stats: dict[str, _ReplicaStats] = {}
+
+    def _stats_for(instance: dict[str, Any]) -> _ReplicaStats:
+        key = replica_key(instance)
+        stats = replica_stats.get(key)
+        if stats is None:
+            stats = _ReplicaStats(
+                site_name=str(instance.get("site_name", "")).strip().lower(),
+                replica_name=key,
+            )
+            replica_stats[key] = stats
+        return stats
+
+    def _replica_sem_for(instance: dict[str, Any]) -> asyncio.BoundedSemaphore:
+        key = replica_key(instance)
+        sem = per_replica_sems.get(key)
+        if sem is None:
+            cap = _per_replica_cap(str(instance.get("site_name", "")))
+            sem = asyncio.BoundedSemaphore(cap)
+            # asyncio is single-threaded; no yield point between get and
+            # assign, so this is race-free without an explicit lock.
+            per_replica_sems[key] = sem
+        return sem
+
     started = time.monotonic()
     now_iso = _now_iso()
 
@@ -209,93 +317,144 @@ async def verify_feasibility(
         async_playwright_factory = async_playwright
 
     async def worker(task: dict[str, Any], index: int) -> dict[str, Any]:
-        async with semaphore:
-            if stagger_delay:
-                await asyncio.sleep(min(stagger_delay * index, stagger_delay * 10))
-            # Phase 4 binds the seed call to the *delivery* site (from
-            # ``delivery_channel.delivery_site``, falling back to the first
-            # editor_call's ``site``, falling back to ``task["site"]``).
-            # Mirror that so cross-site adversarial seeds — e.g. a
-            # shopping_admin task whose payload seeds a product review on
-            # the shopping storefront — verify against the correct instance.
-            seed_site = _resolve_seed_site(task)
-            site_instances = instances_by_site.get(seed_site) or []
-            if not site_instances:
-                return _infeasible_task(
-                    task,
-                    kind="unsupported_site",
-                    detail=f"no instance for seed site {seed_site!r}",
-                    fingerprint=fingerprint_base,
-                    http_status=None,
-                    response_snippet=None,
-                    attempts=[],
-                    timestamp=now_iso,
-                )
-            # Hash-based per-task replica selection. Same task -> same replica
-            # across retries (reproducible triage), different tasks fan out
-            # across all configured replicas. This is the same routing Phase 4
-            # uses, so a task's seed call lands on the same upstream in both
-            # phases.
-            instance = select_task_site_instance_dict(task, seed_site, site_instances)
-            # Per-task browser: every worker gets its own Playwright +
-            # Chromium pair, torn down before the next task runs. A render-
-            # check crash in one task (renderer OOM, sandbox child death,
-            # page crash that propagates to the browser) now stays inside
-            # this worker — sibling tasks launch their own browsers and
-            # are unaffected. This matches the pattern every peer
-            # web-agent eval harness uses (WebArena, VisualWebArena,
-            # BrowserGym, AgentLab, WASP) and the official pytest-
-            # playwright idiom (browser scope = worker, context scope = task).
-            # Launch cost is ~1.5-3s per task; at concurrency N that's
-            # ~(launch_cost * total_tasks / N) added wall-clock, acceptable
-            # vs the all-or-nothing shared-browser fragility.
-            pw_handle: Any = None
-            browser: Any = None
-            try:
-                if async_playwright_factory is not None:
-                    pw_handle = await async_playwright_factory().start()
-                    browser = await pw_handle.chromium.launch(headless=True)
+        # Resolve site + replica *before* acquiring any semaphore so the
+        # fast ``unsupported_site`` path does not burn chromium budget or
+        # block other workers on an impossible-to-run task.
+        #
+        # Phase 4 binds the seed call to the *delivery* site (from
+        # ``delivery_channel.delivery_site``, falling back to the first
+        # editor_call's ``site``, falling back to ``task["site"]``).
+        # Mirror that so cross-site adversarial seeds — e.g. a
+        # shopping_admin task whose payload seeds a product review on
+        # the shopping storefront — verify against the correct instance.
+        seed_site = _resolve_seed_site(task)
+        site_instances = instances_by_site.get(seed_site) or []
+        if not site_instances:
+            return _infeasible_task(
+                task,
+                kind="unsupported_site",
+                detail=f"no instance for seed site {seed_site!r}",
+                fingerprint=fingerprint_base,
+                http_status=None,
+                response_snippet=None,
+                attempts=[],
+                timestamp=now_iso,
+            )
+        # Power-of-two-choices replica selection. Unlike Phase 4
+        # (deterministic hash for trajectory reproducibility), Phase 2c
+        # verification is stateless: any healthy replica of the site can
+        # host the seed→probe→cleanup cycle. P2C samples two replicas
+        # and picks the one with fewer in-flight tasks, which empirically
+        # eliminates the hot-replica imbalance that deterministic hashing
+        # exhibits under small N (e.g. 107 tasks / 21 replicas).
+        instance = select_task_site_instance_dict_p2c(
+            task, seed_site, site_instances, in_flight_counts
+        )
+        instance_key = replica_key(instance)
+        new_in_flight = in_flight_counts.get(instance_key, 0) + 1
+        in_flight_counts[instance_key] = new_in_flight
+        stats = _stats_for(instance)
+        if new_in_flight > stats.in_flight_peak:
+            stats.in_flight_peak = new_in_flight
+        worker_started_mono = time.monotonic()
+        worker_ok = False
+        try:
+            replica_sem = _replica_sem_for(instance)
+
+            # Two-layer acquire order: outer (chromium memory) FIRST because
+            # it is the scarcer resource — ~64 slots vs. ~290 summed replica
+            # slots. Queuing on the outer semaphore holds no replica budget,
+            # so one slow replica cannot starve another. Once we have memory
+            # we acquire the replica bulkhead and start real work.
+            async with semaphore:
+                if stagger_delay:
+                    await asyncio.sleep(min(stagger_delay * index, stagger_delay * 10))
+                # Per-task browser: every worker gets its own Playwright +
+                # Chromium pair, torn down before the next task runs. A
+                # render-check crash in one task (renderer OOM, sandbox
+                # child death, page crash that propagates to the browser)
+                # now stays inside this worker — sibling tasks launch
+                # their own browsers and are unaffected. This matches the
+                # pattern every peer web-agent eval harness uses
+                # (WebArena, VisualWebArena, BrowserGym, AgentLab, WASP)
+                # and the official pytest-playwright idiom
+                # (browser scope = worker, context scope = task). Launch
+                # cost is ~1.5-3s per task; at concurrency N that's
+                # ~(launch_cost * total_tasks / N) added wall-clock,
+                # acceptable vs the all-or-nothing shared-browser
+                # fragility.
+                pw_handle: Any = None
+                browser: Any = None
                 try:
-                    return await _verify_one(
-                        task,
-                        instance,
-                        retry_count=retry_count,
-                        fingerprint_base=fingerprint_base,
-                        ttl_hours=ttl_hours,
-                        force_reverify=force_reverify,
-                        cleanup_warnings=cleanup_warnings,
-                        browser=browser,
-                        render_semaphore=None,
-                    )
-                except Exception as exc:
-                    task_id = str(task.get("id", "unknown"))
-                    logger.exception("phase 2c verification crashed for task %s", task_id)
-                    return _infeasible_task(
-                        task,
-                        kind="verification_crashed",
-                        detail=f"{exc.__class__.__name__}: {exc}",
-                        fingerprint=fingerprint_base,
-                        http_status=None,
-                        response_snippet=None,
-                        attempts=[],
-                        timestamp=now_iso,
-                    )
-            finally:
-                if browser is not None:
+                    if async_playwright_factory is not None:
+                        pw_handle = await async_playwright_factory().start()
+                        browser = await pw_handle.chromium.launch(headless=True)
                     try:
-                        await browser.close()
-                    except Exception:
-                        logger.exception("phase 2c: failed to close per-task browser")
-                if pw_handle is not None:
-                    try:
-                        await pw_handle.stop()
-                    except Exception:
-                        logger.exception("phase 2c: failed to stop per-task playwright handle")
+                        async with replica_sem:
+                            result = await _verify_one(
+                                task,
+                                instance,
+                                retry_count=retry_count,
+                                fingerprint_base=fingerprint_base,
+                                ttl_hours=ttl_hours,
+                                force_reverify=force_reverify,
+                                cleanup_warnings=cleanup_warnings,
+                                browser=browser,
+                                render_semaphore=None,
+                            )
+                        # Any ``infeasible`` we reach here came from an
+                        # editor-level refusal (e.g. 4xx, schema mismatch)
+                        # — the replica itself served the request fine,
+                        # so count it as a successful round-trip for
+                        # latency/p99 purposes. ``verification_crashed``
+                        # below is the "replica broke the client" path.
+                        worker_ok = True
+                        return result
+                    except Exception as exc:
+                        task_id = str(task.get("id", "unknown"))
+                        logger.exception("phase 2c verification crashed for task %s", task_id)
+                        return _infeasible_task(
+                            task,
+                            kind="verification_crashed",
+                            detail=f"{exc.__class__.__name__}: {exc}",
+                            fingerprint=fingerprint_base,
+                            http_status=None,
+                            response_snippet=None,
+                            attempts=[],
+                            timestamp=now_iso,
+                        )
+                finally:
+                    if browser is not None:
+                        try:
+                            await browser.close()
+                        except Exception:
+                            logger.exception("phase 2c: failed to close per-task browser")
+                    if pw_handle is not None:
+                        try:
+                            await pw_handle.stop()
+                        except Exception:
+                            logger.exception("phase 2c: failed to stop per-task playwright handle")
+        finally:
+            # Decrement always, including after verification_crashed or
+            # browser-teardown failure, so P2C's load signal stays true.
+            in_flight_counts[instance_key] = max(0, in_flight_counts.get(instance_key, 1) - 1)
+            stats.record(
+                elapsed_ms=(time.monotonic() - worker_started_mono) * 1000.0,
+                ok=worker_ok,
+            )
 
     results = await asyncio.gather(
         *(worker(task, i) for i, task in enumerate(raw)),
         return_exceptions=False,
     )
+
+    # Per-replica observability summary. One log line per replica, sorted
+    # by (site, replica_name) so the output is stable across runs. Use
+    # this to validate that the per-replica cap and P2C selection are
+    # actually balancing load before tuning either knob.
+    if replica_stats:
+        for key in sorted(replica_stats, key=lambda k: (replica_stats[k].site_name, k)):
+            logger.info("phase 2c replica_stats: %s", replica_stats[key].summary())
 
     for result in results:
         feasibility = result.get("feasibility") or {}
@@ -614,7 +773,7 @@ def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
 def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
     """Return the Phase-0d-bootstrapped storage_state.json path for this site.
 
-    Under Option A α identity the seed writer and the reachability
+    Under Option A (alpha) identity the seed writer and the reachability
     probe both act as the benign user, so threading those cookies into
     Playwright lets the probe reach private projects + authed-only
     pages. Falls back to ``None`` when no artifact is present (public

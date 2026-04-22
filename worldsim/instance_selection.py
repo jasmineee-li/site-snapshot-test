@@ -1,9 +1,25 @@
-"""Deterministic task-to-instance selection helpers."""
+"""Task-to-instance selection helpers.
+
+Two selection strategies live here:
+
+* **Deterministic hash** (``select_task_site_instance_*``): same task
+  always lands on the same replica. Used by Phase 4 where trajectory
+  reproducibility across retries requires replica affinity.
+* **Power-of-two-choices** (``select_task_site_instance_dict_p2c``):
+  sample two replicas, route to the one with lower in-flight count.
+  Used by Phase 2c where verification is a stateless seed→probe→cleanup
+  cycle on any healthy replica. The peer-reviewed max-load guarantee
+  (Mitzenmacher 1996) drops from ``O(log n / log log n)`` under random
+  hashing to ``O(log log n)`` under two-choice sampling, which is the
+  same ~3x mean / ~5x p99 improvement NGINX, HAProxy, Envoy, and
+  Linkerd cite for their ``least_conn`` load-balancing modes.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import random
 from typing import Any
 
 from worldsim.config import BenchmarkInstance
@@ -127,3 +143,53 @@ def select_task_site_instance_dict(
         return ordered[0]
     index = stable_index_for_task(task, len(ordered), salt=normalized_site)
     return ordered[index]
+
+
+def replica_key(instance: dict[str, Any]) -> str:
+    """Stable in-flight / semaphore key for a dict-valued instance."""
+    return str(instance.get("replica_name") or instance.get("site_url") or "")
+
+
+def select_task_site_instance_dict_p2c(
+    task: dict[str, Any],
+    site_name: str,
+    instances: list[dict[str, Any]],
+    in_flight_counts: dict[str, int],
+    *,
+    rng: random.Random | None = None,
+) -> dict[str, Any]:
+    """Power-of-two-choices replica selector for dict-valued instances.
+
+    Sample two replicas uniformly at random from the site's replica set
+    and return the one with lower current in-flight count (ties broken
+    randomly). ``in_flight_counts`` is keyed by :func:`replica_key` and
+    is owned by the caller: increment it when the worker reserves the
+    slot, decrement when the slot is released. Single-replica sites
+    skip sampling.
+
+    ``task`` is accepted for call-site symmetry with
+    :func:`select_task_site_instance_dict` but not consulted; the
+    deterministic variant remains available for callers (Phase 4)
+    that need replica affinity across retries.
+    """
+    del task  # unused; P2C ignores task identity on purpose
+    normalized_site = normalize_site_name(site_name)
+    site_instances = [
+        instance
+        for instance in instances
+        if normalize_site_name(str(instance.get("site_name", ""))) == normalized_site
+    ]
+    if not site_instances:
+        raise ValueError(f"no instances configured for site {site_name!r}")
+    ordered = _ordered_instance_dicts(site_instances)
+    if len(ordered) == 1:
+        return ordered[0]
+    chooser = rng if rng is not None else random
+    first, second = chooser.sample(ordered, 2)
+    first_load = in_flight_counts.get(replica_key(first), 0)
+    second_load = in_flight_counts.get(replica_key(second), 0)
+    if first_load < second_load:
+        return first
+    if second_load < first_load:
+        return second
+    return first if chooser.random() < 0.5 else second
