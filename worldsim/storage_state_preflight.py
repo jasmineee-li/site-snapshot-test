@@ -131,17 +131,21 @@ def _candidate_storage_state_paths(
     declared = Path(raw_path)
     candidates: list[Path] = []
     if declared.is_absolute():
-        candidates.append(declared.resolve())
+        candidates.append(declared)
     else:
         if benchmark_root is None:
             return []
-        resolved_root = Path(benchmark_root).resolve()
-        resolved = (resolved_root / declared).resolve()
+        root = Path(benchmark_root)
+        joined = root / declared
+        # Containment uses resolved paths (catches `../` escapes), but the
+        # candidate returned is the unresolved logical path so symlinks in
+        # benchmark_root don't divert existence checks away from where
+        # Phase 0d actually writes.
         try:
-            resolved.relative_to(resolved_root)
+            joined.resolve().relative_to(root.resolve())
         except ValueError:
             return []
-        candidates.append(resolved)
+        candidates.append(joined)
 
     try:
         from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
@@ -187,7 +191,7 @@ def _resolve_storage_state_artifact_for_preflight(
 
     declared = Path(raw_path)
     if declared.is_absolute():
-        declared_path = declared.resolve()
+        declared_path = declared
     else:
         if benchmark_root is None:
             return None, StorageStatePreflightError(
@@ -198,18 +202,20 @@ def _resolve_storage_state_artifact_for_preflight(
                     "the runtime can resolve the artifact safely"
                 ),
             )
-        resolved_root = Path(benchmark_root).resolve()
-        declared_path = (resolved_root / declared).resolve()
+        root = Path(benchmark_root)
+        declared_path = root / declared
+        # Containment check uses resolved paths (to catch `../` escapes via
+        # symlinks), but the returned path is the unresolved logical form
+        # so symlinks inside benchmark_root (e.g. vendors/ → /home/ubuntu/vendors
+        # on r5) don't pin the existence check to a physical tree that
+        # Phase 0d never wrote to.
         try:
-            declared_path.relative_to(resolved_root)
+            declared_path.resolve().relative_to(root.resolve())
         except ValueError:
             return None, StorageStatePreflightError(
                 site_name=instance.site_name,
                 declared_path=raw_path,
-                message=(
-                    f"storage_state path {raw_path!r} resolves outside benchmark root "
-                    f"{resolved_root}"
-                ),
+                message=(f"storage_state path {raw_path!r} resolves outside benchmark root {root}"),
             )
 
     if declared_path.exists():
@@ -233,7 +239,7 @@ def _resolve_storage_state_artifact_for_preflight(
         and bootstrap_path.exists()
         and completion_path.exists()
     ):
-        return bootstrap_path.resolve(), None
+        return bootstrap_path, None
 
     return None, StorageStatePreflightError(
         site_name=instance.site_name,

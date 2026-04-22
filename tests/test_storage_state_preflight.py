@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -110,7 +110,10 @@ def test_apply_skip_auth_for_host_bound_storage_states_rewrites_only_mismatched_
                     "site_name": "shopping",
                     "site_url": "http://3.12.221.9:7770",
                     "reset_endpoint": "http://3.12.221.9:7771/init",
-                    "agent_auth": {"type": "http_headers", "http_headers": {"headers": {"X-Test": "1"}}},
+                    "agent_auth": {
+                        "type": "http_headers",
+                        "http_headers": {"headers": {"X-Test": "1"}},
+                    },
                 },
             ],
         }
@@ -169,6 +172,45 @@ def test_inspect_storage_state_preflight_reports_invalid_json(tmp_path: Path) ->
     assert report.mismatches == ()
     assert len(report.errors) == 1
     assert "invalid JSON" in report.errors[0].message
+
+
+def test_inspect_storage_state_preflight_follows_symlinked_benchmark_root(
+    tmp_path: Path,
+) -> None:
+    # Mirrors the r5 setup where the repo's `vendors/` is a symlink into
+    # /home/ubuntu/vendors but Phase 0d wrote the artifact through the
+    # logical path. The preflight must resolve that without requiring the
+    # file to be copied into the physical tree.
+    physical_root = tmp_path / "physical" / "webarena-verified"
+    physical_root.mkdir(parents=True)
+    state_dir = physical_root / "auth"
+    state_dir.mkdir()
+    state_path = state_dir / "gitlab-state.json"
+    _write_storage_state(state_path, domain="3.12.221.9")
+
+    symlink_root = tmp_path / "vendors-symlink"
+    symlink_root.symlink_to(physical_root.parent, target_is_directory=True)
+    benchmark_root_via_symlink = symlink_root / "webarena-verified"
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": "auth/gitlab-state.json"},
+            },
+        )
+    ]
+
+    report = inspect_storage_state_preflight(
+        instances,
+        benchmark_root=benchmark_root_via_symlink,
+    )
+
+    assert report.errors == ()
+    assert report.mismatches == ()
 
 
 def test_inspect_storage_state_preflight_ignores_orphan_phase_0d_artifact(
@@ -340,7 +382,9 @@ def test_ensure_storage_state_auto_mint_uses_current_sitespec_shape(
         captured["agent_context_source"] = spec.agent_context_source
         captured["site_url"] = site_url
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps({"cookies": [{"name": "session"}], "origins": []}), encoding="utf-8")
+        output_path.write_text(
+            json.dumps({"cookies": [{"name": "session"}], "origins": []}), encoding="utf-8"
+        )
 
     monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_bootstrap_via_form_login)
 
