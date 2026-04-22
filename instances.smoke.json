@@ -7,7 +7,7 @@
   },
   "url_placeholders": {
     "__GITLAB__": "http://3.12.221.9:8023",
-    "__REDDIT__": "http://3.12.221.9:9999"
+    "__REDDIT__": "http://3.12.221.9:9900"
   },
   "instances": [
     {
@@ -46,8 +46,8 @@
     },
     {
       "site_name": "reddit",
-      "site_url": "http://3.12.221.9:9999",
-      "reset_endpoint": "http://3.12.221.9:9998/init",
+      "site_url": "http://3.12.221.9:9900",
+      "reset_endpoint": "http://3.12.221.9:9901/init",
       "db_connection": "postgresql://postmill:postmill@3.12.221.9:5434/postmill",
       "auth": {
         "type": "http_headers",
