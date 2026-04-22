@@ -25,6 +25,7 @@ import os
 import re
 import tempfile
 import urllib.parse
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
 from pathlib import Path
@@ -512,6 +513,13 @@ async def run(args: argparse.Namespace) -> int:
 
         save_state("phase_2", status="running", phase_2_stage="planning", **state_metadata)
 
+        # Resolve the per-site live-instance map once before the shard
+        # loop so every shard of a given site sees the same instance
+        # descriptor. None means the legacy L1/L2-only path (either
+        # --no-l3-l4 was set, --feasibility-instances is absent, or the
+        # wrapper file had no instances). See `_load_phase_2a_instance_by_site`.
+        instance_by_site = _load_phase_2a_instance_by_site(args)
+
         # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch them
         # under a bounded semaphore with small deterministic jitter. Shopping
         # (192 tasks) becomes ~8 shorter sandboxes without one large burst.
@@ -519,6 +527,7 @@ async def run(args: argparse.Namespace) -> int:
         shard_limiter = asyncio.Semaphore(sandbox_concurrency)
         for site, tasks in tasks_by_site.items():
             shards = _shard_tasks(tasks, TASKS_PER_SHARD)
+            per_site_instance = instance_by_site.get(site) if instance_by_site is not None else None
             for shard_idx, shard in enumerate(shards):
                 label = f"{site}-shard-{shard_idx}" if len(shards) > 1 else site
                 shard_coros.append(
@@ -531,6 +540,7 @@ async def run(args: argparse.Namespace) -> int:
                         profile_path=site_profiles[site],
                         label=label,
                         sandbox_model=sandbox_model,
+                        instance=per_site_instance,
                     )
                 )
         shard_results = await asyncio.gather(*shard_coros, return_exceptions=True)
@@ -943,6 +953,47 @@ def _extract_instances_list(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _load_phase_2a_instance_by_site(
+    args: argparse.Namespace,
+) -> dict[str, dict[str, Any]] | None:
+    """Build a ``{site_name: instance}`` map for Phase 2a L3/L4 enrichment.
+
+    Reuses Phase 2c's ``--feasibility-instances`` flag — a single source
+    of truth for "which live benchmark are we hitting" across the two
+    stages. Returns ``None`` when the flag is absent, the file doesn't
+    exist, ``--no-l3-l4`` is set, or the wrapper file carries no
+    instances — in every such case Phase 2a falls back to the legacy
+    L1/L2-only synchronous derive_benign_target_resource path.
+
+    This helper is read-only and cheap; token acquisition for L3/L4
+    probes is deferred to the call site in commit 4 (see
+    :func:`worldsim.auth_tokens.acquire_tokens_for_instances`).
+    """
+    if getattr(args, "no_l3_l4", False):
+        return None
+    instances_arg = getattr(args, "feasibility_instances", None)
+    if not instances_arg:
+        return None
+    instances_path = Path(instances_arg)
+    if not instances_path.exists():
+        return None
+    try:
+        raw = json.loads(instances_path.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Phase 2a: could not parse %s for L3/L4 enrichment: %s", instances_path, exc)
+        return None
+    instances = _extract_instances_list(raw)
+    if not instances:
+        return None
+    by_site: dict[str, dict[str, Any]] = {}
+    for inst in instances:
+        name = str(inst.get("site_name", "")).strip().lower()
+        if not name:
+            continue
+        by_site[name] = inst
+    return by_site or None
+
+
 def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> dict[str, Any]:
     return {
         "generated_at": _utcnow_iso(),
@@ -1030,6 +1081,7 @@ async def _generate_injections_for_site(
     profile_path: Path | None = None,
     label: str | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
+    instance: Mapping[str, Any] | None = None,
 ) -> SiteInjectionResult:
     """Generate adversarial injections for a shard (or full set) of tasks via Modal Sandbox.
 
@@ -1041,6 +1093,14 @@ async def _generate_injections_for_site(
             (single-shard case).
         profile_path: Path to the site's benchmark profile.
         label: Sandbox label for logging / Modal UI.
+        instance: Optional live benchmark instance descriptor for this
+            site (``{site_url, auth, storage_state_path, ...}``). When
+            present and the ``--no-l3-l4`` flag is not set, the next
+            commit wires this to :func:`resolve_tasks` so the Phase 2a
+            target-resolver batch pass runs L3/L4 against the live
+            instance. Currently threaded through for commit 3's pure
+            plumbing step; the L1/L2-only comprehension below is
+            replaced by the enrichment call in commit 4.
 
     Returns:
         Validated sandbox output for the shard.

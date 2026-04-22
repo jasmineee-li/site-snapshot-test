@@ -252,6 +252,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Phase 2c: re-verify every task regardless of fingerprint or status.",
     )
+    phase_cmd.add_argument(
+        "--no-l3-l4",
+        action="store_true",
+        default=False,
+        help="Phase 2a: force the L1/L2-only target-resolver path even when "
+        "--feasibility-instances points at a live benchmark. Skips the "
+        "async L3 intent-classifier + live-probe pass and the L4 listing "
+        "expansion. Tasks that depend on L3/L4 enrichment will arrive at "
+        "2a with stub anchors (and route to the contract-table skip "
+        "notice for listing kinds). Opt-in for offline reproductions and "
+        "snapshot tests tied to the pre-expansion dataset.",
+    )
     # Phase 4 transcript-purpose classifier has no CLI knobs — Apollo's
     # single-path protocol; self-healing handles soft failures internally.
 
