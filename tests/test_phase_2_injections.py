@@ -307,6 +307,33 @@ def test_merge_immutable_fields_redacts_sensitive_benign_data_seed():
     assert copied_seed["api_calls"][0]["headers"]["Authorization"] == "<redacted>"
 
 
+def test_sanitize_task_for_output_redacts_data_seed_and_cookie_session_fields():
+    task = _benign_task()
+    task["data_seed"] = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "POST",
+                "path": "/rest/V1/reviews",
+                "body": {"detail": "payload"},
+                "headers": {"Authorization": "Bearer very-secret"},
+            }
+        ],
+    }
+    task["agent_context"] = {
+        "auth_mechanism": {
+            "cookies": {"session": "cookie-secret"},
+            "session_cookie": "session-secret",
+        }
+    }
+
+    sanitized = phase_2_injections._sanitize_task_for_output(task)
+
+    assert sanitized["data_seed"]["api_calls"][0]["headers"]["Authorization"] == "<redacted>"
+    assert sanitized["agent_context"]["auth_mechanism"]["cookies"] == {"session": "<redacted>"}
+    assert sanitized["agent_context"]["auth_mechanism"]["session_cookie"] == "<redacted>"
+
+
 def test_validate_adversarial_task_contract_rejects_benign_reward_drift():
     benign_task = _benign_task()
     adversarial_task = {
@@ -1023,6 +1050,190 @@ def test_load_reusable_phase_2_plans_rejects_phase_2a_resolution_signature_drift
     )
 
     assert reusable is None
+
+
+def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
+    path = tmp_path / "instances.json"
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "https://gitlab.local",
+                        "auth": {"type": "http_headers", "headers": {"X-Test": "benign"}},
+                        "api_auth": {"type": "bearer_token", "token": "one"},
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
+                    }
+                ]
+            }
+        )
+    )
+    args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
+    first = phase_2_injections._phase_2a_resolution_signature(args)
+
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "https://gitlab.local",
+                        "auth": {"type": "http_headers", "headers": {"X-Test": "benign"}},
+                        "api_auth": {"type": "bearer_token", "token": "two"},
+                        "pvpo_cdp_url": "http://127.0.0.1:9333",
+                    }
+                ]
+            }
+        )
+    )
+    second = phase_2_injections._phase_2a_resolution_signature(args)
+
+    assert first["instances_sha256"] == second["instances_sha256"]
+
+
+def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
+    path = tmp_path / "instances.json"
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "https://gitlab.local",
+                        "auth": {"type": "http_headers", "headers": {"X-Test": "one"}},
+                    }
+                ]
+            }
+        )
+    )
+    args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
+    first = phase_2_injections._phase_2a_resolution_signature(args)
+
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "https://gitlab.local",
+                        "auth": {"type": "http_headers", "headers": {"X-Test": "two"}},
+                    }
+                ]
+            }
+        )
+    )
+    second = phase_2_injections._phase_2a_resolution_signature(args)
+
+    assert first["instances_sha256"] != second["instances_sha256"]
+
+
+def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_path):
+    path = tmp_path / "instances.json"
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "https://gitlab.local",
+                    }
+                ]
+            }
+        )
+    )
+    args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
+    first = phase_2_injections._phase_2a_resolution_signature(args)
+
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "https://gitlab.local",
+                        "api_auth": {"type": "bearer_token", "token": "privileged"},
+                    }
+                ]
+            }
+        )
+    )
+    second = phase_2_injections._phase_2a_resolution_signature(args)
+
+    assert first["instances_sha256"] != second["instances_sha256"]
+
+
+def test_phase_2a_resolution_signature_detects_env_backed_auth_drift(monkeypatch, tmp_path):
+    path = tmp_path / "instances.json"
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "https://gitlab.local",
+                        "auth": {
+                            "type": "http_headers",
+                            "headers": {"X-Test-Auto-Login": {"from_env": "WORLDSIM_TEST_AUTH"}},
+                        },
+                    }
+                ]
+            }
+        )
+    )
+    args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
+    monkeypatch.setenv("WORLDSIM_TEST_AUTH", "alice:one")
+    first = phase_2_injections._phase_2a_resolution_signature(args)
+
+    monkeypatch.setenv("WORLDSIM_TEST_AUTH", "alice:two")
+    second = phase_2_injections._phase_2a_resolution_signature(args)
+
+    assert first["instances_sha256"] != second["instances_sha256"]
+
+
+def test_phase_2a_resolution_signature_ignores_overwritten_duplicate_site_entries(tmp_path):
+    path = tmp_path / "instances.json"
+    payload = {
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": "https://gitlab-a.local",
+                "auth": {"type": "http_headers", "headers": {"X-Test": "first"}},
+            },
+            {
+                "site_name": "gitlab",
+                "site_url": "https://gitlab-b.local",
+                "auth": {"type": "http_headers", "headers": {"X-Test": "effective"}},
+            },
+        ]
+    }
+    path.write_text(json.dumps(payload))
+    args = Namespace(feasibility_instances=str(path), no_l3_l4=False)
+    first = phase_2_injections._phase_2a_resolution_signature(args)
+
+    payload["instances"][0]["auth"]["headers"]["X-Test"] = "changed-but-overwritten"
+    path.write_text(json.dumps(payload))
+    second = phase_2_injections._phase_2a_resolution_signature(args)
+
+    assert first["instances_sha256"] == second["instances_sha256"]
+
+
+def test_resume_setting_matches_ignores_phase_2a_resolution_signature_path_only_drift():
+    assert phase_2_injections._resume_setting_matches(
+        {
+            "phase_2a_resolution_signature": {
+                "no_l3_l4": False,
+                "instances_path": "instances.old.json",
+                "instances_sha256": "same",
+            }
+        },
+        field="phase_2a_resolution_signature",
+        current_value={
+            "no_l3_l4": False,
+            "instances_path": "instances.new.json",
+            "instances_sha256": "same",
+        },
+    )
 
 
 def test_validate_adversarial_task_contract_rejects_unresolved_http_path():
@@ -2191,6 +2402,11 @@ async def test_generate_injections_for_site_passes_explicit_sandbox_model(monkey
         "_validate_generated_adversarial_tasks",
         lambda adv_tasks, benign_tasks, site_profile: (adv_tasks, []),
     )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_phase_2a_eligible_tasks",
+        lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
+    )
 
     result = await phase_2_injections._generate_injections_for_site(
         site_name="shopping",
@@ -2535,6 +2751,11 @@ async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(mon
         "generate_phase_2a_plans_api",
         fake_generate_phase_2a_plans_api,
     )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_phase_2a_eligible_tasks",
+        lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
+    )
 
     result = await phase_2_injections._generate_injections_for_site(
         site_name="shopping",
@@ -2554,6 +2775,175 @@ async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(mon
     assert captured["agent_context"]["auth_mechanism"]["headers"] == {
         "X-Test-Auto-Login": "<redacted>"
     }
+
+
+@pytest.mark.asyncio
+async def test_generate_injections_for_site_sandbox_path_sanitizes_prompt_inputs(
+    monkeypatch, tmp_path
+):
+    monkeypatch.delenv("WORLDSIM_PHASE_2A_API", raising=False)
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    profile_path = tmp_path / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.write_text(json.dumps(_single_surface_profile()))
+    agent_context_path = tmp_path / "AGENT_CONTEXT_shopping.json"
+    agent_context_path.write_text(
+        json.dumps(
+            {
+                "authentication": {
+                    "credentials": {"username": "alice", "password": "secret-pass"},
+                },
+                "auth_mechanism": {
+                    "cookies": {"session": "cookie-secret"},
+                    "headers": {"X-Test-Auto-Login": "alice:secret-pass"},
+                },
+            }
+        )
+    )
+
+    benign = _benign_task()
+    benign["agent_context"] = {
+        "authentication": {
+            "credentials": {"username": "alice", "password": "secret-pass"},
+        }
+    }
+    benign["data_seed"] = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "POST",
+                "path": "/rest/V1/reviews",
+                "headers": {"Authorization": "Bearer very-secret"},
+                "body": {"detail": "payload"},
+            }
+        ],
+    }
+    captured: dict[str, Any] = {}
+
+    async def fake_run_claude_in_sandbox(*, site_files, **kwargs):
+        tasks = json.loads(Path(site_files["/workspace/tasks/benign_tasks.json"]).read_text())
+        context = json.loads(Path(site_files["/workspace/profile/AGENT_CONTEXT.json"]).read_text())
+        captured["tasks"] = tasks
+        captured["agent_context"] = context
+        return {"/workspace/output/adversarial_tasks.json": "[]", "_summary": {}}
+
+    monkeypatch.setattr(phase_2_injections, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_phase_2a_eligible_tasks",
+        lambda site_tasks, benign_target_resources, site_name: (site_tasks, []),
+    )
+
+    await phase_2_injections._generate_injections_for_site(
+        site_name="shopping",
+        site_tasks=[benign],
+        all_site_tasks=[benign],
+        profile_path=profile_path,
+        label="shopping",
+        sandbox_model="claude-sonnet-4-6",
+        instance=None,
+    )
+
+    assert captured["tasks"][0]["agent_context"]["authentication"]["credentials"] == {
+        "username": "<redacted>",
+        "password": "<redacted>",
+    }
+    assert (
+        captured["tasks"][0]["data_seed"]["api_calls"][0]["headers"]["Authorization"]
+        == "<redacted>"
+    )
+    assert captured["agent_context"]["auth_mechanism"]["cookies"] == {"session": "<redacted>"}
+    assert captured["agent_context"]["auth_mechanism"]["headers"] == {
+        "X-Test-Auto-Login": "<redacted>"
+    }
+
+
+@pytest.mark.asyncio
+async def test_generate_injections_for_site_empty_after_eligibility_is_clean_noop(
+    monkeypatch, tmp_path
+):
+    profile_path = tmp_path / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.write_text(json.dumps(_single_surface_profile()))
+    sandbox_called = {"value": False}
+    api_called = {"value": False}
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        sandbox_called["value"] = True
+        return {}
+
+    async def fake_generate_phase_2a_plans_api(**kwargs):
+        api_called["value"] = True
+        return []
+
+    monkeypatch.setattr(phase_2_injections, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(
+        phase_2_injections,
+        "generate_phase_2a_plans_api",
+        fake_generate_phase_2a_plans_api,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_phase_2a_eligible_tasks",
+        lambda site_tasks, benign_target_resources, site_name: ([], [{"task_id": "benign-1"}]),
+    )
+
+    result = await phase_2_injections._generate_injections_for_site(
+        site_name="shopping",
+        site_tasks=[_benign_task()],
+        all_site_tasks=[_benign_task()],
+        profile_path=profile_path,
+        label="shopping",
+        sandbox_model="claude-sonnet-4-6",
+        instance=None,
+    )
+
+    assert result.adversarial_tasks == []
+    assert result.errors == []
+    assert sandbox_called["value"] is False
+    assert api_called["value"] is False
+
+
+def test_validate_generated_adversarial_task_rejects_preseeded_read_surface_fields():
+    task = _plan_task()
+    task["read_surface_urls"] = ["/forbidden"]
+
+    problem = phase_2_injections._validate_generated_adversarial_task(
+        task,
+        0,
+        {"benign-1": _benign_task()},
+        _single_surface_profile(),
+    )
+
+    assert "must not include Phase 2c output fields" in problem
+
+
+def test_validate_generated_adversarial_task_rejects_preseeded_feasibility():
+    task = _plan_task()
+    task["feasibility"] = {"status": "verified"}
+
+    problem = phase_2_injections._validate_generated_adversarial_task(
+        task,
+        0,
+        {"benign-1": _benign_task()},
+        _single_surface_profile(),
+    )
+
+    assert "must not include Phase 2c output fields" in problem
+
+
+def test_validate_reusable_phase_2_task_rejects_preseeded_phase_2c_fields():
+    task = _finalized_plan_task()
+    task["feasibility"] = {"status": "verified"}
+
+    problem = phase_2_injections._validate_reusable_phase_2_task(
+        task,
+        task_index=0,
+        texts_per_plan=1,
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+    )
+
+    assert "must not include Phase 2c output fields" in problem
 
 
 def test_merge_preserving_unfiltered_sites_drops_quarantined_map_entries(tmp_path):
@@ -2904,6 +3294,110 @@ class TestResolveBenignTargetResourcesForShard:
         )
         assert expanded == tasks
         assert resources["t1"]["kind"] == "gitlab_issue"
+
+    def test_token_failure_drops_probe_dependent_listing_kind(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        monkeypatch.setattr(
+            phase_2_injections,
+            "acquire_tokens_for_instances",
+            lambda *_args, **_kwargs: ["bad credentials"],
+        )
+        tasks = [
+            self._gitlab_site_task(
+                "t_search",
+                "__GITLAB__/groups/gitlab-org/-/issues?search=theme&scope=all",
+            )
+        ]
+        expanded, resources = asyncio.run(
+            phase_2_injections._resolve_benign_target_resources_for_shard(
+                site_tasks=tasks,
+                instance={
+                    "site_name": "gitlab",
+                    "site_url": "https://x",
+                    "auth": {"type": "bearer_token", "token": ""},
+                },
+                site_name="gitlab",
+                label="test",
+            )
+        )
+        assert expanded == tasks
+        assert resources["t_search"]["kind"] is None
+        assert "token acquisition failure" in resources["t_search"]["reason"]
+
+    def test_api_auth_without_benign_auth_falls_back_to_l1_l2(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        tasks = [self._gitlab_site_task("t1", "__GITLAB__/a/b/-/issues/5")]
+        expanded, resources = asyncio.run(
+            phase_2_injections._resolve_benign_target_resources_for_shard(
+                site_tasks=tasks,
+                instance={
+                    "site_name": "gitlab",
+                    "site_url": "https://x",
+                    "api_auth": {"type": "bearer_token", "token": "privileged"},
+                },
+                site_name="gitlab",
+                label="test",
+            )
+        )
+        assert expanded == tasks
+        assert resources["t1"]["kind"] == "gitlab_issue"
+
+    def test_api_auth_without_benign_auth_drops_probe_dependent_listing_kind(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        tasks = [
+            self._gitlab_site_task(
+                "t_search",
+                "__GITLAB__/groups/gitlab-org/-/issues?search=theme&scope=all",
+            )
+        ]
+        expanded, resources = asyncio.run(
+            phase_2_injections._resolve_benign_target_resources_for_shard(
+                site_tasks=tasks,
+                instance={
+                    "site_name": "gitlab",
+                    "site_url": "https://x",
+                    "api_auth": {"type": "bearer_token", "token": "privileged"},
+                },
+                site_name="gitlab",
+                label="test",
+            )
+        )
+        assert expanded == tasks
+        assert resources["t_search"]["kind"] is None
+        assert resources["t_search"]["pending_layer"] == "L3"
+        assert "missing benign auth" in resources["t_search"]["reason"]
+
+    def test_api_auth_without_benign_auth_keeps_reddit_dashboard_kind(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        tasks = [
+            {
+                "id": "t_dash",
+                "site": "reddit",
+                "sites": ["reddit"],
+                "start_urls": ["__REDDIT__/user/MarvelsGrantMan136/comments"],
+                "instruction": "anything",
+                "reward_function": {"eval": []},
+            }
+        ]
+        expanded, resources = asyncio.run(
+            phase_2_injections._resolve_benign_target_resources_for_shard(
+                site_tasks=tasks,
+                instance={
+                    "site_name": "reddit",
+                    "site_url": "https://x",
+                    "api_auth": {"type": "bearer_token", "token": "privileged"},
+                },
+                site_name="reddit",
+                label="test",
+            )
+        )
+        assert expanded == tasks
+        assert resources["t_dash"]["kind"] == "reddit_dashboard_list"
+        assert resources["t_dash"]["anchors"]["dashboard"] == "comments"
 
     def test_persists_target_resolution_to_logs(self, tmp_path, monkeypatch):
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))

@@ -23,6 +23,7 @@ import os
 import pytest
 
 from worldsim.phases.phase_2_target_resolver import (
+    _benign_probe_instance,
     _call_anthropic_classifier,
     _default_listing_probe,
     _default_probe,
@@ -127,7 +128,7 @@ async def test_live_l4_lists_gitlab_issues_in_populated_project(gitlab_placehold
     from worldsim.seeding import _build_request_headers
 
     base = str(instance.get("site_url") or "").rstrip("/")
-    headers = _build_request_headers(instance, {}, mechanism="api")
+    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="api")
     sess = requests.Session()
     r = sess.get(
         f"{base}/api/v4/issues",

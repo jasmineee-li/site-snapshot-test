@@ -82,6 +82,13 @@ DEFAULT_SANDBOX_CONCURRENCY = 250
 DEFAULT_LAUNCH_JITTER_MS = 750
 _TARGET_RESOLUTION_WRITE_LOCK = threading.Lock()
 _ELIGIBILITY_DROPS_WRITE_LOCK = threading.Lock()
+_L4_LISTING_KINDS = frozenset(
+    {
+        "gitlab_search_result",
+        "gitlab_dashboard_list",
+        "reddit_forum",
+    }
+)
 
 
 def _phase_2a_api_enabled() -> bool:
@@ -977,12 +984,81 @@ def _phase_2a_resolution_signature(args: argparse.Namespace) -> dict[str, Any]:
         return signature
     path = Path(instances_arg)
     try:
-        payload = path.read_bytes()
+        payload = path.read_text()
     except OSError:
         signature["instances_missing"] = True
         return signature
-    signature["instances_sha256"] = hashlib.sha256(payload).hexdigest()[:12]
+    try:
+        raw = json.loads(payload)
+    except json.JSONDecodeError:
+        signature["instances_unparseable"] = True
+        signature["instances_sha256"] = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+        return signature
+    projected = _project_phase_2a_resolution_inputs(raw)
+    canonical = json.dumps(projected, sort_keys=True, separators=(",", ":"))
+    signature["instances_sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
     return signature
+
+
+def _project_phase_2a_resolution_inputs(payload: Any) -> list[dict[str, Any]]:
+    """Keep only the benign-probe inputs that can change L3/L4 output."""
+    effective_by_site: dict[str, dict[str, Any]] = {}
+    for instance in _extract_instances_list(payload):
+        site_name = str(instance.get("site_name", "")).strip().lower()
+        if not site_name:
+            continue
+        entry: dict[str, Any] = {
+            "site_name": site_name,
+            "site_url": str(instance.get("site_url", "")).strip(),
+            "probe_auth_mode": (
+                "api_auth_only" if _instance_lacks_benign_probe_auth(instance) else "benign_auth"
+            ),
+        }
+        auth = instance.get("auth")
+        if isinstance(auth, dict):
+            entry["auth"] = _phase_2a_auth_identity(auth)
+        effective_by_site[site_name] = entry
+    projected = list(effective_by_site.values())
+    projected.sort(key=lambda item: item["site_name"])
+    return projected
+
+
+def _phase_2a_auth_identity(auth: Mapping[str, Any]) -> dict[str, Any]:
+    auth_type = str(auth.get("type", "")).strip()
+    identity: dict[str, Any] = {"type": auth_type}
+    if auth_type == "http_headers":
+        headers = auth.get("headers")
+        if isinstance(headers, dict):
+            normalized: dict[str, Any] = {}
+            for key, value in sorted(headers.items()):
+                key_str = str(key)
+                if isinstance(value, str):
+                    normalized[key_str] = hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+                    continue
+                if isinstance(value, dict) and isinstance(value.get("from_env"), str):
+                    env_name = value["from_env"].strip()
+                    resolved = os.environ.get(env_name, "")
+                    normalized[key_str] = {
+                        "from_env": env_name,
+                        "value_sha256": hashlib.sha256(resolved.encode("utf-8")).hexdigest()[:12],
+                    }
+            identity["headers"] = normalized
+        return identity
+    if auth_type == "web_login":
+        credentials = auth.get("credentials")
+        if isinstance(credentials, dict):
+            identity["credentials_sha256"] = hashlib.sha256(
+                json.dumps(credentials, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()[:12]
+        login_url = auth.get("login_url")
+        if isinstance(login_url, str) and login_url.strip():
+            identity["login_url"] = login_url.strip()
+        return identity
+    if auth_type == "bearer_token":
+        from worldsim.auth_tokens import _cache_identity
+
+        return _cache_identity(dict(auth))
+    return identity
 
 
 def _load_phase_2a_instance_by_site(
@@ -1029,12 +1105,8 @@ def _load_phase_2a_instance_by_site(
 def _instance_bearer_tokens_ready(instance: Mapping[str, Any] | None) -> bool:
     if instance is None:
         return True
-    for field in ("auth", "api_auth"):
-        auth = instance.get(field)
-        if not isinstance(auth, dict):
-            continue
-        if str(auth.get("type", "")).strip() != "bearer_token":
-            continue
+    auth = instance.get("auth")
+    if isinstance(auth, dict) and str(auth.get("type", "")).strip() == "bearer_token":
         token = auth.get("token")
         if not isinstance(token, str) or not token.strip():
             return False
@@ -1051,13 +1123,64 @@ def _warm_phase_2a_instance_tokens(instance_by_site: Mapping[str, Any] | None) -
     ]
     if not pending:
         return
-    errors = acquire_tokens_for_instances(pending)
+    errors = acquire_tokens_for_instances(pending, auth_fields=("auth",))
     if errors:
         logger.warning(
             "Phase 2a: token warmup failed for %d site(s): %s",
             len(errors),
             "; ".join(errors),
         )
+
+
+def _instance_lacks_benign_probe_auth(instance: Mapping[str, Any] | None) -> bool:
+    if instance is None:
+        return False
+    auth = instance.get("auth")
+    api_auth = instance.get("api_auth")
+    return isinstance(api_auth, dict) and not isinstance(auth, dict)
+
+
+def _mark_probe_dependent_resources_unresolved(
+    resources: dict[str, dict[str, Any]],
+    *,
+    reason: str,
+) -> dict[str, dict[str, Any]]:
+    for task_id, record in resources.items():
+        kind = record.get("kind")
+        if record.get("pending_layer") == "L3":
+            resources[task_id] = {
+                "kind": None,
+                "anchors": dict(record.get("anchors") or {}),
+                "start_url_resolved": record.get("start_url_resolved"),
+                "attach_surfaces": [],
+                "encounter_requirements": record.get("encounter_requirements")
+                or {"viewport_budget_chars": 600},
+                "layer": record.get("layer"),
+                "pending_layer": "L3",
+                "reason": reason,
+            }
+            continue
+        if kind in _L4_LISTING_KINDS:
+            resources[task_id] = {
+                "kind": None,
+                "anchors": dict(record.get("anchors") or {}),
+                "start_url_resolved": record.get("start_url_resolved"),
+                "attach_surfaces": [],
+                "encounter_requirements": record.get("encounter_requirements")
+                or {"viewport_budget_chars": 600},
+                "layer": record.get("layer"),
+                "pending_layer": "L4",
+                "reason": reason,
+            }
+    return resources
+
+
+def _l1_l2_resources_with_probe_fail_closed(
+    site_tasks: list[dict[str, Any]],
+    *,
+    reason: str,
+) -> dict[str, dict[str, Any]]:
+    return _mark_probe_dependent_resources_unresolved(_l1_l2_resources_dict(site_tasks), reason=reason)
 
 
 def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> dict[str, Any]:
@@ -1236,12 +1359,24 @@ async def _resolve_benign_target_resources_for_shard(
     if instance is None:
         return list(site_tasks), _l1_l2_resources_dict(site_tasks)
 
+    if _instance_lacks_benign_probe_auth(instance):
+        logger.warning(
+            "Phase 2a: site %r instance exposes api_auth without benign auth; "
+            "falling back to L1/L2 for L3/L4 resolution",
+            site_name,
+        )
+        resources = _l1_l2_resources_with_probe_fail_closed(
+            site_tasks,
+            reason="missing benign auth for live L3/L4 probe",
+        )
+        return list(site_tasks), resources
+
     # Acquire API tokens lazily on first use per-run; mirrors Phase 2c
     # and Phase 4's pattern. ``acquire_tokens_for_instances`` is
     # idempotent (no-op when already stamped).
     if not _instance_bearer_tokens_ready(instance):
         try:
-            token_errors = acquire_tokens_for_instances([instance])
+            token_errors = acquire_tokens_for_instances([instance], auth_fields=("auth",))
         except Exception as exc:
             logger.warning(
                 "Phase 2a: token acquisition raised for site %r; falling back to L1/L2: %s",
@@ -1255,7 +1390,10 @@ async def _resolve_benign_target_resources_for_shard(
                 site_name,
                 "; ".join(token_errors),
             )
-            return list(site_tasks), _l1_l2_resources_dict(site_tasks)
+            return list(site_tasks), _l1_l2_resources_with_probe_fail_closed(
+                site_tasks,
+                reason="live L3/L4 probe unavailable after token acquisition failure",
+            )
 
     try:
         enriched = await resolve_tasks(
@@ -1270,7 +1408,10 @@ async def _resolve_benign_target_resources_for_shard(
             label,
             exc,
         )
-        return list(site_tasks), _l1_l2_resources_dict(site_tasks)
+        return list(site_tasks), _l1_l2_resources_with_probe_fail_closed(
+            site_tasks,
+            reason=f"live L3/L4 probe unavailable after resolver failure: {type(exc).__name__}",
+        )
 
     # Build the expanded task list + resources map in lockstep. For a
     # task whose L4 returned N items, emit N cloned task dicts with
@@ -1431,8 +1572,6 @@ async def _generate_injections_for_site(
     # expansion actually happened.
     if any(L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
         all_site_tasks = site_tasks
-    cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
-
     # Pre-shard feasibility filter: drop tasks whose resolved kind has
     # zero addressable editor methods on this site (commit 7 of the
     # contract registry refactor). Dashboard-list kinds stay eligible —
@@ -1443,6 +1582,10 @@ async def _generate_injections_for_site(
     )
     if eligibility_drops:
         _write_eligibility_drops(site_name, eligibility_drops)
+    if not site_tasks:
+        logger.info("Phase 2: shard %r has no eligible tasks after target-resolution filtering", label)
+        return SiteInjectionResult(site_name, [], [])
+    cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
 
     agent_context_path = profile_path.parent / f"AGENT_CONTEXT_{site_name}.json"
     agent_context: dict[str, Any] | None = None
@@ -1487,7 +1630,8 @@ async def _generate_injections_for_site(
 
             # Stage only this shard's benign tasks into the sandbox
             tasks_file = tmp / "benign_tasks.json"
-            tasks_file.write_text(json.dumps(site_tasks, indent=2))
+            sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
+            tasks_file.write_text(json.dumps(sanitized_site_tasks, indent=2))
             cell_targets_file = tmp / "cell_targets.json"
             cell_targets_file.write_text(json.dumps(cell_targets, indent=2, sort_keys=True))
             resources_file = tmp / "benign_target_resources.json"
@@ -1500,8 +1644,14 @@ async def _generate_injections_for_site(
                 "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
             }
             # Pass agent context so injections are crafted with knowledge of agent behavior
-            if agent_context_path.exists():
-                sandbox_files["/workspace/profile/AGENT_CONTEXT.json"] = str(agent_context_path)
+            if agent_context is not None:
+                sanitized_agent_context_path = tmp / "AGENT_CONTEXT.json"
+                sanitized_agent_context_path.write_text(
+                    json.dumps(_sanitize_agent_context_for_output(agent_context), indent=2)
+                )
+                sandbox_files["/workspace/profile/AGENT_CONTEXT.json"] = str(
+                    sanitized_agent_context_path
+                )
 
             logger.info(
                 "Phase 2: launching injection sandbox %r (%d tasks)", label, len(site_tasks)
@@ -1866,7 +2016,18 @@ def _resume_setting_matches(
     prior_value = prior_state.get(field, sentinel)
     if prior_value is sentinel:
         return True
+    if field == "phase_2a_resolution_signature":
+        prior_value = _phase_2a_resolution_signature_comparable(prior_value)
+        current_value = _phase_2a_resolution_signature_comparable(current_value)
     return prior_value == current_value
+
+
+def _phase_2a_resolution_signature_comparable(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    comparable = dict(value)
+    comparable.pop("instances_path", None)
+    return comparable
 
 
 def _identifiers_match_exactly(
@@ -1909,6 +2070,9 @@ def _validate_reusable_phase_2_task(
     if not isinstance(task, dict):
         return f"saved task {task_index} is not an object"
     task_name = f"saved task {task_index} ({task.get('id', '?')})"
+    pre_feasibility_only_fields = _phase_2c_only_fields_present(task)
+    if pre_feasibility_only_fields:
+        return f"{task_name} must not include Phase 2c output fields {pre_feasibility_only_fields}"
     benign_parent = benign_by_id.get(str(task.get("benign_task_id", "")))
     if benign_parent is None:
         return f"{task_name} references unknown benign_task_id {task.get('benign_task_id')!r}"
@@ -2004,8 +2168,9 @@ def _merge_preserving_unfiltered_sites(
 
 def _sanitize_task_for_output(task: dict[str, Any]) -> dict[str, Any]:
     sanitized = json.loads(json.dumps(task))
-    if "agent_context" in sanitized:
-        sanitized["agent_context"] = _sanitize_agent_context_for_output(sanitized["agent_context"])
+    for field in ("agent_context", "data_seed"):
+        if field in sanitized:
+            sanitized[field] = _sanitize_agent_context_for_output(sanitized[field])
     return sanitized
 
 
@@ -2029,10 +2194,13 @@ def _sanitize_agent_context_node(value: Any, secrets: set[str]) -> Any:
         for key, item in value.items():
             key_str = str(key)
             lowered = key_str.lower()
-            if lowered in {"credentials", "headers"} and isinstance(item, dict):
+            if lowered in {"credentials", "headers", "cookies"} and isinstance(item, dict):
                 sanitized[key_str] = {inner_key: "<redacted>" for inner_key in item}
                 continue
-            if any(token in lowered for token in ("password", "token", "secret", "api_key")):
+            if any(
+                token in lowered
+                for token in ("password", "token", "secret", "api_key", "cookie", "session")
+            ):
                 sanitized[key_str] = "<redacted>"
                 continue
             sanitized[key_str] = _sanitize_agent_context_node(item, secrets)
@@ -2057,11 +2225,14 @@ def _collect_agent_context_secrets(value: Any) -> set[str]:
         if isinstance(node, dict):
             for key, item in node.items():
                 lowered = str(key).lower()
-                if lowered in {"credentials", "headers"} and isinstance(item, dict):
+                if lowered in {"credentials", "headers", "cookies"} and isinstance(item, dict):
                     for inner in item.values():
                         if isinstance(inner, str) and inner:
                             secrets.add(inner)
-                elif any(token in lowered for token in ("password", "token", "secret", "api_key")):
+                elif any(
+                    token in lowered
+                    for token in ("password", "token", "secret", "api_key", "cookie", "session")
+                ):
                     if isinstance(item, str) and item:
                         secrets.add(item)
                 walk(item)
@@ -2139,7 +2310,15 @@ def _phase_2a_eligible_tasks(
         anchors = anchors_raw if isinstance(anchors_raw, dict) else {}
 
         if not isinstance(kind, str) or not kind:
-            eligible.append(task)
+            dropped.append(
+                {
+                    "task_id": task_id,
+                    "kind": None,
+                    "reason": str(record.get("reason") or "unresolved_target_resource"),
+                    "anchors": dict(anchors),
+                    "available_tokens": [],
+                }
+            )
             continue
 
         contract = kind_contract(kind)
@@ -2378,6 +2557,11 @@ def _validate_generated_adversarial_task(
     final_stage_fields = sorted(_FINAL_STAGE_ONLY_FIELDS.intersection(task.keys()))
     if final_stage_fields:
         return f"{task_name} must not include Phase 2b/final-task fields {final_stage_fields}"
+    pre_feasibility_only_fields = _phase_2c_only_fields_present(task)
+    if pre_feasibility_only_fields:
+        return (
+            f"{task_name} must not include Phase 2c output fields {pre_feasibility_only_fields}"
+        )
     if is_plan:
         forbidden_fields = sorted(_FORBIDDEN_PLAN_FIELDS.intersection(task.keys()))
         if forbidden_fields:
@@ -2406,6 +2590,12 @@ def _validate_generated_adversarial_task(
             return f"{task_name} Option A placement: {placement_error}"
 
     return None
+
+
+def _phase_2c_only_fields_present(task: Mapping[str, Any]) -> list[str]:
+    return sorted(
+        {"feasibility", "read_surface_urls", "read_surface_provenance"}.intersection(task.keys())
+    )
 
 
 def _is_option_a_site(task: dict) -> bool:

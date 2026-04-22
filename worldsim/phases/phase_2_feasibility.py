@@ -611,7 +611,7 @@ async def _run_render_check(
         urls = []
     site_name = str(instance.get("site_name", "")).strip().lower()
     site_url = str(instance.get("site_url", "")).rstrip("/")
-    signature = render_signature(seed)
+    signature = render_signature(seed, metadata)
 
     storage_state_path = _resolve_benign_storage_state_path(instance)
 

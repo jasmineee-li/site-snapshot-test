@@ -14,6 +14,7 @@ import pytest
 
 from worldsim.phases.phase_2_target_resolver import (
     VIEWPORT_BUDGET_CHARS,
+    _benign_probe_instance,
     derive_benign_target_resource,
 )
 from worldsim.placeholders import placeholders_for_site_urls
@@ -563,6 +564,130 @@ def test_l3_non_wasp_site_short_circuits_before_classifier():
     assert called is False
 
 
+def test_l3_dashboard_probe_api_maps_to_gitlab_dashboard_anchor():
+    task = _gitlab_task(
+        task_id="t_dash",
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction="Show my todos.",
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_dashboard_list",
+            "probe_query": {"api": "list_user_todos"},
+            "confidence": 0.91,
+        }
+    )
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            {"site_url": "https://gitlab.local", "auth": {"type": "http_headers", "headers": {}}},
+            classifier=classifier,
+            probe_fn=None,
+        )
+    )
+    assert result["kind"] == "gitlab_dashboard_list"
+    assert result["anchors"]["dashboard"] == "todos"
+    assert result["layer"] == "L3"
+
+
+def test_l3_reddit_dashboard_probe_api_maps_to_dashboard_anchor():
+    task = _reddit_task(
+        task_id="t_dash",
+        eval_url=None,
+        start_urls=["__REDDIT__"],
+        instruction="Check my submitted posts.",
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "reddit_dashboard_list",
+            "probe_query": {"api": "list_user_submitted"},
+            "confidence": 0.88,
+        }
+    )
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            {"site_url": "https://reddit.local", "auth": {"type": "http_headers", "headers": {}}},
+            classifier=classifier,
+            probe_fn=None,
+        )
+    )
+    assert result["kind"] == "reddit_dashboard_list"
+    assert result["anchors"]["dashboard"] == "submitted"
+    assert result["layer"] == "L3"
+
+
+def test_resolve_l3_returns_stub_when_probe_raises():
+    task = _gitlab_task(
+        task_id="t1",
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction="Show my todos.",
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_dashboard_list",
+            "probe_query": {"api": "list_user_todos"},
+            "confidence": 0.9,
+        }
+    )
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("missing benign auth")
+
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            {"site_url": "https://gitlab.local"},
+            classifier=classifier,
+            probe_fn=boom,
+        )
+    )
+    assert result["kind"] is None
+    assert result["pending_layer"] == "L3"
+    assert "L3 probe raised" in result["reason"]
+
+
+def test_benign_probe_instance_drops_api_auth_when_benign_auth_present():
+    instance = {
+        "site_url": "https://gitlab.local",
+        "auth": {"type": "http_headers", "headers": {"X-Test": "benign"}},
+        "api_auth": {"type": "bearer_token", "token": "privileged"},
+    }
+
+    probe_instance = _benign_probe_instance(instance)
+
+    assert "api_auth" not in probe_instance
+    assert probe_instance["auth"]["headers"]["X-Test"] == "benign"
+
+
+def test_benign_probe_instance_rejects_api_auth_only():
+    instance = {
+        "site_url": "https://gitlab.local",
+        "api_auth": {"type": "bearer_token", "token": "privileged"},
+    }
+
+    with pytest.raises(RuntimeError, match="no benign auth"):
+        _benign_probe_instance(instance)
+
+
+def test_benign_probe_instance_preserves_benign_bearer_token():
+    instance = {
+        "site_url": "https://gitlab.local",
+        "auth": {"type": "bearer_token", "token": "benign"},
+        "api_auth": {"type": "bearer_token", "token": "privileged"},
+    }
+
+    probe_instance = _benign_probe_instance(instance)
+
+    assert probe_instance["auth"]["token"] == "benign"
+    assert "api_auth" not in probe_instance
+
+
 # --- L4 dynamic listing expansion ----------------------------------------
 
 from worldsim.phases.phase_2_target_resolver import resolve_l4  # noqa: E402
@@ -694,6 +819,26 @@ def test_l4_empty_probe_returns_empty_list_so_caller_excludes_task():
     assert records == []
 
 
+def test_l4_probe_exception_returns_error_record():
+    resource = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "theme editor", "scope": "issues"},
+        "start_url_resolved": "https://gitlab.local",
+        "attach_surfaces": [],
+        "encounter_requirements": {"viewport_budget_chars": 600},
+        "layer": "L2",
+    }
+
+    async def boom(resource, task, instance):
+        raise RuntimeError("missing benign auth")
+
+    records = asyncio.run(resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=boom))
+    assert len(records) == 1
+    assert records[0]["kind"] is None
+    assert records[0]["pending_layer"] == "L4"
+    assert "L4 probe raised" in records[0]["reason"]
+
+
 def test_l4_respects_top_n_override():
     resource = {
         "kind": "reddit_forum",
@@ -707,6 +852,29 @@ def test_l4_respects_top_n_override():
         resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=2)
     )
     assert len(records) == 2
+
+
+def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
+    resource = {
+        "kind": "reddit_forum",
+        "anchors": {"forum_name": "books"},
+        "layer": "L1",
+    }
+    captured: dict[str, int] = {}
+
+    async def fake_default_listing_probe(resource, task, instance, *, limit=None):
+        captured["limit"] = limit
+        return [{"_item_kind": "reddit_submission", "id": "1", "title": "post 1"}]
+
+    monkeypatch.setattr(
+        "worldsim.phases.phase_2_target_resolver._default_listing_probe",
+        fake_default_listing_probe,
+    )
+
+    records = asyncio.run(resolve_l4(resource, {}, {"site_url": "x"}, top_n=7))
+
+    assert len(records) == 1
+    assert captured["limit"] == 7
 
 
 def test_l4_env_top_n_override(monkeypatch):

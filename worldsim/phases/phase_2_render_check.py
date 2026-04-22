@@ -113,7 +113,7 @@ class RenderOutcome:
         return out
 
 
-def render_signature(seed: dict[str, Any]) -> str | None:
+def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = None) -> str | None:
     """Extract a unique substring expected to appear in the rendered DOM.
 
     Prefers the seed nickname (ASCII, unique by construction in the
@@ -137,19 +137,46 @@ def render_signature(seed: dict[str, Any]) -> str | None:
     editor_calls = seed.get("editor_calls")
     if not isinstance(editor_calls, list) or not editor_calls:
         return None
-    first = editor_calls[0]
-    if not isinstance(first, dict):
+    call_records = [
+        (
+            f"{call.get('site')}.{call.get('method')}",
+            call.get("args"),
+        )
+        for call in editor_calls
+        if isinstance(call, dict) and isinstance(call.get("args"), dict)
+    ]
+    if not call_records:
         return None
-    args = first.get("args")
-    if not isinstance(args, dict):
-        return None
+    preferred_methods: set[str] = set()
+    provenance = metadata.get("read_surface_provenance") if isinstance(metadata, dict) else None
+    if isinstance(provenance, dict):
+        methods = provenance.get("editor_method")
+        if isinstance(methods, str) and methods.strip():
+            preferred_methods.add(methods.strip())
+        elif isinstance(methods, list):
+            preferred_methods.update(
+                str(method).strip() for method in methods if isinstance(method, str) and method.strip()
+            )
+    arg_sets = [
+        args
+        for method, args in call_records
+        if method in preferred_methods and isinstance(args, dict)
+    ]
+    if not arg_sets:
+        arg_sets = [args for _, args in call_records if isinstance(args, dict)]
+    # In multi-call seeds the last editor call is typically the one that
+    # produces the user-visible note/comment while earlier calls create
+    # parent resources or helper setup rows. Prefer later calls so a setup
+    # title/description cannot overshadow the actually rendered payload.
+    arg_sets = list(reversed(arg_sets))
 
     def _first_nonempty(fields: tuple[str, ...]) -> str | None:
-        for base in fields:
-            for variant in (base, f"{base}_template", f"{base}_text"):
-                raw = args.get(variant)
-                if isinstance(raw, str) and raw.strip():
-                    return raw.strip()
+        for args in arg_sets:
+            for base in fields:
+                for variant in (base, f"{base}_template", f"{base}_text"):
+                    raw = args.get(variant)
+                    if isinstance(raw, str) and raw.strip():
+                        return raw.strip()
         return None
 
     nickname = _first_nonempty(("nickname",))

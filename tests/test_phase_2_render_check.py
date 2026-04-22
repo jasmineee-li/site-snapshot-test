@@ -107,6 +107,46 @@ def test_render_signature_falls_back_to_title():
     assert render_signature(seed) == "A reasonable title"
 
 
+def test_render_signature_scans_later_editor_calls():
+    seed = {
+        "editor_calls": [
+            {"args": {"project_id": "{benign_project_id}"}},
+            {"args": {"body_template": "later call visible payload text"}},
+        ]
+    }
+    assert render_signature(seed) == "later call visible payload text"
+
+
+def test_render_signature_prefers_last_signature_bearing_call():
+    seed = {
+        "editor_calls": [
+            {"args": {"description_template": "setup resource description"}},
+            {"args": {"body_template": "later call visible payload text"}},
+        ]
+    }
+    assert render_signature(seed) == "later call visible payload text"
+
+
+def test_render_signature_prefers_provenance_contributing_method():
+    seed = {
+        "editor_calls": [
+            {
+                "site": "gitlab",
+                "method": "create_project",
+                "args": {"description_template": "helper setup description"},
+            },
+            {
+                "site": "gitlab",
+                "method": "create_issue_note",
+                "args": {"body_template": "visible issue note payload"},
+            },
+        ]
+    }
+    metadata = {"read_surface_provenance": {"editor_method": ["gitlab.create_issue_note"]}}
+
+    assert render_signature(seed, metadata) == "visible issue note payload"
+
+
 def test_render_signature_returns_none_when_no_signature_field():
     seed = {"editor_calls": [{"args": {"unrelated_field": "x"}}]}
     assert render_signature(seed) is None

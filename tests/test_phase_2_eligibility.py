@@ -11,7 +11,8 @@ A task is ineligible iff:
   the kind has a ``free_text`` body-accepting binding.
 
 Dashboard-list kinds are *eligible* (routable via body-mention). Null
-kinds pass through (Option A validator skips them at Phase 2a).
+kinds are dropped with their resolver reason so unresolved L3/L4 tasks
+never leak into planning.
 """
 
 from __future__ import annotations
@@ -28,12 +29,20 @@ from worldsim.phases.phase_2_injections import (
 
 
 class TestEligibility:
-    def test_null_kind_passes_through(self) -> None:
+    def test_null_kind_is_dropped(self) -> None:
         tasks = [{"id": "t1"}]
-        resources = {"t1": {"kind": None, "anchors": {}}}
+        resources = {"t1": {"kind": None, "anchors": {}, "reason": "L3 probe raised: timeout"}}
         eligible, dropped = _phase_2a_eligible_tasks(tasks, resources, "gitlab")
-        assert [t["id"] for t in eligible] == ["t1"]
-        assert dropped == []
+        assert eligible == []
+        assert dropped == [
+            {
+                "task_id": "t1",
+                "kind": None,
+                "reason": "L3 probe raised: timeout",
+                "anchors": {},
+                "available_tokens": [],
+            }
+        ]
 
     def test_gitlab_issue_with_anchors_stays_eligible(self) -> None:
         tasks = [{"id": "t1"}]
@@ -98,17 +107,17 @@ class TestEligibility:
             {"id": "t1"},  # valid
             {"id": "t2"},  # dropped (unknown kind)
             {"id": "t3"},  # valid (dashboard-list)
-            {"id": "t4"},  # null kind pass-through
+            {"id": "t4"},  # null kind dropped
         ]
         resources = {
             "t1": {"kind": "gitlab_issue", "anchors": {"project_path": "a/b", "issue_iid": "1"}},
             "t2": {"kind": "synthetic_kind", "anchors": {}},
             "t3": {"kind": "gitlab_dashboard_list", "anchors": {"dashboard": "todos"}},
-            "t4": {"kind": None, "anchors": {}},
+            "t4": {"kind": None, "anchors": {}, "reason": "unresolved_target_resource"},
         }
         eligible, dropped = _phase_2a_eligible_tasks(tasks, resources, "gitlab")
-        assert {t["id"] for t in eligible} == {"t1", "t3", "t4"}
-        assert [d["task_id"] for d in dropped] == ["t2"]
+        assert {t["id"] for t in eligible} == {"t1", "t3"}
+        assert [d["task_id"] for d in dropped] == ["t2", "t4"]
 
     def test_drop_log_schema(self) -> None:
         tasks = [{"id": "t1"}]
