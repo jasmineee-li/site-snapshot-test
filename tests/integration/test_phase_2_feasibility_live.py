@@ -122,10 +122,19 @@ def test_feasibility_policy_task(site, live_instance, tmp_path):
     tasks_path = _write_task(tmp_path, task)
 
     report = _run_verifier(tasks_path, instance)
-    # Platform policies drift; accept either classification or plain rejection.
+    # Platform policies drift; accept either an explicit rejection
+    # classification or render_unverified — the latter happens when the
+    # platform sanitizes the trigger (e.g. gitlab HTML-escapes
+    # ``<script>`` tags so the literal string never appears in the
+    # rendered DOM), which is functionally equivalent to a soft-block.
     if report.infeasible:
         kind = report.infeasible[0]["feasibility"]["errors"][0]["kind"]
-        assert kind in {"content_policy", "field_required", "request_failed"}
+        assert kind in {
+            "content_policy",
+            "field_required",
+            "request_failed",
+            "render_unverified",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -291,10 +300,26 @@ def test_feasibility_crash_resume(failpoint, live_instance, live_config, tmp_pat
     # Synthesize a minimal instances file (wrapper-dict shape) for the
     # child subprocess. Propagate ``verification_proxy`` so the subprocess
     # installs the proxy adapter just like the in-process test session does.
+    #
+    # The subprocess runs with WORLDSIM_STATE_DIR pointed at tmp_path/state,
+    # so ``_resolve_benign_storage_state_path`` looks for
+    # ``tmp_path/state/phase_0d/<site>/storage_state.json`` which does not
+    # exist — resolving to None sends Playwright to an anonymous context
+    # and the authed-only project page renders as the sign-in stub
+    # (render_unverified). Stamp the repo-root phase_0d artifact onto
+    # ``instance.storage_state_path`` so the subprocess uses the same
+    # cookies as the in-process render check.
+    instance_copy = dict(instance)
+    repo_root = Path(__file__).resolve().parents[2]
+    phase_0d_storage = (
+        repo_root / "logs" / "phase_0d" / str(instance.get("site_name", "")) / "storage_state.json"
+    )
+    if phase_0d_storage.exists():
+        instance_copy["storage_state_path"] = str(phase_0d_storage)
     instances_file = tmp_path / "instances.smoke.json"
     wrapper: dict[str, Any] = {
         "benchmark_name": live_config.benchmark_name or "webarena_verified",
-        "instances": [instance],
+        "instances": [instance_copy],
     }
     if live_config.verification_proxy is not None:
         wrapper["verification_proxy"] = live_config.verification_proxy.model_dump()

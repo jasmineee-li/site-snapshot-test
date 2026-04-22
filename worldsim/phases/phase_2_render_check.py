@@ -169,8 +169,33 @@ def _normalize(text: str) -> str:
 
 
 def _resolve_url(url: str, site_url: str) -> str:
+    """Coerce any URL to resolve against the instance's site_url.
+
+    - Path-only (``/foo``) → ``{site_url}/foo``.
+    - Fully-qualified URL whose host+port matches site_url → unchanged.
+    - Fully-qualified URL on a DIFFERENT host+port → rewritten to
+      site_url's host+port. This happens when an editor captured the
+      platform API's ``web_url`` and the API reflects the internal
+      external_url (e.g. ``http://localhost:8023/byteblaze/foo`` on the
+      gitlab image). The ProxyingHTTPAdapter's Location-rewrite handles
+      this for ``requests`` calls, but Playwright (used here) has no
+      such adapter — rewriting in ``_resolve_url`` keeps the render
+      check robust across cross-host replay + api-emitted URLs.
+    """
+    if not url:
+        return url
     if url.startswith("/") and site_url:
         return site_url.rstrip("/") + url
+    if site_url and (url.startswith("http://") or url.startswith("https://")):
+        from urllib.parse import urlsplit, urlunsplit
+
+        src = urlsplit(url)
+        dst = urlsplit(site_url)
+        if not dst.netloc or src.netloc == dst.netloc:
+            return url
+        scheme = dst.scheme or src.scheme or "http"
+        path = src.path or "/"
+        return urlunsplit((scheme, dst.netloc, path, src.query, src.fragment))
     return url
 
 

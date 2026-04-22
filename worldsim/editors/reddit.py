@@ -397,8 +397,15 @@ class RedditEditor(BaseSiteEditor):
             raise EditorError("invalid_args", "forum name_template must not be empty")
         candidate = base
         suffix = 2
+        # Suffix separator must be an underscore: Postmill silently
+        # rejects POST /create_forum submissions whose ``forum[name]``
+        # contains a ``-`` and returns the form page back with status
+        # 200 (no flash, no form-error items), so _submit_exact_form
+        # treats the response as success but _forum_exists then fails.
+        # Confirmed by probing the live stack. Underscore matches the
+        # stable postmill validation regex (alphanumeric + underscore).
         while self._forum_exists(candidate):
-            candidate = f"{base}-{suffix}"
+            candidate = f"{base}_{suffix}"
             suffix += 1
             if suffix > 100:
                 raise EditorError(

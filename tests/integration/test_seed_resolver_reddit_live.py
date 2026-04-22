@@ -81,7 +81,7 @@ def test_reddit_live_create_forum_submission_and_comment(live_instance, unique_s
             # Commit 2 of the C1 migration: editor results now include
             # ``read_surface_urls`` + ``read_surface_provenance_source``.
             assert first["forum_name"] == forum_name
-            assert second["forum_name"].startswith(f"{forum_name}-")
+            assert second["forum_name"].startswith(f"{forum_name}_")
             for result in (first, second):
                 assert result.get("read_surface_provenance_source") == "editor_constructed"
                 surface = result.get("read_surface_urls") or []

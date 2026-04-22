@@ -32,7 +32,7 @@
             "login_url": "/users/sign_in",
             "username_selector": "input[name='user[login]']",
             "password_selector": "input[name='user[password]']",
-            "submit_selector": "input[type='submit'][name='commit']",
+            "submit_selector": "button[data-testid='sign-in-button']",
             "success_url_substring": "/"
           }
         },
