@@ -70,7 +70,22 @@ _DEFAULT_SITE_PORTS: frozenset[int] = frozenset(
         7770,  # shopping
         7780,  # shopping_admin
         8023,  # gitlab
-        9999,  # reddit
+        9999,  # reddit (legacy single-replica topology)
+        # Scale-topology reddit replicas (see scripts/proxy_ports.conf:
+        # reddit_0..reddit_9 on 9900,9910,...,9990). Included here so the
+        # test-time ProxyingHTTPAdapter rewrites hits against any reddit
+        # replica port to its nginx proxy port regardless of which
+        # topology the live host runs.
+        9900,
+        9910,
+        9920,
+        9930,
+        9940,
+        9950,
+        9960,
+        9970,
+        9980,
+        9990,
         8888,  # wikipedia
         3030,  # map
     }

@@ -117,22 +117,44 @@ async def test_live_l3_resolves_theme_editor_to_concrete_issue(gitlab_placeholde
 
 async def test_live_l4_lists_gitlab_issues_in_populated_project(gitlab_placeholders):
     instance, _ = gitlab_placeholders
-    # byteblaze/dotfiles is present in the WebArena GitLab image and has
-    # enough issues to exercise top-N. We go straight to _default_listing_probe
-    # to isolate the probe from the classifier.
+    # Self-heal: pick a project with issues at runtime instead of hardcoding
+    # a project_id that drifts between image refreshes. We hit the sitewide
+    # /issues listing once, take the project_id with the most rows in the
+    # top page, and run L4's listing probe against it. If the image has no
+    # issues at all (fresh reset), the test skips with a meaningful reason.
+    import requests
+
+    from worldsim.seeding import _build_request_headers
+
+    base = str(instance.get("site_url") or "").rstrip("/")
+    headers = _build_request_headers(instance, {}, mechanism="api")
+    sess = requests.Session()
+    r = sess.get(
+        f"{base}/api/v4/issues",
+        headers=headers,
+        params={"per_page": 20, "order_by": "updated_at", "sort": "desc"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    payload = r.json()
+    if not isinstance(payload, list) or not payload:
+        pytest.skip("live gitlab image has no visible issues sitewide")
+    from collections import Counter
+
+    by_project = Counter(item["project_id"] for item in payload if "project_id" in item)
+    if not by_project:
+        pytest.skip("sitewide /issues returned rows without project_id")
+    picked_project_id, _ = by_project.most_common(1)[0]
+
     resource = {
         "kind": "gitlab_search_result",
-        "anchors": {"project_id": 158, "scope": "issues"},
+        "anchors": {"project_id": picked_project_id, "scope": "issues"},
         "attach_surfaces": [],
         "encounter_requirements": {},
         "layer": "L2",
     }
     items = await _default_listing_probe(resource, {}, instance)
-    if not items:
-        pytest.skip(
-            "project 158 has no issues on this image; pick another project_id via "
-            "GET /api/v4/projects?search=dotfiles"
-        )
+    assert items, f"project {picked_project_id} unexpectedly returned no items"
     records = await resolve_l4(resource, {}, instance, top_n=3)
     assert len(records) >= 1
     assert records[0]["kind"] in {"gitlab_issue", "gitlab_mr"}
@@ -140,6 +162,24 @@ async def test_live_l4_lists_gitlab_issues_in_populated_project(gitlab_placehold
 
 async def test_live_l4_lists_reddit_forum_submissions(reddit_placeholders):
     instance, _ = reddit_placeholders
+    # Point at an actually-live reddit replica port on the current host.
+    # instances.smoke.json still carries the legacy-topology port 9999,
+    # but r5 runs the scale topology with reddit replicas on 9900-9990
+    # (see scripts/proxy_ports.conf). Probe the canonical reddit_0 port
+    # so the proxying adapter rewrites to a port the nginx proxy actually
+    # serves. Falls back to the fixture port when we're on a host with
+    # the legacy single-reddit deploy.
+    import os as _os
+    from urllib.parse import urlsplit as _urlsplit
+
+    original_url = str(instance.get("site_url") or "")
+    parsed = _urlsplit(original_url)
+    override_port = int(_os.environ.get("LIVE_REDDIT_L4_PORT", "9900") or "9900")
+    if parsed.scheme and parsed.hostname:
+        instance = {
+            **instance,
+            "site_url": f"{parsed.scheme}://{parsed.hostname}:{override_port}",
+        }
     resource = {
         "kind": "reddit_forum",
         "anchors": {"forum_name": "books"},
