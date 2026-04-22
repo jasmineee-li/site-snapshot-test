@@ -1078,35 +1078,48 @@ def _merge_shard_results(
     return merged
 
 
+L4_TASK_ID_SUFFIX = "#l4-"
+
+
+def _l1_l2_resources_dict(site_tasks: list[dict]) -> dict[str, dict[str, Any]]:
+    return {
+        str(task.get("id")): derive_benign_target_resource(task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS)
+        for task in site_tasks
+    }
+
+
 async def _resolve_benign_target_resources_for_shard(
     *,
     site_tasks: list[dict],
     instance: Mapping[str, Any] | None,
     site_name: str,
     label: str,
-) -> dict[str, dict[str, Any]]:
-    """Produce the ``{task_id: resource}`` map Phase 2a expects.
+) -> tuple[list[dict], dict[str, dict[str, Any]]]:
+    """Resolve the shard's benign-target resources and expand L4 listings.
 
-    Dispatches to :func:`resolve_tasks` with L1/L2/L3 when a live
-    instance is available; falls back to the sync L1/L2 dict
-    comprehension otherwise. The resolved map is mirrored to
-    ``logs/<run>/phase_2/target_resolution/<site>.json`` for post-mortem
-    inspection and resume support; per-task resolver failures are
-    logged but never raised.
+    Returns ``(expanded_site_tasks, resources)``. When no live instance
+    is configured, the expanded list equals the input and resources
+    come from the offline L1/L2 path. When an instance is present, the
+    async :func:`resolve_tasks` runs the full L1/L2/L3/L4 pipeline:
 
-    L4 listing expansion is intentionally absent here — returning the
-    current ``dict[task_id, resource]`` shape preserves the downstream
-    contract of ``cell_targets`` / ``_phase_2a_eligible_tasks`` /
-    ``_merge_immutable_fields``. The next commit adds suffixed-ID
-    fan-out and broadens ``allow_layers`` to include L4.
+    * L3 turns intent-only tasks into concrete-kind records with real
+      anchors via Anthropic intent-parse + live probe.
+    * L4 fans listing-kind records out to N concrete items; each fan-out
+      clones the benign task dict with a suffixed ID
+      (``"{task_id}#l4-{i}"``) and preserves the original via
+      ``source_task_id`` so downstream code that groups by the original
+      task can recover the mapping.
+
+    Token acquisition is lazy per-shard and idempotent via
+    :func:`acquire_tokens_for_instances`. Any resolver fault falls back
+    to the L1/L2-only path with a warning; shards never crash on
+    classifier, probe, or token errors.
+
+    The resolved map is mirrored to
+    ``logs/<run>/phase_2/target_resolution/<site>.json`` for inspection.
     """
     if instance is None:
-        return {
-            str(task.get("id")): derive_benign_target_resource(
-                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
-            )
-            for task in site_tasks
-        }
+        return list(site_tasks), _l1_l2_resources_dict(site_tasks)
 
     # Acquire API tokens lazily on first use per-run; mirrors Phase 2c
     # and Phase 4's pattern. ``acquire_tokens_for_instances`` is
@@ -1126,19 +1139,14 @@ async def _resolve_benign_target_resources_for_shard(
             site_name,
             "; ".join(token_errors),
         )
-        return {
-            str(task.get("id")): derive_benign_target_resource(
-                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
-            )
-            for task in site_tasks
-        }
+        return list(site_tasks), _l1_l2_resources_dict(site_tasks)
 
     try:
         enriched = await resolve_tasks(
             site_tasks,
             _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
             instance,
-            allow_layers=("L1", "L2", "L3"),
+            allow_layers=("L1", "L2", "L3", "L4"),
         )
     except Exception as exc:
         logger.warning(
@@ -1146,32 +1154,56 @@ async def _resolve_benign_target_resources_for_shard(
             label,
             exc,
         )
-        return {
-            str(task.get("id")): derive_benign_target_resource(
-                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
-            )
-            for task in site_tasks
-        }
+        return list(site_tasks), _l1_l2_resources_dict(site_tasks)
 
-    # Collapse list-per-task to single-record-per-task. Without L4 in
-    # allow_layers every entry is a single-element list; the next
-    # commit flips this to a clone-the-task fan-out path.
+    # Build the expanded task list + resources map in lockstep. For a
+    # task whose L4 returned N items, emit N cloned task dicts with
+    # suffixed IDs; otherwise preserve the task ID as-is. Tasks missing
+    # from ``enriched`` (probe returned empty, classifier failed hard)
+    # flow through with their L1/L2 record so the eligibility filter
+    # can drop them with a reason attached — no silent disappearance.
+    expanded_tasks: list[dict] = []
     resources: dict[str, dict[str, Any]] = {}
-    for task_id, records in enriched.items():
-        if records:
-            resources[task_id] = records[0]
-    # Tasks omitted from `enriched` get a synthetic empty record so the
-    # eligibility filter drops them with a reason attached (no silent
-    # disappearance).
+    l4_fanout_count = 0
     for task in site_tasks:
-        task_id = str(task.get("id"))
-        if task_id and task_id not in resources:
-            resources[task_id] = derive_benign_target_resource(
+        orig_id = str(task.get("id") or "")
+        if not orig_id:
+            continue
+        records = enriched.get(orig_id)
+        if not records:
+            # Resolver omitted this task (L4 empty, etc.). Keep a stub
+            # record so the eligibility filter drops it with a reason.
+            expanded_tasks.append(task)
+            resources[orig_id] = derive_benign_target_resource(
                 task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
             )
+            continue
+        if len(records) == 1:
+            expanded_tasks.append(task)
+            resources[orig_id] = records[0]
+            continue
+        # L4 fan-out: clone the benign task N times with suffixed IDs.
+        for idx, record in enumerate(records):
+            suffixed_id = f"{orig_id}{L4_TASK_ID_SUFFIX}{idx}"
+            clone = dict(task)
+            clone["id"] = suffixed_id
+            clone["source_task_id"] = orig_id
+            expanded_tasks.append(clone)
+            resources[suffixed_id] = record
+            l4_fanout_count += 1
+
+    if l4_fanout_count:
+        logger.info(
+            "Phase 2a: L4 fan-out produced %d clones for site %r (shard %r, before=%d, after=%d)",
+            l4_fanout_count,
+            site_name,
+            label,
+            len(site_tasks),
+            len(expanded_tasks),
+        )
 
     _persist_target_resolution(site_name=site_name, resources=resources)
-    return resources
+    return expanded_tasks, resources
 
 
 def _persist_target_resolution(
@@ -1218,10 +1250,12 @@ async def _generate_injections_for_site(
         label: Sandbox label for logging / Modal UI.
         instance: Optional live benchmark instance descriptor for this
             site (``{site_url, auth, storage_state_path, ...}``). When
-            present, :func:`resolve_tasks` runs L1/L2/L3 against the
+            present, :func:`resolve_tasks` runs L1/L2/L3/L4 against the
             live instance so intent-only tasks arrive at 2a with
-            concrete anchors. Absent, the legacy L1/L2-only
-            :func:`derive_benign_target_resource` path runs offline.
+            concrete anchors and listing kinds fan out to one clone per
+            top-N item (suffixed IDs). Absent, the legacy L1/L2-only
+            :func:`derive_benign_target_resource` path runs offline and
+            the task count is preserved.
 
     Returns:
         Validated sandbox output for the shard.
@@ -1237,26 +1271,31 @@ async def _generate_injections_for_site(
 
     # Inputs both paths need in memory.
     site_profile = json.loads(profile_path.read_text())
-    cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
 
     # Pre-compute benign-target resources (Option A placement contract,
     # docs/handoffs/phase-2-placement-systemic-gap.md). 2a consumes this
     # to constrain delivery_channel.method to attach_surfaces per task.
     #
     # When a live instance is configured for this site, run the async
-    # resolver batch (L1/L2/L3) so intent-only tasks that L1/L2 left as
-    # pending_layer="L3" get a concrete kind + anchors via Anthropic
-    # intent-parse + live API probe. L4 listing expansion is added in
-    # the next commit; for now listing-kind records flow through with
-    # their stub anchors and the R5 renderer marks them "no viable
-    # method" via the commit-9 mask. Absent an instance, the offline
-    # L1/L2-only path mirrors today's behavior exactly.
-    benign_target_resources = await _resolve_benign_target_resources_for_shard(
+    # resolver batch (L1/L2/L3/L4) so intent-only tasks that L1/L2 left
+    # as pending_layer="L3" get concrete kind + anchors via Anthropic
+    # intent-parse + live API probe, and listing kinds fan out to N
+    # concrete per-item records via suffixed-ID clones. Absent an
+    # instance, the offline L1/L2-only path mirrors today's behavior
+    # exactly and the task count is preserved.
+    site_tasks, benign_target_resources = await _resolve_benign_target_resources_for_shard(
         site_tasks=site_tasks,
         instance=instance,
         site_name=site_name,
         label=label,
     )
+    # L4 clones live only in this shard's local view; share the
+    # expansion with the validator/merge step that runs against
+    # *all_site_tasks* by substituting the expanded list whenever
+    # expansion actually happened.
+    if any(L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
+        all_site_tasks = site_tasks
+    cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
 
     # Pre-shard feasibility filter: drop tasks whose resolved kind has
     # zero addressable editor methods on this site (commit 7 of the
@@ -1363,7 +1402,11 @@ async def _generate_injections_for_site(
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
-    _merge_immutable_fields(adv_tasks, all_site_tasks)
+    _merge_immutable_fields(
+        adv_tasks,
+        all_site_tasks,
+        enriched_resources=benign_target_resources,
+    )
 
     validated, errors = _validate_generated_adversarial_tasks(
         adv_tasks,
@@ -1421,11 +1464,22 @@ def _materialize_validated_shard_tasks(
     return materialized
 
 
-def _merge_immutable_fields(adv_tasks: list[dict], benign_tasks: list[dict]) -> None:
+def _merge_immutable_fields(
+    adv_tasks: list[dict],
+    benign_tasks: list[dict],
+    *,
+    enriched_resources: Mapping[str, Mapping[str, Any]] | None = None,
+) -> None:
     """Copy immutable fields from benign tasks into adversarial task dicts.
 
     Handles both the full schema (where ``reward_function`` already exists)
     and the minimal schema (where only ``adversarial_reward`` is present).
+
+    When ``enriched_resources`` is supplied (L3/L4 resolver output keyed
+    by task id including L4 suffixed clones), use it directly for the
+    ``benign_target_resource`` merge instead of re-deriving via L1/L2 —
+    otherwise the L3 anchors we paid to resolve would be thrown away on
+    the way out of Phase 2a.
     """
     benign_by_id = {str(t.get("id", "")): t for t in benign_tasks}
     for adv_task in adv_tasks:
@@ -1446,7 +1500,13 @@ def _merge_immutable_fields(adv_tasks: list[dict], benign_tasks: list[dict]) -> 
         # LLM receives this in /workspace/tasks/benign_target_resources.json
         # but doesn't reliably echo it into each plan; merging it here makes
         # the Option A validator's input deterministic regardless of what
-        # the planner emits.
+        # the planner emits. Prefer the live-resolved record when available
+        # so L3/L4 anchors flow through to the validator + Phase 4.
+        if enriched_resources is not None and benign_id in enriched_resources:
+            adv_task["benign_target_resource"] = json.loads(
+                json.dumps(dict(enriched_resources[benign_id]))
+            )
+            continue
         adv_task["benign_target_resource"] = derive_benign_target_resource(
             benign_task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
         )
@@ -2012,10 +2072,20 @@ def _build_cell_targets(
             (framing, concealment) for framing in _FRAMINGS for concealment in _CONCEALMENTS
         ]
 
-    index_by_task_id = {str(task.get("id", "")): idx for idx, task in enumerate(all_site_tasks)}
+    # Index by the unsuffixed (source) task id so L4 clones bucket into
+    # the same cell as the source — the concealment/framing cell is a
+    # property of the underlying benign task, not of which listing item
+    # the attacker ended up attached to.
+    def _lookup_id(task: dict) -> str:
+        return str(task.get("source_task_id") or task.get("id") or "")
+
+    index_by_task_id: dict[str, int] = {}
+    for idx, task in enumerate(all_site_tasks):
+        key = _lookup_id(task)
+        index_by_task_id.setdefault(key, idx)
     targets = {_cell_key(framing, concealment): 0 for framing, concealment in available_cells}
     for task in site_tasks:
-        task_index = index_by_task_id.get(str(task.get("id", "")), 0)
+        task_index = index_by_task_id.get(_lookup_id(task), 0)
         framing, concealment = available_cells[task_index % len(available_cells)]
         targets[_cell_key(framing, concealment)] += 1
     return targets
