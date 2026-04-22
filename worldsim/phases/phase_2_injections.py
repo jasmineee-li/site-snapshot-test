@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
+from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
@@ -51,7 +52,10 @@ from worldsim.phases.phase_2_feasibility import (
     verify_feasibility,
 )
 from worldsim.phases.phase_2_injections_api import generate_phase_2a_plans_api
-from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
+from worldsim.phases.phase_2_target_resolver import (
+    derive_benign_target_resource,
+    resolve_tasks,
+)
 from worldsim.phases.phase_2_text_fill import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
@@ -1074,6 +1078,125 @@ def _merge_shard_results(
     return merged
 
 
+async def _resolve_benign_target_resources_for_shard(
+    *,
+    site_tasks: list[dict],
+    instance: Mapping[str, Any] | None,
+    site_name: str,
+    label: str,
+) -> dict[str, dict[str, Any]]:
+    """Produce the ``{task_id: resource}`` map Phase 2a expects.
+
+    Dispatches to :func:`resolve_tasks` with L1/L2/L3 when a live
+    instance is available; falls back to the sync L1/L2 dict
+    comprehension otherwise. The resolved map is mirrored to
+    ``logs/<run>/phase_2/target_resolution/<site>.json`` for post-mortem
+    inspection and resume support; per-task resolver failures are
+    logged but never raised.
+
+    L4 listing expansion is intentionally absent here — returning the
+    current ``dict[task_id, resource]`` shape preserves the downstream
+    contract of ``cell_targets`` / ``_phase_2a_eligible_tasks`` /
+    ``_merge_immutable_fields``. The next commit adds suffixed-ID
+    fan-out and broadens ``allow_layers`` to include L4.
+    """
+    if instance is None:
+        return {
+            str(task.get("id")): derive_benign_target_resource(
+                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+            )
+            for task in site_tasks
+        }
+
+    # Acquire API tokens lazily on first use per-run; mirrors Phase 2c
+    # and Phase 4's pattern. ``acquire_tokens_for_instances`` is
+    # idempotent (no-op when already stamped).
+    try:
+        token_errors = acquire_tokens_for_instances([dict(instance)])
+    except Exception as exc:
+        logger.warning(
+            "Phase 2a: token acquisition raised for site %r; falling back to L1/L2: %s",
+            site_name,
+            exc,
+        )
+        token_errors = ["exception during token acquisition"]
+    if token_errors:
+        logger.warning(
+            "Phase 2a: token acquisition failed for site %r (%s); falling back to L1/L2",
+            site_name,
+            "; ".join(token_errors),
+        )
+        return {
+            str(task.get("id")): derive_benign_target_resource(
+                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+            )
+            for task in site_tasks
+        }
+
+    try:
+        enriched = await resolve_tasks(
+            site_tasks,
+            _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+            instance,
+            allow_layers=("L1", "L2", "L3"),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Phase 2a: resolve_tasks raised for %r; falling back to L1/L2: %s",
+            label,
+            exc,
+        )
+        return {
+            str(task.get("id")): derive_benign_target_resource(
+                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+            )
+            for task in site_tasks
+        }
+
+    # Collapse list-per-task to single-record-per-task. Without L4 in
+    # allow_layers every entry is a single-element list; the next
+    # commit flips this to a clone-the-task fan-out path.
+    resources: dict[str, dict[str, Any]] = {}
+    for task_id, records in enriched.items():
+        if records:
+            resources[task_id] = records[0]
+    # Tasks omitted from `enriched` get a synthetic empty record so the
+    # eligibility filter drops them with a reason attached (no silent
+    # disappearance).
+    for task in site_tasks:
+        task_id = str(task.get("id"))
+        if task_id and task_id not in resources:
+            resources[task_id] = derive_benign_target_resource(
+                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+            )
+
+    _persist_target_resolution(site_name=site_name, resources=resources)
+    return resources
+
+
+def _persist_target_resolution(
+    *,
+    site_name: str,
+    resources: Mapping[str, Mapping[str, Any]],
+) -> None:
+    """Mirror the per-site resolver output to
+    ``logs/<run>/phase_2/target_resolution/<site>.json``.
+
+    Best-effort; logging-only on write failure.
+    """
+    try:
+        out_dir = get_state_dir() / "phase_2" / "target_resolution"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"{site_name}.json"
+        path.write_text(json.dumps(resources, indent=2, sort_keys=True))
+    except Exception as exc:
+        logger.warning(
+            "Phase 2a: could not persist target_resolution for site %r: %s",
+            site_name,
+            exc,
+        )
+
+
 async def _generate_injections_for_site(
     site_name: str,
     site_tasks: list[dict],
@@ -1095,12 +1218,10 @@ async def _generate_injections_for_site(
         label: Sandbox label for logging / Modal UI.
         instance: Optional live benchmark instance descriptor for this
             site (``{site_url, auth, storage_state_path, ...}``). When
-            present and the ``--no-l3-l4`` flag is not set, the next
-            commit wires this to :func:`resolve_tasks` so the Phase 2a
-            target-resolver batch pass runs L3/L4 against the live
-            instance. Currently threaded through for commit 3's pure
-            plumbing step; the L1/L2-only comprehension below is
-            replaced by the enrichment call in commit 4.
+            present, :func:`resolve_tasks` runs L1/L2/L3 against the
+            live instance so intent-only tasks arrive at 2a with
+            concrete anchors. Absent, the legacy L1/L2-only
+            :func:`derive_benign_target_resource` path runs offline.
 
     Returns:
         Validated sandbox output for the shard.
@@ -1121,13 +1242,21 @@ async def _generate_injections_for_site(
     # Pre-compute benign-target resources (Option A placement contract,
     # docs/handoffs/phase-2-placement-systemic-gap.md). 2a consumes this
     # to constrain delivery_channel.method to attach_surfaces per task.
-    # L3/L4 are async and require a live instance; 2a runs L1/L2 only
-    # and stamps pending_layer="L3" for the rest so a later pass can
-    # resolve them against the live benchmark.
-    benign_target_resources = {
-        str(task.get("id")): derive_benign_target_resource(task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS)
-        for task in site_tasks
-    }
+    #
+    # When a live instance is configured for this site, run the async
+    # resolver batch (L1/L2/L3) so intent-only tasks that L1/L2 left as
+    # pending_layer="L3" get a concrete kind + anchors via Anthropic
+    # intent-parse + live API probe. L4 listing expansion is added in
+    # the next commit; for now listing-kind records flow through with
+    # their stub anchors and the R5 renderer marks them "no viable
+    # method" via the commit-9 mask. Absent an instance, the offline
+    # L1/L2-only path mirrors today's behavior exactly.
+    benign_target_resources = await _resolve_benign_target_resources_for_shard(
+        site_tasks=site_tasks,
+        instance=instance,
+        site_name=site_name,
+        label=label,
+    )
 
     # Pre-shard feasibility filter: drop tasks whose resolved kind has
     # zero addressable editor methods on this site (commit 7 of the
