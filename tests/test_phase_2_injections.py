@@ -994,6 +994,37 @@ def test_load_reusable_phase_2_plans_rejects_sandbox_model_drift(tmp_path):
     assert reusable is None
 
 
+def test_load_reusable_phase_2_plans_rejects_phase_2a_resolution_signature_drift(tmp_path):
+    plans_path = tmp_path / "adversarial_plans.json"
+    plans_path.write_text(json.dumps([_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_plans(
+        prior_state={
+            "step": "phase_2",
+            "status": "running",
+            "phase_2_stage": "planning",
+            "phase_2a_resolution_signature": {
+                "no_l3_l4": False,
+                "instances_path": "instances.old.json",
+                "instances_sha256": "oldsig",
+            },
+        },
+        plans_path=plans_path,
+        sites_filter=None,
+        expected_benign_task_ids={"benign-1"},
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_phase_2a_resolution_signature={
+            "no_l3_l4": False,
+            "instances_path": "instances.new.json",
+            "instances_sha256": "newsig",
+        },
+    )
+
+    assert reusable is None
+
+
 def test_validate_adversarial_task_contract_rejects_unresolved_http_path():
     task = _finalized_plan_task()
     task["delivery_channel"] = {
@@ -1476,6 +1507,77 @@ def test_load_reusable_phase_2_tasks_rejects_duplicate_task_ids(tmp_path):
         site_profiles={"shopping": _single_surface_profile()},
         current_sandbox_model="claude-sonnet-4-6",
         current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
+    )
+
+    assert reusable is None
+
+
+def test_load_reusable_phase_2_tasks_accepts_l4_clone_tasks_sharing_one_benign(tmp_path):
+    output_path = tmp_path / "adversarial_tasks.json"
+    first = _finalized_plan_task()
+    second = json.loads(json.dumps(first))
+    first["id"] = "adv-l4-0"
+    second["id"] = "adv-l4-1"
+    first["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "anchors": {"project_id": "1", "issue_iid": "10", "project_path": "a/b"},
+        "layer": "L4",
+    }
+    second["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "anchors": {"project_id": "1", "issue_iid": "11", "project_path": "a/b"},
+        "layer": "L4",
+    }
+    first["benign_task_id"] = "benign-1_l4_0"
+    second["benign_task_id"] = "benign-1_l4_1"
+    output_path.write_text(json.dumps([first, second], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_tasks(
+        prior_state={"step": "phase_2", "status": "running", "phase_2_stage": "text_fill"},
+        output_path=output_path,
+        sites_filter=None,
+        expected_task_ids={"adv-l4-0", "adv-l4-1"},
+        expected_benign_task_ids={"benign-1"},
+        texts_per_plan=1,
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
+    )
+
+    assert reusable is not None
+    assert [task["benign_task_id"] for task in reusable] == ["benign-1", "benign-1"]
+
+
+def test_load_reusable_phase_2_tasks_rejects_phase_2a_resolution_signature_drift(tmp_path):
+    output_path = tmp_path / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_tasks(
+        prior_state={
+            "step": "phase_2",
+            "status": "running",
+            "phase_2_stage": "text_fill",
+            "phase_2a_resolution_signature": {
+                "no_l3_l4": False,
+                "instances_path": "instances.old.json",
+                "instances_sha256": "oldsig",
+            },
+        },
+        output_path=output_path,
+        sites_filter=None,
+        expected_task_ids={"adv-1"},
+        expected_benign_task_ids={"benign-1"},
+        texts_per_plan=1,
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
+        current_phase_2a_resolution_signature={
+            "no_l3_l4": False,
+            "instances_path": "instances.new.json",
+            "instances_sha256": "newsig",
+        },
     )
 
     assert reusable is None
@@ -2271,6 +2373,24 @@ def test_load_reusable_phase_2_tasks_rejects_text_model_drift(tmp_path):
     assert reusable is None
 
 
+def test_normalize_l4_benign_task_ids_restores_source_id():
+    tasks = [
+        {
+            "id": "adv-l4",
+            "benign_task_id": "benign-1_l4_2",
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "anchors": {"project_id": "1", "issue_iid": "12", "project_path": "a/b"},
+                "layer": "L4",
+            },
+        }
+    ]
+
+    phase_2_injections._normalize_l4_benign_task_ids_in_place(tasks)
+
+    assert tasks[0]["benign_task_id"] == "benign-1"
+
+
 @pytest.mark.asyncio
 async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -2375,6 +2495,65 @@ async def test_phase_2_run_rejects_reuse_when_texts_per_plan_increases(monkeypat
 
     assert rc == 0
     assert calls["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_PHASE_2A_API", "true")
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    profile_path = tmp_path / "BENCHMARK_PROFILE_shopping.json"
+    profile_path.write_text(json.dumps(_single_surface_profile()))
+    agent_context_path = tmp_path / "AGENT_CONTEXT_shopping.json"
+    agent_context_path.write_text(
+        json.dumps(
+            {
+                "authentication": {
+                    "credentials": {"username": "alice", "password": "secret-pass"},
+                },
+                "auth_mechanism": {
+                    "headers": {"X-Test-Auto-Login": "alice:secret-pass"},
+                },
+            }
+        )
+    )
+
+    benign = _benign_task()
+    benign["agent_context"] = {
+        "authentication": {
+            "credentials": {"username": "alice", "password": "secret-pass"},
+        }
+    }
+    captured: dict[str, Any] = {}
+
+    async def fake_generate_phase_2a_plans_api(**kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(
+        phase_2_injections,
+        "generate_phase_2a_plans_api",
+        fake_generate_phase_2a_plans_api,
+    )
+
+    result = await phase_2_injections._generate_injections_for_site(
+        site_name="shopping",
+        site_tasks=[benign],
+        all_site_tasks=[benign],
+        profile_path=profile_path,
+        label="shopping",
+        sandbox_model="claude-sonnet-4-6",
+        instance=None,
+    )
+
+    assert result.adversarial_tasks == []
+    assert captured["benign_tasks"][0]["agent_context"]["authentication"]["credentials"] == {
+        "username": "<redacted>",
+        "password": "<redacted>",
+    }
+    assert captured["agent_context"]["auth_mechanism"]["headers"] == {
+        "X-Test-Auto-Login": "<redacted>"
+    }
 
 
 def test_merge_preserving_unfiltered_sites_drops_quarantined_map_entries(tmp_path):
@@ -2658,6 +2837,30 @@ class TestResolveBenignTargetResourcesForShard:
         }
         assert resources["t_dash_l4_0"]["anchors"]["issue_iid"] == "10"
 
+    def test_l4_empty_omits_task_from_shard(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+        async def fake_resolve_tasks(*args, **kwargs):
+            return {}
+
+        def fake_acquire(*_, **__):
+            return []
+
+        monkeypatch.setattr(phase_2_injections, "resolve_tasks", fake_resolve_tasks)
+        monkeypatch.setattr(phase_2_injections, "acquire_tokens_for_instances", fake_acquire)
+
+        expanded, resources = asyncio.run(
+            phase_2_injections._resolve_benign_target_resources_for_shard(
+                site_tasks=[self._gitlab_site_task("t_dash", None)],
+                instance={"site_name": "gitlab", "site_url": "https://x"},
+                site_name="gitlab",
+                label="test",
+            )
+        )
+
+        assert expanded == []
+        assert resources == {}
+
     def test_resolver_exception_falls_back_to_l1_l2(self, tmp_path, monkeypatch):
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
 
@@ -2738,6 +2941,23 @@ class TestResolveBenignTargetResourcesForShard:
         assert out_file.exists()
         payload = json.loads(out_file.read_text())
         assert payload["t1"]["layer"] == "L3"
+
+    def test_target_resolution_persistence_merges_existing_shards(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+        phase_2_injections._persist_target_resolution(
+            site_name="gitlab",
+            resources={"t1": {"kind": "gitlab_issue", "layer": "L3"}},
+        )
+        phase_2_injections._persist_target_resolution(
+            site_name="gitlab",
+            resources={"t2": {"kind": "gitlab_mr", "layer": "L4"}},
+        )
+
+        out_file = tmp_path / "phase_2" / "target_resolution" / "gitlab.json"
+        payload = json.loads(out_file.read_text())
+        assert payload["t1"]["kind"] == "gitlab_issue"
+        assert payload["t2"]["kind"] == "gitlab_mr"
 
 
 class TestMergeImmutableFieldsEnrichedResources:

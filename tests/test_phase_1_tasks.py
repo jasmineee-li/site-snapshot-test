@@ -8,7 +8,7 @@ import pytest
 
 from worldsim import main as worldsim_main
 from worldsim.phases import phase_1_mode_a, phase_1_mode_b, phase_1_mode_b_validation, phase_1_tasks
-from worldsim.state import load_state
+from worldsim.state import load_state, save_state
 
 
 @pytest.fixture(autouse=True)
@@ -291,6 +291,51 @@ def test_resume_help_mentions_phase_2_stage_resume():
     assert "There are no separate --phase-2a-only or --phase-2b-only flags" in description
     assert "Override the saved Phase 2a planning sandbox concurrency on resume." in help_text
     assert "Override the saved Phase 2b text-fill model on resume." in help_text
+
+
+def test_build_parser_accepts_resume_no_l3_l4_flag():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(["resume", "--no-l3-l4"])
+
+    assert args.no_l3_l4 is True
+
+
+def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    save_state(
+        "phase_2",
+        status="running",
+        phase_2_stage="planning",
+        phase_2a_resolution_signature={
+            "no_l3_l4": True,
+            "instances_path": None,
+            "instances_sha256": None,
+        },
+    )
+
+    parser = worldsim_main.build_parser()
+    args = parser.parse_args(["resume"])
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        worldsim_main,
+        "_install_verification_proxy_from_args",
+        lambda synthetic: None,
+    )
+
+    def fake_dispatch_phase(synthetic):
+        captured["args"] = synthetic
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(args)
+
+    assert rc == 0
+    synthetic = captured["args"]
+    assert synthetic.no_l3_l4 is True
+    assert synthetic.feasibility_instances is None
 
 
 @pytest.mark.parametrize(

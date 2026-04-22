@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import tempfile
+import threading
 import urllib.parse
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -79,6 +80,8 @@ logger = logging.getLogger(__name__)
 TASKS_PER_SHARD = 20
 DEFAULT_SANDBOX_CONCURRENCY = 250
 DEFAULT_LAUNCH_JITTER_MS = 750
+_TARGET_RESOLUTION_WRITE_LOCK = threading.Lock()
+_ELIGIBILITY_DROPS_WRITE_LOCK = threading.Lock()
 
 
 def _phase_2a_api_enabled() -> bool:
@@ -370,6 +373,7 @@ async def run(args: argparse.Namespace) -> int:
         "phase_2b_texts_per_plan": texts_per_plan,
         "phase_2_text_fill_concurrency": text_fill_concurrency,
         "phase_2_text_model": text_fill_model,
+        "phase_2a_resolution_signature": _phase_2a_resolution_signature(args),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     plans_path = output_dir / "adversarial_plans.json"
@@ -486,6 +490,7 @@ async def run(args: argparse.Namespace) -> int:
         benign_by_id=benign_by_id,
         site_profiles=site_profile_payloads,
         current_sandbox_model=sandbox_model,
+        current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
     )
     reusable_final_tasks = None
     if reusable_plans is None and sites_filter is None:
@@ -500,6 +505,7 @@ async def run(args: argparse.Namespace) -> int:
             site_profiles=site_profile_payloads,
             current_sandbox_model=sandbox_model,
             current_text_model=text_fill_model,
+            current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
         )
     if reusable_plans is None and reusable_final_tasks is None:
         try:
@@ -523,6 +529,7 @@ async def run(args: argparse.Namespace) -> int:
         # --no-l3-l4 was set, --feasibility-instances is absent, or the
         # wrapper file had no instances). See `_load_phase_2a_instance_by_site`.
         instance_by_site = _load_phase_2a_instance_by_site(args)
+        _warm_phase_2a_instance_tokens(instance_by_site)
 
         # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch them
         # under a bounded semaphore with small deterministic jitter. Shopping
@@ -641,6 +648,7 @@ async def run(args: argparse.Namespace) -> int:
             site_profiles=site_profile_payloads,
             current_sandbox_model=sandbox_model,
             current_text_model=text_fill_model,
+            current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
         )
         if reusable_final_tasks is None:
             save_state(
@@ -957,6 +965,26 @@ def _extract_instances_list(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _phase_2a_resolution_signature(args: argparse.Namespace) -> dict[str, Any]:
+    """Fingerprint the live inputs that affect Phase 2a L3/L4 output."""
+    instances_arg = getattr(args, "feasibility_instances", None)
+    signature: dict[str, Any] = {
+        "no_l3_l4": bool(getattr(args, "no_l3_l4", False)),
+        "instances_path": str(instances_arg) if instances_arg else None,
+        "instances_sha256": None,
+    }
+    if not instances_arg:
+        return signature
+    path = Path(instances_arg)
+    try:
+        payload = path.read_bytes()
+    except OSError:
+        signature["instances_missing"] = True
+        return signature
+    signature["instances_sha256"] = hashlib.sha256(payload).hexdigest()[:12]
+    return signature
+
+
 def _load_phase_2a_instance_by_site(
     args: argparse.Namespace,
 ) -> dict[str, dict[str, Any]] | None:
@@ -996,6 +1024,40 @@ def _load_phase_2a_instance_by_site(
             continue
         by_site[name] = inst
     return by_site or None
+
+
+def _instance_bearer_tokens_ready(instance: Mapping[str, Any] | None) -> bool:
+    if instance is None:
+        return True
+    for field in ("auth", "api_auth"):
+        auth = instance.get(field)
+        if not isinstance(auth, dict):
+            continue
+        if str(auth.get("type", "")).strip() != "bearer_token":
+            continue
+        token = auth.get("token")
+        if not isinstance(token, str) or not token.strip():
+            return False
+    return True
+
+
+def _warm_phase_2a_instance_tokens(instance_by_site: Mapping[str, Any] | None) -> None:
+    if not instance_by_site:
+        return
+    pending = [
+        instance
+        for instance in instance_by_site.values()
+        if isinstance(instance, dict) and not _instance_bearer_tokens_ready(instance)
+    ]
+    if not pending:
+        return
+    errors = acquire_tokens_for_instances(pending)
+    if errors:
+        logger.warning(
+            "Phase 2a: token warmup failed for %d site(s): %s",
+            len(errors),
+            "; ".join(errors),
+        )
 
 
 def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> dict[str, Any]:
@@ -1085,6 +1147,53 @@ def _merge_shard_results(
 # breaks _merge_immutable_fields lookup. Use underscores only — Claude
 # preserves them faithfully.
 L4_TASK_ID_SUFFIX = "_l4_"
+_L4_CLONE_BENIGN_TASK_ID_RE = re.compile(r"^(?P<source>.+)_l4_(?P<index>\d+)$")
+
+
+def _canonical_benign_task_id(
+    task: Mapping[str, Any],
+    *,
+    expected_ids: set[str] | None = None,
+) -> str:
+    """Return the original benign-task id for L4-expanded tasks.
+
+    During Phase 2a we temporarily clone benign tasks with ids like
+    ``123_l4_0`` so the planner can keep multiple listing items distinct
+    inside one shard. Those suffixed ids must not survive into the final
+    Phase 2 artifacts: Phase 3/4 link adversarial tasks back to the Phase 1
+    benign dataset via ``benign_task_id``, which only knows the original
+    unsuffixed ids.
+
+    Freshly generated L4 plans/tasks always carry
+    ``benign_target_resource.layer == "L4"``. For backward-compatible reuse
+    of datasets written by buggy builds, also normalize a suffixed id when
+    its stripped source id is in ``expected_ids``.
+    """
+    raw = str(task.get("benign_task_id") or "")
+    match = _L4_CLONE_BENIGN_TASK_ID_RE.fullmatch(raw)
+    if match is None:
+        return raw
+    source = match.group("source")
+    resource = task.get("benign_target_resource")
+    layer = resource.get("layer") if isinstance(resource, dict) else None
+    if layer == "L4":
+        return source
+    if expected_ids is not None and source in expected_ids:
+        return source
+    return raw
+
+
+def _normalize_l4_benign_task_ids_in_place(
+    tasks: list[dict[str, Any]],
+    *,
+    expected_ids: set[str] | None = None,
+) -> None:
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        canonical = _canonical_benign_task_id(task, expected_ids=expected_ids)
+        if canonical:
+            task["benign_task_id"] = canonical
 
 
 def _l1_l2_resources_dict(site_tasks: list[dict]) -> dict[str, dict[str, Any]]:
@@ -1130,22 +1239,23 @@ async def _resolve_benign_target_resources_for_shard(
     # Acquire API tokens lazily on first use per-run; mirrors Phase 2c
     # and Phase 4's pattern. ``acquire_tokens_for_instances`` is
     # idempotent (no-op when already stamped).
-    try:
-        token_errors = acquire_tokens_for_instances([dict(instance)])
-    except Exception as exc:
-        logger.warning(
-            "Phase 2a: token acquisition raised for site %r; falling back to L1/L2: %s",
-            site_name,
-            exc,
-        )
-        token_errors = ["exception during token acquisition"]
-    if token_errors:
-        logger.warning(
-            "Phase 2a: token acquisition failed for site %r (%s); falling back to L1/L2",
-            site_name,
-            "; ".join(token_errors),
-        )
-        return list(site_tasks), _l1_l2_resources_dict(site_tasks)
+    if not _instance_bearer_tokens_ready(instance):
+        try:
+            token_errors = acquire_tokens_for_instances([instance])
+        except Exception as exc:
+            logger.warning(
+                "Phase 2a: token acquisition raised for site %r; falling back to L1/L2: %s",
+                site_name,
+                exc,
+            )
+            token_errors = ["exception during token acquisition"]
+        if token_errors:
+            logger.warning(
+                "Phase 2a: token acquisition failed for site %r (%s); falling back to L1/L2",
+                site_name,
+                "; ".join(token_errors),
+            )
+            return list(site_tasks), _l1_l2_resources_dict(site_tasks)
 
     try:
         enriched = await resolve_tasks(
@@ -1171,18 +1281,19 @@ async def _resolve_benign_target_resources_for_shard(
     expanded_tasks: list[dict] = []
     resources: dict[str, dict[str, Any]] = {}
     l4_fanout_count = 0
+    l4_empty_exclusion_count = 0
     for task in site_tasks:
         orig_id = str(task.get("id") or "")
         if not orig_id:
             continue
         records = enriched.get(orig_id)
         if not records:
-            # Resolver omitted this task (L4 empty, etc.). Keep a stub
-            # record so the eligibility filter drops it with a reason.
-            expanded_tasks.append(task)
-            resources[orig_id] = derive_benign_target_resource(
-                task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
-            )
+            # ``resolve_tasks`` omits only the L4-empty case: the benign task
+            # resolved to a listing kind, but the live list contained zero
+            # concrete items to attach to. Exclude it here rather than
+            # reintroducing the pre-L4 listing stub, which would let a task
+            # the dispatcher intentionally dropped leak back into Phase 2a.
+            l4_empty_exclusion_count += 1
             continue
         if len(records) == 1:
             expanded_tasks.append(task)
@@ -1207,6 +1318,13 @@ async def _resolve_benign_target_resources_for_shard(
             len(site_tasks),
             len(expanded_tasks),
         )
+    if l4_empty_exclusion_count:
+        logger.info(
+            "Phase 2a: excluded %d L4-empty task(s) for site %r (shard %r)",
+            l4_empty_exclusion_count,
+            site_name,
+            label,
+        )
 
     _persist_target_resolution(site_name=site_name, resources=resources)
     return expanded_tasks, resources
@@ -1226,7 +1344,19 @@ def _persist_target_resolution(
         out_dir = get_state_dir() / "phase_2" / "target_resolution"
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"{site_name}.json"
-        path.write_text(json.dumps(resources, indent=2, sort_keys=True))
+        with _TARGET_RESOLUTION_WRITE_LOCK:
+            merged: dict[str, Any] = {}
+            if path.exists():
+                try:
+                    existing = json.loads(path.read_text())
+                    if isinstance(existing, dict):
+                        merged.update(existing)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2a: target_resolution at %s is malformed; overwriting", path
+                    )
+            merged.update({str(key): value for key, value in resources.items()})
+            write_json_atomic(path, merged)
     except Exception as exc:
         logger.warning(
             "Phase 2a: could not persist target_resolution for site %r: %s",
@@ -1328,12 +1458,18 @@ async def _generate_injections_for_site(
 
     if _phase_2a_api_enabled():
         logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
+        sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
+        sanitized_agent_context = (
+            _sanitize_agent_context_for_output(agent_context)
+            if agent_context is not None
+            else None
+        )
         adv_tasks = await generate_phase_2a_plans_api(
-            benign_tasks=site_tasks,
+            benign_tasks=sanitized_site_tasks,
             benign_target_resources=benign_target_resources,
             cell_targets=cell_targets,
             benchmark_profile=site_profile,
-            agent_context=agent_context,
+            agent_context=sanitized_agent_context,
             sandbox_model=sandbox_model,
             label=label,
             site=site_name,
@@ -1424,6 +1560,7 @@ async def _generate_injections_for_site(
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"plan enrichment failed: {exc}"])
     enriched = _select_balanced_subset(enriched, cell_targets)
+    _normalize_l4_benign_task_ids_in_place(enriched)
 
     # Persist this shard's validated output to disk immediately so a later
     # orchestrator failure (or another shard's failure) cannot discard it.
@@ -1565,6 +1702,7 @@ def _load_reusable_phase_2_plans(
     benign_by_id: dict[str, dict[str, Any]],
     site_profiles: dict[str, dict[str, Any]],
     current_sandbox_model: str,
+    current_phase_2a_resolution_signature: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
@@ -1576,6 +1714,12 @@ def _load_reusable_phase_2_plans(
         prior_state,
         field="sandbox_model",
         current_value=current_sandbox_model,
+    ):
+        return None
+    if current_phase_2a_resolution_signature is not None and not _resume_setting_matches(
+        prior_state,
+        field="phase_2a_resolution_signature",
+        current_value=current_phase_2a_resolution_signature,
     ):
         return None
     if not plans_path.exists():
@@ -1593,6 +1737,10 @@ def _load_reusable_phase_2_plans(
     )
     if not filtered_plans:
         return None
+    _normalize_l4_benign_task_ids_in_place(
+        filtered_plans,
+        expected_ids=expected_benign_task_ids,
+    )
     # Subset check: every plan's benign_task_id must exist in expected, but we
     # don't require every benign task to have a plan (569 plans for 812 tasks is valid).
     plan_benign_ids = {str(p.get("benign_task_id", "")) for p in filtered_plans}
@@ -1630,6 +1778,7 @@ def _load_reusable_phase_2_tasks(
     site_profiles: dict[str, dict[str, Any]],
     current_sandbox_model: str,
     current_text_model: str,
+    current_phase_2a_resolution_signature: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]] | None:
     if prior_state.get("step") != "phase_2":
         return None
@@ -1645,6 +1794,12 @@ def _load_reusable_phase_2_tasks(
         prior_state,
         field="phase_2_text_model",
         current_value=current_text_model,
+    ):
+        return None
+    if current_phase_2a_resolution_signature is not None and not _resume_setting_matches(
+        prior_state,
+        field="phase_2a_resolution_signature",
+        current_value=current_phase_2a_resolution_signature,
     ):
         return None
     stage = prior_state.get("phase_2_stage")
@@ -1667,12 +1822,16 @@ def _load_reusable_phase_2_tasks(
     )
     if not tasks:
         return None
+    _normalize_l4_benign_task_ids_in_place(
+        tasks,
+        expected_ids=expected_benign_task_ids,
+    )
     if expected_task_ids is not None:
         if not _identifiers_match_exactly(tasks, field="id", expected_ids=expected_task_ids):
             return None
     elif not _identifiers_are_unique(tasks, field="id"):
         return None
-    if expected_benign_task_ids is not None and not _identifiers_match_exactly(
+    if expected_benign_task_ids is not None and not _identifiers_cover_expected_set(
         tasks,
         field="benign_task_id",
         expected_ids=expected_benign_task_ids,
@@ -1718,6 +1877,16 @@ def _identifiers_match_exactly(
 ) -> bool:
     identifiers = [str(item.get(field, "")) for item in items if isinstance(item, dict)]
     return len(identifiers) == len(expected_ids) and set(identifiers) == expected_ids
+
+
+def _identifiers_cover_expected_set(
+    items: list[dict[str, Any]],
+    *,
+    field: str,
+    expected_ids: set[str],
+) -> bool:
+    identifiers = [str(item.get(field, "")) for item in items if isinstance(item, dict)]
+    return bool(identifiers) and set(identifiers) == expected_ids
 
 
 def _identifiers_are_unique(
@@ -2032,18 +2201,19 @@ def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
     path = state_dir / "phase_2" / "dropped_no_contract.json"
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        existing: dict[str, list[dict[str, Any]]] = {}
-        if path.exists():
-            try:
-                raw = json.loads(path.read_text())
-                if isinstance(raw, dict):
-                    existing = raw
-            except json.JSONDecodeError:
-                logger.warning(
-                    "Phase 2: dropped_no_contract.json at %s is malformed; overwriting", path
-                )
-        existing.setdefault(site, []).extend(dropped)
-        write_json_atomic(path, existing)
+        with _ELIGIBILITY_DROPS_WRITE_LOCK:
+            existing: dict[str, list[dict[str, Any]]] = {}
+            if path.exists():
+                try:
+                    raw = json.loads(path.read_text())
+                    if isinstance(raw, dict):
+                        existing = raw
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2: dropped_no_contract.json at %s is malformed; overwriting", path
+                    )
+            existing.setdefault(site, []).extend(dropped)
+            write_json_atomic(path, existing)
         logger.info(
             "Phase 2: dropped %d task(s) for site %r as no-contract (see %s)",
             len(dropped),

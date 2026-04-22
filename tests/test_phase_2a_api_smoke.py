@@ -61,6 +61,10 @@ class TestEmitPlansToolSchema:
         """The forced `tool_choice` name must match the registered tool's name."""
         assert _EMIT_PLANS_TOOL["name"] == "emit_adversarial_plans"
 
+    def test_plan_items_reject_unknown_top_level_fields(self):
+        items = _EMIT_PLANS_TOOL["input_schema"]["properties"]["plans"]["items"]
+        assert items["additionalProperties"] is False
+
     def test_overgeneration_multiplier_is_above_one(self):
         """Overgeneration must be > 1 for skip-on-reject to net the target count."""
         assert _OVERGENERATION_MULTIPLIER > 1.0

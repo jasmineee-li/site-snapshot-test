@@ -430,6 +430,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         help="Resume: re-verify every Phase 2c task regardless of fingerprint.",
     )
+    resume_cmd.add_argument(
+        "--no-l3-l4",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Resume: force the saved Phase 2 run down the offline L1/L2-only "
+        "resolver path instead of live L3/L4 enrichment.",
+    )
     rescore_cmd = subparsers.add_parser(
         "rescore-phase-3",
         help="Re-score an existing Phase 3 run with the agent-response transform.",
@@ -665,6 +672,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     feasibility_retry_count = getattr(args, "feasibility_retry_count", None)
     feasibility_ttl_hours = getattr(args, "feasibility_ttl_hours", None)
     force_reverify = getattr(args, "force_reverify", None)
+    no_l3_l4 = getattr(args, "no_l3_l4", None)
 
     # Fall back to paths stored in state metadata
     if benchmark is None and "benchmark_path" in state:
@@ -700,7 +708,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     if feasibility_only is None:
         feasibility_only = state.get("feasibility_only", False)
     if feasibility_instances is None:
-        feasibility_instances = state.get("feasibility_instances", "instances.smoke.json")
+        feasibility_instances = state.get("feasibility_instances")
     if feasibility_concurrency is None:
         feasibility_concurrency = state.get("feasibility_concurrency", 10)
     if feasibility_retry_count is None:
@@ -709,6 +717,12 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         feasibility_ttl_hours = state.get("feasibility_ttl_hours")
     if force_reverify is None:
         force_reverify = state.get("force_reverify", False)
+    if no_l3_l4 is None:
+        resolution_sig = state.get("phase_2a_resolution_signature")
+        if isinstance(resolution_sig, dict):
+            no_l3_l4 = bool(resolution_sig.get("no_l3_l4", False))
+        else:
+            no_l3_l4 = False
 
     # Map target step to phase ID for _dispatch_phase (e.g. "phase_0a" -> "0a")
     phase_id = target.replace("phase_", "")
@@ -748,6 +762,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         feasibility_retry_count=feasibility_retry_count,
         feasibility_ttl_hours=feasibility_ttl_hours,
         force_reverify=force_reverify,
+        no_l3_l4=no_l3_l4,
     )
 
     try:

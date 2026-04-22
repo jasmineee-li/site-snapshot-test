@@ -135,7 +135,7 @@ _EMIT_PLANS_TOOL: dict[str, Any] = {
                         "seed_template",
                         "adversarial_reward",
                     ],
-                    "additionalProperties": True,
+                    "additionalProperties": False,
                 },
             },
         },
