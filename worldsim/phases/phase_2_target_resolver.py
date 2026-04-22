@@ -1144,3 +1144,149 @@ async def resolve_l4(
         if record is not None:
             records.append(record)
     return records
+
+
+# -----------------------------------------------------------------------
+# Batch dispatcher — orchestrates L1/L2/L3/L4 across a task list
+# -----------------------------------------------------------------------
+#
+# Phase 2a holds a list of benign tasks; the sandbox planner needs one or
+# more benign_target_resource records per task. ``resolve_tasks`` is the
+# single entrypoint that sequences the four layers and hands back a
+# mapping from task id → list of records. The list length is ≥ 1 in all
+# cases except L4 empty (the listing had zero items to attack, so the
+# task is correctly excluded from the shard). The caller is responsible
+# for propagating suffixed task ids when L4 returns N > 1 records — see
+# the L4 expansion commit for the downstream wiring.
+#
+# Auth precedence for L3 classifier + probes mirrors
+# ``worldsim.phase_4.anthropic_client`` and ``worldsim.seeding`` as
+# documented on the individual callees; this dispatcher only bounds
+# concurrency and aggregates results.
+
+
+DEFAULT_L3_CONCURRENCY = 8
+DEFAULT_L4_CONCURRENCY = 16
+
+
+def _l3_concurrency_default() -> int:
+    raw = os.environ.get("WORLDSIM_L3_CONCURRENCY", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return DEFAULT_L3_CONCURRENCY
+
+
+def _l4_concurrency_default() -> int:
+    raw = os.environ.get("WORLDSIM_L4_CONCURRENCY", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return DEFAULT_L4_CONCURRENCY
+
+
+async def resolve_tasks(
+    tasks: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...],
+    placeholders: Mapping[str, str],
+    instance: Mapping[str, Any] | None,
+    *,
+    allow_layers: tuple[Literal["L1", "L2", "L3", "L4"], ...] = ("L1", "L2", "L3", "L4"),
+    l3_concurrency: int | None = None,
+    l4_concurrency: int | None = None,
+    top_n: int | None = None,
+    classifier: ClassifierFn | None = None,
+    probe_fn: ProbeFn | None = None,
+    listing_probe_fn: ListingProbeFn | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Resolve benign_target_resource records for a batch of benign tasks.
+
+    The four layers run cheap-first: every task gets L1/L2 synchronously;
+    tasks whose L1/L2 record is tagged ``pending_layer="L3"`` fall back
+    to :func:`resolve_l3`; records whose resolved kind is in
+    :data:`_LISTING_KINDS` fan out via :func:`resolve_l4`. Non-listing
+    records flow through L4's identity pass unchanged.
+
+    Returns ``{task_id: [record, ...]}``. The list is ≥ 1 for every task
+    except those whose L4 listing probe returned zero items — those
+    tasks are omitted from the output dict so the caller's shard-builder
+    sees "drop this task" rather than "attach to a stub".
+
+    ``instance`` is required whenever ``allow_layers`` includes ``"L3"``
+    or ``"L4"``; a ``ValueError`` fires at call time so misconfigured
+    callers fail loudly instead of silently falling back to L1/L2.
+    When ``allow_layers`` is ``("L1", "L2")`` this function is a
+    sync-equivalent wrapper over :func:`derive_benign_target_resource`
+    (kept async for uniform caller plumbing).
+
+    Failure handling is graceful at the per-task level: L3 classifier /
+    probe failures return the same stub record
+    :func:`derive_benign_target_resource` emits for unresolved tasks so
+    the downstream eligibility filter drops them; never raises into the
+    caller. ``classifier`` / ``probe_fn`` / ``listing_probe_fn`` exist
+    purely so tests can inject stubs without hitting the network.
+    """
+    needs_instance = ("L3" in allow_layers) or ("L4" in allow_layers)
+    if needs_instance and instance is None:
+        raise ValueError(
+            "resolve_tasks: instance is required when allow_layers includes "
+            "'L3' or 'L4'; pass allow_layers=('L1','L2') for the offline path"
+        )
+
+    l3_sem = asyncio.Semaphore(l3_concurrency or _l3_concurrency_default())
+    l4_sem = asyncio.Semaphore(l4_concurrency or _l4_concurrency_default())
+
+    l1_l2_layers: tuple[Literal["L1", "L2"], ...] = tuple(
+        layer for layer in allow_layers if layer in ("L1", "L2")
+    )  # type: ignore[assignment]
+    if not l1_l2_layers:
+        # At minimum we need L1 regex; without it the intent-only path
+        # (L3) has nothing to fall back on.
+        l1_l2_layers = ("L1", "L2")
+
+    async def _resolve_one(task: Mapping[str, Any]) -> tuple[str, list[dict[str, Any]]]:
+        task_id = str(task.get("id") or "")
+        base = derive_benign_target_resource(task, placeholders, allow_layers=l1_l2_layers)
+
+        record: dict[str, Any] = dict(base)
+        if "L3" in allow_layers and record.get("pending_layer") == "L3" and instance is not None:
+            async with l3_sem:
+                try:
+                    record = await resolve_l3(
+                        task,
+                        placeholders,
+                        instance,
+                        classifier=classifier,
+                        probe_fn=probe_fn,
+                    )
+                except Exception as exc:
+                    logger.warning("resolve_tasks: L3 raised for task=%r: %s", task_id, exc)
+                    record = _empty_record(
+                        f"L3 raised: {type(exc).__name__}: {exc}",
+                        pending_layer="L3",
+                    )
+
+        if "L4" in allow_layers and record.get("kind") in _LISTING_KINDS and instance is not None:
+            async with l4_sem:
+                try:
+                    expanded = await resolve_l4(
+                        record,
+                        task,
+                        instance,
+                        probe_fn=listing_probe_fn,
+                        top_n=top_n,
+                    )
+                except Exception as exc:
+                    logger.warning("resolve_tasks: L4 raised for task=%r: %s", task_id, exc)
+                    expanded = []
+            return task_id, expanded
+
+        return task_id, [record]
+
+    results = await asyncio.gather(*(_resolve_one(t) for t in tasks))
+    # Preserve input order in the output dict (Python dicts preserve
+    # insertion order); omit tasks whose resolver produced no records.
+    out: dict[str, list[dict[str, Any]]] = {}
+    for task_id, records in results:
+        if not task_id:
+            continue
+        if records:
+            out[task_id] = records
+    return out
