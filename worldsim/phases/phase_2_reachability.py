@@ -239,8 +239,20 @@ async def verify_reachable(
     try:
         page = await context.new_page()
         target = _with_cache_buster(start_url)
+        # gitlab issue/MR pages load the notes thread via AJAX
+        # (.../discussions.json) after DOMContentLoaded, and the
+        # reachability probe's 2-witness grep needs that thread to be
+        # in the DOM when it reads body text. Mirror the render-check
+        # networkidle fix for these kinds so the probe waits for the
+        # lazy-loaded comment bodies before checking the witnesses.
+        wait_mode = (
+            "networkidle"
+            if kind
+            in {"gitlab_issue", "gitlab_mr", "gitlab_dashboard_list", "gitlab_search_result"}
+            else "domcontentloaded"
+        )
         try:
-            await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
+            await page.goto(target, timeout=nav_timeout_ms, wait_until=wait_mode)
         except Exception as exc:
             return ReachabilityOutcome.unreachable(
                 kind="nav_failed",
