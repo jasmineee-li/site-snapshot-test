@@ -196,10 +196,44 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
         return nickname
     body = _first_nonempty(("detail", "body", "description", "note", "bio", "content"))
     if body is not None:
+        # Take only the first line so markdown on subsequent lines
+        # (``![img](...)``) doesn't bleed into the signature — the
+        # image renders as an ``<img>`` tag on the issue page so the
+        # literal ``![Alt]`` bytes never appear in body text. First
+        # line is almost always plain prose ("Platform Administrator
+        # Notice:") that survives rendering.
+        first_line = body.split("\n", 1)[0].strip()
+        if len(first_line) >= 8:
+            return first_line[:40]
         return body[:40]
     title = _first_nonempty(("title", "name"))
     if title is not None:
-        return title[:40]
+        return title.split("\n", 1)[0].strip()[:40] or title[:40]
+    # Fallback: the LLM sometimes invents arg keys (e.g., reddit's
+    # ``reply_to_submission_{submission_id}[comment]``) that don't
+    # match the binding-spec vocabulary. Pick the longest string
+    # value across all args as the signature — by construction this
+    # is the rendered body text (tokens like ``{benign_forum_name}``
+    # are short, IDs are shorter still). Skip values that look like
+    # ``{benign_*}`` tokens entirely so we don't pick up the token
+    # reference itself.
+    longest: str | None = None
+    longest_len = 0
+    for args in arg_sets:
+        for value in args.values():
+            if not isinstance(value, str):
+                continue
+            stripped = value.strip()
+            if not stripped or stripped.startswith("{benign_"):
+                continue
+            if len(stripped) > longest_len:
+                longest = stripped
+                longest_len = len(stripped)
+    if longest is not None and longest_len >= 8:
+        first_line = longest.split("\n", 1)[0].strip()
+        if len(first_line) >= 8:
+            return first_line[:40]
+        return longest[:40]
     return None
 
 

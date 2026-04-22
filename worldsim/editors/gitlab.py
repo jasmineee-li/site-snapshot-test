@@ -1415,11 +1415,23 @@ class GitlabEditor(BaseSiteEditor):
         return slug or "webagent-task"
 
     def _issue_surface_urls(self, issue: Any, project_path: str, issue_iid: Any) -> list[str]:
-        constructed = [f"/{project_path}/-/issues/{issue_iid}"] if project_path else []
+        # ``discussions.json`` serves the raw note/body text the GitLab UI
+        # fetches via AJAX after DOMContentLoaded. Adding it to the surface
+        # list gives the Phase 2c render-verifier a dependable plaintext
+        # source; the HTML page alone renders markdown (``![img](...)``
+        # collapses to ``<img>``) and only exposes ~8kb of DOM text while
+        # comments are still being lazy-loaded.
+        constructed = []
+        if project_path:
+            constructed.append(f"/{project_path}/-/issues/{issue_iid}")
+            constructed.append(f"/{project_path}/-/issues/{issue_iid}/discussions.json")
         return _gitlab_read_surface(issue, constructed, self._site_url())
 
     def _mr_surface_urls(self, merge_request: Any, project_path: str, mr_iid: Any) -> list[str]:
-        constructed = [f"/{project_path}/-/merge_requests/{mr_iid}"] if project_path else []
+        constructed = []
+        if project_path:
+            constructed.append(f"/{project_path}/-/merge_requests/{mr_iid}")
+            constructed.append(f"/{project_path}/-/merge_requests/{mr_iid}/discussions.json")
         return _gitlab_read_surface(merge_request, constructed, self._site_url())
 
     def _project_surface_urls(self, project: Any, project_path: str) -> list[str]:
