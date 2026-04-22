@@ -495,6 +495,11 @@ L3_TOOL_SCHEMA: dict[str, Any] = {
                     "api": {
                         "type": "string",
                         "enum": [
+                            "list_user_todos",
+                            "list_user_merge_requests",
+                            "list_user_issues",
+                            "list_user_submitted",
+                            "list_user_comments",
                             "search_user_issues",
                             "search_user_mrs",
                             "search_project_issues",
@@ -623,8 +628,10 @@ async def _probe_http_json(
     """GET ``path`` against ``instance.site_url`` as the benign user, JSON-decoded.
 
     Auth is assembled via :func:`worldsim.seeding._build_request_headers`
-    so the PAT / bearer token / cookie plumbing stays in one place. This
-    helper is read-only and sync-wrapped in ``asyncio.to_thread``.
+    but forced onto the benign-user auth lane. Phase 2a target resolution
+    must not inherit privileged ``api_auth`` if a future host config adds
+    it for other phases. This helper is read-only and sync-wrapped in
+    ``asyncio.to_thread``.
     """
     # Lazy import: requests + seeding are heavy and L1/L2 tests don't need them.
     import requests
@@ -635,7 +642,7 @@ async def _probe_http_json(
     if not site_url:
         raise RuntimeError("instance has no site_url; cannot run L3 probe")
     url = f"{site_url}{path}"
-    headers = _build_request_headers(dict(instance), {}, mechanism="api")
+    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="api")
 
     def _send() -> Any:
         response = requests.get(url, headers=headers, params=dict(params or {}), timeout=timeout)
@@ -648,6 +655,24 @@ async def _probe_http_json(
             return None
 
     return await asyncio.to_thread(_send)
+
+
+def _benign_probe_instance(instance: Mapping[str, Any]) -> dict[str, Any]:
+    """Return an instance view pinned to benign-user auth.
+
+    L3/L4 are observational read probes over resources the benign agent can
+    encounter. They must never escalate to a privileged ``api_auth`` lane.
+    If a host config provides only ``api_auth`` and no benign ``auth``,
+    fail closed so the caller excludes the task instead of resolving
+    anchors against data the benign user cannot see.
+    """
+    probe_instance = dict(instance)
+    auth = probe_instance.get("auth")
+    api_auth = probe_instance.get("api_auth")
+    if isinstance(api_auth, dict) and not isinstance(auth, dict):
+        raise RuntimeError("instance has api_auth but no benign auth for L3/L4 probe")
+    probe_instance.pop("api_auth", None)
+    return probe_instance
 
 
 async def _default_probe(
@@ -669,6 +694,21 @@ async def _default_probe(
 
     if api == "none":
         return None
+
+    if api in {"list_user_todos", "list_user_merge_requests", "list_user_issues"}:
+        dashboard = {
+            "list_user_todos": "todos",
+            "list_user_merge_requests": "merge_requests",
+            "list_user_issues": "issues",
+        }[api]
+        return {"dashboard": dashboard}
+
+    if api in {"list_user_submitted", "list_user_comments"}:
+        dashboard = {
+            "list_user_submitted": "submitted",
+            "list_user_comments": "comments",
+        }[api]
+        return {"dashboard": dashboard}
 
     if api in {"search_user_issues", "search_user_mrs"}:
         endpoint = "/api/v4/issues" if api == "search_user_issues" else "/api/v4/merge_requests"
@@ -830,7 +870,7 @@ async def _fetch_forum_submissions(
     if not site_url:
         return None
     url = f"{site_url}/f/{urlquote(forum_name, safe='')}"
-    headers = _build_request_headers(dict(instance), {}, mechanism="form")
+    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="form")
 
     def _send() -> str | None:
         response = requests.get(url, headers=headers, timeout=15)
@@ -916,7 +956,15 @@ async def resolve_l3(
         return record
 
     probe_query = parsed.get("probe_query") or {}
-    anchors = await probe_fn(probe_query, task, instance, placeholders)
+    try:
+        anchors = await probe_fn(probe_query, task, instance, placeholders)
+    except Exception as exc:
+        record = _empty_record(f"L3 probe raised: {type(exc).__name__}: {exc}", pending_layer="L3")
+        record["start_url_resolved"] = resolved_start
+        record["layer"] = "L3"
+        record["l3_confidence"] = parsed.get("confidence")
+        record["l3_probe_query"] = dict(probe_query)
+        return record
     if not anchors:
         record = _empty_record(f"L3 probe returned no anchors for {kind!r}", pending_layer=None)
         record["start_url_resolved"] = resolved_start
@@ -1053,9 +1101,11 @@ async def _default_listing_probe(
     resource: Mapping[str, Any],
     task: Mapping[str, Any],
     instance: Mapping[str, Any],
+    *,
+    limit: int | None = None,
 ) -> list[dict[str, Any]]:
     kind = resource.get("kind")
-    limit = _l4_top_n_default()
+    limit = limit if limit is not None else _l4_top_n_default()
     if kind == "gitlab_search_result":
         return await _list_gitlab_search(resource, task, instance, limit=limit)
     if kind == "gitlab_dashboard_list":
@@ -1134,7 +1184,18 @@ async def resolve_l4(
 
     probe_fn = probe_fn or _default_listing_probe
     limit = top_n if top_n is not None else _l4_top_n_default()
-    items = await probe_fn(resource, task, instance)
+    try:
+        if probe_fn is _default_listing_probe:
+            items = await probe_fn(resource, task, instance, limit=limit)
+        else:
+            items = await probe_fn(resource, task, instance)
+    except Exception as exc:
+        logger.exception("L4 listing probe failed for kind=%r", kind)
+        error = _empty_record(f"L4 probe raised: {type(exc).__name__}: {exc}", pending_layer="L4")
+        error["layer"] = "L4"
+        error["start_url_resolved"] = resource.get("start_url_resolved")
+        error["l4_error"] = str(exc)
+        return [error]
     if not items:
         return []
 
@@ -1181,6 +1242,44 @@ def _l4_concurrency_default() -> int:
     if raw.isdigit() and int(raw) > 0:
         return int(raw)
     return DEFAULT_L4_CONCURRENCY
+
+
+# Module-level shared semaphores. Phase 2a's per-site shards run
+# :func:`resolve_tasks` concurrently (up to DEFAULT_SANDBOX_CONCURRENCY
+# = 250). Creating a fresh ``asyncio.Semaphore`` inside each call means
+# each shard gets its own independent L3/L4 bound, so the true
+# concurrency in flight is ``num_shards × per_call_limit`` — for
+# 16 shards × 8 = 128 Anthropic calls at peak, which overwhelms the
+# API and produces widespread ``APITimeoutError`` (observed on the
+# first full-WASP smoke). Sharing the semaphore at module scope keeps
+# the bound a real cap across the whole Phase 2 pass.
+#
+# Semaphores are bound lazily on first use, and re-sized when the env
+# override changes across runs by keying on (limit, event_loop).
+_SHARED_L3_SEM: asyncio.Semaphore | None = None
+_SHARED_L3_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
+_SHARED_L4_SEM: asyncio.Semaphore | None = None
+_SHARED_L4_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
+
+
+def _shared_l3_sem(limit: int) -> asyncio.Semaphore:
+    global _SHARED_L3_SEM, _SHARED_L3_SEM_KEY
+    loop = asyncio.get_event_loop()
+    key = (limit, loop)
+    if _SHARED_L3_SEM is None or _SHARED_L3_SEM_KEY != key:
+        _SHARED_L3_SEM = asyncio.Semaphore(limit)
+        _SHARED_L3_SEM_KEY = key
+    return _SHARED_L3_SEM
+
+
+def _shared_l4_sem(limit: int) -> asyncio.Semaphore:
+    global _SHARED_L4_SEM, _SHARED_L4_SEM_KEY
+    loop = asyncio.get_event_loop()
+    key = (limit, loop)
+    if _SHARED_L4_SEM is None or _SHARED_L4_SEM_KEY != key:
+        _SHARED_L4_SEM = asyncio.Semaphore(limit)
+        _SHARED_L4_SEM_KEY = key
+    return _SHARED_L4_SEM
 
 
 async def resolve_tasks(
@@ -1230,8 +1329,8 @@ async def resolve_tasks(
             "'L3' or 'L4'; pass allow_layers=('L1','L2') for the offline path"
         )
 
-    l3_sem = asyncio.Semaphore(l3_concurrency or _l3_concurrency_default())
-    l4_sem = asyncio.Semaphore(l4_concurrency or _l4_concurrency_default())
+    l3_sem = _shared_l3_sem(l3_concurrency or _l3_concurrency_default())
+    l4_sem = _shared_l4_sem(l4_concurrency or _l4_concurrency_default())
 
     l1_l2_layers: tuple[Literal["L1", "L2"], ...] = tuple(
         layer for layer in allow_layers if layer in ("L1", "L2")
