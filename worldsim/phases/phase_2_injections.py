@@ -36,6 +36,7 @@ from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
     ContractRenderContext,
     available_tokens_for_kind,
+    kind_anchors_from_resources,
     kind_contract,
     method_spec,
 )
@@ -1143,7 +1144,7 @@ async def _generate_injections_for_site(
                     validation_command="adversarial-tasks",
                     contract_context=ContractRenderContext(
                         site=site_name,
-                        kinds_in_shard=_kinds_in_shard(benign_target_resources),
+                        kind_anchors=kind_anchors_from_resources(benign_target_resources),
                     ),
                 ),
                 output_paths=["/workspace/output/adversarial_tasks.json"],

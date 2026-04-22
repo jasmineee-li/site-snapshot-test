@@ -57,7 +57,10 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.editors._registry import ContractRenderContext
+from worldsim.editors._registry import (
+    ContractRenderContext,
+    kind_anchors_from_resources,
+)
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -203,15 +206,9 @@ def _build_messages(
     """
     contract_context: ContractRenderContext | None = None
     if site:
-        kinds: set[str] = set()
-        for entry in benign_target_resources.values():
-            if isinstance(entry, dict):
-                kind = entry.get("kind")
-                if isinstance(kind, str) and kind:
-                    kinds.add(kind)
         contract_context = ContractRenderContext(
             site=site,
-            kinds_in_shard=frozenset(kinds),
+            kind_anchors=kind_anchors_from_resources(benign_target_resources),
         )
     prompt_body = load_prompt(
         "generate-injections",

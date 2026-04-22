@@ -87,7 +87,7 @@ def load_prompt(
             raise PromptRenderError(
                 f"Prompt {name!r} contains {EDITOR_CONTRACT_TABLE_SENTINEL} "
                 "but load_prompt was called without contract_context. Pass a "
-                "ContractRenderContext(site=..., kinds_in_shard=...) so the "
+                "ContractRenderContext(site=..., kind_anchors=...) so the "
                 "sentinel can be rendered."
             )
         rendered = render_contract_table(contract_context).rstrip("\n")
