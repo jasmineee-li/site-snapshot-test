@@ -455,6 +455,32 @@ def build_parser() -> argparse.ArgumentParser:
         "vendor evaluator's config-validation step.",
     )
 
+    preflight_cmd = subparsers.add_parser(
+        "preflight",
+        help=(
+            "Run the Phase 4 preflight gates (storage_state, PVPO endpoints, "
+            "instance reachability) without spinning up Phase 4 itself. "
+            "Cheap local sanity check — run after config or generator changes."
+        ),
+    )
+    preflight_cmd.add_argument(
+        "--host-config",
+        type=Path,
+        default=None,
+        help="Benchmark host YAML, e.g. configs/benchmark_hosts/r5.yaml.",
+    )
+    preflight_cmd.add_argument(
+        "--instances",
+        type=Path,
+        default=Path("instances.scale.json"),
+        help="Instances config to preflight (default: instances.scale.json).",
+    )
+    preflight_cmd.add_argument(
+        "pytest_args",
+        nargs=argparse.REMAINDER,
+        help="Extra args forwarded to pytest (e.g. -k, -x, -v).",
+    )
+
     return parser
 
 
@@ -584,7 +610,53 @@ def main(argv: list[str] | None = None) -> int:
 
         return phase_3_rescore.run(args)
 
+    if args.command == "preflight":
+        return _dispatch_preflight(args)
+
     return 0
+
+
+def _dispatch_preflight(args: argparse.Namespace) -> int:
+    """Run Phase 4 preflight gates standalone — fast feedback loop for config changes.
+
+    Wraps ``pytest -m preflight tests/preflight`` with the same
+    ``WORLDSIM_PREFLIGHT_*`` env vars that ``scripts/setup_phase4_on_host.sh``
+    step 7 uses. Extra args after ``--`` are forwarded to pytest.
+    """
+    import subprocess
+
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+
+    if args.host_config is not None:
+        host_config = args.host_config
+        if not host_config.is_absolute():
+            host_config = repo_root / host_config
+        if not host_config.exists():
+            print(f"host-config not found: {host_config}", file=sys.stderr)
+            return 2
+        env["WORLDSIM_PREFLIGHT_HOST_CONFIG"] = str(host_config)
+
+    instances = args.instances
+    if not instances.is_absolute():
+        instances = repo_root / instances
+    if not instances.exists():
+        print(
+            f"instances file not found: {instances}\n"
+            f"Regenerate via scripts/generate_scale_r5.sh, "
+            f"or pass --instances <path>.",
+            file=sys.stderr,
+        )
+        return 2
+    env["WORLDSIM_PREFLIGHT_INSTANCES"] = str(instances)
+
+    cmd = [sys.executable, "-m", "pytest", "-m", "preflight", "tests/preflight"]
+    extra = [arg for arg in (args.pytest_args or []) if arg != "--"]
+    cmd.extend(extra)
+
+    print(f"running: {' '.join(cmd)}", file=sys.stderr)
+    result = subprocess.run(cmd, cwd=repo_root, env=env)
+    return result.returncode
 
 
 # Ordered pipeline steps. Each entry maps step name -> (phase_id, sub) where
