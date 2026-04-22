@@ -30,6 +30,10 @@ from typing import Any
 from worldsim._async_utils import retrying
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.editors import EDITOR_REGISTRY, EditorError
+from worldsim.instance_selection import (
+    _ordered_instance_dicts,
+    select_task_site_instance_dict,
+)
 from worldsim.phases.phase_2_reachability import (
     ReachabilityOutcome,
     derive_second_witness,
@@ -142,23 +146,35 @@ async def verify_feasibility(
             + ", ".join(sorted(missing_sites))
         )
 
-    instance_by_site: dict[str, dict[str, Any]] = {}
+    # Group by site so same-site replicas all survive the lookup. The prior
+    # shape (``dict[site, inst]``) silently dropped every replica after the
+    # first, which routed every task at a site to a single upstream — the
+    # 2026-04-22 gitlab_18 crush bug. Downstream call sites pick a single
+    # replica per task via ``select_task_site_instance_dict`` (Phase 4's
+    # selector, mirrored for raw dicts) so fanout matches Phase 4's hash
+    # space exactly.
+    instances_by_site: dict[str, list[dict[str, Any]]] = {}
     for inst in instances:
         name = str(inst.get("site_name", "")).strip().lower()
         if not name:
             continue
-        instance_by_site[name] = inst
+        instances_by_site.setdefault(name, []).append(inst)
 
-    for site, inst in instance_by_site.items():
+    for site, site_instances in instances_by_site.items():
         if site not in sites_in_tasks:
             continue
-        benchmark = str(inst.get("benchmark") or "webarena_verified").strip().lower()
+        # Probing once per site is sufficient — every replica of a site runs
+        # the same image with the same seed DB, so base-state drift is a
+        # per-site concern, not a per-replica one. Use the stable-ordered
+        # head so the representative is reproducible across runs.
+        representative = _ordered_instance_dicts(site_instances)[0]
+        benchmark = str(representative.get("benchmark") or "webarena_verified").strip().lower()
         editor_cls = EDITOR_REGISTRY.get((benchmark, site))
         if editor_cls is None:
             raise RuntimeError(
                 f"phase 2c pre-flight: no editor registered for (benchmark={benchmark!r}, site={site!r})"
             )
-        editor_cls.probe_base_state(inst)
+        editor_cls.probe_base_state(representative)
 
     verified: list[dict[str, Any]] = []
     infeasible: list[dict[str, Any]] = []
@@ -203,8 +219,8 @@ async def verify_feasibility(
             # shopping_admin task whose payload seeds a product review on
             # the shopping storefront — verify against the correct instance.
             seed_site = _resolve_seed_site(task)
-            instance = instance_by_site.get(seed_site)
-            if instance is None:
+            site_instances = instances_by_site.get(seed_site) or []
+            if not site_instances:
                 return _infeasible_task(
                     task,
                     kind="unsupported_site",
@@ -215,6 +231,12 @@ async def verify_feasibility(
                     attempts=[],
                     timestamp=now_iso,
                 )
+            # Hash-based per-task replica selection. Same task -> same replica
+            # across retries (reproducible triage), different tasks fan out
+            # across all configured replicas. This is the same routing Phase 4
+            # uses, so a task's seed call lands on the same upstream in both
+            # phases.
+            instance = select_task_site_instance_dict(task, seed_site, site_instances)
             # Per-task browser: every worker gets its own Playwright +
             # Chromium pair, torn down before the next task runs. A render-
             # check crash in one task (renderer OOM, sandbox child death,

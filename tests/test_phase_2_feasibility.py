@@ -1133,3 +1133,64 @@ def test_render_check_skipped_via_env_var_omits_render_fields(tmp_path, monkeypa
     assert feasibility["status"] == "verified"
     assert "render_verified" not in feasibility
     assert "render_evidence" not in feasibility
+
+
+# ---------------------------------------------------------------------------
+# Replica fanout — regression guard for the 2026-04-22 gitlab_18 crush bug
+# ---------------------------------------------------------------------------
+
+
+def test_replica_fanout_distributes_tasks_across_same_site_replicas(tmp_path, monkeypatch):
+    """107 gitlab tasks over 21 gitlab replicas must fan out.
+
+    Pre-fix Phase 2c built a ``dict[site, inst]`` that silently dropped every
+    replica after the first, routing every task to a single upstream (the
+    last-loaded one, gitlab_18 on r5.yaml). The fanout selector places tasks
+    by SHA-256 hash of the task id; this test asserts every replica receives
+    traffic and that the worst-case skew stays within statistical bounds.
+    """
+    replicas = [
+        {
+            "site_name": "gitlab",
+            "site_url": f"http://172.17.0.1:{8023 + i * 10}",
+            "replica_index": i,
+            "replica_name": f"gitlab_{i}",
+            "benchmark": "webarena_verified",
+        }
+        for i in range(21)
+    ]
+    tasks = [_task(task_id=f"AT-{i:03d}") for i in range(107)]
+
+    observed: list[str] = []
+
+    def responder(idx, seed, instance):
+        observed.append(str(instance.get("replica_name")))
+        return _FakeHandle()
+
+    _patch_apply(monkeypatch, responder)
+    tasks_path = _write_tasks(tmp_path, tasks)
+
+    report = asyncio.run(
+        feas.verify_feasibility(
+            tasks_path,
+            instances=replicas,
+            concurrency=8,
+            retry_count=0,
+        )
+    )
+
+    assert len(report.verified) == 107
+    assert len(observed) == 107
+    distinct = set(observed)
+    # Pre-fix: 1 distinct replica (the last-loaded), 107/107 tasks.
+    # Post-fix: SHA-256 fanout over 21 buckets with 107 tasks — coupon-collector
+    # variance means not every bucket is guaranteed, but at least 18/21 is a
+    # tight regression bound that still catches a regression to the old
+    # single-replica routing.
+    assert len(distinct) >= 18, f"only {len(distinct)}/21 replicas received tasks: {distinct}"
+    worst = max(observed.count(name) for name in distinct)
+    # Mean 5.1 tasks per replica; SD ~2.2. 18 is generous 3-sigma headroom and
+    # still catches any regression to the old single-replica behavior.
+    assert worst <= 18, (
+        f"skew too high; counts: {sorted([(n, observed.count(n)) for n in distinct])}"
+    )
