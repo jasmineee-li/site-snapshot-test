@@ -62,6 +62,12 @@ done
 log() { printf '==> %s\n' "$*" >&2; }
 substep() { printf '    %s\n' "$*" >&2; }
 
+if [[ -z "$HOST_CONFIG" ]]; then
+    echo "ERROR: --host-config required" >&2
+    usage
+    exit 2
+fi
+
 # ---------------------------------------------------------------------------
 # Step 1 — uv + deps + evaluator venv (issues #1, #2 fallback, #17)
 # ---------------------------------------------------------------------------
@@ -86,6 +92,29 @@ uv sync --locked
     }
     uv sync --locked
 )
+
+# Resolve orchestrator_host from the host config once (needed by step 5 to
+# mint storage_state against the same host site_url uses). Phase 0d cookies
+# are domain-scoped — minting against one host and reusing on another is
+# the host_bound_storage_state failure class. orchestrator_host falls back
+# to advertise_host when unset, matching the host_config.py schema default.
+ORCHESTRATOR_HOST="$(uv run python -c '
+import sys, yaml, pathlib
+data = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())
+print(str(data.get("orchestrator_host") or data["advertise_host"]).strip())
+' "$REPO_ROOT/$HOST_CONFIG")"
+substep "orchestrator_host=${ORCHESTRATOR_HOST} (from $HOST_CONFIG)"
+
+# ---------------------------------------------------------------------------
+# Step 1b — regen instances.scale.json from scale_config.yml + host config.
+# ---------------------------------------------------------------------------
+# instances.scale.json is gitignored; regen every time so edits to
+# scripts/scale_config.yml or the host config propagate without hand-
+# patching the 62 fields that got bandaided on 2026-04-21. Also keeps
+# advertise_host ↔ control_host in sync with the host's actual topology.
+log "step 1b: regen $INSTANCES"
+"$REPO_ROOT/scripts/generate_scale_r5.sh" >/dev/null
+substep "regenerated $INSTANCES"
 
 # ---------------------------------------------------------------------------
 # Step 2 — Playwright chromium + system libs (issue #3)
@@ -262,15 +291,16 @@ fi
 # Step 5 — Mint Phase 0d storage_state for gitlab (issue #7)
 # ---------------------------------------------------------------------------
 if [[ "$SKIP_GITLAB_MINT" -eq 0 ]]; then
-    log "step 5: mint gitlab Phase 0d storage_state"
+    # Always re-mint, regardless of whether a storage_state file is already
+    # on disk. Stale cookies bound to the wrong advertise_host (laptop
+    # loopback vs r5 public IP, or a previous host) are invisible at
+    # mint-time but fail the runtime preflight with host_bound_storage_state.
+    # Re-minting costs ~30s; debugging a stale artifact costs a whole run.
+    log "step 5: mint gitlab Phase 0d storage_state (unconditional)"
     STATE_FILE="$STATE_DIR/phase_0d/gitlab/storage_state.json"
-    if [[ -s "$STATE_FILE" ]]; then
-        substep "$STATE_FILE already present; skipping mint"
-    else
-        GITLAB_HOST="${GITLAB_HOST:-http://127.0.0.1:8023}" \
-            GITLAB_STORAGE_STATE_PATH="$STATE_FILE" \
-            uv run python "$REPO_ROOT/scripts/login_gitlab_r5.py"
-    fi
+    GITLAB_HOST="${GITLAB_HOST:-http://${ORCHESTRATOR_HOST}:8023}" \
+        GITLAB_STORAGE_STATE_PATH="$STATE_FILE" \
+        uv run python "$REPO_ROOT/scripts/login_gitlab_r5.py"
 fi
 
 # Step 6 (Magento base_url sync) was removed 2026-04-21 with the
