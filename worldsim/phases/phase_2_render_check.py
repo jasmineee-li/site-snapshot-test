@@ -337,7 +337,7 @@ async def verify_seed_renders(
     site_url: str,
     signature: str | None,
     nav_timeout_ms: int = 15000,
-    selector_timeout_ms: int = 5000,
+    selector_timeout_ms: int = 10000,
     storage_state_path: str | None = None,
 ) -> RenderOutcome:
     """Open a fresh context, try each URL until the signature appears.
@@ -390,25 +390,20 @@ async def verify_seed_renders(
             target = _with_cache_buster(_resolve_url(raw_url, site_url))
             seen.append(target)
             try:
-                # GitLab issue/MR pages + shopping product views lazy-load
-                # dynamic content (discussions.json, listAjax) after
-                # DOMContentLoaded fires. Use ``wait_until="networkidle"``
-                # on those pages so page.text_content("body") captures
-                # the JS-populated DOM. ``expect_response`` would be more
-                # precise but the async Playwright Page has no
-                # ``wait_for_response`` method; ``expect_response``
-                # context-manager syntax requires restructuring the
-                # goto call. ``networkidle`` is simpler and just as
-                # effective once the AJAX fires.
-                needs_networkidle = (
-                    site_name == "shopping" and "/catalog/product/view/" in target
-                ) or (
-                    site_name == "gitlab"
-                    and ("/-/issues/" in target or "/-/merge_requests/" in target)
-                )
-                wait_mode = "networkidle" if needs_networkidle else "domcontentloaded"
-                await page.goto(target, timeout=nav_timeout_ms, wait_until=wait_mode)
-                if site_name == "shopping":
+                # Playwright's own docs label ``wait_until="networkidle"``
+                # DISCOURAGED for testing because a 500 ms idle window
+                # never opens against SPAs that keep polling
+                # (GitLab's ActionCable, count_cached endpoints, Gravatar,
+                # Sentry). Under backend contention it reliably trips the
+                # nav timeout even when the content we care about has
+                # already painted. We use ``domcontentloaded`` for the
+                # nav + an explicit ``wait_for_selector`` on the content
+                # we actually need (the note list on issue/MR pages; the
+                # review block on shopping PDPs) as the real readiness
+                # signal. If the selector fails, the ``text_content``
+                # fallback still runs — the signature check decides.
+                await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
+                if site_name == "shopping" and "/catalog/product/view/" in target:
                     try:
                         await page.wait_for_selector(
                             _SHOPPING_REVIEW_SELECTOR, timeout=selector_timeout_ms

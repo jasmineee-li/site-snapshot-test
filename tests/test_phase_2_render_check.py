@@ -9,7 +9,6 @@ for end-to-end coverage with a real browser against r5.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 import pytest
 
@@ -31,11 +30,13 @@ class _FakePage:
         self._body_per_url = body_per_url
         self._goto_raises = goto_raises or {}
         self._current_url = ""
+        self.goto_calls: list[tuple[str, str]] = []  # (url, wait_until)
 
     async def goto(self, url, *, timeout, wait_until):
         # Strip cache-buster query string before matching against the test
         # body map so tests can key on the canonical URL.
         canonical = url.split("?", 1)[0] if "?_=" in url else url
+        self.goto_calls.append((canonical, wait_until))
         for raising_url, exc in self._goto_raises.items():
             if raising_url in canonical:
                 raise exc
@@ -378,3 +379,31 @@ async def test_render_outcome_evidence_failed_includes_kind_and_errors():
     assert evidence["kind"] == "render_unverified"
     assert evidence["urls_tried"] == ["http://shop.test/a", "http://shop.test/b"]
     assert evidence["per_url_errors"] == {"http://shop.test/a": "signature_absent"}
+
+
+@pytest.mark.asyncio
+async def test_gitlab_render_never_uses_networkidle():
+    """Regression guard: ``wait_until="networkidle"`` is Playwright-
+    documented as DISCOURAGED and was the root cause of the 2026-04-22
+    Phase 2c timeout class. Gitlab issue/MR renders must use
+    ``domcontentloaded`` and gate readiness on ``wait_for_selector``.
+    """
+    url = "http://gitlab.test/myproject/-/issues/1"
+    page = _FakePage(body_per_url={url: "notes body containing SeedNickAdv003"})
+    browser = _FakeBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="SeedNickAdv003",
+    )
+    assert outcome.ok is True
+    assert page.goto_calls, "expected a goto call"
+    for _url, wait_until in page.goto_calls:
+        assert wait_until != "networkidle", (
+            f"networkidle is discouraged and was removed on 2026-04-22; "
+            f"got wait_until={wait_until!r} for url={_url!r}"
+        )
+        assert wait_until == "domcontentloaded"
