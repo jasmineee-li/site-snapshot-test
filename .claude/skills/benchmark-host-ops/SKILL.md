@@ -1,0 +1,47 @@
+---
+name: benchmark-host-ops
+description: Operational reference for WorldSim v5 benchmark hosts — nginx reverse-proxy deployment (scripts/deploy_benchmark_proxy.sh, check_proxy_drift.sh), fresh-host bootstrap (scripts/setup_phase4_on_host.sh), chrome-headless-shell Docker requirements for PVPO rigor runs, and the GitLab external_url workaround. Use whenever the user works on a fresh EC2/r5 benchmark host, deploys or debugs the nginx proxy, sees 502/403 errors from benchmark sites, mentions gitlab.rb / external_url drift, asks about chrome-headless-shell / beginFrame / pvpo_cdp_url, wants to run setup_phase4_on_host.sh, or prepares a Phase 4 rigor run — even if they don't explicitly name the skill. Also invoke for questions about the proxy token (X-Worldsim-Token), port offset scheme, ProxyingHTTPAdapter's Location-rewrite, or why the proxy config must be generated from the script and never hand-edited.
+---
+
+# Benchmark host operations
+
+Everything here is ops plumbing. The v5 orchestrator connects to pre-running benchmark instances supplied by the user; this skill covers *how those instances get stood up and kept healthy* on AWS r5 hosts, and how the orchestrator reaches them securely.
+
+| Topic | When to consult | File |
+|---|---|---|
+| nginx proxy deployment, drift detection, GitLab `external_url` handling | Running `deploy_benchmark_proxy.sh` / `check_proxy_drift.sh`, debugging 502/403 from the proxy, changing port maps or auth tokens | `references/proxy-deployment.md` |
+| Fresh-host bootstrap sequence | First time setting up a new r5 instance, re-running after a wipe, debugging a failed preflight | `references/fresh-host-bootstrap.md` |
+| chrome-headless-shell container + beginFrame | Running PVPO with non-zero coverage, debugging `max_coverage=0` on every trajectory, touching `worldsim/docker/chrome-headless-shell.Dockerfile` | `references/rigor-containers.md` |
+
+## Invariants
+
+**Source of truth for the nginx config is `scripts/deploy_benchmark_proxy.sh::generate_nginx_config()`.** Never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf` on the host. The script is in-repo and versioned; hand edits survive until the next instance rebuild and then silently vanish. Verify parity with `scripts/check_proxy_drift.sh`; pass `--verify-runtime` to additionally confirm nginx has actually loaded the on-disk config (runs `nginx -t`, checks `systemctl is-active nginx`, compares oldest worker PID start-time vs config mtime, and greps error.log for recent `[emerg]`).
+
+**Rigor runs need the chrome-headless-shell container.** `HeadlessExperimental.beginFrame` is unsupported on native macOS Chrome builds; without the container, PVPO capture falls back to zero coverage per step, every trajectory routes to placement-fix, and results are useless for rigor analysis. Each Phase 4 execution instance carries its own `pvpo_cdp_url` (typically `127.0.0.1:9222`, `127.0.0.1:9223`, …). Browser-Use connects to the instance-bound endpoint, not a shared one.
+
+**Fresh hosts must pass preflight before a Phase 4 launch.** `scripts/setup_phase4_on_host.sh` step 7 runs `pytest -m preflight tests/preflight` and proves: every configured PVPO CDP endpoint is reachable and uniquely assigned, gitlab Phase 0d `storage_state` exists with non-empty cookies, and the `worldsim-webarena-verified` evaluator venv resolves. Skipping preflight is the failure mode that ate most of 2026-04-20.
+
+## Script index
+
+| Script | Purpose |
+|---|---|
+| `scripts/bootstrap_r5.sh` | Initial r5 bootstrap — install deps, pull benchmark containers, start env-ctrl. |
+| `scripts/deploy_benchmark_proxy.sh` | Generate + install nginx proxy config with token auth on offset ports. `--via-ssm` supported for SSH-blocked SGs. |
+| `scripts/check_proxy_drift.sh` | Diff on-host nginx config against what the script would generate. `--verify-runtime` adds runtime checks. |
+| `scripts/deploy_proxy_r5.sh` | Convenience wrapper for r5-specific proxy deploys. |
+| `scripts/setup_phase4_on_host.sh` | Idempotent fresh-host → Phase-4-ready. Bundles uv/venvs, Playwright deps, pvpo-chrome container, artifact sync, storage_state mint, preflight gate. |
+| `scripts/preflight_host_config.py` | Validates a `configs/benchmark_hosts/*.yaml` file. |
+| `scripts/preflight_security_group.py` | Validates the EC2 SG has the right ports open. |
+| `scripts/nightly_feasibility_check.sh` | Scheduled job — re-runs Phase 2c against a live host and alerts on drift. |
+| `scripts/ssh_r5.sh` | SSH wrapper that falls back to SSM when the SG blocks direct SSH. |
+
+## Configuration layout
+
+- `configs/benchmark_hosts/*.yaml` — one file per host (e.g., `r5.yaml`). Holds `HOST_IP`, `orchestrator_host`, `instances_file`, etc.
+- `scripts/proxy_ports.conf` — site-to-port mapping the proxy reads. Format: `name:real_port:proxy_port`.
+- `instances*.json` — the `BenchmarkConfig` the orchestrator reads: per-instance `{site_url, reset_endpoint, db_connection?}`.
+- `.proxy_token` — generated by `deploy_benchmark_proxy.sh`; mounted on each instance config as the `X-Worldsim-Token` header value. Do not commit.
+
+## WASP-aligned scope reminder
+
+As of 2026-04-21, v5 only runs against **GitLab issues/comments and Reddit (Postmill) posts/comments**. Magento, Wikipedia, OpenStreetMap, and classifieds are out of scope. Any setup work for those sites is deferred — if a script still has Magento code paths (e.g., `fix_magento_base_url.sh` on older checkouts), that's archaeology, not live ops.

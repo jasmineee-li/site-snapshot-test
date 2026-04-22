@@ -5,6 +5,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST_CONFIG=""
 INSTANCES_FILE="${REPO_ROOT}/instances.smoke.json"
 VERIFY_READ_SURFACE_URLS=""
+QUIET=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -18,6 +19,16 @@ while [[ $# -gt 0 ]]; do
             ;;
         --verify-read-surface-urls)
             VERIFY_READ_SURFACE_URLS=1
+            shift
+            ;;
+        --quiet)
+            # Context-efficient mode: swallow pytest output on success, surface
+            # only on failure. Intended for agent-driven invocations (Stop
+            # hooks, Claude Code sessions) where flooding context with passing
+            # test output degrades downstream reasoning. Full verbose output
+            # is still captured and printed on failure so the operator can
+            # paste it into a PR description or debug locally.
+            QUIET=1
             shift
             ;;
         --)
@@ -113,17 +124,45 @@ if [[ ! -f "$LIVE_INSTANCES_FILE" ]]; then
     exit 1
 fi
 
-printf '==> Live integration test config\n'
-printf '    LIVE_INSTANCES_FILE = %s\n' "$LIVE_INSTANCES_FILE"
-printf '    LIVE_HOST_IP = %s\n' "${LIVE_HOST_IP:-<unchanged>}"
-printf '    LIVE_GITLAB_URL = %s\n' "${LIVE_GITLAB_URL:-}"
-printf '    LIVE_SHOPPING_URL = %s\n' "${LIVE_SHOPPING_URL:-}"
-printf '    LIVE_SHOPPING_ADMIN_URL = %s\n' "${LIVE_SHOPPING_ADMIN_URL:-}"
-printf '    LIVE_REDDIT_URL = %s\n' "${LIVE_REDDIT_URL:-}"
+if [[ -z "$QUIET" ]]; then
+    printf '==> Live integration test config\n'
+    printf '    LIVE_INSTANCES_FILE = %s\n' "$LIVE_INSTANCES_FILE"
+    printf '    LIVE_HOST_IP = %s\n' "${LIVE_HOST_IP:-<unchanged>}"
+    printf '    LIVE_GITLAB_URL = %s\n' "${LIVE_GITLAB_URL:-}"
+    printf '    LIVE_SHOPPING_URL = %s\n' "${LIVE_SHOPPING_URL:-}"
+    printf '    LIVE_SHOPPING_ADMIN_URL = %s\n' "${LIVE_SHOPPING_ADMIN_URL:-}"
+    printf '    LIVE_REDDIT_URL = %s\n' "${LIVE_REDDIT_URL:-}"
+fi
 
 cd "$REPO_ROOT"
 if [[ -n "$VERIFY_READ_SURFACE_URLS" ]]; then
     export PYTEST_VERIFY_READ_SURFACE_URLS=1
-    printf '    PYTEST_VERIFY_READ_SURFACE_URLS = 1\n'
+    if [[ -z "$QUIET" ]]; then
+        printf '    PYTEST_VERIFY_READ_SURFACE_URLS = 1\n'
+    fi
 fi
-uv run pytest -m "integration or feasibility" tests/integration "$@"
+
+if [[ -z "$QUIET" ]]; then
+    # Verbose mode: stream pytest output live, exit with pytest's rc.
+    uv run pytest -m "integration or feasibility" tests/integration "$@"
+else
+    # --quiet mode: capture all output to a tmpfile. On success, print a
+    # one-line summary and exit 0 (silent enough to not pollute an agent's
+    # context window). On failure, print the full captured output to stderr
+    # and exit 2 so any Stop hook / wrapping harness re-engages.
+    TMP_OUTPUT=$(mktemp -t worldsim_integration.XXXXXX)
+    trap 'rm -f "$TMP_OUTPUT"' EXIT
+    if uv run pytest -m "integration or feasibility" tests/integration "$@" >"$TMP_OUTPUT" 2>&1; then
+        # Pick out the final "N passed ..." line for the one-line summary.
+        SUMMARY=$(grep -E '^[= ]+[0-9]+ (passed|skipped|deselected|warnings?)' "$TMP_OUTPUT" | tail -1)
+        if [[ -z "$SUMMARY" ]]; then
+            SUMMARY="integration tests passed"
+        fi
+        printf '==> %s\n' "$SUMMARY"
+        exit 0
+    else
+        echo "==> integration tests FAILED — full output follows:" >&2
+        cat "$TMP_OUTPUT" >&2
+        exit 2
+    fi
+fi

@@ -47,7 +47,7 @@ Pick the one matching your task and read it before working in that area:
 </important>
 
 <important if="you are preparing to ship a PR that touches editors, seeding, Phase 2c, Phase 4, PVPO capture, or the five host-API prompts">
-- Run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml` against a live stack. Unit tests alone are insufficient for editor, Phase 2c, PVPO, or Phase 4 integration changes.
+- Run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet` against a live stack. Unit tests alone are insufficient for editor, Phase 2c, PVPO, or Phase 4 integration changes. `--quiet` swallows passing output; only failures surface to stderr. Paste the surfaced failure output (if any) into the PR description.
 - The five prompts tracked here: `judge-adversarial-failure.md`, `generate-variant.md`, `transcript-purpose-guess.md`, `transcript-purpose-classify.md`, `verbalized-eval-awareness.md`, `placement-fix.md` — they feed single-turn API calls with no sandbox error boundary.
 - Phase 2c feasibility is strict admission. Do not pass `--skip-feasibility` on shipping runs. Break-glass override is `WORLDSIM_STRICT_FEASIBILITY={true,false}`.
 </important>

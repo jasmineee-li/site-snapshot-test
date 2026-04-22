@@ -54,9 +54,10 @@ scripts/proxy_ports.conf
 .vscode/
 .idea/
 .cursor/
-.claude/
+.claude/*
 !.claude/settings.json
-!.claude/hooks/
+!.claude/hooks
+!.claude/skills
 .gradio/
 
 # Test / tooling caches
