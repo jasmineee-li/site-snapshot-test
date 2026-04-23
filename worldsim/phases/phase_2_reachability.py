@@ -50,8 +50,16 @@ logger = logging.getLogger(__name__)
 
 
 _SITE_SELECTORS: dict[str, str] = {
-    "gitlab_issue": ".issuable-list, .issue-details",
-    "gitlab_mr": ".merge-request, .issuable-list",
+    # gitlab_issue / gitlab_mr: seed lives in the discussions.json note
+    # thread, which GitLab loads via AJAX after DOMContentLoaded. The
+    # ``.issuable-list, .issue-details`` selector only waits for the
+    # metadata shell — by the time the probe reads ``body`` text the
+    # notes thread has not appeared yet, and the 2-witness grep fails
+    # with ``witnesses_absent``. Wait for an actual note element so the
+    # body text contains the seeded payload when we grep it (mirrors
+    # the render-check gate at phase_2_render_check.py:_GITLAB_NOTE_SELECTOR).
+    "gitlab_issue": ".notes .note, .discussion-notes .note, ul.notes-list .note",
+    "gitlab_mr": ".notes .note, .discussion-notes .note, ul.notes-list .note",
     "gitlab_dashboard_list": ".issuable-list, .todos-list",
     "gitlab_search_result": ".search-results, .issuable-list",
     "reddit_submission": ".comment-list, .comments",
@@ -60,8 +68,8 @@ _SITE_SELECTORS: dict[str, str] = {
 }
 
 _WITNESS_MIN_LEN = 12
-_DEFAULT_NAV_TIMEOUT_MS = 15000
-_DEFAULT_SELECTOR_TIMEOUT_MS = 5000
+_DEFAULT_NAV_TIMEOUT_MS = 30000
+_DEFAULT_SELECTOR_TIMEOUT_MS = 10000
 _SEARCH_POLL_INTERVAL_MS = 500
 _SEARCH_POLL_ATTEMPTS = 10
 
@@ -239,20 +247,15 @@ async def verify_reachable(
     try:
         page = await context.new_page()
         target = _with_cache_buster(start_url)
-        # gitlab issue/MR pages load the notes thread via AJAX
-        # (.../discussions.json) after DOMContentLoaded, and the
-        # reachability probe's 2-witness grep needs that thread to be
-        # in the DOM when it reads body text. Mirror the render-check
-        # networkidle fix for these kinds so the probe waits for the
-        # lazy-loaded comment bodies before checking the witnesses.
-        wait_mode = (
-            "networkidle"
-            if kind
-            in {"gitlab_issue", "gitlab_mr", "gitlab_dashboard_list", "gitlab_search_result"}
-            else "domcontentloaded"
-        )
+        # Mirror the render-check fix (54652f4a): ``networkidle`` never
+        # settles on GitLab pages (ActionCable polling, Gravatar, Sentry)
+        # so the 15-30 s nav timeout tripped under load even when the
+        # seeded note had already painted. Use ``domcontentloaded`` for
+        # the nav and promote the note-selector wait below to the primary
+        # readiness signal for kinds that render the seed in a lazy-
+        # loaded comment thread.
         try:
-            await page.goto(target, timeout=nav_timeout_ms, wait_until=wait_mode)
+            await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
         except Exception as exc:
             return ReachabilityOutcome.unreachable(
                 kind="nav_failed",
