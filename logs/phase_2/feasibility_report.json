@@ -1,36 +1,27 @@
 {
-  "generated_at": "2026-04-18T04:55:00Z",
-  "instances": "instances.smoke.json",
+  "generated_at": "2026-04-23T04:39:43Z",
+  "instances": "instances.scale.json",
   "host_fingerprint": {
-    "host_config": "instances.smoke.json",
-    "editor_commit": "1d509c9f7f7f",
-    "dataset_commit": "1d509c9f7f7f"
+    "host_config": "instances.scale.json",
+    "instances_digest": "3e9c7ffc8175",
+    "editor_commit": "unknown",
+    "dataset_commit": "unknown"
   },
-  "elapsed_seconds": 36.35,
-  "phase_2_status": "failed",
-  "verified_count": 174,
-  "infeasible_count": 62,
+  "elapsed_seconds": 487.722,
+  "phase_2_status": "complete",
+  "verified_count": 63,
+  "infeasible_count": 93,
   "skipped_already_verified_count": 0,
   "cleanup_warnings": [],
   "per_site": {
-    "shopping_admin": {
-      "verified": 28,
-      "infeasible": 0,
-      "skipped": 0
-    },
-    "shopping": {
-      "verified": 59,
-      "infeasible": 0,
-      "skipped": 0
-    },
     "reddit": {
-      "verified": 6,
-      "infeasible": 52,
+      "verified": 7,
+      "infeasible": 37,
       "skipped": 0
     },
     "gitlab": {
-      "verified": 81,
-      "infeasible": 10,
+      "verified": 56,
+      "infeasible": 56,
       "skipped": 0
     }
   }
