@@ -11,7 +11,7 @@ from pathlib import Path
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.judges.base import BaseJudge
 from eval_awareness_experiments.judges.prompts import VERBALIZED_AWARENESS_PROMPT
-from eval_awareness_experiments.judges.transcript_utils import transcript_to_xml
+from eval_awareness_experiments.judges.transcript_utils import transcript_to_needham_xml
 from eval_awareness_experiments.judges.registry import register_judge
 from eval_awareness_experiments.types import JudgeResult, ReasoningCategory, Transcript
 from eval_awareness_experiments.judges.json_parsing import parse_json_safe
@@ -42,7 +42,7 @@ class VerbalizedAwarenessJudge(BaseJudge):
         super().__init__(grader_model=grader_model, **kwargs)
 
     async def judge(self, transcript: Transcript) -> JudgeResult:
-        xml_transcript = transcript_to_xml(transcript)
+        xml_transcript = transcript_to_needham_xml(transcript)
 
         full_prompt = VERBALIZED_AWARENESS_PROMPT.format(transcript=xml_transcript)
         output = await self.classifier_model.generate(full_prompt)
