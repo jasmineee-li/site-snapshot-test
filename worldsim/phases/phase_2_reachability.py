@@ -129,24 +129,68 @@ class ReachabilityOutcome:
         return out
 
 
+_MARKDOWN_WITNESS_SKIP_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Tail of a broken markdown image: `alt.">](http://...)`
+    re.compile(r"\]\s*\(\s*https?://"),
+    # Inline `![alt](url)` fragments — when these appear as a single
+    # whitespace-delimited token they render as <img>, not text.
+    re.compile(r"^!\[.*\]\("),
+    # Raw base64 data URIs or HTML-encoded src attributes fall out of
+    # broken markdown rendering and don't appear in plain text_content.
+    re.compile(r'^src=["\']?data:'),
+    re.compile(r"^(?:src|href)=[\"']"),
+    # Raw closing bracket followed by a URL suffix — the "(...)" tail of
+    # broken markdown.
+    re.compile(r"^[^\s]*\]\("),
+    # Curly-token leakage defended at seeding time but add belt-and-
+    # braces: never emit a `{benign_*}` witness.
+    re.compile(r"^\{benign_"),
+)
+
+
+def _looks_like_markdown_fragment(token: str) -> bool:
+    """Reject witness candidates that survive only inside markdown syntax.
+
+    For adversarial seeds wrapped in markdown-image template (``![{{PAYLOAD_TEXT}}](url)``),
+    the longest whitespace-delimited tokens are often *syntactic*
+    fragments (``alt.">](http://.../img.png)``, ``src="data:...">``)
+    that never reach rendered ``text_content``. Skip them so the
+    witness picker prefers prose tokens — URLs inside the payload
+    prose, the attacker URL, or the signature's tail — which DO
+    appear on the rendered page.
+    """
+    for pattern in _MARKDOWN_WITNESS_SKIP_PATTERNS:
+        if pattern.search(token):
+            return True
+    return False
+
+
 def derive_second_witness(rendered_payload: str | None, signature: str | None) -> str | None:
     """Pick a rare substring from the rendered payload distinct from signature.
 
-    Returns the longest whitespace-delimited span of >= _WITNESS_MIN_LEN
-    chars that does not overlap the signature, or None if nothing
-    qualifies. Defense against signature collisions on pre-existing DOM
-    content.
+    Returns the longest span of >= _WITNESS_MIN_LEN chars that does not
+    overlap the signature and is not a markdown-syntax fragment. Splits
+    on whitespace AND on markdown delimiters (``](``, ``">``, ``">]``)
+    so a prose URL hidden inside ``[anchor](https://...)`` syntax still
+    surfaces as a candidate — without those extra splits, the entire
+    ``anchor](https://attacker.invalid/xxx)`` segment reads as one
+    whitespace-delimited token and gets skipped as a markdown fragment,
+    leaving no usable witness for markdown-wrapped seeds.
     """
     if not rendered_payload:
         return None
     needle = (signature or "").lower()
-    candidates = re.split(r"[\s\r\n]+", rendered_payload)
+    # Split on whitespace + markdown delimiters so URLs inside
+    # `[anchor](url)` or `alt.">](url)` aren't bonded to their syntax.
+    candidates = re.split(r"[\s\r\n]+|\]\(|\">\]|\">|\]\s", rendered_payload)
     best: str | None = None
     for token in candidates:
-        token = token.strip()
+        token = token.strip().rstrip(".,;:)")
         if len(token) < _WITNESS_MIN_LEN:
             continue
         if needle and needle in token.lower():
+            continue
+        if _looks_like_markdown_fragment(token):
             continue
         if best is None or len(token) > len(best):
             best = token
@@ -179,6 +223,19 @@ def _selector_for_kind(kind: str) -> str | None:
     return _SITE_SELECTORS.get(kind)
 
 
+def _normalize_for_match(text: str) -> str:
+    """Collapse whitespace and lowercase, matching render_check semantics.
+
+    Phase 2c's render-check compares on this normalized form so a
+    signature with single spaces matches a body where the same text
+    was laid out with newlines or indented whitespace (GitLab wraps
+    long notes across multiple lines). Reachability must use the
+    identical function — a plain ``.lower()`` missed 30+ signature
+    matches whose body text had intervening whitespace.
+    """
+    return re.sub(r"\s+", " ", text or "").lower()
+
+
 async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
     """Poll the current page's ``body`` text every 500 ms looking for *needle*.
 
@@ -193,13 +250,13 @@ async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
       the DOM.
     """
     deadline = time.monotonic() + (timeout_ms / 1000.0)
-    lowered = needle.lower()
+    needle_norm = _normalize_for_match(needle)
     while time.monotonic() < deadline:
         try:
             body = await page.text_content("body") or ""
         except Exception:
             body = ""
-        if lowered in body.lower():
+        if needle_norm and needle_norm in _normalize_for_match(body):
             return True
         try:
             await page.wait_for_timeout(_SEARCH_POLL_INTERVAL_MS)
@@ -308,9 +365,15 @@ async def verify_reachable(
                 detail=f"text_content body: {exc.__class__.__name__}: {exc}",
                 url=start_url,
             )
-        lowered = body_text.lower()
-        matched = tuple(w for w in witnesses if w.lower() in lowered)
-        missing = tuple(w for w in witnesses if w.lower() not in lowered)
+        # Match render_check's whitespace-normalizing comparison
+        # (phase_2_render_check._normalize). Plain ``.lower()`` here
+        # missed 30+ witnesses_absent failures where the body had
+        # collapsed newlines / indented whitespace that did not line up
+        # with the raw signature's whitespace. Normalize both sides and
+        # the match behaves identically to render_check's.
+        normalized_body = _normalize_for_match(body_text)
+        matched = tuple(w for w in witnesses if _normalize_for_match(w) in normalized_body)
+        missing = tuple(w for w in witnesses if _normalize_for_match(w) not in normalized_body)
         if not missing:
             return ReachabilityOutcome.direct(url=start_url, witnesses_matched=matched)
         return ReachabilityOutcome.unreachable(
