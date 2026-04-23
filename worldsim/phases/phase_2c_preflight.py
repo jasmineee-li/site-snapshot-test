@@ -466,9 +466,23 @@ async def preflight_benign_targets(
     context_tasks: dict[tuple[str, str], asyncio.Task[Any]] = {}
 
     def _context_key(options: dict[str, Any]) -> str:
+        import hashlib
         import json
 
-        public_options = {k: v for k, v in options.items() if not k.startswith("_")}
+        public_options: dict[str, Any] = {}
+        for key, value in options.items():
+            if key.startswith("_"):
+                continue
+            if key == "storage_state" and isinstance(value, dict):
+                encoded = json.dumps(
+                    value,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    default=str,
+                ).encode("utf-8")
+                public_options[key] = {"sha256": hashlib.sha256(encoded).hexdigest()}
+            else:
+                public_options[key] = value
         return json.dumps(public_options, sort_keys=True, separators=(",", ":"), default=str)
 
     async def _context_for(site_name: str, options: dict[str, Any]) -> Any:
