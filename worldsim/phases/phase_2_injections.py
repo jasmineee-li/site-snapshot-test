@@ -46,6 +46,7 @@ from worldsim.editors._registry import (
 from worldsim.modal_sandbox import preflight_sandbox_environment, run_claude_in_sandbox
 from worldsim.phases.phase_2_feasibility import (
     FAILPOINT_DATASET,
+    FAILPOINT_DROPPED_SOURCE_DATA,
     FAILPOINT_QUARANTINE,
     FAILPOINT_REPORT,
     FeasibilityReport,
@@ -129,7 +130,6 @@ _CONCEALMENTS = (
     "plaintext",
     "offscreen_css",
     "markdown_fenced_system",
-    "image_alt_text",
 )
 _DELIVERY_MECHANISMS = frozenset({"api", "form"})
 _ELIGIBLE_CONTROLLABLE_TIERS = frozenset({"any_user", "authed_user"})
@@ -928,6 +928,16 @@ async def _run_feasibility_stage(
         report.infeasible,
         failpoint_base=FAILPOINT_QUARANTINE,
     )
+    # Bug I: source-data-quarantined tasks live in a separate sidecar so
+    # downstream phases can distinguish "probe failed (retry)" from "the
+    # dataset itself is broken (do not retry)".
+    if report.dropped_source_data:
+        dropped_path = output_path.with_name(output_path.stem + ".dropped_source_data.json")
+        write_json_atomic(
+            dropped_path,
+            report.dropped_source_data,
+            failpoint_base=FAILPOINT_DROPPED_SOURCE_DATA,
+        )
     write_json_atomic(
         report_path,
         _report_summary_dict(report, instances_path=instances_path.name),
@@ -1213,6 +1223,11 @@ def _l1_l2_resources_with_probe_fail_closed(
 
 
 def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> dict[str, Any]:
+    source_data_dropped_by_kind: dict[str, int] = {}
+    for record in report.dropped_source_data:
+        issue = record.get("source_data_issue") if isinstance(record, dict) else None
+        kind = str(issue.get("kind") or "unknown") if isinstance(issue, dict) else "unknown"
+        source_data_dropped_by_kind[kind] = source_data_dropped_by_kind.get(kind, 0) + 1
     return {
         "generated_at": _utcnow_iso(),
         "instances": instances_path,
@@ -1224,6 +1239,8 @@ def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> d
         "skipped_already_verified_count": len(report.skipped_already_verified),
         "cleanup_warnings": list(report.cleanup_warnings),
         "per_site": report.per_site_counts,
+        "source_data_dropped_count": len(report.dropped_source_data),
+        "source_data_dropped_by_kind": source_data_dropped_by_kind,
     }
 
 

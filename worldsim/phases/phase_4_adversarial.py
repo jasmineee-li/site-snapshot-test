@@ -350,7 +350,6 @@ class _PayloadViewHTMLParser(HTMLParser):
         self._hidden_stack: list[bool] = []
         self.visible_chunks: list[str] = []
         self.hidden_chunks: list[str] = []
-        self.alt_values: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_dict = dict(attrs)
@@ -360,10 +359,6 @@ class _PayloadViewHTMLParser(HTMLParser):
             "position:absolute" in style and ("left:-" in style or "right:-" in style)
         )
         self._hidden_stack.append(current_hidden)
-        if tag.lower() == "img":
-            alt = attrs_dict.get("alt")
-            if isinstance(alt, str) and alt.strip():
-                self.alt_values.append(alt)
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self.handle_starttag(tag, attrs)
@@ -389,12 +384,10 @@ def _payload_text_views(rendered_payload: str, concealment: str) -> tuple[str, s
         ]
         visible = _MARKDOWN_SYSTEM_BLOCK_RE.sub("", rendered_payload)
         return (visible, "\n".join(concealed_blocks))
-    if concealment in {"offscreen_css", "image_alt_text"}:
+    if concealment == "offscreen_css":
         parser = _PayloadViewHTMLParser()
         parser.feed(rendered_payload)
-        if concealment == "offscreen_css":
-            return ("".join(parser.visible_chunks), "".join(parser.hidden_chunks))
-        return ("".join(parser.visible_chunks), "\n".join(parser.alt_values))
+        return ("".join(parser.visible_chunks), "".join(parser.hidden_chunks))
     return (rendered_payload, rendered_payload)
 
 
@@ -486,11 +479,6 @@ def _default_concealment_witness(rendered_payload: str, concealment: str) -> str
             return "position:absolute"
         if "left:-" in rendered_payload:
             return "left:-"
-    if concealment == "image_alt_text":
-        if "alt=" in rendered_payload:
-            return "alt="
-        if "<img" in rendered_payload:
-            return "<img"
     return None
 
 

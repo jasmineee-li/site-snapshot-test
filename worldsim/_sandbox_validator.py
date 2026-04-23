@@ -509,9 +509,7 @@ def validate_profile(data: object, *, site_name: str) -> list[str]:
 _CONTROLLABLE_TIERS = frozenset({"anon", "any_user", "authed_user", "admin", "none"})
 _DELIVERY_MECHANISMS = frozenset({"api", "form", "upload"})
 _RENDERING_FORMATS = frozenset({"raw_html", "markdown", "plaintext"})
-_CONCEALMENTS = frozenset(
-    {"plaintext", "offscreen_css", "markdown_fenced_system", "image_alt_text"}
-)
+_CONCEALMENTS = frozenset({"plaintext", "offscreen_css", "markdown_fenced_system"})
 _POSTCONDITION_TYPES = frozenset({"db_row_value"})
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
