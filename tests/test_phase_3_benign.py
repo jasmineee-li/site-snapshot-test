@@ -211,6 +211,32 @@ async def test_run_reports_adversarial_reference_errors(state_dir, caplog):
 
 
 @pytest.mark.asyncio
+async def test_run_source_data_drop_overwrites_prior_verified_feasibility(state_dir):
+    benign = [_mode_b_task("task-b1")]
+    _write_phase_outputs(state_dir, benign_tasks=benign, adversarial_tasks=[])
+    dropped_path = state_dir / "phase_2" / "adversarial_tasks.dropped_source_data.json"
+    dropped_path.write_text(
+        json.dumps(
+            [
+                _adversarial_task(
+                    "adv-dropped",
+                    "task-b1",
+                    feasibility={"status": "verified"},
+                    source_data_issue={"kind": "not_found"},
+                )
+            ]
+        )
+    )
+
+    rc = await phase_3_benign.run(Namespace(sites=None))
+
+    assert rc == 0
+    contracts = json.loads((state_dir / "phase_3" / "contracts.json").read_text())
+    by_id = {entry["id"]: entry for entry in contracts}
+    assert by_id["task-b1"]["adversarially_exhausted"] is True
+
+
+@pytest.mark.asyncio
 async def test_run_rejects_duplicate_benign_ids(state_dir, caplog):
     benign = [
         _mode_a_task("shared-id"),

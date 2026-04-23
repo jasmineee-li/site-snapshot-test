@@ -4,6 +4,7 @@ import asyncio
 import json
 from argparse import Namespace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -997,6 +998,108 @@ def test_load_reusable_phase_2_plans_rejects_stale_benign_selection(tmp_path):
     )
 
     assert reusable is None
+
+
+def test_write_dropped_source_data_sidecar_clears_full_run_stale_records(tmp_path):
+    path = tmp_path / "adversarial_tasks.dropped_source_data.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "old",
+                    "site": "gitlab",
+                    "source_data_issue": {"kind": "not_found"},
+                }
+            ]
+        )
+    )
+
+    phase_2_injections._write_dropped_source_data_sidecar(path, [], sites_filter=None)
+
+    assert json.loads(path.read_text()) == []
+
+
+def test_write_dropped_source_data_sidecar_preserves_unfiltered_sites(tmp_path):
+    path = tmp_path / "adversarial_tasks.dropped_source_data.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "old-gitlab",
+                    "site": "gitlab",
+                    "source_data_issue": {"kind": "not_found"},
+                },
+                {
+                    "id": "old-reddit",
+                    "site": "reddit",
+                    "source_data_issue": {"kind": "gone"},
+                },
+            ]
+        )
+    )
+    replacement = [
+        {
+            "id": "new-gitlab",
+            "site": "gitlab",
+            "source_data_issue": {"kind": "forbidden"},
+        }
+    ]
+
+    merged = phase_2_injections._write_dropped_source_data_sidecar(
+        path,
+        replacement,
+        sites_filter={"gitlab"},
+    )
+
+    records = json.loads(path.read_text())
+    assert [record["id"] for record in records] == ["old-reddit", "new-gitlab"]
+    assert merged == records
+
+
+def test_write_dropped_source_data_sidecar_dedupes_by_site_and_id(tmp_path):
+    path = tmp_path / "adversarial_tasks.dropped_source_data.json"
+    duplicate = {
+        "id": "same-id",
+        "site": "gitlab",
+        "source_data_issue": {"kind": "not_found"},
+    }
+
+    merged = phase_2_injections._write_dropped_source_data_sidecar(
+        path,
+        [duplicate, dict(duplicate)],
+        sites_filter=None,
+    )
+
+    assert merged == [duplicate]
+    assert json.loads(path.read_text()) == [duplicate]
+
+
+def test_report_summary_can_count_merged_dropped_source_data():
+    report = phase_2_injections.FeasibilityReport(
+        verified=[],
+        infeasible=[],
+        skipped_already_verified=[],
+        cleanup_warnings=[],
+        host_fingerprint={},
+        elapsed_seconds=0.0,
+        per_site_counts={},
+        dropped_source_data=[
+            {"id": "current", "source_data_issue": {"kind": "not_found"}},
+        ],
+    )
+    merged = [
+        {"id": "preserved", "source_data_issue": {"kind": "gone"}},
+        {"id": "current", "source_data_issue": {"kind": "not_found"}},
+    ]
+
+    summary = phase_2_injections._report_summary_dict(
+        report,
+        instances_path="instances.scale.json",
+        dropped_source_data=merged,
+    )
+
+    assert summary["source_data_dropped_count"] == 2
+    assert summary["source_data_dropped_by_kind"] == {"gone": 1, "not_found": 1}
 
 
 def test_load_reusable_phase_2_plans_rejects_sandbox_model_drift(tmp_path):
@@ -2161,11 +2264,78 @@ async def test_phase_2_feasibility_stage_writes_side_artifacts_before_dataset(
     )
 
     assert rc == 0
-    assert write_order[-3:] == [
+    assert write_order[-4:] == [
         "adversarial_tasks.infeasible.json",
+        "adversarial_tasks.dropped_source_data.json",
         "feasibility_report.json",
         "adversarial_tasks.json",
     ]
+
+
+@pytest.mark.asyncio
+async def test_phase_2_feasibility_stage_overwrites_stale_source_sidecar_even_with_sites(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_2"
+    output_dir.mkdir(parents=True)
+    output_path = output_dir / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()]))
+    dropped_path = output_dir / "adversarial_tasks.dropped_source_data.json"
+    dropped_path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "old-reddit-drop",
+                    "site": "reddit",
+                    "source_data_issue": {"kind": "gone"},
+                }
+            ]
+        )
+    )
+    instances_path = tmp_path / "instances.smoke.json"
+    instances_path.write_text(
+        json.dumps({"instances": [{"site_name": "shopping", "site_url": "http://shopping.test"}]})
+    )
+
+    async def fake_verify_feasibility(*args, **kwargs):
+        return phase_2_injections.FeasibilityReport(
+            verified=[],
+            infeasible=[],
+            skipped_already_verified=[],
+            cleanup_warnings=[],
+            host_fingerprint={"host_config": "instances.smoke.json"},
+            elapsed_seconds=0.0,
+            per_site_counts={},
+            phase_2_status="complete",
+            dropped_source_data=[],
+        )
+
+    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+
+    rc = await phase_2_injections._run_feasibility_stage(
+        args=Namespace(
+            skip_feasibility=False,
+            feasibility_only=True,
+            feasibility_instances=str(instances_path),
+            feasibility_concurrency=1,
+            feasibility_retry_count=0,
+            feasibility_ttl_hours=None,
+            force_reverify=False,
+        ),
+        output_path=output_path,
+        output_dir=output_dir,
+        state_metadata={"feasibility_only": True, "sites": "shopping"},
+        prior_phase_2_status="complete",
+    )
+
+    assert rc == 0
+    assert json.loads(dropped_path.read_text()) == []
+    report = json.loads((output_dir / "feasibility_report.json").read_text())
+    assert report["source_data_dropped_count"] == 0
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["feasibility_dropped_source_data_count"] == 0
+    assert state["feasibility_dropped_source_data_path"] == str(dropped_path)
 
 
 @pytest.mark.asyncio
@@ -2255,6 +2425,9 @@ async def test_phase_2_skip_feasibility_completes_after_resuming_running_checkpo
     assert rc == 0
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "complete"
+    report = json.loads((output_dir / "feasibility_report.json").read_text())
+    assert report["source_data_dropped_count"] == 0
+    assert report["unverified_count"] == 1
 
 
 @pytest.mark.asyncio

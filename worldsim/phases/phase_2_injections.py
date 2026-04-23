@@ -812,6 +812,7 @@ async def _run_feasibility_stage(
     ``--feasibility-only`` (re-verifies whatever is currently on disk).
     """
     infeasible_path = output_path.with_name(output_path.stem + ".infeasible.json")
+    dropped_source_path = output_path.with_name(output_path.stem + ".dropped_source_data.json")
     report_path = output_dir / "feasibility_report.json"
     instances_arg = getattr(args, "feasibility_instances", None) or "instances.smoke.json"
     concurrency_raw = getattr(args, "feasibility_concurrency", None)
@@ -820,6 +821,9 @@ async def _run_feasibility_stage(
     retry_count = 1 if retry_raw is None else max(0, int(retry_raw))
     ttl_hours = getattr(args, "feasibility_ttl_hours", None)
     force_reverify = bool(getattr(args, "force_reverify", False))
+    sites_filter = _sites_filter_from_value(
+        getattr(args, "sites", None) or state_metadata.get("sites")
+    )
 
     save_state(
         "phase_2",
@@ -853,18 +857,65 @@ async def _run_feasibility_stage(
             stamped,
             failpoint_base=FAILPOINT_DATASET,
         )
+        write_json_atomic(
+            infeasible_path,
+            [],
+            failpoint_base=FAILPOINT_QUARANTINE,
+        )
+        merged_dropped_source_data = _write_dropped_source_data_sidecar(
+            dropped_source_path,
+            [],
+            sites_filter=sites_filter,
+        )
+        write_json_atomic(
+            report_path,
+            {
+                "generated_at": _utcnow_iso(),
+                "instances": str(instances_arg),
+                "host_fingerprint": {},
+                "elapsed_seconds": 0.0,
+                "phase_2_status": _terminal_phase_2_status(prior_phase_2_status),
+                "verified_count": 0,
+                "infeasible_count": 0,
+                "skipped_already_verified_count": 0,
+                "unverified_count": len(stamped),
+                "cleanup_warnings": [],
+                "per_site": {},
+                "source_data_dropped_count": len(merged_dropped_source_data),
+                "source_data_dropped_by_kind": {},
+            },
+            failpoint_base=FAILPOINT_REPORT,
+        )
         save_state(
             "phase_2",
             status=_terminal_phase_2_status(prior_phase_2_status),
             phase_2_stage="feasibility",
             adversarial_tasks_path=str(output_path),
+            feasibility_report_path=str(report_path),
+            feasibility_infeasible_path=str(infeasible_path),
+            feasibility_dropped_source_data_path=str(dropped_source_path),
             feasibility_completed_at=_utcnow_iso(),
             feasibility_verified_count=0,
             feasibility_infeasible_count=0,
             feasibility_skipped_count=0,
             feasibility_unverified_count=len(stamped),
+            feasibility_dropped_source_data_count=len(merged_dropped_source_data),
             feasibility_skipped_via_flag=True,
             **state_metadata,
+        )
+        state_metadata.update(
+            {
+                "feasibility_report_path": str(report_path),
+                "feasibility_infeasible_path": str(infeasible_path),
+                "feasibility_dropped_source_data_path": str(dropped_source_path),
+                "feasibility_completed_at": _utcnow_iso(),
+                "feasibility_verified_count": 0,
+                "feasibility_infeasible_count": 0,
+                "feasibility_skipped_count": 0,
+                "feasibility_unverified_count": len(stamped),
+                "feasibility_dropped_source_data_count": len(merged_dropped_source_data),
+                "feasibility_skipped_via_flag": True,
+            }
         )
         return 0
 
@@ -930,17 +981,21 @@ async def _run_feasibility_stage(
     )
     # Bug I: source-data-quarantined tasks live in a separate sidecar so
     # downstream phases can distinguish "probe failed (retry)" from "the
-    # dataset itself is broken (do not retry)".
-    if report.dropped_source_data:
-        dropped_path = output_path.with_name(output_path.stem + ".dropped_source_data.json")
-        write_json_atomic(
-            dropped_path,
-            report.dropped_source_data,
-            failpoint_base=FAILPOINT_DROPPED_SOURCE_DATA,
-        )
+    # dataset itself is broken (do not retry)". The sidecar is an owned
+    # Phase 2c output, so write it even when empty to clear stale quarantines
+    # from prior runs.
+    merged_dropped_source_data = _write_dropped_source_data_sidecar(
+        dropped_source_path,
+        report.dropped_source_data,
+        sites_filter=sites_filter,
+    )
     write_json_atomic(
         report_path,
-        _report_summary_dict(report, instances_path=instances_path.name),
+        _report_summary_dict(
+            report,
+            instances_path=instances_path.name,
+            dropped_source_data=merged_dropped_source_data,
+        ),
         failpoint_base=FAILPOINT_REPORT,
     )
     write_json_atomic(
@@ -969,22 +1024,62 @@ async def _run_feasibility_stage(
             report.cleanup_warnings[0],
         )
 
+    feasibility_metadata = {
+        "feasibility_report_path": str(report_path),
+        "feasibility_infeasible_path": str(infeasible_path),
+        "feasibility_dropped_source_data_path": str(dropped_source_path),
+        "feasibility_completed_at": _utcnow_iso(),
+        "feasibility_verified_count": verified_count,
+        "feasibility_infeasible_count": infeasible_count,
+        "feasibility_skipped_count": skipped_count,
+        "feasibility_unverified_count": 0,
+        "feasibility_cleanup_warning_count": len(report.cleanup_warnings),
+        "feasibility_dropped_source_data_count": len(merged_dropped_source_data),
+    }
     save_state(
         "phase_2",
         status=_terminal_phase_2_status(prior_phase_2_status),
         phase_2_stage="feasibility",
         adversarial_tasks_path=str(output_path),
-        feasibility_report_path=str(report_path),
-        feasibility_infeasible_path=str(infeasible_path),
-        feasibility_completed_at=_utcnow_iso(),
-        feasibility_verified_count=verified_count,
-        feasibility_infeasible_count=infeasible_count,
-        feasibility_skipped_count=skipped_count,
-        feasibility_unverified_count=0,
-        feasibility_cleanup_warning_count=len(report.cleanup_warnings),
+        **feasibility_metadata,
         **state_metadata,
     )
+    state_metadata.update(feasibility_metadata)
     return 0
+
+
+def _write_dropped_source_data_sidecar(
+    path: Path,
+    dropped_source_data: list[dict[str, Any]],
+    *,
+    sites_filter: set[str] | None,
+) -> list[dict[str, Any]]:
+    items = _merge_preserving_unfiltered_sites(
+        path,
+        dropped_source_data,
+        sites_filter=sites_filter,
+    )
+    deduped: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    for item in items:
+        key = (str(item.get("site") or ""), str(item.get("id") or ""))
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        deduped.append(item)
+    write_json_atomic(
+        path,
+        deduped,
+        failpoint_base=FAILPOINT_DROPPED_SOURCE_DATA,
+    )
+    return deduped
+
+
+def _sites_filter_from_value(value: Any) -> set[str] | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    sites = {site.strip() for site in value.split(",") if site.strip()}
+    return sites or None
 
 
 def _terminal_phase_2_status(prior_phase_2_status: str | None) -> str:
@@ -1222,9 +1317,17 @@ def _l1_l2_resources_with_probe_fail_closed(
     )
 
 
-def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> dict[str, Any]:
+def _report_summary_dict(
+    report: FeasibilityReport,
+    *,
+    instances_path: str,
+    dropped_source_data: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    active_dropped_source_data = (
+        report.dropped_source_data if dropped_source_data is None else dropped_source_data
+    )
     source_data_dropped_by_kind: dict[str, int] = {}
-    for record in report.dropped_source_data:
+    for record in active_dropped_source_data:
         issue = record.get("source_data_issue") if isinstance(record, dict) else None
         kind = str(issue.get("kind") or "unknown") if isinstance(issue, dict) else "unknown"
         source_data_dropped_by_kind[kind] = source_data_dropped_by_kind.get(kind, 0) + 1
@@ -1239,7 +1342,7 @@ def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> d
         "skipped_already_verified_count": len(report.skipped_already_verified),
         "cleanup_warnings": list(report.cleanup_warnings),
         "per_site": report.per_site_counts,
-        "source_data_dropped_count": len(report.dropped_source_data),
+        "source_data_dropped_count": len(active_dropped_source_data),
         "source_data_dropped_by_kind": source_data_dropped_by_kind,
     }
 

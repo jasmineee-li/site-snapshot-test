@@ -212,7 +212,16 @@ async def run(args: argparse.Namespace) -> int:
                 if not isinstance(record, dict):
                     continue
                 synthetic = dict(record)
-                synthetic.setdefault("feasibility", {"status": "infeasible"})
+                prior_feasibility = synthetic.get("feasibility")
+                if isinstance(prior_feasibility, dict) and prior_feasibility:
+                    synthetic["prior_feasibility"] = prior_feasibility
+                source_data_issue = synthetic.get("source_data_issue")
+                synthetic["feasibility"] = {
+                    "status": "infeasible",
+                    "kind": "source_data_issue",
+                }
+                if isinstance(source_data_issue, dict):
+                    synthetic["feasibility"]["source_data_issue"] = source_data_issue
                 adversarial_tasks.append(synthetic)
 
     if sites_filter_raw and adversarial_tasks:
