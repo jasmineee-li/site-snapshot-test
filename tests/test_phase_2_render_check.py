@@ -48,6 +48,13 @@ class _FakePage:
     async def wait_for_selector(self, selector, *, timeout):
         return None
 
+    async def route(self, pattern, handler):
+        # Bug K: tests preceded the page.route blocker; swallow here so
+        # verify_seed_renders can install the handler without exploding
+        # the fake. Handler itself is unit-tested in
+        # tests/test_phase_2_probe_hardening.py.
+        return None
+
     def wait_for_response(self, predicate, *, timeout):
         async def _await_noop():
             return None
@@ -385,8 +392,9 @@ async def test_render_outcome_evidence_failed_includes_kind_and_errors():
 async def test_gitlab_render_never_uses_networkidle():
     """Regression guard: ``wait_until="networkidle"`` is Playwright-
     documented as DISCOURAGED and was the root cause of the 2026-04-22
-    Phase 2c timeout class. Gitlab issue/MR renders must use
-    ``domcontentloaded`` and gate readiness on ``wait_for_selector``.
+    Phase 2c timeout class. Post-Bug-K (2026-04-23) the probe uses
+    ``commit`` — the fastest goto phase — and gates readiness on the
+    per-site selector wait + body-text poll.
     """
     url = "http://gitlab.test/myproject/-/issues/1"
     page = _FakePage(body_per_url={url: "notes body containing SeedNickAdv003"})
@@ -406,4 +414,4 @@ async def test_gitlab_render_never_uses_networkidle():
             f"networkidle is discouraged and was removed on 2026-04-22; "
             f"got wait_until={wait_until!r} for url={_url!r}"
         )
-        assert wait_until == "domcontentloaded"
+        assert wait_until == "commit"

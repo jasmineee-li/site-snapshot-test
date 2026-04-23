@@ -73,6 +73,43 @@ _DEFAULT_SELECTOR_TIMEOUT_MS = 10000
 _SEARCH_POLL_INTERVAL_MS = 500
 _SEARCH_POLL_ATTEMPTS = 10
 
+# Subresources aborted before ``page.goto`` on Phase 2c probes. Deferred
+# scripts in GitLab's frontend (``<script defer src=...>``) block on
+# stylesheet downloads per the HTML spec, so aborting CSS lets deferred
+# JS parse immediately and the note-selector wait fires fast. Images /
+# fonts / media / Sentry beacons / ActionCable WebSocket are pure client
+# cost. ``script`` and ``xhr`` stay allowed — the ``discussions.json``
+# XHR the gitlab_issue / gitlab_mr probe depends on is initiated by JS.
+_BLOCKED_RESOURCE_TYPES: frozenset[str] = frozenset(
+    {"stylesheet", "image", "media", "font", "eventsource", "websocket"},
+)
+
+
+async def _install_resource_blocker(page: Any) -> None:
+    """Abort non-essential subresources before ``page.goto``.
+
+    Shared by ``phase_2_reachability.verify_reachable`` and
+    ``phase_2_render_check.verify_seed_renders``. Must be installed
+    after ``context.new_page()`` and before any navigation.
+    """
+
+    async def _handler(route: Any) -> None:
+        try:
+            resource_type = route.request.resource_type
+        except Exception:
+            resource_type = ""
+        try:
+            if resource_type in _BLOCKED_RESOURCE_TYPES:
+                await route.abort()
+            else:
+                await route.continue_()
+        except Exception:
+            # Routing is best-effort — a closed page or superseded
+            # navigation races here. Swallow to keep the probe honest.
+            logger.debug("phase 2c route handler swallowed exception", exc_info=True)
+
+    await page.route("**/*", _handler)
+
 
 @dataclass(frozen=True)
 class ReachabilityOutcome:
@@ -315,16 +352,18 @@ async def verify_reachable(
     context = await browser.new_context(**context_kwargs)
     try:
         page = await context.new_page()
+        await _install_resource_blocker(page)
         target = _with_cache_buster(start_url)
-        # Mirror the render-check fix (54652f4a): ``networkidle`` never
-        # settles on GitLab pages (ActionCable polling, Gravatar, Sentry)
-        # so the 15-30 s nav timeout tripped under load even when the
-        # seeded note had already painted. Use ``domcontentloaded`` for
-        # the nav and promote the note-selector wait below to the primary
-        # readiness signal for kinds that render the seed in a lazy-
-        # loaded comment thread.
+        # ``wait_until="commit"`` resolves when response headers arrive —
+        # the fastest goto phase Playwright offers. Prior ``networkidle``
+        # never settled on GitLab (ActionCable/Gravatar/Sentry); prior
+        # ``domcontentloaded`` blocked on deferred JS parse, which under
+        # Phase 2c's 64-wide renderer contention tripped the 30 s timeout
+        # even when the server returned in <1.4 s. Downstream waits carry
+        # the real readiness signal: the note selector + the body-text
+        # poll below for gitlab_issue / gitlab_mr / etc.
         try:
-            await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
+            await page.goto(target, timeout=nav_timeout_ms, wait_until="commit")
         except Exception as exc:
             return ReachabilityOutcome.unreachable(
                 kind="nav_failed",

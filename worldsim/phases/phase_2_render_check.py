@@ -386,23 +386,28 @@ async def verify_seed_renders(
     context = await browser.new_context(**context_kwargs)
     try:
         page = await context.new_page()
+        # Imported lazily to break a potential module-level import cycle
+        # with phase_2_reachability (which already imports _with_cache_buster
+        # from this module at module load).
+        from worldsim.phases.phase_2_reachability import _install_resource_blocker
+
+        await _install_resource_blocker(page)
         for raw_url in urls:
             target = _with_cache_buster(_resolve_url(raw_url, site_url))
             seen.append(target)
             try:
-                # Playwright's own docs label ``wait_until="networkidle"``
-                # DISCOURAGED for testing because a 500 ms idle window
-                # never opens against SPAs that keep polling
-                # (GitLab's ActionCable, count_cached endpoints, Gravatar,
-                # Sentry). Under backend contention it reliably trips the
-                # nav timeout even when the content we care about has
-                # already painted. We use ``domcontentloaded`` for the
-                # nav + an explicit ``wait_for_selector`` on the content
-                # we actually need (the note list on issue/MR pages; the
-                # review block on shopping PDPs) as the real readiness
-                # signal. If the selector fails, the ``text_content``
-                # fallback still runs — the signature check decides.
-                await page.goto(target, timeout=nav_timeout_ms, wait_until="domcontentloaded")
+                # ``wait_until="commit"`` resolves the moment response
+                # headers arrive. Prior ``networkidle`` never settled on
+                # SPAs (ActionCable, Gravatar, Sentry); prior
+                # ``domcontentloaded`` blocked on deferred JS parse,
+                # which under Phase 2c's 64-wide renderer contention
+                # tripped the 30 s timeout even when the server returned
+                # in <1.4 s. The per-site selector waits below (note list
+                # on issue/MR pages, review block on shopping PDPs) are
+                # the real readiness signal. If the selector wait fails,
+                # the ``text_content`` fallback still runs — the
+                # signature check decides.
+                await page.goto(target, timeout=nav_timeout_ms, wait_until="commit")
                 if site_name == "shopping" and "/catalog/product/view/" in target:
                     try:
                         await page.wait_for_selector(

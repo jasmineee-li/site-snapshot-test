@@ -940,6 +940,11 @@ class _FakePlaywrightPage:
     async def wait_for_selector(self, selector, *, timeout):
         return None
 
+    async def route(self, pattern, handler):
+        # Bug K: tests predate the page.route blocker; accept + no-op so
+        # verify_seed_renders can install the handler without raising.
+        return None
+
     def wait_for_response(self, predicate, *, timeout):
         async def _await_noop():
             return None
@@ -974,8 +979,10 @@ class _FakePlaywrightBrowser:
 class _FakeChromium:
     def __init__(self, browser: _FakePlaywrightBrowser) -> None:
         self._browser = browser
+        self.last_launch_kwargs: dict[str, Any] = {}
 
-    async def launch(self, *, headless):
+    async def launch(self, *, headless, args=None):
+        self.last_launch_kwargs = {"headless": headless, "args": args}
         return self._browser
 
 

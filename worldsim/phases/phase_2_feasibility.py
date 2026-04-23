@@ -72,6 +72,30 @@ _SKIP_RENDER_CHECK_ENV = "WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK"
 _PER_REPLICA_CAP_DEFAULT: dict[str, int] = {"gitlab": 10, "reddit": 8}
 _PER_REPLICA_CAP_FALLBACK = 6
 
+# Global browser-probe cap. Per-replica caps bulkhead against the
+# *backend*; this one bulkheads against the *client*. GitLab ships
+# deferred JS that fights for CPU; 64-wide renderers on r5.4xlarge
+# starved the scheduler enough to trip the 30 s ``domcontentloaded``
+# timeout even on a healthy replica returning in <1.4 s. Capping the
+# number of concurrent Chromium processes globally gives each renderer
+# ~2 vCPU headroom and eliminates the nav-failed tail.
+_BROWSER_PROBE_CAP = 8
+
+# Launch flags applied to every per-task Chromium. ``--disable-dev-shm-usage``
+# moves shared memory from ``/dev/shm`` (64 MiB Docker default) to
+# ``/tmp``; harmless on bare-metal Linux and essential in containers —
+# Playwright issue #22676 documents shm OOM surfacing as nav timeouts.
+# ``--disable-gpu`` drops the GPU process per renderer under headless.
+# ``--no-sandbox`` is acceptable here because Phase 2c hits only the
+# internal WASP replicas (``http://172.17.0.1:8xxx``) whose content we
+# control; it is the standard recommendation for containerized CI and
+# avoids the /proc/*/ns/user setup cost per launch.
+_PROBE_LAUNCH_ARGS: tuple[str, ...] = (
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--no-sandbox",
+)
+
 
 def _per_replica_cap(site_name: str) -> int:
     return _PER_REPLICA_CAP_DEFAULT.get(site_name.strip().lower(), _PER_REPLICA_CAP_FALLBACK)
@@ -258,6 +282,12 @@ async def verify_feasibility(
     #     observability data.
     memory_cap = max(int(concurrency), 64)
     semaphore = asyncio.Semaphore(memory_cap)
+    # Outermost cap: total concurrent Chromium processes across the run.
+    # Scarcer than the memory cap (8 vs 64) and than the summed per-
+    # replica caps (~290 for the r5 fleet), so acquired first so waiting
+    # tasks do not pin memory or replica budget. See module-level
+    # _BROWSER_PROBE_CAP for rationale.
+    browser_probe_sem = asyncio.Semaphore(_BROWSER_PROBE_CAP)
     per_replica_sems: dict[str, asyncio.BoundedSemaphore] = {}
     # in_flight_counts feeds :func:`select_task_site_instance_dict_p2c`.
     # It counts tasks that have *reserved* a replica (via P2C pick),
@@ -361,12 +391,18 @@ async def verify_feasibility(
         try:
             replica_sem = _replica_sem_for(instance)
 
-            # Two-layer acquire order: outer (chromium memory) FIRST because
-            # it is the scarcer resource — ~64 slots vs. ~290 summed replica
-            # slots. Queuing on the outer semaphore holds no replica budget,
-            # so one slow replica cannot starve another. Once we have memory
-            # we acquire the replica bulkhead and start real work.
-            async with semaphore:
+            # Three-layer acquire order, outermost first:
+            #   1. browser_probe_sem (cap 8) — total Chromium processes
+            #      across the run. Scarcest. Queuing here holds no memory
+            #      or replica budget so waiting tasks are cheap.
+            #   2. semaphore (cap 64) — chromium memory guard; kept for
+            #      spike headroom even though browser_probe_sem is
+            #      tighter today. Lets a future operator raise
+            #      _BROWSER_PROBE_CAP toward the memory ceiling without
+            #      rewiring the acquire order.
+            #   3. replica_sem (cap 10 gitlab / 8 reddit) — per-replica
+            #      HTTP bulkhead against the WASP site.
+            async with browser_probe_sem, semaphore:
                 if stagger_delay:
                     await asyncio.sleep(min(stagger_delay * index, stagger_delay * 10))
                 # Per-task browser: every worker gets its own Playwright +
@@ -388,7 +424,10 @@ async def verify_feasibility(
                 try:
                     if async_playwright_factory is not None:
                         pw_handle = await async_playwright_factory().start()
-                        browser = await pw_handle.chromium.launch(headless=True)
+                        browser = await pw_handle.chromium.launch(
+                            headless=True,
+                            args=list(_PROBE_LAUNCH_ARGS),
+                        )
                     try:
                         async with replica_sem:
                             result = await _verify_one(
