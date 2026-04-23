@@ -67,8 +67,12 @@ def _process_json_array_file(
 ) -> tuple[int, int, list[dict[str, Any]]]:
     """Return (total_before, dropped_count, dropped_records)."""
     try:
-        data = json.loads(path.read_text())
+        raw = path.read_text()
     except FileNotFoundError:
+        return 0, 0, []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
         return 0, 0, []
     if not isinstance(data, list):
         return 0, 0, []
@@ -76,7 +80,10 @@ def _process_json_array_file(
     if dropped and apply:
         backup = path.with_suffix(path.suffix + ".pre-image-alt-drop.bak")
         if not backup.exists():
-            backup.write_text(path.read_text())
+            # Reuse the bytes we just read — one read, no TOCTOU window
+            # between the parse and the backup. Also survives the case
+            # where the source mutates between the two read_text calls.
+            backup.write_text(raw)
         path.write_text(json.dumps(kept, indent=2))
     return len(data), len(dropped), dropped
 
