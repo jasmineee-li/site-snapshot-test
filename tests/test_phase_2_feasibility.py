@@ -202,12 +202,9 @@ def test_resolve_benign_storage_state_path_falls_back_to_phase_0d(tmp_path, monk
     fallback.write_text(json.dumps({"cookies": []}))
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
 
-    assert (
-        feas._resolve_benign_storage_state_path(
-            _gitlab_instance(agent_auth={"type": "storage_state", "storage_state": {}})
-        )
-        == str(fallback)
-    )
+    assert feas._resolve_benign_storage_state_path(
+        _gitlab_instance(agent_auth={"type": "storage_state", "storage_state": {}})
+    ) == str(fallback)
 
 
 def test_resolve_benign_storage_state_path_requires_storage_state_auth_for_fallback(
@@ -291,43 +288,77 @@ def test_preflight_request_context_rejects_host_bound_storage_state(tmp_path):
 
     assert context == {}
     assert reason is not None
-    assert "does not match live host" in reason
+    assert "do not match live host" in reason
 
 
-def test_preflight_request_context_normalizes_storage_state_samesite(tmp_path):
+def test_preflight_request_context_rejects_host_bound_cookies_even_with_matching_origin(
+    tmp_path,
+):
     state_path = tmp_path / "state.json"
     state_path.write_text(
         json.dumps(
             {
-                "cookies": [
-                    {
-                        "name": "a",
-                        "value": "1",
-                        "domain": "gitlab.example",
-                        "sameSite": "no_restriction",
-                    },
-                    {
-                        "name": "b",
-                        "value": "2",
-                        "domain": "gitlab.example",
-                        "sameSite": "",
-                    },
-                    {
-                        "name": "c",
-                        "value": "3",
-                        "domain": "gitlab.example",
-                        "sameSite": "lax",
-                    },
-                    {
-                        "name": "d",
-                        "value": "4",
-                        "domain": "gitlab.example",
-                        "sameSite": None,
-                    },
-                ]
+                "cookies": [{"name": "s", "value": "1", "domain": "old.example"}],
+                "origins": [{"origin": "https://gitlab.example"}],
             }
         )
     )
+
+    context, reason = feas._preflight_request_context_options(
+        _gitlab_instance(
+            storage_state_path=str(state_path),
+            agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
+        )
+    )
+
+    assert context == {}
+    assert reason is not None
+    assert "cookie domains are host-bound" in reason
+    assert "old.example" in reason
+
+
+def test_preflight_request_context_normalizes_storage_state_samesite(tmp_path):
+    state_path = tmp_path / "state.json"
+    original_payload = {
+        "cookies": [
+            {
+                "name": "a",
+                "value": "1",
+                "domain": "gitlab.example",
+                "sameSite": "no_restriction",
+            },
+            {
+                "name": "b",
+                "value": "2",
+                "domain": "gitlab.example",
+                "sameSite": "",
+            },
+            {
+                "name": "c",
+                "value": "3",
+                "domain": "gitlab.example",
+                "sameSite": "lax",
+            },
+            {
+                "name": "d",
+                "value": "4",
+                "domain": "gitlab.example",
+                "sameSite": None,
+            },
+            {
+                "name": "e",
+                "value": "5",
+                "domain": "gitlab.example",
+            },
+            {
+                "name": "f",
+                "value": "6",
+                "domain": "gitlab.example",
+                "sameSite": "unspecified",
+            },
+        ]
+    }
+    state_path.write_text(json.dumps(original_payload))
 
     context, reason = feas._preflight_request_context_options(
         _gitlab_instance(
@@ -341,9 +372,51 @@ def test_preflight_request_context_normalizes_storage_state_samesite(tmp_path):
     assert isinstance(storage_state, dict)
     cookies = storage_state["cookies"]
     assert cookies[0]["sameSite"] == "None"
-    assert "sameSite" not in cookies[1]
+    assert cookies[1]["sameSite"] == "Lax"
     assert cookies[2]["sameSite"] == "Lax"
-    assert "sameSite" not in cookies[3]
+    assert cookies[3]["sameSite"] == "Lax"
+    assert cookies[4]["sameSite"] == "Lax"
+    assert cookies[5]["sameSite"] == "Lax"
+    assert {cookie["sameSite"] for cookie in cookies} <= {"Strict", "Lax", "None"}
+    assert json.loads(state_path.read_text()) == original_payload
+
+
+def test_preflight_request_context_reads_storage_state_once(tmp_path, monkeypatch):
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "s",
+                        "value": "1",
+                        "domain": "gitlab.example",
+                        "sameSite": "Lax",
+                    }
+                ]
+            }
+        )
+    )
+    calls: list[Path] = []
+    original_read_text = Path.read_text
+
+    def counted_read_text(self: Path, *args: Any, **kwargs: Any) -> str:
+        if self == state_path:
+            calls.append(self)
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", counted_read_text)
+
+    context, reason = feas._preflight_request_context_options(
+        _gitlab_instance(
+            storage_state_path=str(state_path),
+            agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
+        )
+    )
+
+    assert reason is None
+    assert context["storage_state"]["cookies"][0]["sameSite"] == "Lax"
+    assert calls == [state_path]
 
 
 def test_preflight_request_context_skips_unsupported_storage_state_samesite(tmp_path):
@@ -391,8 +464,7 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
 
     async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
         seen_contexts.extend(
-            instance.get("preflight_request_context")
-            for instance in instances_by_site["gitlab"]
+            instance.get("preflight_request_context") for instance in instances_by_site["gitlab"]
         )
         return tasks, []
 
@@ -410,7 +482,9 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
         async def start(self):
             return _FakePlaywright()
 
-    monkeypatch.setattr(phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets)
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
     monkeypatch.setattr(
         "playwright.async_api.async_playwright",
         lambda: _FakePlaywrightStarter(),
@@ -436,9 +510,7 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
 
 
 @pytest.mark.asyncio
-async def test_preflight_context_creation_failure_does_not_probe_anonymously(
-    tmp_path, monkeypatch
-):
+async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp_path, monkeypatch):
     task = _task("AT-auth", feasibility={"status": "verified"})
     task["benign_target_resource"] = {
         "kind": "gitlab_issue",
@@ -475,7 +547,9 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(
         async def start(self):
             return _FakePlaywright()
 
-    monkeypatch.setattr(phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets)
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
     monkeypatch.setattr(
         "playwright.async_api.async_playwright",
         lambda: _FakePlaywrightStarter(),
@@ -498,7 +572,9 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(
         )
 
     assert len(fake_request.calls) == 1
-    assert fake_request.calls[0] == {"storage_state": str(state_path)}
+    storage_state = fake_request.calls[0]["storage_state"]
+    assert isinstance(storage_state, dict)
+    assert storage_state["cookies"][0]["sameSite"] == "Lax"
 
 
 # ---------------------------------------------------------------------------

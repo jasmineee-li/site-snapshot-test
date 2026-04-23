@@ -98,14 +98,15 @@ _PROBE_LAUNCH_ARGS: tuple[str, ...] = (
     "--no-sandbox",
 )
 
-_PLAYWRIGHT_COOKIE_SAMESITE_ALIASES: dict[str, str | None] = {
+_PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT = "Lax"
+_PLAYWRIGHT_COOKIE_SAMESITE_ALIASES: dict[str, str] = {
     "lax": "Lax",
     "none": "None",
     "no_restriction": "None",
     "no-restriction": "None",
     "strict": "Strict",
-    "": None,
-    "unspecified": None,
+    "": _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT,
+    "unspecified": _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT,
 }
 
 
@@ -882,10 +883,13 @@ def _preflight_request_context_options(
         path = _resolve_benign_storage_state_path(instance)
         if path is None:
             return {}, "storage_state auth declared but no usable artifact was found"
-        error = _storage_state_preflight_error(path, instance)
+        payload, error = _read_storage_state_payload_for_preflight(path)
         if error is not None:
             return {}, error
-        storage_state, error = _playwright_storage_state_for_preflight(path)
+        error = _storage_state_preflight_error_for_payload(Path(path), payload, instance)
+        if error is not None:
+            return {}, error
+        storage_state, error = _playwright_storage_state_payload_for_preflight(Path(path), payload)
         if error is not None:
             return {}, error
         return {"storage_state": storage_state}, None
@@ -948,19 +952,46 @@ def _resolve_agent_auth_headers(agent_auth: dict[str, Any]) -> dict[str, str]:
 
 def _storage_state_preflight_error(path: str, instance: dict[str, Any]) -> str | None:
     path_obj = Path(path)
+    payload, error = _read_storage_state_payload_for_preflight(path)
+    if error is not None:
+        return error
+    return _storage_state_preflight_error_for_payload(path_obj, payload, instance)
+
+
+def _read_storage_state_payload_for_preflight(
+    path: str,
+) -> tuple[dict[str, Any], str | None]:
+    path_obj = Path(path)
     try:
         payload = json.loads(path_obj.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        return f"storage_state {path_obj} is not readable JSON: {exc}"
+        return {}, f"storage_state {path_obj} is not readable JSON: {exc}"
     if not isinstance(payload, dict):
-        return f"storage_state {path_obj} does not contain a JSON object"
-    recorded_hosts = _storage_state_recorded_hosts(payload)
+        return {}, f"storage_state {path_obj} does not contain a JSON object"
+    return payload, None
+
+
+def _storage_state_preflight_error_for_payload(
+    path_obj: Path,
+    payload: dict[str, Any],
+    instance: dict[str, Any],
+) -> str | None:
+    cookie_hosts = _storage_state_cookie_hosts(payload)
+    origin_hosts = _storage_state_origin_hosts(payload)
+    recorded_hosts = cookie_hosts | origin_hosts
     if not recorded_hosts:
         return f"storage_state {path_obj} has no recorded cookie/origin hosts"
     live_host = urlsplit(str(instance.get("site_url") or "")).hostname
     if not live_host:
         return f"instance site_url {instance.get('site_url')!r} has no host"
-    if not any(_cookie_domain_matches_host(recorded, live_host) for recorded in recorded_hosts):
+    if cookie_hosts:
+        if not any(_cookie_domain_matches_host(recorded, live_host) for recorded in cookie_hosts):
+            return (
+                f"storage_state {path_obj} cookie domains are host-bound to "
+                f"{sorted(cookie_hosts)} and do not match live host {live_host!r}"
+            )
+        return None
+    if not any(_cookie_domain_matches_host(recorded, live_host) for recorded in origin_hosts):
         return (
             f"storage_state {path_obj} is host-bound to {sorted(recorded_hosts)} "
             f"and does not match live host {live_host!r}"
@@ -978,60 +1009,62 @@ def _playwright_storage_state_for_preflight(path: str) -> tuple[str | dict[str, 
     this instance instead of probing private surfaces anonymously.
     """
     path_obj = Path(path)
-    try:
-        payload = json.loads(path_obj.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return path, f"storage_state {path_obj} is not readable JSON: {exc}"
-    if not isinstance(payload, dict):
-        return path, f"storage_state {path_obj} does not contain a JSON object"
+    payload, error = _read_storage_state_payload_for_preflight(path)
+    if error is not None:
+        return path, error
+    return _playwright_storage_state_payload_for_preflight(path_obj, payload)
 
+
+def _playwright_storage_state_payload_for_preflight(
+    path_obj: Path,
+    payload: dict[str, Any],
+) -> tuple[dict[str, Any], str | None]:
     cookies = payload.get("cookies")
     if not isinstance(cookies, list):
-        return path, None
+        return payload, None
 
     normalized_cookies: list[Any] = []
     changed = False
     for index, cookie in enumerate(cookies):
         if not isinstance(cookie, dict):
-            return path, f"storage_state {path_obj} cookie[{index}] is not an object"
+            return {}, f"storage_state {path_obj} cookie[{index}] is not an object"
         normalized_cookie = dict(cookie)
-        if "sameSite" in normalized_cookie:
-            raw_same_site = normalized_cookie.get("sameSite")
-            if raw_same_site is None:
-                normalized_cookie.pop("sameSite", None)
-                changed = True
-                normalized_cookies.append(normalized_cookie)
-                continue
-            if not isinstance(raw_same_site, str):
-                return (
-                    path,
-                    f"storage_state {path_obj} cookie[{index}] has non-string sameSite",
-                )
-            normalized_same_site = _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES.get(
-                raw_same_site.strip().lower()
+        raw_same_site = normalized_cookie.get("sameSite")
+        if "sameSite" not in normalized_cookie or raw_same_site is None:
+            normalized_cookie["sameSite"] = _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT
+            changed = True
+            normalized_cookies.append(normalized_cookie)
+            continue
+        if not isinstance(raw_same_site, str):
+            return (
+                {},
+                f"storage_state {path_obj} cookie[{index}] has non-string sameSite",
             )
-            if raw_same_site.strip().lower() not in _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES:
-                return (
-                    path,
-                    f"storage_state {path_obj} cookie[{index}] has unsupported "
-                    f"sameSite {raw_same_site!r}",
-                )
-            if normalized_same_site is None:
-                normalized_cookie.pop("sameSite", None)
-                changed = True
-            elif normalized_same_site != raw_same_site:
-                normalized_cookie["sameSite"] = normalized_same_site
-                changed = True
+        same_site_key = raw_same_site.strip().lower()
+        if same_site_key not in _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES:
+            return (
+                {},
+                f"storage_state {path_obj} cookie[{index}] has unsupported "
+                f"sameSite {raw_same_site!r}",
+            )
+        normalized_same_site = _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES[same_site_key]
+        if normalized_same_site != raw_same_site:
+            normalized_cookie["sameSite"] = normalized_same_site
+            changed = True
         normalized_cookies.append(normalized_cookie)
 
     if not changed:
-        return path, None
+        return payload, None
     normalized_payload = dict(payload)
     normalized_payload["cookies"] = normalized_cookies
     return normalized_payload, None
 
 
 def _storage_state_recorded_hosts(payload: dict[str, Any]) -> set[str]:
+    return _storage_state_cookie_hosts(payload) | _storage_state_origin_hosts(payload)
+
+
+def _storage_state_cookie_hosts(payload: dict[str, Any]) -> set[str]:
     hosts: set[str] = set()
     cookies = payload.get("cookies")
     if isinstance(cookies, list):
@@ -1041,6 +1074,11 @@ def _storage_state_recorded_hosts(payload: dict[str, Any]) -> set[str]:
             domain = cookie.get("domain")
             if isinstance(domain, str) and domain.strip():
                 hosts.add(domain.strip().lower().strip("."))
+    return hosts
+
+
+def _storage_state_origin_hosts(payload: dict[str, Any]) -> set[str]:
+    hosts: set[str] = set()
     origins = payload.get("origins")
     if isinstance(origins, list):
         for origin in origins:
