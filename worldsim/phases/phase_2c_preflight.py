@@ -159,9 +159,11 @@ def _classify_probe(
             detail="200 OK",
         )
     if 300 <= status < 400:
-        location = None
-        if headers:
-            location = headers.get("location") or headers.get("Location")
+        # Playwright lowercases all response header names, so ``location``
+        # is the only key that ever appears. Keeping the fallback to the
+        # raw spelling would look defensive but is dead in practice and
+        # obscures the invariant — Playwright's header contract.
+        location = headers.get("location") if headers else None
         if _location_is_login(location):
             return PreflightClassification(
                 kind="login_redirect",
@@ -262,7 +264,11 @@ async def _probe_one(
     try:
         raw_headers = response.headers
         if isinstance(raw_headers, dict):
-            headers = {str(k): str(v) for k, v in raw_headers.items()}
+            # Normalize keys to lowercase so the classifier can rely on
+            # one canonical form. Playwright already lowercases headers;
+            # this covers drift + non-Playwright test fakes that pass
+            # raw capitalized headers.
+            headers = {str(k).lower(): str(v) for k, v in raw_headers.items()}
     except Exception:
         headers = {}
     body_snippet = ""

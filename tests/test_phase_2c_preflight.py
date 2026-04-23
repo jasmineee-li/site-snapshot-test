@@ -89,9 +89,12 @@ def test_classify_200_login_stub_form_marker():
 
 
 def test_classify_302_to_sign_in_is_login_redirect():
+    # Playwright lowercases response header names so the classifier only
+    # looks up ``location`` (not ``Location``). Keep the test lowercase
+    # to match the real Playwright contract.
     c = _classify_probe(
         status=302,
-        headers={"Location": "http://host/users/sign_in"},
+        headers={"location": "http://host/users/sign_in"},
         body_snippet="",
         exception_name=None,
     )
@@ -101,7 +104,7 @@ def test_classify_302_to_sign_in_is_login_redirect():
 def test_classify_302_non_login_is_redirect_noncritical():
     c = _classify_probe(
         status=301,
-        headers={"Location": "/projects/foo/bar"},
+        headers={"location": "/projects/foo/bar"},
         body_snippet="",
         exception_name=None,
     )
@@ -287,6 +290,72 @@ def test_preflight_empty_task_list_short_circuits():
         preflight_benign_targets([], instances_by_site={}, request_context_factory=_factory)
     )
     assert keep == [] and dropped == []
+
+
+def test_preflight_rewrites_synthetic_hostname_to_live_url():
+    # Phase 2a emits ``start_url_resolved`` against synthetic hosts
+    # (``https://gitlab.local/...``) and Phase 2c rewrites them via
+    # ``resolve_start_url(start_url, instance.site_url)``. Regression
+    # guard: the preflight must probe the LIVE URL, not the synthetic
+    # one, otherwise every request would fail DNS.
+    task = {
+        "id": "adv_synth",
+        "site": "gitlab",
+        "benign_target_resource": {
+            "kind": "gitlab_issue",
+            "start_url_resolved": "https://gitlab.local/foo/-/issues/7",
+        },
+    }
+    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://172.17.0.1:8023"}]}
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://172.17.0.1:8023/foo/-/issues/7": _FakeResponse(status=200, body="ok"),
+        }
+    )
+
+    async def _factory(_):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+    assert keep == [task]
+    assert dropped == []
+    # Assert the probe hit the LIVE URL, not the synthetic one.
+    assert request_context.calls, "probe was never invoked"
+    assert request_context.calls[0][0] == "http://172.17.0.1:8023/foo/-/issues/7"
+
+
+def test_preflight_reuses_request_context_across_same_site_tasks():
+    # Memoization invariant: tasks on the same (site, storage_state_path)
+    # pair must share a single APIRequestContext so we do not pay the
+    # TLS+cookie setup cost per task. The factory is recorded to verify.
+    tasks = [
+        _make_task(f"adv_{i}", "gitlab", f"http://gitlab.test/p/-/issues/{i}") for i in range(3)
+    ]
+    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    request_context = _FakeRequestContext()
+    factory_calls = 0
+
+    async def _factory(_storage_state_path):
+        nonlocal factory_calls
+        factory_calls += 1
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            tasks,
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+    assert factory_calls == 1, "factory should run once per (site, storage_state)"
+    assert len(keep) == 3 and dropped == []
+    assert len(request_context.calls) == 3
 
 
 def test_preflight_transient_error_passes_task_through():
