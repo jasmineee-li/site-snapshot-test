@@ -3591,3 +3591,31 @@ class TestRecoverOrphanedShards:
             shards_dir, [], allowed_sites={"gitlab"}
         )
         assert recovered == ["adv-valid"]
+
+    def test_reconstructs_bare_host_start_url_from_anchors(self, tmp_path: Path):
+        """Orphans written before Fix A (commit 4b023aea) carry
+        `start_url_resolved = "https://reddit.local"` etc. The helper must
+        re-run `_reconstruct_start_url_from_anchors` so the probe lands
+        at the concrete entity, not the host root."""
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        stale_orphan = {
+            "id": "adv-stale",
+            "site": "reddit",
+            "sites": ["reddit"],
+            "benign_target_resource": {
+                "kind": "reddit_submission",
+                "anchors": {"forum_name": "books", "submission_id": "12345"},
+                "start_url_resolved": "https://reddit.local",
+            },
+        }
+        (shards_dir / "reddit-shard-0.json").write_text(json.dumps([stale_orphan]))
+
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir, [], allowed_sites={"reddit"}
+        )
+        assert recovered == ["adv-stale"]
+        recovered_url = merged[0]["benign_target_resource"]["start_url_resolved"]
+        # Must escape the host root and point at the concrete entity.
+        assert recovered_url != "https://reddit.local"
+        assert "/f/books/12345" in recovered_url

@@ -2214,10 +2214,52 @@ def _recover_orphaned_shards(
     orphans = [task for _, task in best_by_id.values()]
     if not orphans:
         return list(in_memory_plans), []
+    _reconstruct_orphan_start_urls(orphans)
     merged = list(in_memory_plans) + orphans
     _normalize_l4_benign_task_ids_in_place(merged)
     recovered_ids = sorted(str(task.get("id") or "") for task in orphans)
     return merged, recovered_ids
+
+
+def _reconstruct_orphan_start_urls(orphans: list[dict[str, Any]]) -> None:
+    """Apply anchor-based URL reconstruction to recovered orphan tasks.
+
+    Shard files on disk may pre-date commit ``4b023aea`` (Fix A) and
+    carry bare-host ``benign_target_resource.start_url_resolved``
+    ("https://gitlab.local" / "https://reddit.local"). Fix A only ran
+    on fresh Phase 2a output; orphans pulled in from stale shards
+    inherit the bare-host flaw, which makes Phase 2c navigate to the
+    host root instead of the concrete entity where the seed was planted.
+
+    Mirror the same logic the one-shot
+    ``scripts/patch_benign_target_resource_urls.py`` applies, so the
+    orchestrator's self-recovery is resilient to pre-Fix-A shards.
+    Idempotent: a no-op when reconstruction matches the existing value
+    or when anchors lack the fields needed to rebuild a concrete URL.
+    """
+    # Late import avoids a module-level cycle with phase_2_target_resolver,
+    # which imports from this module for enrichment helpers.
+    from worldsim.phases.phase_2_target_resolver import (
+        _reconstruct_start_url_from_anchors,
+    )
+
+    for task in orphans:
+        resource = task.get("benign_target_resource")
+        if not isinstance(resource, dict):
+            continue
+        kind = str(resource.get("kind") or "")
+        anchors = resource.get("anchors") or {}
+        if not kind or not isinstance(anchors, dict):
+            continue
+        site_kind = _effective_task_site(task)
+        if site_kind not in {"gitlab", "reddit"}:
+            continue
+        reconstructed = _reconstruct_start_url_from_anchors(
+            site_kind, kind, anchors, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+        )
+        if reconstructed and reconstructed != resource.get("start_url_resolved"):
+            resource["start_url_resolved"] = reconstructed
+            task["benign_target_resource"] = resource
 
 
 def _merge_preserving_unfiltered_sites(
