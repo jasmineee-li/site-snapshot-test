@@ -44,6 +44,12 @@ _SHOPPING_REVIEW_SELECTOR = ".review-items, .no-reviews, #customer-reviews"
 _GITLAB_DISCUSSIONS_FRAGMENT = "/discussions.json"
 _GITLAB_NOTE_SELECTOR = ".notes .note, .discussion-notes .note, ul.notes-list .note"
 
+# Postmill/Reddit pages are server-rendered, but ``wait_until="commit"``
+# returns before Chromium has parsed enough of the document to include
+# late sidebar/profile content. Keep the global commit fast-path for
+# GitLab's SPA tail and wait only for Reddit's static DOM readiness.
+_REDDIT_DOM_READY_STATE = "domcontentloaded"
+
 # Markers in Playwright exception strings that mean the host is unreachable
 # rather than the payload merely missing. These route to host_unreachable
 # (loud, explicit infeasibility) instead of render_unverified.
@@ -568,6 +574,13 @@ async def verify_seed_renders(
                 # the ``text_content`` fallback still runs — the
                 # signature check decides.
                 await page.goto(target, timeout=nav_timeout_ms, wait_until="commit")
+                if site_name == "reddit":
+                    try:
+                        await page.wait_for_load_state(
+                            _REDDIT_DOM_READY_STATE, timeout=selector_timeout_ms
+                        )
+                    except Exception:
+                        pass
                 if site_name == "shopping" and "/catalog/product/view/" in target:
                     try:
                         await page.wait_for_selector(

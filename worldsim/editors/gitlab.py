@@ -56,6 +56,10 @@ _GITLAB_POLICY_TOKENS: tuple[str, ...] = (
     "not allowed",
     "prohibited",
 )
+_SAFE_RESEED_PROJECT_PREFIXES: tuple[str, ...] = (
+    "webagent-task-",
+    "webagent-verify-",
+)
 
 
 def _extract_gitlab_error_messages(response: requests.Response) -> list[str]:
@@ -1306,9 +1310,9 @@ class GitlabEditor(BaseSiteEditor):
         return ""
 
     def _classify_project_create_error(self, exc: EditorError, project_path: str) -> EditorError:
-        detail = exc.detail.lower()
+        detail = f"{exc.detail}\n{exc.response_snippet or ''}".lower()
         kind = "project_create_failed"
-        if "has already been taken" in detail:
+        if "has already been taken" in detail or "already exists" in detail:
             kind = "project_already_exists"
         elif "can contain only" in detail or "is invalid" in detail:
             kind = "invalid_project_path"
@@ -1334,7 +1338,7 @@ class GitlabEditor(BaseSiteEditor):
         if not normalized_path or actual_path != normalized_path:
             return False
         leaf_name = normalized_path.rsplit("/", 1)[-1]
-        if not leaf_name.startswith("webagent-task-"):
+        if not leaf_name.startswith(_SAFE_RESEED_PROJECT_PREFIXES):
             return False
         namespace = project.get("namespace")
         namespace_path = ""

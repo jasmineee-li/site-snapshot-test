@@ -76,6 +76,9 @@ class _ProbePage:
     async def wait_for_selector(self, selector: str, *, timeout: int) -> None:
         return None
 
+    async def wait_for_load_state(self, state: str, *, timeout: int) -> None:
+        return None
+
     async def wait_for_timeout(self, ms: int) -> None:
         return None
 

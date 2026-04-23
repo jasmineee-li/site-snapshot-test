@@ -31,6 +31,7 @@ class _FakePage:
         self._goto_raises = goto_raises or {}
         self._current_url = ""
         self.goto_calls: list[tuple[str, str]] = []  # (url, wait_until)
+        self.load_state_calls: list[tuple[str, int]] = []
 
     async def goto(self, url, *, timeout, wait_until):
         # Strip cache-buster query string before matching against the test
@@ -46,6 +47,10 @@ class _FakePage:
         return self._body_per_url.get(self._current_url, "")
 
     async def wait_for_selector(self, selector, *, timeout):
+        return None
+
+    async def wait_for_load_state(self, state, *, timeout):
+        self.load_state_calls.append((state, timeout))
         return None
 
     async def wait_for_timeout(self, ms):
@@ -438,6 +443,7 @@ class _PollingFakePage:
         self._final = final_body
         self._current_url = ""
         self.goto_calls: list[tuple[str, str]] = []
+        self.load_state_calls: list[tuple[str, int]] = []
         self.text_content_calls = 0
 
     async def goto(self, url, *, timeout, wait_until):
@@ -452,6 +458,10 @@ class _PollingFakePage:
         return self._final
 
     async def wait_for_selector(self, selector, *, timeout):
+        return None
+
+    async def wait_for_load_state(self, state, *, timeout):
+        self.load_state_calls.append((state, timeout))
         return None
 
     async def wait_for_timeout(self, ms):
@@ -548,6 +558,43 @@ async def test_body_poll_only_runs_for_gitlab_issue_mr():
     assert outcome.ok is True
     # Exactly one text_content call — the final body read, no polling.
     assert page.text_content_calls == 1
+    assert page.load_state_calls == [("domcontentloaded", 10000)]
+
+
+@pytest.mark.asyncio
+async def test_reddit_waits_for_domcontentloaded_before_body_read():
+    class _RedditReadyPage(_FakePage):
+        def __init__(self) -> None:
+            super().__init__(
+                body_per_url={
+                    "http://reddit.test/user/MarvelsGrantMan136": "partial shell without payload"
+                }
+            )
+            self.ready = False
+
+        async def wait_for_load_state(self, state, *, timeout):
+            await super().wait_for_load_state(state, timeout=timeout)
+            self.ready = True
+
+        async def text_content(self, selector):
+            if self.ready:
+                return "profile sidebar with Phase 2c timing probe visible"
+            return await super().text_content(selector)
+
+    page = _RedditReadyPage()
+    browser = _FakeBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=["/user/MarvelsGrantMan136"],
+        site_name="reddit",
+        site_url="http://reddit.test",
+        signature="Phase 2c timing probe",
+    )
+
+    assert outcome.ok is True
+    assert page.goto_calls == [("http://reddit.test/user/MarvelsGrantMan136", "commit")]
+    assert page.load_state_calls == [("domcontentloaded", 10000)]
 
 
 @pytest.mark.asyncio
