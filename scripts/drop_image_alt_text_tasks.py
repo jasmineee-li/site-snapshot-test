@@ -88,7 +88,107 @@ def _process_json_array_file(
     return len(data), len(dropped), dropped
 
 
-def main() -> int:
+def _load_json_array(path: pathlib.Path) -> list[dict[str, Any]]:
+    try:
+        data = json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, dict)]
+
+
+def _site_of(record: dict[str, Any]) -> str:
+    site = record.get("site")
+    return str(site).strip().lower() if isinstance(site, str) and site.strip() else "unknown"
+
+
+def _per_site_report_counts(
+    verified: list[dict[str, Any]],
+    infeasible: list[dict[str, Any]],
+) -> dict[str, dict[str, int]]:
+    counts: dict[str, dict[str, int]] = {}
+    for record in verified:
+        bucket = counts.setdefault(_site_of(record), {"verified": 0, "infeasible": 0, "skipped": 0})
+        feasibility = record.get("feasibility")
+        if isinstance(feasibility, dict) and "last_reverify_skipped_at" in feasibility:
+            bucket["skipped"] += 1
+        else:
+            bucket["verified"] += 1
+    for record in infeasible:
+        bucket = counts.setdefault(_site_of(record), {"verified": 0, "infeasible": 0, "skipped": 0})
+        bucket["infeasible"] += 1
+    return counts
+
+
+def _sync_feasibility_report_counts(base: pathlib.Path) -> bool:
+    report_path = base / "feasibility_report.json"
+    try:
+        report = json.loads(report_path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
+    if not isinstance(report, dict):
+        return False
+
+    verified = _load_json_array(base / "adversarial_tasks.json")
+    infeasible = _load_json_array(base / "adversarial_tasks.infeasible.json")
+    dropped_source_data = _load_json_array(base / "adversarial_tasks.dropped_source_data.json")
+    source_data_dropped_by_kind: dict[str, int] = {}
+    for record in dropped_source_data:
+        issue = record.get("source_data_issue")
+        kind = str(issue.get("kind") or "unknown") if isinstance(issue, dict) else "unknown"
+        source_data_dropped_by_kind[kind] = source_data_dropped_by_kind.get(kind, 0) + 1
+
+    report["verified_count"] = len(verified)
+    report["infeasible_count"] = len(infeasible)
+    report["skipped_already_verified_count"] = sum(
+        1
+        for record in verified
+        if isinstance(record.get("feasibility"), dict)
+        and "last_reverify_skipped_at" in record["feasibility"]
+    )
+    report["per_site"] = _per_site_report_counts(verified, infeasible)
+    report["source_data_dropped_count"] = len(dropped_source_data)
+    report["source_data_dropped_by_kind"] = source_data_dropped_by_kind
+    report_path.write_text(json.dumps(report, indent=2))
+    return True
+
+
+def _sync_pipeline_state_counts(state_dir: pathlib.Path) -> bool:
+    state_path = state_dir / "pipeline_state.json"
+    try:
+        state = json.loads(state_path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
+    if not isinstance(state, dict) or state.get("step") != "phase_2":
+        return False
+
+    base = state_dir / "phase_2"
+    verified = _load_json_array(base / "adversarial_tasks.json")
+    infeasible = _load_json_array(base / "adversarial_tasks.infeasible.json")
+    dropped_source_data = _load_json_array(base / "adversarial_tasks.dropped_source_data.json")
+    skipped_count = sum(
+        1
+        for record in verified
+        if isinstance(record.get("feasibility"), dict)
+        and "last_reverify_skipped_at" in record["feasibility"]
+    )
+
+    state["adversarial_tasks_path"] = str(base / "adversarial_tasks.json")
+    state["feasibility_report_path"] = str(base / "feasibility_report.json")
+    state["feasibility_infeasible_path"] = str(base / "adversarial_tasks.infeasible.json")
+    state["feasibility_dropped_source_data_path"] = str(
+        base / "adversarial_tasks.dropped_source_data.json"
+    )
+    state["feasibility_verified_count"] = len(verified)
+    state["feasibility_infeasible_count"] = len(infeasible)
+    state["feasibility_skipped_count"] = skipped_count
+    state["feasibility_dropped_source_data_count"] = len(dropped_source_data)
+    state_path.write_text(json.dumps(state, indent=2))
+    return True
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--state-dir",
@@ -110,13 +210,14 @@ def main() -> int:
             "sidecar. Default is to write it."
         ),
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     base = pathlib.Path(args.state_dir) / "phase_2"
     targets: list[pathlib.Path] = [
         base / "adversarial_plans.json",
         base / "adversarial_tasks.json",
         base / "adversarial_tasks.infeasible.json",
+        base / "adversarial_tasks.dropped_source_data.json",
         *sorted((base / "shards").glob("*.json")),
     ]
 
@@ -147,15 +248,28 @@ def main() -> int:
                         existing = prior
                 except Exception:
                     pass
-            seen_ids = {r.get("id") for r in existing if isinstance(r, dict)}
+            seen_keys = {
+                (r.get("id"), r.get("dropped_from")) for r in existing if isinstance(r, dict)
+            }
             for r in all_dropped:
-                if r.get("id") not in seen_ids:
+                key = (r.get("id"), r.get("dropped_from"))
+                if key not in seen_keys:
                     existing.append(r)
-                    seen_ids.add(r.get("id"))
+                    seen_keys.add(key)
             sidecar.write_text(json.dumps(existing, indent=2))
             print(f"AUDIT sidecar written: {sidecar} ({len(existing)} total records)")
         else:
             print(f"DRY-RUN: would write {len(all_dropped)} records to {sidecar.name}")
+
+    if args.apply:
+        if _sync_feasibility_report_counts(base):
+            print("feasibility_report.json counts synchronized with current artifacts")
+        else:
+            print("SKIP (missing/invalid): feasibility_report.json")
+        if _sync_pipeline_state_counts(pathlib.Path(args.state_dir)):
+            print("pipeline_state.json phase_2 counts synchronized with current artifacts")
+        else:
+            print("SKIP (missing/non-phase2/invalid): pipeline_state.json")
 
     print()
     print(

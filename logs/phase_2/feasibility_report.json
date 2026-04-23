@@ -9,8 +9,8 @@
   },
   "elapsed_seconds": 660.415,
   "phase_2_status": "complete",
-  "verified_count": 101,
-  "infeasible_count": 55,
+  "verified_count": 99,
+  "infeasible_count": 25,
   "skipped_already_verified_count": 0,
   "cleanup_warnings": [],
   "per_site": {
@@ -20,9 +20,11 @@
       "skipped": 0
     },
     "gitlab": {
-      "verified": 70,
-      "infeasible": 42,
+      "verified": 68,
+      "infeasible": 12,
       "skipped": 0
     }
-  }
+  },
+  "source_data_dropped_count": 0,
+  "source_data_dropped_by_kind": {}
 }
