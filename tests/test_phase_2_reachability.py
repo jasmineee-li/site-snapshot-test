@@ -130,3 +130,136 @@ def test_derive_second_witness_prefers_prose_token():
     assert witness is not None
     # Longest token is the attacker URL.
     assert witness.startswith("https://attacker.invalid/")
+
+
+# ---------------------------------------------------------------------------
+# Bug G: markdown delimiter stripping (tests mirrored in render_check suite)
+# ---------------------------------------------------------------------------
+
+
+def test_strip_markdown_bold_primary_bucket():
+    # Regression for 13-task **[...]** witnesses_absent bucket on r5.
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    stripped = _strip_markdown_for_text_match("**[CI Pipeline Notification]** Pipeline failed.")
+    assert stripped == "[CI Pipeline Notification] Pipeline failed."
+
+
+def test_strip_markdown_italic_primary_bucket():
+    # 2-task *[...]* witnesses_absent bucket.
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    stripped = _strip_markdown_for_text_match("*[Re-posted after incorrect automated removal]*")
+    assert stripped == "[Re-posted after incorrect automated removal]"
+
+
+def test_strip_markdown_underscore_bold_and_italic():
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match("__underscore bold__") == "underscore bold"
+    assert _strip_markdown_for_text_match("_italic text_") == "italic text"
+
+
+def test_strip_markdown_inline_code_outside_fences():
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match("`code` and prose") == "code and prose"
+
+
+def test_strip_markdown_preserves_fenced_code_body():
+    # GitLab renders triple-backtick fences in <pre><code> which keeps
+    # inner bytes intact in text_content. Fence delimiters drop but the
+    # body (including any literal ** inside) survives.
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    text = "before\n```system\n**bold inside fence**\n```\nafter"
+    stripped = _strip_markdown_for_text_match(text)
+    assert "**bold inside fence**" in stripped
+    assert "```" not in stripped
+
+
+def test_strip_markdown_escaped_delimiters_survive():
+    # \*\* must round-trip as literal ** — escape-sentinel pass.
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match(r"\*\*literal\*\*") == "**literal**"
+
+
+def test_strip_markdown_multiplication_not_italicized():
+    # CommonMark flanking rule: ``5 * 3`` is not emphasis.
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match("5 * 3 = 15") == "5 * 3 = 15"
+
+
+def test_strip_markdown_pointer_deref_not_italicized():
+    # ``*ptr`` is an identifier, not emphasis.
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match("*ptr = &val;") == "*ptr = &val;"
+
+
+def test_strip_markdown_triple_star_nested():
+    # ``***both***`` collapses to ``both`` via bold-then-italic order.
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match("***both***") == "both"
+
+
+def test_strip_markdown_blockquote_and_heading():
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match("# Heading") == "Heading"
+    assert _strip_markdown_for_text_match("> quoted line") == "quoted line"
+    assert _strip_markdown_for_text_match("- item 1\n* item 2\n+ item 3") == (
+        "item 1\nitem 2\nitem 3"
+    )
+
+
+def test_strip_markdown_inline_link_and_image():
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match("[GitLab](https://gitlab.com)") == "GitLab"
+    assert _strip_markdown_for_text_match("![alt text](http://ex.com/x.png)") == "alt text"
+
+
+def test_strip_markdown_reference_link_and_definition():
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    text = "see [docs][ref] for details\n\n[ref]: https://docs.example.com"
+    stripped = _strip_markdown_for_text_match(text)
+    assert "docs" in stripped
+    assert "https://docs.example.com" not in stripped
+    assert "[docs][ref]" not in stripped
+
+
+def test_strip_markdown_idempotent():
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    sample = "**[CI Pipeline Notification]** — Pipeline failed."
+    once = _strip_markdown_for_text_match(sample)
+    twice = _strip_markdown_for_text_match(once)
+    assert once == twice
+
+
+def test_strip_markdown_none_and_empty():
+    from worldsim.phases.phase_2_render_check import _strip_markdown_for_text_match
+
+    assert _strip_markdown_for_text_match(None) == ""
+    assert _strip_markdown_for_text_match("") == ""
+
+
+def test_normalize_for_match_matches_rendered_bold_body():
+    # End-to-end: signature with raw ** matches DOM text without them.
+    sig = "**[CI Pipeline Notification]** Pipeline failed"
+    body = "Notice: [CI Pipeline Notification] Pipeline failed on main."
+    assert reach._normalize_for_match(sig) in reach._normalize_for_match(body)
+
+
+def test_normalize_for_match_render_check_parity():
+    # Whichever module owns the helper, both normalizers must produce
+    # byte-equivalent output on the same input.
+    from worldsim.phases.phase_2_render_check import _normalize as render_normalize
+
+    sample = "**Alert** _italic_ `code` [link](x)"
+    assert reach._normalize_for_match(sample) == render_normalize(sample)

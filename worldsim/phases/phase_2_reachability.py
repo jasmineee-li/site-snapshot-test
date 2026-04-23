@@ -44,7 +44,10 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from worldsim.phases.phase_2_render_check import _with_cache_buster
+from worldsim.phases.phase_2_render_check import (
+    _strip_markdown_for_text_match,
+    _with_cache_buster,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +263,7 @@ def _selector_for_kind(kind: str) -> str | None:
     return _SITE_SELECTORS.get(kind)
 
 
-def _normalize_for_match(text: str) -> str:
+def _normalize_for_match(text: str | None) -> str:
     """Collapse whitespace and lowercase, matching render_check semantics.
 
     Phase 2c's render-check compares on this normalized form so a
@@ -269,8 +272,13 @@ def _normalize_for_match(text: str) -> str:
     long notes across multiple lines). Reachability must use the
     identical function — a plain ``.lower()`` missed 30+ signature
     matches whose body text had intervening whitespace.
+
+    Bug G (2026-04-23): strip markdown delimiters before whitespace
+    collapse so a signature ``**[CI Pipeline Notification]**`` matches
+    a DOM body rendered as ``[CI Pipeline Notification]`` (GitLab
+    CommonMark → ``<strong>`` → text_content drops the ``**``).
     """
-    return re.sub(r"\s+", " ", text or "").lower()
+    return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
 
 
 async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:

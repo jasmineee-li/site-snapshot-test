@@ -237,8 +237,129 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
     return None
 
 
-def _normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", text).lower()
+# Sentinel byte for round-tripping escaped delimiters during markdown
+# strip. Never legitimately appears in GitLab/Postmill rendered text.
+_ESCAPED_STAR = "\x00"
+_ESCAPED_UNDERSCORE = "\x01"
+_ESCAPED_BACKTICK = "\x02"
+
+# Triple-backtick fence detector. Captures language-tag + inner bytes so
+# fenced code bodies round-trip verbatim (GitLab renders them inside
+# <pre><code> which preserves content in text_content).
+_FENCE_RE = re.compile(r"```[^\n]*\n.*?\n```", re.DOTALL)
+
+
+def _strip_markdown_for_text_match(text: str) -> str:
+    """Collapse markdown delimiters to what GitLab's CommonMark renderer
+    emits into ``text_content``.
+
+    Bug G: Phase 2c's reachability and render-check probes grep the
+    rendered DOM body for the seeded signature / witnesses. Seeds are
+    authored in markdown, but ``**bold**`` renders as ``<strong>bold</strong>``
+    whose ``text_content`` is ``bold`` (no asterisks). Stripping the same
+    delimiters from the signature before substring match restores
+    symmetry.
+
+    Preserves fenced-code regions verbatim (``\\`\\`\\``...``\\`\\`\\```)
+    because GitLab renders them in ``<pre><code>`` which keeps inner
+    bytes intact. Handles (a) ATX headings / blockquote / list markers
+    at line start, (b) inline single-backtick code, (c) inline-link and
+    inline-image wrappers + reference-link definitions, (d) bold/italic
+    delimiters with CommonMark flanking rules (``**`` and ``__`` before
+    ``*`` and ``_``; escape-sentinel round-trip so ``\\*\\*literal\\*\\*``
+    survives; guards against ``5 * 3`` and ``*ptr``), (e) table pipe
+    separators and divider rules. Idempotent and ``None``-safe.
+    """
+    if not text:
+        return ""
+
+    # Step 1: fence-aware segmentation. Strip only outside fences; keep
+    # fence bodies verbatim while dropping the triple-backtick
+    # delimiters themselves.
+    out_parts: list[str] = []
+    cursor = 0
+    for match in _FENCE_RE.finditer(text):
+        if match.start() > cursor:
+            out_parts.append(("outside", text[cursor : match.start()]))
+        fence_body = match.group(0)
+        # Drop opening fence line (``` + optional lang + \n) and trailing ```.
+        first_nl = fence_body.find("\n")
+        inner = fence_body[first_nl + 1 : -3].rstrip("\n")
+        out_parts.append(("inside", inner))
+        cursor = match.end()
+    if cursor < len(text):
+        out_parts.append(("outside", text[cursor:]))
+
+    transformed: list[str] = []
+    for kind, seg in out_parts:
+        if kind == "inside":
+            # Fence body: preserve content verbatim. GitLab's <pre><code>
+            # renders this byte-for-byte in text_content.
+            transformed.append(seg)
+            continue
+
+        # Step 2: protect escaped delimiters with sentinels so they
+        # survive the strip pass.
+        seg = (
+            seg.replace(r"\*", _ESCAPED_STAR)
+            .replace(r"\_", _ESCAPED_UNDERSCORE)
+            .replace(r"\`", _ESCAPED_BACKTICK)
+        )
+
+        # Step 3: line-leading markers (per line so multi-line structures
+        # normalize correctly).
+        stripped_lines: list[str] = []
+        for line in seg.splitlines(keepends=True):
+            stripped_lines.append(
+                re.sub(r"^\s{0,3}(?:>\s?|#{1,6}\s+|[-*+]\s+)", "", line),
+            )
+        seg = "".join(stripped_lines)
+
+        # Step 4: inline single-backticks (outside fences).
+        seg = re.sub(r"`([^`]*)`", r"\1", seg)
+
+        # Step 5: link + image wrappers.
+        seg = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", seg)  # ![alt](url)
+        seg = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", seg)  # [text](url)
+        seg = re.sub(r"\[([^\]]+)\]\[[^\]]*\]", r"\1", seg)  # [text][ref]
+        seg = re.sub(r"(?m)^\s*\[[^\]]+\]:\s*\S+.*$", "", seg)  # reference defs
+
+        # Step 6: bold + italic. Longest delimiters first so ``**a**``
+        # does not get eaten by the single-star pass. CommonMark
+        # flanking rules: emphasis runs must border non-whitespace on
+        # both inner sides and must not be immediately preceded by or
+        # followed by an alphanumeric (which would make them part of an
+        # identifier, e.g. ``*ptr``).
+        seg = re.sub(r"\*\*(\S(?:.*?\S)?)\*\*", r"\1", seg)
+        seg = re.sub(r"__(\S(?:.*?\S)?)__", r"\1", seg)
+        seg = re.sub(
+            r"(?<![A-Za-z0-9_*])\*(\S(?:.*?\S)?)\*(?![A-Za-z0-9_*])",
+            r"\1",
+            seg,
+        )
+        seg = re.sub(
+            r"(?<![A-Za-z0-9_])_(\S(?:.*?\S)?)_(?![A-Za-z0-9_])",
+            r"\1",
+            seg,
+        )
+
+        # Step 7: table pipes + divider rules.
+        seg = re.sub(r"(?m)^\s*\|?\s*[-:]{3,}\s*(?:\|\s*[-:]{3,}\s*)*\|?\s*$", "", seg)
+        seg = seg.replace("|", " ")
+
+        # Step 8: restore escape sentinels to their literal form.
+        seg = (
+            seg.replace(_ESCAPED_STAR, "*")
+            .replace(_ESCAPED_UNDERSCORE, "_")
+            .replace(_ESCAPED_BACKTICK, "`")
+        )
+        transformed.append(seg)
+
+    return "".join(transformed)
+
+
+def _normalize(text: str | None) -> str:
+    return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
 
 
 def _resolve_url(url: str, site_url: str) -> str:
