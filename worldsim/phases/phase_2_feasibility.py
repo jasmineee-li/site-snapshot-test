@@ -748,16 +748,22 @@ async def _run_reachability_check(
 
 
 def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
-    """Extract the first rendered payload string from a seed's editor_calls.
+    """Extract the longest rendered payload string from a seed's editor_calls.
 
     Used as the source pool for the reachability probe's second witness.
-    Falls through to None when the seed has no textual args.
+    Prefers the longest arg value across all calls so an unsubstituted
+    short ``{benign_*}`` token does not win over the actual body text:
+    observed in 3 reddit create_comment tasks where the dict iteration
+    picked the 22-char ``{benign_submission_id}`` selector arg before
+    the 200-600 char comment body, producing a literal-token witness
+    that the reachability probe could never find on the rendered page.
     """
     if not isinstance(seed, dict):
         return None
     calls = seed.get("editor_calls")
     if not isinstance(calls, list):
         return None
+    best: str | None = None
     for call in calls:
         if not isinstance(call, dict):
             continue
@@ -766,8 +772,9 @@ def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
             continue
         for value in args.values():
             if isinstance(value, str) and len(value) >= 20:
-                return value
-    return None
+                if best is None or len(value) > len(best):
+                    best = value
+    return best
 
 
 def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:

@@ -11,6 +11,11 @@ value is a structured rejection reason; callers log + drop the task.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pytest
+
 from worldsim.phases import phase_2_injections
 
 
@@ -307,12 +312,6 @@ def test_is_option_a_site_rejects_legacy_sites():
 # Commit 4: registry-driven validator + dual-run flag
 # ------------------------------------------------------------------
 
-import json
-import os
-from pathlib import Path
-
-import pytest
-
 
 class TestRegistryValidator:
     """Focused on the new registry validator's semantics. Most legacy-
@@ -475,3 +474,62 @@ class TestDualRunFlag:
         }
         reason = phase_2_injections._validate_option_a_placement(plan, "plan")
         assert reason is None, "legacy validator should accept when env var forces flag off"
+
+
+# --- malformed-token rejection (Bug B) ---------------------------------
+
+
+class TestMalformedTokenRejection:
+    """Values like ``"{benign_submission_id"`` (missing close brace) must
+    be rejected by both validators — seeding.py's substitution pattern
+    requires ``{name}``, not ``{name``, so the literal token would leak
+    into the rendered payload if the validator accepted it."""
+
+    def test_legacy_rejects_unclosed_benign_submission_id(self) -> None:
+        plan = _base_reddit_plan()
+        plan["seed_template"]["editor_calls"][0]["args"]["submission_id"] = "{benign_submission_id"
+        reason = phase_2_injections._validate_option_a_placement(plan, "plan")
+        assert reason is not None
+        assert "submission_id" in reason
+
+    def test_legacy_rejects_unclosed_benign_issue_iid(self) -> None:
+        plan = _base_gitlab_plan()
+        plan["seed_template"]["editor_calls"][0]["args"]["issue_iid"] = "{benign_issue_iid"
+        reason = phase_2_injections._validate_option_a_placement(plan, "plan")
+        assert reason is not None
+
+    def test_legacy_accepts_well_formed_token_with_trailing_suffix(self) -> None:
+        plan = _base_reddit_plan()
+        plan["seed_template"]["editor_calls"][0]["args"]["submission_id"] = (
+            "{benign_submission_id}/extra"
+        )
+        # Trailing non-token content beyond the closing brace is still
+        # accepted (legacy prefix semantics preserved for well-formed
+        # tokens) — seeding substitution handles the trailing content.
+        reason = phase_2_injections._validate_option_a_placement(plan, "plan")
+        assert reason is None
+
+    def test_value_starts_with_token_helper_requires_close_brace(self) -> None:
+        assert phase_2_injections._value_starts_with_token(
+            "{benign_submission_id}", "{benign_submission_id}"
+        )
+        assert not phase_2_injections._value_starts_with_token(
+            "{benign_submission_id", "{benign_submission_id}"
+        )
+        # Legacy call sites passed the brace-less form of the expected
+        # token — the helper normalises it to the closed form and
+        # enforces a well-formed match against the value.
+        assert phase_2_injections._value_starts_with_token(
+            "{benign_submission_id}", "{benign_submission_id"
+        )
+        assert not phase_2_injections._value_starts_with_token(
+            "{benign_submission_id", "{benign_submission_id"
+        )
+
+    def test_value_starts_with_token_rejects_empty(self) -> None:
+        assert not phase_2_injections._value_starts_with_token("", "{benign_submission_id}")
+
+    def test_value_starts_with_token_rejects_non_benign_prefix(self) -> None:
+        assert not phase_2_injections._value_starts_with_token(
+            "{some_other_token}", "{benign_submission_id}"
+        )

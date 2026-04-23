@@ -28,7 +28,7 @@ import threading
 import urllib.parse
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -287,12 +287,18 @@ _OPTION_A_DANGLING_METHODS: frozenset[str] = frozenset(
 # {benign_*} template token. The validator only needs to see the prefix;
 # seeding.py substitutes the concrete value at apply time.
 _OPTION_A_CHILD_CREATE_METHODS: dict[str, tuple[str, str]] = {
-    # method : (required_arg, required_token_prefix)
-    "create_issue": ("project_id", "{benign_project_id"),
-    "create_issue_note": ("issue_iid", "{benign_issue_iid"),
-    "create_mr_note": ("mr_iid", "{benign_mr_iid"),
-    "create_submission": ("forum_name", "{benign_forum_name"),
-    "create_comment": ("submission_id", "{benign_submission_id"),
+    # method : (required_arg, required_token). Tokens carry a closing
+    # brace so :func:`_value_starts_with_token` can verify that the
+    # emitted value is a well-formed ``{benign_*}`` token that
+    # seeding.py's substitution regex (_FORMAT_TOKEN_PATTERN) will
+    # actually match. Before this change, prefix-only matching accepted
+    # malformed values like ``"{benign_submission_id"`` (missing close
+    # brace) which silently leaked into the rendered seed.
+    "create_issue": ("project_id", "{benign_project_id}"),
+    "create_issue_note": ("issue_iid", "{benign_issue_iid}"),
+    "create_mr_note": ("mr_iid", "{benign_mr_iid}"),
+    "create_submission": ("forum_name", "{benign_forum_name}"),
+    "create_comment": ("submission_id", "{benign_submission_id}"),
 }
 
 # Flipped from False → True in commit 8 after the dual-run on the dev
@@ -1180,7 +1186,9 @@ def _l1_l2_resources_with_probe_fail_closed(
     *,
     reason: str,
 ) -> dict[str, dict[str, Any]]:
-    return _mark_probe_dependent_resources_unresolved(_l1_l2_resources_dict(site_tasks), reason=reason)
+    return _mark_probe_dependent_resources_unresolved(
+        _l1_l2_resources_dict(site_tasks), reason=reason
+    )
 
 
 def _report_summary_dict(report: FeasibilityReport, *, instances_path: str) -> dict[str, Any]:
@@ -1583,7 +1591,9 @@ async def _generate_injections_for_site(
     if eligibility_drops:
         _write_eligibility_drops(site_name, eligibility_drops)
     if not site_tasks:
-        logger.info("Phase 2: shard %r has no eligible tasks after target-resolution filtering", label)
+        logger.info(
+            "Phase 2: shard %r has no eligible tasks after target-resolution filtering", label
+        )
         return SiteInjectionResult(site_name, [], [])
     cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
 
@@ -1603,9 +1613,7 @@ async def _generate_injections_for_site(
         logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
         sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
         sanitized_agent_context = (
-            _sanitize_agent_context_for_output(agent_context)
-            if agent_context is not None
-            else None
+            _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
         )
         adv_tasks = await generate_phase_2a_plans_api(
             benign_tasks=sanitized_site_tasks,
@@ -2294,7 +2302,7 @@ def _phase_2a_eligible_tasks(
     from worldsim.editors import EDITOR_REGISTRY
 
     editor_cls: Any = None
-    for (benchmark, registered_site), cls in EDITOR_REGISTRY.items():
+    for (_benchmark, registered_site), cls in EDITOR_REGISTRY.items():
         if registered_site == site:
             editor_cls = cls
             break
@@ -2559,9 +2567,7 @@ def _validate_generated_adversarial_task(
         return f"{task_name} must not include Phase 2b/final-task fields {final_stage_fields}"
     pre_feasibility_only_fields = _phase_2c_only_fields_present(task)
     if pre_feasibility_only_fields:
-        return (
-            f"{task_name} must not include Phase 2c output fields {pre_feasibility_only_fields}"
-        )
+        return f"{task_name} must not include Phase 2c output fields {pre_feasibility_only_fields}"
     if is_plan:
         forbidden_fields = sorted(_FORBIDDEN_PLAN_FIELDS.intersection(task.keys()))
         if forbidden_fields:
@@ -2671,14 +2677,15 @@ def _validate_option_a_placement_legacy(plan: dict, task_name: str) -> str | Non
                 "benign-task resource"
             )
         if method in _OPTION_A_CHILD_CREATE_METHODS:
-            required_arg, token_prefix = _OPTION_A_CHILD_CREATE_METHODS[method]
+            required_arg, required_token = _OPTION_A_CHILD_CREATE_METHODS[method]
             args = call.get("args") if isinstance(call.get("args"), dict) else {}
             value = str(args.get(required_arg, ""))
-            if not value.startswith(token_prefix):
+            if not _value_starts_with_token(value, required_token):
                 return (
                     f"editor_calls[{idx}].args.{required_arg}={value!r} must "
-                    f"reference the benign anchor via {token_prefix}...}} "
-                    "so the seed attaches to the existing resource"
+                    f"reference the benign anchor via a well-formed "
+                    f"{required_token} token so the seed attaches to the "
+                    "existing resource"
                 )
     return None
 
@@ -2836,12 +2843,28 @@ def _selector_group_satisfied(
     return False
 
 
+_WELL_FORMED_BENIGN_TOKEN_RE = re.compile(r"^\{benign_[A-Za-z_][A-Za-z0-9_.]*\}")
+
+
 def _value_starts_with_token(value: str, token: str) -> bool:
-    """Match the legacy prefix semantics: strip a trailing closing brace
-    before comparing so a value of ``"{benign_issue_iid}/extra"`` counts
-    as starting with token ``"{benign_issue_iid}"``."""
-    prefix = token[:-1] if token.endswith("}") else token
-    return value.startswith(prefix)
+    """Check that ``value`` begins with the closed, well-formed form of
+    ``token`` (``{benign_<name>}``).
+
+    Permits trailing content (``"{benign_issue_iid}/extra"`` still passes
+    when ``token`` is ``"{benign_issue_iid}"`` or the legacy brace-less
+    ``"{benign_issue_iid"``) but rejects values that omit the closing
+    brace entirely. Rejecting unclosed tokens is necessary because
+    seeding.py's ``_FORMAT_TOKEN_PATTERN`` requires the closing brace
+    and leaves malformed tokens un-substituted — the literal token
+    string then leaks into the seeded payload and breaks Phase 2c
+    reachability (observed on 3 reddit tasks in the 0/107 feasibility
+    report: ``"{benign_submission_id"`` without ``}``).
+    """
+    expected = token if token.endswith("}") else token + "}"
+    match = _WELL_FORMED_BENIGN_TOKEN_RE.match(value)
+    if match is None:
+        return False
+    return match.group(0) == expected
 
 
 def _log_validator_discrepancy(
