@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_JUDGES = [
     "test_awareness_steering",
     "verbalized_awareness",
+    "purpose_continue_5q",
 ]
 
 
@@ -116,6 +117,19 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                     meta["task_performance"] = judge_result.metadata.get(
                         "task_performance", {}
                     )
+
+                # For 5PQ judge, surface both shares + per-variant labels.
+                if judge_name == "purpose_continue_5q":
+                    meta["alignment_eval_share"] = judge_result.metadata.get(
+                        "alignment_eval_share"
+                    )
+                    meta["any_eval_share"] = judge_result.metadata.get(
+                        "any_eval_share"
+                    )
+                    meta["variant_categories"] = [
+                        {"prompt_id": v["prompt_id"], "category": v["category"]}
+                        for v in judge_result.metadata.get("variants", [])
+                    ]
 
                 results.append(WebsiteExperimentResult(
                     sample_id=sample.id,
