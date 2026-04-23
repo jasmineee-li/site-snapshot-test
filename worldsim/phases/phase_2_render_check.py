@@ -366,6 +366,41 @@ def _normalize(text: str | None) -> str:
     return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
 
 
+_BODY_POLL_INTERVAL_MS = 500
+
+
+async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
+    """Poll ``page.text_content('body')`` every 500 ms looking for *needle*.
+
+    Bug J (2026-04-23) port of the reachability helper at
+    ``phase_2_reachability.py:_wait_for_body_text``. Used after the
+    GitLab note selector wait on issue / MR pages: the selector fires
+    when batch-1 notes render, but the seeded note often lives in
+    batch 2 or 3 of the lazy ``discussions.json`` stream. Without this
+    poll, ``text_content('body')`` races the second batch and records
+    ``signature_absent`` with a 5-7 KB body (first batch + SPA shell)
+    that genuinely lacks the signature. Returns ``True`` on match,
+    ``False`` on timeout; both paths fall through to the real
+    comparison so a timeout does not corrupt downstream classification.
+    """
+    deadline = time.monotonic() + (timeout_ms / 1000.0)
+    needle_norm = _normalize(needle)
+    if not needle_norm:
+        return False
+    while time.monotonic() < deadline:
+        try:
+            body = await page.text_content("body") or ""
+        except Exception:
+            body = ""
+        if needle_norm in _normalize(body):
+            return True
+        try:
+            await page.wait_for_timeout(_BODY_POLL_INTERVAL_MS)
+        except Exception:
+            break
+    return False
+
+
 def _resolve_url(url: str, site_url: str) -> str:
     """Coerce any URL to resolve against the instance's site_url.
 
@@ -549,6 +584,14 @@ async def verify_seed_renders(
                         )
                     except Exception:
                         pass
+                    # Bug J: the note selector fires on batch-1 render,
+                    # but the seeded note often lives in batch 2/3 of
+                    # the lazy discussions.json stream. Poll the body
+                    # text for the signature so we do not race the
+                    # second batch and record a false signature_absent.
+                    # Composes with Bug G — _normalize already strips
+                    # markdown delimiters on both sides.
+                    await _wait_for_body_text(page, signature, selector_timeout_ms)
                 body_text = await page.text_content("body") or ""
                 normalized = _normalize(body_text)
                 if needle in normalized:

@@ -940,6 +940,10 @@ class _FakePlaywrightPage:
     async def wait_for_selector(self, selector, *, timeout):
         return None
 
+    async def wait_for_timeout(self, ms):
+        # Bug J: body-text poll sleeps via this; no-op keeps tests fast.
+        return None
+
     async def route(self, pattern, handler):
         # Bug K: tests predate the page.route blocker; accept + no-op so
         # verify_seed_renders can install the handler without raising.
