@@ -1240,3 +1240,216 @@ class TestResolveTasks:
         ]
         out = asyncio.run(resolve_tasks(tasks, PLACEHOLDERS, None, allow_layers=("L1", "L2")))
         assert list(out.keys()) == ["t1"]
+
+
+# -----------------------------------------------------------------------
+# start_url_resolved reconstruction (Bug A) — Phase 2c anchor-vs-probe
+# alignment. The probe must navigate to the concrete entity where the
+# seed lives, not whatever project root the benign task's raw
+# start_urls[0] happens to carry.
+# -----------------------------------------------------------------------
+
+
+def test_l1_issue_reconstructs_start_url_from_anchors_over_stale_template():
+    task = _gitlab_task(
+        eval_url="__GITLAB__/byteblaze/a11y-webring.club/-/issues/30",
+        start_urls=["__GITLAB__/primer/design"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["layer"] == "L1"
+    assert result["kind"] == "gitlab_issue"
+    assert (
+        result["start_url_resolved"]
+        == "https://gitlab.local/byteblaze/a11y-webring.club/-/issues/30"
+    )
+
+
+def test_l1_issue_reconstructs_from_bare_host_start_url():
+    task = _gitlab_task(
+        eval_url="__GITLAB__/a11yproject/a11yproject.com/-/issues/1064",
+        start_urls=["__GITLAB__"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert (
+        result["start_url_resolved"]
+        == "https://gitlab.local/a11yproject/a11yproject.com/-/issues/1064"
+    )
+
+
+def test_l1_mr_reconstructs_start_url():
+    task = _gitlab_task(
+        eval_url="__GITLAB__/org/repo/-/merge_requests/42",
+        start_urls=["__GITLAB__"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "gitlab_mr"
+    assert result["start_url_resolved"] == "https://gitlab.local/org/repo/-/merge_requests/42"
+
+
+def test_l1_search_result_reconstructs_with_url_encoded_query():
+    task = _gitlab_task(
+        eval_url="__GITLAB__/search?search=theme+editor&scope=issues",
+        start_urls=["__GITLAB__"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "gitlab_search_result"
+    # `+` is preserved as a space-substitute (matches raw eval URL shape
+    # and GitLab's accepted form).
+    assert (
+        result["start_url_resolved"]
+        == "https://gitlab.local/search?search=theme+editor&scope=issues"
+    )
+
+
+def test_l1_search_result_from_project_issues_api_keeps_resolved_start_fallback():
+    # _PROJECT_ISSUES_API_RE captures project_id only; without `query` the
+    # reconstruction returns None and we keep the benign task's raw
+    # start_urls[0] value.
+    task = _gitlab_task(
+        eval_url="__GITLAB__/api/v4/projects/42/issues",
+        start_urls=["__GITLAB__/some/project"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "gitlab_search_result"
+    assert result["start_url_resolved"] == "https://gitlab.local/some/project"
+
+
+def test_l1_dashboard_list_reconstructs_start_url():
+    task = _gitlab_task(
+        eval_url="__GITLAB__/dashboard/todos",
+        start_urls=["__GITLAB__"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "gitlab_dashboard_list"
+    assert result["start_url_resolved"] == "https://gitlab.local/dashboard/todos"
+
+
+def test_l2_fallback_reconstructs_when_start_url_matches():
+    # L2 picks the benign task's start_urls; if they're already a concrete
+    # URL, reconstruction is idempotent for issue kinds.
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__/byteblaze/dotfiles/-/issues/7"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["layer"] == "L2"
+    assert result["start_url_resolved"] == "https://gitlab.local/byteblaze/dotfiles/-/issues/7"
+
+
+def test_l1_reddit_submission_reconstructs():
+    task = _reddit_task(
+        eval_url="__REDDIT__/f/pittsburgh/89821/some-title",
+        start_urls=["__REDDIT__"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "reddit_submission"
+    assert result["start_url_resolved"] == "https://reddit.local/f/pittsburgh/89821"
+
+
+def test_l1_reddit_forum_reconstructs():
+    task = _reddit_task(
+        eval_url="__REDDIT__/f/books",
+        start_urls=["__REDDIT__"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "reddit_forum"
+    assert result["start_url_resolved"] == "https://reddit.local/f/books"
+
+
+def test_l1_reddit_dashboard_list_reconstructs():
+    task = _reddit_task(
+        eval_url="__REDDIT__/user/MarvelsGrantMan136/submitted",
+        start_urls=["__REDDIT__"],
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "reddit_dashboard_list"
+    assert result["start_url_resolved"] == "https://reddit.local/user/MarvelsGrantMan136/submitted"
+
+
+def test_l3_pending_record_keeps_raw_start_url():
+    # Bare __GITLAB__ with no eval URL → L3-pending; reconstruction
+    # cannot run (no anchors yet) and resolved_start is preserved.
+    task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"])
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result.get("pending_layer") == "L3"
+    assert result["start_url_resolved"] == "https://gitlab.local"
+
+
+def test_l4_item_record_reconstructs_start_url_strips_localhost_prefix():
+    # L4 probe returns items whose project_path comes from `web_url`
+    # parsing at :line 1234 — that produces bare "byteblaze/dotfiles".
+    # But resource.anchors.project_path can also carry an authority
+    # prefix like "localhost:8023/byteblaze/a11y-webring.club" (observed
+    # in the 0/107 feasibility report). _clean_project_path strips it.
+    from worldsim.phases.phase_2_target_resolver import _project_item_to_record
+
+    base = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "theme", "scope": "issues"},
+        "start_url_resolved": "https://gitlab.local",
+        "attach_surfaces": [],
+        "encounter_requirements": {},
+        "layer": "L2",
+    }
+    item = {
+        "_item_kind": "gitlab_issue",
+        "project_id": 179,
+        "iid": 30,
+        "web_url": "http://localhost:8023/byteblaze/a11y-webring.club/-/issues/30",
+        "title": "theme editor",
+    }
+    record = _project_item_to_record(base, item, PLACEHOLDERS)
+    assert record is not None
+    # _ISSUE_RE against web_url captures "byteblaze/a11y-webring.club"
+    # without the host prefix; reconstruction then joins against the
+    # placeholder origin. No double-host leak.
+    assert (
+        record["start_url_resolved"]
+        == "https://gitlab.local/byteblaze/a11y-webring.club/-/issues/30"
+    )
+
+
+def test_l4_item_record_without_placeholders_preserves_base_url():
+    # Backwards compat: old callers that haven't been updated to pass
+    # placeholders through continue to produce the pre-fix listing-URL
+    # behavior.
+    from worldsim.phases.phase_2_target_resolver import _project_item_to_record
+
+    base = {
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "q", "scope": "issues"},
+        "start_url_resolved": "https://gitlab.local/search?search=q&scope=issues",
+        "attach_surfaces": [],
+        "encounter_requirements": {},
+        "layer": "L2",
+    }
+    item = {
+        "_item_kind": "gitlab_issue",
+        "project_id": 1,
+        "iid": 5,
+        "web_url": "http://gitlab.local/a/b/-/issues/5",
+        "title": "x",
+    }
+    record = _project_item_to_record(base, item, None)
+    assert record is not None
+    assert record["start_url_resolved"] == "https://gitlab.local/search?search=q&scope=issues"
+
+
+def test_reconstruction_helper_handles_unknown_kind():
+    from worldsim.phases.phase_2_target_resolver import _reconstruct_start_url_from_anchors
+
+    assert (
+        _reconstruct_start_url_from_anchors("gitlab", "not_a_kind", {"foo": "bar"}, PLACEHOLDERS)
+        is None
+    )
+
+
+def test_reconstruction_helper_returns_none_when_anchors_insufficient():
+    from worldsim.phases.phase_2_target_resolver import _reconstruct_start_url_from_anchors
+
+    assert (
+        _reconstruct_start_url_from_anchors(
+            "gitlab", "gitlab_issue", {"project_path": "a/b"}, PLACEHOLDERS
+        )
+        is None
+    )

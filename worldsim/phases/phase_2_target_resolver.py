@@ -340,6 +340,95 @@ def _empty_record(reason: str, pending_layer: Literal["L3", "L4"] | None) -> dic
     return record
 
 
+def _clean_project_path(project_path: str) -> str:
+    """Strip an L4-prefixed ``localhost:NNNN/`` authority from ``project_path``.
+
+    ``_project_item_to_record`` writes anchors with paths like
+    ``localhost:8023/byteblaze/a11y-webring.club`` (the authority from
+    the API probe's ``web_url``). For URL reconstruction we want just
+    the group-slashed path suffix.
+    """
+    path = project_path.strip().strip("/")
+    if "/" in path and path.split("/", 1)[0].startswith("localhost:"):
+        path = path.split("/", 1)[1]
+    return path
+
+
+def _reconstruct_start_url_from_anchors(
+    site_kind: Literal["gitlab", "reddit"],
+    kind: str,
+    anchors: Mapping[str, Any],
+    placeholders: Mapping[str, str],
+) -> str | None:
+    """Build a synthetic-host URL pointing at the concrete resource.
+
+    Returns the canonical URL (on the synthetic ``https://gitlab.local``
+    / ``https://reddit.local`` origin drawn from ``placeholders``) when
+    the anchors carry enough to address a single entity. Returns ``None``
+    when they do not — caller falls back to the raw benign ``start_urls[0]``.
+
+    Added to close the Phase 2c anchor-vs-probe mismatch: the benign
+    task's raw ``start_urls`` often points at a project root or bare
+    host, but the seed attaches to a concrete issue / MR / submission.
+    Without reconstruction the 2c reachability probe navigates to the
+    wrong page and the seed witnesses never appear.
+    """
+    if site_kind == "gitlab":
+        origin = placeholders.get("__GITLAB__")
+    elif site_kind == "reddit":
+        origin = placeholders.get("__REDDIT__")
+    else:
+        return None
+    if not origin:
+        return None
+    base = origin.rstrip("/")
+
+    if kind == "gitlab_issue":
+        project_path = anchors.get("project_path")
+        iid = anchors.get("issue_iid")
+        if project_path and iid:
+            return f"{base}/{_clean_project_path(str(project_path))}/-/issues/{iid}"
+        return None
+    if kind == "gitlab_mr":
+        project_path = anchors.get("project_path")
+        iid = anchors.get("mr_iid")
+        if project_path and iid:
+            return f"{base}/{_clean_project_path(str(project_path))}/-/merge_requests/{iid}"
+        return None
+    if kind == "gitlab_search_result":
+        query = anchors.get("query")
+        scope = anchors.get("scope") or "issues"
+        if query:
+            # GitLab accepts either `+` or `%20` for spaces; keep `+` to
+            # match the raw eval URLs we parse (``...?search=foo+bar``).
+            encoded = urlquote(str(query), safe="+")
+            return f"{base}/search?search={encoded}&scope={scope}"
+        return None
+    if kind == "gitlab_dashboard_list":
+        dashboard = anchors.get("dashboard")
+        if dashboard:
+            return f"{base}/dashboard/{dashboard}"
+        return None
+    if kind == "reddit_submission":
+        forum = anchors.get("forum_name")
+        submission_id = anchors.get("submission_id")
+        if forum and submission_id:
+            return f"{base}/f/{forum}/{submission_id}"
+        return None
+    if kind == "reddit_forum":
+        forum = anchors.get("forum_name")
+        if forum:
+            return f"{base}/f/{forum}"
+        return None
+    if kind == "reddit_dashboard_list":
+        user = anchors.get("user") or anchors.get("username")
+        dashboard = anchors.get("dashboard")
+        if user and dashboard:
+            return f"{base}/user/{user}/{dashboard}"
+        return None
+    return None
+
+
 def derive_benign_target_resource(
     task: Mapping[str, Any],
     placeholders: Mapping[str, str],
@@ -386,10 +475,13 @@ def derive_benign_target_resource(
             if hit is None:
                 continue
             kind, anchors = hit
+            reconstructed = _reconstruct_start_url_from_anchors(
+                site_kind, kind, anchors, placeholders
+            )
             record = {
                 "kind": kind,
                 "anchors": dict(anchors),
-                "start_url_resolved": resolved_start,
+                "start_url_resolved": reconstructed or resolved_start,
                 "attach_surfaces": _attach_surfaces_for(kind),
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L1",
@@ -407,10 +499,13 @@ def derive_benign_target_resource(
         )
         if hit is not None:
             kind, anchors = hit
+            reconstructed = _reconstruct_start_url_from_anchors(
+                site_kind, kind, anchors, placeholders
+            )
             record = {
                 "kind": kind,
                 "anchors": dict(anchors),
-                "start_url_resolved": resolved_start,
+                "start_url_resolved": reconstructed or resolved_start,
                 "attach_surfaces": _attach_surfaces_for(kind),
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L2",
@@ -973,10 +1068,11 @@ async def resolve_l3(
         record["l3_probe_query"] = dict(probe_query)
         return record
 
+    reconstructed = _reconstruct_start_url_from_anchors(site_kind, kind, anchors, placeholders)
     return {
         "kind": kind,
         "anchors": dict(anchors),
-        "start_url_resolved": resolved_start,
+        "start_url_resolved": reconstructed or resolved_start,
         "attach_surfaces": _attach_surfaces_for(kind),
         "encounter_requirements": _encounter_requirements(kind, task, anchors),
         "layer": "L3",
@@ -1116,7 +1212,9 @@ async def _default_listing_probe(
 
 
 def _project_item_to_record(
-    base: Mapping[str, Any], item: Mapping[str, Any]
+    base: Mapping[str, Any],
+    item: Mapping[str, Any],
+    placeholders: Mapping[str, str] | None = None,
 ) -> dict[str, Any] | None:
     item_kind = item.get("_item_kind")
     if item_kind not in ("gitlab_issue", "gitlab_mr", "reddit_submission"):
@@ -1160,6 +1258,18 @@ def _project_item_to_record(
     record["encounter_requirements"] = _encounter_requirements(item_kind, {}, anchors)
     # Viewport budget stays constant.
     record["encounter_requirements"].setdefault("viewport_budget_chars", VIEWPORT_BUDGET_CHARS)
+    # Point start_url_resolved at the concrete item (not the listing)
+    # so Phase 2c's reachability probe navigates to the page where the
+    # seed lives.
+    if placeholders is not None:
+        site_kind: Literal["gitlab", "reddit"] = (
+            "reddit" if item_kind == "reddit_submission" else "gitlab"
+        )
+        reconstructed = _reconstruct_start_url_from_anchors(
+            site_kind, item_kind, anchors, placeholders
+        )
+        if reconstructed:
+            record["start_url_resolved"] = reconstructed
     return record
 
 
@@ -1170,6 +1280,7 @@ async def resolve_l4(
     *,
     probe_fn: ListingProbeFn | None = None,
     top_n: int | None = None,
+    placeholders: Mapping[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Expand a listing-kind resource into N concrete item records.
 
@@ -1201,7 +1312,7 @@ async def resolve_l4(
 
     records: list[dict[str, Any]] = []
     for item in items[:limit]:
-        record = _project_item_to_record(resource, item)
+        record = _project_item_to_record(resource, item, placeholders)
         if record is not None:
             records.append(record)
     return records
@@ -1248,8 +1359,8 @@ def _l4_concurrency_default() -> int:
 # :func:`resolve_tasks` concurrently (up to DEFAULT_SANDBOX_CONCURRENCY
 # = 250). Creating a fresh ``asyncio.Semaphore`` inside each call means
 # each shard gets its own independent L3/L4 bound, so the true
-# concurrency in flight is ``num_shards × per_call_limit`` — for
-# 16 shards × 8 = 128 Anthropic calls at peak, which overwhelms the
+# concurrency in flight is ``num_shards x per_call_limit`` — for
+# 16 shards x 8 = 128 Anthropic calls at peak, which overwhelms the
 # API and produces widespread ``APITimeoutError`` (observed on the
 # first full-WASP smoke). Sharing the semaphore at module scope keeps
 # the bound a real cap across the whole Phase 2 pass.
@@ -1371,6 +1482,7 @@ async def resolve_tasks(
                         instance,
                         probe_fn=listing_probe_fn,
                         top_n=top_n,
+                        placeholders=placeholders,
                     )
                 except Exception as exc:
                     logger.warning("resolve_tasks: L4 raised for task=%r: %s", task_id, exc)
