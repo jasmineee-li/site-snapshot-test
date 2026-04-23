@@ -32,7 +32,6 @@ import pytest
 from worldsim.editors._registry import (
     _REGISTRY,
     IDENTITY_TOKENS,
-    available_tokens_for_kind,
     iter_specs,
     kind_contract,
     serialize_registry,
@@ -124,6 +123,7 @@ class TestSerializeRegistryParity:
         data = serialize_registry()
         for spec in data["specs"]:
             assert set(spec.keys()) == {
+                "benchmark",
                 "site",
                 "method",
                 "kinds",

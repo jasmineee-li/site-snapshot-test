@@ -543,3 +543,50 @@ def test_preflight_transient_error_passes_task_through():
     )
     # 5xx is transient — task passes through, no quarantine.
     assert keep == [task] and dropped == []
+
+
+def test_preflight_quarantines_stale_editor_surface_even_when_start_url_is_ok():
+    task = _make_task("adv_comment", "reddit", "https://reddit.local/f/news")
+    task["benign_target_resource"]["anchors"] = {
+        "forum_name": "news",
+        "submission_id": "5",
+    }
+    task["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "forum_name": "{benign_forum_name}",
+                    "submission_id": "{benign_submission_id}",
+                    "body": "payload",
+                },
+            }
+        ],
+    }
+    instances_by_site = {"reddit": [{"site_name": "reddit", "site_url": "http://reddit.test"}]}
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://reddit.test/f/news": _FakeResponse(status=200, body="forum ok"),
+            "http://reddit.test/f/news/5": _FakeResponse(status=404),
+        }
+    )
+
+    async def _factory(_context_options):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == []
+    assert [record["id"] for record in dropped] == ["adv_comment"]
+    issue = dropped[0]["source_data_issue"]
+    assert issue["kind"] == "not_found"
+    assert issue["probed_url"] == "http://reddit.test/f/news/5"
+    assert issue["probe_source"] == "editor_call[0].reddit.create_comment"

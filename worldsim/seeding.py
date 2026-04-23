@@ -705,7 +705,8 @@ def _assert_benign_tokens_bound(value: Any, task: Any) -> None:
     # defer until a seed call actually needs the contract check.
     from worldsim.editors._registry import available_tokens_for_kind
 
-    available = available_tokens_for_kind(kind, anchors)
+    site = str(task.get("site") or "").strip().lower() or None
+    available = available_tokens_for_kind(kind, anchors, site=site)
     for token in sorted(tokens_referenced):
         if token not in available:
             task_id = task.get("id") or task.get("benign_task_id") or "unknown"

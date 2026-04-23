@@ -1440,6 +1440,20 @@ async def run(args: argparse.Namespace) -> int:
     skipped_orphan = 0
     skipped_infeasible = 0
     skipped_unverified = 0
+    sites_filter_set = (
+        {site.strip() for site in sites_filter_raw.split(",") if site.strip()}
+        if isinstance(sites_filter_raw, str) and sites_filter_raw.strip()
+        else None
+    )
+    exhausted_contract_ids: set[str] = set()
+    for entry in contract_entries:
+        if not isinstance(entry, dict) or entry.get("adversarially_exhausted") is not True:
+            continue
+        entry_id = str(entry.get("id", "")).strip()
+        task = entry.get("task")
+        task_site = str(task.get("site", "")).strip() if isinstance(task, dict) else ""
+        if entry_id and (sites_filter_set is None or task_site in sites_filter_set):
+            exhausted_contract_ids.add(entry_id)
     grace_warning_emitted = False
     strict_feasibility = _strict_feasibility_enabled()
     admitted_by_origin: dict[str, int] = {"mode_a": 0, "mode_b": 0}
@@ -1511,6 +1525,23 @@ async def run(args: argparse.Namespace) -> int:
         return 1
 
     if not tasks:
+        if exhausted_contract_ids:
+            logger.error(
+                "No adversarial tasks to evaluate because Phase 3 marked %d benign "
+                "contract(s) adversarially_exhausted",
+                len(exhausted_contract_ids),
+            )
+            save_state(
+                "phase_4",
+                status="failed",
+                reason="dataset_exhausted",
+                adversarially_exhausted_contract_count=len(exhausted_contract_ids),
+                adversarially_exhausted_contract_ids=sorted(exhausted_contract_ids),
+                skipped_infeasible=skipped_infeasible,
+                skipped_unverified=skipped_unverified,
+                **state_metadata,
+            )
+            return 1
         logger.error("No tasks to evaluate")
         save_state(
             "phase_4",
@@ -1702,7 +1733,7 @@ async def run(args: argparse.Namespace) -> int:
 
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(tasks, profiles_dir)
-    seed_probe_cache: dict[tuple[str, str, str], BaseStateProbeResult] = {}
+    seed_probe_cache: dict[tuple[str, str, str, str], BaseStateProbeResult] = {}
     agent_auth_errors = _collect_agent_auth_runtime_errors(config.instances, site_profiles)
     if agent_auth_errors:
         logger.error(
@@ -2176,7 +2207,6 @@ async def run_adversarial_task(
         )
         return result_payload
     adv_seed = raw_adv_seed
-    adv_seed_mechanism = adv_seed.get("mechanism")
     adv_seed_has_actions = _seed_has_actions(adv_seed)
     seed_instance_dict = instance_dict
     reset_cache_bindings: list[dict[str, Any]] = []
@@ -2187,12 +2217,12 @@ async def run_adversarial_task(
                 task,
                 site_name=seed_site,
             )
-        except ValueError:
+        except ValueError as exc:
             if not all_instances:
                 raise RuntimeError(
                     f"delivery_site {seed_site!r} not found in bound_instances "
                     f"or all_instances for task {task.get('id', '?')}"
-                )
+                ) from exc
             try:
                 seed_inst = select_task_site_instance(task, seed_site, all_instances)
             except ValueError as exc:
@@ -4139,7 +4169,7 @@ async def preflight_adversarial_seed(
     instance: dict[str, Any],
     *,
     benchmark: str = "webarena_verified",
-    base_state_cache: dict[tuple[str, str, str], BaseStateProbeResult] | None = None,
+    base_state_cache: dict[tuple[str, str, str, str], BaseStateProbeResult] | None = None,
 ) -> PreflightReport:
     mismatches: list[SeedPreflightMismatch] = []
     try:
@@ -4253,7 +4283,7 @@ def _probe_seed_base_state_for_task_targets(
     cache: dict[tuple[str, str, str, str], BaseStateProbeResult] | None = None,
 ) -> list[str]:
     errors: list[str] = []
-    seen_cache_keys: set[tuple[str, str, str]] = set()
+    seen_cache_keys: set[tuple[str, str, str, str]] = set()
     for task in tasks:
         if not isinstance(task, dict):
             continue

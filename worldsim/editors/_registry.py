@@ -38,6 +38,7 @@ class RegistryError(RuntimeError):
 
 @dataclass(frozen=True)
 class EditorMethodSpec:
+    benchmark: str
     site: str
     method: str
     kinds: frozenset[str]
@@ -55,13 +56,13 @@ class KindContract:
     available_tokens: frozenset[str]
 
 
-_REGISTRY: dict[tuple[str, str], EditorMethodSpec] = {}
+_REGISTRY: dict[tuple[str, str, str], EditorMethodSpec] = {}
 
 # Tokens that don't derive from anchors (come from agent-context identity).
 IDENTITY_TOKENS: frozenset[str] = frozenset({"{benign_user_handle}"})
 
 
-def register_editor(cls: type, site: str) -> None:
+def register_editor(cls: type, site: str, *, benchmark: str = "webarena_verified") -> None:
     """Register every method in ``cls.supported_methods`` into ``_REGISTRY``.
 
     Raises :class:`RegistryError` if any ``supported_methods`` member lacks
@@ -83,11 +84,14 @@ def register_editor(cls: type, site: str) -> None:
                 f"@editor_method decorator — either decorate it or remove it from "
                 f"supported_methods"
             )
-        key = (site, method_name)
+        benchmark_key = benchmark.strip().lower()
+        site_key = site.strip().lower()
+        key = (benchmark_key, site_key, method_name)
         if key in _REGISTRY:
             raise RegistryError(f"duplicate registration: {key!r}")
         _REGISTRY[key] = EditorMethodSpec(
-            site=site,
+            benchmark=benchmark_key,
+            site=site_key,
             method=method_name,
             kinds=spec_meta["kinds"],
             http=spec_meta["http"],
@@ -106,28 +110,41 @@ def _clear_caches() -> None:
 
 
 @cache
-def method_spec(site: str, method: str) -> EditorMethodSpec:
-    """Return the :class:`EditorMethodSpec` for ``(site, method)``.
+def method_spec(
+    site: str,
+    method: str,
+    *,
+    benchmark: str = "webarena_verified",
+) -> EditorMethodSpec:
+    """Return the :class:`EditorMethodSpec` for ``(benchmark, site, method)``.
 
     Raises :class:`KeyError` if unknown.
     """
-    return _REGISTRY[(site, method)]
+    return _REGISTRY[(benchmark.strip().lower(), site.strip().lower(), method)]
 
 
 @cache
-def kind_contract(kind: str) -> KindContract:
+def kind_contract(
+    kind: str,
+    *,
+    benchmark: str = "webarena_verified",
+    site: str | None = None,
+) -> KindContract:
     """Build the per-kind contract by unioning all methods that address it.
 
-    ``valid_methods`` is the set of method names (across all sites) that
-    declare ``kind`` in their ``kinds`` set. ``available_tokens`` is the
-    union of all tokens any such method's bindings can accept, plus the
-    identity tokens (``{benign_user_handle}``). ``required_anchor_keys``
-    is the union of anchor keys implied by those tokens (e.g.
-    ``{benign_project_id}`` → ``project_id``).
+    The union is scoped by ``benchmark`` and optionally by ``site`` so method
+    contracts from another benchmark cannot bleed into a same-named
+    site/kind.
     """
+    benchmark_key = benchmark.strip().lower()
+    site_key = site.strip().lower() if isinstance(site, str) and site.strip() else None
     valid_methods: set[str] = set()
     available: set[str] = set(IDENTITY_TOKENS)
     for spec in _REGISTRY.values():
+        if spec.benchmark != benchmark_key:
+            continue
+        if site_key is not None and spec.site != site_key:
+            continue
         if kind not in spec.kinds:
             continue
         valid_methods.add(spec.method)
@@ -153,15 +170,26 @@ def _anchor_key_from_token(token: str) -> str:
 
 
 @cache
-def attach_surfaces_for_kind(kind: str) -> tuple[dict[str, Any], ...]:
+def attach_surfaces_for_kind(
+    kind: str,
+    *,
+    benchmark: str = "webarena_verified",
+    site: str | None = None,
+) -> tuple[dict[str, Any], ...]:
     """Return the attach-surface list the resolver emits for ``kind``.
 
     Shape matches the pre-refactor ``_ATTACH_SURFACES`` output: a tuple of
     dicts, one per ``(site, method)`` addressing ``kind``, each with
     ``surface_id``, ``attach_method``, ``required_editor_args``.
     """
+    benchmark_key = benchmark.strip().lower()
+    site_key = site.strip().lower() if isinstance(site, str) and site.strip() else None
     out: list[dict[str, Any]] = []
-    for (_, method), spec in _REGISTRY.items():
+    for (_benchmark, _site, method), spec in _REGISTRY.items():
+        if spec.benchmark != benchmark_key:
+            continue
+        if site_key is not None and spec.site != site_key:
+            continue
         if kind not in spec.kinds:
             continue
         surface_id = spec.surface_id_per_kind.get(kind, method)
@@ -175,7 +203,13 @@ def attach_surfaces_for_kind(kind: str) -> tuple[dict[str, Any], ...]:
     return tuple(out)
 
 
-def available_tokens_for_kind(kind: str, anchors: Mapping[str, Any]) -> frozenset[str]:
+def available_tokens_for_kind(
+    kind: str,
+    anchors: Mapping[str, Any],
+    *,
+    benchmark: str = "webarena_verified",
+    site: str | None = None,
+) -> frozenset[str]:
     """Tokens declared valid for ``kind`` AND reachable via ``anchors``.
 
     Intersects the contract's declared tokens with the set of
@@ -184,7 +218,7 @@ def available_tokens_for_kind(kind: str, anchors: Mapping[str, Any]) -> frozense
     :class:`worldsim.seeding.UnboundTokenError` on any seed token outside
     this set.
     """
-    declared = kind_contract(kind).available_tokens
+    declared = kind_contract(kind, benchmark=benchmark, site=site).available_tokens
     reachable = frozenset(f"{{benign_{k}}}" for k in anchors) | IDENTITY_TOKENS
     return declared & reachable
 
@@ -192,10 +226,15 @@ def available_tokens_for_kind(kind: str, anchors: Mapping[str, Any]) -> frozense
 def iter_specs(
     site: str | None = None,
     kinds: frozenset[str] | None = None,
+    benchmark: str = "webarena_verified",
 ) -> Iterator[EditorMethodSpec]:
     """Iterate registered specs, optionally filtered by site and/or kinds."""
+    benchmark_key = benchmark.strip().lower()
+    site_key = site.strip().lower() if isinstance(site, str) and site.strip() else None
     for spec in _REGISTRY.values():
-        if site is not None and spec.site != site:
+        if spec.benchmark != benchmark_key:
+            continue
+        if site_key is not None and spec.site != site_key:
             continue
         if kinds is not None and not (spec.kinds & kinds):
             continue
@@ -215,6 +254,7 @@ def serialize_registry() -> dict[str, Any]:
         "version": 1,
         "specs": [
             {
+                "benchmark": spec.benchmark,
                 "site": spec.site,
                 "method": spec.method,
                 "kinds": sorted(spec.kinds),
@@ -232,7 +272,9 @@ def serialize_registry() -> dict[str, Any]:
                 "surface_id_per_kind": dict(spec.surface_id_per_kind),
                 "required_editor_args": list(spec.required_editor_args),
             }
-            for spec in sorted(_REGISTRY.values(), key=lambda s: (s.site, s.method))
+            for spec in sorted(
+                _REGISTRY.values(), key=lambda s: (s.benchmark, s.site, s.method)
+            )
         ],
     }
 
@@ -254,6 +296,7 @@ class ContractRenderContext:
 
     site: str
     kind_anchors: Mapping[str, frozenset[str]]
+    benchmark: str = "webarena_verified"
 
     @property
     def kinds_in_shard(self) -> frozenset[str]:
@@ -362,10 +405,19 @@ def render_contract_table(context: ContractRenderContext) -> str:
         anchor_keys = context.kind_anchors[kind]
         # available_tokens_for_kind takes a Mapping; we only care about keys.
         pseudo_anchors = {k: None for k in anchor_keys}
-        available = available_tokens_for_kind(kind, pseudo_anchors)
+        available = available_tokens_for_kind(
+            kind,
+            pseudo_anchors,
+            benchmark=context.benchmark,
+            site=context.site,
+        )
 
         specs = sorted(
-            (s for s in iter_specs(site=context.site) if kind in s.kinds),
+            (
+                s
+                for s in iter_specs(site=context.site, benchmark=context.benchmark)
+                if kind in s.kinds
+            ),
             key=lambda s: s.method,
         )
         if not specs:

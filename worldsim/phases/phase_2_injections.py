@@ -2565,7 +2565,7 @@ def _phase_2a_eligible_tasks(
             )
             continue
 
-        contract = kind_contract(kind)
+        contract = kind_contract(kind, site=site)
         site_methods = contract.valid_methods & frozenset(supported)
         if not site_methods:
             dropped.append(
@@ -2574,12 +2574,12 @@ def _phase_2a_eligible_tasks(
                     "kind": kind,
                     "reason": "no_addressable_method_on_site",
                     "anchors": dict(anchors),
-                    "available_tokens": sorted(available_tokens_for_kind(kind, anchors)),
+                    "available_tokens": sorted(available_tokens_for_kind(kind, anchors, site=site)),
                 }
             )
             continue
 
-        available = available_tokens_for_kind(kind, anchors)
+        available = available_tokens_for_kind(kind, anchors, site=site)
         identity_only = available == frozenset({"{benign_user_handle}"})
         if identity_only:
             # Is there at least one spec for this kind with a free_text
@@ -2953,7 +2953,8 @@ def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | N
         )
 
     kind = str(resource.get("kind") or "")
-    contract = kind_contract(kind)
+    site = _site_for_option_a_plan(plan)
+    contract = kind_contract(kind, site=site)
     if not contract.valid_methods:
         return (
             f"kind={kind!r} is not addressable by any registered editor method "
@@ -2962,8 +2963,7 @@ def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | N
 
     anchors_raw = resource.get("anchors")
     anchors = anchors_raw if isinstance(anchors_raw, dict) else {}
-    available = available_tokens_for_kind(kind, anchors)
-    site = _site_for_option_a_plan(plan)
+    available = available_tokens_for_kind(kind, anchors, site=site)
 
     seed = plan.get("seed_template")
     if not isinstance(seed, dict):

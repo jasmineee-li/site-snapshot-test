@@ -16,8 +16,8 @@ EDITOR_REGISTRY: dict[tuple[str, str], type[BaseSiteEditor]] = {
 # method. Any drift (missing decorator on a supported method, duplicate
 # registration) raises RegistryError here — no pipeline starts with an
 # inconsistent registry.
-_register_editor(GitlabEditor, site="gitlab")
-_register_editor(RedditEditor, site="reddit")
+_register_editor(GitlabEditor, benchmark="webarena_verified", site="gitlab")
+_register_editor(RedditEditor, benchmark="webarena_verified", site="reddit")
 
 __all__ = [
     "EDITOR_REGISTRY",

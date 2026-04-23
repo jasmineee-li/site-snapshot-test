@@ -255,6 +255,45 @@ def test_resolve_benign_storage_state_path_ignores_nested_path_for_non_storage_a
     assert resolved is None
 
 
+def test_preflight_request_context_uses_agent_http_headers():
+    context, reason = feas._preflight_request_context_options(
+        _gitlab_instance(
+            agent_auth={
+                "type": "http_headers",
+                "http_headers": {
+                    "headers": {
+                        "X-User": "${credentials.username}",
+                        "X-Static": "ok",
+                    }
+                },
+                "authentication": {"credentials": {"username": "alice", "password": "pw"}},
+            }
+        )
+    )
+
+    assert reason is None
+    assert context == {"extra_http_headers": {"X-User": "alice", "X-Static": "ok"}}
+
+
+def test_preflight_request_context_rejects_host_bound_storage_state(tmp_path):
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        json.dumps({"cookies": [{"name": "s", "value": "1", "domain": "old.example"}]})
+    )
+
+    context, reason = feas._preflight_request_context_options(
+        _gitlab_instance(
+            site_url="http://new.example:8023",
+            storage_state_path=str(state_path),
+            agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
+        )
+    )
+
+    assert context == {}
+    assert reason is not None
+    assert "does not match live host" in reason
+
+
 @pytest.mark.asyncio
 async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_storage(
     tmp_path, monkeypatch
@@ -267,11 +306,11 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
     raw = [task]
     stale_path = tmp_path / "stale.json"
     stale_path.write_text(json.dumps({"cookies": []}))
-    seen_paths: list[str | None] = []
+    seen_contexts: list[dict[str, Any] | None] = []
 
     async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
-        seen_paths.extend(
-            instance.get("storage_state_path")
+        seen_contexts.extend(
+            instance.get("preflight_request_context")
             for instance in instances_by_site["gitlab"]
         )
         return tasks, []
@@ -312,7 +351,7 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
     )
 
     assert dropped == []
-    assert seen_paths == [None]
+    assert seen_contexts == [{}]
 
 
 # ---------------------------------------------------------------------------

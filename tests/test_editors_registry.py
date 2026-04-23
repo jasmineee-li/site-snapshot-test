@@ -14,7 +14,6 @@ import pytest
 
 from worldsim.editors import _registry
 from worldsim.editors._method_spec import (
-    BindingSpec,
     FreeText,
     SelectorGroup,
     Token,
@@ -512,6 +511,7 @@ class TestSerializeRegistry:
 
         spec_json = serialize_registry()["specs"][0]
         assert set(spec_json.keys()) == {
+            "benchmark",
             "site",
             "method",
             "kinds",
@@ -560,6 +560,36 @@ class TestSerializeRegistry:
         specs = serialize_registry()["specs"]
         keys = [(s["site"], s["method"]) for s in specs]
         assert keys == sorted(keys)
+
+    def test_benchmark_scoping_keeps_same_site_kind_isolated(self) -> None:
+        @editor_method(
+            kinds=frozenset({"shared_kind"}),
+            http=("POST", "/a"),
+            bindings={"body": FreeText()},
+        )
+        def m_a(self) -> None:
+            pass
+
+        @editor_method(
+            kinds=frozenset({"shared_kind"}),
+            http=("POST", "/b"),
+            bindings={"other": Token("{benign_other}")},
+        )
+        def m_b(self) -> None:
+            pass
+
+        cls_a = type("_A", (), {"supported_methods": frozenset({"m_a"}), "m_a": m_a})
+        cls_b = type("_B", (), {"supported_methods": frozenset({"m_b"}), "m_b": m_b})
+        register_editor(cls_a, "gitlab", benchmark="benchmark_a")
+        register_editor(cls_b, "gitlab", benchmark="benchmark_b")
+
+        assert kind_contract("shared_kind", benchmark="benchmark_a").valid_methods == frozenset(
+            {"m_a"}
+        )
+        assert kind_contract("shared_kind", benchmark="benchmark_b").valid_methods == frozenset(
+            {"m_b"}
+        )
+        assert method_spec("gitlab", "m_b", benchmark="benchmark_b").benchmark == "benchmark_b"
 
 
 class TestCacheInvalidation:

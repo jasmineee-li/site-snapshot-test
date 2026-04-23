@@ -292,7 +292,7 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
         task,
         eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
             task,
-            instances=instances + [unrelated],
+            instances=[*instances, unrelated],
             config_url_placeholders={
                 "__SHOPPING__": "http://shopping.test",
                 "__GITLAB__": "http://gitlab.test",
@@ -309,7 +309,7 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
         task,
         eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
             task,
-            instances=instances + [changed_unrelated],
+            instances=[*instances, changed_unrelated],
             config_url_placeholders={
                 "__SHOPPING__": "http://shopping.test",
                 "__GITLAB__": "http://gitlab.test",
@@ -1128,7 +1128,6 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     )
 
     assert result["outcome"] == "refused_or_ignored"
-    saved = json.loads((tmp_path / "result.json").read_text())
 
 
 @pytest.mark.asyncio
@@ -2116,7 +2115,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
     monkeypatch.setattr(phase_4_adversarial, "generate_variant", fail_generate_variant)
     monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
 
-    result = await phase_4_adversarial.run_strategy_variation(
+    await phase_4_adversarial.run_strategy_variation(
         task=task,
         initial_result=initial_result,
         primary_instances=[instances[0]],
@@ -2635,6 +2634,52 @@ async def test_phase_4_requires_contracts_file(monkeypatch, tmp_path):
     )
 
     assert rc == 1
+
+
+@pytest.mark.asyncio
+async def test_phase_4_reports_dataset_exhausted_when_contracts_are_exhausted(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text("[]")
+    benign = {
+        "id": "benign-exhausted",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "instruction": "Read an issue",
+        "start_urls": ["http://gitlab.test"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"type": "noop"},
+    }
+    contracts = _as_contracts([benign])
+    contracts[0]["adversarially_exhausted"] = True
+    (tmp_path / "phase_3" / "contracts.json").write_text(json.dumps(contracts))
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "demo",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}],
+            }
+        )
+    )
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            agent_model="demo-model",
+            agent_provider=None,
+            resume=False,
+        )
+    )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["reason"] == "dataset_exhausted"
+    assert state["adversarially_exhausted_contract_ids"] == ["benign-exhausted"]
 
 
 @pytest.mark.asyncio

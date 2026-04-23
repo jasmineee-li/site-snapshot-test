@@ -2273,7 +2273,7 @@ async def test_phase_2_feasibility_stage_writes_side_artifacts_before_dataset(
 
 
 @pytest.mark.asyncio
-async def test_phase_2_feasibility_stage_overwrites_stale_source_sidecar_even_with_sites(
+async def test_phase_2_feasibility_stage_preserves_unfiltered_source_sidecar_with_sites(
     monkeypatch, tmp_path
 ):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -2330,11 +2330,17 @@ async def test_phase_2_feasibility_stage_overwrites_stale_source_sidecar_even_wi
     )
 
     assert rc == 0
-    assert json.loads(dropped_path.read_text()) == []
+    assert json.loads(dropped_path.read_text()) == [
+        {
+            "id": "old-reddit-drop",
+            "site": "reddit",
+            "source_data_issue": {"kind": "gone"},
+        }
+    ]
     report = json.loads((output_dir / "feasibility_report.json").read_text())
-    assert report["source_data_dropped_count"] == 0
+    assert report["source_data_dropped_count"] == 1
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
-    assert state["feasibility_dropped_source_data_count"] == 0
+    assert state["feasibility_dropped_source_data_count"] == 1
     assert state["feasibility_dropped_source_data_path"] == str(dropped_path)
 
 
@@ -2428,6 +2434,36 @@ async def test_phase_2_skip_feasibility_completes_after_resuming_running_checkpo
     report = json.loads((output_dir / "feasibility_report.json").read_text())
     assert report["source_data_dropped_count"] == 0
     assert report["unverified_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_phase_2_skip_feasibility_clears_stale_infeasible_sidecar(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_2"
+    output_dir.mkdir(parents=True)
+    output_path = output_dir / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()]))
+    infeasible_path = output_dir / "adversarial_tasks.infeasible.json"
+    infeasible_path.write_text(json.dumps([{"id": "stale", "feasibility": {"status": "infeasible"}}]))
+
+    rc = await phase_2_injections._run_feasibility_stage(
+        args=Namespace(
+            skip_feasibility=True,
+            feasibility_only=True,
+            feasibility_instances="instances.smoke.json",
+            feasibility_concurrency=1,
+            feasibility_retry_count=0,
+            feasibility_ttl_hours=None,
+            force_reverify=False,
+        ),
+        output_path=output_path,
+        output_dir=output_dir,
+        state_metadata={"feasibility_only": True},
+        prior_phase_2_status="complete",
+    )
+
+    assert rc == 0
+    assert json.loads(infeasible_path.read_text()) == []
 
 
 @pytest.mark.asyncio
