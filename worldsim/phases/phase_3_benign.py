@@ -191,6 +191,30 @@ async def run(args: argparse.Namespace) -> int:
         if isinstance(infeasible_raw, list):
             adversarial_tasks.extend(infeasible_raw)
 
+    # Bug I (2026-04-23): ingest Phase 2c's source-data quarantine so
+    # benigns whose only adversarial partners were preflight-dropped
+    # (login_redirect / 404 stale-L4 / etc.) still get flagged
+    # ``adversarially_exhausted``. Otherwise those benigns look as if no
+    # adversarial was ever generated for them. Stamp a synthetic
+    # feasibility wrapper so ``_annotate_adversarially_exhausted``'s
+    # "infeasible" check catches them uniformly.
+    dropped_source_path = adv_tasks_path.with_name(
+        adv_tasks_path.stem + ".dropped_source_data.json"
+    )
+    if dropped_source_path.exists():
+        try:
+            dropped_raw = json.loads(dropped_source_path.read_text())
+        except json.JSONDecodeError:
+            dropped_raw = []
+            logger.warning("Phase 3: %s is not valid JSON, ignoring", dropped_source_path)
+        if isinstance(dropped_raw, list):
+            for record in dropped_raw:
+                if not isinstance(record, dict):
+                    continue
+                synthetic = dict(record)
+                synthetic.setdefault("feasibility", {"status": "infeasible"})
+                adversarial_tasks.append(synthetic)
+
     if sites_filter_raw and adversarial_tasks:
         benign_site_set = {str(task.get("site", "")).strip() for task in benign_tasks}
         adversarial_tasks = [

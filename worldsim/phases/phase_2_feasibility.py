@@ -54,6 +54,7 @@ logger = logging.getLogger(__name__)
 FAILPOINT_DATASET = "phase_2.output.feasibility_dataset"
 FAILPOINT_QUARANTINE = "phase_2.output.feasibility_quarantine"
 FAILPOINT_REPORT = "phase_2.output.feasibility_report"
+FAILPOINT_DROPPED_SOURCE_DATA = "phase_2.output.feasibility_dropped_source_data"
 
 # Phase 2c render verification is a hard gate by default. The env-var opt-out
 # is intended for unit tests that mock the seed flow and don't need a browser,
@@ -162,6 +163,11 @@ class FeasibilityReport:
     elapsed_seconds: float
     per_site_counts: dict[str, dict[str, int]] = field(default_factory=dict)
     phase_2_status: str | None = None
+    # Bug I: tasks whose benign_target_resource preflight deterministically
+    # failed (login_redirect, 404, 403, 410, 401). Separate from
+    # ``infeasible`` because they are dataset-quality issues, not probe
+    # failures; re-running Phase 2c will not rehabilitate them.
+    dropped_source_data: list[dict[str, Any]] = field(default_factory=list)
 
 
 async def verify_feasibility(
@@ -259,6 +265,30 @@ async def verify_feasibility(
                 f"phase 2c pre-flight: no editor registered for (benchmark={benchmark!r}, site={site!r})"
             )
         editor_cls.probe_base_state(representative)
+
+    # Bug I (2026-04-23): preflight HTTP probe of each task's
+    # benign_target_resource.start_url_resolved against the benign
+    # storage_state. Tasks with deterministically-broken benign entry
+    # points (login_redirect, 404, 403, 410, 401) are quarantined as
+    # ``source_data_issue`` — they never reach the full browser probe.
+    # Transient signals (5xx, 429, timeouts, connection errors) pass
+    # through and let the real probe retry. The preflight is an
+    # optimization + dataset-quality signal, not a correctness gate;
+    # on any error the raw list is returned unchanged.
+    dropped_source_data: list[dict[str, Any]] = []
+    try:
+        dropped_source_data = await _run_preflight_and_filter_raw(
+            raw,
+            instances_by_site=instances_by_site,
+        )
+    except Exception:
+        logger.exception(
+            "phase 2c preflight raised; continuing with the full dataset "
+            "(no tasks will be source-data-quarantined this run)"
+        )
+        dropped_source_data = []
+    # ``raw`` has been mutated in place by _run_preflight_and_filter_raw
+    # when preflight succeeds.
 
     verified: list[dict[str, Any]] = []
     infeasible: list[dict[str, Any]] = []
@@ -530,6 +560,7 @@ async def verify_feasibility(
         elapsed_seconds=time.monotonic() - started,
         per_site_counts=per_site,
         phase_2_status=phase_2_status,
+        dropped_source_data=dropped_source_data,
     )
 
 
@@ -814,6 +845,72 @@ def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
                 if best is None or len(value) > len(best):
                     best = value
     return best
+
+
+async def _run_preflight_and_filter_raw(
+    raw: list[dict[str, Any]],
+    *,
+    instances_by_site: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Probe every task and mutate ``raw`` in place to drop quarantined tasks.
+
+    Uses a lazy Playwright ``APIRequestContext`` per (site, storage_state)
+    pair — shares Playwright's TLS/proxy setup with the render_check path
+    without importing httpx. Returns the list of dropped records with
+    ``source_data_issue`` metadata attached; the caller routes this list
+    to the ``adversarial_tasks.dropped_source_data.json`` sidecar.
+
+    Skips silently if Playwright is not importable (development without
+    Playwright installed); mirrors the render_check skip-envvar shape.
+    """
+    from worldsim.phases.phase_2c_preflight import preflight_benign_targets
+
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        logger.info(
+            "phase 2c preflight: playwright not importable; skipping source-"
+            "data quarantine for this run."
+        )
+        return []
+
+    pw_handle = await async_playwright().start()
+    contexts_created: list[Any] = []
+
+    async def _factory(storage_state_path: str | None) -> Any:
+        kwargs: dict[str, Any] = {}
+        if storage_state_path:
+            path_obj = Path(storage_state_path)
+            if path_obj.exists():
+                kwargs["storage_state"] = str(path_obj)
+        ctx = await pw_handle.request.new_context(**kwargs)
+        contexts_created.append(ctx)
+        return ctx
+
+    try:
+        keep, dropped = await preflight_benign_targets(
+            raw,
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    finally:
+        for ctx in contexts_created:
+            try:
+                await ctx.dispose()
+            except Exception:
+                logger.debug(
+                    "phase 2c preflight: request context dispose failed",
+                    exc_info=True,
+                )
+        try:
+            await pw_handle.stop()
+        except Exception:
+            logger.debug("phase 2c preflight: playwright stop failed", exc_info=True)
+
+    if dropped:
+        kept_ids = {id(t) for t in keep}
+        raw[:] = [t for t in raw if id(t) in kept_ids]
+    return dropped
 
 
 def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
