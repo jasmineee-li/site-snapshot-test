@@ -342,14 +342,16 @@ async def preflight_benign_targets(
             return
 
         # Probe every replica for this site. Replica-0 sometimes holds
-        # stale DB state (e.g. a reddit forum anchor that was valid at
-        # seed-generation time and still exists only on replica-0),
-        # while replicas 1..N have the current reset-to-baseline state.
-        # We quarantine only when EVERY replica agrees on a
-        # deterministic-failure outcome — that's the signal that the
-        # dataset itself is broken, not a replica-0 drift. If any
-        # replica returns reachable (or a transient signal), the task
-        # passes through to the real probe.
+        # legacy DB state that a fleet-wide reset did not touch (e.g. a
+        # reddit forum anchor that was valid at seed-generation time
+        # and still exists only on replica-0), while replicas 1..N
+        # have the current baseline. We quarantine when a STRICT
+        # MAJORITY of replicas agree on a deterministic-failure
+        # outcome — that matches the editor's P2C selection distribution
+        # (a task that's broken on 9/10 replicas will land on a broken
+        # replica 90 % of the time and fail in-run regardless). Pure
+        # unanimity is too strict and false-negatives the reddit-0
+        # drift pattern.
         classifications: list[PreflightClassification] = []
         probed_url_for_audit: str | None = None
         for instance in site_instances:
@@ -368,11 +370,6 @@ async def preflight_benign_targets(
                     timeout_s=timeout_s,
                 )
             classifications.append(classification)
-            # Early-exit: if any replica is clearly reachable or
-            # transient, we know we are NOT going to quarantine —
-            # stop probing the remaining replicas.
-            if not classification.quarantine:
-                break
         if not classifications:
             keep.append(task)
             return
@@ -381,18 +378,20 @@ async def preflight_benign_targets(
         if any(c.kind == "login_redirect" for c in classifications):
             login_redirect_count += 1
 
-        # Unanimity rule: every replica must agree on quarantine, and
-        # we report the majority quarantine-kind so the audit is
-        # interpretable.
-        all_quarantine = all(c.quarantine for c in classifications)
-        if all_quarantine:
-            # Pick the most common kind across replicas (ties broken
-            # by the first-seen kind) — surfaces the dominant failure
-            # signature in the audit sidecar.
+        # Majority rule: strict majority (> 50 %) of probed replicas
+        # must classify as quarantine. Ties (50/50 exactly) pass
+        # through to the real probe so we never quarantine on weak
+        # evidence.
+        quarantine_classifications = [c for c in classifications if c.quarantine]
+        quarantine_rate = len(quarantine_classifications) / len(classifications)
+        if quarantine_rate > 0.5 and quarantine_classifications:
+            # Pick the most common quarantine-kind as the audit label
+            # (ties broken by first-seen order) so the sidecar
+            # surfaces the dominant failure signature.
             kind_counts: dict[str, int] = {}
-            for c in classifications:
+            for c in quarantine_classifications:
                 kind_counts[c.kind] = kind_counts.get(c.kind, 0) + 1
-            dominant = max(classifications, key=lambda c: kind_counts[c.kind])
+            dominant = max(quarantine_classifications, key=lambda c: kind_counts[c.kind])
             audit = dict(task)
             audit["source_data_issue"] = {
                 "kind": dominant.kind,
@@ -401,6 +400,7 @@ async def preflight_benign_targets(
                 "probed_at": _now_iso(),
                 "probed_url": probed_url_for_audit,
                 "replicas_probed": len(classifications),
+                "replicas_agreeing": len(quarantine_classifications),
             }
             dropped.append(audit)
         else:

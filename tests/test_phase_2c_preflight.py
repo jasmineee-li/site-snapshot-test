@@ -314,7 +314,7 @@ def test_preflight_unanimous_quarantine_across_replicas():
     async def _factory(_):
         return request_context
 
-    keep, dropped = asyncio.run(
+    _keep, dropped = asyncio.run(
         preflight_benign_targets(
             [task],
             instances_by_site=instances_by_site,
@@ -326,25 +326,55 @@ def test_preflight_unanimous_quarantine_across_replicas():
     assert dropped[0]["source_data_issue"]["replicas_probed"] == 3
 
 
-def test_preflight_split_across_replicas_does_not_quarantine():
-    # Replica 0 holds legacy data (200 OK), replicas 1-2 are reset
-    # baseline (404). This is the r5 reddit_0 drift pattern that made
-    # the first r5 run fire 0 drops. Unanimity rule: if ANY replica
-    # says reachable, the task is NOT quarantined. The early-exit
-    # optimization stops after replica 0 reports reachable.
-    task = _make_task("adv_legacy", "reddit", "https://reddit.local/f/headphones/4")
+def test_preflight_majority_quarantine_with_replica_0_drift():
+    # r5 reddit_0 drift pattern: replica 0 has legacy data (200 OK)
+    # but 9/10 replicas return 404 after a fleet reset. The editor's
+    # P2C selection lands on a broken replica 90 % of the time and
+    # the task fails in-run. Majority rule (> 50 %) correctly
+    # quarantines here; the earlier unanimity rule did not, which
+    # caused the first Bug I r5 run to miss the 7 reddit stale-L4
+    # tasks.
+    task = _make_task("adv_drift", "reddit", "https://reddit.local/f/headphones/4")
     instances_by_site = {
-        "reddit": [
-            {"site_name": "reddit", "site_url": "http://host0:9900"},
-            {"site_name": "reddit", "site_url": "http://host1:9900"},
-            {"site_name": "reddit", "site_url": "http://host2:9900"},
-        ]
+        "reddit": [{"site_name": "reddit", "site_url": f"http://host{i}:9900"} for i in range(10)]
+    }
+    response_map = {"http://host0:9900/f/headphones/4": _FakeResponse(status=200, body="legacy")}
+    for i in range(1, 10):
+        response_map[f"http://host{i}:9900/f/headphones/4"] = _FakeResponse(status=404)
+    request_context = _FakeRequestContext(response_map=response_map)
+
+    async def _factory(_):
+        return request_context
+
+    _keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+    assert len(dropped) == 1
+    issue = dropped[0]["source_data_issue"]
+    assert issue["kind"] == "not_found"
+    assert issue["replicas_probed"] == 10
+    assert issue["replicas_agreeing"] == 9
+    # All replicas probed (no early-exit — majority rule needs full canvas).
+    assert len(request_context.calls) == 10
+
+
+def test_preflight_minority_quarantine_passes_through():
+    # Opposite of the drift case: 1/3 replicas say 404 (transient
+    # delivery glitch or stale shard), 2/3 say 200. Not a majority →
+    # pass through to the real probe.
+    task = _make_task("adv_flaky", "reddit", "https://reddit.local/f/books/100")
+    instances_by_site = {
+        "reddit": [{"site_name": "reddit", "site_url": f"http://host{i}:9900"} for i in range(3)]
     }
     request_context = _FakeRequestContext(
         response_map={
-            "http://host0:9900/f/headphones/4": _FakeResponse(status=200, body="legacy"),
-            "http://host1:9900/f/headphones/4": _FakeResponse(status=404),
-            "http://host2:9900/f/headphones/4": _FakeResponse(status=404),
+            "http://host0:9900/f/books/100": _FakeResponse(status=404),
+            "http://host1:9900/f/books/100": _FakeResponse(status=200, body="ok"),
+            "http://host2:9900/f/books/100": _FakeResponse(status=200, body="ok"),
         }
     )
 
@@ -360,9 +390,6 @@ def test_preflight_split_across_replicas_does_not_quarantine():
     )
     assert keep == [task]
     assert dropped == []
-    # Early-exit: only replica 0 probed before we knew the task was
-    # reachable somewhere. Replicas 1-2 should NOT have been hit.
-    assert len(request_context.calls) == 1
 
 
 def test_preflight_rewrites_synthetic_hostname_to_live_url():
