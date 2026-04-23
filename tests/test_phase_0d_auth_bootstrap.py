@@ -83,6 +83,73 @@ def _setup_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, 
     return state_dir, bench, profiles
 
 
+def test_reacquire_storage_state_uses_form_login_and_canonical_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_dir, _bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
+    captured: dict[str, object] = {}
+
+    async def fake_bootstrap_via_form_login(*, spec, site_url, output_path):
+        captured["site_name"] = spec.site_name
+        captured["mech_type"] = spec.mech_type
+        captured["declared_path"] = spec.declared_path
+        captured["site_url"] = site_url
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps({"cookies": [{"name": "session"}]}))
+
+    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_bootstrap_via_form_login)
+
+    instance = {
+        "site_name": "gitlab",
+        "site_url": "http://gitlab.test",
+        "agent_auth": {
+            "type": "storage_state",
+            "storage_state": {
+                "path": "logs/phase_0d/gitlab/storage_state.json",
+                "form_login": {
+                    "login_url": "/users/sign_in",
+                    "username_selector": "#user_login",
+                    "password_selector": "#user_password",
+                    "submit_selector": "input[type=submit]",
+                    "success_url_substring": "/-/profile",
+                },
+            },
+            "authentication": {
+                "credentials": {"username": "root", "password": "password"},
+            },
+        },
+    }
+
+    result = asyncio.run(bootstrap.reacquire_storage_state(site_name="gitlab", instance=instance))
+
+    expected = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    assert result == expected
+    assert json.loads(expected.read_text()) == {"cookies": [{"name": "session"}]}
+    assert captured == {
+        "site_name": "gitlab",
+        "mech_type": "storage_state",
+        "declared_path": "logs/phase_0d/gitlab/storage_state.json",
+        "site_url": "http://gitlab.test",
+    }
+
+
+def test_reacquire_storage_state_requires_login_recipe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_dirs(tmp_path, monkeypatch)
+    instance = {
+        "site_name": "gitlab",
+        "site_url": "http://gitlab.test",
+        "agent_auth": {
+            "type": "storage_state",
+            "storage_state": {"path": "logs/phase_0d/gitlab/storage_state.json"},
+        },
+    }
+
+    with pytest.raises(bootstrap.AuthBootstrapError, match="no generator_script or form_login"):
+        asyncio.run(bootstrap.reacquire_storage_state(site_name="gitlab", instance=instance))
+
+
 _GOOD_GENERATOR = """
 def generate(credentials, site_url, output_path, **kwargs):
     import json

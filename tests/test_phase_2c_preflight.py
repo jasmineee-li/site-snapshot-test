@@ -14,6 +14,7 @@ from worldsim.phases.phase_2c_preflight import (
     _location_is_login,
     _looks_like_login_stub,
     preflight_benign_targets,
+    self_test_preflight_auth,
 )
 
 # ---------------------------------------------------------------------------
@@ -171,6 +172,77 @@ def test_looks_like_login_stub_boundaries():
     assert not _looks_like_login_stub(long_body)
     # Form-action marker → stub regardless of body length.
     assert _looks_like_login_stub("x" * 2000 + '<form action="/users/sign_in"')
+
+
+def test_self_test_preflight_auth_gitlab_alive():
+    context = _FakeRequestContext(
+        response_map={"http://gitlab.test/-/profile": _FakeResponse(status=200, body="profile")}
+    )
+
+    result = asyncio.run(
+        self_test_preflight_auth(
+            request_context=context,
+            site="gitlab",
+            site_url="http://gitlab.test",
+        )
+    )
+
+    assert result is not None
+    assert result.kind == "reachable"
+    assert context.calls[0][0] == "http://gitlab.test/-/profile"
+
+
+def test_self_test_preflight_auth_gitlab_detects_login_redirect():
+    context = _FakeRequestContext(
+        response_map={
+            "http://gitlab.test/-/profile": _FakeResponse(
+                status=302, headers={"location": "/users/sign_in"}
+            )
+        }
+    )
+
+    result = asyncio.run(
+        self_test_preflight_auth(
+            request_context=context,
+            site="gitlab",
+            site_url="http://gitlab.test",
+        )
+    )
+
+    assert result is not None
+    assert result.kind == "login_redirect"
+
+
+def test_self_test_preflight_auth_gitlab_detects_unauthorized():
+    context = _FakeRequestContext(
+        response_map={"http://gitlab.test/-/profile": _FakeResponse(status=401)}
+    )
+
+    result = asyncio.run(
+        self_test_preflight_auth(
+            request_context=context,
+            site="gitlab",
+            site_url="http://gitlab.test",
+        )
+    )
+
+    assert result is not None
+    assert result.kind == "auth_missing"
+
+
+def test_self_test_preflight_auth_skips_reddit():
+    context = _FakeRequestContext()
+
+    result = asyncio.run(
+        self_test_preflight_auth(
+            request_context=context,
+            site="reddit",
+            site_url="http://reddit.test",
+        )
+    )
+
+    assert result is None
+    assert context.calls == []
 
 
 # ---------------------------------------------------------------------------

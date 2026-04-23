@@ -951,10 +951,16 @@ async def _run_feasibility_stage(
     )
 
     try:
+        benchmark_root = None
+        if isinstance(raw_instances, dict):
+            raw_benchmark_root = raw_instances.get("benchmark_codebase")
+            if isinstance(raw_benchmark_root, str) and raw_benchmark_root.strip():
+                benchmark_root = Path(raw_benchmark_root.strip())
         report: FeasibilityReport = await verify_feasibility(
             output_path,
             instances=instances,
             instances_label=instances_path.name,
+            benchmark_root=benchmark_root,
             concurrency=concurrency,
             retry_count=retry_count,
             ttl_hours=ttl_hours,

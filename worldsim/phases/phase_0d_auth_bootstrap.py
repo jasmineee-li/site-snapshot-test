@@ -67,7 +67,9 @@ import hashlib
 import inspect
 import json
 import logging
+import os
 import sys
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -331,6 +333,103 @@ async def run(args: argparse.Namespace) -> int:
         len(skipped),
     )
     return 0
+
+
+async def reacquire_storage_state(
+    *,
+    site_name: str,
+    instance: dict[str, Any],
+    benchmark_root: Path | None = None,
+) -> Path:
+    """Re-mint one site's canonical Phase-0d ``storage_state.json``.
+
+    This is the runtime repair path for consumers that prove an existing
+    artifact is no longer accepted by the live benchmark. It deliberately
+    reuses Phase 0d's generator/form-login machinery instead of duplicating
+    login flows in later phases.
+    """
+    site = str(site_name).strip().lower()
+    if not site:
+        raise AuthBootstrapError("site_name must be non-empty")
+    if not isinstance(instance, dict):
+        raise AuthBootstrapError("instance must be a dict")
+
+    auth = instance.get("agent_auth")
+    if not isinstance(auth, dict):
+        raise AuthBootstrapError(f"site {site!r} has no agent_auth block")
+    auth_type = str(auth.get("type") or "").strip()
+    if auth_type not in {"storage_state", "form_login"}:
+        raise AuthBootstrapError(
+            f"site {site!r} uses agent_auth type {auth_type!r}; cannot reacquire storage_state"
+        )
+
+    storage_state = auth.get("storage_state")
+    storage_block = storage_state if isinstance(storage_state, dict) else {}
+    generator_script = storage_block.get("generator_script")
+    if generator_script is not None and not isinstance(generator_script, str):
+        generator_script = None
+    declared_path = storage_block.get("path")
+    if not isinstance(declared_path, str) or not declared_path.strip():
+        declared_path = str(phase_0d_artifact_path(site))
+
+    form_login = _extract_form_login_recipe(auth)
+    if generator_script:
+        script_path = Path(generator_script)
+        if benchmark_root is None and not script_path.is_absolute():
+            raise AuthBootstrapError(
+                f"site {site!r} declares relative generator_script {generator_script!r}; "
+                "benchmark_root is required to reacquire storage_state"
+            )
+    elif form_login is None:
+        raise AuthBootstrapError(
+            f"site {site!r} has no generator_script or form_login recipe; "
+            "cannot reacquire storage_state"
+        )
+
+    authentication = auth.get("authentication")
+    credentials = authentication.get("credentials") if isinstance(authentication, dict) else None
+    output_path = phase_0d_artifact_path(site)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = output_path.with_name(f".{output_path.name}.{uuid.uuid4().hex}.tmp")
+    if tmp_path.exists():
+        tmp_path.unlink()
+
+    spec = _SiteSpec(
+        site_name=site,
+        mech_type=auth_type,
+        declared_path=declared_path.strip(),
+        generator_script=generator_script.strip() if generator_script else None,
+        form_login=form_login,
+        per_task_refresh=False,
+        credentials=credentials,
+        agent_context_source=output_path.parent / "runtime_reacquire_context.json",
+    )
+    site_url = str(instance.get("site_url") or "").strip()
+
+    try:
+        if spec.generator_script:
+            await _run_generator(
+                spec=spec,
+                site_url=site_url,
+                benchmark_root=Path(benchmark_root) if benchmark_root is not None else Path("/"),
+                output_path=tmp_path,
+            )
+        else:
+            await _bootstrap_via_form_login(
+                spec=spec,
+                site_url=site_url,
+                output_path=tmp_path,
+            )
+        os.replace(tmp_path, output_path)
+    except Exception:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise
+
+    logger.info("Phase 0d: reacquired storage_state for site %r at %s", site, output_path)
+    return output_path
 
 
 # ---------------------------------------------------------------------------
@@ -987,5 +1086,6 @@ __all__ = [
     "AuthBootstrapError",
     "phase_0d_artifact_path",
     "phase_0d_completion_path",
+    "reacquire_storage_state",
     "run",
 ]

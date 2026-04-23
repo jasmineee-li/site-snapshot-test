@@ -82,6 +82,7 @@ _PER_REPLICA_CAP_FALLBACK = 6
 # number of concurrent Chromium processes globally gives each renderer
 # ~2 vCPU headroom and eliminates the nav-failed tail.
 _BROWSER_PROBE_CAP = 8
+_PREFLIGHT_AUTH_REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
 
 # Launch flags applied to every per-task Chromium. ``--disable-dev-shm-usage``
 # moves shared memory from ``/dev/shm`` (64 MiB Docker default) to
@@ -187,6 +188,7 @@ async def verify_feasibility(
     *,
     instances: list[dict[str, Any]],
     instances_label: str = "instances.smoke.json",
+    benchmark_root: Path | None = None,
     concurrency: int = 10,
     retry_count: int = 1,
     ttl_hours: float | None = None,
@@ -201,6 +203,8 @@ async def verify_feasibility(
         instances: Per-site instance dicts (already extracted from the
             ``instances.smoke.json`` wrapper by the caller).
         instances_label: Basename of the instances file for fingerprinting.
+        benchmark_root: Optional benchmark codebase root for Phase 0d
+            generator_script resolution during storage_state repair.
         concurrency: Worker-pool size.
         retry_count: Per-task retry budget for transient EditorError kinds.
         ttl_hours: Skip re-verify when ``verified_at`` is newer than ``N``
@@ -297,6 +301,7 @@ async def verify_feasibility(
     dropped_source_data = await _run_preflight_and_filter_raw(
         raw,
         instances_by_site=instances_by_site,
+        benchmark_root=benchmark_root,
     )
     logger.info(
         "phase 2c preflight: complete — dropped %d task(s); %d remain for the probe (elapsed=%.1fs)",
@@ -911,6 +916,13 @@ def _preflight_request_context_options(
     return {}, f"agent_auth type {auth_type!r} is not supported by Phase 2c preflight"
 
 
+def _agent_auth_type(instance: dict[str, Any]) -> str:
+    agent_auth = instance.get("agent_auth")
+    if not isinstance(agent_auth, dict):
+        return ""
+    return str(agent_auth.get("type") or "").strip()
+
+
 def _resolve_agent_auth_headers(agent_auth: dict[str, Any]) -> dict[str, str]:
     block = agent_auth.get("http_headers")
     if not isinstance(block, dict):
@@ -1109,6 +1121,7 @@ async def _run_preflight_and_filter_raw(
     raw: list[dict[str, Any]],
     *,
     instances_by_site: dict[str, list[dict[str, Any]]],
+    benchmark_root: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Probe every task and mutate ``raw`` in place to drop quarantined tasks.
 
@@ -1121,7 +1134,11 @@ async def _run_preflight_and_filter_raw(
     Skips silently if Playwright is not importable (development without
     Playwright installed); mirrors the render_check skip-envvar shape.
     """
-    from worldsim.phases.phase_2c_preflight import preflight_benign_targets
+    from worldsim.phases.phase_2c_preflight import (
+        auth_self_test_path,
+        preflight_benign_targets,
+        self_test_preflight_auth,
+    )
 
     try:
         from playwright.async_api import async_playwright
@@ -1146,6 +1163,113 @@ async def _run_preflight_and_filter_raw(
         contexts_created.append(ctx)
         return ctx
 
+    async def _self_test_context_options(
+        *,
+        site: str,
+        instance: dict[str, Any],
+        context_options: dict[str, Any],
+    ) -> Any:
+        ctx = await _factory(context_options)
+        try:
+            return await self_test_preflight_auth(
+                request_context=ctx,
+                site=site,
+                site_url=str(instance.get("site_url") or ""),
+            )
+        finally:
+            try:
+                await ctx.dispose()
+            except Exception:
+                logger.debug(
+                    "phase 2c preflight: auth self-test context dispose failed",
+                    exc_info=True,
+                )
+
+    async def _ensure_live_storage_state_options(
+        *,
+        site: str,
+        instance: dict[str, Any],
+        context_options: dict[str, Any],
+        skip_reason: str | None,
+    ) -> tuple[dict[str, Any], str | None]:
+        if auth_self_test_path(site) is None or _agent_auth_type(instance) != "storage_state":
+            return context_options, skip_reason
+
+        if skip_reason is None:
+            classification = await _self_test_context_options(
+                site=site,
+                instance=instance,
+                context_options=context_options,
+            )
+            if classification is None or classification.kind == "reachable":
+                return context_options, None
+            if classification.kind not in {"login_redirect", "auth_missing"}:
+                raise RuntimeError(
+                    "phase 2c preflight: auth self-test for "
+                    f"{site} at {instance.get('site_url')!r} was inconclusive: "
+                    f"{classification.kind} ({classification.detail})"
+                )
+            logger.warning(
+                "phase 2c preflight: storage_state auth for %s at %s is stale: %s; "
+                "reacquiring via Phase 0d",
+                site,
+                instance.get("site_url"),
+                classification.detail,
+            )
+        else:
+            logger.warning(
+                "phase 2c preflight: storage_state auth for %s at %s is unusable: %s; "
+                "reacquiring via Phase 0d",
+                site,
+                instance.get("site_url"),
+                skip_reason,
+            )
+
+        lock_key = f"{site}:{instance.get('site_url')}"
+        lock = _PREFLIGHT_AUTH_REFRESH_LOCKS.setdefault(lock_key, asyncio.Lock())
+        async with lock:
+            from worldsim.phases.phase_0d_auth_bootstrap import (
+                AuthBootstrapError,
+                reacquire_storage_state,
+            )
+
+            try:
+                refreshed_path = await reacquire_storage_state(
+                    site_name=site,
+                    instance=instance,
+                    benchmark_root=benchmark_root,
+                )
+            except AuthBootstrapError as exc:
+                raise RuntimeError(
+                    f"phase 2c preflight: failed to reacquire storage_state for "
+                    f"{site} at {instance.get('site_url')!r}: {exc}"
+                ) from exc
+            instance["storage_state_path"] = str(refreshed_path)
+
+        refreshed_options, refreshed_skip = _preflight_request_context_options(instance)
+        if refreshed_skip is not None:
+            raise RuntimeError(
+                f"phase 2c preflight: reacquired storage_state for {site} at "
+                f"{instance.get('site_url')!r} is unusable: {refreshed_skip}"
+            )
+        refreshed_classification = await _self_test_context_options(
+            site=site,
+            instance=instance,
+            context_options=refreshed_options,
+        )
+        if refreshed_classification is None or refreshed_classification.kind == "reachable":
+            logger.info(
+                "phase 2c preflight: refreshed storage_state auth for %s at %s",
+                site,
+                instance.get("site_url"),
+            )
+            return refreshed_options, None
+        raise RuntimeError(
+            "phase 2c preflight: storage_state refresh for "
+            f"{site} at {instance.get('site_url')!r} did not authenticate: "
+            f"{refreshed_classification.kind} ({refreshed_classification.detail})"
+        )
+
     try:
         preflight_instances_by_site: dict[str, list[dict[str, Any]]] = {}
         for site, site_instances in instances_by_site.items():
@@ -1153,6 +1277,12 @@ async def _run_preflight_and_filter_raw(
             for instance in site_instances:
                 resolved = dict(instance)
                 context_options, skip_reason = _preflight_request_context_options(instance)
+                context_options, skip_reason = await _ensure_live_storage_state_options(
+                    site=site,
+                    instance=resolved,
+                    context_options=context_options,
+                    skip_reason=skip_reason,
+                )
                 if skip_reason is not None:
                     resolved["preflight_auth_skip_reason"] = skip_reason
                 else:

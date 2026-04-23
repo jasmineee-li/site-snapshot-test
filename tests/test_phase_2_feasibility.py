@@ -577,6 +577,176 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp
     assert storage_state["cookies"][0]["sameSite"] == "Lax"
 
 
+@pytest.mark.asyncio
+async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypatch):
+    task = _task("AT-auth", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    raw = [task]
+    old_state = tmp_path / "old.json"
+    old_state.write_text(
+        json.dumps(
+            {"cookies": [{"name": "s", "value": "old", "domain": "gitlab.example"}]}
+        )
+    )
+    new_state = tmp_path / "new.json"
+    new_state.write_text(
+        json.dumps(
+            {"cookies": [{"name": "s", "value": "new", "domain": "gitlab.example"}]}
+        )
+    )
+    seen_context_options: dict[str, Any] = {}
+    reacquire_calls: list[str] = []
+    self_test_results = [
+        phase_2c_preflight.PreflightClassification(
+            kind="login_redirect",
+            quarantine=True,
+            http_status=302,
+            detail="302 redirect to /users/sign_in",
+        ),
+        phase_2c_preflight.PreflightClassification(
+            kind="reachable",
+            quarantine=False,
+            http_status=200,
+            detail="200 OK",
+        ),
+    ]
+
+    async def fake_self_test_auth(**_kwargs):
+        return self_test_results.pop(0)
+
+    async def fake_reacquire_storage_state(*, site_name, instance, benchmark_root):
+        reacquire_calls.append(site_name)
+        return new_state
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        seen_context_options.update(instances_by_site["gitlab"][0]["preflight_request_context"])
+        return tasks, []
+
+    class _FakeContext:
+        async def dispose(self):
+            return None
+
+    class _FakeRequest:
+        async def new_context(self, **_kwargs):
+            return _FakeContext()
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    from worldsim.phases import phase_0d_auth_bootstrap
+
+    monkeypatch.setattr(phase_2c_preflight, "self_test_preflight_auth", fake_self_test_auth)
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
+    monkeypatch.setattr(
+        phase_0d_auth_bootstrap, "reacquire_storage_state", fake_reacquire_storage_state
+    )
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    dropped = await feas._run_preflight_and_filter_raw(
+        raw,
+        instances_by_site={
+            "gitlab": [
+                _gitlab_instance(
+                    storage_state_path=str(old_state),
+                    agent_auth={
+                        "type": "storage_state",
+                        "storage_state": {"path": str(old_state)},
+                    },
+                )
+            ]
+        },
+    )
+
+    assert dropped == []
+    assert reacquire_calls == ["gitlab"]
+    assert seen_context_options["storage_state"]["cookies"][0]["value"] == "new"
+
+
+@pytest.mark.asyncio
+async def test_preflight_raises_when_gitlab_refresh_still_stale(tmp_path, monkeypatch):
+    task = _task("AT-auth", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        json.dumps({"cookies": [{"name": "s", "value": "1", "domain": "gitlab.example"}]})
+    )
+    self_test_result = phase_2c_preflight.PreflightClassification(
+        kind="login_redirect",
+        quarantine=True,
+        http_status=302,
+        detail="302 redirect to /users/sign_in",
+    )
+
+    async def fake_self_test_auth(**_kwargs):
+        return self_test_result
+
+    async def fake_reacquire_storage_state(*, site_name, instance, benchmark_root):
+        return state_path
+
+    class _FakeContext:
+        async def dispose(self):
+            return None
+
+    class _FakeRequest:
+        async def new_context(self, **_kwargs):
+            return _FakeContext()
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    from worldsim.phases import phase_0d_auth_bootstrap
+
+    monkeypatch.setattr(phase_2c_preflight, "self_test_preflight_auth", fake_self_test_auth)
+    monkeypatch.setattr(
+        phase_0d_auth_bootstrap, "reacquire_storage_state", fake_reacquire_storage_state
+    )
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    with pytest.raises(RuntimeError, match="did not authenticate"):
+        await feas._run_preflight_and_filter_raw(
+            [task],
+            instances_by_site={
+                "gitlab": [
+                    _gitlab_instance(
+                        storage_state_path=str(state_path),
+                        agent_auth={
+                            "type": "storage_state",
+                            "storage_state": {"path": str(state_path)},
+                        },
+                    )
+                ]
+            },
+        )
+
+
 # ---------------------------------------------------------------------------
 # Case 1 — happy path
 # ---------------------------------------------------------------------------

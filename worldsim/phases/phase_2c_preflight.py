@@ -65,6 +65,12 @@ DEFAULT_PREFLIGHT_CONCURRENCY = 16
 DEFAULT_PREFLIGHT_TIMEOUT_S = 5.0
 DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO = 0.5
 
+_AUTH_SELF_TEST_PATHS: dict[str, str] = {
+    # Browser-facing session check: unauthenticated users redirect to
+    # /users/sign_in, while a live cookie jar reaches the profile page.
+    "gitlab": "/-/profile",
+}
+
 # Body markers indicating the 200-response is actually a login page
 # (GitLab + Postmill share most of these; we keep substrings short and
 # attribute-anchored so a README that mentions "sign in" does not
@@ -422,6 +428,42 @@ async def _probe_one(
         headers=headers,
         body_snippet=body_snippet,
         exception_name=None,
+    )
+
+
+def auth_self_test_path(site: str) -> str | None:
+    """Return a cheap authenticated endpoint path for sites that need one."""
+    return _AUTH_SELF_TEST_PATHS.get(str(site or "").strip().lower())
+
+
+async def self_test_preflight_auth(
+    *,
+    request_context: Any,
+    site: str,
+    site_url: str,
+    timeout_s: float = DEFAULT_PREFLIGHT_TIMEOUT_S,
+) -> PreflightClassification | None:
+    """Probe whether the current request context has live browser auth.
+
+    Returns ``None`` for sites whose source-data preflight does not depend on
+    authenticated browser state. For GitLab, ``reachable`` means the storage
+    state is accepted; ``login_redirect``/``auth_missing`` means it is stale.
+    """
+    path = auth_self_test_path(site)
+    if path is None:
+        return None
+    base = str(site_url or "").strip()
+    if not base:
+        return PreflightClassification(
+            kind="host_unreachable",
+            quarantine=False,
+            http_status=None,
+            detail="auth self-test has no site_url",
+        )
+    return await _probe_one(
+        request_context=request_context,
+        url=resolve_start_url(path, base),
+        timeout_s=timeout_s,
     )
 
 
