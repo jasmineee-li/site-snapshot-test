@@ -130,9 +130,15 @@ def test_gitlab_create_issue_falls_back_to_constructed_path_when_web_url_missing
     result = editor.create_issue(title_template="Seeded", body_template="body")
 
     urls = result["read_surface_urls"]
+    # _issue_surface_urls emits the HTML page + the /discussions.json
+    # plaintext source (worldsim/editors/gitlab.py:1417-1428) — the
+    # HTML alone only exposes ~8 KB while notes lazy-load, so the JSON
+    # feed is what Phase 2c's render verifier can dependably grep.
     assert urls == [
         "http://gitlab.test/byteblaze/secret-project/-/issues/42",
         "/byteblaze/secret-project/-/issues/42",
+        "http://gitlab.test/byteblaze/secret-project/-/issues/42/discussions.json",
+        "/byteblaze/secret-project/-/issues/42/discussions.json",
     ]
 
 

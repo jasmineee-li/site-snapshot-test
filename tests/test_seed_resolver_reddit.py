@@ -72,13 +72,16 @@ def test_create_forum_allocates_fresh_name_when_requested_name_exists(monkeypatc
 
     result = editor.create_forum(name_template="books")
 
+    # Collision suffix uses ``_`` (not ``-``) because Postmill silently
+    # rejects POST /create_forum submissions whose forum[name] contains
+    # a dash — see worldsim/editors/reddit.py::_allocate_forum_name.
     assert result == {
-        "forum_name": "books-2",
-        "read_surface_urls": ["http://reddit.test/f/books-2", "/f/books-2"],
+        "forum_name": "books_2",
+        "read_surface_urls": ["http://reddit.test/f/books_2", "/f/books_2"],
         "read_surface_provenance_source": "editor_constructed",
     }
     assert captured["action_path"] == "/create_forum"
-    assert captured["form_fields"]["forum[name]"] == "books-2"
+    assert captured["form_fields"]["forum[name]"] == "books_2"
 
 
 def test_create_forum_posts_exact_form_fields(monkeypatch):
