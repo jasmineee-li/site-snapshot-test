@@ -292,6 +292,79 @@ def test_preflight_empty_task_list_short_circuits():
     assert keep == [] and dropped == []
 
 
+def test_preflight_unanimous_quarantine_across_replicas():
+    # All 3 replicas return 404 for the same anchor — classic stale-L4
+    # signal. Preflight must quarantine.
+    task = _make_task("adv_stale", "reddit", "https://reddit.local/f/books/999")
+    instances_by_site = {
+        "reddit": [
+            {"site_name": "reddit", "site_url": "http://host0:9900"},
+            {"site_name": "reddit", "site_url": "http://host1:9900"},
+            {"site_name": "reddit", "site_url": "http://host2:9900"},
+        ]
+    }
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://host0:9900/f/books/999": _FakeResponse(status=404),
+            "http://host1:9900/f/books/999": _FakeResponse(status=404),
+            "http://host2:9900/f/books/999": _FakeResponse(status=404),
+        }
+    )
+
+    async def _factory(_):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+    assert len(dropped) == 1
+    assert dropped[0]["source_data_issue"]["kind"] == "not_found"
+    assert dropped[0]["source_data_issue"]["replicas_probed"] == 3
+
+
+def test_preflight_split_across_replicas_does_not_quarantine():
+    # Replica 0 holds legacy data (200 OK), replicas 1-2 are reset
+    # baseline (404). This is the r5 reddit_0 drift pattern that made
+    # the first r5 run fire 0 drops. Unanimity rule: if ANY replica
+    # says reachable, the task is NOT quarantined. The early-exit
+    # optimization stops after replica 0 reports reachable.
+    task = _make_task("adv_legacy", "reddit", "https://reddit.local/f/headphones/4")
+    instances_by_site = {
+        "reddit": [
+            {"site_name": "reddit", "site_url": "http://host0:9900"},
+            {"site_name": "reddit", "site_url": "http://host1:9900"},
+            {"site_name": "reddit", "site_url": "http://host2:9900"},
+        ]
+    }
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://host0:9900/f/headphones/4": _FakeResponse(status=200, body="legacy"),
+            "http://host1:9900/f/headphones/4": _FakeResponse(status=404),
+            "http://host2:9900/f/headphones/4": _FakeResponse(status=404),
+        }
+    )
+
+    async def _factory(_):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+    assert keep == [task]
+    assert dropped == []
+    # Early-exit: only replica 0 probed before we knew the task was
+    # reachable somewhere. Replicas 1-2 should NOT have been hit.
+    assert len(request_context.calls) == 1
+
+
 def test_preflight_rewrites_synthetic_hostname_to_live_url():
     # Phase 2a emits ``start_url_resolved`` against synthetic hosts
     # (``https://gitlab.local/...``) and Phase 2c rewrites them via

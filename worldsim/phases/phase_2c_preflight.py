@@ -340,31 +340,67 @@ async def preflight_benign_targets(
         if not site_instances:
             keep.append(task)
             return
-        instance = site_instances[0]
-        site_url = str(instance.get("site_url") or "").rstrip("/")
-        url = _task_probe_url(task, site_url)
-        if not url:
+
+        # Probe every replica for this site. Replica-0 sometimes holds
+        # stale DB state (e.g. a reddit forum anchor that was valid at
+        # seed-generation time and still exists only on replica-0),
+        # while replicas 1..N have the current reset-to-baseline state.
+        # We quarantine only when EVERY replica agrees on a
+        # deterministic-failure outcome — that's the signal that the
+        # dataset itself is broken, not a replica-0 drift. If any
+        # replica returns reachable (or a transient signal), the task
+        # passes through to the real probe.
+        classifications: list[PreflightClassification] = []
+        probed_url_for_audit: str | None = None
+        for instance in site_instances:
+            site_url = str(instance.get("site_url") or "").rstrip("/")
+            url = _task_probe_url(task, site_url)
+            if not url:
+                break
+            if probed_url_for_audit is None:
+                probed_url_for_audit = url
+            storage_state_path = instance.get("storage_state_path") or None
+            async with sem:
+                request_context = await _context_for(site, storage_state_path)
+                classification = await _probe_one(
+                    request_context=request_context,
+                    url=url,
+                    timeout_s=timeout_s,
+                )
+            classifications.append(classification)
+            # Early-exit: if any replica is clearly reachable or
+            # transient, we know we are NOT going to quarantine —
+            # stop probing the remaining replicas.
+            if not classification.quarantine:
+                break
+        if not classifications:
             keep.append(task)
             return
-        storage_state_path = instance.get("storage_state_path") or None
-        async with sem:
-            request_context = await _context_for(site, storage_state_path)
-            classification = await _probe_one(
-                request_context=request_context,
-                url=url,
-                timeout_s=timeout_s,
-            )
+
         probed_count += 1
-        if classification.kind == "login_redirect":
+        if any(c.kind == "login_redirect" for c in classifications):
             login_redirect_count += 1
-        if classification.quarantine:
+
+        # Unanimity rule: every replica must agree on quarantine, and
+        # we report the majority quarantine-kind so the audit is
+        # interpretable.
+        all_quarantine = all(c.quarantine for c in classifications)
+        if all_quarantine:
+            # Pick the most common kind across replicas (ties broken
+            # by the first-seen kind) — surfaces the dominant failure
+            # signature in the audit sidecar.
+            kind_counts: dict[str, int] = {}
+            for c in classifications:
+                kind_counts[c.kind] = kind_counts.get(c.kind, 0) + 1
+            dominant = max(classifications, key=lambda c: kind_counts[c.kind])
             audit = dict(task)
             audit["source_data_issue"] = {
-                "kind": classification.kind,
-                "http_status": classification.http_status,
-                "detail": classification.detail,
+                "kind": dominant.kind,
+                "http_status": dominant.http_status,
+                "detail": dominant.detail,
                 "probed_at": _now_iso(),
-                "probed_url": url,
+                "probed_url": probed_url_for_audit,
+                "replicas_probed": len(classifications),
             }
             dropped.append(audit)
         else:
