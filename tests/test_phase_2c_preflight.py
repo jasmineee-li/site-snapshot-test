@@ -247,6 +247,44 @@ def test_preflight_bailout_when_login_redirect_dominates():
     assert sorted(t["id"] for t in keep) == [f"adv_{i}" for i in range(6)]
 
 
+def test_preflight_bailout_restores_original_task_objects_with_mixed_drops():
+    login_task_1 = _make_task("adv_login_1", "gitlab", "http://gitlab.test/p/-/issues/1")
+    login_task_2 = _make_task("adv_login_2", "gitlab", "http://gitlab.test/p/-/issues/2")
+    not_found_task = _make_task("adv_404", "gitlab", "http://gitlab.test/p/-/issues/404")
+    ok_task = _make_task("adv_ok", "gitlab", "http://gitlab.test/p/-/issues/3")
+    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://gitlab.test/p/-/issues/1": _FakeResponse(
+                status=302, headers={"location": "/users/sign_in"}
+            ),
+            "http://gitlab.test/p/-/issues/2": _FakeResponse(
+                status=302, headers={"location": "/users/sign_in"}
+            ),
+            "http://gitlab.test/p/-/issues/404": _FakeResponse(status=404),
+            "http://gitlab.test/p/-/issues/3": _FakeResponse(status=200, body="ok"),
+        }
+    )
+
+    async def _factory(_storage_state_path):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [login_task_1, login_task_2, not_found_task, ok_task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+            bailout_ratio=0.25,
+        )
+    )
+
+    assert [task["id"] for task in dropped] == ["adv_404"]
+    assert login_task_1 in keep
+    assert login_task_2 in keep
+    assert ok_task in keep
+    assert all("source_data_issue" not in task for task in keep)
+
+
 def test_preflight_skips_tasks_with_no_benign_target():
     malformed = {"id": "adv_x", "site": "gitlab"}  # no benign_target_resource
     instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
@@ -456,6 +494,32 @@ def test_preflight_reuses_request_context_across_same_site_tasks():
     assert factory_calls == 1, "factory should run once per (site, storage_state)"
     assert len(keep) == 3 and dropped == []
     assert len(request_context.calls) == 3
+
+
+def test_preflight_context_cache_is_race_safe_for_concurrent_same_key_tasks():
+    tasks = [
+        _make_task(f"adv_{i}", "gitlab", f"http://gitlab.test/p/-/issues/{i}") for i in range(20)
+    ]
+    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    request_context = _FakeRequestContext()
+    factory_calls = 0
+
+    async def _factory(_storage_state_path):
+        nonlocal factory_calls
+        factory_calls += 1
+        await asyncio.sleep(0.01)
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            tasks,
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+
+    assert factory_calls == 1
+    assert len(keep) == 20 and dropped == []
 
 
 def test_preflight_transient_error_passes_task_through():

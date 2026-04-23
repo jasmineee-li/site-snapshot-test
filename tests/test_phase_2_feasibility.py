@@ -17,6 +17,7 @@ import pytest
 
 from worldsim.editors import EditorError
 from worldsim.phases import phase_2_feasibility as feas
+from worldsim.phases import phase_2c_preflight
 
 # ---------------------------------------------------------------------------
 # Fixtures / fakes
@@ -177,6 +178,141 @@ def _host_fingerprint_for_test(
         "dataset_commit": dataset_commit,
         "task_content_hash": task_content_hash,
     }
+
+
+def test_resolve_benign_storage_state_path_prefers_nested_agent_auth(tmp_path):
+    state_path = tmp_path / "gitlab-state.json"
+    state_path.write_text(json.dumps({"cookies": []}))
+
+    resolved = feas._resolve_benign_storage_state_path(
+        _gitlab_instance(
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            }
+        )
+    )
+
+    assert resolved == str(state_path)
+
+
+def test_resolve_benign_storage_state_path_falls_back_to_phase_0d(tmp_path, monkeypatch):
+    fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
+    fallback.parent.mkdir(parents=True)
+    fallback.write_text(json.dumps({"cookies": []}))
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    assert (
+        feas._resolve_benign_storage_state_path(
+            _gitlab_instance(agent_auth={"type": "storage_state", "storage_state": {}})
+        )
+        == str(fallback)
+    )
+
+
+def test_resolve_benign_storage_state_path_requires_storage_state_auth_for_fallback(
+    tmp_path, monkeypatch
+):
+    fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
+    fallback.parent.mkdir(parents=True)
+    fallback.write_text(json.dumps({"cookies": []}))
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    assert feas._resolve_benign_storage_state_path(_gitlab_instance()) is None
+
+
+def test_resolve_benign_storage_state_path_continues_past_missing_explicit_path(
+    tmp_path, monkeypatch
+):
+    fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
+    fallback.parent.mkdir(parents=True)
+    fallback.write_text(json.dumps({"cookies": []}))
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    resolved = feas._resolve_benign_storage_state_path(
+        _gitlab_instance(
+            storage_state_path=str(tmp_path / "missing.json"),
+            agent_auth={"type": "storage_state", "storage_state": {}},
+        )
+    )
+
+    assert resolved == str(fallback)
+
+
+def test_resolve_benign_storage_state_path_ignores_nested_path_for_non_storage_auth(tmp_path):
+    nested_path = tmp_path / "nested.json"
+    nested_path.write_text(json.dumps({"cookies": []}))
+
+    resolved = feas._resolve_benign_storage_state_path(
+        _gitlab_instance(
+            agent_auth={
+                "type": "none",
+                "storage_state": {"path": str(nested_path)},
+            }
+        )
+    )
+
+    assert resolved is None
+
+
+@pytest.mark.asyncio
+async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_storage(
+    tmp_path, monkeypatch
+):
+    task = _task("AT-auth", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    raw = [task]
+    stale_path = tmp_path / "stale.json"
+    stale_path.write_text(json.dumps({"cookies": []}))
+    seen_paths: list[str | None] = []
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        seen_paths.extend(
+            instance.get("storage_state_path")
+            for instance in instances_by_site["gitlab"]
+        )
+        return tasks, []
+
+    class _FakeRequest:
+        async def new_context(self, **kwargs):
+            raise AssertionError("fake preflight should not create request contexts")
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    monkeypatch.setattr(phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets)
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    dropped = await feas._run_preflight_and_filter_raw(
+        raw,
+        instances_by_site={
+            "gitlab": [
+                _gitlab_instance(
+                    storage_state_path=str(stale_path),
+                    agent_auth={
+                        "type": "none",
+                        "storage_state": {"path": str(stale_path)},
+                    },
+                )
+            ]
+        },
+    )
+
+    assert dropped == []
+    assert seen_paths == [None]
 
 
 # ---------------------------------------------------------------------------

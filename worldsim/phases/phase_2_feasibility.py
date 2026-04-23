@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from worldsim._async_utils import retrying
 from worldsim.auth_tokens import acquire_tokens_for_instances
@@ -266,27 +267,32 @@ async def verify_feasibility(
             )
         editor_cls.probe_base_state(representative)
 
-    # Bug I (2026-04-23): preflight HTTP probe of each task's
-    # benign_target_resource.start_url_resolved against the benign
-    # storage_state. Tasks with deterministically-broken benign entry
-    # points (login_redirect, 404, 403, 410, 401) are quarantined as
-    # ``source_data_issue`` — they never reach the full browser probe.
+    # Bug I (2026-04-23): preflight HTTP probe of each task's benign entry
+    # URL plus editor-implied read/attach surfaces. Tasks with
+    # deterministically-broken source data (login_redirect, 404, 403, 410,
+    # 401) are quarantined as ``source_data_issue`` — they never reach the
+    # full browser probe.
     # Transient signals (5xx, 429, timeouts, connection errors) pass
-    # through and let the real probe retry. The preflight is an
-    # optimization + dataset-quality signal, not a correctness gate;
-    # on any error the raw list is returned unchanged.
+    # through and let the real probe retry. Unexpected preflight crashes fail
+    # Phase 2c rather than silently writing a clean-looking
+    # source_data_dropped_count=0 report.
     dropped_source_data: list[dict[str, Any]] = []
-    try:
-        dropped_source_data = await _run_preflight_and_filter_raw(
-            raw,
-            instances_by_site=instances_by_site,
-        )
-    except Exception:
-        logger.exception(
-            "phase 2c preflight raised; continuing with the full dataset "
-            "(no tasks will be source-data-quarantined this run)"
-        )
-        dropped_source_data = []
+    preflight_start = time.monotonic()
+    logger.info(
+        "phase 2c preflight: starting probe over %d task(s) across %d site(s)",
+        len(raw),
+        len(instances_by_site),
+    )
+    dropped_source_data = await _run_preflight_and_filter_raw(
+        raw,
+        instances_by_site=instances_by_site,
+    )
+    logger.info(
+        "phase 2c preflight: complete — dropped %d task(s); %d remain for the probe (elapsed=%.1fs)",
+        len(dropped_source_data),
+        len(raw),
+        time.monotonic() - preflight_start,
+    )
     # ``raw`` has been mutated in place by _run_preflight_and_filter_raw
     # when preflight succeeds.
 
@@ -847,6 +853,140 @@ def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
     return best
 
 
+def _preflight_request_context_options(
+    instance: dict[str, Any],
+) -> tuple[dict[str, Any], str | None]:
+    """Build Playwright APIRequestContext auth options for source-data preflight.
+
+    Returns ``({}, reason)`` when declared auth is unusable. The caller then
+    skips source-data quarantine for that instance instead of probing
+    anonymously and falsely classifying private pages as source-data drops.
+    """
+    agent_auth = instance.get("agent_auth")
+    if not isinstance(agent_auth, dict):
+        return {}, None
+    auth_type = str(agent_auth.get("type") or "").strip()
+    if auth_type in {"", "none", "unknown"}:
+        return {}, None
+    if auth_type == "storage_state":
+        path = _resolve_benign_storage_state_path(instance)
+        if path is None:
+            return {}, "storage_state auth declared but no usable artifact was found"
+        error = _storage_state_preflight_error(path, instance)
+        if error is not None:
+            return {}, error
+        return {"storage_state": path}, None
+    if auth_type == "http_headers":
+        try:
+            headers = _resolve_agent_auth_headers(agent_auth)
+        except RuntimeError as exc:
+            return {}, str(exc)
+        return {"extra_http_headers": headers}, None
+    if auth_type == "http_basic":
+        block = agent_auth.get("http_basic")
+        if not isinstance(block, dict):
+            return {}, "http_basic auth declared without http_basic block"
+        username = block.get("username")
+        password = block.get("password")
+        if not isinstance(username, str) or not isinstance(password, str) or not username:
+            return {}, "http_basic auth declared without username/password"
+        return {"http_credentials": {"username": username, "password": password}}, None
+    return {}, f"agent_auth type {auth_type!r} is not supported by Phase 2c preflight"
+
+
+def _resolve_agent_auth_headers(agent_auth: dict[str, Any]) -> dict[str, str]:
+    block = agent_auth.get("http_headers")
+    if not isinstance(block, dict):
+        # Older fixtures sometimes used the seeding-auth shape directly.
+        block = agent_auth
+    headers = block.get("headers")
+    if not isinstance(headers, dict) or not headers:
+        raise RuntimeError("http_headers auth declared without a non-empty headers map")
+    credentials = agent_auth.get("authentication")
+    if not isinstance(credentials, dict):
+        credentials = {}
+    creds = credentials.get("credentials")
+    if not isinstance(creds, dict):
+        creds = {}
+    username = creds.get("username")
+    password = creds.get("password")
+    resolved: dict[str, str] = {}
+    for key, value in headers.items():
+        if not isinstance(key, str) or not key.strip() or not isinstance(value, str):
+            raise RuntimeError("http_headers entries must be string keys and string values")
+        text = value
+        needs_username = "${credentials.username}" in text
+        needs_password = "${credentials.password}" in text
+        if needs_username and not isinstance(username, str):
+            raise RuntimeError("http_headers references ${credentials.username} without credentials")
+        if needs_password and not isinstance(password, str):
+            raise RuntimeError("http_headers references ${credentials.password} without credentials")
+        if needs_username:
+            text = text.replace("${credentials.username}", username)
+        if needs_password:
+            text = text.replace("${credentials.password}", password)
+        resolved[key] = text
+    return resolved
+
+
+def _storage_state_preflight_error(path: str, instance: dict[str, Any]) -> str | None:
+    path_obj = Path(path)
+    try:
+        payload = json.loads(path_obj.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return f"storage_state {path_obj} is not readable JSON: {exc}"
+    if not isinstance(payload, dict):
+        return f"storage_state {path_obj} does not contain a JSON object"
+    recorded_hosts = _storage_state_recorded_hosts(payload)
+    if not recorded_hosts:
+        return f"storage_state {path_obj} has no recorded cookie/origin hosts"
+    live_host = urlsplit(str(instance.get("site_url") or "")).hostname
+    if not live_host:
+        return f"instance site_url {instance.get('site_url')!r} has no host"
+    if not any(_cookie_domain_matches_host(recorded, live_host) for recorded in recorded_hosts):
+        return (
+            f"storage_state {path_obj} is host-bound to {sorted(recorded_hosts)} "
+            f"and does not match live host {live_host!r}"
+        )
+    return None
+
+
+def _storage_state_recorded_hosts(payload: dict[str, Any]) -> set[str]:
+    hosts: set[str] = set()
+    cookies = payload.get("cookies")
+    if isinstance(cookies, list):
+        for cookie in cookies:
+            if not isinstance(cookie, dict):
+                continue
+            domain = cookie.get("domain")
+            if isinstance(domain, str) and domain.strip():
+                hosts.add(domain.strip().lower().strip("."))
+    origins = payload.get("origins")
+    if isinstance(origins, list):
+        for origin in origins:
+            if not isinstance(origin, dict):
+                continue
+            origin_url = origin.get("origin")
+            if not isinstance(origin_url, str):
+                continue
+            host = urlsplit(origin_url).hostname
+            if host:
+                hosts.add(host.lower().strip("."))
+    return hosts
+
+
+def _cookie_domain_matches_host(domain: str, host: str) -> bool:
+    normalized_domain = domain.strip().lower().strip(".")
+    normalized_host = host.strip().lower().strip(".")
+    if not normalized_domain or not normalized_host:
+        return False
+    if normalized_domain == normalized_host:
+        return True
+    if ":" in normalized_domain or ":" in normalized_host:
+        return False
+    return normalized_host.endswith(f".{normalized_domain}")
+
+
 async def _run_preflight_and_filter_raw(
     raw: list[dict[str, Any]],
     *,
@@ -854,7 +994,7 @@ async def _run_preflight_and_filter_raw(
 ) -> list[dict[str, Any]]:
     """Probe every task and mutate ``raw`` in place to drop quarantined tasks.
 
-    Uses a lazy Playwright ``APIRequestContext`` per (site, storage_state)
+    Uses a lazy Playwright ``APIRequestContext`` per (site, auth-context)
     pair — shares Playwright's TLS/proxy setup with the render_check path
     without importing httpx. Returns the list of dropped records with
     ``source_data_issue`` metadata attached; the caller routes this list
@@ -877,20 +1017,33 @@ async def _run_preflight_and_filter_raw(
     pw_handle = await async_playwright().start()
     contexts_created: list[Any] = []
 
-    async def _factory(storage_state_path: str | None) -> Any:
+    async def _factory(context_options: dict[str, Any] | None) -> Any:
         kwargs: dict[str, Any] = {}
-        if storage_state_path:
-            path_obj = Path(storage_state_path)
-            if path_obj.exists():
-                kwargs["storage_state"] = str(path_obj)
+        if isinstance(context_options, dict):
+            for key in ("storage_state", "extra_http_headers", "http_credentials"):
+                value = context_options.get(key)
+                if value:
+                    kwargs[key] = value
         ctx = await pw_handle.request.new_context(**kwargs)
         contexts_created.append(ctx)
         return ctx
 
     try:
+        preflight_instances_by_site: dict[str, list[dict[str, Any]]] = {}
+        for site, site_instances in instances_by_site.items():
+            resolved_instances: list[dict[str, Any]] = []
+            for instance in site_instances:
+                resolved = dict(instance)
+                context_options, skip_reason = _preflight_request_context_options(instance)
+                if skip_reason is not None:
+                    resolved["preflight_auth_skip_reason"] = skip_reason
+                else:
+                    resolved["preflight_request_context"] = context_options
+                resolved_instances.append(resolved)
+            preflight_instances_by_site[site] = resolved_instances
         keep, dropped = await preflight_benign_targets(
             raw,
-            instances_by_site=instances_by_site,
+            instances_by_site=preflight_instances_by_site,
             request_context_factory=_factory,
         )
     finally:
@@ -922,10 +1075,33 @@ def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
     pages. Falls back to ``None`` when no artifact is present (public
     content still works in an anonymous context).
     """
+    agent_auth = instance.get("agent_auth")
+    agent_auth_type = agent_auth.get("type") if isinstance(agent_auth, dict) else None
+    if agent_auth_type != "storage_state":
+        return None
+
     explicit = instance.get("storage_state_path")
     if isinstance(explicit, str) and explicit.strip():
         path = Path(explicit.strip())
-        return str(path) if path.exists() else None
+        if path.exists():
+            return str(path)
+        logger.warning(
+            "phase 2c: storage_state_path %s not found; checking agent_auth/fallback paths",
+            path,
+        )
+
+    if isinstance(agent_auth, dict) and agent_auth_type == "storage_state":
+        storage_state = agent_auth.get("storage_state")
+        if isinstance(storage_state, dict):
+            nested = storage_state.get("path")
+            if isinstance(nested, str) and nested.strip():
+                path = Path(nested.strip())
+                if path.exists():
+                    return str(path)
+                logger.warning(
+                    "phase 2c: agent_auth storage_state %s not found; checking fallback path",
+                    path,
+                )
 
     state_dir_env = os.environ.get("WORLDSIM_STATE_DIR") or "logs"
     site_name = str(instance.get("site_name") or "").strip()
