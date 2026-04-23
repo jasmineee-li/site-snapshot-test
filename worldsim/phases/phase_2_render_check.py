@@ -315,8 +315,12 @@ def _strip_markdown_for_text_match(text: str) -> str:
             )
         seg = "".join(stripped_lines)
 
-        # Step 4: inline single-backticks (outside fences).
-        seg = re.sub(r"`([^`]*)`", r"\1", seg)
+        # Step 4: inline single-backticks (outside fences). Lookaround
+        # guards prevent the regex from chewing triple-backtick
+        # sequences pairwise — ``````system`` must stay ``````system`` so a
+        # signature matches the body symmetrically when GitLab renders
+        # nested fences (which leaves literal ``` in text_content).
+        seg = re.sub(r"(?<!`)`([^`\n]+?)`(?!`)", r"\1", seg)
 
         # Step 5: link + image wrappers.
         seg = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", seg)  # ![alt](url)
