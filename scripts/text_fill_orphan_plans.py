@@ -35,6 +35,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
+# Match worldsim.main:28 — load .env before any module that may need
+# Anthropic credentials is imported.
+load_dotenv(override=True)
+
 from worldsim.phases.phase_2_injections import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
