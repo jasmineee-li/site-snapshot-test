@@ -98,6 +98,16 @@ _PROBE_LAUNCH_ARGS: tuple[str, ...] = (
     "--no-sandbox",
 )
 
+_PLAYWRIGHT_COOKIE_SAMESITE_ALIASES: dict[str, str | None] = {
+    "lax": "Lax",
+    "none": "None",
+    "no_restriction": "None",
+    "no-restriction": "None",
+    "strict": "Strict",
+    "": None,
+    "unspecified": None,
+}
+
 
 def _per_replica_cap(site_name: str) -> int:
     return _PER_REPLICA_CAP_DEFAULT.get(site_name.strip().lower(), _PER_REPLICA_CAP_FALLBACK)
@@ -875,7 +885,10 @@ def _preflight_request_context_options(
         error = _storage_state_preflight_error(path, instance)
         if error is not None:
             return {}, error
-        return {"storage_state": path}, None
+        storage_state, error = _playwright_storage_state_for_preflight(path)
+        if error is not None:
+            return {}, error
+        return {"storage_state": storage_state}, None
     if auth_type == "http_headers":
         try:
             headers = _resolve_agent_auth_headers(agent_auth)
@@ -918,9 +931,13 @@ def _resolve_agent_auth_headers(agent_auth: dict[str, Any]) -> dict[str, str]:
         needs_username = "${credentials.username}" in text
         needs_password = "${credentials.password}" in text
         if needs_username and not isinstance(username, str):
-            raise RuntimeError("http_headers references ${credentials.username} without credentials")
+            raise RuntimeError(
+                "http_headers references ${credentials.username} without credentials"
+            )
         if needs_password and not isinstance(password, str):
-            raise RuntimeError("http_headers references ${credentials.password} without credentials")
+            raise RuntimeError(
+                "http_headers references ${credentials.password} without credentials"
+            )
         if needs_username:
             text = text.replace("${credentials.username}", username)
         if needs_password:
@@ -949,6 +966,69 @@ def _storage_state_preflight_error(path: str, instance: dict[str, Any]) -> str |
             f"and does not match live host {live_host!r}"
         )
     return None
+
+
+def _playwright_storage_state_for_preflight(path: str) -> tuple[str | dict[str, Any], str | None]:
+    """Return a Playwright-compatible storage state for preflight.
+
+    Phase 0d artifacts may come from non-Playwright browser APIs whose
+    cookie ``sameSite`` values use CDP names such as ``no_restriction``.
+    Normalize known equivalents in memory so auth remains usable. Unknown
+    shapes keep the existing auth-unusable path, which makes preflight skip
+    this instance instead of probing private surfaces anonymously.
+    """
+    path_obj = Path(path)
+    try:
+        payload = json.loads(path_obj.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return path, f"storage_state {path_obj} is not readable JSON: {exc}"
+    if not isinstance(payload, dict):
+        return path, f"storage_state {path_obj} does not contain a JSON object"
+
+    cookies = payload.get("cookies")
+    if not isinstance(cookies, list):
+        return path, None
+
+    normalized_cookies: list[Any] = []
+    changed = False
+    for index, cookie in enumerate(cookies):
+        if not isinstance(cookie, dict):
+            return path, f"storage_state {path_obj} cookie[{index}] is not an object"
+        normalized_cookie = dict(cookie)
+        if "sameSite" in normalized_cookie:
+            raw_same_site = normalized_cookie.get("sameSite")
+            if raw_same_site is None:
+                normalized_cookie.pop("sameSite", None)
+                changed = True
+                normalized_cookies.append(normalized_cookie)
+                continue
+            if not isinstance(raw_same_site, str):
+                return (
+                    path,
+                    f"storage_state {path_obj} cookie[{index}] has non-string sameSite",
+                )
+            normalized_same_site = _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES.get(
+                raw_same_site.strip().lower()
+            )
+            if raw_same_site.strip().lower() not in _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES:
+                return (
+                    path,
+                    f"storage_state {path_obj} cookie[{index}] has unsupported "
+                    f"sameSite {raw_same_site!r}",
+                )
+            if normalized_same_site is None:
+                normalized_cookie.pop("sameSite", None)
+                changed = True
+            elif normalized_same_site != raw_same_site:
+                normalized_cookie["sameSite"] = normalized_same_site
+                changed = True
+        normalized_cookies.append(normalized_cookie)
+
+    if not changed:
+        return path, None
+    normalized_payload = dict(payload)
+    normalized_payload["cookies"] = normalized_cookies
+    return normalized_payload, None
 
 
 def _storage_state_recorded_hosts(payload: dict[str, Any]) -> set[str]:

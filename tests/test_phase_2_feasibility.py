@@ -294,6 +294,87 @@ def test_preflight_request_context_rejects_host_bound_storage_state(tmp_path):
     assert "does not match live host" in reason
 
 
+def test_preflight_request_context_normalizes_storage_state_samesite(tmp_path):
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "a",
+                        "value": "1",
+                        "domain": "gitlab.example",
+                        "sameSite": "no_restriction",
+                    },
+                    {
+                        "name": "b",
+                        "value": "2",
+                        "domain": "gitlab.example",
+                        "sameSite": "",
+                    },
+                    {
+                        "name": "c",
+                        "value": "3",
+                        "domain": "gitlab.example",
+                        "sameSite": "lax",
+                    },
+                    {
+                        "name": "d",
+                        "value": "4",
+                        "domain": "gitlab.example",
+                        "sameSite": None,
+                    },
+                ]
+            }
+        )
+    )
+
+    context, reason = feas._preflight_request_context_options(
+        _gitlab_instance(
+            storage_state_path=str(state_path),
+            agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
+        )
+    )
+
+    assert reason is None
+    storage_state = context["storage_state"]
+    assert isinstance(storage_state, dict)
+    cookies = storage_state["cookies"]
+    assert cookies[0]["sameSite"] == "None"
+    assert "sameSite" not in cookies[1]
+    assert cookies[2]["sameSite"] == "Lax"
+    assert "sameSite" not in cookies[3]
+
+
+def test_preflight_request_context_skips_unsupported_storage_state_samesite(tmp_path):
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "a",
+                        "value": "1",
+                        "domain": "gitlab.example",
+                        "sameSite": "mystery",
+                    }
+                ]
+            }
+        )
+    )
+
+    context, reason = feas._preflight_request_context_options(
+        _gitlab_instance(
+            storage_state_path=str(state_path),
+            agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
+        )
+    )
+
+    assert context == {}
+    assert reason is not None
+    assert "unsupported sameSite" in reason
+
+
 @pytest.mark.asyncio
 async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_storage(
     tmp_path, monkeypatch
@@ -352,6 +433,72 @@ async def test_preflight_filter_removes_stale_storage_state_when_auth_is_non_sto
 
     assert dropped == []
     assert seen_contexts == [{}]
+
+
+@pytest.mark.asyncio
+async def test_preflight_context_creation_failure_does_not_probe_anonymously(
+    tmp_path, monkeypatch
+):
+    task = _task("AT-auth", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    raw = [task]
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        json.dumps({"cookies": [{"name": "s", "value": "1", "domain": "gitlab.example"}]})
+    )
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        context_options = instances_by_site["gitlab"][0]["preflight_request_context"]
+        await request_context_factory(context_options)
+        return tasks, []
+
+    class _FakeRequest:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def new_context(self, **kwargs):
+            self.calls.append(kwargs)
+            raise RuntimeError("synthetic Playwright transport failure")
+
+    fake_request = _FakeRequest()
+
+    class _FakePlaywright:
+        request = fake_request
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    monkeypatch.setattr(phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets)
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    with pytest.raises(RuntimeError, match="synthetic Playwright transport failure"):
+        await feas._run_preflight_and_filter_raw(
+            raw,
+            instances_by_site={
+                "gitlab": [
+                    _gitlab_instance(
+                        storage_state_path=str(state_path),
+                        agent_auth={
+                            "type": "storage_state",
+                            "storage_state": {"path": str(state_path)},
+                        },
+                    )
+                ]
+            },
+        )
+
+    assert len(fake_request.calls) == 1
+    assert fake_request.calls[0] == {"storage_state": str(state_path)}
 
 
 # ---------------------------------------------------------------------------
