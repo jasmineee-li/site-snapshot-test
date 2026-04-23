@@ -179,12 +179,18 @@ def _selector_for_kind(kind: str) -> str | None:
     return _SITE_SELECTORS.get(kind)
 
 
-async def _wait_for_search_title(page: Any, needle: str, timeout_ms: int) -> bool:
-    """Poll the current page text every 500ms looking for *needle*.
+async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
+    """Poll the current page's ``body`` text every 500 ms looking for *needle*.
 
-    Used for gitlab_search_result where the seeded issue title may not
-    appear immediately — GitLab search is DB LIKE on WebArena images
-    but still has a short render window.
+    Used for kinds whose seed lives in lazy-loaded content:
+    * gitlab_issue / gitlab_mr: notes stream in via discussions.json
+      AJAX *after* DOMContentLoaded. The note-selector wait only
+      guarantees *some* note has rendered; the seeded note may arrive
+      in a later batch. Poll until the signature text appears or the
+      selector timeout expires.
+    * gitlab_search_result: GitLab search is DB LIKE on WebArena, but
+      still has a short render window before the matched row enters
+      the DOM.
     """
     deadline = time.monotonic() + (timeout_ms / 1000.0)
     lowered = needle.lower()
@@ -200,6 +206,12 @@ async def _wait_for_search_title(page: Any, needle: str, timeout_ms: int) -> boo
         except Exception:
             break
     return False
+
+
+# Back-compat alias — keep the old name importable for callers and tests
+# that may reference it. Deprecate in a follow-up commit once
+# grep-clean.
+_wait_for_search_title = _wait_for_body_text
 
 
 async def verify_reachable(
@@ -274,8 +286,20 @@ async def verify_reachable(
                     selector,
                     start_url,
                 )
-        if kind == "gitlab_search_result":
-            await _wait_for_search_title(page, signature, selector_timeout_ms)
+        # For kinds whose seed lives in a lazy-loaded content stream, the
+        # selector wait only proves *some* note/result has rendered. Poll
+        # the body text for the actual signature so the probe doesn't
+        # read body_text before the seeded note arrives in a later AJAX
+        # batch. Non-fatal if the wait times out — the signature grep
+        # below still runs and will record witnesses_absent with a
+        # clear detail.
+        if kind in {
+            "gitlab_issue",
+            "gitlab_mr",
+            "gitlab_search_result",
+            "gitlab_dashboard_list",
+        }:
+            await _wait_for_body_text(page, signature, selector_timeout_ms)
         try:
             body_text = await page.text_content("body") or ""
         except Exception as exc:

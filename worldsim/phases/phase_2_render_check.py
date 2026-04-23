@@ -336,7 +336,7 @@ async def verify_seed_renders(
     site_name: str,
     site_url: str,
     signature: str | None,
-    nav_timeout_ms: int = 15000,
+    nav_timeout_ms: int = 30000,
     selector_timeout_ms: int = 10000,
     storage_state_path: str | None = None,
 ) -> RenderOutcome:
