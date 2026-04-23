@@ -3369,9 +3369,7 @@ class TestResolveBenignTargetResourcesForShard:
         assert resources["t_search"]["pending_layer"] == "L3"
         assert "missing benign auth" in resources["t_search"]["reason"]
 
-    def test_api_auth_without_benign_auth_keeps_reddit_dashboard_kind(
-        self, tmp_path, monkeypatch
-    ):
+    def test_api_auth_without_benign_auth_keeps_reddit_dashboard_kind(self, tmp_path, monkeypatch):
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         tasks = [
             {
@@ -3491,3 +3489,105 @@ class TestMergeImmutableFieldsEnrichedResources:
         # No enriched_resources → legacy L1/L2 derivation path runs.
         phase_2_injections._merge_immutable_fields([adv], [benign])
         assert "benign_target_resource" in adv
+
+
+class TestRecoverOrphanedShards:
+    """Regression tests for the orphan-shard recovery folded into the
+    Phase 2 aggregator — prevents repeat of the 49-orphan drop on the
+    current 107-task dataset where one shard re-ran in isolation and
+    the earlier persisted sidecars were silently discarded."""
+
+    @staticmethod
+    def _plan(task_id: str, site: str = "gitlab") -> dict:
+        return {"id": task_id, "site": site, "sites": [site]}
+
+    def test_merges_disjoint_shards(self, tmp_path: Path):
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        (shards_dir / "gitlab-shard-0.json").write_text(
+            json.dumps([self._plan("adv-100"), self._plan("adv-101")])
+        )
+        (shards_dir / "reddit-shard-0.json").write_text(
+            json.dumps([self._plan("adv-200", site="reddit")])
+        )
+        in_memory: list[dict] = []
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir, in_memory, allowed_sites={"gitlab", "reddit"}
+        )
+        assert {plan["id"] for plan in merged} == {"adv-100", "adv-101", "adv-200"}
+        assert recovered == sorted(["adv-100", "adv-101", "adv-200"])
+
+    def test_existing_inmemory_plan_wins_over_shard_copy(self, tmp_path: Path):
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        (shards_dir / "gitlab-shard-0.json").write_text(
+            json.dumps(
+                [
+                    {**self._plan("adv-100"), "marker": "from-shard"},
+                    self._plan("adv-101"),
+                ]
+            )
+        )
+        in_memory = [{**self._plan("adv-100"), "marker": "from-memory"}]
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir, in_memory, allowed_sites={"gitlab"}
+        )
+        # adv-100 already in memory → shard copy is ignored.
+        # adv-101 is the only orphan.
+        assert recovered == ["adv-101"]
+        adv_100 = next(plan for plan in merged if plan["id"] == "adv-100")
+        assert adv_100["marker"] == "from-memory"
+
+    def test_newest_shard_wins_on_cross_shard_collision(self, tmp_path: Path):
+        import os
+        import time
+
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        older = shards_dir / "gitlab-shard-0.json"
+        older.write_text(json.dumps([{**self._plan("adv-100"), "gen": "old"}]))
+        old_mtime = time.time() - 120
+        os.utime(older, (old_mtime, old_mtime))
+
+        newer = shards_dir / "gitlab-shard-1.json"
+        newer.write_text(json.dumps([{**self._plan("adv-100"), "gen": "new"}]))
+        # newer keeps default mtime (now), which exceeds old_mtime.
+
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir, [], allowed_sites={"gitlab"}
+        )
+        assert recovered == ["adv-100"]
+        assert merged[0]["gen"] == "new"
+
+    def test_out_of_scope_sites_are_not_recovered(self, tmp_path: Path):
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        (shards_dir / "shopping-shard-0.json").write_text(
+            json.dumps([self._plan("adv-shop-1", site="shopping")])
+        )
+        (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([self._plan("adv-gl-1")]))
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir, [], allowed_sites={"gitlab", "reddit"}
+        )
+        # shopping is out of the WASP-aligned scope and stays on disk only.
+        assert recovered == ["adv-gl-1"]
+        assert {plan["id"] for plan in merged} == {"adv-gl-1"}
+
+    def test_missing_shards_dir_returns_input_unchanged(self, tmp_path: Path):
+        missing = tmp_path / "does_not_exist"
+        in_memory = [self._plan("adv-1")]
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            missing, in_memory, allowed_sites={"gitlab"}
+        )
+        assert recovered == []
+        assert merged == in_memory
+
+    def test_malformed_shard_is_skipped(self, tmp_path: Path):
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        (shards_dir / "gitlab-shard-0.json").write_text("not-json-at-all")
+        (shards_dir / "gitlab-shard-1.json").write_text(json.dumps([self._plan("adv-valid")]))
+        _, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir, [], allowed_sites={"gitlab"}
+        )
+        assert recovered == ["adv-valid"]

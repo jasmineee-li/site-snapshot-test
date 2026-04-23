@@ -616,6 +616,27 @@ async def run(args: argparse.Namespace) -> int:
             )
             return 1
 
+        # Fold in any validated shards persisted to disk that the current
+        # in-memory aggregation missed — e.g. when one shard re-ran in
+        # isolation after a prior run, prior sidecars would otherwise be
+        # silently dropped. Scope to the sites actually in this run's
+        # input (tasks_by_site keys) so we don't resurrect quarantined
+        # out-of-scope sites.
+        active_sites = set(tasks_by_site.keys())
+        if sites_filter is not None:
+            active_sites &= sites_filter
+        all_plans, recovered_ids = _recover_orphaned_shards(
+            output_dir / "shards",
+            all_plans,
+            allowed_sites=active_sites,
+        )
+        if recovered_ids:
+            logger.warning(
+                "Phase 2 aggregation: recovered %d orphan shard task(s) from disk: %s",
+                len(recovered_ids),
+                ", ".join(recovered_ids[:10]) + (" …" if len(recovered_ids) > 10 else ""),
+            )
+
         merged_plans = _merge_preserving_unfiltered_sites(
             plans_path,
             all_plans,
@@ -2144,6 +2165,59 @@ def _load_text_fill_diagnostics(path: Path) -> list[dict[str, Any]]:
     except Exception:
         return []
     return loaded if isinstance(loaded, list) else []
+
+
+def _recover_orphaned_shards(
+    shards_dir: Path,
+    in_memory_plans: list[dict[str, Any]],
+    *,
+    allowed_sites: set[str],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Fold disk-persisted shard tasks that the in-memory aggregation missed.
+
+    Phase 2a writes each validated shard to ``shards_dir`` at line 1725.
+    If a shard re-runs in isolation (or the orchestrator crashes mid-run
+    and resumes), only the latest shard's ``SiteInjectionResult`` lives
+    in memory — earlier sidecars are valid, enriched, and on disk, but
+    otherwise silently dropped.
+
+    Scan ``shards_dir/*-shard-*.json``, ignore ids already in
+    ``in_memory_plans``, filter to ``allowed_sites``, and append the
+    surviving tasks. On cross-shard id collision, newest-mtime wins.
+    Returns ``(merged_plans, recovered_ids)``.
+    """
+    if not shards_dir.is_dir():
+        return list(in_memory_plans), []
+    in_memory_ids = {str(plan.get("id") or "") for plan in in_memory_plans if plan.get("id")}
+    best_by_id: dict[str, tuple[float, dict[str, Any]]] = {}
+    for shard_path in sorted(shards_dir.glob("*-shard-*.json")):
+        try:
+            data = json.loads(shard_path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Phase 2 orphan recovery: skipping %s (%s)", shard_path.name, exc)
+            continue
+        if not isinstance(data, list):
+            continue
+        mtime = shard_path.stat().st_mtime
+        for task in data:
+            if not isinstance(task, dict):
+                continue
+            task_id = str(task.get("id") or "")
+            if not task_id or task_id in in_memory_ids:
+                continue
+            site = _effective_task_site(task)
+            if site not in allowed_sites:
+                continue
+            prior = best_by_id.get(task_id)
+            if prior is None or mtime > prior[0]:
+                best_by_id[task_id] = (mtime, task)
+    orphans = [task for _, task in best_by_id.values()]
+    if not orphans:
+        return list(in_memory_plans), []
+    merged = list(in_memory_plans) + orphans
+    _normalize_l4_benign_task_ids_in_place(merged)
+    recovered_ids = sorted(str(task.get("id") or "") for task in orphans)
+    return merged, recovered_ids
 
 
 def _merge_preserving_unfiltered_sites(
