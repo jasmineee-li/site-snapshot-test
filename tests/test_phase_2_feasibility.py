@@ -250,7 +250,7 @@ def test_resolve_benign_storage_state_path_prefers_nested_agent_auth(tmp_path):
             agent_auth={
                 "type": "storage_state",
                 "storage_state": {"path": str(state_path)},
-            }
+            },
         )
     )
 
@@ -838,15 +838,11 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
     raw = [task]
     old_state = tmp_path / "old.json"
     old_state.write_text(
-        json.dumps(
-            {"cookies": [{"name": "s", "value": "old", "domain": "gitlab.example"}]}
-        )
+        json.dumps({"cookies": [{"name": "s", "value": "old", "domain": "gitlab.example"}]})
     )
     new_state = tmp_path / "new.json"
     new_state.write_text(
-        json.dumps(
-            {"cookies": [{"name": "s", "value": "new", "domain": "gitlab.example"}]}
-        )
+        json.dumps({"cookies": [{"name": "s", "value": "new", "domain": "gitlab.example"}]})
     )
     seen_context_options: dict[str, Any] = {}
     reacquire_calls: list[str] = []
