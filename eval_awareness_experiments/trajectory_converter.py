@@ -482,6 +482,158 @@ def parse_osharm_trajectory(
 
 
 # ---------------------------------------------------------------------------
+# Tool-calling benchmarks (AgentDojo, InjecAgent)
+# ---------------------------------------------------------------------------
+
+def parse_toolcalling_trajectory(
+    task_json_path: Path,
+) -> StandardizedTrajectory | None:
+    """Parse a single-task JSON log emitted by ToolCallingRunner.
+
+    Expected schema (produced by eval_awareness_experiments/tool_calling_runner.py):
+        {
+            "task_id": str,
+            "task_instruction": str,
+            "benchmark": "agentdojo" | "injecagent",
+            "agent": str,                         # model name
+            "condition": "baseline" | "eval_cue" | "scenario_cue",
+            "extra_instructions_preset": str,
+            "steps": [{"thought": str, "action": str, "observation": str}, ...],
+            "final_answer": str,
+            "passed": bool | null,
+            "attack_success": bool | null,
+            "safety_category": str | null,
+            "metadata": {...}
+        }
+
+    Accepts either a single-task JSON file or a directory containing one.
+    """
+    if task_json_path.is_dir():
+        candidates = sorted(task_json_path.glob("*.json"))
+        if not candidates:
+            logger.warning(f"No JSON in {task_json_path}")
+            return None
+        task_json_path = candidates[0]
+
+    data = json.loads(task_json_path.read_text())
+
+    benchmark = data.get("benchmark")
+    if benchmark not in ("agentdojo", "injecagent"):
+        logger.error(
+            f"parse_toolcalling_trajectory: unexpected benchmark {benchmark!r} "
+            f"in {task_json_path}"
+        )
+        return None
+
+    steps = [
+        TrajectoryStep(
+            thought=step.get("thought", ""),
+            action=step.get("action", ""),
+            observation=step.get("observation", ""),
+        )
+        for step in data.get("steps", [])
+    ]
+
+    return StandardizedTrajectory(
+        id=f"{benchmark}_{data.get('task_id', task_json_path.stem)}",
+        benchmark=benchmark,
+        task_instruction=data.get("task_instruction", ""),
+        agent=data.get("agent", "unknown"),
+        steps=steps,
+        final_answer=data.get("final_answer", ""),
+        passed=data.get("passed"),
+        attack_type="tool_output_injection",
+        attack_success=data.get("attack_success"),
+        safety_category=data.get("safety_category", "tool_injection"),
+        injection_condition=data.get("condition", "baseline"),
+        metadata={
+            "task_id": data.get("task_id", ""),
+            "extra_instructions_preset": data.get("extra_instructions_preset", "none"),
+            "task_json_path": str(task_json_path),
+            **(data.get("metadata") or {}),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# EIA (Environmental Injection Attack — SeeAct trajectories, import-only)
+# ---------------------------------------------------------------------------
+
+def parse_eia_trajectory(
+    trajectory_dir: Path,
+) -> StandardizedTrajectory | None:
+    """Parse a normalized EIA trajectory directory.
+
+    Layout produced by `import_eia_trajectories.py`:
+        data/eia/<task_id>/
+            trajectory.json  # SeeAct step log
+            task.json        # {"task_id", "instruction", "attack_metadata": {...}}
+
+    EIA trajectories are pre-existing (from the authors' eval_results.zip).
+    Condition is always "baseline" — we can't apply causal XML wrappers to
+    logged-before-we-existed trajectories.
+    """
+    traj_path = trajectory_dir / "trajectory.json"
+    task_path = trajectory_dir / "task.json"
+    if not traj_path.exists() or not task_path.exists():
+        logger.warning(
+            f"EIA trajectory dir {trajectory_dir} missing trajectory.json or task.json"
+        )
+        return None
+
+    traj_data = json.loads(traj_path.read_text())
+    task_data = json.loads(task_path.read_text())
+
+    # SeeAct step entries: {"thought", "action", "target_element", "observation"}
+    # Fall back to other common key names if EIA used different ones.
+    raw_steps = (
+        traj_data.get("steps")
+        or traj_data.get("history")
+        or (traj_data if isinstance(traj_data, list) else [])
+    )
+    steps = []
+    for entry in raw_steps:
+        if not isinstance(entry, dict):
+            continue
+        thought = entry.get("thought") or entry.get("reasoning") or entry.get("rationale") or ""
+        action_raw = entry.get("action") or entry.get("grounded_action") or ""
+        if isinstance(action_raw, dict):
+            target = entry.get("target_element") or ""
+            action = f"{action_raw.get('type', 'action')}({target})".strip()
+        else:
+            action = str(action_raw)
+        observation = entry.get("observation") or entry.get("element_text") or entry.get("page_state") or ""
+        if isinstance(observation, dict):
+            observation = json.dumps(observation)[:5000]
+        steps.append(TrajectoryStep(
+            thought=thought,
+            action=action,
+            observation=observation[:5000] if isinstance(observation, str) else "",
+        ))
+
+    attack_meta = task_data.get("attack_metadata") or {}
+
+    return StandardizedTrajectory(
+        id=f"eia_{task_data.get('task_id', trajectory_dir.name)}",
+        benchmark="eia",
+        task_instruction=task_data.get("instruction", ""),
+        agent=traj_data.get("agent") or task_data.get("agent", "seeact"),
+        steps=steps,
+        final_answer=traj_data.get("final_answer", "") or (steps[-1].action if steps else ""),
+        passed=task_data.get("passed"),
+        attack_type="environmental_injection",
+        attack_success=attack_meta.get("attack_success"),
+        safety_category="vision_web_injection",
+        injection_condition="baseline",
+        metadata={
+            "task_id": task_data.get("task_id", trajectory_dir.name),
+            "trajectory_dir": str(trajectory_dir),
+            "attack_metadata": attack_meta,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Conversion utilities
 # ---------------------------------------------------------------------------
 
@@ -580,6 +732,9 @@ PARSERS = {
     "doomarena": parse_doomarena_trajectory,
     "wasp": parse_wasp_trajectory,
     "safearena": parse_safearena_trajectory,
+    "agentdojo": parse_toolcalling_trajectory,
+    "injecagent": parse_toolcalling_trajectory,
+    "eia": parse_eia_trajectory,
     # os-harm uses parse_osharm_trajectory which takes extra task_info arg
 }
 
