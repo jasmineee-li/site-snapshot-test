@@ -540,6 +540,61 @@ def test_preflight_rewrites_synthetic_hostname_to_live_url():
     assert request_context.calls[0][0] == "http://172.17.0.1:8023/foo/-/issues/7"
 
 
+def test_preflight_cleans_gitlab_editor_surface_project_path_authority():
+    task = {
+        "id": "adv_gitlab_authority_path",
+        "site": "gitlab",
+        "benign_target_resource": {
+            "kind": "gitlab_issue",
+            "start_url_resolved": "https://gitlab.local/a11yproject/a11yproject.com/-/issues/1064",
+            "anchors": {
+                "project_path": "localhost:8023/a11yproject/a11yproject.com",
+                "issue_iid": "1064",
+            },
+        },
+        "adversarial_data_seed": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {
+                        "project_path": "{benign_project_path}",
+                        "issue_iid": "{benign_issue_iid}",
+                        "body": "payload",
+                    },
+                }
+            ],
+        },
+    }
+    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://172.17.0.1:8023"}]}
+    malformed = "http://172.17.0.1:8023/localhost:8023/a11yproject/a11yproject.com/-/issues/1064"
+    expected = "http://172.17.0.1:8023/a11yproject/a11yproject.com/-/issues/1064"
+    request_context = _FakeRequestContext(
+        response_map={
+            expected: _FakeResponse(status=200, body="ok"),
+            malformed: _FakeResponse(status=404),
+        }
+    )
+
+    async def _factory(_):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == [task]
+    assert dropped == []
+    probed_urls = [url for url, _, _ in request_context.calls]
+    assert probed_urls == [expected]
+    assert malformed not in probed_urls
+
+
 def test_preflight_reuses_request_context_across_same_site_tasks():
     # Memoization invariant: tasks on the same (site, storage_state_path)
     # pair must share a single APIRequestContext so we do not pay the

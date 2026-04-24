@@ -287,6 +287,13 @@ def _first_value(
     return None
 
 
+def _clean_gitlab_project_path(project_path: str) -> str:
+    path = project_path.strip().strip("/")
+    if "/" in path and path.split("/", 1)[0].startswith("localhost:"):
+        return path.split("/", 1)[1]
+    return path
+
+
 def _editor_surface_path(
     *,
     site: str,
@@ -315,7 +322,7 @@ def _editor_surface_path(
         )
         if not project_path:
             return None
-        project_path = project_path.strip("/")
+        project_path = _clean_gitlab_project_path(project_path)
         if method == "create_issue_note":
             issue_iid = _first_value(args, anchors, "issue_iid")
             if issue_iid:
