@@ -108,6 +108,7 @@ class TrajectoryStep:
     thought: str       # Agent's reasoning/thinking at this step
     action: str        # What the agent did (click, type, terminate, etc.)
     observation: str = ""  # Page state / axtree / observation after action
+    preamble: str = ""  # Assistant content emitted before action (e.g. forced scratchpad tags routed to content channel instead of reasoning)
 
 
 @dataclass

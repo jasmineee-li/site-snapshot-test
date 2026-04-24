@@ -530,6 +530,7 @@ def parse_toolcalling_trajectory(
             thought=step.get("thought", ""),
             action=step.get("action", ""),
             observation=step.get("observation", ""),
+            preamble=step.get("preamble", ""),
         )
         for step in data.get("steps", [])
     ]
@@ -657,6 +658,12 @@ def trajectory_to_transcript(traj: StandardizedTrajectory) -> Transcript:
                 label=f"step_{i}_reasoning",
                 is_hidden=True,
             ))
+        if step.preamble:
+            messages.append(Message(
+                role="assistant",
+                content=step.preamble,
+                label=f"step_{i}_preamble",
+            ))
         if step.action:
             messages.append(Message(
                 role="assistant",
@@ -707,11 +714,16 @@ def trajectory_to_judge_fields(
     """
     task = traj.task_instruction
 
-    # Concatenate all step thoughts with step numbering
+    # Concatenate all step thoughts (and preambles) with step numbering.
+    # Preamble = assistant `content` emitted before tool calls; on some models
+    # forced scratchpad tags land here rather than in the reasoning channel,
+    # and the judge needs to see them.
     reasoning_parts = []
     for i, step in enumerate(traj.steps):
         if step.thought:
             reasoning_parts.append(f"[Step {i + 1}] {step.thought}")
+        if step.preamble:
+            reasoning_parts.append(f"[Step {i + 1} preamble] {step.preamble}")
 
     reasoning = "\n\n".join(reasoning_parts)
     if len(reasoning) > MAX_REASONING_CHARS:

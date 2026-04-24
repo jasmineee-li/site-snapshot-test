@@ -51,10 +51,17 @@ AttackEvaluator = Callable[
 
 @dataclass
 class TurnRecord:
-    """One model turn: reasoning + either tool_calls or final text."""
+    """One model turn: reasoning + either tool_calls or final text.
+
+    `preamble` captures `message.content` emitted before tool_calls — some
+    models (e.g. GLM-5 in tool-use mode) route forced scratchpad output here
+    instead of into the reasoning channel, so it must be preserved for the
+    judge to see.
+    """
     thought: str
     action: str
     observation: str
+    preamble: str = ""
 
 
 @dataclass
@@ -219,8 +226,9 @@ class ToolCallingRunner:
                         "content": observation,
                     })
                     turns.append(TurnRecord(
-                        # Attribute reasoning only to the first tool-call of the turn
+                        # Attribute reasoning + preamble only to the first tool-call of the turn
                         thought=thought if tc_idx == 0 else "",
+                        preamble=content if tc_idx == 0 else "",
                         action=f"{name}({json.dumps(args, ensure_ascii=False)})",
                         observation=observation,
                     ))
