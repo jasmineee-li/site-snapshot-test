@@ -85,7 +85,7 @@ from worldsim.agent_config import (
 from worldsim.agent_prompt import build_agent_prompt
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
-from worldsim.benchmark_capabilities import infer_benchmark_name
+from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from worldsim.browser_use_agent import AgentResult, AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_effective_agent_auth
 from worldsim.cost_tracker import tracker as cost_tracker
@@ -1605,6 +1605,39 @@ async def run(args: argparse.Namespace) -> int:
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
     if benchmark_root is None:
         benchmark_root = config.benchmark_codebase
+    try:
+        run_benchmark = infer_benchmark_name(
+            [
+                config.benchmark_name,
+                *(task.get("benchmark") for task in tasks),
+                *(task.get("benchmark_name") for task in tasks),
+                *(task.get("benchmark_adapter") for task in tasks),
+            ]
+        )
+    except ValueError as exc:
+        logger.error("Phase 4 benchmark metadata gate failed: %s", exc)
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="unsupported_benchmark",
+            error=str(exc),
+            **state_metadata,
+        )
+        return 1
+    capabilities = get_benchmark_capabilities(run_benchmark or config.benchmark_name)
+    if capabilities.phase_4_mode != "worldsim_v5":
+        message = (
+            f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
+        )
+        logger.error("Phase 4 benchmark metadata gate failed: %s", message)
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="unsupported_benchmark",
+            error=message,
+            **state_metadata,
+        )
+        return 1
     pvpo_endpoint_errors = _pvpo_endpoint_preflight_errors(
         config.instances,
         active_sites=active_sites,
@@ -1701,6 +1734,11 @@ async def run(args: argparse.Namespace) -> int:
                 storage_state = auth.get("storage_state") if isinstance(auth, dict) else None
                 if isinstance(storage_state, dict):
                     storage_state["path"] = str(healed_path)
+                storage_state_resolution_errors = [
+                    error
+                    for error in storage_state_resolution_errors
+                    if error.site_name != instance.site_name
+                ]
                 logger.info(
                     "auto-healed storage_state for %s at %s",
                     instance.site_name,

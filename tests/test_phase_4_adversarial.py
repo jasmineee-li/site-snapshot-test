@@ -3037,6 +3037,162 @@ async def test_phase_4_run_checks_existing_storage_state_freshness(monkeypatch, 
 
 
 @pytest.mark.asyncio
+async def test_phase_4_run_rejects_non_worldsim_v5_benchmark(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    adv_task = {
+        "id": "adv-wasp",
+        "benchmark": "wasp",
+        "benign_task_id": "benign-1",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "instruction": "Open the issue",
+        "start_urls": ["http://gitlab.test/issues"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"adversarial_reward": {"type": "noop"}},
+        "adversarial_data_seed": {
+            "mechanism": "api",
+            "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+        },
+        "feasibility": {"status": "verified"},
+    }
+    benign_task = dict(adv_task)
+    benign_task["id"] = "benign-1"
+    benign_task["reward_function"] = {"type": "noop"}
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps([adv_task]))
+    (tmp_path / "phase_3" / "contracts.json").write_text(json.dumps(_as_contracts([benign_task])))
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "wasp",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
+                    }
+                ],
+            }
+        )
+    )
+    monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=None,
+            agent_model="demo-model",
+            agent_provider=None,
+            resume=False,
+        )
+    )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["reason"] == "unsupported_benchmark"
+    assert "does not support WorldSim v5 Phase 4" in state["error"]
+
+
+@pytest.mark.asyncio
+async def test_phase_4_run_clears_storage_error_after_retry_success(monkeypatch, tmp_path):
+    from worldsim import storage_state_preflight
+
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    adv_task = {
+        "id": "adv-auth",
+        "benign_task_id": "benign-1",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "instruction": "Open the issue",
+        "start_urls": ["http://gitlab.test/issues"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"adversarial_reward": {"type": "noop"}},
+        "adversarial_data_seed": {
+            "mechanism": "api",
+            "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+        },
+    }
+    benign_task = dict(adv_task)
+    benign_task["id"] = "benign-1"
+    benign_task["reward_function"] = {"type": "noop"}
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps([adv_task]))
+    (tmp_path / "phase_3" / "contracts.json").write_text(json.dumps(_as_contracts([benign_task])))
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
+                        "agent_auth": {
+                            "type": "storage_state",
+                            "storage_state": {"path": "auth/gitlab-state.json"},
+                        },
+                    }
+                ],
+            }
+        )
+    )
+    attempts = 0
+
+    async def fake_ensure_storage_state(instance, *, benchmark_root, benchmark_name):
+        nonlocal attempts
+        _ = instance, benchmark_root, benchmark_name
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("transient")
+        return tmp_path / "auth" / "gitlab-state.json"
+
+    async def fake_run_tasks_by_site(**kwargs):
+        _ = kwargs
+        return []
+
+    monkeypatch.setattr(storage_state_preflight, "ensure_storage_state", fake_ensure_storage_state)
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "inspect_storage_state_preflight",
+        lambda *args, **kwargs: SimpleNamespace(errors=(), mismatches=()),
+    )
+    monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_collect_agent_auth_runtime_errors",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_probe_seed_base_state_for_task_targets",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=None,
+            agent_model="demo-model",
+            agent_provider=None,
+            resume=False,
+            skip_host_bound_storage_state_auth=False,
+        )
+    )
+
+    assert rc == 0
+    assert attempts == 2
+
+
+@pytest.mark.asyncio
 async def test_phase_4_run_agent_runtime_error_precedes_host_api_preflight(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)

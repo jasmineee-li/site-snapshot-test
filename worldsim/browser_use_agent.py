@@ -791,7 +791,9 @@ class _ScopedHeaderAuthInjector:
             disable = getattr(fetch, "disable", None)
             if callable(disable):
                 try:
-                    await disable(session_id=session.session_id)
+                    await asyncio.wait_for(disable(session_id=session.session_id), timeout=1)
+                except TimeoutError:
+                    logger.debug("scoped http_headers Fetch.disable timed out")
                 except Exception:
                     logger.debug("scoped http_headers Fetch.disable failed", exc_info=True)
         self._enabled_sessions.clear()
@@ -1066,16 +1068,13 @@ def _resolve_auth(
 
     if mech_type == "http_headers":
         try:
-            resolved = resolve_agent_auth_headers(auth_mechanism)
+            resolve_agent_auth_headers(auth_mechanism)
         except RuntimeError as exc:
             raise AuthArtifactMissingError(str(exc)) from exc
-        origin = _origin_from_url(site_url or "")
-        if not origin:
-            raise AuthArtifactMissingError(
-                "auth_mechanism.http_headers requires a valid site_url to scope headers"
-            )
-        deferred_actions.append(_scoped_header_auth_action(origin, resolved))
-        return session_kwargs, deferred_actions
+        raise AuthArtifactMissingError(
+            "auth_mechanism.http_headers is not supported by BrowserUse runtime because "
+            "CDP Fetch cannot be enabled for every new target before its first request"
+        )
 
     # Defensive fallback: an unknown-but-enumerated type slipped through.
     raise NotImplementedError(f"auth_mechanism.type={mech_type!r} has no runtime dispatcher")
