@@ -443,15 +443,30 @@ async def _gitlab_note_ryw_fastpath(
     write_tokens missing note_id, or the JSON fetch fails.
     """
     if site_name != "gitlab" or write_tokens is None:
+        logger.info(
+            "phase 2c render RYW skip: site=%s write_tokens=%s", site_name, bool(write_tokens)
+        )
         return None
     note_id = write_tokens.get("note_id")
     if note_id in (None, ""):
+        logger.info("phase 2c render RYW skip: no note_id in write_tokens=%s", write_tokens)
         return None
     lower = target_url.lower()
     if "/-/issues/" not in lower and "/-/merge_requests/" not in lower:
+        logger.info("phase 2c render RYW skip: URL not issue/MR: %s", target_url)
         return None
+    # Strip an existing /discussions.json suffix so we don't build /discussions.json/discussions.json
+    # when the target_url is already the JSON surface.
     base_url = target_url.split("?", 1)[0].rstrip("/")
+    if base_url.endswith("/discussions.json"):
+        base_url = base_url[: -len("/discussions.json")]
     json_url = f"{base_url}/discussions.json"
+    logger.info(
+        "phase 2c render RYW firing: note_id=%s json_url=%s (from target=%s)",
+        note_id,
+        json_url,
+        target_url,
+    )
     try:
         response = await page.request.get(json_url, timeout=max(1000, int(timeout_ms)))
     except Exception as exc:
@@ -472,21 +487,35 @@ async def _gitlab_note_ryw_fastpath(
         body = await response.text()
     except Exception:
         return None
-    # Match the editor-returned id against the JSON payload. Try both the
-    # compact (``"id":42``) and spaced (``"id": 42``) shapes Ruby's
-    # ``ActiveSupport::JSON.encode`` can produce depending on options.
-    token_key = f'"id":{note_id}'
-    token_key_spaced = f'"id": {note_id}'
-    if token_key in body or token_key_spaced in body:
+    # Match the editor-returned id against the JSON payload. GitLab's REST
+    # API (POST /notes) returns ``id`` as an integer, but the view-controller
+    # endpoint that backs ``/discussions.json`` serializes notes via a Rails
+    # serializer that emits ``"id":"42"`` (quoted string). Cover both shapes
+    # plus the compact/spaced variants ActiveSupport::JSON can produce.
+    note_id_str = str(note_id)
+    candidates = (
+        f'"id":{note_id_str}',
+        f'"id": {note_id_str}',
+        f'"id":"{note_id_str}"',
+        f'"id": "{note_id_str}"',
+    )
+    matched = next((c for c in candidates if c in body), None)
+    logger.info(
+        "phase 2c render RYW fetched %s status=%s body_len=%d looking_for=%r match=%s",
+        json_url,
+        status,
+        len(body or ""),
+        candidates[0],
+        matched is not None,
+    )
+    if matched is not None:
         # Pull a small context window around the match for the snippet
         # field so evidence reports show what matched.
-        idx = body.find(token_key)
-        if idx < 0:
-            idx = body.find(token_key_spaced)
+        idx = body.find(matched)
         snippet = body[max(0, idx - 40) : idx + 200] if idx >= 0 else body[:200]
         return RenderOutcome.passed(
             url=json_url,
-            signature=f"note_id={note_id}",
+            signature=f"note_id={note_id_str}",
             snippet=snippet,
         )
     return None

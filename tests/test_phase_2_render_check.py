@@ -905,6 +905,57 @@ async def test_ryw_fastpath_handles_spaced_json_encoding():
 
 
 @pytest.mark.asyncio
+async def test_ryw_fastpath_handles_quoted_string_id_encoding():
+    """GitLab's view-controller JSON serializes note_id as a quoted string
+    (``"id":"42"``) — the discussions.json endpoint that the fastpath
+    fetches goes through a different serializer than the REST API. Live
+    r5 confirms this shape; matcher must accept it."""
+    url = "http://gitlab.test/proj/-/issues/9"
+    json_url = url + "/discussions.json"
+    discussions_body = '[{"id":"abc","notes":[{"id":"42","body":"the comment"}]}]'
+    json_responses = {json_url: _FakeRequestResponse(status=200, body=discussions_body)}
+    page = _RYWPage(
+        bodies=["shell only"] * 60, final_body="shell only", json_responses=json_responses
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="missing signature",
+        write_tokens={"note_id": 42},
+    )
+    assert outcome.ok is True
+    assert outcome.matched_signature == "note_id=42"
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_handles_quoted_string_id_with_space():
+    """Spaced + quoted form: ``"id": "42"``."""
+    url = "http://gitlab.test/proj/-/issues/9"
+    json_url = url + "/discussions.json"
+    discussions_body = '[{"id": "abc", "notes": [{"id": "42", "body": "x"}]}]'
+    json_responses = {json_url: _FakeRequestResponse(status=200, body=discussions_body)}
+    page = _RYWPage(
+        bodies=["shell only"] * 60, final_body="shell only", json_responses=json_responses
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="missing signature",
+        write_tokens={"note_id": 42},
+    )
+    assert outcome.ok is True
+    assert outcome.matched_signature == "note_id=42"
+
+
+@pytest.mark.asyncio
 async def test_ryw_fastpath_skipped_when_body_text_match_hits_first():
     """Primary signature match short-circuits before the RYW path. The
     RYW fetch must not run when the text match already passes — we want
