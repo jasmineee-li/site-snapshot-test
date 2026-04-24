@@ -18,6 +18,7 @@ it sparingly; production runs should leave it unset.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -83,9 +84,17 @@ class RenderOutcome:
     matched_url: str | None = None
     matched_signature: str | None = None
     matched_snippet: str | None = None
+    rendered_body_text: str | None = None
 
     @classmethod
-    def passed(cls, *, url: str, signature: str, snippet: str) -> RenderOutcome:
+    def passed(
+        cls,
+        *,
+        url: str,
+        signature: str,
+        snippet: str,
+        rendered_body_text: str | None = None,
+    ) -> RenderOutcome:
         return cls(
             ok=True,
             kind="",
@@ -95,6 +104,7 @@ class RenderOutcome:
             matched_url=url,
             matched_signature=signature,
             matched_snippet=snippet[:240],
+            rendered_body_text=rendered_body_text,
         )
 
     @classmethod
@@ -126,6 +136,8 @@ class RenderOutcome:
             out["matched_signature"] = self.matched_signature
             if self.matched_snippet:
                 out["matched_snippet"] = self.matched_snippet
+            if self.rendered_body_text:
+                out["rendered_body_text"] = self.rendered_body_text[:2000]
         else:
             out["kind"] = self.kind
         return out
@@ -145,6 +157,7 @@ _GITLAB_REWRITTEN_TEXT_TOKEN_RE = re.compile(
     r"|"
     r"(?<![\w/])@[a-z0-9_.-]+"
 )
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def _trim_signature_candidate(text: str) -> str:
@@ -419,6 +432,37 @@ def _normalize(text: str | None) -> str:
     return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
 
 
+def _extract_note_html(body: str, note_id_str: str) -> str | None:
+    """Return the ``note_html`` for the discussion note with the given id."""
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(payload, list):
+        return None
+    for discussion in payload:
+        if not isinstance(discussion, dict):
+            continue
+        notes = discussion.get("notes") or []
+        if not isinstance(notes, list):
+            continue
+        for note in notes:
+            if not isinstance(note, dict):
+                continue
+            if str(note.get("id")) == note_id_str:
+                html_body = note.get("note_html")
+                return html_body if isinstance(html_body, str) else None
+    return None
+
+
+def _strip_html(html_blob: str) -> str:
+    """Strip tags and unescape entities to produce rendered plain text."""
+    import html as _html
+
+    text = _HTML_TAG_RE.sub(" ", html_blob)
+    return _html.unescape(re.sub(r"\s+", " ", text)).strip()
+
+
 async def _gitlab_note_ryw_fastpath(
     *,
     page: Any,
@@ -520,6 +564,8 @@ async def _gitlab_note_ryw_fastpath(
         matched is not None,
     )
     if matched is not None:
+        note_html = _extract_note_html(body, note_id_str)
+        rendered_text = _strip_html(note_html) if note_html else None
         # Pull a small context window around the match for the snippet
         # field so evidence reports show what matched.
         idx = body.find(matched)
@@ -528,6 +574,7 @@ async def _gitlab_note_ryw_fastpath(
             url=json_url,
             signature=f"note_id={note_id_str}",
             snippet=snippet,
+            rendered_body_text=rendered_text,
         )
     return None
 

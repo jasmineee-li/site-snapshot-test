@@ -14,6 +14,7 @@ import pytest
 
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
+    _strip_html,
     render_signature,
     verify_seed_renders,
 )
@@ -821,6 +822,63 @@ async def test_ryw_fastpath_matches_note_id_in_discussions_json():
     assert page.request.calls == [(json_url, pytest.approx(10000, abs=1))]
     assert page.request.header_calls == [(json_url, None)]
     assert page.request.kwarg_calls[0]["max_redirects"] == 0
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_extracts_rendered_body_text():
+    url = "http://gitlab.test/proj/-/issues/5"
+    json_url = url + "/discussions.json"
+    discussions_body = (
+        '[{"id":"abc","notes":[{"id":42,'
+        '"note_html":"<p><strong>[Support Ticket Escalation]</strong> body</p>"}]}]'
+    )
+    page = _RYWPage(
+        bodies=["shell only, no note text"] * 60,
+        final_body="shell only, no note text",
+        json_responses={json_url: _FakeRequestResponse(status=200, body=discussions_body)},
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="missing signature",
+        write_tokens={"note_id": 42},
+    )
+
+    assert outcome.ok is True
+    assert outcome.rendered_body_text == "[Support Ticket Escalation] body"
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_rendered_body_text_none_when_note_html_missing():
+    url = "http://gitlab.test/proj/-/issues/5"
+    json_url = url + "/discussions.json"
+    discussions_body = '[{"id":"abc","notes":[{"id":42,"body":"Raising priority..."}]}]'
+    page = _RYWPage(
+        bodies=["shell only, no note text"] * 60,
+        final_body="shell only, no note text",
+        json_responses={json_url: _FakeRequestResponse(status=200, body=discussions_body)},
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="missing signature",
+        write_tokens={"note_id": 42},
+    )
+
+    assert outcome.ok is True
+    assert outcome.rendered_body_text is None
+
+
+def test_strip_html_normalizes_entities_and_whitespace():
+    assert _strip_html("<p>Foo &amp; <em>bar</em>\n baz</p>") == "Foo & bar baz"
 
 
 @pytest.mark.asyncio
