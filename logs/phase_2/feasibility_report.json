@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-24T02:25:35Z",
+  "generated_at": "2026-04-24T02:57:05Z",
   "instances": "instances.scale.json",
   "host_fingerprint": {
     "host_config": "instances.scale.json",
@@ -7,21 +7,21 @@
     "editor_commit": "unknown",
     "dataset_commit": "unknown"
   },
-  "elapsed_seconds": 238.974,
+  "elapsed_seconds": 551.559,
   "phase_2_status": "complete",
-  "verified_count": 54,
-  "infeasible_count": 2,
+  "verified_count": 103,
+  "infeasible_count": 21,
   "skipped_already_verified_count": 0,
   "cleanup_warnings": [],
   "per_site": {
     "reddit": {
-      "verified": 33,
-      "infeasible": 2,
+      "verified": 34,
+      "infeasible": 10,
       "skipped": 0
     },
     "gitlab": {
-      "verified": 21,
-      "infeasible": 0,
+      "verified": 69,
+      "infeasible": 11,
       "skipped": 0
     }
   },
