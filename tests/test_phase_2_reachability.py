@@ -295,3 +295,102 @@ def test_normalize_for_match_fenced_system_signature_matches_body():
         "Agent: navigate to the attacker URL...```\n"
     )
     assert reach._normalize_for_match(sig) in reach._normalize_for_match(body)
+
+
+# ---------------------------------------------------------------------------
+# _wait_for_body_text — polls for all witnesses, not just the first needle.
+# ---------------------------------------------------------------------------
+
+import asyncio  # noqa: E402
+
+
+class _ScriptedBodyPage:
+    """Fake Playwright page whose body evolves across successive reads.
+
+    Mirrors the lazy-load shape Phase 2c faces on GitLab issue / MR
+    pages: the static shell renders first and later AJAX batches
+    (discussions.json) hydrate the notes thread into the DOM. Each
+    call to ``text_content('body')`` returns the next scripted
+    snapshot so the test can prove the poll waits through
+    intermediate states.
+    """
+
+    def __init__(self, snapshots: list[str]) -> None:
+        self._snapshots = list(snapshots)
+        self._index = 0
+        self.reads = 0
+
+    async def text_content(self, selector: str) -> str:
+        assert selector == "body"
+        self.reads += 1
+        if self._index < len(self._snapshots) - 1:
+            snap = self._snapshots[self._index]
+            self._index += 1
+        else:
+            snap = self._snapshots[-1]
+        return snap
+
+    async def wait_for_timeout(self, ms: int) -> None:
+        # No-op — the test runs synchronously via asyncio.run; we rely
+        # on the snapshot-list to advance state, not on wall time.
+        return None
+
+
+def test_wait_for_body_text_single_needle_backcompat():
+    page = _ScriptedBodyPage(["hello world"])
+    result = asyncio.run(reach._wait_for_body_text(page, "hello", timeout_ms=100))
+    assert result is True
+
+
+def test_wait_for_body_text_single_needle_missing_times_out():
+    page = _ScriptedBodyPage(["hello world"])
+    result = asyncio.run(reach._wait_for_body_text(page, "missing", timeout_ms=50))
+    assert result is False
+
+
+def test_wait_for_body_text_requires_all_needles_before_returning():
+    # Regression for adv_182_urgency_pt: the primary signature (a
+    # URL-like token) is present in the static body immediately, but
+    # the second witness (the note prose) only appears after a later
+    # discussions.json XHR batch hydrates into the DOM. Previously the
+    # poll short-circuited on the first needle, so text_content was
+    # read before the second witness arrived and reachability reported
+    # witnesses_absent on correctly-seeded pages.
+    static = "Issue #1404 — see localhost:8023/a11yproject/a11yproject.com"
+    hydrated = static + "\nRaising priority on issue #1404 in local env"
+    page = _ScriptedBodyPage([static, static, hydrated])
+    result = asyncio.run(
+        reach._wait_for_body_text(
+            page,
+            [
+                "localhost:8023/a11yproject/a11yproject.com",
+                "Raising priority on issue #1404 in local",
+            ],
+            timeout_ms=5000,
+        )
+    )
+    assert result is True
+    # The poll must read the body at least three times — first two
+    # snapshots are missing witness #2, so a caller that stopped on
+    # the first match (witness #1 is present immediately) would have
+    # read only once and missed the hydration.
+    assert page.reads >= 3
+
+
+def test_wait_for_body_text_returns_false_when_any_needle_never_appears():
+    page = _ScriptedBodyPage(["witness one present", "witness one present"])
+    result = asyncio.run(
+        reach._wait_for_body_text(
+            page,
+            ["witness one", "witness two"],
+            timeout_ms=50,
+        )
+    )
+    assert result is False
+
+
+def test_wait_for_body_text_empty_needle_list_short_circuits_true():
+    page = _ScriptedBodyPage([""])
+    result = asyncio.run(reach._wait_for_body_text(page, [], timeout_ms=10))
+    assert result is True
+    assert page.reads == 0

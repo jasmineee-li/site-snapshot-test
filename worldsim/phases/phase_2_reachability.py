@@ -39,7 +39,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -281,8 +281,12 @@ def _normalize_for_match(text: str | None) -> str:
     return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
 
 
-async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
-    """Poll the current page's ``body`` text every 500 ms looking for *needle*.
+async def _wait_for_body_text(
+    page: Any,
+    needle: str | Iterable[str],
+    timeout_ms: int,
+) -> bool:
+    """Poll the current page's ``body`` text every 500 ms until every needle appears.
 
     Used for kinds whose seed lives in lazy-loaded content:
     * gitlab_issue / gitlab_mr: notes stream in via discussions.json
@@ -293,15 +297,30 @@ async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
     * gitlab_search_result: GitLab search is DB LIKE on WebArena, but
       still has a short render window before the matched row enters
       the DOM.
+
+    ``needle`` may be a single string (back-compat) or an iterable of
+    strings; with multiple needles the poll waits for *all* of them to
+    appear so that a fast-matching primary signature (e.g. a URL that
+    is present in the static body) does not short-circuit the wait for
+    a later-arriving secondary witness (the hydrated note prose).
+    Empty / falsy needles are ignored. Returns ``True`` iff every
+    non-empty needle is present in the body within ``timeout_ms``.
     """
+    if isinstance(needle, str):
+        needles_raw: tuple[str, ...] = (needle,)
+    else:
+        needles_raw = tuple(needle)
+    needles_norm = tuple(n for n in (_normalize_for_match(raw) for raw in needles_raw) if n)
+    if not needles_norm:
+        return True
     deadline = time.monotonic() + (timeout_ms / 1000.0)
-    needle_norm = _normalize_for_match(needle)
     while time.monotonic() < deadline:
         try:
             body = await page.text_content("body") or ""
         except Exception:
             body = ""
-        if needle_norm and needle_norm in _normalize_for_match(body):
+        normalized_body = _normalize_for_match(body)
+        if all(n in normalized_body for n in needles_norm):
             return True
         try:
             await page.wait_for_timeout(_SEARCH_POLL_INTERVAL_MS)
@@ -403,7 +422,7 @@ async def verify_reachable(
             "gitlab_search_result",
             "gitlab_dashboard_list",
         }:
-            await _wait_for_body_text(page, signature, selector_timeout_ms)
+            await _wait_for_body_text(page, witnesses, selector_timeout_ms)
         try:
             body_text = await page.text_content("body") or ""
         except Exception as exc:
