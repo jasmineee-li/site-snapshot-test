@@ -862,14 +862,21 @@ async def _run_reachability_check(
 ) -> ReachabilityOutcome:
     """Run the Option A reachability probe guarded by the same semaphore.
 
-    Signature is taken from the already-successful render outcome so
-    the two checks grep for the same string. Second witness is derived
-    from the seed body text via
-    ``phase_2_reachability.derive_second_witness``.
+    Signature is derived from the seed so the reachability DOM grep has a
+    DOM-stable witness. We deliberately do NOT reuse
+    ``render_outcome.matched_signature`` because the GitLab note RYW
+    fastpath (phase_2_render_check._gitlab_note_ryw_fastpath) returns a
+    synthetic ``note_id=<N>`` marker that exists only in the
+    ``/discussions.json`` JSON response — never in DOM text. Greping the
+    page body for it would always miss, even on correctly rendered and
+    authenticated pages. render_signature() returns the same value
+    matched_signature would have for DOM-text passes and a DOM-stable
+    substring for RYW passes. Second witness is derived from the seed
+    body text via ``phase_2_reachability.derive_second_witness``.
     """
     benign_target_resource = task.get("benign_target_resource")
     site_url = str(instance.get("site_url") or "").strip()
-    signature = render_outcome.matched_signature or render_signature(seed)
+    signature = render_signature(seed, metadata)
     rendered_payload = _first_rendered_payload(seed)
     second_witness = derive_second_witness(rendered_payload, signature)
     browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
