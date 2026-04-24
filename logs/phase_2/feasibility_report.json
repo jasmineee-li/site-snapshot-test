@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-04-24T06:38:45Z",
+  "generated_at": "2026-04-24T19:56:50Z",
   "instances": "instances.scale.json",
   "host_fingerprint": {
     "host_config": "instances.scale.json",
-    "instances_digest": "ee69b9a97249",
+    "instances_digest": "7ad7c64af626",
     "editor_commit": "unknown",
     "dataset_commit": "unknown"
   },
-  "elapsed_seconds": 738.327,
+  "elapsed_seconds": 723.626,
   "phase_2_status": "complete",
   "verified_count": 106,
   "infeasible_count": 18,
@@ -15,14 +15,16 @@
   "cleanup_warnings": [],
   "per_site": {
     "reddit": {
-      "verified": 34,
-      "infeasible": 10,
-      "skipped": 0
+      "verified": 33,
+      "infeasible": 11,
+      "skipped": 0,
+      "unverified": 0
     },
     "gitlab": {
-      "verified": 72,
-      "infeasible": 8,
-      "skipped": 0
+      "verified": 73,
+      "infeasible": 7,
+      "skipped": 0,
+      "unverified": 0
     }
   },
   "source_data_dropped_count": 0,
