@@ -1743,6 +1743,44 @@ def test_apply_data_seed_multi_call_accumulates_editor_methods_and_picks_stronge
     assert provenance["source"] == "editor_api_response"
 
 
+def test_apply_data_seed_hoists_write_tokens_into_metadata(monkeypatch):
+    """Write identifiers (submission_id, comment_id) land on metadata for the render RYW fastpath."""
+    _ReadSurfaceEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(
+        seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _ReadSurfaceEditor
+    )
+
+    cleanup_handle, metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                _reddit_editor_call_submission(),
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "args": {
+                        "forum_name": "{forum_name}",
+                        "submission_id": "{submission_id}",
+                        "body": "hi",
+                    },
+                },
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    assert cleanup_handle is not None
+    cleanup_handle.cleanup()
+    assert metadata.get("submission_id") == "59421"
+    assert metadata.get("comment_id") == "901"
+    # Other token slots stay absent when the editor doesn't emit them.
+    assert "note_id" not in metadata
+    assert "review_id" not in metadata
+
+
 def test_preflight_editor_seed_calls_chains_preview_context(monkeypatch):
     _FakeEditor.instances.clear()
     monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)

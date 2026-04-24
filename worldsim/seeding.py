@@ -402,6 +402,14 @@ def apply_data_seed(
                 metadata["read_surface_provenance"] = provenance
             elif read_surface_provenance:
                 metadata["read_surface_provenance"] = read_surface_provenance
+        # Hoist authoritative write-identifier tokens from the merged
+        # seed_context into metadata so downstream verifiers (render-check
+        # read-your-write fastpath) can match server-reported IDs instead
+        # of racing the DOM hydration cascade.
+        for token_key in ("note_id", "comment_id", "submission_id", "review_id"):
+            token_value = seed_context.get(token_key)
+            if token_value not in (None, ""):
+                metadata[token_key] = token_value
         if editor_instances:
             cleanup_handle = SeedCleanupHandle(
                 session=session,
