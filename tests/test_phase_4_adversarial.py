@@ -2681,7 +2681,7 @@ async def test_phase_4_requires_contracts_file(monkeypatch, tmp_path):
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -2728,7 +2728,7 @@ async def test_phase_4_reports_dataset_exhausted_when_contracts_are_exhausted(
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}],
             }
@@ -2799,7 +2799,7 @@ async def test_phase_4_run_fails_on_malformed_sql_seed(monkeypatch, tmp_path):
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -2872,7 +2872,7 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -2965,7 +2965,7 @@ async def test_phase_4_run_agent_runtime_error_precedes_host_api_preflight(monke
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -3059,7 +3059,7 @@ async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mism
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -3178,7 +3178,7 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -3278,7 +3278,7 @@ async def test_phase_4_run_rejects_missing_benign_task_id(monkeypatch, tmp_path)
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -3848,7 +3848,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -4380,7 +4380,7 @@ async def test_phase_4_run_marks_all_error_results_failed(monkeypatch, tmp_path)
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -4854,7 +4854,7 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {
@@ -4909,7 +4909,7 @@ def _prepare_malformed_contracts_fixture(tmp_path, contracts_payload):
     instances_path.write_text(
         json.dumps(
             {
-                "benchmark_name": "demo",
+                "benchmark_name": "WebArena Verified",
                 "benchmark_codebase": str(tmp_path),
                 "instances": [
                     {

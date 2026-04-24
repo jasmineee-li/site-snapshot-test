@@ -218,11 +218,14 @@ def _validate_agent_auth_block(value: Any, *, field_name: str) -> dict[str, Any]
         return value
     if auth_type == "http_headers":
         http_headers = value.get("http_headers")
-        if not isinstance(http_headers, dict):
+        if http_headers is not None and not isinstance(http_headers, dict):
             raise ValueError(f"{field_name}.http_headers must be an object")
-        _require_string_map(
-            http_headers.get("headers"), field_name=f"{field_name}.http_headers.headers"
+        headers = (
+            http_headers.get("headers")
+            if isinstance(http_headers, dict) and "headers" in http_headers
+            else value.get("headers")
         )
+        _require_string_map(headers, field_name=f"{field_name}.http_headers.headers")
         authentication = value.get("authentication")
         if authentication is not None and not isinstance(authentication, dict):
             raise ValueError(f"{field_name}.authentication must be an object when present")
@@ -398,8 +401,8 @@ class BenchmarkConfig(BaseModel):
             benchmark_name = str(data.get("benchmark_name") or "").strip()
             try:
                 canonical_benchmark_name = infer_benchmark_name([benchmark_name])
-            except ValueError:
-                canonical_benchmark_name = None
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
             alias_values = [
                 data.get("benchmark"),
                 data.get("benchmark_adapter"),
@@ -417,27 +420,12 @@ class BenchmarkConfig(BaseModel):
                         )
                     )
             if any(str(value or "").strip() for value in alias_values):
-                if canonical_benchmark_name is None:
-                    normalized_top = normalize_benchmark_name(benchmark_name)
-                    normalized_aliases = {
-                        normalize_benchmark_name(value)
-                        for value in alias_values
-                        if str(value or "").strip()
-                    }
-                    if normalized_aliases - {normalized_top}:
-                        raise ValueError(
-                            "mixed benchmark metadata: "
-                            f"{sorted(normalized_aliases | {normalized_top})}"
-                        )
-                    return data
                 inferred = infer_benchmark_name([benchmark_name, *alias_values])
                 if inferred != canonical_benchmark_name:
                     raise ValueError(
                         "mixed benchmark metadata: "
                         f"{sorted({normalize_benchmark_name(benchmark_name), inferred or ''})}"
                     )
-            if canonical_benchmark_name is None:
-                return data
             normalized = dict(data)
             normalized["benchmark_name"] = canonical_benchmark_name
             return normalized

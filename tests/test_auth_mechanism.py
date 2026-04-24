@@ -394,6 +394,36 @@ class TestResolveAuth:
         assert kwargs == {}
         assert len(deferred) == 1
 
+    def test_http_headers_accepts_username_only_placeholder(self):
+        auth = {
+            "type": "http_headers",
+            "headers": {"X-User": "${credentials.username}"},
+            "authentication": {"credentials": {"username": "alice"}},
+        }
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
+
+    def test_http_headers_accepts_password_only_placeholder(self):
+        auth = {
+            "type": "http_headers",
+            "headers": {"X-Password": "${credentials.password}"},
+            "authentication": {"credentials": {"password": "secret"}},
+        }
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
+
     def test_http_headers_requires_site_url_for_origin_scope(self):
         auth = {
             "type": "http_headers",
@@ -413,7 +443,7 @@ class TestResolveAuth:
         }
         with pytest.raises(
             AuthArtifactMissingError,
-            match="references credentials placeholders",
+            match=r"references \$\{credentials.username\} without credentials",
         ):
             _resolve_auth(auth, task=None, benchmark_root=None)
 
@@ -769,7 +799,7 @@ class TestUnknownAuthGate:
         instances_path.write_text(
             json.dumps(
                 {
-                    "benchmark_name": "demo",
+                    "benchmark_name": "WebArena Verified",
                     "benchmark_codebase": str(tmp_path),
                     "instances": [
                         {

@@ -119,19 +119,21 @@ def test_resolve_auth_falls_back_when_declared_storage_state_is_wrong_host(
 def test_resolve_auth_validates_phase_0d_fallback_storage_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ):
-    declared = tmp_path / "missing.json"
+    declared = "missing.json"
     fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
     _write_storage_state(fallback, domain="old.example")
     monkeypatch.setattr(browser_use_agent, "_phase_0d_fallback_path", lambda _task: fallback)
 
     with pytest.raises(browser_use_agent.AuthArtifactMissingError, match="do not match live host"):
         browser_use_agent._resolve_auth(
-            {"type": "storage_state", "storage_state": {"path": str(declared)}},
+            {"type": "storage_state", "storage_state": {"path": declared}},
             {"site": "gitlab"},
-            benchmark_root=None,
+            benchmark_root=tmp_path,
             site_url="http://gitlab.example",
         )
+    assert "do not match live host" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -473,7 +475,7 @@ async def test_reset_remote_browser_for_task_preserves_storage_state_auth():
 
 
 @pytest.mark.asyncio
-async def test_cleanup_external_cdp_state_preserves_storage_state_auth():
+async def test_cleanup_external_cdp_state_clears_storage_state_auth_after_task():
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._pvpo_cdp_url = "http://127.0.0.1:9222"
     agent._preserve_remote_auth_state = True
@@ -494,10 +496,12 @@ async def test_cleanup_external_cdp_state_preserves_storage_state_auth():
     session = FakeSession()
     await agent._cleanup_external_cdp_state(session)
 
-    clear_storage.assert_not_awaited()
-    session.clear_cookies.assert_not_awaited()
+    clear_storage.assert_awaited_once_with(
+        params={"origin": "http://example.test", "storageTypes": "all"}
+    )
+    session.clear_cookies.assert_awaited_once()
     session.close_page.assert_awaited_once_with(page)
-    assert agent._browser_runtime["cleanup_preserved_auth_state"] is True
+    assert agent._browser_runtime["cleanup_preserved_auth_state"] is False
 
 
 @pytest.mark.asyncio
@@ -682,6 +686,25 @@ async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.Monk
     assert runtime["cleanup_closed_targets"] == 1
     assert runtime["cleanup_target_ids"] == ["owned-1"]
     assert runtime["cleanup_origins"] == ["https://example.test"]
+
+
+@pytest.mark.asyncio
+async def test_run_rejects_authenticated_off_origin_start_url(tmp_path):
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    with pytest.raises(
+        browser_use_agent.AuthArtifactMissingError,
+        match="off-origin start_urls",
+    ):
+        await agent.run(
+            task="Open the page",
+            server_url="https://trusted.test",
+            task_dir=tmp_path / "task",
+            start_urls=["https://evil.test"],
+            auth_mechanism={
+                "type": "http_basic",
+                "http_basic": {"username": "admin", "password": "pw"},
+            },
+        )
 
 
 @pytest.mark.asyncio

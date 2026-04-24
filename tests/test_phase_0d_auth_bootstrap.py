@@ -180,13 +180,25 @@ def test_reacquire_storage_state_is_instance_scoped(
 
     first = instance("http://gitlab-a.test")
     second = instance("http://gitlab-b.test")
+    first_key_before_refresh = bootstrap.phase_0d_instance_artifact_path(
+        "gitlab",
+        first,
+        state_dir=state_dir,
+    )
 
     first_path = asyncio.run(bootstrap.reacquire_storage_state(site_name="gitlab", instance=first))
     second_path = asyncio.run(
         bootstrap.reacquire_storage_state(site_name="gitlab", instance=second)
     )
+    first["agent_auth"]["storage_state"]["path"] = str(first_path)
+    first_key_after_refresh = bootstrap.phase_0d_instance_artifact_path(
+        "gitlab",
+        first,
+        state_dir=state_dir,
+    )
 
     assert first_path != second_path
+    assert first_key_before_refresh == first_key_after_refresh
     assert first_path.parent.parent.parent == state_dir / "phase_0d" / "gitlab"
     assert json.loads(first_path.read_text())["cookies"][0]["domain"] == "http://gitlab-a.test"
     assert json.loads(second_path.read_text())["cookies"][0]["domain"] == "http://gitlab-b.test"
@@ -327,7 +339,7 @@ class TestHappyPath:
         instances_path.write_text(
             json.dumps(
                 {
-                    "benchmark_name": "demo",
+                    "benchmark_name": "WebArena Verified",
                     "benchmark_codebase": str(bench),
                     "instances": [
                         {
@@ -360,7 +372,7 @@ class TestHappyPath:
         instances_path.write_text(
             json.dumps(
                 {
-                    "benchmark_name": "demo",
+                    "benchmark_name": "WebArena Verified",
                     "benchmark_codebase": str(bench),
                     "instances": [
                         {
@@ -571,7 +583,7 @@ class TestIdempotency:
         instances_path.write_text(
             json.dumps(
                 {
-                    "benchmark_name": "demo",
+                    "benchmark_name": "WebArena Verified",
                     "benchmark_codebase": str(bench),
                     "instances": [
                         {
@@ -590,7 +602,7 @@ class TestIdempotency:
         instances_path.write_text(
             json.dumps(
                 {
-                    "benchmark_name": "demo",
+                    "benchmark_name": "WebArena Verified",
                     "benchmark_codebase": str(bench),
                     "instances": [
                         {

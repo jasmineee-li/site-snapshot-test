@@ -54,7 +54,7 @@ import time
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
-from worldsim.benchmark_capabilities import normalize_benchmark_name
+from worldsim.benchmark_capabilities import infer_benchmark_name
 from worldsim.phase_2c.policy import (
     PreflightClassification,
     ProbeTarget,
@@ -246,23 +246,23 @@ def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def _canonical_benchmark_or_none(raw: Any) -> str | None:
-    if not isinstance(raw, str) or not raw.strip():
-        return None
-    try:
-        return normalize_benchmark_name(raw)
-    except ValueError:
-        return None
-
-
 def _benchmark_for_preflight(
     task: dict[str, Any],
     site_instances: list[dict[str, Any]],
 ) -> str | None:
+    instance_values: list[Any] = []
+    for instance in site_instances:
+        for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
+            instance_values.append(instance.get(key))
+    try:
+        trusted_benchmark = infer_benchmark_name(instance_values)
+    except ValueError:
+        logger.warning("preflight rejecting task with mixed instance benchmark metadata")
+        return None
+
+    advisory_values: list[Any] = []
     for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
-        benchmark = _canonical_benchmark_or_none(task.get(key))
-        if benchmark:
-            return benchmark
+        advisory_values.append(task.get(key))
     seed = task.get("adversarial_data_seed")
     calls = seed.get("editor_calls") if isinstance(seed, dict) else None
     if isinstance(calls, list):
@@ -270,15 +270,32 @@ def _benchmark_for_preflight(
             if not isinstance(call, dict):
                 continue
             for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
-                benchmark = _canonical_benchmark_or_none(call.get(key))
-                if benchmark:
-                    return benchmark
-    for instance in site_instances:
-        for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
-            benchmark = _canonical_benchmark_or_none(instance.get(key))
-            if benchmark:
-                return benchmark
-    return None
+                advisory_values.append(call.get(key))
+
+    if trusted_benchmark:
+        try:
+            inferred = infer_benchmark_name([trusted_benchmark, *advisory_values])
+        except ValueError:
+            logger.warning(
+                "preflight ignoring conflicting task/editor benchmark metadata in favor of "
+                "trusted instance benchmark %s",
+                trusted_benchmark,
+            )
+        else:
+            if inferred and inferred != trusted_benchmark:
+                logger.warning(
+                    "preflight ignoring task/editor benchmark metadata %s in favor of "
+                    "trusted instance benchmark %s",
+                    inferred,
+                    trusted_benchmark,
+                )
+        return trusted_benchmark
+
+    try:
+        return infer_benchmark_name(advisory_values)
+    except ValueError:
+        logger.warning("preflight rejecting task with mixed task/editor benchmark metadata")
+        return None
 
 
 async def preflight_benign_targets(

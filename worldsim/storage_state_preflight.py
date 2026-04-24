@@ -354,7 +354,7 @@ def inspect_storage_state_preflight(
             continue
         seen_mismatches.add(dedupe_key)
 
-        if any(
+        if all(
             _cookie_domain_matches_host(recorded_host, instance_host)
             for recorded_host in recorded_hosts
         ):
@@ -540,7 +540,7 @@ async def ensure_storage_state(
             "storage_state for %s is stale per sidecar TTL; re-minting",
             instance.site_name,
         )
-    elif error is not None:
+    elif error is not None and not error.message.startswith("storage_state artifact missing"):
         raise RuntimeError(error.message)
 
     # Either the artifact is missing, or the sidecar says it is stale.

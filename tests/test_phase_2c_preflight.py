@@ -455,8 +455,8 @@ def test_preflight_quorum_counts_auth_skipped_replicas():
     assert dropped == []
 
 
-def test_preflight_missing_policy_keeps_task_without_probe():
-    task = _make_task("adv_no_policy", "gitlab", "http://gitlab.test/foo/-/issues/99")
+def test_preflight_uses_instance_benchmark_over_task_metadata():
+    task = _make_task("adv_instance_policy", "gitlab", "http://gitlab.test/foo/-/issues/99")
     task["benchmark"] = "wasp"
     instances_by_site = {"gitlab": [_gitlab_instance()]}
     request_context = _FakeRequestContext(
@@ -476,9 +476,9 @@ def test_preflight_missing_policy_keeps_task_without_probe():
         )
     )
 
-    assert keep == [task]
-    assert dropped == []
-    assert request_context.calls == []
+    assert keep == []
+    assert [record["id"] for record in dropped] == ["adv_instance_policy"]
+    assert dropped[0]["source_data_issue"]["kind"] == "not_found"
 
 
 def test_preflight_bailout_when_login_redirect_dominates():

@@ -58,3 +58,29 @@ def test_benchmark_config_canonicalizes_known_benchmark_name(tmp_path):
 
     assert config.benchmark_name == "webarena_verified"
     assert config.instances[0].benchmark_name == "webarena_verified"
+
+
+def test_benchmark_config_rejects_unknown_top_level_benchmark_name(tmp_path):
+    with pytest.raises(ValueError, match="unknown benchmark"):
+        BenchmarkConfig.model_validate(_config_payload(tmp_path, benchmark_name="demo"))
+
+
+def test_benchmark_config_accepts_top_level_http_headers_shape(tmp_path):
+    config = BenchmarkConfig.model_validate(
+        _config_payload(
+            tmp_path,
+            benchmark_name="WebArena Verified",
+            instances=[
+                {
+                    "site_name": "reddit",
+                    "site_url": "http://reddit.test",
+                    "agent_auth": {
+                        "type": "http_headers",
+                        "headers": {"X-Postmill-Auto-Login": "alice:pw"},
+                    },
+                }
+            ],
+        )
+    )
+
+    assert config.instances[0].agent_auth["headers"] == {"X-Postmill-Auto-Login": "alice:pw"}

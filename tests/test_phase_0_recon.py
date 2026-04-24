@@ -138,7 +138,7 @@ def _sandbox_json(output_path: str, payload: object) -> dict[str, str | None]:
 
 def _instances_config(benchmark_root: Path, *, site_url: str = "http://shopping.test") -> dict:
     return {
-        "benchmark_name": "demo",
+        "benchmark_name": "WebArena Verified",
         "benchmark_codebase": str(benchmark_root),
         "instances": [
             {

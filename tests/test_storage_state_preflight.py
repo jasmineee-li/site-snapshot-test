@@ -83,6 +83,36 @@ def test_find_host_bound_storage_state_mismatches_allows_matching_parent_domain(
     assert find_host_bound_storage_state_mismatches(instances) == []
 
 
+def test_find_host_bound_storage_state_mismatches_rejects_mixed_hosts(
+    tmp_path: Path,
+) -> None:
+    state_path = tmp_path / "gitlab-state.json"
+    payload = {
+        "cookies": [
+            {"name": "session", "value": "abc", "domain": "3.12.221.9", "path": "/"},
+            {"name": "foreign", "value": "abc", "domain": "evil.test", "path": "/"},
+        ],
+        "origins": [{"origin": "http://3.12.221.9:8023", "localStorage": []}],
+    }
+    state_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        )
+    ]
+
+    mismatches = find_host_bound_storage_state_mismatches(instances)
+    assert len(mismatches) == 1
+    assert mismatches[0].recorded_hosts == ("3.12.221.9", "evil.test")
+
+
 def test_apply_skip_auth_for_host_bound_storage_states_rewrites_only_mismatched_storage_state(
     tmp_path: Path,
 ) -> None:
@@ -413,3 +443,56 @@ def test_ensure_storage_state_auto_mint_uses_current_sitespec_shape(
         "agent_context_source": benchmark_root / "phase_0c" / "gitlab" / "AGENT_CONTEXT.json",
         "site_url": "http://3.12.221.9:8023",
     }
+
+
+def test_ensure_storage_state_auto_mints_missing_webarena_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+
+    from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
+
+    state_dir = tmp_path / "logs"
+    state_dir.mkdir()
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    monkeypatch.setenv("WORLDSIM_AUTO_MINT_STORAGE_STATE", "true")
+
+    missing_path = tmp_path / "missing-state.json"
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://3.12.221.9:8023",
+        reset_endpoint="http://3.12.221.9:8024/init",
+        agent_auth={
+            "type": "storage_state",
+            "storage_state": {
+                "path": str(missing_path),
+                "form_login": {
+                    "login_url": "/users/sign_in",
+                    "username_selector": "#user_login",
+                    "password_selector": "#user_password",
+                    "submit_selector": "input[type=submit]",
+                    "success_url_substring": "/-/profile",
+                },
+            },
+            "authentication": {
+                "credentials": {"username": "root", "password": "admin1234"},
+            },
+        },
+    )
+
+    async def fake_bootstrap_via_form_login(*, spec, site_url, output_path):
+        _ = spec, site_url
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        _write_storage_state(output_path, domain="3.12.221.9")
+
+    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_bootstrap_via_form_login)
+
+    result = asyncio.run(
+        ensure_storage_state(
+            instance,
+            benchmark_root=tmp_path / "bench",
+            benchmark_name="WebArena Verified",
+        )
+    )
+
+    assert result == state_dir / "phase_0d" / "gitlab" / "storage_state.json"

@@ -26,6 +26,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 from worldsim.agent_auth import (
     playwright_storage_state,
     read_storage_state_payload,
+    resolve_agent_auth_headers,
     storage_state_preflight_error_for_payload,
 )
 from worldsim.atomic_io import write_json_atomic
@@ -995,40 +996,10 @@ def _resolve_auth(
         return session_kwargs, deferred_actions
 
     if mech_type == "http_headers":
-        sub = auth_mechanism.get("http_headers") or {}
-        headers = sub.get("headers")
-        if not isinstance(headers, dict) or not headers:
-            raise AuthArtifactMissingError(
-                "auth_mechanism.http_headers requires a non-empty headers dict"
-            )
-        # Interpolate ${credentials.username}/${credentials.password} tokens so
-        # benchmarks that declare an auto-login header with variable credentials
-        # (e.g. Magento's X-M2-Customer-Auto-Login: <user>:<pass>) resolve at
-        # runtime. Missing credentials fail closed only when the template
-        # actually references them; static headers are preserved verbatim.
-        creds = (auth_mechanism.get("authentication") or {}).get("credentials") or {}
-        u, p = creds.get("username", ""), creds.get("password", "")
-        resolved: dict[str, str] = {}
-        for name, value in headers.items():
-            if not isinstance(name, str) or not isinstance(value, str):
-                raise AuthArtifactMissingError(
-                    "auth_mechanism.http_headers.headers must be a string->string map"
-                )
-            needs_username = "${credentials.username}" in value
-            needs_password = "${credentials.password}" in value
-            if (needs_username or needs_password) and (
-                not isinstance(creds, dict) or not u or not p
-            ):
-                raise AuthArtifactMissingError(
-                    "auth_mechanism.http_headers references credentials placeholders but "
-                    "authentication.credentials is missing username/password"
-                )
-            if needs_username or needs_password:
-                resolved[name] = value.replace("${credentials.username}", u).replace(
-                    "${credentials.password}", p
-                )
-            else:
-                resolved[name] = value
+        try:
+            resolved = resolve_agent_auth_headers(auth_mechanism)
+        except RuntimeError as exc:
+            raise AuthArtifactMissingError(str(exc)) from exc
         origin = _origin_from_url(site_url or "")
         if not origin:
             raise AuthArtifactMissingError(
@@ -1123,6 +1094,13 @@ class BrowserUseAgent:
         self._task_origins = {
             origin for origin in (_origin_from_url(url) for url in (start_urls or [])) if origin
         }
+        trusted_origin = _origin_from_url(server_url)
+        if has_configured_agent_auth(auth_mechanism) and trusted_origin:
+            off_origin = sorted(origin for origin in self._task_origins if origin != trusted_origin)
+            if off_origin:
+                raise AuthArtifactMissingError(
+                    f"authenticated BrowserUse run received off-origin start_urls: {off_origin}"
+                )
         self._owned_target_ids = set()
         self._primary_target_id = None
         self._browser_runtime = {}
@@ -1139,7 +1117,7 @@ class BrowserUseAgent:
             auth_mechanism,
             task=resolve_task,
             benchmark_root=benchmark_root,
-            site_url=start_urls[0] if start_urls else None,
+            site_url=server_url,
         )
         self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
 
@@ -1405,16 +1383,15 @@ class BrowserUseAgent:
         closed_target_ids = sorted(
             target_id for target_id in (_target_id_for_page(page) for page in pages) if target_id
         )
-        if not self._preserve_remote_auth_state:
-            await self._clear_page_storage(session, pages=pages, origins=set(self._task_origins))
-            await self._clear_browser_cookies(session)
+        await self._clear_page_storage(session, pages=pages, origins=set(self._task_origins))
+        await self._clear_browser_cookies(session)
         await self._close_pages(session, pages)
         self._browser_runtime.update(
             {
                 "cleanup_closed_targets": len(closed_target_ids),
                 "cleanup_target_ids": closed_target_ids,
                 "cleanup_origins": sorted(self._task_origins),
-                "cleanup_preserved_auth_state": self._preserve_remote_auth_state,
+                "cleanup_preserved_auth_state": False,
             }
         )
 

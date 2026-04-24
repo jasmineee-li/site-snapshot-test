@@ -128,7 +128,7 @@ def _configure_phase_0d(state_dir: Path) -> tuple[Path, Path]:
     _write_json(
         instances_path,
         {
-            "benchmark_name": "demo",
+            "benchmark_name": "WebArena Verified",
             "benchmark_codebase": str(benchmark_root),
             "instances": [
                 {
@@ -246,7 +246,7 @@ def _configure_phase_4(state_dir: Path) -> Path:
     _write_json(
         instances_path,
         {
-            "benchmark_name": "demo",
+            "benchmark_name": "WebArena Verified",
             "benchmark_codebase": str(state_dir),
             "instances": [
                 {

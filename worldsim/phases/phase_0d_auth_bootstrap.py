@@ -1078,7 +1078,7 @@ def phase_0d_artifact_path(site_name: str, state_dir: Path | None = None) -> Pat
 def _phase_0d_instance_key(instance: dict[str, Any]) -> str:
     raw = "|".join(
         str(instance.get(key) or "")
-        for key in ("site_url", "replica_name", "replica_index", "storage_state_path")
+        for key in ("site_url", "replica_name", "replica_index")
     )
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     return f"instance_{digest}"
