@@ -24,6 +24,7 @@ from typing import Any, Protocol
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
 from worldsim.agent_auth import (
+    playwright_storage_state,
     read_storage_state_payload,
     storage_state_preflight_error_for_payload,
 )
@@ -707,6 +708,15 @@ def _resolve_storage_state_path(raw_path: str, benchmark_root: Path | None) -> P
     """Resolve a storage-state artifact path and enforce benchmark-root containment."""
     path = Path(raw_path)
     if path.is_absolute():
+        if benchmark_root is not None:
+            resolved_root = Path(benchmark_root).resolve()
+            resolved = path.resolve()
+            try:
+                resolved.relative_to(resolved_root)
+            except ValueError as exc:
+                raise AuthArtifactMissingError(
+                    f"storage_state path {raw_path!r} resolves outside benchmark root {resolved_root}"
+                ) from exc
         return path
     if benchmark_root is None:
         raise AuthArtifactMissingError(
@@ -737,6 +747,13 @@ def _validate_storage_state_for_site(path: Path, site_url: str | None) -> None:
     error = _storage_state_site_error(path, site_url)
     if error is not None:
         raise AuthArtifactMissingError(error)
+
+
+def _storage_state_context_value(path: Path) -> str | dict[str, Any]:
+    storage_state, error = playwright_storage_state(path)
+    if error is not None:
+        raise AuthArtifactMissingError(error)
+    return storage_state
 
 
 # Stable enum of first-batch implementations. Types outside this set are schema-
@@ -806,6 +823,20 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 "auth_mechanism.storage_state.path is empty; validator should have caught this"
             )
+        bootstrap_path = _phase_0d_fallback_path(task)
+        bootstrap_error: AuthArtifactMissingError | None = None
+        if bootstrap_path is not None:
+            try:
+                _validate_storage_state_for_site(bootstrap_path, site_url)
+                session_kwargs["storage_state"] = _storage_state_context_value(bootstrap_path)
+                return session_kwargs, deferred_actions
+            except AuthArtifactMissingError as exc:
+                bootstrap_error = exc
+                logger.warning(
+                    "Phase 0d storage_state %s is unusable (%s); checking declared path",
+                    bootstrap_path,
+                    exc,
+                )
         # If the declared path resolves outside benchmark_root (e.g. the
         # operator re-routed it to logs/phase_0d/<site>/storage_state.json
         # under state_dir), fall back to the phase_0d artifact when present.
@@ -814,24 +845,16 @@ def _resolve_auth(
         try:
             path = _resolve_storage_state_path(raw_path.strip(), benchmark_root)
         except AuthArtifactMissingError:
-            bootstrap_path = _phase_0d_fallback_path(task)
-            if bootstrap_path is not None:
-                _validate_storage_state_for_site(bootstrap_path, site_url)
-                session_kwargs["storage_state"] = str(bootstrap_path)
-                return session_kwargs, deferred_actions
             raise
         # storage_state wins over any form_login that may coexist (plan §5 edges).
         if not path.exists():
             generator = sub.get("generator_script")
+            if bootstrap_error is not None:
+                raise AuthArtifactMissingError(str(bootstrap_error))
             # Phase 0d writes the generated artifact to
             # ``logs/phase_0d/<site>/storage_state.json``. Consult that path as
             # a fallback before declaring the artifact missing so the runtime
             # picks up bootstrapped credentials automatically.
-            bootstrap_path = _phase_0d_fallback_path(task)
-            if bootstrap_path is not None:
-                _validate_storage_state_for_site(bootstrap_path, site_url)
-                session_kwargs["storage_state"] = str(bootstrap_path)
-                return session_kwargs, deferred_actions
             if generator:
                 raise AuthArtifactMissingError(
                     f"storage_state artifact missing at {path}; generator_script "
@@ -843,19 +866,8 @@ def _resolve_auth(
             )
         error = _storage_state_site_error(path, site_url)
         if error is not None:
-            bootstrap_path = _phase_0d_fallback_path(task)
-            if bootstrap_path is not None:
-                _validate_storage_state_for_site(bootstrap_path, site_url)
-                logger.warning(
-                    "storage_state %s failed host validation (%s); using Phase 0d fallback %s",
-                    path,
-                    error,
-                    bootstrap_path,
-                )
-                session_kwargs["storage_state"] = str(bootstrap_path)
-                return session_kwargs, deferred_actions
             raise AuthArtifactMissingError(error)
-        session_kwargs["storage_state"] = str(path)
+        session_kwargs["storage_state"] = _storage_state_context_value(path)
         return session_kwargs, deferred_actions
 
     if mech_type == "http_basic":

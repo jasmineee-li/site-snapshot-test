@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldsim.agent_auth import playwright_storage_state
+
 logger = logging.getLogger(__name__)
 
 # Magento PDPs lazy-load the review block via /review/product/listAjax/.
@@ -684,11 +686,22 @@ async def verify_seed_renders(
     if storage_state_path:
         path_obj = Path(storage_state_path)
         if path_obj.exists():
-            context_kwargs["storage_state"] = str(path_obj)
+            storage_state, error = playwright_storage_state(path_obj)
+            if error is None:
+                context_kwargs["storage_state"] = storage_state
+            else:
+                return RenderOutcome.failed(
+                    kind="auth_unusable",
+                    detail=f"storage_state {storage_state_path} is unusable: {error}",
+                    urls_tried=[],
+                    per_url_errors={},
+                )
         else:
-            logger.warning(
-                "phase 2c render check: storage_state %s not found; falling back to anonymous context",
-                storage_state_path,
+            return RenderOutcome.failed(
+                kind="auth_missing",
+                detail=f"storage_state {storage_state_path} not found",
+                urls_tried=[],
+                per_url_errors={},
             )
     context = await browser.new_context(**context_kwargs)
     try:

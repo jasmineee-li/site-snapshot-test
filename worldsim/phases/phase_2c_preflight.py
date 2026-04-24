@@ -203,9 +203,9 @@ async def _probe_one(
     )
 
 
-def auth_self_test_path(site: str) -> str | None:
+def auth_self_test_path(site: str, *, benchmark: str = "webarena_verified") -> str | None:
     """Return a cheap authenticated endpoint path for sites that need one."""
-    policy = get_feasibility_policy("webarena_verified", str(site or "").strip().lower())
+    policy = get_feasibility_policy(benchmark, str(site or "").strip().lower())
     return policy.auth_self_test_path() if policy is not None else None
 
 
@@ -214,6 +214,7 @@ async def self_test_preflight_auth(
     request_context: Any,
     site: str,
     site_url: str,
+    benchmark: str = "webarena_verified",
     timeout_s: float = DEFAULT_PREFLIGHT_TIMEOUT_S,
 ) -> PreflightClassification | None:
     """Probe whether the current request context has live browser auth.
@@ -222,7 +223,7 @@ async def self_test_preflight_auth(
     authenticated browser state. For GitLab, ``reachable`` means the storage
     state is accepted; ``login_redirect``/``auth_missing`` means it is stale.
     """
-    path = auth_self_test_path(site)
+    path = auth_self_test_path(site, benchmark=benchmark)
     if path is None:
         return None
     base = str(site_url or "").strip()
@@ -237,7 +238,7 @@ async def self_test_preflight_auth(
         request_context=request_context,
         url=resolve_start_url(path, base),
         timeout_s=timeout_s,
-        policy=get_feasibility_policy("webarena_verified", str(site or "").strip().lower()),
+        policy=get_feasibility_policy(benchmark, str(site or "").strip().lower()),
     )
 
 
@@ -245,27 +246,39 @@ def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def _benchmark_for_preflight(task: dict[str, Any], site_instances: list[dict[str, Any]]) -> str:
+def _canonical_benchmark_or_none(raw: Any) -> str | None:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        return normalize_benchmark_name(raw)
+    except ValueError:
+        return None
+
+
+def _benchmark_for_preflight(
+    task: dict[str, Any],
+    site_instances: list[dict[str, Any]],
+) -> str | None:
     for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
-        raw = task.get(key)
-        if isinstance(raw, str) and raw.strip():
-            return normalize_benchmark_name(raw)
+        benchmark = _canonical_benchmark_or_none(task.get(key))
+        if benchmark:
+            return benchmark
     seed = task.get("adversarial_data_seed")
     calls = seed.get("editor_calls") if isinstance(seed, dict) else None
     if isinstance(calls, list):
         for call in calls:
             if not isinstance(call, dict):
                 continue
-            raw = call.get("benchmark")
-            if isinstance(raw, str) and raw.strip():
-                return normalize_benchmark_name(raw)
+            for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
+                benchmark = _canonical_benchmark_or_none(call.get(key))
+                if benchmark:
+                    return benchmark
     for instance in site_instances:
         for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
-            raw = instance.get(key)
-            if isinstance(raw, str) and raw.strip():
-                return normalize_benchmark_name(raw)
-    # Compatibility for direct unit tests that predate benchmark metadata.
-    return "webarena_verified"
+            benchmark = _canonical_benchmark_or_none(instance.get(key))
+            if benchmark:
+                return benchmark
+    return None
 
 
 async def preflight_benign_targets(
@@ -347,6 +360,9 @@ async def preflight_benign_targets(
             keep.append(task)
             return
         benchmark = _benchmark_for_preflight(task, site_instances)
+        if benchmark is None:
+            keep.append(task)
+            return
         policy = get_feasibility_policy(benchmark, site)
         if policy is None:
             keep.append(task)
@@ -368,11 +384,13 @@ async def preflight_benign_targets(
         classifications_by_target: dict[int, list[PreflightClassification]] = {}
         target_audit: dict[int, ProbeTarget] = {}
         skipped_auth_reasons: list[str] = []
+        candidate_replica_count = 0
         for instance in site_instances:
             site_url = str(instance.get("site_url") or "").rstrip("/")
             targets = policy.probe_targets(task, site_url)
             if not targets:
                 break
+            candidate_replica_count += 1
             auth_skip_reason = instance.get("preflight_auth_skip_reason")
             if isinstance(auth_skip_reason, str) and auth_skip_reason.strip():
                 skipped_auth_reasons.append(auth_skip_reason.strip())
@@ -425,6 +443,7 @@ async def preflight_benign_targets(
             task=task,
             classifications_by_target=classifications_by_target,
             target_audit=target_audit,
+            candidate_replica_count=candidate_replica_count,
             login_redirect_count=login_redirect_count,
             probed_count=probed_count,
             bailout_ratio=bailout_ratio,
@@ -487,6 +506,9 @@ async def preflight_benign_targets(
                 record,
                 instances_by_site.get(record_site) or [],
             )
+            if record_benchmark is None:
+                still_dropped.append(record)
+                continue
             record_key = (record_benchmark, record_site)
             policy = policies_by_key.get(record_key)
             if (

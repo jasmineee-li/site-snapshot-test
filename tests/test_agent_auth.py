@@ -131,6 +131,23 @@ def test_relative_storage_state_path_cannot_escape_benchmark_root(tmp_path, monk
     assert resolved is None
 
 
+def test_absolute_declared_storage_state_cannot_escape_benchmark_root(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    outside = tmp_path / "outside" / "storage_state.json"
+    outside.parent.mkdir()
+    _write_storage_state(outside)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(outside)}},
+        site_name="gitlab",
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved is None
+
+
 def test_storage_state_override_cannot_escape_allowed_roots(tmp_path, monkeypatch):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
     benchmark_root = tmp_path / "benchmark"
@@ -143,6 +160,39 @@ def test_storage_state_override_cannot_escape_allowed_roots(tmp_path, monkeypatc
         {"type": "storage_state", "storage_state": {}},
         site_name="gitlab",
         storage_state_override=outside,
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved is None
+
+
+def test_storage_state_override_requires_benchmark_root(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    override = tmp_path / "storage_state.json"
+    _write_storage_state(override)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="gitlab",
+        storage_state_override=override,
+    )
+
+    assert resolved is None
+
+
+def test_storage_state_override_rejects_unsafe_site_name(tmp_path, monkeypatch):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    phase_0d = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    phase_0d.parent.mkdir(parents=True)
+    _write_storage_state(phase_0d)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="../gitlab",
+        storage_state_override=phase_0d,
         benchmark_root=benchmark_root,
     )
 

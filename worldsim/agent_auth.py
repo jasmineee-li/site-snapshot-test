@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,7 @@ _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES: dict[str, str] = {
     "": _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT,
     "unspecified": _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT,
 }
+_PHASE_0D_SITE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 @dataclass(frozen=True)
@@ -162,7 +164,10 @@ def resolve_storage_state_path(
             if error is None:
                 return path
             logger.warning("agent auth: %s", error)
-            return None
+            # Ignore an unsafe runtime override, but still allow the declared
+            # agent_auth.storage_state.path below to go through the legacy
+            # config path. This prevents an override from broadening access
+            # while preserving existing validated configs.
         logger.warning(
             "agent auth: storage_state override %s not found; checking agent_auth/fallback paths",
             path,
@@ -215,11 +220,13 @@ def _validate_storage_state_override_path(
     0d refresh or host config. When a benchmark root is available, do not let it
     point at arbitrary local JSON outside the benchmark or Phase 0d state dir.
     """
+    fallback_site = str(site_name or "").strip()
+    if fallback_site and _PHASE_0D_SITE_RE.fullmatch(fallback_site) is None:
+        return f"site_name {site_name!r} is not safe for Phase 0d storage_state lookup"
     if benchmark_root is None:
-        return None
+        return "storage_state override requires a benchmark root for containment checks"
     resolved = path.resolve()
     allowed_roots = [Path(benchmark_root).resolve()]
-    fallback_site = str(site_name or "").strip()
     if fallback_site:
         allowed_roots.append(
             (
@@ -245,6 +252,14 @@ def _resolve_declared_storage_state_path(
 ) -> tuple[Path | None, str | None]:
     path = Path(raw_path)
     if path.is_absolute():
+        if benchmark_root is not None:
+            root = Path(benchmark_root).resolve()
+            try:
+                path.resolve().relative_to(root)
+            except ValueError:
+                return None, (
+                    f"declared storage_state path {raw_path} is outside benchmark root {root}"
+                )
         return path, None
     if benchmark_root is None:
         return path, None

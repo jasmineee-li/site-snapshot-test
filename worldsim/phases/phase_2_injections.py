@@ -32,6 +32,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import (
@@ -40,6 +42,7 @@ from worldsim.benchmark_capabilities import (
     infer_instances_config_benchmark,
     normalize_benchmark_name,
 )
+from worldsim.config import BenchmarkInstance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
@@ -986,6 +989,11 @@ async def _run_feasibility_stage(
     except (json.JSONDecodeError, OSError) as exc:
         logger.error("Phase 2c: failed to read instances %s: %s", instances_path, exc)
         return 1
+    try:
+        _validate_phase_2c_instances_payload(raw_instances)
+    except ValueError as exc:
+        logger.error("Phase 2c: invalid instances %s: %s", instances_path, exc)
+        return 1
     instances = _extract_instances_list(raw_instances)
     if not instances:
         logger.error(
@@ -1415,6 +1423,39 @@ def _extract_instances_list(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _validate_phase_2c_instances_payload(payload: Any) -> None:
+    """Run config validators before Phase 2c uses raw instance dicts."""
+    if isinstance(payload, dict):
+        nested = payload.get("instances")
+        if not isinstance(nested, list):
+            raise ValueError("wrapper object must contain an instances list")
+        for index, item in enumerate(nested):
+            if not isinstance(item, dict):
+                raise ValueError(f"instances[{index}] must be an object")
+            _validate_phase_2c_instance_record(item, label=f"instances[{index}]")
+        return
+    if isinstance(payload, list):
+        for index, item in enumerate(payload):
+            if not isinstance(item, dict):
+                raise ValueError(f"instance[{index}] must be an object")
+            _validate_phase_2c_instance_record(item, label=f"instance[{index}]")
+        return
+    raise ValueError("expected wrapper object with instances or a raw instance list")
+
+
+def _validate_phase_2c_instance_record(instance: dict[str, Any], *, label: str) -> None:
+    try:
+        BenchmarkInstance.model_validate(instance)
+    except ValidationError as exc:
+        messages: list[str] = []
+        for error in exc.errors(include_input=False):
+            loc = ".".join(str(part) for part in error.get("loc", ())) or "<root>"
+            error_type = str(error.get("type") or "validation_error")
+            msg = str(error.get("msg") or error_type)
+            messages.append(f"{label}.{loc}: {msg} ({error_type})")
+        raise ValueError("; ".join(messages) or f"{label}: invalid instance") from exc
+
+
 def _normalize_instance_record(
     instance: dict[str, Any],
     wrapper_benchmark: str | None,
@@ -1516,7 +1557,13 @@ def _benchmark_values_from_seed(seed: Any) -> list[Any]:
         return values
     for call in calls:
         if isinstance(call, Mapping):
-            values.append(call.get("benchmark"))
+            values.extend(
+                (
+                    call.get("benchmark"),
+                    call.get("benchmark_name"),
+                    call.get("benchmark_adapter"),
+                )
+            )
     return values
 
 
@@ -1733,9 +1780,10 @@ def _l1_l2_resources_with_probe_fail_closed(
     site_tasks: list[dict[str, Any]],
     *,
     reason: str,
+    benchmark: str = "webarena_verified",
 ) -> dict[str, dict[str, Any]]:
     return _mark_probe_dependent_resources_unresolved(
-        _l1_l2_resources_dict(site_tasks), reason=reason
+        _l1_l2_resources_dict(site_tasks, benchmark=benchmark), reason=reason
     )
 
 
@@ -1890,9 +1938,17 @@ def _normalize_l4_benign_task_ids_in_place(
             task["benign_task_id"] = canonical
 
 
-def _l1_l2_resources_dict(site_tasks: list[dict]) -> dict[str, dict[str, Any]]:
+def _l1_l2_resources_dict(
+    site_tasks: list[dict],
+    *,
+    benchmark: str = "webarena_verified",
+) -> dict[str, dict[str, Any]]:
     return {
-        str(task.get("id")): derive_benign_target_resource(task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS)
+        str(task.get("id")): derive_benign_target_resource(
+            task,
+            _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+            benchmark=benchmark,
+        )
         for task in site_tasks
     }
 
@@ -1903,6 +1959,7 @@ async def _resolve_benign_target_resources_for_shard(
     instance: Mapping[str, Any] | None,
     site_name: str,
     label: str,
+    benchmark: str = "webarena_verified",
 ) -> tuple[list[dict], dict[str, dict[str, Any]]]:
     """Resolve the shard's benign-target resources and expand L4 listings.
 
@@ -1928,7 +1985,7 @@ async def _resolve_benign_target_resources_for_shard(
     ``logs/<run>/phase_2/target_resolution/<site>.json`` for inspection.
     """
     if instance is None:
-        return list(site_tasks), _l1_l2_resources_dict(site_tasks)
+        return list(site_tasks), _l1_l2_resources_dict(site_tasks, benchmark=benchmark)
 
     if _instance_lacks_benign_probe_auth(instance):
         logger.warning(
@@ -1939,6 +1996,7 @@ async def _resolve_benign_target_resources_for_shard(
         resources = _l1_l2_resources_with_probe_fail_closed(
             site_tasks,
             reason="missing benign auth for live L3/L4 probe",
+            benchmark=benchmark,
         )
         return list(site_tasks), resources
 
@@ -1964,6 +2022,7 @@ async def _resolve_benign_target_resources_for_shard(
             return list(site_tasks), _l1_l2_resources_with_probe_fail_closed(
                 site_tasks,
                 reason="live L3/L4 probe unavailable after token acquisition failure",
+                benchmark=benchmark,
             )
 
     try:
@@ -1972,6 +2031,7 @@ async def _resolve_benign_target_resources_for_shard(
             _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
             instance,
             allow_layers=("L1", "L2", "L3", "L4"),
+            benchmark=benchmark,
         )
     except Exception as exc:
         logger.warning(
@@ -1982,6 +2042,7 @@ async def _resolve_benign_target_resources_for_shard(
         return list(site_tasks), _l1_l2_resources_with_probe_fail_closed(
             site_tasks,
             reason=f"live L3/L4 probe unavailable after resolver failure: {type(exc).__name__}",
+            benchmark=benchmark,
         )
 
     # Build the expanded task list + resources map in lockstep. For a
@@ -2137,6 +2198,7 @@ async def _generate_injections_for_site(
         instance=instance,
         site_name=site_name,
         label=label,
+        benchmark=benchmark,
     )
     # L4 clones live only in this shard's local view; share the
     # expansion with the validator/merge step that runs against
@@ -2388,7 +2450,9 @@ def _merge_immutable_fields(
             )
         else:
             adv_task["benign_target_resource"] = derive_benign_target_resource(
-                benign_task, _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+                benign_task,
+                _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
+                benchmark=_benchmark_for_option_a_plan(adv_task),
             )
 
         # Handle reward_function construction.

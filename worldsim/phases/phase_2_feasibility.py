@@ -959,6 +959,18 @@ def _agent_auth_type(instance: dict[str, Any]) -> str:
     return str(agent_auth.get("type") or "").strip()
 
 
+def _instance_benchmark_or_none(instance: dict[str, Any]) -> str | None:
+    values = [
+        instance.get("benchmark"),
+        instance.get("benchmark_name"),
+        instance.get("benchmark_adapter"),
+    ]
+    try:
+        return infer_benchmark_name(values)
+    except ValueError:
+        return None
+
+
 def _infer_records_benchmark(records: list[dict[str, Any]], *, label: str) -> str:
     values: list[Any] = []
     for record in records:
@@ -976,7 +988,13 @@ def _infer_records_benchmark(records: list[dict[str, Any]], *, label: str) -> st
         if isinstance(calls, list):
             for call in calls:
                 if isinstance(call, dict):
-                    values.append(call.get("benchmark"))
+                    values.extend(
+                        (
+                            call.get("benchmark"),
+                            call.get("benchmark_name"),
+                            call.get("benchmark_adapter"),
+                        )
+                    )
     try:
         benchmark = infer_benchmark_name(values)
     except ValueError as exc:
@@ -1102,12 +1120,16 @@ async def _run_preflight_and_filter_raw(
         instance: dict[str, Any],
         context_options: dict[str, Any],
     ) -> Any:
+        benchmark = _instance_benchmark_or_none(instance)
+        if benchmark is None:
+            return None
         ctx = await _factory(context_options)
         try:
             return await self_test_preflight_auth(
                 request_context=ctx,
                 site=site,
                 site_url=str(instance.get("site_url") or ""),
+                benchmark=benchmark,
             )
         finally:
             try:
@@ -1125,7 +1147,13 @@ async def _run_preflight_and_filter_raw(
         context_options: dict[str, Any],
         skip_reason: str | None,
     ) -> tuple[dict[str, Any], str | None]:
-        if auth_self_test_path(site) is None or _agent_auth_type(instance) != "storage_state":
+        benchmark = _instance_benchmark_or_none(instance)
+        if benchmark is None:
+            return context_options, skip_reason
+        if (
+            auth_self_test_path(site, benchmark=benchmark) is None
+            or _agent_auth_type(instance) != "storage_state"
+        ):
             return context_options, skip_reason
 
         if skip_reason is None:
@@ -1185,6 +1213,17 @@ async def _run_preflight_and_filter_raw(
                 )
                 return {}, reason
             instance["storage_state_path"] = str(refreshed_path)
+            agent_auth = instance.get("agent_auth")
+            if isinstance(agent_auth, dict):
+                updated_auth = dict(agent_auth)
+                storage_state = updated_auth.get("storage_state")
+                if isinstance(storage_state, dict):
+                    updated_storage_state = dict(storage_state)
+                else:
+                    updated_storage_state = {}
+                updated_storage_state["path"] = str(refreshed_path)
+                updated_auth["storage_state"] = updated_storage_state
+                instance["agent_auth"] = updated_auth
 
         refreshed_options, refreshed_skip = _preflight_request_context_options(
             instance,
@@ -1249,6 +1288,10 @@ async def _run_preflight_and_filter_raw(
                     context_options=context_options,
                     skip_reason=skip_reason,
                 )
+                if resolved.get("storage_state_path"):
+                    instance["storage_state_path"] = resolved["storage_state_path"]
+                if isinstance(resolved.get("agent_auth"), dict):
+                    instance["agent_auth"] = resolved["agent_auth"]
                 if skip_reason is not None:
                     resolved["preflight_auth_skip_reason"] = skip_reason
                 else:

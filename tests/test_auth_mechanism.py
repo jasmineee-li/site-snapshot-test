@@ -196,7 +196,7 @@ class TestResolveAuth:
             "storage_state": {"path": str(artifact)},
         }
         kwargs, deferred = _resolve_auth(auth, task=None, benchmark_root=None)
-        assert kwargs == {"storage_state": str(artifact)}
+        assert kwargs == {"storage_state": {}}
         assert deferred == []
 
     def test_storage_state_relative_path_resolves_against_benchmark_root(self, tmp_path: Path):
@@ -209,7 +209,7 @@ class TestResolveAuth:
             "storage_state": {"path": "auth/state.json"},
         }
         kwargs, _ = _resolve_auth(auth, task=None, benchmark_root=bench)
-        assert kwargs == {"storage_state": str(artifact)}
+        assert kwargs == {"storage_state": {}}
 
     def test_storage_state_relative_path_requires_benchmark_root(self):
         auth = {
@@ -228,6 +228,19 @@ class TestResolveAuth:
         auth = {
             "type": "storage_state",
             "storage_state": {"path": "../outside/state.json"},
+        }
+        with pytest.raises(AuthArtifactMissingError, match="outside benchmark root"):
+            _resolve_auth(auth, task=None, benchmark_root=bench)
+
+    def test_storage_state_absolute_path_cannot_escape_benchmark_root(self, tmp_path: Path):
+        bench = tmp_path / "bench"
+        bench.mkdir()
+        outside = tmp_path / "outside" / "state.json"
+        outside.parent.mkdir()
+        outside.write_text("{}", encoding="utf-8")
+        auth = {
+            "type": "storage_state",
+            "storage_state": {"path": str(outside)},
         }
         with pytest.raises(AuthArtifactMissingError, match="outside benchmark root"):
             _resolve_auth(auth, task=None, benchmark_root=bench)
@@ -382,7 +395,7 @@ class TestResolveAuth:
             },
         }
         kwargs, _ = _resolve_auth(auth, task=None, benchmark_root=None)
-        assert kwargs == {"storage_state": str(artifact)}
+        assert kwargs == {"storage_state": {}}
 
     def test_phase_0d_fallback_used_when_declared_path_missing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -407,7 +420,7 @@ class TestResolveAuth:
         }
         task = {"site": "shopping"}
         kwargs, _ = _resolve_auth(auth, task=task, benchmark_root=tmp_path / "bench")
-        assert kwargs == {"storage_state": str(bootstrap_artifact)}
+        assert kwargs == {"storage_state": {}}
 
     def test_phase_0d_fallback_ignores_orphan_artifact_without_completion(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

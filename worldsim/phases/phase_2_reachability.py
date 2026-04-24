@@ -44,6 +44,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from worldsim.agent_auth import playwright_storage_state
 from worldsim.phases.phase_2_render_check import (
     _strip_markdown_for_text_match,
     _with_cache_buster,
@@ -375,7 +376,16 @@ async def verify_reachable(
 
     context_kwargs: dict[str, Any] = {}
     if storage_state_path:
-        context_kwargs["storage_state"] = storage_state_path
+        storage_state, error = playwright_storage_state(storage_state_path)
+        if error is None:
+            context_kwargs["storage_state"] = storage_state
+        else:
+            return ReachabilityOutcome.unreachable(
+                kind="auth_unusable",
+                detail=f"storage_state {storage_state_path} is unusable: {error}",
+                url=start_url,
+                witnesses_missing=tuple(witnesses),
+            )
     context = await browser.new_context(**context_kwargs)
     try:
         page = await context.new_page()

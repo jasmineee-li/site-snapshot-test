@@ -79,11 +79,16 @@ class ResolverContractDriftError(RuntimeError):
     """
 
 
-def _assert_anchor_contract_conformance(record: Mapping[str, Any]) -> None:
+def _assert_anchor_contract_conformance(
+    record: Mapping[str, Any],
+    *,
+    benchmark: str = "webarena_verified",
+    site: str | None = None,
+) -> None:
     kind = record.get("kind")
     if kind is None:
         return  # pending/empty records — nothing to verify yet
-    contract = _registry_kind_contract(str(kind))
+    contract = _registry_kind_contract(str(kind), benchmark=benchmark, site=site)
     if not contract.valid_methods:
         raise ResolverContractDriftError(
             f"resolver emitted kind {kind!r} but no editor method addresses "
@@ -265,8 +270,16 @@ def _site_kind_for_task(task: Mapping[str, Any]) -> Literal["gitlab", "reddit"] 
     return None
 
 
-def _attach_surfaces_for(kind: ResourceKind) -> list[dict[str, Any]]:
-    return [dict(surface) for surface in _registry_attach_surfaces(kind)]
+def _attach_surfaces_for(
+    kind: ResourceKind,
+    *,
+    benchmark: str = "webarena_verified",
+    site: str | None = None,
+) -> list[dict[str, Any]]:
+    return [
+        dict(surface)
+        for surface in _registry_attach_surfaces(kind, benchmark=benchmark, site=site)
+    ]
 
 
 def _normalise_sort_direction(raw: Any) -> str:
@@ -434,6 +447,7 @@ def derive_benign_target_resource(
     placeholders: Mapping[str, str],
     *,
     allow_layers: tuple[Literal["L1", "L2", "L3", "L4"], ...] = ("L1", "L2"),
+    benchmark: str = "webarena_verified",
 ) -> dict[str, Any]:
     """Resolve the benign target resource for a Phase 1 task (L1/L2 only).
 
@@ -482,11 +496,13 @@ def derive_benign_target_resource(
                 "kind": kind,
                 "anchors": dict(anchors),
                 "start_url_resolved": reconstructed or resolved_start,
-                "attach_surfaces": _attach_surfaces_for(kind),
+                "attach_surfaces": _attach_surfaces_for(
+                    kind, benchmark=benchmark, site=site_kind
+                ),
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L1",
             }
-            _assert_anchor_contract_conformance(record)
+            _assert_anchor_contract_conformance(record, benchmark=benchmark, site=site_kind)
             return record
 
     # L2: parse start_urls directly — applies when eval[] lacks a URL
@@ -506,11 +522,13 @@ def derive_benign_target_resource(
                 "kind": kind,
                 "anchors": dict(anchors),
                 "start_url_resolved": reconstructed or resolved_start,
-                "attach_surfaces": _attach_surfaces_for(kind),
+                "attach_surfaces": _attach_surfaces_for(
+                    kind, benchmark=benchmark, site=site_kind
+                ),
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L2",
             }
-            _assert_anchor_contract_conformance(record)
+            _assert_anchor_contract_conformance(record, benchmark=benchmark, site=site_kind)
             return record
 
     # Fall-through: bare __GITLAB__ / __REDDIT__ or intent-only task.
@@ -1000,6 +1018,7 @@ async def resolve_l3(
     *,
     classifier: ClassifierFn | None = None,
     probe_fn: ProbeFn | None = None,
+    benchmark: str = "webarena_verified",
 ) -> dict[str, Any]:
     """Resolve a task's benign target via LLM intent-parse + live probe.
 
@@ -1045,7 +1064,7 @@ async def resolve_l3(
         return record
 
     kind: ResourceKind = kind_raw  # type: ignore[assignment]
-    if not _registry_kind_contract(str(kind)).valid_methods:
+    if not _registry_kind_contract(str(kind), benchmark=benchmark, site=site_kind).valid_methods:
         record = _empty_record(f"L3 returned unknown kind {kind_raw!r}", pending_layer="L3")
         record["start_url_resolved"] = resolved_start
         return record
@@ -1073,7 +1092,7 @@ async def resolve_l3(
         "kind": kind,
         "anchors": dict(anchors),
         "start_url_resolved": reconstructed or resolved_start,
-        "attach_surfaces": _attach_surfaces_for(kind),
+        "attach_surfaces": _attach_surfaces_for(kind, benchmark=benchmark, site=site_kind),
         "encounter_requirements": _encounter_requirements(kind, task, anchors),
         "layer": "L3",
         "l3_confidence": parsed.get("confidence"),
@@ -1215,6 +1234,8 @@ def _project_item_to_record(
     base: Mapping[str, Any],
     item: Mapping[str, Any],
     placeholders: Mapping[str, str] | None = None,
+    *,
+    benchmark: str = "webarena_verified",
 ) -> dict[str, Any] | None:
     item_kind = item.get("_item_kind")
     if item_kind not in ("gitlab_issue", "gitlab_mr", "reddit_submission"):
@@ -1222,7 +1243,12 @@ def _project_item_to_record(
     record = dict(base)
     record["kind"] = item_kind
     record["layer"] = "L4"
-    record["attach_surfaces"] = _attach_surfaces_for(item_kind)
+    site_kind: Literal["gitlab", "reddit"] = (
+        "reddit" if item_kind == "reddit_submission" else "gitlab"
+    )
+    record["attach_surfaces"] = _attach_surfaces_for(
+        item_kind, benchmark=benchmark, site=site_kind
+    )
 
     anchors: dict[str, Any] = {}
     if item_kind in {"gitlab_issue", "gitlab_mr"}:
@@ -1262,9 +1288,6 @@ def _project_item_to_record(
     # so Phase 2c's reachability probe navigates to the page where the
     # seed lives.
     if placeholders is not None:
-        site_kind: Literal["gitlab", "reddit"] = (
-            "reddit" if item_kind == "reddit_submission" else "gitlab"
-        )
         reconstructed = _reconstruct_start_url_from_anchors(
             site_kind, item_kind, anchors, placeholders
         )
@@ -1281,6 +1304,7 @@ async def resolve_l4(
     probe_fn: ListingProbeFn | None = None,
     top_n: int | None = None,
     placeholders: Mapping[str, str] | None = None,
+    benchmark: str = "webarena_verified",
 ) -> list[dict[str, Any]]:
     """Expand a listing-kind resource into N concrete item records.
 
@@ -1312,7 +1336,12 @@ async def resolve_l4(
 
     records: list[dict[str, Any]] = []
     for item in items[:limit]:
-        record = _project_item_to_record(resource, item, placeholders)
+        record = _project_item_to_record(
+            resource,
+            item,
+            placeholders,
+            benchmark=benchmark,
+        )
         if record is not None:
             records.append(record)
     return records
@@ -1405,6 +1434,7 @@ async def resolve_tasks(
     classifier: ClassifierFn | None = None,
     probe_fn: ProbeFn | None = None,
     listing_probe_fn: ListingProbeFn | None = None,
+    benchmark: str = "webarena_verified",
 ) -> dict[str, list[dict[str, Any]]]:
     """Resolve benign_target_resource records for a batch of benign tasks.
 
@@ -1453,7 +1483,12 @@ async def resolve_tasks(
 
     async def _resolve_one(task: Mapping[str, Any]) -> tuple[str, list[dict[str, Any]]]:
         task_id = str(task.get("id") or "")
-        base = derive_benign_target_resource(task, placeholders, allow_layers=l1_l2_layers)
+        base = derive_benign_target_resource(
+            task,
+            placeholders,
+            allow_layers=l1_l2_layers,
+            benchmark=benchmark,
+        )
 
         record: dict[str, Any] = dict(base)
         if "L3" in allow_layers and record.get("pending_layer") == "L3" and instance is not None:
@@ -1465,6 +1500,7 @@ async def resolve_tasks(
                         instance,
                         classifier=classifier,
                         probe_fn=probe_fn,
+                        benchmark=benchmark,
                     )
                 except Exception as exc:
                     logger.warning("resolve_tasks: L3 raised for task=%r: %s", task_id, exc)
@@ -1483,6 +1519,7 @@ async def resolve_tasks(
                         probe_fn=listing_probe_fn,
                         top_n=top_n,
                         placeholders=placeholders,
+                        benchmark=benchmark,
                     )
                 except Exception as exc:
                     logger.warning("resolve_tasks: L4 raised for task=%r: %s", task_id, exc)

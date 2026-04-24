@@ -103,6 +103,22 @@ def test_classify_302_to_sign_in_is_login_redirect():
     assert c.kind == "login_redirect" and c.quarantine
 
 
+def test_classify_login_redirect_redacts_location_query():
+    c = _classify_probe(
+        status=302,
+        headers={
+            "location": "http://host/users/sign_in?token=secret&return_to=/private"
+        },
+        body_snippet="",
+        exception_name=None,
+    )
+
+    assert c.kind == "login_redirect"
+    assert "secret" not in c.detail
+    assert "token=" not in c.detail
+    assert c.detail == "302 redirect to http://host/users/sign_in"
+
+
 def test_classify_302_non_login_is_redirect_noncritical():
     c = _classify_probe(
         status=301,
@@ -255,6 +271,7 @@ def _make_task(task_id: str, site: str, start_url: str) -> dict[str, Any]:
     return {
         "id": task_id,
         "site": site,
+        "benchmark": "webarena_verified",
         "benign_target_resource": {
             "kind": "gitlab_issue",
             "start_url_resolved": start_url,
@@ -265,6 +282,7 @@ def _make_task(task_id: str, site: str, start_url: str) -> dict[str, Any]:
 def _gitlab_instance(site_url: str = "http://gitlab.test") -> dict[str, Any]:
     return {
         "site_name": "gitlab",
+        "benchmark": "webarena_verified",
         "site_url": site_url,
         "preflight_request_context": {"extra_http_headers": {"X-Test-Auth": "1"}},
     }
@@ -322,6 +340,33 @@ def test_preflight_uses_canonical_benchmark_for_policy_lookup():
     assert keep == []
     assert [record["id"] for record in dropped] == ["adv_alias"]
     assert dropped[0]["source_data_issue"]["kind"] == "not_found"
+
+
+def test_preflight_missing_benchmark_metadata_keeps_without_policy_probe():
+    task = _make_task("adv_no_benchmark", "gitlab", "http://gitlab.test/foo/-/issues/99")
+    task.pop("benchmark", None)
+    instance = _gitlab_instance()
+    instance.pop("benchmark", None)
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://gitlab.test/foo/-/issues/99": _FakeResponse(status=404, body=""),
+        }
+    )
+
+    async def _factory(_storage_state_path):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site={"gitlab": [instance]},
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == [task]
+    assert dropped == []
+    assert request_context.calls == []
 
 
 def test_policy_lookup_normalizes_benchmark_alias():
@@ -382,6 +427,32 @@ def test_gitlab_preflight_without_auth_keeps_task_without_probe():
     assert keep == [task]
     assert dropped == []
     assert request_context.calls == []
+
+
+def test_preflight_quorum_counts_auth_skipped_replicas():
+    task = _make_task("adv_one_probe", "gitlab", "http://gitlab.test/foo/-/issues/99")
+    probed = _gitlab_instance()
+    skipped = _gitlab_instance("http://gitlab2.test")
+    skipped["preflight_auth_skip_reason"] = "storage_state refresh failed"
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://gitlab.test/foo/-/issues/99": _FakeResponse(status=404, body=""),
+        }
+    )
+
+    async def _factory(_storage_state_path):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site={"gitlab": [probed, skipped]},
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == [task]
+    assert dropped == []
 
 
 def test_preflight_missing_policy_keeps_task_without_probe():

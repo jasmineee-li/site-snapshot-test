@@ -111,7 +111,8 @@ def test_resolve_auth_falls_back_when_declared_storage_state_is_wrong_host(
         site_url="http://gitlab.example",
     )
 
-    assert session_kwargs == {"storage_state": str(fallback)}
+    assert session_kwargs["storage_state"]["cookies"][0]["domain"] == "gitlab.example"
+    assert session_kwargs["storage_state"]["cookies"][0]["sameSite"] == "Lax"
     assert deferred == []
 
 

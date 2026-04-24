@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from worldsim.phase_2c.policy import (
     PreflightClassification,
@@ -54,6 +54,22 @@ def location_is_login(location: str | None) -> bool:
     return any(marker in lower for marker in _LOGIN_REDIRECT_LOCATION_MARKERS)
 
 
+def safe_redirect_detail(status: int, location: str | None) -> str:
+    if not location:
+        return f"{status} redirect to login"
+    try:
+        parsed = urlsplit(location)
+    except ValueError:
+        return f"{status} redirect to login"
+    path = parsed.path or "/"
+    if not parsed.scheme and not parsed.netloc:
+        return f"{status} redirect to {path}"
+    host = parsed.hostname or "<unknown-host>"
+    if parsed.port is not None:
+        host = f"{host}:{parsed.port}"
+    return f"{status} redirect to {parsed.scheme}://{host}{path}"
+
+
 def classify_webarena_probe(
     *,
     status: int | None,
@@ -99,7 +115,7 @@ def classify_webarena_probe(
                 kind="login_redirect",
                 quarantine=True,
                 http_status=status,
-                detail=f"{status} redirect to {location}",
+                detail=safe_redirect_detail(status, location),
             )
         return PreflightClassification(
             kind="redirect_noncritical",
@@ -318,16 +334,17 @@ class WebArenaFeasibilityPolicy:
         task: dict[str, Any],
         classifications_by_target: dict[int, list[PreflightClassification]],
         target_audit: dict[int, ProbeTarget],
+        candidate_replica_count: int,
         login_redirect_count: int,
         probed_count: int,
         bailout_ratio: float,
     ) -> SourceDataDecision:
+        quorum_denominator = max(1, candidate_replica_count)
         for target_index, classifications in classifications_by_target.items():
             quarantine_classifications = [c for c in classifications if c.quarantine]
             if not classifications:
                 continue
-            quarantine_rate = len(quarantine_classifications) / len(classifications)
-            if quarantine_rate <= 0.5 or not quarantine_classifications:
+            if len(quarantine_classifications) <= quorum_denominator / 2:
                 continue
             kind_counts: dict[str, int] = {}
             for classification in quarantine_classifications:
@@ -339,6 +356,7 @@ class WebArenaFeasibilityPolicy:
                 target=target_audit[target_index],
                 evidence={
                     "replicas_probed": len(classifications_by_target[target_index]),
+                    "replicas_considered": quorum_denominator,
                     "replicas_agreeing": len(quarantine_classifications),
                 },
             )
@@ -379,5 +397,6 @@ __all__ = [
     "looks_like_login_stub",
     "register_webarena_policies",
     "render_anchor_tokens",
+    "safe_redirect_detail",
     "task_probe_url",
 ]

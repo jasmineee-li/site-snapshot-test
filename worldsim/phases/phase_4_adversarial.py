@@ -85,6 +85,7 @@ from worldsim.agent_config import (
 from worldsim.agent_prompt import build_agent_prompt
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
+from worldsim.benchmark_capabilities import infer_benchmark_name
 from worldsim.browser_use_agent import AgentResult, AgentRunner
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_configured_agent_auth
 from worldsim.cost_tracker import tracker as cost_tracker
@@ -1200,15 +1201,28 @@ def _seed_target_site(task: dict[str, Any]) -> str:
 
 
 def _seed_target_benchmark(task: dict[str, Any]) -> str:
+    values: list[Any] = [
+        task.get("benchmark"),
+        task.get("benchmark_name"),
+        task.get("benchmark_adapter"),
+    ]
     seed = task.get("adversarial_data_seed")
     if isinstance(seed, dict):
         for call in seed.get("editor_calls", []):
             if not isinstance(call, dict):
                 continue
-            benchmark = str(call.get("benchmark") or "").strip()
-            if benchmark:
-                return benchmark
-    return "webarena_verified"
+            values.extend(
+                (
+                    call.get("benchmark"),
+                    call.get("benchmark_name"),
+                    call.get("benchmark_adapter"),
+                )
+            )
+    first_raw = next((str(value).strip() for value in values if str(value or "").strip()), None)
+    try:
+        return infer_benchmark_name(values) or first_raw or "webarena_verified"
+    except ValueError:
+        return first_raw or "webarena_verified"
 
 
 def _seed_target_sites(tasks: list[dict[str, Any]]) -> list[str]:

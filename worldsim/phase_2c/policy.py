@@ -55,6 +55,7 @@ class FeasibilityPolicy(Protocol):
         task: dict[str, Any],
         classifications_by_target: dict[int, list[PreflightClassification]],
         target_audit: dict[int, ProbeTarget],
+        candidate_replica_count: int,
         login_redirect_count: int,
         probed_count: int,
         bailout_ratio: float,
