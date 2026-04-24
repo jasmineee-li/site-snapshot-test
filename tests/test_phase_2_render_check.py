@@ -724,3 +724,213 @@ def test_body_poll_timeout_constant_is_20s():
     assert rc._BODY_POLL_TIMEOUT_MS == 20000
     assert rc._BODY_POLL_INITIAL_MS == 100
     assert rc._BODY_POLL_MAX_MS == 2000
+
+
+# ---------------------------------------------------------------------------
+# Read-your-write fastpath. When the body-text match misses on a GitLab
+# issue / MR surface but the editor returned a note_id from its POST,
+# fetch discussions.json directly and accept the match when the id is
+# present in the JSON body. Bypasses the DOM-hydration race entirely.
+# ---------------------------------------------------------------------------
+
+
+class _FakeRequestContext:
+    """Fake Playwright request context backed by a URL -> response map."""
+
+    def __init__(self, responses: dict[str, _FakeRequestResponse]) -> None:
+        self._responses = dict(responses)
+        self.calls: list[tuple[str, float]] = []
+
+    async def get(self, url, *, timeout):
+        self.calls.append((url, timeout))
+        if url in self._responses:
+            return self._responses[url]
+        return _FakeRequestResponse(status=404, body="not found")
+
+
+class _FakeRequestResponse:
+    def __init__(self, *, status: int, body: str) -> None:
+        self.status = status
+        self._body = body
+
+    async def text(self):
+        return self._body
+
+
+class _RYWPage(_PollingFakePage):
+    """PollingFakePage plus a request context for the discussions.json fetch."""
+
+    def __init__(
+        self,
+        *,
+        bodies: list[str],
+        final_body: str = "",
+        json_responses: dict[str, _FakeRequestResponse] | None = None,
+    ) -> None:
+        super().__init__(bodies=bodies, final_body=final_body)
+        self.request = _FakeRequestContext(json_responses or {})
+
+
+class _RYWBrowser:
+    def __init__(self, page: _RYWPage) -> None:
+        self._page = page
+
+    async def new_context(self, **kwargs):
+        return _PollingFakeContext(self._page)
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_matches_note_id_in_discussions_json():
+    """Text-match misses; note_id is in discussions.json; RYW match wins.
+    Reclaims the class of render_unverified flakes where GitLab's
+    sidekiq + cache tail blows past the 20 s body-poll deadline."""
+    url = "http://gitlab.test/proj/-/issues/5"
+    json_url = url + "/discussions.json"
+    discussions_body = '[{"id":"abc","notes":[{"id":42,"body":"Raising priority..."}]}]'
+    json_responses = {
+        # Playwright's request.get is called with the exact URL we built
+        # in _gitlab_note_ryw_fastpath (no cache-buster query string).
+        json_url: _FakeRequestResponse(status=200, body=discussions_body),
+    }
+    # Body never contains the signature — force the fallback to fire.
+    page = _RYWPage(
+        bodies=["shell only, no note text"] * 60,
+        final_body="shell only, no note text",
+        json_responses=json_responses,
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="Raising priority on issue",
+        write_tokens={"note_id": 42},
+    )
+    assert outcome.ok is True
+    assert outcome.matched_url == json_url
+    assert outcome.matched_signature == "note_id=42"
+    # Exactly one RYW fetch — no spurious retries.
+    assert page.request.calls == [(json_url, pytest.approx(10000, abs=1))]
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_does_not_fire_without_note_id():
+    url = "http://gitlab.test/proj/-/issues/5"
+    page = _RYWPage(bodies=["shell only"] * 60, final_body="shell only")
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="missing signature",
+        # No write_tokens → RYW cannot fire; task stays render_unverified.
+    )
+    assert outcome.ok is False
+    # No RYW fetch happened.
+    assert page.request.calls == []
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_does_not_fire_outside_gitlab_issue_mr():
+    url = "http://reddit.test/f/books/12345"
+    page = _RYWPage(bodies=["shell only"] * 60, final_body="shell only")
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="reddit",
+        site_url="http://reddit.test",
+        signature="missing signature",
+        write_tokens={"comment_id": 99},
+    )
+    assert outcome.ok is False
+    # reddit URLs don't have discussions.json; fastpath must skip.
+    assert page.request.calls == []
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_falls_through_when_note_id_absent_from_json():
+    """JSON fetched, but the id isn't there (ghost write). Must not
+    falsely pass; task remains render_unverified."""
+    url = "http://gitlab.test/proj/-/issues/5"
+    json_url = url + "/discussions.json"
+    discussions_body = '[{"id":"abc","notes":[{"id":999,"body":"someone else"}]}]'
+    json_responses = {json_url: _FakeRequestResponse(status=200, body=discussions_body)}
+    page = _RYWPage(
+        bodies=["shell only"] * 60, final_body="shell only", json_responses=json_responses
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="missing signature",
+        write_tokens={"note_id": 42},
+    )
+    assert outcome.ok is False
+    # RYW probe ran, found nothing, fell through.
+    assert len(page.request.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_handles_spaced_json_encoding():
+    """Ruby's ActiveSupport::JSON can emit ``"id": 42`` with a space;
+    accept both compact and spaced forms."""
+    url = "http://gitlab.test/proj/-/merge_requests/7"
+    json_url = url + "/discussions.json"
+    discussions_body = '[{"id": "abc", "notes": [{"id": 42, "body": "mr comment"}]}]'
+    json_responses = {json_url: _FakeRequestResponse(status=200, body=discussions_body)}
+    page = _RYWPage(
+        bodies=["shell only"] * 60, final_body="shell only", json_responses=json_responses
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="missing signature",
+        write_tokens={"note_id": 42},
+    )
+    assert outcome.ok is True
+    assert outcome.matched_signature == "note_id=42"
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_skipped_when_body_text_match_hits_first():
+    """Primary signature match short-circuits before the RYW path. The
+    RYW fetch must not run when the text match already passes — we want
+    the cheaper path when it works."""
+    url = "http://gitlab.test/proj/-/issues/5"
+    json_url = url + "/discussions.json"
+    json_responses = {
+        json_url: _FakeRequestResponse(status=200, body="wrong id here"),
+    }
+    page = _RYWPage(
+        bodies=["signature present immediately"],
+        final_body="signature present immediately",
+        json_responses=json_responses,
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="signature present",
+        write_tokens={"note_id": 42},
+    )
+    assert outcome.ok is True
+    # The HTML page (with cache-buster) matched, not discussions.json.
+    assert outcome.matched_url.startswith(url)
+    assert "/discussions.json" not in outcome.matched_url
+    assert page.request.calls == []  # RYW never fired

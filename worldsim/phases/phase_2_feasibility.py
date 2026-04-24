@@ -26,10 +26,27 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 from worldsim._async_utils import retrying
+from worldsim.agent_auth import (
+    cookie_domain_matches_host,
+    playwright_storage_state,
+    playwright_storage_state_payload,
+    read_storage_state_payload,
+    resolve_agent_auth,
+    resolve_agent_auth_headers,
+    resolve_storage_state_path,
+    storage_state_cookie_hosts,
+    storage_state_origin_hosts,
+    storage_state_preflight_error_for_payload,
+    storage_state_recorded_hosts,
+)
 from worldsim.auth_tokens import acquire_tokens_for_instances
+from worldsim.benchmark_capabilities import (
+    get_benchmark_capabilities,
+    infer_benchmark_name,
+    normalize_benchmark_name,
+)
 from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.instance_selection import (
     _ordered_instance_dicts,
@@ -111,17 +128,6 @@ _PROBE_LAUNCH_ARGS: tuple[str, ...] = (
     "--disable-gpu",
     "--no-sandbox",
 )
-
-_PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT = "Lax"
-_PLAYWRIGHT_COOKIE_SAMESITE_ALIASES: dict[str, str] = {
-    "lax": "Lax",
-    "none": "None",
-    "no_restriction": "None",
-    "no-restriction": "None",
-    "strict": "Strict",
-    "": _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT,
-    "unspecified": _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT,
-}
 
 
 def _per_replica_cap(site_name: str) -> int:
@@ -249,6 +255,24 @@ async def verify_feasibility(
             phase_2_status=phase_2_status,
         )
 
+    task_benchmark = _infer_records_benchmark(raw, label="Phase 2c tasks")
+    instance_benchmark = _infer_records_benchmark(instances, label="Phase 2c instances")
+    if task_benchmark != instance_benchmark:
+        raise RuntimeError(
+            "phase 2c pre-flight: mixed benchmark metadata between tasks and instances: "
+            f"tasks={task_benchmark!r}, instances={instance_benchmark!r}"
+        )
+    capabilities = get_benchmark_capabilities(task_benchmark)
+    if not capabilities.phase_2_feasibility_supported:
+        raise RuntimeError(
+            f"phase 2c pre-flight: benchmark {task_benchmark!r} does not support "
+            "WorldSim v5 Phase 2c"
+        )
+    for instance in instances:
+        instance["benchmark"] = capabilities.canonical_name
+        if benchmark_root is not None:
+            instance["benchmark_root"] = str(benchmark_root)
+
     token_errors = acquire_tokens_for_instances(instances)
     if token_errors:
         raise RuntimeError(
@@ -287,7 +311,7 @@ async def verify_feasibility(
         # per-site concern, not a per-replica one. Use the stable-ordered
         # head so the representative is reproducible across runs.
         representative = _ordered_instance_dicts(site_instances)[0]
-        benchmark = str(representative.get("benchmark") or "webarena_verified").strip().lower()
+        benchmark = normalize_benchmark_name(representative.get("benchmark") or task_benchmark)
         editor_cls = EDITOR_REGISTRY.get((benchmark, site))
         if editor_cls is None:
             raise RuntimeError(
@@ -906,6 +930,8 @@ def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
 
 def _preflight_request_context_options(
     instance: dict[str, Any],
+    *,
+    benchmark_root: Path | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     """Build Playwright APIRequestContext auth options for source-data preflight.
 
@@ -914,41 +940,16 @@ def _preflight_request_context_options(
     anonymously and falsely classifying private pages as source-data drops.
     """
     agent_auth = instance.get("agent_auth")
-    if not isinstance(agent_auth, dict):
-        return {}, None
-    auth_type = str(agent_auth.get("type") or "").strip()
-    if auth_type in {"", "none", "unknown"}:
-        return {}, None
-    if auth_type == "storage_state":
-        path = _resolve_benign_storage_state_path(instance)
-        if path is None:
-            return {}, "storage_state auth declared but no usable artifact was found"
-        payload, error = _read_storage_state_payload_for_preflight(path)
-        if error is not None:
-            return {}, error
-        error = _storage_state_preflight_error_for_payload(Path(path), payload, instance)
-        if error is not None:
-            return {}, error
-        storage_state, error = _playwright_storage_state_payload_for_preflight(Path(path), payload)
-        if error is not None:
-            return {}, error
-        return {"storage_state": storage_state}, None
-    if auth_type == "http_headers":
-        try:
-            headers = _resolve_agent_auth_headers(agent_auth)
-        except RuntimeError as exc:
-            return {}, str(exc)
-        return {"extra_http_headers": headers}, None
-    if auth_type == "http_basic":
-        block = agent_auth.get("http_basic")
-        if not isinstance(block, dict):
-            return {}, "http_basic auth declared without http_basic block"
-        username = block.get("username")
-        password = block.get("password")
-        if not isinstance(username, str) or not isinstance(password, str) or not username:
-            return {}, "http_basic auth declared without username/password"
-        return {"http_credentials": {"username": username, "password": password}}, None
-    return {}, f"agent_auth type {auth_type!r} is not supported by Phase 2c preflight"
+    resolved = resolve_agent_auth(
+        agent_auth if isinstance(agent_auth, dict) else None,
+        site_name=str(instance.get("site_name") or ""),
+        site_url=str(instance.get("site_url") or ""),
+        benchmark_root=benchmark_root,
+        storage_state_override=instance.get("storage_state_path"),
+    )
+    if resolved.unusable_reason is not None:
+        return {}, resolved.unusable_reason
+    return dict(resolved.api_request_context_kwargs), None
 
 
 def _agent_auth_type(instance: dict[str, Any]) -> str:
@@ -958,64 +959,48 @@ def _agent_auth_type(instance: dict[str, Any]) -> str:
     return str(agent_auth.get("type") or "").strip()
 
 
+def _infer_records_benchmark(records: list[dict[str, Any]], *, label: str) -> str:
+    values: list[Any] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        values.extend(
+            (
+                record.get("benchmark"),
+                record.get("benchmark_name"),
+                record.get("benchmark_adapter"),
+            )
+        )
+        seed = record.get("adversarial_data_seed")
+        calls = seed.get("editor_calls") if isinstance(seed, dict) else None
+        if isinstance(calls, list):
+            for call in calls:
+                if isinstance(call, dict):
+                    values.append(call.get("benchmark"))
+    try:
+        benchmark = infer_benchmark_name(values)
+    except ValueError as exc:
+        raise RuntimeError(f"phase 2c pre-flight: {label} contain {exc}") from exc
+    if benchmark is None:
+        raise RuntimeError(f"phase 2c pre-flight: {label} are missing benchmark metadata")
+    return benchmark
+
+
 def _resolve_agent_auth_headers(agent_auth: dict[str, Any]) -> dict[str, str]:
-    block = agent_auth.get("http_headers")
-    if not isinstance(block, dict):
-        # Older fixtures sometimes used the seeding-auth shape directly.
-        block = agent_auth
-    headers = block.get("headers")
-    if not isinstance(headers, dict) or not headers:
-        raise RuntimeError("http_headers auth declared without a non-empty headers map")
-    credentials = agent_auth.get("authentication")
-    if not isinstance(credentials, dict):
-        credentials = {}
-    creds = credentials.get("credentials")
-    if not isinstance(creds, dict):
-        creds = {}
-    username = creds.get("username")
-    password = creds.get("password")
-    resolved: dict[str, str] = {}
-    for key, value in headers.items():
-        if not isinstance(key, str) or not key.strip() or not isinstance(value, str):
-            raise RuntimeError("http_headers entries must be string keys and string values")
-        text = value
-        needs_username = "${credentials.username}" in text
-        needs_password = "${credentials.password}" in text
-        if needs_username and not isinstance(username, str):
-            raise RuntimeError(
-                "http_headers references ${credentials.username} without credentials"
-            )
-        if needs_password and not isinstance(password, str):
-            raise RuntimeError(
-                "http_headers references ${credentials.password} without credentials"
-            )
-        if needs_username:
-            text = text.replace("${credentials.username}", username)
-        if needs_password:
-            text = text.replace("${credentials.password}", password)
-        resolved[key] = text
-    return resolved
+    return resolve_agent_auth_headers(agent_auth)
 
 
 def _storage_state_preflight_error(path: str, instance: dict[str, Any]) -> str | None:
-    path_obj = Path(path)
     payload, error = _read_storage_state_payload_for_preflight(path)
     if error is not None:
         return error
-    return _storage_state_preflight_error_for_payload(path_obj, payload, instance)
+    return _storage_state_preflight_error_for_payload(Path(path), payload, instance)
 
 
 def _read_storage_state_payload_for_preflight(
     path: str,
 ) -> tuple[dict[str, Any], str | None]:
-    path_obj = Path(path)
-    try:
-        payload = json.loads(path_obj.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return {}, f"storage_state {path_obj} is not readable JSON: {exc}"
-    if not isinstance(payload, dict):
-        return {}, f"storage_state {path_obj} does not contain a JSON object"
-    return payload, None
+    return read_storage_state_payload(path)
 
 
 def _storage_state_preflight_error_for_payload(
@@ -1023,27 +1008,11 @@ def _storage_state_preflight_error_for_payload(
     payload: dict[str, Any],
     instance: dict[str, Any],
 ) -> str | None:
-    cookie_hosts = _storage_state_cookie_hosts(payload)
-    origin_hosts = _storage_state_origin_hosts(payload)
-    recorded_hosts = cookie_hosts | origin_hosts
-    if not recorded_hosts:
-        return f"storage_state {path_obj} has no recorded cookie/origin hosts"
-    live_host = urlsplit(str(instance.get("site_url") or "")).hostname
-    if not live_host:
-        return f"instance site_url {instance.get('site_url')!r} has no host"
-    if cookie_hosts:
-        if not any(_cookie_domain_matches_host(recorded, live_host) for recorded in cookie_hosts):
-            return (
-                f"storage_state {path_obj} cookie domains are host-bound to "
-                f"{sorted(cookie_hosts)} and do not match live host {live_host!r}"
-            )
-        return None
-    if not any(_cookie_domain_matches_host(recorded, live_host) for recorded in origin_hosts):
-        return (
-            f"storage_state {path_obj} is host-bound to {sorted(recorded_hosts)} "
-            f"and does not match live host {live_host!r}"
-        )
-    return None
+    return storage_state_preflight_error_for_payload(
+        path_obj,
+        payload,
+        str(instance.get("site_url") or ""),
+    )
 
 
 def _playwright_storage_state_for_preflight(path: str) -> tuple[str | dict[str, Any], str | None]:
@@ -1055,101 +1024,30 @@ def _playwright_storage_state_for_preflight(path: str) -> tuple[str | dict[str, 
     shapes keep the existing auth-unusable path, which makes preflight skip
     this instance instead of probing private surfaces anonymously.
     """
-    path_obj = Path(path)
-    payload, error = _read_storage_state_payload_for_preflight(path)
-    if error is not None:
-        return path, error
-    return _playwright_storage_state_payload_for_preflight(path_obj, payload)
+    return playwright_storage_state(path)
 
 
 def _playwright_storage_state_payload_for_preflight(
     path_obj: Path,
     payload: dict[str, Any],
 ) -> tuple[dict[str, Any], str | None]:
-    cookies = payload.get("cookies")
-    if not isinstance(cookies, list):
-        return payload, None
-
-    normalized_cookies: list[Any] = []
-    changed = False
-    for index, cookie in enumerate(cookies):
-        if not isinstance(cookie, dict):
-            return {}, f"storage_state {path_obj} cookie[{index}] is not an object"
-        normalized_cookie = dict(cookie)
-        raw_same_site = normalized_cookie.get("sameSite")
-        if "sameSite" not in normalized_cookie or raw_same_site is None:
-            normalized_cookie["sameSite"] = _PLAYWRIGHT_COOKIE_SAMESITE_DEFAULT
-            changed = True
-            normalized_cookies.append(normalized_cookie)
-            continue
-        if not isinstance(raw_same_site, str):
-            return (
-                {},
-                f"storage_state {path_obj} cookie[{index}] has non-string sameSite",
-            )
-        same_site_key = raw_same_site.strip().lower()
-        if same_site_key not in _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES:
-            return (
-                {},
-                f"storage_state {path_obj} cookie[{index}] has unsupported "
-                f"sameSite {raw_same_site!r}",
-            )
-        normalized_same_site = _PLAYWRIGHT_COOKIE_SAMESITE_ALIASES[same_site_key]
-        if normalized_same_site != raw_same_site:
-            normalized_cookie["sameSite"] = normalized_same_site
-            changed = True
-        normalized_cookies.append(normalized_cookie)
-
-    if not changed:
-        return payload, None
-    normalized_payload = dict(payload)
-    normalized_payload["cookies"] = normalized_cookies
-    return normalized_payload, None
+    return playwright_storage_state_payload(path_obj, payload)
 
 
 def _storage_state_recorded_hosts(payload: dict[str, Any]) -> set[str]:
-    return _storage_state_cookie_hosts(payload) | _storage_state_origin_hosts(payload)
+    return storage_state_recorded_hosts(payload)
 
 
 def _storage_state_cookie_hosts(payload: dict[str, Any]) -> set[str]:
-    hosts: set[str] = set()
-    cookies = payload.get("cookies")
-    if isinstance(cookies, list):
-        for cookie in cookies:
-            if not isinstance(cookie, dict):
-                continue
-            domain = cookie.get("domain")
-            if isinstance(domain, str) and domain.strip():
-                hosts.add(domain.strip().lower().strip("."))
-    return hosts
+    return storage_state_cookie_hosts(payload)
 
 
 def _storage_state_origin_hosts(payload: dict[str, Any]) -> set[str]:
-    hosts: set[str] = set()
-    origins = payload.get("origins")
-    if isinstance(origins, list):
-        for origin in origins:
-            if not isinstance(origin, dict):
-                continue
-            origin_url = origin.get("origin")
-            if not isinstance(origin_url, str):
-                continue
-            host = urlsplit(origin_url).hostname
-            if host:
-                hosts.add(host.lower().strip("."))
-    return hosts
+    return storage_state_origin_hosts(payload)
 
 
 def _cookie_domain_matches_host(domain: str, host: str) -> bool:
-    normalized_domain = domain.strip().lower().strip(".")
-    normalized_host = host.strip().lower().strip(".")
-    if not normalized_domain or not normalized_host:
-        return False
-    if normalized_domain == normalized_host:
-        return True
-    if ":" in normalized_domain or ":" in normalized_host:
-        return False
-    return normalized_host.endswith(f".{normalized_domain}")
+    return cookie_domain_matches_host(domain, host)
 
 
 async def _run_preflight_and_filter_raw(
@@ -1275,18 +1173,35 @@ async def _run_preflight_and_filter_raw(
                     benchmark_root=benchmark_root,
                 )
             except AuthBootstrapError as exc:
-                raise RuntimeError(
-                    f"phase 2c preflight: failed to reacquire storage_state for "
-                    f"{site} at {instance.get('site_url')!r}: {exc}"
-                ) from exc
+                reason = (
+                    "storage_state refresh failed; source-data quarantine skipped "
+                    f"for this instance ({exc})"
+                )
+                logger.warning(
+                    "phase 2c preflight: %s at %s: %s",
+                    site,
+                    instance.get("site_url"),
+                    reason,
+                )
+                return {}, reason
             instance["storage_state_path"] = str(refreshed_path)
 
-        refreshed_options, refreshed_skip = _preflight_request_context_options(instance)
+        refreshed_options, refreshed_skip = _preflight_request_context_options(
+            instance,
+            benchmark_root=benchmark_root,
+        )
         if refreshed_skip is not None:
-            raise RuntimeError(
-                f"phase 2c preflight: reacquired storage_state for {site} at "
-                f"{instance.get('site_url')!r} is unusable: {refreshed_skip}"
+            reason = (
+                "reacquired storage_state is unusable; source-data quarantine skipped "
+                f"for this instance ({refreshed_skip})"
             )
+            logger.warning(
+                "phase 2c preflight: %s at %s: %s",
+                site,
+                instance.get("site_url"),
+                reason,
+            )
+            return {}, reason
         refreshed_classification = await _self_test_context_options(
             site=site,
             instance=instance,
@@ -1299,6 +1214,19 @@ async def _run_preflight_and_filter_raw(
                 instance.get("site_url"),
             )
             return refreshed_options, None
+        if refreshed_classification.kind in {"login_redirect", "auth_missing"}:
+            reason = (
+                "storage_state refresh did not authenticate; source-data quarantine "
+                f"skipped for this instance ({refreshed_classification.kind}: "
+                f"{refreshed_classification.detail})"
+            )
+            logger.warning(
+                "phase 2c preflight: %s at %s: %s",
+                site,
+                instance.get("site_url"),
+                reason,
+            )
+            return {}, reason
         raise RuntimeError(
             "phase 2c preflight: storage_state refresh for "
             f"{site} at {instance.get('site_url')!r} did not authenticate: "
@@ -1311,7 +1239,10 @@ async def _run_preflight_and_filter_raw(
             resolved_instances: list[dict[str, Any]] = []
             for instance in site_instances:
                 resolved = dict(instance)
-                context_options, skip_reason = _preflight_request_context_options(instance)
+                context_options, skip_reason = _preflight_request_context_options(
+                    instance,
+                    benchmark_root=benchmark_root,
+                )
                 context_options, skip_reason = await _ensure_live_storage_state_options(
                     site=site,
                     instance=resolved,
@@ -1359,39 +1290,17 @@ def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
     content still works in an anonymous context).
     """
     agent_auth = instance.get("agent_auth")
-    agent_auth_type = agent_auth.get("type") if isinstance(agent_auth, dict) else None
-    if agent_auth_type != "storage_state":
+    if not isinstance(agent_auth, dict) or agent_auth.get("type") != "storage_state":
         return None
-
-    explicit = instance.get("storage_state_path")
-    if isinstance(explicit, str) and explicit.strip():
-        path = Path(explicit.strip())
-        if path.exists():
-            return str(path)
-        logger.warning(
-            "phase 2c: storage_state_path %s not found; checking agent_auth/fallback paths",
-            path,
-        )
-
-    if isinstance(agent_auth, dict) and agent_auth_type == "storage_state":
-        storage_state = agent_auth.get("storage_state")
-        if isinstance(storage_state, dict):
-            nested = storage_state.get("path")
-            if isinstance(nested, str) and nested.strip():
-                path = Path(nested.strip())
-                if path.exists():
-                    return str(path)
-                logger.warning(
-                    "phase 2c: agent_auth storage_state %s not found; checking fallback path",
-                    path,
-                )
-
-    state_dir_env = os.environ.get("WORLDSIM_STATE_DIR") or "logs"
-    site_name = str(instance.get("site_name") or "").strip()
-    if not site_name:
-        return None
-    candidate = Path(state_dir_env) / "phase_0d" / site_name / "storage_state.json"
-    return str(candidate) if candidate.exists() else None
+    path = resolve_storage_state_path(
+        agent_auth,
+        site_name=str(instance.get("site_name") or ""),
+        storage_state_override=instance.get("storage_state_path"),
+        benchmark_root=Path(str(instance["benchmark_root"]))
+        if instance.get("benchmark_root")
+        else None,
+    )
+    return str(path) if path is not None else None
 
 
 async def _run_render_check(
@@ -1408,6 +1317,20 @@ async def _run_render_check(
     site_name = str(instance.get("site_name", "")).strip().lower()
     site_url = str(instance.get("site_url", "")).rstrip("/")
     signature = render_signature(seed, metadata)
+    # Authoritative write tokens returned by the editor's POST response.
+    # The render-check uses these as a read-your-write fallback when its
+    # DOM text match races the platform's write-to-visible pipeline
+    # (sidekiq indexer, page-cache invalidation, Vue hydration). The
+    # same tokens live on ``metadata`` because they are already part of
+    # the editor's return contract; we just hoist the observably-useful
+    # subset so verify_seed_renders does not have to know the whole
+    # metadata shape.
+    write_tokens: dict[str, Any] = {}
+    if isinstance(metadata, dict):
+        for key in ("note_id", "comment_id", "submission_id", "review_id"):
+            value = metadata.get(key)
+            if value not in (None, ""):
+                write_tokens[key] = value
 
     storage_state_path = _resolve_benign_storage_state_path(instance)
 
@@ -1420,6 +1343,7 @@ async def _run_render_check(
                 site_url=site_url,
                 signature=signature,
                 storage_state_path=storage_state_path,
+                write_tokens=write_tokens or None,
             )
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("phase 2c render check crashed")

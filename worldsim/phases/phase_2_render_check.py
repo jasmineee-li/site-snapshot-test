@@ -417,6 +417,79 @@ def _normalize(text: str | None) -> str:
     return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
 
 
+async def _gitlab_note_ryw_fastpath(
+    *,
+    page: Any,
+    target_url: str,
+    site_name: str,
+    write_tokens: dict[str, Any] | None,
+    timeout_ms: int,
+) -> RenderOutcome | None:
+    """Read-your-write fallback for GitLab issue / MR notes.
+
+    When the body-text match misses on an issue or MR page, fetch the
+    authoritative ``/discussions.json`` endpoint via the page's request
+    context and look for the note_id the editor returned from its POST.
+    If the id is in the JSON, the note is observably present on the
+    server — downstream agents will see it the moment the Vue layer
+    finishes hydrating, regardless of where the DOM-render race left
+    ``text_content('body')``.
+
+    Returns a passed ``RenderOutcome`` on match, ``None`` otherwise
+    (so the caller falls through to the existing error classification).
+    Skip conditions: non-gitlab site, URL not an issue/MR page,
+    write_tokens missing note_id, or the JSON fetch fails.
+    """
+    if site_name != "gitlab" or write_tokens is None:
+        return None
+    note_id = write_tokens.get("note_id")
+    if note_id in (None, ""):
+        return None
+    lower = target_url.lower()
+    if "/-/issues/" not in lower and "/-/merge_requests/" not in lower:
+        return None
+    base_url = target_url.split("?", 1)[0].rstrip("/")
+    json_url = f"{base_url}/discussions.json"
+    try:
+        response = await page.request.get(json_url, timeout=max(1000, int(timeout_ms)))
+    except Exception as exc:
+        logger.debug(
+            "phase 2c render check: RYW fetch of %s raised %s: %s",
+            json_url,
+            exc.__class__.__name__,
+            exc,
+        )
+        return None
+    try:
+        status = response.status
+    except Exception:
+        status = None
+    if status is None or status < 200 or status >= 300:
+        return None
+    try:
+        body = await response.text()
+    except Exception:
+        return None
+    # Match the editor-returned id against the JSON payload. Try both the
+    # compact (``"id":42``) and spaced (``"id": 42``) shapes Ruby's
+    # ``ActiveSupport::JSON.encode`` can produce depending on options.
+    token_key = f'"id":{note_id}'
+    token_key_spaced = f'"id": {note_id}'
+    if token_key in body or token_key_spaced in body:
+        # Pull a small context window around the match for the snippet
+        # field so evidence reports show what matched.
+        idx = body.find(token_key)
+        if idx < 0:
+            idx = body.find(token_key_spaced)
+        snippet = body[max(0, idx - 40) : idx + 200] if idx >= 0 else body[:200]
+        return RenderOutcome.passed(
+            url=json_url,
+            signature=f"note_id={note_id}",
+            snippet=snippet,
+        )
+    return None
+
+
 _BODY_POLL_INITIAL_MS = 100
 _BODY_POLL_MAX_MS = 2000
 # Body-poll deadline (decoupled from selector_timeout_ms). GitLab's
@@ -572,6 +645,7 @@ async def verify_seed_renders(
     nav_timeout_ms: int = 30000,
     selector_timeout_ms: int = 10000,
     storage_state_path: str | None = None,
+    write_tokens: dict[str, Any] | None = None,
 ) -> RenderOutcome:
     """Open a fresh context, try each URL until the signature appears.
 
@@ -691,6 +765,26 @@ async def verify_seed_renders(
                         raw_pos = pos
                     snippet = body_text[max(0, raw_pos - 40) : raw_pos + len(signature) + 40]
                     return RenderOutcome.passed(url=target, signature=signature, snippet=snippet)
+                # Read-your-write fallback for GitLab note kinds: the text
+                # match missed, but the editor returned the authoritative
+                # note_id from its POST response. Fetch the discussions.json
+                # surface directly via the page's request context (inherits
+                # the live session) and look for that exact id in the JSON
+                # body. This bypasses every DOM/render-pipeline race at
+                # once — sidekiq indexer delay, page-cache invalidation,
+                # GFM token rewriting — because we are reading back the
+                # same resource we just wrote using the same API that
+                # wrote it. On match, report the RYW hit so downstream
+                # diagnostics make the source of verification explicit.
+                ryw_hit = await _gitlab_note_ryw_fastpath(
+                    page=page,
+                    target_url=target,
+                    site_name=site_name,
+                    write_tokens=write_tokens,
+                    timeout_ms=selector_timeout_ms,
+                )
+                if ryw_hit is not None:
+                    return ryw_hit
                 errors[target] = f"signature_absent (body_len={len(body_text)})"
             except Exception as exc:
                 msg = f"{exc.__class__.__name__}: {exc}"
