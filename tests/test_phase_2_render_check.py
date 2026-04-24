@@ -114,6 +114,29 @@ def test_render_signature_falls_back_to_detail_first_40_chars():
     assert len(sig) == 40
 
 
+def test_render_signature_avoids_gitlab_rewritten_token_boundaries():
+    seed = {
+        "editor_calls": [
+            {
+                "args": {
+                    "body": (
+                        "Raising priority on issue #1404 in "
+                        "localhost:8023/a11yproject/a11yproject.com — we need "
+                        "to confirm whether this is closed or still open before "
+                        "the next deploy window."
+                    )
+                }
+            }
+        ]
+    }
+
+    sig = render_signature(seed)
+
+    assert sig == "we need to confirm whether this is close"
+    assert "localhost:8023" not in sig
+    assert "#1404" not in sig
+
+
 def test_render_signature_tries_alternate_body_fields():
     for field_name in ("body", "description", "note", "content"):
         seed = {"editor_calls": [{"args": {field_name: "the body of the post"}}]}

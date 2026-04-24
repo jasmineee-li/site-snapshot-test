@@ -129,6 +129,56 @@ class RenderOutcome:
         return out
 
 
+_GITLAB_REWRITTEN_TEXT_TOKEN_RE = re.compile(
+    r"(?ix)"
+    # Fully-qualified URLs and bare host/path strings. GitLab may
+    # autolink or project-linkify these, changing the visible text.
+    r"https?://\S+"
+    r"|"
+    r"\b(?:localhost|(?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d+)?/[^\s<>\])]+"
+    r"|"
+    # GitLab references / mentions are also rendered through special
+    # reference filters. Keep signatures out of those tokens.
+    r"(?<![\w/])(?:\#|!|&)\d+\b"
+    r"|"
+    r"(?<![\w/])@[a-z0-9_.-]+"
+)
+
+
+def _trim_signature_candidate(text: str) -> str:
+    return text.strip(" \t\r\n-\u2013\u2014:;,.()[]{}<>")
+
+
+def _stable_render_signature_text(text: str, *, limit: int = 40) -> str | None:
+    """Pick rendered-stable text without crossing GitLab rewrite tokens."""
+    line = text.split("\n", 1)[0].strip()
+    if not line:
+        return None
+
+    spans: list[str] = []
+    cursor = 0
+    for match in _GITLAB_REWRITTEN_TEXT_TOKEN_RE.finditer(line):
+        spans.append(line[cursor : match.start()])
+        cursor = match.end()
+    spans.append(line[cursor:])
+
+    candidates = [
+        candidate[:limit].rstrip()
+        for span in spans
+        if len(candidate := _trim_signature_candidate(span)) >= 8
+    ]
+    if candidates:
+        # Prefer the longest stable prose run. This keeps signatures
+        # unique when the opening phrase is short or generic and avoids
+        # straddling GitLab-autolinked project URLs such as
+        # ``localhost:8023/group/project``.
+        return max(candidates, key=len)
+
+    # Back-compat fallback for terse payloads where the only available
+    # text is itself a URL/reference-like token.
+    return line[:limit].rstrip() or text[:limit].rstrip()
+
+
 def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = None) -> str | None:
     """Extract a unique substring expected to appear in the rendered DOM.
 
@@ -136,7 +186,8 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
     adversarial dataset, and renders in a stable DOM location across
     Magento product reviews / Reddit posts / GitLab notes). Falls back
     in priority order to detail / body / description / note / bio /
-    content (first 40 chars), then title.
+    content (a rendered-stable first-line substring capped at 40 chars),
+    then title.
 
     Every base field name is also tried with the ``_template`` and
     ``_text`` suffixes the editor-method binding contract uses for
@@ -202,19 +253,16 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
         return nickname
     body = _first_nonempty(("detail", "body", "description", "note", "bio", "content"))
     if body is not None:
-        # Take only the first line so markdown on subsequent lines
-        # (``![img](...)``) doesn't bleed into the signature — the
-        # image renders as an ``<img>`` tag on the issue page so the
-        # literal ``![Alt]`` bytes never appear in body text. First
-        # line is almost always plain prose ("Platform Administrator
-        # Notice:") that survives rendering.
-        first_line = body.split("\n", 1)[0].strip()
-        if len(first_line) >= 8:
-            return first_line[:40]
-        return body[:40]
+        # Take only first-line prose and avoid GitLab tokens whose
+        # rendered text can differ from their source markdown/plaintext
+        # form (autolinked project URLs, issue refs, mentions). A fixed
+        # 40-char prefix can otherwise straddle a URL boundary and
+        # produce a signature that is present in discussions.json but
+        # impossible to find in rendered DOM text_content.
+        return _stable_render_signature_text(body)
     title = _first_nonempty(("title", "name"))
     if title is not None:
-        return title.split("\n", 1)[0].strip()[:40] or title[:40]
+        return _stable_render_signature_text(title)
     # Fallback: the LLM sometimes invents arg keys (e.g., reddit's
     # ``reply_to_submission_{submission_id}[comment]``) that don't
     # match the binding-spec vocabulary. Pick the longest string
@@ -236,10 +284,7 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
                 longest = stripped
                 longest_len = len(stripped)
     if longest is not None and longest_len >= 8:
-        first_line = longest.split("\n", 1)[0].strip()
-        if len(first_line) >= 8:
-            return first_line[:40]
-        return longest[:40]
+        return _stable_render_signature_text(longest)
     return None
 
 
@@ -398,7 +443,7 @@ async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
     visible in well under 500 ms, but a long p99 tail caused by sidekiq
     queue depth and cache-warm pauses runs to 5-15 s under the 16-way
     renderer contention Phase 2c imposes. The old 500 ms fixed cadence
-    over-polled fast hits (20 polls × 500 ms to catch a 400 ms write) and
+    over-polled fast hits (20 polls x 500 ms to catch a 400 ms write) and
     under-covered slow hits (10 s deadline exhausted before the tail).
 
     The new schedule covers both in one pass:
