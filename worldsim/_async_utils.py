@@ -41,7 +41,7 @@ _DEFAULT_RETRY_KINDS: tuple[str, ...] = (
 )
 
 
-async def retrying(
+async def retrying[T](
     factory: Callable[[], Awaitable[T]],
     *,
     retries: int = 1,

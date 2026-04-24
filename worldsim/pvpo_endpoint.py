@@ -45,7 +45,7 @@ def validate_pvpo_cdp_url(
     if not parsed.hostname:
         raise ValueError(f"{field_name} must include a hostname")
     try:
-        parsed.port
+        _ = parsed.port
     except ValueError as exc:
         raise ValueError(f"{field_name} has an invalid port: {exc}") from exc
 

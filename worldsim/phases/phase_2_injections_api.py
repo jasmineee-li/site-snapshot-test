@@ -56,6 +56,7 @@ from typing import Any
 
 from anthropic import AsyncAnthropic
 
+from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors._registry import (
     ContractRenderContext,
@@ -75,7 +76,7 @@ logger = logging.getLogger(__name__)
 # Output budget per shard. Each plan is roughly 400-800 output tokens
 # (id + benign_task_id + 7 short scalar fields + a seed_template with one
 # editor_call). Sandbox shards target ~20 plans; at 2.5x overgeneration
-# that's ~50 plans × ~600 tokens = ~30k. 48k gives ample headroom for
+# that's ~50 plans x ~600 tokens = ~30k. 48k gives ample headroom for
 # larger shards and verbose seed_templates.
 _MAX_OUTPUT_TOKENS = 48_000
 
@@ -186,6 +187,7 @@ def _build_messages(
     agent_context: dict[str, Any] | None,
     requested_plan_count: int,
     site: str | None = None,
+    benchmark: str = "webarena_verified",
 ) -> tuple[str, list[dict[str, Any]]]:
     """Build (system_prompt, messages) for the API call.
 
@@ -209,6 +211,7 @@ def _build_messages(
         contract_context = ContractRenderContext(
             site=site,
             kind_anchors=kind_anchors_from_resources(benign_target_resources),
+            benchmark=benchmark,
         )
     prompt_body = load_prompt(
         "generate-injections",
@@ -316,6 +319,7 @@ async def generate_phase_2a_plans_api(
     sandbox_model: str = "claude-sonnet-4-6",
     label: str = "phase_2a",
     site: str | None = None,
+    benchmark: str | None = None,
     client: AsyncAnthropic | None = None,
 ) -> list[dict[str, Any]]:
     """Run one Phase 2a shard via single-turn forced-tool-use API call.
@@ -331,6 +335,7 @@ async def generate_phase_2a_plans_api(
     """
     target_count = sum(cell_targets.values()) or len(benign_tasks)
     requested = max(target_count, int(target_count * _OVERGENERATION_MULTIPLIER))
+    benchmark_name = _infer_api_benchmark(benign_tasks, benchmark)
 
     client = client or get_client()
     system, messages = _build_messages(
@@ -341,11 +346,12 @@ async def generate_phase_2a_plans_api(
         agent_context=agent_context,
         requested_plan_count=requested,
         site=site,
+        benchmark=benchmark_name,
     )
 
     async def _call() -> Any:
         # Streaming required by the SDK's client-side guard when the combined
-        # (input + max_tokens) × expected-latency exceeds 10 minutes. Phase 2a
+        # (input + max_tokens) x expected-latency exceeds 10 minutes. Phase 2a
         # shards inline 5 JSON documents (profile can be 30-100k tokens); even
         # with a modest `_MAX_OUTPUT_TOKENS` the guard fires. `messages.stream`
         # returns the same final-message shape as `messages.create`, so the
@@ -400,3 +406,27 @@ async def generate_phase_2a_plans_api(
         requested,
     )
     return plans
+
+
+def _infer_api_benchmark(
+    benign_tasks: list[dict[str, Any]],
+    explicit_benchmark: str | None,
+) -> str:
+    values: list[Any] = [explicit_benchmark]
+    for task in benign_tasks:
+        if not isinstance(task, dict):
+            continue
+        values.extend(
+            (
+                task.get("benchmark"),
+                task.get("benchmark_name"),
+                task.get("benchmark_adapter"),
+            )
+        )
+    benchmark = infer_benchmark_name(values)
+    if benchmark is None:
+        raise ValueError("Phase 2a API tasks are missing benchmark metadata")
+    capabilities = get_benchmark_capabilities(benchmark)
+    if not capabilities.phase_2_supported:
+        raise ValueError(f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2")
+    return capabilities.canonical_name

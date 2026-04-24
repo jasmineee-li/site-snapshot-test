@@ -77,6 +77,10 @@ _EDITOR_DELIVERY_PATHS = {
     ("shopping_admin", "create_product_review"): ("POST", "/rest/V1/reviews"),
     ("shopping_admin", "update_admin_profile"): ("POST", "/admin/admin/user/save/"),
 }
+_EDITOR_DELIVERY_PATHS_BY_BENCHMARK = {
+    ("webarena_verified", site, method): binding
+    for (site, method), binding in _EDITOR_DELIVERY_PATHS.items()
+}
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +95,25 @@ _EDITOR_DELIVERY_PATHS = {
 # table remains authoritative.
 # ---------------------------------------------------------------------------
 _EDITOR_REGISTRY_JSON = Path("/workspace/_editor_registry.json")
+_BENCHMARK_ALIASES = {
+    "webarena_verified": "webarena_verified",
+    "webarena-verified": "webarena_verified",
+    "webarena verified": "webarena_verified",
+    "web arena verified": "webarena_verified",
+    "wasp": "wasp",
+    "stwebagentbench": "stwebagentbench",
+    "st-webagentbench": "stwebagentbench",
+    "st webagentbench": "stwebagentbench",
+    "doomarena": "doomarena",
+    "doom arena": "doomarena",
+}
+
+
+def _normalize_benchmark_name(value: object) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    return _BENCHMARK_ALIASES.get(text, text.replace("-", "_").replace(" ", "_"))
 
 
 def _load_registry_snapshot() -> dict:
@@ -117,6 +140,7 @@ def _override_from_registry() -> None:
     for spec in specs:
         if not isinstance(spec, dict):
             continue
+        benchmark = _normalize_benchmark_name(spec.get("benchmark") or "webarena_verified")
         site = spec.get("site")
         method = spec.get("method")
         verb = spec.get("http_verb")
@@ -131,6 +155,7 @@ def _override_from_registry() -> None:
         if site not in {"gitlab", "reddit"}:
             continue  # legacy-only overrides skipped for non-WASP sites
         _EDITOR_DELIVERY_PATHS[(site, method)] = (verb, path)
+        _EDITOR_DELIVERY_PATHS_BY_BENCHMARK[(benchmark, site, method)] = (verb, path)
 
 
 _override_from_registry()
@@ -189,10 +214,16 @@ _EDITOR_BODY_FIELD_ALIASES = {
     ("shopping", "update_customer_profile"): {"value": "value"},
     ("shopping_admin", "update_admin_profile"): {"value": "value"},
 }
+_EDITOR_BODY_FIELD_ALIASES_BY_BENCHMARK = {
+    ("webarena_verified", site, method): aliases
+    for (site, method), aliases in _EDITOR_BODY_FIELD_ALIASES.items()
+}
 _REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
     r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
 )
-_KNOWN_EDITOR_SITES = frozenset(site_name for site_name, _method_name in _EDITOR_DELIVERY_PATHS)
+_KNOWN_EDITOR_SITES = frozenset(
+    site_name for _benchmark_name, site_name, _method_name in _EDITOR_DELIVERY_PATHS_BY_BENCHMARK
+)
 
 
 def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
@@ -407,11 +438,13 @@ def _validate_editor_calls(editor_calls: object) -> list[str]:
             errors.append("editor_calls method must not be private")
         else:
             benchmark_name = (
-                str(call.get("benchmark") or "webarena_verified").strip() or "webarena_verified"
+                _normalize_benchmark_name(call.get("benchmark") or "webarena_verified")
+                or "webarena_verified"
             )
             if (
                 site_name in _KNOWN_EDITOR_SITES
-                and (site_name, method_name) not in _EDITOR_DELIVERY_PATHS
+                and (benchmark_name, site_name, method_name)
+                not in _EDITOR_DELIVERY_PATHS_BY_BENCHMARK
             ):
                 errors.append(
                     f"editor_calls method {method_name!r} is not supported for {(benchmark_name, site_name)!r}"
@@ -1657,7 +1690,7 @@ def _call_delivery_path(call: dict[str, object]) -> str | None:
         return _url_to_path(url)
     editor_key = _editor_delivery_key(call)
     if editor_key is not None:
-        binding = _EDITOR_DELIVERY_PATHS.get(editor_key)
+        binding = _editor_delivery_binding(call)
         if binding is None:
             return None
         return binding[1]
@@ -1680,7 +1713,7 @@ def _call_reference(call: dict[str, object]) -> str | None:
 def _call_method(call: dict[str, object]) -> str | None:
     editor_key = _editor_delivery_key(call)
     if editor_key is not None:
-        binding = _EDITOR_DELIVERY_PATHS.get(editor_key)
+        binding = _editor_delivery_binding(call)
         if binding is None:
             return None
         return binding[0]
@@ -2017,11 +2050,58 @@ def _editor_delivery_key(call: dict[str, object]) -> tuple[str, str] | None:
     return None
 
 
+def _call_has_benchmark_metadata(call: dict[str, object]) -> bool:
+    return any(
+        isinstance(call.get(key), str) and str(call.get(key)).strip()
+        for key in ("benchmark", "benchmark_name", "benchmark_adapter")
+    )
+
+
+def _editor_delivery_contract_key(call: dict[str, object]) -> tuple[str, str, str] | None:
+    benchmark_name = _normalize_benchmark_name(
+        call.get("benchmark") or call.get("benchmark_name") or call.get("benchmark_adapter")
+    )
+    if not benchmark_name:
+        if _call_has_benchmark_metadata(call):
+            return None
+        benchmark_name = "webarena_verified"
+    site_name = str(call.get("site", "")).strip().lower()
+    method_name = str(call.get("method", "")).strip()
+    if site_name and method_name and isinstance(call.get("args"), dict):
+        return (benchmark_name, site_name, method_name)
+    return None
+
+
+def _editor_delivery_binding(call: dict[str, object]) -> tuple[str, str] | None:
+    contract_key = _editor_delivery_contract_key(call)
+    if contract_key is not None:
+        binding = _EDITOR_DELIVERY_PATHS_BY_BENCHMARK.get(contract_key)
+        if binding is not None:
+            return binding
+        if _call_has_benchmark_metadata(call) and contract_key[0] != "webarena_verified":
+            return None
+    legacy_key = _editor_delivery_key(call)
+    if legacy_key is not None:
+        return _EDITOR_DELIVERY_PATHS.get(legacy_key)
+    return None
+
+
 def _editor_arg_alias_pairs(call: dict[str, object]) -> list[tuple[str, str]]:
-    editor_key = _editor_delivery_key(call)
-    if editor_key is None:
-        return []
-    aliases = _EDITOR_BODY_FIELD_ALIASES.get(editor_key)
+    aliases = None
+    contract_key = _editor_delivery_contract_key(call)
+    if contract_key is not None:
+        aliases = _EDITOR_BODY_FIELD_ALIASES_BY_BENCHMARK.get(contract_key)
+        if (
+            aliases is None
+            and _call_has_benchmark_metadata(call)
+            and contract_key[0] != "webarena_verified"
+        ):
+            return []
+    if aliases is None:
+        editor_key = _editor_delivery_key(call)
+        if editor_key is None:
+            return []
+        aliases = _EDITOR_BODY_FIELD_ALIASES.get(editor_key)
     if not isinstance(aliases, dict):
         return []
     return [(str(canonical), str(arg_name)) for canonical, arg_name in aliases.items()]
@@ -2029,8 +2109,12 @@ def _editor_arg_alias_pairs(call: dict[str, object]) -> list[tuple[str, str]]:
 
 def _editor_arg_name(call: dict[str, object], canonical_name: str) -> str | None:
     editor_key = _editor_delivery_key(call)
-    if editor_key == ("reddit", "create_comment") and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
+    if (
+        (not _call_has_benchmark_metadata(call) or _editor_delivery_contract_key(call) is not None)
+        and editor_key == ("reddit", "create_comment")
+        and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
         canonical_name
+        )
     ):
         return "body"
     for canonical, arg_name in _editor_arg_alias_pairs(call):
@@ -2040,14 +2124,21 @@ def _editor_arg_name(call: dict[str, object], canonical_name: str) -> str | None
 
 
 def _call_delivery_mechanism(seed: dict[str, object], call: dict[str, object]) -> str | None:
-    editor_key = _editor_delivery_key(call)
-    if editor_key is not None:
-        if editor_key[0] == "reddit" or editor_key in {
+    if _editor_delivery_binding(call) is not None:
+        editor_key = _editor_delivery_key(call)
+        if editor_key is not None and (editor_key[0] == "reddit" or editor_key in {
             ("shopping", "update_customer_profile"),
             ("shopping_admin", "update_admin_profile"),
-        }:
+        }):
             return "form"
         return "api"
+    contract_key = _editor_delivery_contract_key(call)
+    if (
+        _editor_delivery_key(call) is not None
+        and _call_has_benchmark_metadata(call)
+        and (contract_key is None or contract_key[0] != "webarena_verified")
+    ):
+        return None
     mechanism = seed.get("mechanism")
     if isinstance(mechanism, str) and mechanism in {"api", "form"}:
         return mechanism

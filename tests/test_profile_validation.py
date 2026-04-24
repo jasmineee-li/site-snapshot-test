@@ -52,7 +52,7 @@ def test_validate_profile_rejects_field_from_wrong_entity():
         "verification_capabilities": [],
     }
 
-    with pytest.raises(ValueError, match="unknown field 'Product.body'"):
+    with pytest.raises(ValueError, match=r"unknown field 'Product\.body'"):
         validate_profile("shopping", profile)
 
 
@@ -152,7 +152,7 @@ def test_validate_profile_rejects_tier_that_conflicts_with_no_auth_context():
 
     with pytest.raises(
         ValueError,
-        match="controllable_by_tier='authed_user' requires agent_context auth_mechanism.type != 'none'",
+        match=r"controllable_by_tier='authed_user' requires agent_context auth_mechanism\.type != 'none'",
     ):
         validate_profile("wikipedia", profile)
 

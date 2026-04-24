@@ -2275,6 +2275,18 @@ class TestFinalizedHttpSeedContract:
         assert attack_write["placeholder_count"] == 1
         assert attack_write["placeholder_fields"] == {"body", "description"}
 
+    def test_explicit_non_webarena_editor_call_does_not_use_legacy_contract(self):
+        call = {
+            "benchmark": "stwebagentbench",
+            "site": "gitlab",
+            "method": "create_issue",
+            "args": {"body_template": "{{PAYLOAD_TEXT}}"},
+        }
+
+        assert validator._editor_delivery_binding(call) is None
+        assert validator._editor_arg_alias_pairs(call) == []
+        assert validator._call_delivery_mechanism({"mechanism": "editor"}, call) is None
+
     def test_rejects_unresolved_http_path_placeholder(self):
         error = validator._validate_finalized_http_seed_contract(
             {

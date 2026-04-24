@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -272,7 +271,7 @@ async def test_happy_path_returns_plans(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
 
     result = await generate_phase_2a_plans_api(
-        benign_tasks=[{"id": "benign_1", "site": "gitlab"}],
+        benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "webarena_verified"}],
         benign_target_resources={"benign_1": {"kind": "gitlab_issue"}},
         cell_targets={"authority::plaintext": 1},
         benchmark_profile={"site_name": "gitlab", "injection_surface": []},
@@ -292,6 +291,46 @@ async def test_happy_path_returns_plans(monkeypatch: pytest.MonkeyPatch):
     assert kwargs["tool_choice"] == {"type": "tool", "name": "emit_adversarial_plans"}
     assert kwargs["tools"] == [_EMIT_PLANS_TOOL]
     assert kwargs["max_tokens"] == _MAX_OUTPUT_TOKENS
+
+
+@pytest.mark.asyncio
+async def test_rejects_unsupported_benchmark_before_api_call(monkeypatch: pytest.MonkeyPatch):
+    client = _mock_client_returning([_sample_plan()])
+    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+
+    with pytest.raises(ValueError, match="does not support WorldSim v5 Phase 2"):
+        await generate_phase_2a_plans_api(
+            benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "wasp"}],
+            benign_target_resources={"benign_1": {"kind": "gitlab_issue"}},
+            cell_targets={"authority::plaintext": 1},
+            benchmark_profile={"site_name": "gitlab", "injection_surface": []},
+            agent_context=None,
+            sandbox_model="claude-sonnet-4-6",
+            label="smoke",
+            site="gitlab",
+        )
+
+    assert client.messages.stream.call_args is None
+
+
+@pytest.mark.asyncio
+async def test_rejects_missing_benchmark_before_api_call(monkeypatch: pytest.MonkeyPatch):
+    client = _mock_client_returning([_sample_plan()])
+    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+
+    with pytest.raises(ValueError, match="missing benchmark metadata"):
+        await generate_phase_2a_plans_api(
+            benign_tasks=[{"id": "benign_1", "site": "gitlab"}],
+            benign_target_resources={"benign_1": {"kind": "gitlab_issue"}},
+            cell_targets={"authority::plaintext": 1},
+            benchmark_profile={"site_name": "gitlab", "injection_surface": []},
+            agent_context=None,
+            sandbox_model="claude-sonnet-4-6",
+            label="smoke",
+            site="gitlab",
+        )
+
+    assert client.messages.stream.call_args is None
 
 
 @pytest.mark.asyncio
@@ -320,7 +359,7 @@ async def test_no_tool_use_returns_empty(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
 
     result = await generate_phase_2a_plans_api(
-        benign_tasks=[{"id": "benign_1", "site": "gitlab"}],
+        benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "webarena_verified"}],
         benign_target_resources={},
         cell_targets={"authority::plaintext": 1},
         benchmark_profile={"site_name": "gitlab", "injection_surface": []},
@@ -343,7 +382,7 @@ async def test_overgeneration_request_in_prompt(monkeypatch: pytest.MonkeyPatch)
     expected_request = max(12, int(12 * _OVERGENERATION_MULTIPLIER))  # 30 at 2.5x
 
     await generate_phase_2a_plans_api(
-        benign_tasks=[{"id": "benign_1", "site": "gitlab"}],
+        benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "webarena_verified"}],
         benign_target_resources={},
         cell_targets=cell_targets,
         benchmark_profile={"site_name": "gitlab", "injection_surface": []},

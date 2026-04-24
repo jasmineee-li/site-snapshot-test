@@ -850,7 +850,7 @@ def test_config_rejects_token_generator_without_credentials():
 def test_config_rejects_gitlab_pat_partial_credentials():
     from worldsim.config import BenchmarkInstance
 
-    with pytest.raises(ValueError, match="credentials.password must be a non-empty string"):
+    with pytest.raises(ValueError, match=r"credentials\.password must be a non-empty string"):
         BenchmarkInstance(
             site_name="gitlab",
             site_url="http://gitlab.test",
@@ -865,7 +865,7 @@ def test_config_rejects_gitlab_pat_partial_credentials():
 def test_config_rejects_gitlab_pat_whitespace_password():
     from worldsim.config import BenchmarkInstance
 
-    with pytest.raises(ValueError, match="credentials.password must be a non-empty string"):
+    with pytest.raises(ValueError, match=r"credentials\.password must be a non-empty string"):
         BenchmarkInstance(
             site_name="gitlab",
             site_url="http://gitlab.test",

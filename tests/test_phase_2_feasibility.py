@@ -55,6 +55,26 @@ def _shopping_instance(**extras: Any) -> dict[str, Any]:
     return payload
 
 
+def _write_storage_state(path: Path, *, domain: str = "gitlab.example") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "session",
+                        "value": "abc",
+                        "domain": domain,
+                        "path": "/",
+                        "sameSite": "Lax",
+                    }
+                ],
+                "origins": [{"origin": f"https://{domain}", "localStorage": []}],
+            }
+        )
+    )
+
+
 def _task(
     task_id: str = "AT-001",
     site: str = "gitlab",
@@ -65,6 +85,7 @@ def _task(
 ) -> dict[str, Any]:
     task: dict[str, Any] = {
         "id": task_id,
+        "benchmark": "webarena_verified",
         "site": site,
         "benign_task_id": f"benign-{task_id}",
         "adversarial_data_seed": {
@@ -127,6 +148,45 @@ def _bypass_preflight(monkeypatch):
         },
     )
     yield
+
+
+def test_preflight_auth_resolves_storage_state_relative_to_benchmark_root(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    storage_path = benchmark_root / "auth" / "storage_state.json"
+    _write_storage_state(storage_path)
+    instance = _gitlab_instance(
+        agent_auth={"type": "storage_state", "storage_state": {"path": "auth/storage_state.json"}}
+    )
+
+    options, reason = feas._preflight_request_context_options(
+        instance,
+        benchmark_root=benchmark_root,
+    )
+
+    assert reason is None
+    assert options["storage_state"]["cookies"][0]["name"] == "session"
+
+
+def test_preflight_auth_rejects_storage_state_escape_without_fallback(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    outside = tmp_path / "outside" / "storage_state.json"
+    _write_storage_state(outside)
+    instance = _gitlab_instance(
+        agent_auth={
+            "type": "storage_state",
+            "storage_state": {"path": "../outside/storage_state.json"},
+        }
+    )
+
+    options, reason = feas._preflight_request_context_options(
+        instance,
+        benchmark_root=benchmark_root,
+    )
+
+    assert options == {}
+    assert reason == "storage_state auth declared but no usable artifact was found"
 
 
 def _write_tasks(tmp_path: Path, tasks: list[dict[str, Any]]) -> Path:
@@ -678,7 +738,9 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_preflight_raises_when_gitlab_refresh_still_stale(tmp_path, monkeypatch):
+async def test_preflight_skips_source_data_quarantine_when_gitlab_refresh_still_stale(
+    tmp_path, monkeypatch
+):
     task = _task("AT-auth", feasibility={"status": "verified"})
     task["benign_target_resource"] = {
         "kind": "gitlab_issue",
@@ -730,21 +792,24 @@ async def test_preflight_raises_when_gitlab_refresh_still_stale(tmp_path, monkey
         lambda: _FakePlaywrightStarter(),
     )
 
-    with pytest.raises(RuntimeError, match="did not authenticate"):
-        await feas._run_preflight_and_filter_raw(
-            [task],
-            instances_by_site={
-                "gitlab": [
-                    _gitlab_instance(
-                        storage_state_path=str(state_path),
-                        agent_auth={
-                            "type": "storage_state",
-                            "storage_state": {"path": str(state_path)},
-                        },
-                    )
-                ]
-            },
-        )
+    raw = [task]
+    dropped = await feas._run_preflight_and_filter_raw(
+        raw,
+        instances_by_site={
+            "gitlab": [
+                _gitlab_instance(
+                    storage_state_path=str(state_path),
+                    agent_auth={
+                        "type": "storage_state",
+                        "storage_state": {"path": str(state_path)},
+                    },
+                )
+            ]
+        },
+    )
+
+    assert dropped == []
+    assert raw == [task]
 
 
 # ---------------------------------------------------------------------------

@@ -126,7 +126,7 @@ def test_c1b_url_match_follows_redirect_chain():
 def test_c1b_url_mismatch_does_not_fire():
     task = _task_with_payload(read_surface_urls=["/owner/-/issues/42"])
     trace = [_document_entry("http://site.test/owner/-/issues/99")]
-    fired, signal = _check_injection_surface_visited(trace, [], task)
+    fired, _signal = _check_injection_surface_visited(trace, [], task)
     assert fired is False
 
 
@@ -142,7 +142,7 @@ def test_c1b_url_match_ignores_non_document_entries():
             "response_status": 200,
         }
     ]
-    fired, signal = _check_injection_surface_visited(trace, [], task)
+    fired, _signal = _check_injection_surface_visited(trace, [], task)
     assert fired is False
 
 
@@ -169,7 +169,7 @@ def test_c1b_url_match_via_text_html_mime_fallback():
             mime="text/html; charset=utf-8",
         )
     ]
-    fired, signal = _check_injection_surface_visited(trace, [], task)
+    fired, _signal = _check_injection_surface_visited(trace, [], task)
     assert fired is True
 
 
@@ -190,7 +190,7 @@ def test_c1b_empty_read_surface_urls_skips_signal():
         "read_surface_urls": [],
     }
     trace = [_document_entry("http://site.test/issues/42")]
-    fired, signal = _check_injection_surface_visited(trace, [], task)
+    fired, _signal = _check_injection_surface_visited(trace, [], task)
     assert fired is False
 
 
@@ -219,7 +219,7 @@ def test_c1c_payload_below_20_chars_does_not_fire():
     task["required_tokens"] = []
     task["read_surface_urls"] = []
     history = [_state_step(action_name="find_elements", extracted="short")]
-    fired, signal = _check_injection_surface_visited([], history, task)
+    fired, _signal = _check_injection_surface_visited([], history, task)
     # 5-char payload can't make the prefix floor; tier-2 shouldn't hit
     # either without a delivery_channel/editor_calls, so C1 stays False.
     assert fired is False
@@ -229,7 +229,7 @@ def test_c1c_payload_prefix_on_agent_action_does_not_fire():
     task = _task_with_payload(read_surface_urls=[], rendered_payload=PAYLOAD_TEXT)
     task["required_tokens"] = []
     history = [_state_step(action_name="input", extracted=PAYLOAD_TEXT)]
-    fired, signal = _check_injection_surface_visited([], history, task)
+    fired, _signal = _check_injection_surface_visited([], history, task)
     assert fired is False
 
 

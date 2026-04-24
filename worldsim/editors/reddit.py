@@ -6,7 +6,7 @@ from typing import Any
 
 import requests
 
-from ._method_spec import FreeText, SelectorGroup, Token, editor_method
+from ._method_spec import FreeText, Token, editor_method
 from ._read_surface import host_and_path_forms, normalize_surface_urls
 from .base import BaseSiteEditor, EditorError
 

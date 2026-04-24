@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from worldsim.phase_2c.policy import get_feasibility_policy
 from worldsim.phases.phase_2c_preflight import (
     _classify_probe,
     _location_is_login,
@@ -261,10 +262,18 @@ def _make_task(task_id: str, site: str, start_url: str) -> dict[str, Any]:
     }
 
 
+def _gitlab_instance(site_url: str = "http://gitlab.test") -> dict[str, Any]:
+    return {
+        "site_name": "gitlab",
+        "site_url": site_url,
+        "preflight_request_context": {"extra_http_headers": {"X-Test-Auth": "1"}},
+    }
+
+
 def test_preflight_splits_quarantine_from_keep():
     keep_task = _make_task("adv_keep", "gitlab", "http://gitlab.test/foo/-/issues/1")
     drop_task = _make_task("adv_drop", "gitlab", "http://gitlab.test/foo/-/merge_requests/2")
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
     request_context = _FakeRequestContext(
         response_map={
             "http://gitlab.test/foo/-/issues/1": _FakeResponse(status=200, body="clean"),
@@ -289,12 +298,124 @@ def test_preflight_splits_quarantine_from_keep():
     assert "probed_at" in dropped[0]["source_data_issue"]
 
 
+def test_preflight_uses_canonical_benchmark_for_policy_lookup():
+    task = _make_task("adv_alias", "gitlab", "http://gitlab.test/foo/-/issues/99")
+    task["benchmark_name"] = "WebArena Verified"
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://gitlab.test/foo/-/issues/99": _FakeResponse(status=404, body=""),
+        }
+    )
+
+    async def _factory(_storage_state_path):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == []
+    assert [record["id"] for record in dropped] == ["adv_alias"]
+    assert dropped[0]["source_data_issue"]["kind"] == "not_found"
+
+
+def test_policy_lookup_normalizes_benchmark_alias():
+    assert get_feasibility_policy("WebArena Verified", "gitlab") is not None
+
+
+def test_preflight_redacts_sensitive_probe_url_fields():
+    task = _make_task(
+        "adv_secret_url",
+        "reddit",
+        "http://reddit.test/f/news/5?token=secret&user=alice",
+    )
+    instances_by_site = {"reddit": [{"site_name": "reddit", "site_url": "http://reddit.test"}]}
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://reddit.test/f/news/5?token=secret&user=alice": _FakeResponse(status=404),
+        }
+    )
+
+    async def _factory(_storage_state_path):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == []
+    issue = dropped[0]["source_data_issue"]
+    assert issue["probed_url"] == (
+        "http://reddit.test/f/news/5?token=%3Credacted%3E&user=%3Credacted%3E"
+    )
+
+
+def test_gitlab_preflight_without_auth_keeps_task_without_probe():
+    task = _make_task("adv_no_auth", "gitlab", "http://gitlab.test/foo/-/issues/99")
+    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://gitlab.test/foo/-/issues/99": _FakeResponse(status=404, body=""),
+        }
+    )
+
+    async def _factory(_storage_state_path):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == [task]
+    assert dropped == []
+    assert request_context.calls == []
+
+
+def test_preflight_missing_policy_keeps_task_without_probe():
+    task = _make_task("adv_no_policy", "gitlab", "http://gitlab.test/foo/-/issues/99")
+    task["benchmark"] = "wasp"
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
+    request_context = _FakeRequestContext(
+        response_map={
+            "http://gitlab.test/foo/-/issues/99": _FakeResponse(status=404, body=""),
+        }
+    )
+
+    async def _factory(_storage_state_path):
+        return request_context
+
+    keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            [task],
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+        )
+    )
+
+    assert keep == [task]
+    assert dropped == []
+    assert request_context.calls == []
+
+
 def test_preflight_bailout_when_login_redirect_dominates():
     # >50 % login_redirect → mass-restore + skip quarantine entirely.
     tasks = [
         _make_task(f"adv_{i}", "gitlab", f"http://gitlab.test/p/-/issues/{i}") for i in range(6)
     ]
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
     response_map: dict[str, _FakeResponse] = {}
     for i in range(4):  # 4 login-redirects
         response_map[f"http://gitlab.test/p/-/issues/{i}"] = _FakeResponse(
@@ -324,7 +445,7 @@ def test_preflight_bailout_restores_original_task_objects_with_mixed_drops():
     login_task_2 = _make_task("adv_login_2", "gitlab", "http://gitlab.test/p/-/issues/2")
     not_found_task = _make_task("adv_404", "gitlab", "http://gitlab.test/p/-/issues/404")
     ok_task = _make_task("adv_ok", "gitlab", "http://gitlab.test/p/-/issues/3")
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
     request_context = _FakeRequestContext(
         response_map={
             "http://gitlab.test/p/-/issues/1": _FakeResponse(
@@ -516,7 +637,7 @@ def test_preflight_rewrites_synthetic_hostname_to_live_url():
             "start_url_resolved": "https://gitlab.local/foo/-/issues/7",
         },
     }
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://172.17.0.1:8023"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance("http://172.17.0.1:8023")]}
     request_context = _FakeRequestContext(
         response_map={
             "http://172.17.0.1:8023/foo/-/issues/7": _FakeResponse(status=200, body="ok"),
@@ -567,7 +688,7 @@ def test_preflight_cleans_gitlab_editor_surface_project_path_authority():
             ],
         },
     }
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://172.17.0.1:8023"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance("http://172.17.0.1:8023")]}
     malformed = "http://172.17.0.1:8023/localhost:8023/a11yproject/a11yproject.com/-/issues/1064"
     expected = "http://172.17.0.1:8023/a11yproject/a11yproject.com/-/issues/1064"
     request_context = _FakeRequestContext(
@@ -602,7 +723,7 @@ def test_preflight_reuses_request_context_across_same_site_tasks():
     tasks = [
         _make_task(f"adv_{i}", "gitlab", f"http://gitlab.test/p/-/issues/{i}") for i in range(3)
     ]
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
     request_context = _FakeRequestContext()
     factory_calls = 0
 
@@ -627,7 +748,7 @@ def test_preflight_context_cache_is_race_safe_for_concurrent_same_key_tasks():
     tasks = [
         _make_task(f"adv_{i}", "gitlab", f"http://gitlab.test/p/-/issues/{i}") for i in range(20)
     ]
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
     request_context = _FakeRequestContext()
     factory_calls = 0
 
@@ -651,7 +772,7 @@ def test_preflight_context_cache_is_race_safe_for_concurrent_same_key_tasks():
 
 def test_preflight_transient_error_passes_task_through():
     task = _make_task("adv_transient", "gitlab", "http://gitlab.test/p/-/issues/1")
-    instances_by_site = {"gitlab": [{"site_name": "gitlab", "site_url": "http://gitlab.test"}]}
+    instances_by_site = {"gitlab": [_gitlab_instance()]}
     request_context = _FakeRequestContext(
         response_map={
             "http://gitlab.test/p/-/issues/1": _FakeResponse(status=503, body=""),

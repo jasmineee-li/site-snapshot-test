@@ -203,7 +203,7 @@ async def preflight_check(*, sandbox_model: str = "claude-sonnet-4-6") -> tuple[
         return (False, f"preflight failed (api_error): {exc}")
 
 
-async def call_with_retry(
+async def call_with_retry[T](
     fn: Callable[[], Awaitable[T]],
     *,
     retries: int = 3,

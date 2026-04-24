@@ -29,6 +29,8 @@ from worldsim.editors._registry import (
     _REGISTRY,
     attach_surfaces_for_kind,
     iter_specs,
+    kind_contract,
+    method_spec,
 )
 
 # Frozen snapshot of the pre-refactor attach_surfaces data. Any
@@ -110,11 +112,11 @@ LLM_TO_PYTHON_ARG_ALIASES: dict[tuple[str, str, str], str] = {
 }
 
 
-def _editor_class(site: str) -> type:
-    for (_, registered_site), cls in EDITOR_REGISTRY.items():
-        if registered_site == site:
+def _editor_class(benchmark: str, site: str) -> type:
+    for (registered_benchmark, registered_site), cls in EDITOR_REGISTRY.items():
+        if registered_benchmark == benchmark and registered_site == site:
             return cls
-    raise KeyError(site)
+    raise KeyError((benchmark, site))
 
 
 class TestRegistryCoverage:
@@ -123,29 +125,52 @@ class TestRegistryCoverage:
         assert len(_REGISTRY) == 13
 
     def test_all_supported_methods_registered(self) -> None:
-        for (_, site), cls in EDITOR_REGISTRY.items():
+        for (benchmark, site), cls in EDITOR_REGISTRY.items():
             for method_name in cls.supported_methods:
-                assert (site, method_name) in _REGISTRY, (
-                    f"{site}.{method_name} not in _REGISTRY — missing @editor_method decoration"
+                assert (benchmark, site, method_name) in _REGISTRY, (
+                    f"{benchmark}.{site}.{method_name} not in _REGISTRY — "
+                    "missing @editor_method decoration"
                 )
 
     def test_registered_methods_match_supported(self) -> None:
         """_REGISTRY cannot contain a method not in supported_methods."""
-        for site, method_name in _REGISTRY:
-            cls = _editor_class(site)
+        for benchmark, site, method_name in _REGISTRY:
+            cls = _editor_class(benchmark, site)
             assert method_name in cls.supported_methods, (
-                f"{site}.{method_name} is registered but not in {cls.__name__}.supported_methods"
+                f"{benchmark}.{site}.{method_name} is registered but not in "
+                f"{cls.__name__}.supported_methods"
             )
+
+    def test_registry_helpers_normalize_benchmark_aliases(self) -> None:
+        assert method_spec("gitlab", "create_issue_note", benchmark="WebArena Verified").benchmark == (
+            "webarena_verified"
+        )
+        assert kind_contract(
+            "gitlab_issue",
+            benchmark="WebArena Verified",
+            site="gitlab",
+        ).valid_methods
+        assert attach_surfaces_for_kind(
+            "gitlab_issue",
+            benchmark="WebArena Verified",
+            site="gitlab",
+        )
+        assert list(iter_specs(site="gitlab", benchmark="WebArena Verified"))
 
 
 class TestBindingArgCoverage:
     @pytest.mark.parametrize(
-        "site,method",
+        "benchmark,site,method",
         sorted(_REGISTRY.keys()),
     )
-    def test_binding_args_map_to_python_params(self, site: str, method: str) -> None:
-        spec = _REGISTRY[(site, method)]
-        cls = _editor_class(site)
+    def test_binding_args_map_to_python_params(
+        self,
+        benchmark: str,
+        site: str,
+        method: str,
+    ) -> None:
+        spec = _REGISTRY[(benchmark, site, method)]
+        cls = _editor_class(benchmark, site)
         fn = getattr(cls, method)
         python_params = set(inspect.signature(fn).parameters.keys()) - {"self"}
 
@@ -245,5 +270,5 @@ class TestSerializeRegistrySanity:
 
         serialized = serialize_registry()
         assert len(serialized["specs"]) == 13
-        sites = {(s["site"], s["method"]) for s in serialized["specs"]}
+        sites = {(s["benchmark"], s["site"], s["method"]) for s in serialized["specs"]}
         assert sites == set(_REGISTRY.keys())

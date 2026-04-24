@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import ClassVar
 from unittest.mock import AsyncMock, call
 
 import pytest
@@ -72,6 +73,64 @@ def test_write_agent_artifacts_preserves_existing_pvpo_screenshot(tmp_path):
     )
 
     assert existing.read_bytes() == b"pvpo"
+
+
+def _write_storage_state(path: Path, *, domain: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "session",
+                        "value": "abc",
+                        "domain": domain,
+                        "path": "/",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_resolve_auth_falls_back_when_declared_storage_state_is_wrong_host(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    declared = tmp_path / "declared.json"
+    fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
+    _write_storage_state(declared, domain="old.example")
+    _write_storage_state(fallback, domain="gitlab.example")
+    monkeypatch.setattr(browser_use_agent, "_phase_0d_fallback_path", lambda _task: fallback)
+
+    session_kwargs, deferred = browser_use_agent._resolve_auth(
+        {"type": "storage_state", "storage_state": {"path": str(declared)}},
+        {"site": "gitlab"},
+        benchmark_root=None,
+        site_url="http://gitlab.example",
+    )
+
+    assert session_kwargs == {"storage_state": str(fallback)}
+    assert deferred == []
+
+
+def test_resolve_auth_validates_phase_0d_fallback_storage_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    declared = tmp_path / "missing.json"
+    fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
+    _write_storage_state(fallback, domain="old.example")
+    monkeypatch.setattr(browser_use_agent, "_phase_0d_fallback_path", lambda _task: fallback)
+
+    with pytest.raises(browser_use_agent.AuthArtifactMissingError, match="do not match live host"):
+        browser_use_agent._resolve_auth(
+            {"type": "storage_state", "storage_state": {"path": str(declared)}},
+            {"site": "gitlab"},
+            benchmark_root=None,
+            site_url="http://gitlab.example",
+        )
 
 
 @pytest.mark.asyncio
@@ -445,7 +504,7 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
     import browser_use
 
     class FakeHistory:
-        history = []
+        history: ClassVar[list[object]] = []
 
         def save_to_file(self, path):
             path.write_text('{"history":[]}')
@@ -534,7 +593,7 @@ async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.Monk
     cdp_session = object()
 
     class FakeHistory:
-        history = [object()]
+        history: ClassVar[list[object]] = [object()]
 
         def save_to_file(self, path):
             path.write_text('{"history":[{"step":1}]}')

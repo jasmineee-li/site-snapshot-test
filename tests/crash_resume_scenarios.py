@@ -68,6 +68,7 @@ def _configure_phase_2(state_dir: Path) -> None:
         [
             {
                 "id": "benign-shopping",
+                "benchmark": "webarena_verified",
                 "site": "shopping",
                 "sites": ["shopping"],
                 "instruction": "Find the order",
@@ -77,6 +78,7 @@ def _configure_phase_2(state_dir: Path) -> None:
             },
             {
                 "id": "benign-gitlab",
+                "benchmark": "webarena_verified",
                 "site": "gitlab",
                 "sites": ["gitlab"],
                 "instruction": "Find the issue",
@@ -277,6 +279,7 @@ async def _run_phase_2(mode: str, state_dir: Path) -> int:
             [
                 {
                     "id": f"adv-{task['id']}",
+                    "benchmark": "webarena_verified",
                     "site": site_name,
                     "benign_task_id": task["id"],
                     "target_surface_id": "surface-1",

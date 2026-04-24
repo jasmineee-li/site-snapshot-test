@@ -22,6 +22,7 @@ _DROP_KEYS = {
     "feasibility_completed_at",
     "feasibility_report_path",
     "feasibility_infeasible_path",
+    "feasibility_dropped_source_data_path",
     "skipped_at",
     "verified_at",
     "first_failed_at",

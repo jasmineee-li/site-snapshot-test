@@ -29,6 +29,7 @@ def _subparser(parser, name: str):
 
 def _manifest(benchmark_root) -> dict:
     return {
+        "benchmark_name": "WebArena Verified",
         "benchmark_codebase": str(benchmark_root),
         "evaluation": {
             "task_definition_paths": ["tasks.json"],

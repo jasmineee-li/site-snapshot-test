@@ -47,6 +47,7 @@ def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) ->
 def _benign_task() -> dict:
     return {
         "id": "benign-1",
+        "benchmark": "webarena_verified",
         "site": "shopping",
         "sites": ["shopping"],
         "instruction": "Find the order",
@@ -123,6 +124,7 @@ def _plan_task() -> dict:
     benign_task = _benign_task()
     return {
         "id": "adv-1",
+        "benchmark": "webarena_verified",
         "benign_task_id": "benign-1",
         "target_surface_id": "surface-1",
         "framing": "authority",
@@ -204,6 +206,12 @@ def _finalized_plan_task(*, payload_count: int = 1) -> dict:
         ],
     }
     return task
+
+
+def _with_feasibility_status(task: dict, status: str) -> dict:
+    cloned = json.loads(json.dumps(task))
+    cloned["feasibility"] = {"status": status}
+    return cloned
 
 
 def test_validate_adversarial_task_contract_rejects_instruction_drift():
@@ -1102,6 +1110,90 @@ def test_report_summary_can_count_merged_dropped_source_data():
     assert summary["source_data_dropped_by_kind"] == {"gone": 1, "not_found": 1}
 
 
+def test_phase_2c_artifact_writer_recomputes_per_site_after_partial_merge(tmp_path):
+    output_path = tmp_path / "adversarial_tasks.json"
+    infeasible_path = tmp_path / "adversarial_tasks.infeasible.json"
+    dropped_source_path = tmp_path / "adversarial_tasks.dropped_source_data.json"
+    report_path = tmp_path / "feasibility_report.json"
+    output_path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "old-reddit",
+                    "site": "reddit",
+                    "feasibility": {"status": "verified"},
+                }
+            ]
+        )
+    )
+    infeasible_path.write_text(json.dumps([]))
+    dropped_source_path.write_text(json.dumps([]))
+
+    result = phase_2_injections._write_phase_2c_artifacts(
+        output_path=output_path,
+        infeasible_path=infeasible_path,
+        dropped_source_path=dropped_source_path,
+        report_path=report_path,
+        verified=[
+            {
+                "id": "new-gitlab",
+                "site": "gitlab",
+                "feasibility": {"status": "verified"},
+            }
+        ],
+        infeasible=[],
+        dropped_source_data=[],
+        report_summary={
+            "verified_count": 1,
+            "infeasible_count": 0,
+            "source_data_dropped_count": 0,
+            "source_data_dropped_by_kind": {},
+            "per_site": {"gitlab": {"verified": 1, "infeasible": 0, "skipped": 0}},
+        },
+        sites_filter={"gitlab"},
+    )
+
+    assert result.summary["verified_count"] == 2
+    assert result.summary["per_site"] == {
+        "reddit": {"verified": 1, "infeasible": 0, "skipped": 0},
+        "gitlab": {"verified": 1, "infeasible": 0, "skipped": 0},
+    }
+
+
+def test_phase_2c_artifact_writer_validates_before_any_write(tmp_path):
+    output_path = tmp_path / "adversarial_tasks.json"
+    infeasible_path = tmp_path / "adversarial_tasks.infeasible.json"
+    dropped_source_path = tmp_path / "adversarial_tasks.dropped_source_data.json"
+    report_path = tmp_path / "feasibility_report.json"
+    output_path.write_text(json.dumps([{"id": "old-output"}]))
+    infeasible_path.write_text(json.dumps([{"id": "old-infeasible"}]))
+    dropped_source_path.write_text(json.dumps([{"id": "old-drop"}]))
+    report_path.write_text(json.dumps({"old": True}))
+
+    with pytest.raises(ValueError, match="verified dataset contains"):
+        phase_2_injections._write_phase_2c_artifacts(
+            output_path=output_path,
+            infeasible_path=infeasible_path,
+            dropped_source_path=dropped_source_path,
+            report_path=report_path,
+            verified=[{"id": "bad", "feasibility": {"status": "infeasible"}}],
+            infeasible=[],
+            dropped_source_data=[],
+            report_summary={
+                "verified_count": 1,
+                "infeasible_count": 0,
+                "source_data_dropped_count": 0,
+                "source_data_dropped_by_kind": {},
+            },
+            sites_filter=None,
+        )
+
+    assert json.loads(output_path.read_text()) == [{"id": "old-output"}]
+    assert json.loads(infeasible_path.read_text()) == [{"id": "old-infeasible"}]
+    assert json.loads(dropped_source_path.read_text()) == [{"id": "old-drop"}]
+    assert json.loads(report_path.read_text()) == {"old": True}
+
+
 def test_load_reusable_phase_2_plans_rejects_sandbox_model_drift(tmp_path):
     plans_path = tmp_path / "adversarial_plans.json"
     plans_path.write_text(json.dumps([_plan_task()], indent=2))
@@ -1160,6 +1252,7 @@ def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
     path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "gitlab",
@@ -1178,6 +1271,7 @@ def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
     path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "gitlab",
@@ -1200,6 +1294,7 @@ def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
     path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "gitlab",
@@ -1216,6 +1311,7 @@ def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
     path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "gitlab",
@@ -1236,6 +1332,7 @@ def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_pat
     path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "gitlab",
@@ -1251,6 +1348,7 @@ def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_pat
     path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "gitlab",
@@ -1271,6 +1369,7 @@ def test_phase_2a_resolution_signature_detects_env_backed_auth_drift(monkeypatch
     path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "gitlab",
@@ -1987,7 +2086,11 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
         site_name, site_tasks, all_site_tasks=None, profile_path=None, label=None, **kwargs
     ):
         if site_name == "shopping":
-            return phase_2_injections.SiteInjectionResult(site_name, [{"id": "adv-1"}], [])
+            return phase_2_injections.SiteInjectionResult(
+                site_name,
+                [{"id": "adv-1", "benchmark": "webarena_verified"}],
+                [],
+            )
         return phase_2_injections.SiteInjectionResult(
             site_name,
             [],
@@ -2001,7 +2104,9 @@ async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
     assert rc == 0
     output_path = tmp_path / "phase_2" / "adversarial_tasks.json"
     assert output_path.exists()
-    assert _strip_feasibility(json.loads(output_path.read_text())) == [{"id": "adv-1"}]
+    assert _strip_feasibility(json.loads(output_path.read_text())) == [
+        {"id": "adv-1", "benchmark": "webarena_verified"}
+    ]
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "partial_complete"
     assert state["partial"] is True
@@ -2023,6 +2128,7 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
     instances_path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "shopping",
@@ -2050,7 +2156,10 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
         captured_state.update(json.loads((tmp_path / "pipeline_state.json").read_text()))
         tasks_path = args[0]
         return phase_2_injections.FeasibilityReport(
-            verified=json.loads(tasks_path.read_text()),
+            verified=[
+                _with_feasibility_status(task, "verified")
+                for task in json.loads(tasks_path.read_text())
+            ],
             infeasible=[],
             skipped_already_verified=[],
             cleanup_warnings=[],
@@ -2091,6 +2200,7 @@ async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatc
     instances_path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "shopping",
@@ -2106,7 +2216,10 @@ async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatc
     async def fake_verify_feasibility(*args, **kwargs):
         captured_state.update(json.loads((tmp_path / "pipeline_state.json").read_text()))
         return phase_2_injections.FeasibilityReport(
-            verified=json.loads(output_path.read_text()),
+            verified=[
+                _with_feasibility_status(task, "verified")
+                for task in json.loads(output_path.read_text())
+            ],
             infeasible=[],
             skipped_already_verified=[],
             cleanup_warnings=[],
@@ -2154,6 +2267,7 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
     instances_path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "shopping",
@@ -2167,7 +2281,10 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
 
     async def fake_verify_feasibility(*args, **kwargs):
         return phase_2_injections.FeasibilityReport(
-            verified=json.loads(output_path.read_text()),
+            verified=[
+                _with_feasibility_status(task, "verified")
+                for task in json.loads(output_path.read_text())
+            ],
             infeasible=[],
             skipped_already_verified=[],
             cleanup_warnings=[],
@@ -2199,7 +2316,7 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
 
 
 @pytest.mark.asyncio
-async def test_phase_2_feasibility_stage_writes_side_artifacts_before_dataset(
+async def test_phase_2_feasibility_stage_writes_report_after_dataset(
     monkeypatch, tmp_path
 ):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -2211,6 +2328,7 @@ async def test_phase_2_feasibility_stage_writes_side_artifacts_before_dataset(
     instances_path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "shopping",
@@ -2224,8 +2342,10 @@ async def test_phase_2_feasibility_stage_writes_side_artifacts_before_dataset(
     async def fake_verify_feasibility(*args, **kwargs):
         verified = _finalized_plan_task()
         verified["id"] = "adv-ok"
+        verified = _with_feasibility_status(verified, "verified")
         infeasible = _finalized_plan_task()
         infeasible["id"] = "adv-bad"
+        infeasible = _with_feasibility_status(infeasible, "infeasible")
         return phase_2_injections.FeasibilityReport(
             verified=[verified],
             infeasible=[infeasible],
@@ -2267,8 +2387,8 @@ async def test_phase_2_feasibility_stage_writes_side_artifacts_before_dataset(
     assert write_order[-4:] == [
         "adversarial_tasks.infeasible.json",
         "adversarial_tasks.dropped_source_data.json",
-        "feasibility_report.json",
         "adversarial_tasks.json",
+        "feasibility_report.json",
     ]
 
 
@@ -2295,7 +2415,12 @@ async def test_phase_2_feasibility_stage_preserves_unfiltered_source_sidecar_wit
     )
     instances_path = tmp_path / "instances.smoke.json"
     instances_path.write_text(
-        json.dumps({"instances": [{"site_name": "shopping", "site_url": "http://shopping.test"}]})
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "instances": [{"site_name": "shopping", "site_url": "http://shopping.test"}],
+            }
+        )
     )
 
     async def fake_verify_feasibility(*args, **kwargs):
@@ -2345,6 +2470,73 @@ async def test_phase_2_feasibility_stage_preserves_unfiltered_source_sidecar_wit
 
 
 @pytest.mark.asyncio
+async def test_phase_2_feasibility_stage_verifies_only_filtered_sites(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_2"
+    output_dir.mkdir(parents=True)
+    output_path = output_dir / "adversarial_tasks.json"
+    reddit_verified = {
+        "id": "reddit-verified",
+        "benchmark": "webarena_verified",
+        "site": "reddit",
+        "feasibility": {"status": "verified"},
+    }
+    shopping_task = _finalized_plan_task()
+    shopping_task["id"] = "shopping-task"
+    output_path.write_text(json.dumps([reddit_verified, shopping_task]))
+    instances_path = tmp_path / "instances.smoke.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "instances": [{"site_name": "shopping", "site_url": "http://shopping.test"}],
+            }
+        )
+    )
+
+    async def fake_verify_feasibility(path, *args, **kwargs):
+        tasks = json.loads(Path(path).read_text())
+        assert [task["id"] for task in tasks] == ["shopping-task"]
+        return phase_2_injections.FeasibilityReport(
+            verified=[_with_feasibility_status(tasks[0], "verified")],
+            infeasible=[],
+            skipped_already_verified=[],
+            cleanup_warnings=[],
+            host_fingerprint={"host_config": "instances.smoke.json"},
+            elapsed_seconds=0.0,
+            per_site_counts={},
+            phase_2_status="complete",
+            dropped_source_data=[],
+        )
+
+    monkeypatch.setattr(phase_2_injections, "verify_feasibility", fake_verify_feasibility)
+
+    rc = await phase_2_injections._run_feasibility_stage(
+        args=Namespace(
+            skip_feasibility=False,
+            feasibility_only=True,
+            feasibility_instances=str(instances_path),
+            feasibility_concurrency=1,
+            feasibility_retry_count=0,
+            feasibility_ttl_hours=None,
+            force_reverify=False,
+        ),
+        output_path=output_path,
+        output_dir=output_dir,
+        state_metadata={"feasibility_only": True, "sites": "shopping"},
+        prior_phase_2_status="complete",
+    )
+
+    assert rc == 0
+    output = json.loads(output_path.read_text())
+    assert output[0] == reddit_verified
+    assert output[1]["id"] == "shopping-task"
+    assert output[1]["feasibility"]["status"] == "verified"
+    report = json.loads((output_dir / "feasibility_report.json").read_text())
+    assert report["verified_count"] == 2
+
+
+@pytest.mark.asyncio
 async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_status(
     monkeypatch, tmp_path
 ):
@@ -2357,6 +2549,7 @@ async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_sta
     instances_path.write_text(
         json.dumps(
             {
+                "benchmark_name": "WebArena Verified",
                 "instances": [
                     {
                         "site_name": "shopping",
@@ -2369,7 +2562,10 @@ async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_sta
 
     async def fake_verify_feasibility(*args, **kwargs):
         return phase_2_injections.FeasibilityReport(
-            verified=json.loads(output_path.read_text()),
+            verified=[
+                _with_feasibility_status(task, "verified")
+                for task in json.loads(output_path.read_text())
+            ],
             infeasible=[],
             skipped_already_verified=[],
             cleanup_warnings=[],
@@ -2466,6 +2662,51 @@ async def test_phase_2_skip_feasibility_clears_stale_infeasible_sidecar(monkeypa
 
     assert rc == 0
     assert json.loads(infeasible_path.read_text()) == []
+
+
+@pytest.mark.asyncio
+async def test_phase_2_skip_feasibility_preserves_unfiltered_sites(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_2"
+    output_dir.mkdir(parents=True)
+    output_path = output_dir / "adversarial_tasks.json"
+    reddit_verified = {
+        "id": "reddit-verified",
+        "benchmark": "webarena_verified",
+        "site": "reddit",
+        "feasibility": {"status": "verified"},
+    }
+    shopping_task = {
+        "id": "shopping-task",
+        "benchmark": "webarena_verified",
+        "site": "shopping",
+    }
+    output_path.write_text(json.dumps([reddit_verified, shopping_task]))
+
+    rc = await phase_2_injections._run_feasibility_stage(
+        args=Namespace(
+            skip_feasibility=True,
+            feasibility_only=True,
+            feasibility_instances="missing-instances.json",
+            feasibility_concurrency=1,
+            feasibility_retry_count=0,
+            feasibility_ttl_hours=None,
+            force_reverify=False,
+        ),
+        output_path=output_path,
+        output_dir=output_dir,
+        state_metadata={"feasibility_only": True, "sites": "shopping"},
+        prior_phase_2_status="complete",
+    )
+
+    assert rc == 0
+    output = json.loads(output_path.read_text())
+    assert output[0] == reddit_verified
+    assert output[1]["id"] == "shopping-task"
+    assert output[1]["feasibility"]["status"] == "unverified"
+    report = json.loads((output_dir / "feasibility_report.json").read_text())
+    assert report["verified_count"] == 1
+    assert report["unverified_count"] == 1
 
 
 @pytest.mark.asyncio
@@ -2667,6 +2908,7 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     legacy_task = {
         "id": "adv-legacy",
+        "benchmark": "webarena_verified",
         "benign_task_id": "benign-1",
         "site": "shopping",
         "sites": ["shopping"],

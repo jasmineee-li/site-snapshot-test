@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import types
+from typing import ClassVar
 
 import pytest
 
@@ -646,7 +647,7 @@ def test_apply_data_seed_derives_reddit_submission_placeholders_from_task_contex
         },
     )
 
-    post_call = [call for call in fake_session.calls if call["method"] == "POST"][0]
+    post_call = next(call for call in fake_session.calls if call["method"] == "POST")
     assert post_call["url"] == "http://reddit.test/f/books/50001/-/comment"
     assert post_call["data"]["reply_to_submission_50001[comment]"] == "ok"
 
@@ -1329,7 +1330,7 @@ def test_build_seed_context_prefers_seed_task_values():
 
 
 class _FakeEditor:
-    instances: list[_FakeEditor] = []
+    instances: ClassVar[list[_FakeEditor]] = []
     supported_methods = frozenset({"create_submission", "create_comment"})
 
     def __init__(self, instance, session) -> None:
@@ -1394,6 +1395,61 @@ class _FailingCleanupEditor(_FakeEditor):
 class _RejectingEditor(_FakeEditor):
     def validate_args(self, method_name: str, args: dict[str, object]) -> None:
         raise seeding.EditorError("invalid_args", "bad args")
+
+
+def test_apply_data_seed_normalizes_editor_call_benchmark_alias(monkeypatch):
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+
+    cleanup_handle, _metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "WebArena Verified",
+                    "site": "reddit",
+                    "method": "create_submission",
+                    "args": {"forum_name": "books", "title_template": "Thread"},
+                }
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    assert cleanup_handle is not None
+    assert len(_FakeEditor.instances) == 1
+    assert _FakeEditor.instances[0].calls[-1][0] == "create_submission"
+
+
+def test_apply_data_seed_uses_instance_benchmark_when_call_omits_it(monkeypatch):
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("stwebagentbench", "reddit"), _FakeEditor)
+
+    cleanup_handle, _metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "site": "reddit",
+                    "method": "create_submission",
+                    "args": {"forum_name": "books", "title_template": "Thread"},
+                }
+            ],
+        },
+        {
+            "benchmark": "stwebagentbench",
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+        },
+    )
+
+    assert cleanup_handle is not None
+    assert len(_FakeEditor.instances) == 1
+    assert _FakeEditor.instances[0].calls[-1][0] == "create_submission"
 
 
 def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch):
@@ -1861,7 +1917,7 @@ def test_apply_data_seed_supports_legacy_url_only_form_calls(monkeypatch):
         {"site_name": "reddit", "site_url": "http://reddit.test"},
     )
 
-    post_call = [call for call in fake_session.calls if call["method"] == "POST"][0]
+    post_call = next(call for call in fake_session.calls if call["method"] == "POST")
     assert post_call["url"] == "http://reddit.test/create_forum"
     assert post_call["data"]["form_key"] == "csrf-token"
 

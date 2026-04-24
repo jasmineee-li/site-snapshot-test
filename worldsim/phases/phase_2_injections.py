@@ -34,6 +34,12 @@ from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
+from worldsim.benchmark_capabilities import (
+    get_benchmark_capabilities,
+    infer_benchmark_name,
+    infer_instances_config_benchmark,
+    normalize_benchmark_name,
+)
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
@@ -255,6 +261,20 @@ _EDITOR_BODY_FIELD_ALIASES = {
     ("shopping", "update_customer_profile"): {"value": "value"},
     ("shopping_admin", "update_admin_profile"): {"value": "value"},
 }
+_EDITOR_BODY_FIELD_ALIASES_BY_BENCHMARK = {
+    ("webarena_verified", site, method): aliases
+    for (site, method), aliases in _EDITOR_BODY_FIELD_ALIASES.items()
+}
+
+
+@dataclass(frozen=True)
+class Phase2cArtifactWriteResult:
+    verified: list[dict[str, Any]]
+    infeasible: list[dict[str, Any]]
+    dropped_source_data: list[dict[str, Any]]
+    summary: dict[str, Any]
+
+
 _REDDIT_COMMENT_BODY_FIELD_PATTERN = re.compile(
     r"^reply_to_submission_(?:\{[^}\]]+\}|[^[]+)\[comment\]$"
 )
@@ -421,6 +441,27 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("Benign tasks not found at %s — run phase 1 first", tasks_path)
         return 1
     benign_tasks = json.loads(tasks_path.read_text())
+    try:
+        benchmark_name = _infer_task_records_benchmark(
+            benign_tasks,
+            label="Phase 1 benign tasks",
+        )
+        capabilities = get_benchmark_capabilities(benchmark_name)
+        if not capabilities.phase_2_supported:
+            raise ValueError(
+                f"benchmark {benchmark_name!r} does not support WorldSim v5 Phase 2"
+            )
+    except ValueError as exc:
+        logger.error("Phase 2 benchmark gate failed: %s", exc)
+        save_state(
+            "phase_2",
+            status="failed",
+            reason="unsupported_benchmark",
+            benchmark_error=str(exc),
+            **state_metadata,
+        )
+        return 1
+    state_metadata["benchmark_name"] = benchmark_name
 
     # Load profiles from Phase 0c
     profiles_dir = state_dir / "phase_0c"
@@ -565,6 +606,7 @@ async def run(args: argparse.Namespace) -> int:
                         label=label,
                         sandbox_model=sandbox_model,
                         instance=per_site_instance,
+                        benchmark=benchmark_name,
                     )
                 )
         shard_results = await asyncio.gather(*shard_coros, return_exceptions=True)
@@ -841,51 +883,63 @@ async def _run_feasibility_stage(
         **state_metadata,
     )
 
+    try:
+        current = json.loads(output_path.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("Phase 2c: failed to read %s: %s", output_path, exc)
+        return 1
+    if not isinstance(current, list):
+        logger.error("Phase 2c: %s must contain a JSON array", output_path)
+        return 1
+
     if getattr(args, "skip_feasibility", False):
-        logger.warning("Phase 2c: --skip-feasibility active; stamping tasks as unverified")
+        selected_current = _filter_records_for_sites(current, sites_filter)
         try:
-            current = json.loads(output_path.read_text())
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.error("Phase 2c: failed to read %s: %s", output_path, exc)
+            benchmark_name = _gate_phase_2_skip_benchmark(selected_current)
+        except ValueError as exc:
+            logger.error("Phase 2c benchmark gate failed: %s", exc)
+            save_state(
+                "phase_2",
+                status="failed",
+                phase_2_stage="feasibility",
+                reason="unsupported_benchmark",
+                benchmark_error=str(exc),
+                adversarial_tasks_path=str(output_path),
+                **state_metadata,
+            )
             return 1
-        if not isinstance(current, list):
-            logger.error("Phase 2c: %s must contain a JSON array", output_path)
-            return 1
-        stamped = [skipped_task_stanza(task) for task in current]
-        write_json_atomic(
-            output_path,
-            stamped,
-            failpoint_base=FAILPOINT_DATASET,
-        )
-        write_json_atomic(
-            infeasible_path,
-            [],
-            failpoint_base=FAILPOINT_QUARANTINE,
-        )
-        merged_dropped_source_data = _write_dropped_source_data_sidecar(
-            dropped_source_path,
-            [],
+        state_metadata["benchmark_name"] = benchmark_name
+        logger.warning("Phase 2c: --skip-feasibility active; stamping tasks as unverified")
+        stamped = [skipped_task_stanza(task) for task in selected_current]
+        report_summary = {
+            "generated_at": _utcnow_iso(),
+            "instances": str(instances_arg),
+            "host_fingerprint": {},
+            "elapsed_seconds": 0.0,
+            "phase_2_status": _terminal_phase_2_status(prior_phase_2_status),
+            "verified_count": 0,
+            "infeasible_count": 0,
+            "skipped_already_verified_count": 0,
+            "unverified_count": len(stamped),
+            "cleanup_warnings": [],
+            "per_site": {},
+            "source_data_dropped_count": 0,
+            "source_data_dropped_by_kind": {},
+        }
+        artifact_result = _write_phase_2c_artifacts(
+            output_path=output_path,
+            infeasible_path=infeasible_path,
+            dropped_source_path=dropped_source_path,
+            report_path=report_path,
+            verified=stamped,
+            infeasible=[],
+            dropped_source_data=[],
+            report_summary=report_summary,
             sites_filter=sites_filter,
+            allow_unverified=True,
         )
-        write_json_atomic(
-            report_path,
-            {
-                "generated_at": _utcnow_iso(),
-                "instances": str(instances_arg),
-                "host_fingerprint": {},
-                "elapsed_seconds": 0.0,
-                "phase_2_status": _terminal_phase_2_status(prior_phase_2_status),
-                "verified_count": 0,
-                "infeasible_count": 0,
-                "skipped_already_verified_count": 0,
-                "unverified_count": len(stamped),
-                "cleanup_warnings": [],
-                "per_site": {},
-                "source_data_dropped_count": len(merged_dropped_source_data),
-                "source_data_dropped_by_kind": {},
-            },
-            failpoint_base=FAILPOINT_REPORT,
-        )
+        summary = artifact_result.summary
+        completed_at = _utcnow_iso()
         save_state(
             "phase_2",
             status=_terminal_phase_2_status(prior_phase_2_status),
@@ -894,12 +948,12 @@ async def _run_feasibility_stage(
             feasibility_report_path=str(report_path),
             feasibility_infeasible_path=str(infeasible_path),
             feasibility_dropped_source_data_path=str(dropped_source_path),
-            feasibility_completed_at=_utcnow_iso(),
-            feasibility_verified_count=0,
-            feasibility_infeasible_count=0,
+            feasibility_completed_at=completed_at,
+            feasibility_verified_count=summary["verified_count"],
+            feasibility_infeasible_count=summary["infeasible_count"],
             feasibility_skipped_count=0,
-            feasibility_unverified_count=len(stamped),
-            feasibility_dropped_source_data_count=len(merged_dropped_source_data),
+            feasibility_unverified_count=summary["unverified_count"],
+            feasibility_dropped_source_data_count=len(artifact_result.dropped_source_data),
             feasibility_skipped_via_flag=True,
             **state_metadata,
         )
@@ -908,12 +962,12 @@ async def _run_feasibility_stage(
                 "feasibility_report_path": str(report_path),
                 "feasibility_infeasible_path": str(infeasible_path),
                 "feasibility_dropped_source_data_path": str(dropped_source_path),
-                "feasibility_completed_at": _utcnow_iso(),
-                "feasibility_verified_count": 0,
-                "feasibility_infeasible_count": 0,
+                "feasibility_completed_at": completed_at,
+                "feasibility_verified_count": summary["verified_count"],
+                "feasibility_infeasible_count": summary["infeasible_count"],
                 "feasibility_skipped_count": 0,
-                "feasibility_unverified_count": len(stamped),
-                "feasibility_dropped_source_data_count": len(merged_dropped_source_data),
+                "feasibility_unverified_count": summary["unverified_count"],
+                "feasibility_dropped_source_data_count": len(artifact_result.dropped_source_data),
                 "feasibility_skipped_via_flag": True,
             }
         )
@@ -940,6 +994,28 @@ async def _run_feasibility_stage(
         )
         return 1
 
+    selected_current = _filter_records_for_sites(current, sites_filter)
+    try:
+        benchmark_name = _gate_phase_2c_benchmark(
+            task_records=selected_current,
+            raw_instances=raw_instances,
+            instances=instances,
+        )
+    except ValueError as exc:
+        logger.error("Phase 2c benchmark gate failed: %s", exc)
+        save_state(
+            "phase_2",
+            status="failed",
+            phase_2_stage="feasibility",
+            reason="unsupported_benchmark",
+            benchmark_error=str(exc),
+            adversarial_tasks_path=str(output_path),
+            **state_metadata,
+        )
+        return 1
+    state_metadata["benchmark_name"] = benchmark_name
+    instances = [_with_benchmark(instance, benchmark_name) for instance in instances]
+
     logger.info(
         "Phase 2c: verifying %s against %s (concurrency=%d, retry=%d, ttl_hours=%s, force=%s)",
         output_path,
@@ -956,8 +1032,22 @@ async def _run_feasibility_stage(
             raw_benchmark_root = raw_instances.get("benchmark_codebase")
             if isinstance(raw_benchmark_root, str) and raw_benchmark_root.strip():
                 benchmark_root = Path(raw_benchmark_root.strip())
+        verification_input = output_path
+        temporary_input: Path | None = None
+        if sites_filter is not None:
+            temporary = tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                suffix=".adversarial_tasks.json",
+                dir=output_dir,
+                delete=False,
+            )
+            with temporary:
+                json.dump(selected_current, temporary, indent=2)
+            temporary_input = Path(temporary.name)
+            verification_input = temporary_input
         report: FeasibilityReport = await verify_feasibility(
-            output_path,
+            verification_input,
             instances=instances,
             instances_label=instances_path.name,
             benchmark_root=benchmark_root,
@@ -979,39 +1069,28 @@ async def _run_feasibility_stage(
             **state_metadata,
         )
         return 1
+    finally:
+        if "temporary_input" in locals() and temporary_input is not None:
+            try:
+                temporary_input.unlink()
+            except OSError:
+                logger.warning("Phase 2c: failed to remove temporary input %s", temporary_input)
 
-    write_json_atomic(
-        infeasible_path,
-        report.infeasible,
-        failpoint_base=FAILPOINT_QUARANTINE,
-    )
-    # Bug I: source-data-quarantined tasks live in a separate sidecar so
-    # downstream phases can distinguish "probe failed (retry)" from "the
-    # dataset itself is broken (do not retry)". The sidecar is an owned
-    # Phase 2c output, so write it even when empty to clear stale quarantines
-    # from prior runs.
-    merged_dropped_source_data = _write_dropped_source_data_sidecar(
-        dropped_source_path,
-        report.dropped_source_data,
+    artifact_result = _write_phase_2c_artifacts(
+        output_path=output_path,
+        infeasible_path=infeasible_path,
+        dropped_source_path=dropped_source_path,
+        report_path=report_path,
+        verified=report.verified,
+        infeasible=report.infeasible,
+        dropped_source_data=report.dropped_source_data,
+        report_summary=_report_summary_dict(report, instances_path=instances_path.name),
         sites_filter=sites_filter,
     )
-    write_json_atomic(
-        report_path,
-        _report_summary_dict(
-            report,
-            instances_path=instances_path.name,
-            dropped_source_data=merged_dropped_source_data,
-        ),
-        failpoint_base=FAILPOINT_REPORT,
-    )
-    write_json_atomic(
-        output_path,
-        report.verified,
-        failpoint_base=FAILPOINT_DATASET,
-    )
+    summary = artifact_result.summary
 
-    verified_count = len(report.verified)
-    infeasible_count = len(report.infeasible)
+    verified_count = summary["verified_count"]
+    infeasible_count = summary["infeasible_count"]
     skipped_count = len(report.skipped_already_verified)
     fresh_count = verified_count - skipped_count
     logger.info(
@@ -1040,7 +1119,7 @@ async def _run_feasibility_stage(
         "feasibility_skipped_count": skipped_count,
         "feasibility_unverified_count": 0,
         "feasibility_cleanup_warning_count": len(report.cleanup_warnings),
-        "feasibility_dropped_source_data_count": len(merged_dropped_source_data),
+        "feasibility_dropped_source_data_count": len(artifact_result.dropped_source_data),
     }
     save_state(
         "phase_2",
@@ -1060,6 +1139,25 @@ def _write_dropped_source_data_sidecar(
     *,
     sites_filter: set[str] | None,
 ) -> list[dict[str, Any]]:
+    deduped = _merged_dropped_source_data(
+        path,
+        dropped_source_data,
+        sites_filter=sites_filter,
+    )
+    write_json_atomic(
+        path,
+        deduped,
+        failpoint_base=FAILPOINT_DROPPED_SOURCE_DATA,
+    )
+    return deduped
+
+
+def _merged_dropped_source_data(
+    path: Path,
+    dropped_source_data: list[dict[str, Any]],
+    *,
+    sites_filter: set[str] | None,
+) -> list[dict[str, Any]]:
     items = _merge_preserving_unfiltered_sites(
         path,
         dropped_source_data,
@@ -1073,12 +1171,202 @@ def _write_dropped_source_data_sidecar(
             continue
         seen_keys.add(key)
         deduped.append(item)
+    return deduped
+
+
+def _write_phase_2c_artifacts(
+    *,
+    output_path: Path,
+    infeasible_path: Path,
+    dropped_source_path: Path,
+    report_path: Path,
+    verified: list[dict[str, Any]],
+    infeasible: list[dict[str, Any]],
+    dropped_source_data: list[dict[str, Any]],
+    report_summary: dict[str, Any],
+    sites_filter: set[str] | None,
+    allow_unverified: bool = False,
+) -> Phase2cArtifactWriteResult:
+    """Write and validate the owned Phase 2c artifact set together."""
+    merged_verified = _merge_preserving_unfiltered_sites(
+        output_path,
+        verified,
+        sites_filter=sites_filter,
+    )
+    merged_infeasible = _merge_preserving_unfiltered_sites(
+        infeasible_path,
+        infeasible,
+        sites_filter=sites_filter,
+    )
+    merged_dropped_source_data = _merged_dropped_source_data(
+        dropped_source_path,
+        dropped_source_data,
+        sites_filter=sites_filter,
+    )
+    summary = _phase_2c_report_summary_with_artifacts(
+        report_summary,
+        verified=merged_verified,
+        infeasible=merged_infeasible,
+        dropped_source_data=merged_dropped_source_data,
+        allow_unverified=allow_unverified,
+    )
+    _validate_phase_2c_artifact_payloads(
+        verified=merged_verified,
+        infeasible=merged_infeasible,
+        dropped_source_data=merged_dropped_source_data,
+        report_summary=summary,
+        allow_unverified=allow_unverified,
+    )
     write_json_atomic(
-        path,
-        deduped,
+        infeasible_path,
+        merged_infeasible,
+        failpoint_base=FAILPOINT_QUARANTINE,
+    )
+    write_json_atomic(
+        dropped_source_path,
+        merged_dropped_source_data,
         failpoint_base=FAILPOINT_DROPPED_SOURCE_DATA,
     )
-    return deduped
+    write_json_atomic(
+        output_path,
+        merged_verified,
+        failpoint_base=FAILPOINT_DATASET,
+    )
+    write_json_atomic(
+        report_path,
+        summary,
+        failpoint_base=FAILPOINT_REPORT,
+    )
+    return Phase2cArtifactWriteResult(
+        verified=merged_verified,
+        infeasible=merged_infeasible,
+        dropped_source_data=merged_dropped_source_data,
+        summary=summary,
+    )
+
+
+def _phase_2c_report_summary_with_artifacts(
+    report_summary: dict[str, Any],
+    *,
+    verified: list[dict[str, Any]],
+    infeasible: list[dict[str, Any]],
+    dropped_source_data: list[dict[str, Any]],
+    allow_unverified: bool,
+) -> dict[str, Any]:
+    summary = dict(report_summary)
+    summary["verified_count"] = _count_feasibility_status(verified, "verified")
+    summary["infeasible_count"] = len(infeasible)
+    if allow_unverified:
+        summary["unverified_count"] = _count_feasibility_status(verified, "unverified")
+    summary["source_data_dropped_count"] = len(dropped_source_data)
+    summary["source_data_dropped_by_kind"] = _source_data_dropped_by_kind(dropped_source_data)
+    summary["per_site"] = _phase_2c_per_site_counts(verified, infeasible)
+    return summary
+
+
+def _count_feasibility_status(records: list[dict[str, Any]], status: str) -> int:
+    return sum(1 for record in records if _feasibility_status(record) == status)
+
+
+def _source_data_dropped_by_kind(dropped_source_data: list[dict[str, Any]]) -> dict[str, int]:
+    by_kind: dict[str, int] = {}
+    for record in dropped_source_data:
+        issue = record.get("source_data_issue") if isinstance(record, dict) else None
+        kind = str(issue.get("kind") or "unknown") if isinstance(issue, dict) else "unknown"
+        by_kind[kind] = by_kind.get(kind, 0) + 1
+    return by_kind
+
+
+def _phase_2c_per_site_counts(
+    verified: list[dict[str, Any]],
+    infeasible: list[dict[str, Any]],
+) -> dict[str, dict[str, int]]:
+    per_site: dict[str, dict[str, int]] = {}
+    for record in verified:
+        site = str(record.get("site") or "").strip().lower() or "unknown"
+        bucket = per_site.setdefault(site, {"verified": 0, "infeasible": 0, "skipped": 0})
+        feasibility = record.get("feasibility") if isinstance(record, dict) else None
+        if isinstance(feasibility, dict) and "last_reverify_skipped_at" in feasibility:
+            bucket["skipped"] += 1
+        else:
+            bucket["verified"] += 1
+    for record in infeasible:
+        site = str(record.get("site") or "").strip().lower() or "unknown"
+        bucket = per_site.setdefault(site, {"verified": 0, "infeasible": 0, "skipped": 0})
+        bucket["infeasible"] += 1
+    return per_site
+
+
+def _validate_phase_2c_artifact_payloads(
+    *,
+    verified: list[dict[str, Any]],
+    infeasible: list[dict[str, Any]],
+    dropped_source_data: list[dict[str, Any]],
+    report_summary: dict[str, Any],
+    allow_unverified: bool = False,
+) -> None:
+    if allow_unverified:
+        if report_summary.get("unverified_count") != _count_feasibility_status(
+            verified,
+            "unverified",
+        ):
+            raise ValueError(
+                "Phase 2c artifact invariant failed: report unverified_count "
+                "does not match output dataset unverified records"
+            )
+    if report_summary.get("verified_count") != _count_feasibility_status(verified, "verified"):
+        raise ValueError(
+            "Phase 2c artifact invariant failed: report verified_count "
+            "does not match output dataset verified records"
+        )
+    if report_summary.get("infeasible_count") != len(infeasible):
+        raise ValueError(
+            "Phase 2c artifact invariant failed: report infeasible_count "
+            "does not match infeasible sidecar length"
+        )
+    expected_by_kind = _source_data_dropped_by_kind(dropped_source_data)
+    if report_summary.get("source_data_dropped_count") != len(dropped_source_data):
+        raise ValueError(
+            "Phase 2c artifact invariant failed: report source_data_dropped_count "
+            "does not match sidecar length"
+        )
+    if report_summary.get("source_data_dropped_by_kind") != expected_by_kind:
+        raise ValueError(
+            "Phase 2c artifact invariant failed: report source_data_dropped_by_kind "
+            "does not match sidecar contents"
+        )
+    for record in dropped_source_data:
+        issue = record.get("source_data_issue") if isinstance(record, dict) else None
+        if not isinstance(issue, dict) or not issue.get("kind"):
+            raise ValueError(
+                "Phase 2c artifact invariant failed: dropped source-data record "
+                "is missing source_data_issue.kind"
+            )
+    allowed_verified_statuses = {"verified"}
+    if allow_unverified:
+        allowed_verified_statuses.add("unverified")
+    for record in verified:
+        status = _feasibility_status(record)
+        if status not in allowed_verified_statuses:
+            raise ValueError(
+                "Phase 2c artifact invariant failed: verified dataset contains "
+                f"task {record.get('id')!r} with feasibility.status={status!r}"
+            )
+    for record in infeasible:
+        status = _feasibility_status(record)
+        if status != "infeasible":
+            raise ValueError(
+                "Phase 2c artifact invariant failed: infeasible dataset contains "
+                f"task {record.get('id')!r} with feasibility.status={status!r}"
+            )
+
+
+def _feasibility_status(record: Mapping[str, Any]) -> str | None:
+    feasibility = record.get("feasibility")
+    if not isinstance(feasibility, Mapping):
+        return None
+    status = feasibility.get("status")
+    return str(status) if isinstance(status, str) else None
 
 
 def _sites_filter_from_value(value: Any) -> set[str] | None:
@@ -1086,6 +1374,15 @@ def _sites_filter_from_value(value: Any) -> set[str] | None:
         return None
     sites = {site.strip() for site in value.split(",") if site.strip()}
     return sites or None
+
+
+def _filter_records_for_sites(
+    records: list[dict[str, Any]],
+    sites_filter: set[str] | None,
+) -> list[dict[str, Any]]:
+    if sites_filter is None:
+        return records
+    return [record for record in records if _effective_task_site(record) in sites_filter]
 
 
 def _terminal_phase_2_status(prior_phase_2_status: str | None) -> str:
@@ -1102,12 +1399,131 @@ def _extract_instances_list(payload: Any) -> list[dict[str, Any]]:
     are wrapper dicts; some fixtures (and older tooling) hand back a flat list.
     """
     if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)]
+        return [_normalize_instance_record(item, None) for item in payload if isinstance(item, dict)]
     if isinstance(payload, dict):
         nested = payload.get("instances")
+        try:
+            wrapper_benchmark = infer_instances_config_benchmark(payload)
+        except ValueError:
+            wrapper_benchmark = None
         if isinstance(nested, list):
-            return [item for item in nested if isinstance(item, dict)]
+            return [
+                _normalize_instance_record(item, wrapper_benchmark)
+                for item in nested
+                if isinstance(item, dict)
+            ]
     return []
+
+
+def _normalize_instance_record(
+    instance: dict[str, Any],
+    wrapper_benchmark: str | None,
+) -> dict[str, Any]:
+    normalized = dict(instance)
+    values = [
+        wrapper_benchmark,
+        normalized.get("benchmark"),
+        normalized.get("benchmark_name"),
+        normalized.get("benchmark_adapter"),
+    ]
+    try:
+        benchmark = infer_benchmark_name(values)
+    except ValueError:
+        benchmark = None
+    if benchmark is not None:
+        normalized["benchmark"] = benchmark
+    return normalized
+
+
+def _gate_phase_2c_benchmark(
+    *,
+    task_records: list[dict[str, Any]],
+    raw_instances: Any,
+    instances: list[dict[str, Any]],
+) -> str:
+    task_benchmark = _infer_task_records_benchmark(
+        task_records,
+        label="Phase 2 adversarial tasks",
+    )
+    instances_benchmark: str | None = None
+    if isinstance(raw_instances, dict):
+        instances_benchmark = infer_instances_config_benchmark(raw_instances)
+    if instances_benchmark is None:
+        instances_benchmark = _infer_task_records_benchmark(
+            instances,
+            label="Phase 2c instances",
+        )
+    if task_benchmark != instances_benchmark:
+        raise ValueError(
+            "mixed benchmark metadata between Phase 2 tasks and Phase 2c instances: "
+            f"tasks={task_benchmark!r}, instances={instances_benchmark!r}"
+        )
+    capabilities = get_benchmark_capabilities(task_benchmark)
+    if not capabilities.phase_2_feasibility_supported:
+        raise ValueError(
+            f"benchmark {task_benchmark!r} does not support WorldSim v5 Phase 2c"
+        )
+    return capabilities.canonical_name
+
+
+def _gate_phase_2_skip_benchmark(task_records: list[dict[str, Any]]) -> str:
+    benchmark = _infer_task_records_benchmark(
+        task_records,
+        label="Phase 2 adversarial tasks",
+    )
+    capabilities = get_benchmark_capabilities(benchmark)
+    if not capabilities.phase_2_supported:
+        raise ValueError(f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2")
+    if not capabilities.phase_2_feasibility_supported:
+        raise ValueError(
+            f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2c"
+        )
+    return capabilities.canonical_name
+
+
+def _infer_task_records_benchmark(records: list[dict[str, Any]], *, label: str) -> str:
+    values: list[Any] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        values.extend(_benchmark_values_from_record(record))
+    try:
+        benchmark = infer_benchmark_name(values)
+    except ValueError as exc:
+        raise ValueError(f"{label} contain {exc}") from exc
+    if benchmark is None:
+        raise ValueError(f"{label} are missing benchmark metadata")
+    return benchmark
+
+
+def _benchmark_values_from_record(record: Mapping[str, Any]) -> list[Any]:
+    values: list[Any] = [
+        record.get("benchmark"),
+        record.get("benchmark_name"),
+        record.get("benchmark_adapter"),
+    ]
+    seed = record.get("adversarial_data_seed")
+    values.extend(_benchmark_values_from_seed(seed))
+    seed_template = record.get("seed_template")
+    values.extend(_benchmark_values_from_seed(seed_template))
+    return values
+
+
+def _benchmark_values_from_seed(seed: Any) -> list[Any]:
+    values: list[Any] = []
+    calls = seed.get("editor_calls") if isinstance(seed, Mapping) else None
+    if not isinstance(calls, list):
+        return values
+    for call in calls:
+        if isinstance(call, Mapping):
+            values.append(call.get("benchmark"))
+    return values
+
+
+def _with_benchmark(instance: dict[str, Any], benchmark: str) -> dict[str, Any]:
+    item = dict(instance)
+    item["benchmark"] = benchmark
+    return item
 
 
 def _phase_2a_resolution_signature(args: argparse.Namespace) -> dict[str, Any]:
@@ -1669,6 +2085,7 @@ async def _generate_injections_for_site(
     label: str | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     instance: Mapping[str, Any] | None = None,
+    benchmark: str = "webarena_verified",
 ) -> SiteInjectionResult:
     """Generate adversarial injections for a shard (or full set) of tasks via Modal Sandbox.
 
@@ -1732,8 +2149,11 @@ async def _generate_injections_for_site(
     # contract registry refactor). Dashboard-list kinds stay eligible —
     # create_issue_note / create_comment have free-text body bindings
     # that accept the @{benign_user_handle} mention routing.
-    site_tasks, eligibility_drops = _phase_2a_eligible_tasks(
-        site_tasks, benign_target_resources, site_name
+    site_tasks, eligibility_drops = _phase_2a_eligible_tasks_for_benchmark(
+        site_tasks,
+        benign_target_resources,
+        site_name,
+        benchmark=benchmark,
     )
     if eligibility_drops:
         _write_eligibility_drops(site_name, eligibility_drops)
@@ -1771,6 +2191,7 @@ async def _generate_injections_for_site(
             sandbox_model=sandbox_model,
             label=label,
             site=site_name,
+            benchmark=benchmark,
         )
         if not adv_tasks:
             logger.warning("Phase 2: API path %r produced no plans", label)
@@ -1820,6 +2241,7 @@ async def _generate_injections_for_site(
                     contract_context=ContractRenderContext(
                         site=site_name,
                         kind_anchors=kind_anchors_from_resources(benign_target_resources),
+                        benchmark=benchmark,
                     ),
                 ),
                 output_paths=["/workspace/output/adversarial_tasks.json"],
@@ -1937,7 +2359,17 @@ def _merge_immutable_fields(
             continue
 
         # Copy immutable structural fields.
-        for field in ("instruction", "site", "sites", "start_urls", "data_seed", "agent_context"):
+        for field in (
+            "benchmark",
+            "benchmark_name",
+            "benchmark_adapter",
+            "instruction",
+            "site",
+            "sites",
+            "start_urls",
+            "data_seed",
+            "agent_context",
+        ):
             if field in benign_task:
                 value = json.loads(json.dumps(benign_task[field]))
                 if field in {"agent_context", "data_seed"}:
@@ -2551,6 +2983,8 @@ def _phase_2a_eligible_tasks(
     site_tasks: list[dict],
     benign_target_resources: dict[str, Any],
     site: str,
+    *,
+    benchmark: str = "webarena_verified",
 ) -> tuple[list[dict], list[dict[str, Any]]]:
     """Split a shard's tasks into (eligible, dropped).
 
@@ -2570,11 +3004,8 @@ def _phase_2a_eligible_tasks(
     """
     from worldsim.editors import EDITOR_REGISTRY
 
-    editor_cls: Any = None
-    for (_benchmark, registered_site), cls in EDITOR_REGISTRY.items():
-        if registered_site == site:
-            editor_cls = cls
-            break
+    benchmark = normalize_benchmark_name(benchmark) or "webarena_verified"
+    editor_cls: Any = EDITOR_REGISTRY.get((benchmark, site))
     supported = getattr(editor_cls, "supported_methods", frozenset()) if editor_cls else frozenset()
 
     eligible: list[dict] = []
@@ -2598,7 +3029,7 @@ def _phase_2a_eligible_tasks(
             )
             continue
 
-        contract = kind_contract(kind, site=site)
+        contract = kind_contract(kind, benchmark=benchmark, site=site)
         site_methods = contract.valid_methods & frozenset(supported)
         if not site_methods:
             dropped.append(
@@ -2607,12 +3038,24 @@ def _phase_2a_eligible_tasks(
                     "kind": kind,
                     "reason": "no_addressable_method_on_site",
                     "anchors": dict(anchors),
-                    "available_tokens": sorted(available_tokens_for_kind(kind, anchors, site=site)),
+                    "available_tokens": sorted(
+                        available_tokens_for_kind(
+                            kind,
+                            anchors,
+                            benchmark=benchmark,
+                            site=site,
+                        )
+                    ),
                 }
             )
             continue
 
-        available = available_tokens_for_kind(kind, anchors, site=site)
+        available = available_tokens_for_kind(
+            kind,
+            anchors,
+            benchmark=benchmark,
+            site=site,
+        )
         identity_only = available == frozenset({"{benign_user_handle}"})
         if identity_only:
             # Is there at least one spec for this kind with a free_text
@@ -2621,7 +3064,7 @@ def _phase_2a_eligible_tasks(
             has_body_route = False
             for method in site_methods:
                 try:
-                    spec = method_spec(site, method)
+                    spec = method_spec(site, method, benchmark=benchmark)
                 except KeyError:
                     continue
                 for arg_name, binding in spec.bindings.items():
@@ -2650,6 +3093,26 @@ def _phase_2a_eligible_tasks(
         eligible.append(task)
 
     return eligible, dropped
+
+
+def _phase_2a_eligible_tasks_for_benchmark(
+    site_tasks: list[dict],
+    benign_target_resources: dict[str, Any],
+    site: str,
+    *,
+    benchmark: str,
+) -> tuple[list[dict], list[dict[str, Any]]]:
+    try:
+        return _phase_2a_eligible_tasks(
+            site_tasks,
+            benign_target_resources,
+            site,
+            benchmark=benchmark,
+        )
+    except TypeError as exc:
+        if "unexpected keyword argument 'benchmark'" not in str(exc):
+            raise
+        return _phase_2a_eligible_tasks(site_tasks, benign_target_resources, site)
 
 
 def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
@@ -2987,7 +3450,11 @@ def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | N
 
     kind = str(resource.get("kind") or "")
     site = _site_for_option_a_plan(plan)
-    contract = kind_contract(kind, site=site)
+    try:
+        benchmark = _benchmark_for_option_a_plan(plan)
+    except ValueError as exc:
+        return f"benchmark metadata is invalid for Option A placement: {exc}"
+    contract = kind_contract(kind, benchmark=benchmark, site=site)
     if not contract.valid_methods:
         return (
             f"kind={kind!r} is not addressable by any registered editor method "
@@ -2996,7 +3463,7 @@ def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | N
 
     anchors_raw = resource.get("anchors")
     anchors = anchors_raw if isinstance(anchors_raw, dict) else {}
-    available = available_tokens_for_kind(kind, anchors, site=site)
+    available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
 
     seed = plan.get("seed_template")
     if not isinstance(seed, dict):
@@ -3016,9 +3483,12 @@ def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | N
             )
 
         try:
-            spec = method_spec(site, method)
+            spec = method_spec(site, method, benchmark=benchmark)
         except KeyError:
-            return f"editor_calls[{idx}].method={method!r} is not registered on site={site!r}"
+            return (
+                f"editor_calls[{idx}].method={method!r} is not registered on "
+                f"benchmark={benchmark!r}, site={site!r}"
+            )
 
         args_raw = call.get("args")
         args = args_raw if isinstance(args_raw, dict) else {}
@@ -3043,6 +3513,14 @@ def _site_for_option_a_plan(plan: dict) -> str:
                     if s in _OPTION_A_SITES:
                         return s
     return ""
+
+
+def _benchmark_for_option_a_plan(plan: dict) -> str:
+    try:
+        benchmark = infer_benchmark_name(_benchmark_values_from_record(plan))
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    return benchmark or "webarena_verified"
 
 
 def _check_spec_bindings(
@@ -3928,7 +4406,7 @@ def _call_delivery_path(call: dict[str, Any]) -> str | None:
         return _url_to_path(url)
     editor_key = _editor_delivery_key(call)
     if editor_key is not None:
-        binding = _EDITOR_DELIVERY_PATHS.get(editor_key)
+        binding = _editor_delivery_binding(call)
         if binding is None:
             return None
         return binding[1]
@@ -3941,7 +4419,7 @@ def _call_delivery_path(call: dict[str, Any]) -> str | None:
 def _call_method(call: dict[str, Any]) -> str | None:
     editor_key = _editor_delivery_key(call)
     if editor_key is not None:
-        binding = _EDITOR_DELIVERY_PATHS.get(editor_key)
+        binding = _editor_delivery_binding(call)
         if binding is None:
             return None
         return binding[0]
@@ -3977,11 +4455,59 @@ def _editor_delivery_key(call: dict[str, Any]) -> tuple[str, str] | None:
     return None
 
 
+def _call_has_benchmark_metadata(call: dict[str, Any]) -> bool:
+    return any(
+        isinstance(call.get(key), str) and str(call.get(key)).strip()
+        for key in ("benchmark", "benchmark_name", "benchmark_adapter")
+    )
+
+
+def _editor_delivery_contract_key(call: dict[str, Any]) -> tuple[str, str, str] | None:
+    benchmark = normalize_benchmark_name(
+        call.get("benchmark") or call.get("benchmark_name") or call.get("benchmark_adapter")
+    )
+    if not benchmark:
+        if _call_has_benchmark_metadata(call):
+            return None
+        benchmark = "webarena_verified"
+    site_name = str(call.get("site", "")).strip().lower()
+    method_name = str(call.get("method", "")).strip()
+    if site_name and method_name and isinstance(call.get("args"), dict):
+        return (benchmark, site_name, method_name)
+    return None
+
+
+def _editor_delivery_binding(call: dict[str, Any]) -> tuple[str, str] | None:
+    contract_key = _editor_delivery_contract_key(call)
+    if contract_key is not None:
+        benchmark, site, method = contract_key
+        try:
+            return method_spec(site, method, benchmark=benchmark).http
+        except KeyError:
+            if _call_has_benchmark_metadata(call) and benchmark != "webarena_verified":
+                return None
+    legacy_key = _editor_delivery_key(call)
+    if legacy_key is not None:
+        return _EDITOR_DELIVERY_PATHS.get(legacy_key)
+    return None
+
+
 def _editor_arg_alias_pairs(call: dict[str, Any]) -> list[tuple[str, str]]:
-    editor_key = _editor_delivery_key(call)
-    if editor_key is None:
-        return []
-    aliases = _EDITOR_BODY_FIELD_ALIASES.get(editor_key)
+    aliases = None
+    contract_key = _editor_delivery_contract_key(call)
+    if contract_key is not None:
+        aliases = _EDITOR_BODY_FIELD_ALIASES_BY_BENCHMARK.get(contract_key)
+        if (
+            aliases is None
+            and _call_has_benchmark_metadata(call)
+            and contract_key[0] != "webarena_verified"
+        ):
+            return []
+    if aliases is None:
+        editor_key = _editor_delivery_key(call)
+        if editor_key is None:
+            return []
+        aliases = _EDITOR_BODY_FIELD_ALIASES.get(editor_key)
     if not isinstance(aliases, dict):
         return []
     return [(str(canonical), str(arg_name)) for canonical, arg_name in aliases.items()]
@@ -3989,8 +4515,12 @@ def _editor_arg_alias_pairs(call: dict[str, Any]) -> list[tuple[str, str]]:
 
 def _editor_arg_name(call: dict[str, Any], canonical_name: str) -> str | None:
     editor_key = _editor_delivery_key(call)
-    if editor_key == ("reddit", "create_comment") and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
+    if (
+        (not _call_has_benchmark_metadata(call) or _editor_delivery_contract_key(call) is not None)
+        and editor_key == ("reddit", "create_comment")
+        and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
         canonical_name
+        )
     ):
         return "body"
     for canonical, arg_name in _editor_arg_alias_pairs(call):
@@ -4000,14 +4530,21 @@ def _editor_arg_name(call: dict[str, Any], canonical_name: str) -> str | None:
 
 
 def _call_delivery_mechanism(seed: dict[str, Any], call: dict[str, Any]) -> str | None:
-    editor_key = _editor_delivery_key(call)
-    if editor_key is not None:
-        if editor_key[0] == "reddit" or editor_key in {
+    if _editor_delivery_binding(call) is not None:
+        editor_key = _editor_delivery_key(call)
+        if editor_key is not None and (editor_key[0] == "reddit" or editor_key in {
             ("shopping", "update_customer_profile"),
             ("shopping_admin", "update_admin_profile"),
-        }:
+        }):
             return "form"
         return "api"
+    contract_key = _editor_delivery_contract_key(call)
+    if (
+        _editor_delivery_key(call) is not None
+        and _call_has_benchmark_metadata(call)
+        and (contract_key is None or contract_key[0] != "webarena_verified")
+    ):
+        return None
     mechanism = seed.get("mechanism")
     if isinstance(mechanism, str) and mechanism in {"api", "form"}:
         return mechanism

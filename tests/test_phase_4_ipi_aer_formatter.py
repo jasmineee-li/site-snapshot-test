@@ -111,7 +111,7 @@ def test_all_five_fields_present_in_response_json():
     out = format_ipi_aer_inline("task", steps)
     import json as _json
 
-    line = [ln for ln in out.splitlines() if ln.startswith("Reasoning and action: ")][0]
+    line = next(ln for ln in out.splitlines() if ln.startswith("Reasoning and action: "))
     blob = line.removeprefix("Reasoning and action: ")
     model_output = _json.loads(blob)
     assert model_output["thinking"] == "T"

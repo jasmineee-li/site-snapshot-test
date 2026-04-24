@@ -12,7 +12,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -220,7 +220,7 @@ def _parse_state_timestamp(value: Any) -> datetime:
         try:
             parsed = datetime.fromisoformat(value)
             if parsed.tzinfo is not None:
-                return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+                return parsed.astimezone(UTC).replace(tzinfo=None)
             return parsed
         except ValueError:
             pass

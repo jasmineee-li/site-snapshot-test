@@ -170,8 +170,8 @@ def test_rendered_character_classified_as_inked(char: str):
 
 @pytest.mark.parametrize("char", [".", "'"])
 def test_tiny_punctuation_classifiable_with_lower_absolute_floor(char: str):
-    """Single-dot punctuation renders as 2–3 pixels in PIL's default bitmap
-    font (vs 3–5 under real Chrome sans-serif). Verify the configurable
+    """Single-dot punctuation renders as 2-3 pixels in PIL's default bitmap
+    font (vs 3-5 under real Chrome sans-serif). Verify the configurable
     ``min_ink_pixels`` parameter works for settings where the proxy renderer
     produces fewer pixels than production."""
     png_bytes, rect = _png_with_glyph(char)

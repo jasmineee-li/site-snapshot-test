@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from worldsim.editors.base import EditorError
@@ -109,6 +111,52 @@ def test_create_project_classifies_duplicate_path_errors_from_response_snippet(m
         editor.create_project(name_template="webagent-verify-1")
 
     assert excinfo.value.kind == "project_already_exists"
+
+
+def test_create_project_reaps_safe_project_after_duplicate_post_error(monkeypatch):
+    editor = _editor()
+    current_user = {"id": 1, "username": "current-user"}
+    existing = {
+        "id": 7,
+        "path_with_namespace": "current-user/webagent-verify-1",
+        "namespace": {"full_path": "current-user"},
+    }
+    seen = {"deleted": False, "post_calls": 0, "find_calls": 0}
+
+    monkeypatch.setattr(editor, "_current_user", lambda: current_user)
+    monkeypatch.setattr(editor, "_gitlab_get_json", lambda path, allow_missing=False: None)
+
+    def fake_find(**kwargs):
+        seen["find_calls"] += 1
+        if seen["find_calls"] == 1:
+            return None
+        return existing
+
+    monkeypatch.setattr(editor, "_find_accessible_project", fake_find)
+    monkeypatch.setattr(
+        editor,
+        "delete_project",
+        lambda project_id: seen.__setitem__("deleted", project_id == 7),
+    )
+
+    def fake_request(method, path, **kwargs):
+        seen["post_calls"] += 1
+        if seen["post_calls"] == 1:
+            raise EditorError(
+                "request_failed",
+                "gitlab editor request for /api/v4/projects returned HTTP 400",
+                http_status=400,
+                response_snippet='{"message":{"path":["has already been taken"]}}',
+            )
+        return {"id": 11, "path_with_namespace": "current-user/webagent-verify-1"}
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_request)
+
+    created = editor.create_project(name_template="webagent-verify-1")
+
+    assert seen["deleted"] is True
+    assert seen["post_calls"] == 2
+    assert created["project_id"] == 11
 
 
 def test_create_project_rejects_preexisting_accessible_project(monkeypatch):

@@ -205,7 +205,7 @@ def _load_upstream_format_xml():
 
 
 def test_matches_upstream_format_xml_across_all_message_shapes() -> None:
-    upstream_format_xml_msg, upstream_format_xml = _load_upstream_format_xml()
+    _upstream_format_xml_msg, upstream_format_xml = _load_upstream_format_xml()
     from inspect_ai.model import (  # type: ignore[import-not-found]
         ChatMessageAssistant,
         ChatMessageSystem,

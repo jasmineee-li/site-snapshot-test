@@ -14,6 +14,7 @@ def build_mode_a_tasks(
     manifest: dict[str, Any],
     benchmark_root: Path,
     profiles_dir: Path | None = None,
+    benchmark: str | None = None,
 ) -> list[dict[str, Any]]:
     """Load raw benchmark tasks and wrap them into benign task bundles.
 
@@ -24,7 +25,7 @@ def build_mode_a_tasks(
     """
     agent_contexts = _load_agent_contexts(profiles_dir) if profiles_dir else {}
     return [
-        _wrap_task(task, agent_contexts=agent_contexts)
+        _wrap_task(task, agent_contexts=agent_contexts, benchmark=benchmark)
         for task in _load_raw_tasks(manifest, benchmark_root)
     ]
 
@@ -78,6 +79,7 @@ def _load_raw_tasks(manifest: dict[str, Any], benchmark_root: Path) -> list[dict
 def _wrap_task(
     raw: dict[str, Any],
     agent_contexts: dict[str, dict[str, Any]] | None = None,
+    benchmark: str | None = None,
 ) -> dict[str, Any]:
     """Wrap a single benchmark task into the benign task bundle schema."""
     task_id = raw.get("task_id")
@@ -107,6 +109,8 @@ def _wrap_task(
         "intent_template_id": raw.get("intent_template_id"),
         "revision": raw.get("revision"),
     }
+    if benchmark:
+        wrapped["benchmark"] = benchmark
     if "instantiation_dict" in raw:
         wrapped["instantiation_dict"] = json.loads(json.dumps(raw["instantiation_dict"]))
 

@@ -293,6 +293,12 @@ class GitlabEditor(BaseSiteEditor):
                         f"/api/v4/projects/{self._quote(project_path)}",
                         allow_missing=True,
                     )
+                    if not isinstance(existing, dict):
+                        existing = self._find_accessible_project(
+                            current_user=current_user,
+                            leaf_name=leaf_name,
+                            expected_path=project_path,
+                        )
                     if isinstance(existing, dict) and self._should_reap_preexisting_project(
                         project_path,
                         existing,
@@ -314,7 +320,8 @@ class GitlabEditor(BaseSiteEditor):
                         raise classified from exc
                 else:
                     raise classified from exc
-            raise
+            else:
+                raise
         if not isinstance(project, dict):
             raise EditorError(
                 "invalid_project_create", "gitlab project create returned invalid payload"

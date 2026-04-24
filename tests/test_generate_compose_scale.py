@@ -134,6 +134,7 @@ def test_generate_compose_scale_preserves_runtime_contract(tmp_path: Path) -> No
     ]
 
     shopping_0, shopping_1 = instances[:2]
+    assert all(instance["benchmark_name"] == "WebArena Verified" for instance in instances)
     assert shopping_0["site_url"] == "http://203.0.113.10:7770"
     assert shopping_0["reset_endpoint"] == "http://203.0.113.10:7771/init"
     assert shopping_0["pvpo_cdp_url"] == "http://127.0.0.1:9222"

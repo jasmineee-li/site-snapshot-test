@@ -11,6 +11,7 @@
   },
   "instances": [
     {
+      "benchmark_name": "WebArena Verified",
       "site_name": "gitlab",
       "site_url": "http://3.12.221.9:8023",
       "reset_endpoint": "http://3.12.221.9:8024/init",
@@ -45,6 +46,7 @@
       }
     },
     {
+      "benchmark_name": "WebArena Verified",
       "site_name": "reddit",
       "site_url": "http://3.12.221.9:9900",
       "reset_endpoint": "http://3.12.221.9:9901/init",

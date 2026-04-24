@@ -24,9 +24,9 @@ import logging
 import re
 import threading
 import time
-from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 
@@ -544,7 +544,7 @@ def acquire_tokens_for_instances(
             except Exception as exc:
                 resolution_errors[cache_key] = str(exc)
 
-    for instance, field, site_url, site_name, auth, cache_key in requirements:
+    for instance, field, site_url, site_name, _auth, cache_key in requirements:
         token = resolved_tokens.get(cache_key)
         if token is None:
             message = resolution_errors[cache_key]

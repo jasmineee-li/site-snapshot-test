@@ -1096,7 +1096,7 @@ async def _profile_one_site_tiered(
         # Extract validated Tier 1 outputs
         tier1_names = ["verification-capabilities", "data-model", "agent-context"]
         tier1_parsed: list[Any] = []
-        for result, name in zip(tier1_results, tier1_names):
+        for result, name in zip(tier1_results, tier1_names, strict=False):
             if isinstance(result, Exception):
                 raise RuntimeError(
                     f"Tier 1 sandbox {name} for site {site_name} failed: {result}"

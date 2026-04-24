@@ -409,20 +409,22 @@ def build_instances_config(
     placeholder_map = _generated_placeholder_map(records, orchestrator_host)
 
     instances: list[dict[str, Any]] = []
+    instance_benchmark = output.get("benchmark_name") or output.get("benchmark")
     for offset, rec in enumerate(records):
         site_name = rec["site_name"]
         base_instance = by_site.get(site_name)
         if base_instance is None:
             raise ValueError(f"scale config site {site_name!r} missing from base config instances")
-        instances.append(
-            _clone_instance(
-                base_instance,
-                rec,
-                orchestrator_host=orchestrator_host,
-                placeholder_map=placeholder_map,
-                pvpo_cdp_port=PVPO_CDP_PORT_BASE + offset,
-            )
+        instance = _clone_instance(
+            base_instance,
+            rec,
+            orchestrator_host=orchestrator_host,
+            placeholder_map=placeholder_map,
+            pvpo_cdp_port=PVPO_CDP_PORT_BASE + offset,
         )
+        if isinstance(instance_benchmark, str) and instance_benchmark.strip():
+            instance["benchmark_name"] = instance_benchmark.strip()
+        instances.append(instance)
 
     if emit_verification_proxy:
         verification_proxy = output.get("verification_proxy")

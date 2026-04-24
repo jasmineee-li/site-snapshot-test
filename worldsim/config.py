@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -239,6 +240,10 @@ class BenchmarkInstance(BaseModel):
     ``worldsim.eval_worker_pool.run_eval``.
     """
 
+    benchmark_name: str | None = Field(
+        None,
+        description="Canonical benchmark metadata stamped from BenchmarkConfig.benchmark_name.",
+    )
     site_name: str = Field(..., description="E.g. 'shopping', 'forum', 'gitlab'.")
     site_url: str = Field(..., description="Base URL of the running service.")
     replica_index: int | None = Field(
@@ -291,6 +296,14 @@ class BenchmarkInstance(BaseModel):
         if value is None:
             return None
         parse_supported_db_connection(value, purpose="BenchmarkInstance.db_connection")
+        return value.strip()
+
+    @field_validator("site_url")
+    @classmethod
+    def _validate_site_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("BenchmarkInstance.site_url must not include credentials")
         return value.strip()
 
     @field_validator("auth", "api_auth")
@@ -375,6 +388,9 @@ class BenchmarkConfig(BaseModel):
     def _require_non_empty_instances(self) -> BenchmarkConfig:
         if not self.instances:
             raise ValueError("BenchmarkConfig.instances must contain at least one instance")
+        for instance in self.instances:
+            if not instance.benchmark_name:
+                instance.benchmark_name = self.benchmark_name
         return self
 
     @model_validator(mode="after")

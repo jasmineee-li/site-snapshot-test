@@ -145,7 +145,11 @@ def test_feasibility_policy_task(site, live_instance, tmp_path):
 def test_feasibility_concurrency_batch(live_config, tmp_path):
     """Submit one good task per site, run with concurrency>=4, expect all
     verified and cleanup residue = 0."""
-    instances_by_site = {inst.site_name: inst.model_dump() for inst in live_config.instances}
+    instances_by_site = {}
+    for inst in live_config.instances:
+        payload = inst.model_dump()
+        payload["benchmark"] = live_config.benchmark_name or "webarena_verified"
+        instances_by_site[inst.site_name] = payload
     tasks: list[dict[str, Any]] = []
     live_instances: list[dict[str, Any]] = []
     for site in ("gitlab", "reddit", "shopping", "shopping_admin"):

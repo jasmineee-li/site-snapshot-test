@@ -26,7 +26,6 @@ from worldsim.phases.phase_2_target_resolver import (
     _benign_probe_instance,
     _call_anthropic_classifier,
     _default_listing_probe,
-    _default_probe,
     resolve_l3,
     resolve_l4,
 )
@@ -73,7 +72,7 @@ def reddit_placeholders(live_instance):
 
 @_SKIP_NO_CREDS
 async def test_live_l3_classifier_round_trips_gitlab_intent(gitlab_placeholders):
-    instance, placeholders = gitlab_placeholders
+    _instance, placeholders = gitlab_placeholders
     task = {
         "id": "live-l3-1",
         "sites": ["gitlab"],
@@ -199,7 +198,7 @@ async def test_live_l4_lists_reddit_forum_submissions(reddit_placeholders):
 async def test_live_l3_classifier_handles_pure_action_as_null_kind(
     gitlab_placeholders,
 ):
-    instance, placeholders = gitlab_placeholders
+    _instance, placeholders = gitlab_placeholders
     task = {
         "id": "live-l3-3",
         "sites": ["gitlab"],

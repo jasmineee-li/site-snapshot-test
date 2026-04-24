@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from worldsim.benchmark_capabilities import get_benchmark_capabilities
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.phases.phase_1_mode_a import build_mode_a_tasks
 from worldsim.phases.phase_1_mode_b import (
@@ -96,6 +97,19 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
         )
         return 1
+    try:
+        benchmark_name = _manifest_benchmark_name(manifest)
+    except ValueError as exc:
+        logger.error("Phase 1 benchmark gate failed: %s", exc)
+        _save_phase_1_failure_state(
+            reason="unsupported_benchmark",
+            benchmark_root=benchmark_root,
+            manifest_path=Path(manifest_path),
+            generate_novel=generate_novel,
+            sandbox_model=sandbox_model,
+            error=str(exc),
+        )
+        return 1
 
     output_path = output_dir / "benign_tasks.json"
     resume_metadata_path = output_dir / MODE_B_RESUME_METADATA_PATH
@@ -103,12 +117,18 @@ async def run(args: argparse.Namespace) -> int:
     _save_phase_1_running_state(
         benchmark_root=benchmark_root,
         manifest_path=Path(manifest_path),
+        benchmark_name=benchmark_name,
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
     )
 
     profiles_dir = get_state_dir() / "phase_0c"
-    mode_a_tasks = build_mode_a_tasks(manifest, benchmark_root, profiles_dir=profiles_dir)
+    mode_a_tasks = build_mode_a_tasks(
+        manifest,
+        benchmark_root,
+        profiles_dir=profiles_dir,
+        benchmark=benchmark_name,
+    )
     if not mode_a_tasks:
         logger.error("No tasks found in benchmark — check manifest task_definition_paths")
         _save_phase_1_failure_state(
@@ -137,6 +157,7 @@ async def run(args: argparse.Namespace) -> int:
         )
         if novel_tasks is None:
             return 1
+        novel_tasks = _stamp_benchmark_metadata(novel_tasks, benchmark_name)
 
     benign_tasks = _merge_benign_tasks(mode_a_tasks, novel_tasks)
     output_path.write_text(json.dumps(benign_tasks, indent=2))
@@ -156,6 +177,7 @@ async def run(args: argparse.Namespace) -> int:
         mode_a_task_count=len(mode_a_tasks),
         novel_task_count=len(novel_tasks),
         benchmark_path=str(benchmark_root),
+        benchmark_name=benchmark_name,
         manifest_path=str(manifest_path),
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
@@ -200,10 +222,34 @@ def _resolve_benchmark_root(
     return benchmark_root
 
 
+def _manifest_benchmark_name(manifest: dict[str, Any]) -> str:
+    for key in ("benchmark_name", "benchmark", "benchmark_adapter"):
+        raw = manifest.get(key)
+        if isinstance(raw, str) and raw.strip():
+            capabilities = get_benchmark_capabilities(raw)
+            if not capabilities.phase_1_supported:
+                raise ValueError(f"benchmark {capabilities.canonical_name!r} does not support Phase 1")
+            return capabilities.canonical_name
+    raise ValueError("Phase 0a manifest is missing benchmark metadata")
+
+
+def _stamp_benchmark_metadata(
+    tasks: list[dict[str, Any]],
+    benchmark_name: str,
+) -> list[dict[str, Any]]:
+    stamped: list[dict[str, Any]] = []
+    for task in tasks:
+        item = json.loads(json.dumps(task))
+        item["benchmark"] = benchmark_name
+        stamped.append(item)
+    return stamped
+
+
 def _save_phase_1_running_state(
     *,
     benchmark_root: Path,
     manifest_path: Path,
+    benchmark_name: str,
     generate_novel: bool,
     sandbox_model: str,
 ) -> None:
@@ -212,6 +258,7 @@ def _save_phase_1_running_state(
         "phase_1",
         status="running",
         benchmark_path=str(benchmark_root),
+        benchmark_name=benchmark_name,
         manifest_path=str(manifest_path),
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,

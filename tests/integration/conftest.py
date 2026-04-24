@@ -170,7 +170,11 @@ def live_config() -> BenchmarkConfig:
 
 @pytest.fixture
 def live_instance(live_config: BenchmarkConfig):
-    by_site = {instance.site_name: instance.model_dump() for instance in live_config.instances}
+    by_site = {}
+    for instance in live_config.instances:
+        payload = instance.model_dump()
+        payload["benchmark"] = live_config.benchmark_name or "webarena_verified"
+        by_site[instance.site_name] = payload
 
     def _get(site_name: str) -> dict[str, object]:
         payload = by_site.get(site_name)

@@ -232,6 +232,36 @@ class TestResolveAuth:
         with pytest.raises(AuthArtifactMissingError, match="outside benchmark root"):
             _resolve_auth(auth, task=None, benchmark_root=bench)
 
+    def test_storage_state_rejects_host_bound_cookie_for_other_site(self, tmp_path: Path):
+        artifact = tmp_path / "state.json"
+        artifact.write_text(
+            json.dumps(
+                {
+                    "cookies": [
+                        {
+                            "name": "session",
+                            "value": "abc",
+                            "domain": "old-gitlab.test",
+                            "path": "/",
+                        }
+                    ],
+                    "origins": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        auth = {
+            "type": "storage_state",
+            "storage_state": {"path": str(artifact)},
+        }
+        with pytest.raises(AuthArtifactMissingError, match="do not match live host"):
+            _resolve_auth(
+                auth,
+                task=None,
+                benchmark_root=None,
+                site_url="http://gitlab.test",
+            )
+
     def test_storage_state_missing_raises(self, tmp_path: Path):
         auth = {
             "type": "storage_state",

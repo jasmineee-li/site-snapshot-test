@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Any
 
+from worldsim.benchmark_capabilities import normalize_benchmark_name
 from worldsim.editors._method_spec import BindingSpec
 
 
@@ -84,7 +85,7 @@ def register_editor(cls: type, site: str, *, benchmark: str = "webarena_verified
                 f"@editor_method decorator — either decorate it or remove it from "
                 f"supported_methods"
             )
-        benchmark_key = benchmark.strip().lower()
+        benchmark_key = normalize_benchmark_name(benchmark)
         site_key = site.strip().lower()
         key = (benchmark_key, site_key, method_name)
         if key in _REGISTRY:
@@ -120,7 +121,7 @@ def method_spec(
 
     Raises :class:`KeyError` if unknown.
     """
-    return _REGISTRY[(benchmark.strip().lower(), site.strip().lower(), method)]
+    return _REGISTRY[(normalize_benchmark_name(benchmark), site.strip().lower(), method)]
 
 
 @cache
@@ -136,7 +137,7 @@ def kind_contract(
     contracts from another benchmark cannot bleed into a same-named
     site/kind.
     """
-    benchmark_key = benchmark.strip().lower()
+    benchmark_key = normalize_benchmark_name(benchmark)
     site_key = site.strip().lower() if isinstance(site, str) and site.strip() else None
     valid_methods: set[str] = set()
     available: set[str] = set(IDENTITY_TOKENS)
@@ -182,7 +183,7 @@ def attach_surfaces_for_kind(
     dicts, one per ``(site, method)`` addressing ``kind``, each with
     ``surface_id``, ``attach_method``, ``required_editor_args``.
     """
-    benchmark_key = benchmark.strip().lower()
+    benchmark_key = normalize_benchmark_name(benchmark)
     site_key = site.strip().lower() if isinstance(site, str) and site.strip() else None
     out: list[dict[str, Any]] = []
     for (_benchmark, _site, method), spec in _REGISTRY.items():
@@ -229,7 +230,7 @@ def iter_specs(
     benchmark: str = "webarena_verified",
 ) -> Iterator[EditorMethodSpec]:
     """Iterate registered specs, optionally filtered by site and/or kinds."""
-    benchmark_key = benchmark.strip().lower()
+    benchmark_key = normalize_benchmark_name(benchmark)
     site_key = site.strip().lower() if isinstance(site, str) and site.strip() else None
     for spec in _REGISTRY.values():
         if spec.benchmark != benchmark_key:

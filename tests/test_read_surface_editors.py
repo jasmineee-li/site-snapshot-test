@@ -9,7 +9,7 @@ Phase 4 task via ``(handle, metadata)`` tuple return.
 from __future__ import annotations
 
 import types
-from typing import Any
+from typing import Any, ClassVar
 
 from worldsim import seeding
 from worldsim.editors._read_surface import (
@@ -206,7 +206,7 @@ class _RecordingFakeEditor:
 
     site_name = "reddit"
     supported_methods = frozenset({"create_submission", "create_comment"})
-    instances: list[_RecordingFakeEditor] = []
+    instances: ClassVar[list[_RecordingFakeEditor]] = []
 
     def __init__(self, instance: dict[str, Any], session: Any) -> None:
         self.instance = instance

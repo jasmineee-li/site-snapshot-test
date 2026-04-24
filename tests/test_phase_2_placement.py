@@ -336,6 +336,14 @@ class TestRegistryValidator:
         assert reason is not None
         assert "kind_not_registered" in reason
 
+    def test_rejects_mixed_benchmark_metadata(self) -> None:
+        plan = _base_gitlab_plan()
+        plan["benchmark"] = "wasp"
+        plan["seed_template"]["editor_calls"][0]["benchmark"] = "webarena_verified"
+        reason = phase_2_injections._validate_option_a_placement_registry(plan, "plan")
+        assert reason is not None
+        assert "benchmark metadata is invalid" in reason
+
     def test_rejects_empty_selector_group(self) -> None:
         """If neither project_id nor project_path_template nor
         project_name_template is populated, the project selector group is

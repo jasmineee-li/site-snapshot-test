@@ -30,6 +30,7 @@ from typing import Any
 
 import requests
 
+from worldsim.benchmark_capabilities import infer_benchmark_name, normalize_benchmark_name
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.placeholders import apply_placeholders, merge_placeholder_maps
@@ -293,12 +294,11 @@ def _validate_editor_calls(editor_calls: Any) -> None:
         method_name = method.strip()
         if method_name.startswith("_"):
             raise ValueError("editor_calls method must not be private")
-        editor_cls = EDITOR_REGISTRY.get(
-            ((benchmark or "webarena_verified").strip(), site.strip().lower())
-        )
+        benchmark_key = normalize_benchmark_name(benchmark or "webarena_verified")
+        editor_cls = EDITOR_REGISTRY.get((benchmark_key, site.strip().lower()))
         if editor_cls is not None and method_name not in editor_cls.supported_methods:
             raise ValueError(
-                f"editor_calls method {method_name!r} is not supported for {(benchmark or 'webarena_verified', site.strip().lower())!r}"
+                f"editor_calls method {method_name!r} is not supported for {(benchmark_key, site.strip().lower())!r}"
             )
         _validate_untrusted_selector_args(site.strip().lower(), args)
 
@@ -706,7 +706,11 @@ def _assert_benign_tokens_bound(value: Any, task: Any) -> None:
     from worldsim.editors._registry import available_tokens_for_kind
 
     site = str(task.get("site") or "").strip().lower() or None
-    available = available_tokens_for_kind(kind, anchors, site=site)
+    try:
+        benchmark = _infer_task_benchmark(task)
+    except ValueError as exc:
+        raise ValueError(f"seed token contract benchmark metadata is invalid: {exc}") from exc
+    available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
     for token in sorted(tokens_referenced):
         if token not in available:
             task_id = task.get("id") or task.get("benign_task_id") or "unknown"
@@ -796,7 +800,7 @@ def _get_editor_for_seed_call(
     session: requests.Session,
     editor_instances: dict[tuple[str, str], Any],
 ) -> Any:
-    benchmark = str(call.get("benchmark") or "webarena_verified").strip().lower()
+    benchmark = _infer_editor_call_benchmark(call, instance)
     site = str(call.get("site") or instance.get("site_name") or "").strip().lower()
     instance_site = str(instance.get("site_name") or "").strip().lower()
     if site and instance_site and site != instance_site:
@@ -817,6 +821,47 @@ def _get_editor_for_seed_call(
     editor = editor_cls(instance, session)
     editor_instances[key] = editor
     return editor
+
+
+def _infer_editor_call_benchmark(call: dict[str, Any], instance: dict[str, Any]) -> str:
+    try:
+        benchmark = infer_benchmark_name(
+            (
+                call.get("benchmark"),
+                call.get("benchmark_name"),
+                call.get("benchmark_adapter"),
+                instance.get("benchmark"),
+                instance.get("benchmark_name"),
+                instance.get("benchmark_adapter"),
+            )
+        )
+    except ValueError as exc:
+        raise EditorError("benchmark_mismatch", str(exc)) from exc
+    if benchmark is not None:
+        return benchmark
+    return normalize_benchmark_name("webarena_verified")
+
+
+def _infer_task_benchmark(task: dict[str, Any]) -> str:
+    values: list[Any] = [
+        task.get("benchmark"),
+        task.get("benchmark_name"),
+        task.get("benchmark_adapter"),
+    ]
+    seed = task.get("adversarial_data_seed")
+    calls = seed.get("editor_calls") if isinstance(seed, dict) else None
+    if isinstance(calls, list):
+        for call in calls:
+            if isinstance(call, dict):
+                values.extend(
+                    (
+                        call.get("benchmark"),
+                        call.get("benchmark_name"),
+                        call.get("benchmark_adapter"),
+                    )
+                )
+    benchmark = infer_benchmark_name(values)
+    return benchmark or normalize_benchmark_name("webarena_verified")
 
 
 def _apply_editor_seed_call(

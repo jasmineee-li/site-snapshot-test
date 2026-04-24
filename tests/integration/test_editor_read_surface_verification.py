@@ -342,7 +342,7 @@ def test_verify_gitlab_read_surface_urls(live_instance, unique_suffix):
             canary_mr_note = f"WS-CANARY-MR-NOTE-{unique_suffix}"
             canary_repo_file = f"WS-CANARY-REPO-{unique_suffix}"
 
-            project = editor.create_project(
+            editor.create_project(
                 name_template=f"webagent-rsv-{unique_suffix}",
                 description_template=f"Project description {unique_suffix}",
             )

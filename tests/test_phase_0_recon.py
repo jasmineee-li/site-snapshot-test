@@ -580,9 +580,7 @@ def test_load_phase_0c_instances_rejects_invalid_config_shape(tmp_path):
 
 def test_build_instance_site_url_map_rejects_sensitive_site_urls():
     with pytest.raises(ValueError, match="must not include credentials"):
-        phase_0_recon._build_instance_site_url_map(
-            [BenchmarkInstance(site_name="shopping", site_url="http://user:pass@shopping.test")]
-        )
+        BenchmarkInstance(site_name="shopping", site_url="http://user:pass@shopping.test")
 
 
 def test_sanitize_instance_site_url_canonicalizes_equivalent_origins():

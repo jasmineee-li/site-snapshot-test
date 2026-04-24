@@ -47,13 +47,32 @@ by the caller.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
-import re
 import time
-from dataclasses import dataclass
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
+from worldsim.benchmark_capabilities import normalize_benchmark_name
+from worldsim.phase_2c.policy import (
+    PreflightClassification,
+    ProbeTarget,
+    get_feasibility_policy,
+)
+from worldsim.phase_2c.webarena import (
+    DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO,
+    WebArenaFeasibilityPolicy,
+    classify_webarena_probe,
+    clean_gitlab_project_path,
+    dedupe_targets,
+    editor_surface_path,
+    first_value,
+    location_is_login,
+    looks_like_login_stub,
+    render_anchor_tokens,
+    task_probe_url,
+)
 from worldsim.phases.phase_2_reachability import resolve_start_url
 
 logger = logging.getLogger(__name__)
@@ -63,76 +82,14 @@ logger = logging.getLogger(__name__)
 # 30 s so a transient timeout here does NOT quarantine.
 DEFAULT_PREFLIGHT_CONCURRENCY = 16
 DEFAULT_PREFLIGHT_TIMEOUT_S = 5.0
-DEFAULT_LOGIN_REDIRECT_BAILOUT_RATIO = 0.5
-
-_AUTH_SELF_TEST_PATHS: dict[str, str] = {
-    # Browser-facing session check: unauthenticated users redirect to
-    # /users/sign_in, while a live cookie jar reaches the profile page.
-    "gitlab": "/-/profile",
-}
-
-# Body markers indicating the 200-response is actually a login page
-# (GitLab + Postmill share most of these; we keep substrings short and
-# attribute-anchored so a README that mentions "sign in" does not
-# false-trip).
-_LOGIN_STUB_MARKERS: tuple[str, ...] = (
-    'action="/users/sign_in"',
-    'name="user[login]"',
-    'name="user[email]"',
-    "/users/sign_up",
-)
-_LOGIN_STUB_BODY_SIZE_LIMIT = 600
-
-# Location headers that unambiguously route the benign user to a sign-in
-# page.
-_LOGIN_REDIRECT_LOCATION_MARKERS: tuple[str, ...] = (
-    "/users/sign_in",
-    "/users/sign_up",
-    "/login",
-    "/auth/sign_in",
-)
-
-
-@dataclass(frozen=True)
-class PreflightClassification:
-    """Outcome of a single URL probe. ``quarantine=False`` means the
-    task goes to the normal infeasible / verified pipeline."""
-
-    kind: str  # e.g. "login_redirect", "not_found", "probe_timeout"
-    quarantine: bool
-    http_status: int | None
-    detail: str
-
-
-@dataclass(frozen=True)
-class ProbeTarget:
-    url: str
-    source: str
-
-
-_BENIGN_TOKEN_RE = re.compile(r"\{benign_([A-Za-z0-9_]+)\}")
 
 
 def _looks_like_login_stub(body: str) -> bool:
-    if not body:
-        return False
-    lowered = body.lower()
-    for marker in _LOGIN_STUB_MARKERS:
-        if marker.lower() in lowered:
-            return True
-    # Short bodies matching "Sign in" are a strong signal but we keep
-    # the body-size gate so a long legit page mentioning "sign in" in
-    # prose does not trip.
-    if len(body) <= _LOGIN_STUB_BODY_SIZE_LIMIT and "sign in" in lowered:
-        return True
-    return False
+    return looks_like_login_stub(body)
 
 
 def _location_is_login(location: str | None) -> bool:
-    if not location:
-        return False
-    lower = location.lower()
-    return any(marker in lower for marker in _LOGIN_REDIRECT_LOCATION_MARKERS)
+    return location_is_login(location)
 
 
 def _classify_probe(
@@ -142,133 +99,20 @@ def _classify_probe(
     body_snippet: str,
     exception_name: str | None,
 ) -> PreflightClassification:
-    if exception_name:
-        name = exception_name.lower()
-        if "timeout" in name:
-            return PreflightClassification(
-                kind="probe_timeout",
-                quarantine=False,
-                http_status=None,
-                detail=f"preflight probe timed out ({exception_name})",
-            )
-        return PreflightClassification(
-            kind="host_unreachable",
-            quarantine=False,
-            http_status=None,
-            detail=f"preflight probe raised {exception_name}",
-        )
-    if status is None:
-        return PreflightClassification(
-            kind="host_unreachable",
-            quarantine=False,
-            http_status=None,
-            detail="preflight probe returned no status",
-        )
-    if status == 200:
-        if _looks_like_login_stub(body_snippet):
-            return PreflightClassification(
-                kind="login_redirect",
-                quarantine=True,
-                http_status=200,
-                detail=("200 with login-stub markers — benign user cannot reach this surface"),
-            )
-        return PreflightClassification(
-            kind="reachable",
-            quarantine=False,
-            http_status=200,
-            detail="200 OK",
-        )
-    if 300 <= status < 400:
-        # Playwright lowercases all response header names, so ``location``
-        # is the only key that ever appears. Keeping the fallback to the
-        # raw spelling would look defensive but is dead in practice and
-        # obscures the invariant — Playwright's header contract.
-        location = headers.get("location") if headers else None
-        if _location_is_login(location):
-            return PreflightClassification(
-                kind="login_redirect",
-                quarantine=True,
-                http_status=status,
-                detail=f"{status} redirect to {location}",
-            )
-        return PreflightClassification(
-            kind="redirect_noncritical",
-            quarantine=False,
-            http_status=status,
-            detail=f"{status} redirect (non-login)",
-        )
-    if status == 401:
-        return PreflightClassification(
-            kind="auth_missing",
-            quarantine=True,
-            http_status=status,
-            detail="401 Unauthorized — benign storage_state did not authenticate",
-        )
-    if status == 403:
-        return PreflightClassification(
-            kind="forbidden",
-            quarantine=True,
-            http_status=status,
-            detail="403 Forbidden — benign user lacks permission for this surface",
-        )
-    if status == 404:
-        return PreflightClassification(
-            kind="not_found",
-            quarantine=True,
-            http_status=status,
-            detail="404 Not Found — stale L4 anchor or deleted resource",
-        )
-    if status == 410:
-        return PreflightClassification(
-            kind="gone",
-            quarantine=True,
-            http_status=status,
-            detail="410 Gone — resource permanently removed",
-        )
-    if status == 429:
-        return PreflightClassification(
-            kind="rate_limited",
-            quarantine=False,
-            http_status=status,
-            detail="429 Too Many Requests — transient",
-        )
-    if 500 <= status < 600:
-        return PreflightClassification(
-            kind="server_error",
-            quarantine=False,
-            http_status=status,
-            detail=f"{status} server error — transient",
-        )
-    return PreflightClassification(
-        kind="unexpected_status",
-        quarantine=False,
-        http_status=status,
-        detail=f"unexpected HTTP {status}",
+    return classify_webarena_probe(
+        status=status,
+        headers=headers,
+        body_snippet=body_snippet,
+        exception_name=exception_name,
     )
 
 
 def _task_probe_url(task: dict[str, Any], instance_site_url: str) -> str | None:
-    target = task.get("benign_target_resource")
-    if not isinstance(target, dict):
-        return None
-    start_url = target.get("start_url_resolved")
-    if not isinstance(start_url, str) or not start_url.strip():
-        return None
-    return resolve_start_url(start_url, instance_site_url)
+    return task_probe_url(task, instance_site_url)
 
 
 def _render_anchor_tokens(value: Any, anchors: dict[str, Any]) -> str | None:
-    if value in (None, ""):
-        return None
-    text = str(value)
-
-    def repl(match: re.Match[str]) -> str:
-        key = match.group(1)
-        replacement = anchors.get(key)
-        return "" if replacement is None else str(replacement)
-
-    rendered = _BENIGN_TOKEN_RE.sub(repl, text).strip()
-    return rendered or None
+    return render_anchor_tokens(value, anchors)
 
 
 def _first_value(
@@ -276,22 +120,11 @@ def _first_value(
     anchors: dict[str, Any],
     *names: str,
 ) -> str | None:
-    for name in names:
-        if name in args:
-            rendered = _render_anchor_tokens(args.get(name), anchors)
-            if rendered:
-                return rendered
-        rendered = _render_anchor_tokens(anchors.get(name), anchors)
-        if rendered:
-            return rendered
-    return None
+    return first_value(args, anchors, *names)
 
 
 def _clean_gitlab_project_path(project_path: str) -> str:
-    path = project_path.strip().strip("/")
-    if "/" in path and path.split("/", 1)[0].startswith("localhost:"):
-        return path.split("/", 1)[1]
-    return path
+    return clean_gitlab_project_path(project_path)
 
 
 def _editor_surface_path(
@@ -301,88 +134,17 @@ def _editor_surface_path(
     args: dict[str, Any],
     anchors: dict[str, Any],
 ) -> str | None:
-    if site == "reddit":
-        if method == "create_comment":
-            forum = _first_value(args, anchors, "forum_name")
-            submission = _first_value(args, anchors, "submission_id")
-            if forum and submission:
-                return f"/f/{quote(forum, safe='')}/{quote(submission, safe='')}"
-        if method == "create_submission":
-            forum = _first_value(args, anchors, "forum_name")
-            if forum:
-                return f"/submit/{quote(forum, safe='')}"
-        return None
-
-    if site == "gitlab":
-        project_path = _first_value(
-            args,
-            anchors,
-            "project_path",
-            "project_path_template",
-        )
-        if not project_path:
-            return None
-        project_path = _clean_gitlab_project_path(project_path)
-        if method == "create_issue_note":
-            issue_iid = _first_value(args, anchors, "issue_iid")
-            if issue_iid:
-                return f"/{project_path}/-/issues/{quote(issue_iid, safe='')}"
-        if method == "create_mr_note":
-            mr_iid = _first_value(args, anchors, "mr_iid")
-            if mr_iid:
-                return f"/{project_path}/-/merge_requests/{quote(mr_iid, safe='')}"
-        if method == "create_repo_file":
-            branch = _first_value(args, anchors, "branch") or "main"
-            file_path = _first_value(args, anchors, "path")
-            if file_path:
-                quoted_file = "/".join(quote(part, safe="") for part in file_path.split("/"))
-                return f"/{project_path}/-/blob/{quote(branch, safe='')}/{quoted_file}"
-    return None
+    return editor_surface_path(site=site, method=method, args=args, anchors=anchors)
 
 
 def _task_probe_targets(task: dict[str, Any], instance_site_url: str) -> list[ProbeTarget]:
-    targets: list[ProbeTarget] = []
-    start_url = _task_probe_url(task, instance_site_url)
-    if start_url:
-        targets.append(ProbeTarget(url=start_url, source="benign_start_url"))
-
-    resource = task.get("benign_target_resource")
-    anchors_raw = resource.get("anchors") if isinstance(resource, dict) else None
-    anchors = anchors_raw if isinstance(anchors_raw, dict) else {}
-    seed = task.get("adversarial_data_seed")
-    calls = seed.get("editor_calls") if isinstance(seed, dict) else None
-    if not isinstance(calls, list):
-        return _dedupe_targets(targets)
-
-    task_site = str(task.get("site") or "").strip().lower()
-    for index, call in enumerate(calls):
-        if not isinstance(call, dict):
-            continue
-        site = str(call.get("site") or task_site).strip().lower()
-        method = str(call.get("method") or "").strip()
-        args = call.get("args")
-        if not method or not isinstance(args, dict):
-            continue
-        path = _editor_surface_path(site=site, method=method, args=args, anchors=anchors)
-        if path:
-            targets.append(
-                ProbeTarget(
-                    url=resolve_start_url(path, instance_site_url),
-                    source=f"editor_call[{index}].{site}.{method}",
-                )
-            )
-    return _dedupe_targets(targets)
+    return WebArenaFeasibilityPolicy(site=str(task.get("site") or "")).probe_targets(
+        task, instance_site_url
+    )
 
 
 def _dedupe_targets(targets: list[ProbeTarget]) -> list[ProbeTarget]:
-    deduped: list[ProbeTarget] = []
-    seen: set[str] = set()
-    for target in targets:
-        if target.url in seen:
-            continue
-        seen.add(target.url)
-        deduped.append(target)
-    return deduped
+    return dedupe_targets(targets)
 
 
 async def _probe_one(
@@ -390,6 +152,7 @@ async def _probe_one(
     request_context: Any,
     url: str,
     timeout_s: float,
+    policy: Any | None = None,
 ) -> PreflightClassification:
     try:
         response = await request_context.get(
@@ -398,7 +161,8 @@ async def _probe_one(
             max_redirects=0,
         )
     except Exception as exc:
-        return _classify_probe(
+        classifier = policy.classify_probe if policy is not None else _classify_probe
+        return classifier(
             status=None,
             headers=None,
             body_snippet="",
@@ -430,7 +194,8 @@ async def _probe_one(
         await response.dispose()
     except Exception:
         pass
-    return _classify_probe(
+    classifier = policy.classify_probe if policy is not None else _classify_probe
+    return classifier(
         status=status,
         headers=headers,
         body_snippet=body_snippet,
@@ -440,7 +205,8 @@ async def _probe_one(
 
 def auth_self_test_path(site: str) -> str | None:
     """Return a cheap authenticated endpoint path for sites that need one."""
-    return _AUTH_SELF_TEST_PATHS.get(str(site or "").strip().lower())
+    policy = get_feasibility_policy("webarena_verified", str(site or "").strip().lower())
+    return policy.auth_self_test_path() if policy is not None else None
 
 
 async def self_test_preflight_auth(
@@ -471,11 +237,35 @@ async def self_test_preflight_auth(
         request_context=request_context,
         url=resolve_start_url(path, base),
         timeout_s=timeout_s,
+        policy=get_feasibility_policy("webarena_verified", str(site or "").strip().lower()),
     )
 
 
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _benchmark_for_preflight(task: dict[str, Any], site_instances: list[dict[str, Any]]) -> str:
+    for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
+        raw = task.get(key)
+        if isinstance(raw, str) and raw.strip():
+            return normalize_benchmark_name(raw)
+    seed = task.get("adversarial_data_seed")
+    calls = seed.get("editor_calls") if isinstance(seed, dict) else None
+    if isinstance(calls, list):
+        for call in calls:
+            if not isinstance(call, dict):
+                continue
+            raw = call.get("benchmark")
+            if isinstance(raw, str) and raw.strip():
+                return normalize_benchmark_name(raw)
+    for instance in site_instances:
+        for key in ("benchmark", "benchmark_name", "benchmark_adapter"):
+            raw = instance.get(key)
+            if isinstance(raw, str) and raw.strip():
+                return normalize_benchmark_name(raw)
+    # Compatibility for direct unit tests that predate benchmark metadata.
+    return "webarena_verified"
 
 
 async def preflight_benign_targets(
@@ -515,9 +305,6 @@ async def preflight_benign_targets(
     context_tasks: dict[tuple[str, str], asyncio.Task[Any]] = {}
 
     def _context_key(options: dict[str, Any]) -> str:
-        import hashlib
-        import json
-
         public_options: dict[str, Any] = {}
         for key, value in options.items():
             if key.startswith("_"):
@@ -548,6 +335,9 @@ async def preflight_benign_targets(
             raise
 
     dropped_originals: dict[int, dict[str, Any]] = {}
+    policies_by_key: dict[tuple[str, str], Any] = {}
+    bailout_counts: dict[tuple[str, str], int] = {}
+    probed_counts: dict[tuple[str, str], int] = {}
 
     async def _probe_task(task: dict[str, Any]) -> None:
         nonlocal login_redirect_count, probed_count
@@ -556,6 +346,13 @@ async def preflight_benign_targets(
         if not site_instances:
             keep.append(task)
             return
+        benchmark = _benchmark_for_preflight(task, site_instances)
+        policy = get_feasibility_policy(benchmark, site)
+        if policy is None:
+            keep.append(task)
+            return
+        policy_key = (benchmark, site)
+        policies_by_key[policy_key] = policy
 
         # Probe every replica for this site. Replica-0 sometimes holds
         # legacy DB state that a fleet-wide reset did not touch (e.g. a
@@ -573,7 +370,7 @@ async def preflight_benign_targets(
         skipped_auth_reasons: list[str] = []
         for instance in site_instances:
             site_url = str(instance.get("site_url") or "").rstrip("/")
-            targets = _task_probe_targets(task, site_url)
+            targets = policy.probe_targets(task, site_url)
             if not targets:
                 break
             auth_skip_reason = instance.get("preflight_auth_skip_reason")
@@ -581,6 +378,14 @@ async def preflight_benign_targets(
                 skipped_auth_reasons.append(auth_skip_reason.strip())
                 continue
             context_options = instance.get("preflight_request_context")
+            if (
+                policy.requires_authenticated_preflight()
+                and (not isinstance(context_options, dict) or not context_options)
+            ):
+                skipped_auth_reasons.append(
+                    "authenticated source-data preflight required but no usable auth was configured"
+                )
+                continue
             if not isinstance(context_options, dict):
                 context_options = {}
             async with sem:
@@ -591,6 +396,7 @@ async def preflight_benign_targets(
                         request_context=request_context,
                         url=target.url,
                         timeout_s=timeout_s,
+                        policy=policy,
                     )
                     classifications_by_target.setdefault(target_index, []).append(classification)
         if not classifications_by_target:
@@ -610,63 +416,63 @@ async def preflight_benign_targets(
             for classifications in classifications_by_target.values()
             for classification in classifications
         ]
-        if any(c.kind == "login_redirect" for c in all_classifications):
+        if any(policy.counts_toward_run_bailout(c) for c in all_classifications):
             login_redirect_count += 1
+            bailout_counts[policy_key] = bailout_counts.get(policy_key, 0) + 1
+        probed_counts[policy_key] = probed_counts.get(policy_key, 0) + 1
 
-        # Majority rule: strict majority (> 50 %) of probed replicas
-        # must classify as quarantine. Ties (50/50 exactly) pass
-        # through to the real probe so we never quarantine on weak
-        # evidence.
-        selected: tuple[int, list[PreflightClassification]] | None = None
-        for target_index, classifications in classifications_by_target.items():
-            quarantine_classifications = [c for c in classifications if c.quarantine]
-            quarantine_rate = len(quarantine_classifications) / len(classifications)
-            if quarantine_rate > 0.5 and quarantine_classifications:
-                selected = (target_index, quarantine_classifications)
-                break
-
-        if selected is not None:
-            target_index, quarantine_classifications = selected
-            target = target_audit[target_index]
-            # Pick the most common quarantine-kind as the audit label
-            # (ties broken by first-seen order) so the sidecar
-            # surfaces the dominant failure signature.
-            kind_counts: dict[str, int] = {}
-            for c in quarantine_classifications:
-                kind_counts[c.kind] = kind_counts.get(c.kind, 0) + 1
-            dominant = max(quarantine_classifications, key=lambda c: kind_counts[c.kind])
+        decision = policy.decide_source_data(
+            task=task,
+            classifications_by_target=classifications_by_target,
+            target_audit=target_audit,
+            login_redirect_count=login_redirect_count,
+            probed_count=probed_count,
+            bailout_ratio=bailout_ratio,
+        )
+        if decision.action == "drop" and decision.classification is not None and decision.target:
+            dominant = decision.classification
+            target = decision.target
             audit = dict(task)
             audit["source_data_issue"] = {
                 "kind": dominant.kind,
                 "http_status": dominant.http_status,
                 "detail": dominant.detail,
                 "probed_at": _now_iso(),
-                "probed_url": target.url,
+                "probed_url": _redact_probe_url(target.url),
                 "probe_source": target.source,
-                "replicas_probed": len(classifications_by_target[target_index]),
-                "replicas_agreeing": len(quarantine_classifications),
+                **decision.evidence,
             }
             dropped.append(audit)
             dropped_originals[id(audit)] = task
+        elif decision.action == "bailout":
+            keep.append(task)
         else:
             keep.append(task)
 
     await asyncio.gather(*(_probe_task(task) for task in tasks))
 
-    # Whole-run bailout: if login_redirect dominates, a shared cookie
-    # is expired and we should NOT quarantine any task. Restore all
-    # dropped login_redirect tasks to keep and let the main probe path
-    # run (it may still mark them infeasible, but that's the correct
-    # bucket for retry).
-    if probed_count and login_redirect_count / probed_count > bailout_ratio:
+    # Whole-run bailout remains policy-owned: a site policy decides which
+    # classifications count and which dropped records should be restored.
+    bailout_policy_keys = {
+        key
+        for key, policy in policies_by_key.items()
+        if policy.should_bailout_source_data_run(
+            bailout_count=bailout_counts.get(key, 0),
+            probed_count=probed_counts.get(key, 0),
+            bailout_ratio=bailout_ratio,
+        )
+    }
+    if bailout_policy_keys:
+        total_bailout = sum(bailout_counts.get(key, 0) for key in bailout_policy_keys)
+        total_probed = sum(probed_counts.get(key, 0) for key in bailout_policy_keys)
         logger.warning(
-            "phase 2c preflight: login_redirect_rate=%.0f%% (%d/%d) exceeds "
+            "phase 2c preflight: policy bailout rate=%.0f%% (%d/%d) exceeds "
             "bailout threshold %.0f%%; suspected storage_state expiry; "
-            "restoring all dropped login_redirect tasks and skipping "
+            "restoring policy-selected source-data drops and skipping "
             "source-data quarantine for this run.",
-            100.0 * login_redirect_count / probed_count,
-            login_redirect_count,
-            probed_count,
+            100.0 * total_bailout / total_probed if total_probed else 0.0,
+            total_bailout,
+            total_probed,
             100.0 * bailout_ratio,
         )
         # Partition BEFORE mutating. ``dropped`` holds the same dict
@@ -674,14 +480,27 @@ async def preflight_benign_targets(
         # restore pass and then re-reading it to filter would KeyError.
         still_dropped: list[dict[str, Any]] = []
         restored: list[dict[str, Any]] = []
-        for r in dropped:
-            if r["source_data_issue"]["kind"] == "login_redirect":
-                restored.append(r)
+        for record in dropped:
+            issue = record.get("source_data_issue") if isinstance(record, dict) else None
+            record_site = str(record.get("site") or "").strip().lower()
+            record_benchmark = _benchmark_for_preflight(
+                record,
+                instances_by_site.get(record_site) or [],
+            )
+            record_key = (record_benchmark, record_site)
+            policy = policies_by_key.get(record_key)
+            if (
+                record_key in bailout_policy_keys
+                and policy is not None
+                and isinstance(issue, dict)
+                and policy.restore_drop_on_run_bailout(issue)
+            ):
+                restored.append(record)
             else:
-                still_dropped.append(r)
-        for r in restored:
-            r.pop("source_data_issue", None)
-            keep.append(dropped_originals.get(id(r), r))
+                still_dropped.append(record)
+        for record in restored:
+            record.pop("source_data_issue", None)
+            keep.append(dropped_originals.get(id(record), record))
         dropped = still_dropped
 
     if dropped:
@@ -696,3 +515,17 @@ async def preflight_benign_targets(
         )
 
     return keep, dropped
+
+
+def _redact_probe_url(url: str) -> str:
+    parsed = urlsplit(url)
+    host = parsed.hostname or ""
+    netloc = host
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    raw_query = parse_qs(parsed.query, keep_blank_values=True)
+    redacted_query = urlencode(
+        {str(key): ["<redacted>"] * len(values) for key, values in raw_query.items()},
+        doseq=True,
+    )
+    return urlunsplit((parsed.scheme, netloc, parsed.path, redacted_query, ""))

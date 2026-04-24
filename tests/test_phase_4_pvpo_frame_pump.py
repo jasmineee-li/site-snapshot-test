@@ -101,7 +101,7 @@ async def test_pump_swallows_cdp_errors_at_debug(caplog):
 @pytest.mark.asyncio
 async def test_pump_stops_on_context_exit_even_if_block_raises():
     session = _FakeSession()
-    slow = AsyncMock(return_value={})
+    AsyncMock(return_value={})
 
     async def _slow_send(method: str, params: dict | None = None):
         await asyncio.sleep(0.005)

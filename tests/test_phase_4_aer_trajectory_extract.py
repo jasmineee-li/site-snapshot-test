@@ -6,7 +6,7 @@ Covers the regression gates identified during plan deep-dive:
 - No field truncation (the single most likely regression — guards against
   the old slicer's truncation logic being copied over)
 - 800K-byte safety ceiling fires a warning but never silently truncates
-- ``state_message`` excluded by default (27× cost guard)
+- ``state_message`` excluded by default (27x cost guard)
 - Partial-envelope detection (distinguishes crash-before-writing from
   successfully-empty trajectory)
 - ``as_judge_view()`` shape preserves the prompt-cache-stable contract

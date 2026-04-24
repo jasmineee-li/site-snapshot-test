@@ -289,7 +289,7 @@ class TestHappyPath:
     def test_run_uses_instances_agent_auth_when_phase_0c_has_no_auth_mechanism(
         self, tmp_path, monkeypatch
     ):
-        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_context(
             profiles,
             "map",
@@ -556,7 +556,7 @@ class TestIdempotency:
 
 class TestContractFailures:
     def test_generator_script_path_missing_is_failure(self, tmp_path, monkeypatch):
-        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_context(
             profiles,
             "shopping",
@@ -572,7 +572,7 @@ class TestContractFailures:
         assert rc == 1  # failure recorded
 
     def test_generator_without_generate_callable_fails(self, tmp_path, monkeypatch):
-        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_generator(bench, "scripts/no_generate.py", _MISSING_GENERATE)
         _write_context(
             profiles,
@@ -589,7 +589,7 @@ class TestContractFailures:
         assert rc == 1
 
     def test_generator_bad_signature_fails(self, tmp_path, monkeypatch):
-        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_generator(bench, "scripts/bad_sig.py", _BAD_SIGNATURE)
         _write_context(
             profiles,
@@ -606,7 +606,7 @@ class TestContractFailures:
         assert rc == 1
 
     def test_generator_empty_output_fails(self, tmp_path, monkeypatch):
-        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_generator(bench, "scripts/empty.py", _EMPTY_WRITE)
         _write_context(
             profiles,
@@ -1035,7 +1035,7 @@ class TestFormLoginBootstrap:
         assert not (state_dir / "phase_0d" / "gitlab" / "storage_state.json").exists()
 
     def test_form_login_missing_credentials_is_hard_failure(self, tmp_path, monkeypatch):
-        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
         _write_form_login_site(profiles, "gitlab", credentials=None)
 
         harness = _FakePlaywrightHarness()

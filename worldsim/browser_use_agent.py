@@ -11,7 +11,6 @@ artifacts such as network traces stay isolated per task directory.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import re
@@ -24,6 +23,10 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
+from worldsim.agent_auth import (
+    read_storage_state_payload,
+    storage_state_preflight_error_for_payload,
+)
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import has_configured_agent_auth
 from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
@@ -721,6 +724,21 @@ def _resolve_storage_state_path(raw_path: str, benchmark_root: Path | None) -> P
     return resolved
 
 
+def _storage_state_site_error(path: Path, site_url: str | None) -> str | None:
+    if not site_url:
+        return None
+    payload, error = read_storage_state_payload(path)
+    if error is not None:
+        return error
+    return storage_state_preflight_error_for_payload(path, payload, site_url)
+
+
+def _validate_storage_state_for_site(path: Path, site_url: str | None) -> None:
+    error = _storage_state_site_error(path, site_url)
+    if error is not None:
+        raise AuthArtifactMissingError(error)
+
+
 # Stable enum of first-batch implementations. Types outside this set are schema-
 # legal (validator accepts them) but raise ``NotImplementedError`` at runtime
 # until their dispatcher arm is written. See plan §8 rollout order.
@@ -732,6 +750,7 @@ def _resolve_auth(
     auth_mechanism: dict[str, Any] | None,
     task: dict[str, Any] | None,
     benchmark_root: Path | None,
+    site_url: str | None = None,
 ) -> tuple[dict[str, Any], list[Any]]:
     """Translate an ``auth_mechanism`` dict into BrowserSession kwargs + deferred actions.
 
@@ -797,6 +816,7 @@ def _resolve_auth(
         except AuthArtifactMissingError:
             bootstrap_path = _phase_0d_fallback_path(task)
             if bootstrap_path is not None:
+                _validate_storage_state_for_site(bootstrap_path, site_url)
                 session_kwargs["storage_state"] = str(bootstrap_path)
                 return session_kwargs, deferred_actions
             raise
@@ -809,6 +829,7 @@ def _resolve_auth(
             # picks up bootstrapped credentials automatically.
             bootstrap_path = _phase_0d_fallback_path(task)
             if bootstrap_path is not None:
+                _validate_storage_state_for_site(bootstrap_path, site_url)
                 session_kwargs["storage_state"] = str(bootstrap_path)
                 return session_kwargs, deferred_actions
             if generator:
@@ -820,6 +841,20 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 f"storage_state artifact missing at {path} and no generator_script declared"
             )
+        error = _storage_state_site_error(path, site_url)
+        if error is not None:
+            bootstrap_path = _phase_0d_fallback_path(task)
+            if bootstrap_path is not None:
+                _validate_storage_state_for_site(bootstrap_path, site_url)
+                logger.warning(
+                    "storage_state %s failed host validation (%s); using Phase 0d fallback %s",
+                    path,
+                    error,
+                    bootstrap_path,
+                )
+                session_kwargs["storage_state"] = str(bootstrap_path)
+                return session_kwargs, deferred_actions
+            raise AuthArtifactMissingError(error)
         session_kwargs["storage_state"] = str(path)
         return session_kwargs, deferred_actions
 
@@ -977,6 +1012,7 @@ class BrowserUseAgent:
             auth_mechanism,
             task=resolve_task,
             benchmark_root=benchmark_root,
+            site_url=start_urls[0] if start_urls else None,
         )
         self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
 

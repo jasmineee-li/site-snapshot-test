@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import ClassVar
 
 from worldsim.config import BenchmarkInstance
 from worldsim.editors.base import EditorError
@@ -9,7 +10,7 @@ from worldsim.phases import phase_4_adversarial
 
 
 class _ProbeEditor:
-    calls: list[dict[str, object]] = []
+    calls: ClassVar[list[dict[str, object]]] = []
     behavior = None
 
     @classmethod
