@@ -31,18 +31,18 @@ def transcript_to_xml(transcript: Transcript) -> str:
 def _format_needham_message(msg: Message) -> str:
     """Format a single Message into Needham-style `<message role="...">`.
 
+    Needham's reference format carries a `function="..."` attribute on tool
+    messages. Our `trajectory_converter` does not thread actual tool function
+    names onto tool Messages — `Message.label` holds step-tracking IDs like
+    "step_3_observation". Rather than emit misleading attribute values, we
+    omit the `function=` attribute entirely until real function names are
+    threaded through. Every benchmark's converter can add this later.
+
     Hidden messages are rendered as `<reasoning>…</reasoning>` nested inside
     a synthetic assistant `<message>` wrapper at the caller level — this
     function only handles a single non-hidden message.
     """
-    if msg.role == "tool":
-        function = msg.label or ""
-        if function:
-            open_tag = f'<message role="tool", function="{function}">'
-        else:
-            open_tag = '<message role="tool">'
-    else:
-        open_tag = f'<message role="{msg.role}">'
+    open_tag = f'<message role="{msg.role}">'
     return f"{open_tag}\n{msg.content}\n</message>"
 
 
