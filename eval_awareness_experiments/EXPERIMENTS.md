@@ -78,11 +78,13 @@ eval_awareness_experiments/
 │   └── test_awareness_steering.py   # 3-dimension judge (awareness, recognition, performance)
 ├── experiments/
 │   └── trajectory_awareness.py      # Run judges on agent trajectories
-├── run_doomarena.py                 # Run DoomArena tasks with AgentLab
-├── run_wasp.py                      # Run WASP tasks
-├── run_safearena.py                 # Run SafeArena tasks
-├── run_osharm.py                    # OS-harm runner (disabled for now)
-├── run_causal_experiment.py         # Orchestrate all conditions x benchmarks x models
+├── run_doomarena_glm5_popup.py      # Run DoomArena popup tasks via AgentLab + OpenRouter
+├── run_wasp.py                      # Run WASP (VWA) browser tasks
+├── run_agentdojo.py                 # Run AgentDojo tool-calling tasks
+├── run_injecagent.py                # Run InjecAgent tool-calling tasks
+├── import_eia_trajectories.py       # Import EIA SeeAct trajectories (no new runs)
+├── run_safety_pipeline.py           # Unified runner+judge: one combo per call
+├── run_causal_experiment.py         # Matrix wrapper: benchmarks x conditions x models x presets
 ├── analysis_causal.py               # ASR x awareness analysis and plotting
 ├── COST_ESTIMATE.md                 # Cost estimates for n=100 runs across models
 └── configs/
@@ -96,17 +98,18 @@ eval_awareness_experiments/
 ### Step 1: Generate trajectories
 
 ```bash
-# Run baseline trajectories on all benchmarks
-python -m eval_awareness_experiments.run_doomarena --model anthropic/claude-opus-4.6 --condition baseline
-python -m eval_awareness_experiments.run_wasp --model anthropic/claude-opus-4.6 --condition baseline
-python -m eval_awareness_experiments.run_safearena --model anthropic/claude-opus-4.6 --condition baseline --split harm
+# Run one combo end-to-end (runner + judges) via the unified pipeline
+python -m eval_awareness_experiments.run_safety_pipeline \
+    --benchmark doomarena --model-name anthropic/claude-opus-4.7:thinking \
+    --condition baseline --tasks-per-split 20
 
-# Run causal experiment (all conditions x benchmarks)
+# Or dispatch a full matrix (benchmarks x conditions x models x presets)
 python -m eval_awareness_experiments.run_causal_experiment \
-    --models anthropic/claude-opus-4.6 anthropic/claude-sonnet-4.6 \
-    --benchmarks doomarena wasp safearena \
+    --models anthropic/claude-opus-4.7:thinking anthropic/claude-sonnet-4.6:thinking \
+    --benchmarks doomarena wasp agentdojo injecagent \
     --conditions baseline eval_cue scenario_cue \
-    --max-tasks 100
+    --extra-instructions-presets none motive \
+    --tasks-per-split 20
 ```
 
 ### Step 2: Run eval awareness judges

@@ -17,14 +17,33 @@ directly, with a custom `BgymExperiment` that uses a GLM-5 agent.
 
 ## What's done
 
-### 1. Upstream packages installed into `world-sim` conda env
+### 1. Upstream packages installed into the project venv (uv)
 
+This repo uses **uv** (`uv.lock` + `[tool.uv.sources]` in `pyproject.toml`) — not
+pip, not conda. Assume `uv sync` has been run once so `.venv` exists.
+
+```bash
+uv pip install -e external_benchmarks/AgentLab
+uv pip install -e external_benchmarks/BrowserGym/browsergym/core \
+              -e external_benchmarks/BrowserGym/browsergym/miniwob \
+              -e external_benchmarks/BrowserGym/browsergym/webarena \
+              -e external_benchmarks/BrowserGym/browsergym/experiments \
+              -e external_benchmarks/BrowserGym
+uv pip install -e external_benchmarks/DoomArena/doomarena/core \
+              -e external_benchmarks/DoomArena/doomarena/browsergym
+uv run playwright install chromium
 ```
-pip install -e external_benchmarks/AgentLab
-pip install -e external_benchmarks/BrowserGym/browsergym/{core,miniwob,webarena,experiments,.}
-pip install -e external_benchmarks/DoomArena/doomarena/{core,browsergym}
-playwright install chromium
+
+For the newer benchmarks, use the scripted installer instead:
+
+```bash
+bash eval_awareness_experiments/setup_benchmarks.sh            # all four
+bash eval_awareness_experiments/setup_benchmarks.sh wasp eia   # subset
 ```
+
+Historical note: earlier handoffs referenced a `world-sim` conda env + raw
+`pip install`. That path is deprecated — treat `uv pip` targeting `.venv/` as
+canonical. Do not mix pip/conda-installed editable packages into the uv venv.
 
 **Important**: We swapped from the in-repo `AgentLab/` to a fresh clone at
 `external_benchmarks/AgentLab` (ServiceNow upstream, commit `cbc35a9`). The
@@ -399,9 +418,17 @@ eval_awareness_experiments/
   EXPERIMENTS.md                      ← design doc for the A/B/C experiments
   trajectory_converter.py             ← knows DoomArena/WASP/SafeArena formats
   experiments/trajectory_awareness.py ← judge runner (existing)
-  run_doomarena.py                    ← STUB, do not use
-  run_wasp.py                         ← STUB, do not use
-  run_safearena.py                    ← STUB, do not use
+  run_doomarena_glm5_popup.py         ← real DoomArena runner (OpenRouter + AgentLab)
+  run_wasp.py                         ← real WASP runner (mirrors DoomArena shape)
+  run_agentdojo.py                    ← AgentDojo tool-calling runner
+  run_injecagent.py                   ← InjecAgent tool-calling runner
+  import_eia_trajectories.py          ← EIA SeeAct importer (no new runs)
+  run_safety_pipeline.py              ← unified runner+judge (one combo per call)
+  run_causal_experiment.py            ← matrix wrapper over run_safety_pipeline
+  tool_calling_runner.py              ← shared OpenRouter function-call loop
+  agent_factory.py                    ← shared browser-track agent builder
+  extra_instructions.py               ← shared elicitation presets
+  run_safearena.py                    ← STUB (SafeArena not yet wired)
 
 external_benchmarks/
   AgentLab/                           ← ServiceNow upstream (has 3 local patches)
@@ -425,8 +452,11 @@ external_benchmarks/
 ## Environment
 
 ```bash
-source /opt/miniconda3/etc/profile.d/conda.sh && conda activate world-sim
-set -a && source /local_data/temp/max/browser-sim/.env && set +a
+# Activate the uv-managed project venv:
+source .venv/bin/activate
+# Or run each command without activating: `uv run python -m ...`
+
+set -a && source .env && set +a
 # These get set automatically by DoomArena, but for manual invocations:
 export DOOMARENA_WEBARENA_BASE_URL=http://localhost
 ```
@@ -447,3 +477,119 @@ docker run --name forum -p 8080:80 -e RATELIMIT_WHITELIST=0.0.0.0/0,::/0 -d post
 sleep 20  # wait for nginx init
 curl -sI http://localhost:8080/  # should 200
 ```
+
+---
+
+## Update — 2026-04-23: cross-benchmark extension (WASP / AgentDojo / InjecAgent / EIA)
+
+The pipeline now supports five benchmarks across three tracks. The stub runners
+mentioned above are gone.
+
+### Architecture (three tracks, one judge layer)
+
+| Track | Benchmarks | Runner | Output layout |
+|---|---|---|---|
+| Browser | `doomarena`, `wasp` | BrowserGym + AgentLab Study | `results/browsergym/study_*/…/step_*.pkl.gz` |
+| Tool-calling | `agentdojo`, `injecagent` | `ToolCallingRunner` (OpenRouter function-call loop) | `results/toolcalling/{bench}/{split}/{run_name}/{task_id}.json` |
+| Import-only | `eia` | `import_eia_trajectories.py` (no runs) | `eval_awareness_experiments/data/eia/{task_id}/…` |
+
+Judges (`test_awareness_steering`, `verbalized_awareness`), causal conditions
+(`wrap_injection`), and elicitation presets (`none`, `scratchpad`,
+`scratchpad_green`, `motive`) are shared across all benchmarks.
+
+### Setup
+
+```bash
+bash eval_awareness_experiments/setup_benchmarks.sh            # all four
+bash eval_awareness_experiments/setup_benchmarks.sh wasp eia   # subset
+```
+
+- Uses `uv pip install -e` targeting the project venv.
+- Fails fast if `uv` is missing or no venv exists (`uv sync` first).
+- Clones into `external_benchmarks/{wasp,injecagent,eia}` and installs
+  `agentdojo` from PyPI. **Docker containers (VWA GitLab/Reddit for WASP) are
+  NOT set up here** — see the existing WebArena container notes above.
+- EIA `eval_results.zip` is **not** in the git repo. Fetch it from the authors'
+  Globus endpoint and drop it at `external_benchmarks/eia/eval_results.zip`:
+  `https://app.globus.org/file-manager?origin_id=6e0b9952-da25-4b74-a4f9-7450f0bb96b9&origin_path=%2F`
+  Then re-run `setup_benchmarks.sh eia` (or unzip manually). The script warns
+  but does not fail if the zip is missing.
+
+### Verified upstream URLs (2026-04-23)
+
+| Benchmark | URL | Notes |
+|---|---|---|
+| WASP | https://github.com/facebookresearch/wasp | Meta's WASP (Web Agent Security against Prompt injection), has `webarena_prompt_injections/configs/` |
+| AgentDojo | https://github.com/ethz-spylab/agentdojo + PyPI `agentdojo` | ETH Zurich SPY Lab |
+| InjecAgent | https://github.com/uiuc-kang-lab/InjecAgent | UIUC Kang Lab; `data/test_cases_{dh,ds}_{base,enhanced}.json` |
+| EIA | https://github.com/OSU-NLP-Group/EIA_against_webagent | OSU NLP; `eval_results.zip` via Globus (see above) |
+
+### Runner CLIs (smoke-test recipes)
+
+```bash
+# WASP (browser, VWA-based)
+python -m eval_awareness_experiments.run_wasp \
+    --single-site gitlab --max-tasks 2 \
+    --model-name anthropic/claude-opus-4.7:thinking \
+    --condition baseline --extra-instructions-preset none
+
+# AgentDojo (tool-calling)
+python -m eval_awareness_experiments.run_agentdojo \
+    --suite workspace --max-tasks 2 \
+    --model-name anthropic/claude-opus-4.7:thinking \
+    --condition baseline --extra-instructions-preset motive
+
+# InjecAgent (tool-calling, direct-harm base)
+python -m eval_awareness_experiments.run_injecagent \
+    --attack-type dh --setting base --max-tasks 2 \
+    --model-name anthropic/claude-opus-4.7:thinking \
+    --condition baseline --extra-instructions-preset none
+
+# EIA (import-only, no model call)
+python -m eval_awareness_experiments.import_eia_trajectories --n 20 --seed 42
+```
+
+### Unified pipeline
+
+```bash
+# Run-and-judge, any benchmark:
+python -m eval_awareness_experiments.run_safety_pipeline \
+    --benchmark wasp --splits gitlab --tasks-per-split 20 \
+    --model-name anthropic/claude-opus-4.7:thinking \
+    --condition baseline --extra-instructions-preset motive \
+    --judge-model anthropic/claude-opus-4.6:thinking
+
+# Judge-only (EIA or reprocessing old runs):
+python -m eval_awareness_experiments.run_safety_pipeline \
+    --benchmark eia --stage judge-only \
+    --judge-model anthropic/claude-opus-4.6:thinking
+```
+
+Stage 1 dispatches to the appropriate runner per benchmark; stage 2 discovers
+the produced trajectories, builds `WebsiteSample`s with
+`metadata["trajectory_dir"]` + `metadata["benchmark"]`, and runs
+`TrajectoryAwarenessExperiment` unchanged.
+
+### Shared modules
+
+- `extra_instructions.py` — the four elicitation presets, imported by all runners.
+- `agent_factory.py` — `build_openrouter_agent()` for browser-track AgentLab agents.
+- `tool_calling_runner.py` — `ToolCallingRunner` for AgentDojo/InjecAgent;
+  captures `message.reasoning` per turn so `parse_toolcalling_trajectory` sees
+  populated `step.thought`.
+
+### Known limitations
+
+- **EIA format probing**: `import_eia_trajectories.py` uses heuristics to find
+  thought/action/observation keys (aliases include `thought`/`reasoning`,
+  `action`/`grounded_action`, etc.). If the SeeAct release format drifts, the
+  importer will error loudly pointing at the offending directory — edit
+  `_load_trajectory` rather than silently dropping steps.
+- **AgentDojo API**: `get_suite` + `get_injection_vector_defaults` are imported
+  with try/except across two module paths because AgentDojo reorganized between
+  versions. Pinning `agentdojo` in uv.lock is the right long-term fix.
+- **InjecAgent tool registry**: If a test case references a tool absent from
+  `data/tools.json`, we synthesize a permissive schema (additionalProperties
+  allowed) so the run still completes. Metadata logs which were synthesized.
+- **EIA condition is always `baseline`**: We cannot retroactively apply
+  `eval_cue` / `scenario_cue` to pre-recorded trajectories.

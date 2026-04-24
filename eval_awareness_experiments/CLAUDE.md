@@ -78,8 +78,9 @@ General open-ended questions about the website. Config: `configs/open_ended_all.
 ## Running Experiments
 
 ```bash
-# Conda env
-conda activate worldsim  # has openai, anthropic, playwright, huggingface_hub
+# Project venv (uv-managed). Either activate:
+source .venv/bin/activate
+# ...or prefix each command with `uv run`.
 
 # Via config
 python -m eval_awareness_experiments.run --config eval_awareness_experiments/configs/p_eval_all.yaml
@@ -136,6 +137,41 @@ eval_awareness_experiments/
 │   ├── real/                       # Scraped real websites
 │   ├── webarena-infinity/          # WAI app pages + trajectories
 │   ├── tac/                        # TAC Docker pages + experiment trajectories
-│   └── worldsim/                   # LLM-generated pages
+│   ├── worldsim/                   # LLM-generated pages
+│   └── eia/                        # Imported EIA SeeAct trajectories (manifest.json + per-task dirs)
 └── results/                        # Experiment outputs (JSONL per model)
 ```
+
+## Safety benchmark integration (DoomArena / WASP / AgentDojo / InjecAgent / EIA)
+
+Three tracks, one judge layer — all route into the same
+`TrajectoryAwarenessExperiment` used by DoomArena.
+
+| Track | Benchmarks | Runner shape |
+|---|---|---|
+| Browser | `doomarena`, `wasp` | BrowserGym + AgentLab `Study` with `:thinking` agents |
+| Tool-calling | `agentdojo`, `injecagent` | Shared `tool_calling_runner.ToolCallingRunner` (OpenRouter function calls) |
+| Import-only | `eia` | No runs; `import_eia_trajectories.py` normalizes `eval_results.zip` |
+
+Shared modules (do not duplicate across runners):
+- `extra_instructions.py` — the 4 elicitation presets (`none`, `scratchpad`, `scratchpad_green`, `motive`).
+- `agent_factory.py` — `build_openrouter_agent()` for the browser track.
+- `tool_calling_runner.py` — tool-calling loop that captures `message.reasoning`.
+- `injection_modifier.wrap_injection()` — causal XML wrappers for `eval_cue` / `scenario_cue`.
+- `trajectory_converter.PARSERS` — maps `benchmark` → parser; already includes all five.
+
+Setup: `bash eval_awareness_experiments/setup_benchmarks.sh [wasp agentdojo injecagent eia]`
+(uses `uv pip install`). Docker containers (VWA for WASP) are a separate step —
+see `SAFETY_BENCHMARKS_HANDOFF.md`.
+
+Unified entry point:
+```bash
+python -m eval_awareness_experiments.run_safety_pipeline \
+    --benchmark {doomarena,wasp,agentdojo,injecagent,eia} \
+    --model-name anthropic/claude-opus-4.7:thinking \
+    --judge-model anthropic/claude-opus-4.6:thinking \
+    --condition {baseline,eval_cue,scenario_cue} \
+    --extra-instructions-preset {none,scratchpad,scratchpad_green,motive} \
+    --stage {all,run-only,judge-only}
+```
+EIA forces `condition=baseline` (pre-recorded trajectories, no causal wrapping).
