@@ -425,6 +425,8 @@ async def test_gitlab_render_never_uses_networkidle():
             f"got wait_until={wait_until!r} for url={_url!r}"
         )
         assert wait_until == "commit"
+
+
 # ---------------------------------------------------------------------------
 # Bug J: render_check body-text polling after GitLab selector wait
 # ---------------------------------------------------------------------------
@@ -615,3 +617,87 @@ async def test_body_poll_composes_with_markdown_strip():
         signature="**[CI Pipeline Notification]** Pipeline failed",
     )
     assert outcome.ok is True
+
+
+# ---------------------------------------------------------------------------
+# _wait_for_body_text exponential-backoff poll. Bug J introduced the poll
+# with a fixed 500 ms cadence; this follow-up uses 100→200→400→...→2000 ms
+# backoff with a 20 s deadline so fast hits resolve quickly AND slow ones
+# (GitLab sidekiq + cache-invalidation tail) land before the deadline.
+# ---------------------------------------------------------------------------
+
+
+class _WaitForBodyPage:
+    """Fake page that records wait_for_timeout intervals and returns
+    scripted body snapshots on successive text_content calls."""
+
+    def __init__(self, bodies: list[str]) -> None:
+        self._bodies = list(bodies)
+        self.intervals_ms: list[int] = []
+
+    async def text_content(self, selector: str) -> str:
+        assert selector == "body"
+        if not self._bodies:
+            return ""
+        return self._bodies.pop(0)
+
+    async def wait_for_timeout(self, ms: int) -> None:
+        self.intervals_ms.append(ms)
+
+
+@pytest.mark.asyncio
+async def test_wait_for_body_text_uses_exponential_backoff_schedule():
+    from worldsim.phases import phase_2_render_check as rc
+
+    # Supply enough empty bodies that the poll never matches; we are
+    # inspecting the backoff schedule, not the match path.
+    page = _WaitForBodyPage(bodies=["" for _ in range(20)])
+    result = await rc._wait_for_body_text(page, "never-matches", timeout_ms=15000)
+    assert result is False
+    # Expected schedule: 100, 200, 400, 800, 1600, 2000, 2000, ...
+    assert page.intervals_ms[:6] == [100, 200, 400, 800, 1600, 2000]
+    # Cap holds after that.
+    assert all(ms == 2000 for ms in page.intervals_ms[6:])
+
+
+@pytest.mark.asyncio
+async def test_wait_for_body_text_returns_true_on_fast_match():
+    from worldsim.phases import phase_2_render_check as rc
+
+    page = _WaitForBodyPage(bodies=["signature present now"])
+    result = await rc._wait_for_body_text(page, "signature present now", timeout_ms=5000)
+    assert result is True
+    # First poll should hit immediately with no sleep.
+    assert page.intervals_ms == []
+
+
+@pytest.mark.asyncio
+async def test_wait_for_body_text_finds_late_signature_before_backoff_cap():
+    from worldsim.phases import phase_2_render_check as rc
+
+    # Empty on polls 1-3, signature on poll 4. Verifies backoff correctly
+    # advances the clock past early intervals without missing the arrival.
+    page = _WaitForBodyPage(bodies=["", "", "", "full body with SEEDSIG inside"])
+    result = await rc._wait_for_body_text(page, "SEEDSIG", timeout_ms=5000)
+    assert result is True
+    # Three sleeps before the match: 100, 200, 400.
+    assert page.intervals_ms == [100, 200, 400]
+
+
+@pytest.mark.asyncio
+async def test_wait_for_body_text_empty_needle_returns_false():
+    from worldsim.phases import phase_2_render_check as rc
+
+    page = _WaitForBodyPage(bodies=["anything"])
+    # An empty needle has no match target; fail-fast without polling.
+    result = await rc._wait_for_body_text(page, "", timeout_ms=1000)
+    assert result is False
+    assert page.intervals_ms == []
+
+
+def test_body_poll_timeout_constant_is_20s():
+    from worldsim.phases import phase_2_render_check as rc
+
+    assert rc._BODY_POLL_TIMEOUT_MS == 20000
+    assert rc._BODY_POLL_INITIAL_MS == 100
+    assert rc._BODY_POLL_MAX_MS == 2000

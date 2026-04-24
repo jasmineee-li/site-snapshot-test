@@ -372,27 +372,48 @@ def _normalize(text: str | None) -> str:
     return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
 
 
+_BODY_POLL_INITIAL_MS = 100
+_BODY_POLL_MAX_MS = 2000
+# Body-poll deadline (decoupled from selector_timeout_ms). GitLab's
+# write-to-visible tail on loaded hosts runs to 5-15 s; the 10 s selector
+# timeout catches first-batch note rendering but starves the poll looking
+# for a seeded note that arrives in a slow batch 2-3. 20 s gives the
+# exponential backoff room to walk its full schedule (100→...→2000 ms)
+# before giving up.
+_BODY_POLL_TIMEOUT_MS = 20000
+# Kept as a compat alias for downstream consumers / tests that referenced
+# the old constant. Not used internally after the backoff switch.
 _BODY_POLL_INTERVAL_MS = 500
 
 
 async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
-    """Poll ``page.text_content('body')`` every 500 ms looking for *needle*.
+    """Poll ``page.text_content('body')`` with exponential backoff for *needle*.
 
-    Bug J (2026-04-23) port of the reachability helper at
-    ``phase_2_reachability.py:_wait_for_body_text``. Used after the
-    GitLab note selector wait on issue / MR pages: the selector fires
-    when batch-1 notes render, but the seeded note often lives in
-    batch 2 or 3 of the lazy ``discussions.json`` stream. Without this
-    poll, ``text_content('body')`` races the second batch and records
-    ``signature_absent`` with a 5-7 KB body (first batch + SPA shell)
-    that genuinely lacks the signature. Returns ``True`` on match,
-    ``False`` on timeout; both paths fall through to the real
-    comparison so a timeout does not corrupt downstream classification.
+    Bug J (2026-04-23) established the poll (previously just a race against
+    ``text_content`` returning the SPA shell). This follow-up replaces the
+    fixed 500 ms cadence with an exponential backoff that starts at 100 ms
+    and caps at 2000 ms. Motivation: GitLab's write-to-visible pipeline
+    (Postgres → sidekiq indexer → cache invalidation → action_cable →
+    Vue hydration) has a bimodal latency distribution — most writes are
+    visible in well under 500 ms, but a long p99 tail caused by sidekiq
+    queue depth and cache-warm pauses runs to 5-15 s under the 16-way
+    renderer contention Phase 2c imposes. The old 500 ms fixed cadence
+    over-polled fast hits (20 polls × 500 ms to catch a 400 ms write) and
+    under-covered slow hits (10 s deadline exhausted before the tail).
+
+    The new schedule covers both in one pass:
+      100, 200, 400, 800, 1600, 2000, 2000, ...  (until ``timeout_ms``)
+
+    Returns ``True`` on match, ``False`` on timeout. The caller still
+    falls through to the full ``_normalize`` comparison on timeout so a
+    slow-hydrating signature that arrives after the deadline is still
+    recorded as present if ``text_content`` catches it post-wait.
     """
     deadline = time.monotonic() + (timeout_ms / 1000.0)
     needle_norm = _normalize(needle)
     if not needle_norm:
         return False
+    interval_ms = _BODY_POLL_INITIAL_MS
     while time.monotonic() < deadline:
         try:
             body = await page.text_content("body") or ""
@@ -401,9 +422,10 @@ async def _wait_for_body_text(page: Any, needle: str, timeout_ms: int) -> bool:
         if needle_norm in _normalize(body):
             return True
         try:
-            await page.wait_for_timeout(_BODY_POLL_INTERVAL_MS)
+            await page.wait_for_timeout(interval_ms)
         except Exception:
             break
+        interval_ms = min(interval_ms * 2, _BODY_POLL_MAX_MS)
     return False
 
 
@@ -604,7 +626,17 @@ async def verify_seed_renders(
                     # second batch and record a false signature_absent.
                     # Composes with Bug G — _normalize already strips
                     # markdown delimiters on both sides.
-                    await _wait_for_body_text(page, signature, selector_timeout_ms)
+                    #
+                    # Use _BODY_POLL_TIMEOUT_MS (20 s) instead of the 10 s
+                    # selector_timeout_ms: the selector wait above only
+                    # needs to see *some* note render, but the poll has
+                    # to cover GitLab's long write-to-visible tail
+                    # (sidekiq indexer + cache invalidation) under Phase
+                    # 2c's 16-way renderer contention. The 10 s bound
+                    # cost 2-4 tasks/run to the p99 tail even after
+                    # Bug J landed; 20 s plus the backoff schedule
+                    # closes that gap.
+                    await _wait_for_body_text(page, signature, _BODY_POLL_TIMEOUT_MS)
                 body_text = await page.text_content("body") or ""
                 normalized = _normalize(body_text)
                 if needle in normalized:
