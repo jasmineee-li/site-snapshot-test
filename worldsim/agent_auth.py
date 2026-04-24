@@ -40,6 +40,20 @@ class ResolvedAgentAuth:
         return self.unusable_reason is None
 
 
+def safe_phase_0d_site_name(site_name: object) -> tuple[str | None, str | None]:
+    """Return a safe Phase 0d path segment for a benchmark site name.
+
+    Site names come from config/task metadata, so reject path separators and
+    traversal tokens before constructing ``logs/phase_0d/<site>`` paths.
+    """
+    site = str(site_name or "").strip()
+    if not site:
+        return None, "site_name must be non-empty"
+    if _PHASE_0D_SITE_RE.fullmatch(site) is None:
+        return None, f"site_name {site!r} is not safe for Phase 0d storage_state lookup"
+    return site, None
+
+
 def resolve_agent_auth(
     agent_auth: Mapping[str, Any] | None,
     *,
@@ -108,7 +122,7 @@ def resolve_agent_auth(
             return ResolvedAgentAuth(auth_type, {}, {}, str(exc))
         return ResolvedAgentAuth(
             auth_type,
-            {"headers": headers},
+            {"extra_http_headers": headers},
             {"extra_http_headers": headers},
         )
 
@@ -195,8 +209,9 @@ def resolve_storage_state_path(
     if not fallback_site and isinstance(task, Mapping):
         raw_site = task.get("site")
         fallback_site = raw_site if isinstance(raw_site, str) else ""
-    fallback_site = str(fallback_site or "").strip()
-    if not fallback_site:
+    fallback_site, site_error = safe_phase_0d_site_name(fallback_site)
+    if site_error is not None:
+        logger.warning("agent auth: %s", site_error)
         return None
     candidate = (
         Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs")
@@ -220,9 +235,9 @@ def _validate_storage_state_override_path(
     0d refresh or host config. When a benchmark root is available, do not let it
     point at arbitrary local JSON outside the benchmark or Phase 0d state dir.
     """
-    fallback_site = str(site_name or "").strip()
-    if fallback_site and _PHASE_0D_SITE_RE.fullmatch(fallback_site) is None:
-        return f"site_name {site_name!r} is not safe for Phase 0d storage_state lookup"
+    fallback_site, site_error = safe_phase_0d_site_name(site_name)
+    if site_error is not None and str(site_name or "").strip():
+        return site_error
     if benchmark_root is None:
         return "storage_state override requires a benchmark root for containment checks"
     resolved = path.resolve()
@@ -454,6 +469,7 @@ __all__ = [
     "resolve_agent_auth",
     "resolve_agent_auth_headers",
     "resolve_storage_state_path",
+    "safe_phase_0d_site_name",
     "storage_state_cookie_hosts",
     "storage_state_origin_hosts",
     "storage_state_preflight_error_for_payload",

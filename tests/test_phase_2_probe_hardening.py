@@ -25,21 +25,37 @@ from worldsim.phases import phase_2_render_check as render_check
 
 
 class _Request:
-    def __init__(self, resource_type: str) -> None:
+    def __init__(
+        self,
+        resource_type: str,
+        *,
+        url: str = "http://live/resource",
+        headers: dict[str, str] | None = None,
+    ) -> None:
         self.resource_type = resource_type
+        self.url = url
+        self.headers = headers or {}
 
 
 class _Route:
-    def __init__(self, resource_type: str) -> None:
-        self.request = _Request(resource_type)
+    def __init__(
+        self,
+        resource_type: str,
+        *,
+        url: str = "http://live/resource",
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        self.request = _Request(resource_type, url=url, headers=headers)
         self.aborted = False
         self.continued = False
+        self.continue_kwargs: dict[str, Any] = {}
 
     async def abort(self) -> None:
         self.aborted = True
 
-    async def continue_(self) -> None:
+    async def continue_(self, **kwargs: Any) -> None:
         self.continued = True
+        self.continue_kwargs = kwargs
 
 
 class _ProbePage:
@@ -55,6 +71,7 @@ class _ProbePage:
         self._step = 0
         self.route_installed_step: int | None = None
         self.route_handler: Any = None
+        self.routed_requests: list[_Route] = []
         self.goto_calls: list[dict[str, Any]] = []
         self.first_goto_step: int | None = None
 
@@ -68,6 +85,10 @@ class _ProbePage:
         if self.first_goto_step is None:
             self.first_goto_step = self._step
         canonical = url.split("?", 1)[0] if "?_=" in url else url
+        if self.route_handler is not None:
+            route = _Route("document", url=canonical, headers={"Existing": "yes"})
+            await self.route_handler(route)
+            self.routed_requests.append(route)
         self.goto_calls.append(
             {"url": canonical, "timeout": timeout, "wait_until": wait_until},
         )
@@ -100,8 +121,13 @@ class _ProbeContext:
 class _ProbeBrowser:
     def __init__(self, page: _ProbePage) -> None:
         self._page = page
+        self.context_kwargs: list[dict[str, Any]] = []
 
     async def new_context(self, **kwargs: Any) -> _ProbeContext:
+        unexpected = set(kwargs) - {"storage_state", "extra_http_headers", "http_credentials"}
+        if unexpected:
+            raise AssertionError(f"unexpected Playwright context kwargs: {sorted(unexpected)}")
+        self.context_kwargs.append(kwargs)
         return _ProbeContext(self._page)
 
 
@@ -151,6 +177,69 @@ def test_render_check_goto_uses_wait_until_commit() -> None:
     assert outcome.ok
     assert page.goto_calls
     assert page.goto_calls[0]["wait_until"] == "commit"
+
+
+def test_render_check_passes_http_headers_as_playwright_extra_headers() -> None:
+    page = _ProbePage({"http://live/foo/-/issues/1": "seed signature"})
+    browser = _ProbeBrowser(page)
+
+    outcome = asyncio.run(
+        render_check.verify_seed_renders(
+            browser=browser,
+            urls=["http://live/foo/-/issues/1"],
+            site_name="gitlab",
+            site_url="http://live",
+            signature="seed signature",
+            browser_context_kwargs={"extra_http_headers": {"X-User": "alice"}},
+        ),
+    )
+
+    assert outcome.ok
+    assert browser.context_kwargs == [{}]
+    assert page.routed_requests[0].continue_kwargs["headers"]["Existing"] == "yes"
+    assert page.routed_requests[0].continue_kwargs["headers"]["X-User"] == "alice"
+
+
+def test_route_blocker_strips_http_headers_from_off_origin_requests() -> None:
+    page = _ProbePage()
+    asyncio.run(
+        reach._install_resource_blocker(
+            page,
+            scoped_extra_http_headers={"X-User": "alice"},
+            header_scope_url="http://live",
+        )
+    )
+    handler = page.route_handler
+    assert handler is not None
+    route = _Route("script", url="http://other.test/script.js", headers={"Existing": "yes"})
+
+    asyncio.run(handler(route))
+
+    assert route.continued
+    assert route.continue_kwargs == {}
+
+
+def test_reachability_passes_http_headers_as_playwright_extra_headers() -> None:
+    page = _ProbePage({"http://live/foo/-/issues/1": "seed signature"})
+    browser = _ProbeBrowser(page)
+
+    outcome = asyncio.run(
+        reach.verify_reachable(
+            browser=browser,
+            benign_target_resource={
+                "kind": "gitlab_issue",
+                "start_url_resolved": "http://live/foo/-/issues/1",
+            },
+            instance_site_url="http://live",
+            signature="seed signature",
+            second_witness=None,
+            browser_context_kwargs={"extra_http_headers": {"X-User": "alice"}},
+        ),
+    )
+
+    assert outcome.reachability == "reachable_direct"
+    assert browser.context_kwargs == [{}]
+    assert page.routed_requests[0].continue_kwargs["headers"]["X-User"] == "alice"
 
 
 # ---------------------------------------------------------------------------

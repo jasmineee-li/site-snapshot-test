@@ -647,6 +647,7 @@ async def verify_seed_renders(
     nav_timeout_ms: int = 30000,
     selector_timeout_ms: int = 10000,
     storage_state_path: str | None = None,
+    browser_context_kwargs: dict[str, Any] | None = None,
     write_tokens: dict[str, Any] | None = None,
 ) -> RenderOutcome:
     """Open a fresh context, try each URL until the signature appears.
@@ -656,10 +657,9 @@ async def verify_seed_renders(
     1.5-3s for a full launch). Caller is responsible for capping
     concurrent contexts at ~8 to avoid Playwright's eviction edge cases.
 
-    ``storage_state_path`` threads the benign user's Phase-0d-bootstrapped
-    cookies into Playwright so private projects / authed-only pages are
-    reachable. When None (default), opens an anonymous context — fine
-    for public content but breaks on private gitlab projects.
+    ``browser_context_kwargs`` threads the configured benign user's auth into
+    Playwright so private/authed-only pages are checked with the same identity
+    Phase 4 uses. ``storage_state_path`` is retained for older callers.
     """
     if not urls:
         return RenderOutcome.failed(
@@ -682,8 +682,11 @@ async def verify_seed_renders(
     needle = _normalize(signature)
     seen: list[str] = []
     errors: dict[str, str] = {}
-    context_kwargs: dict[str, Any] = {}
-    if storage_state_path:
+    context_kwargs: dict[str, Any] = dict(browser_context_kwargs or {})
+    from worldsim.phases.phase_2_reachability import _pop_scoped_extra_http_headers
+
+    scoped_extra_http_headers = _pop_scoped_extra_http_headers(context_kwargs)
+    if storage_state_path and "storage_state" not in context_kwargs:
         path_obj = Path(storage_state_path)
         if path_obj.exists():
             storage_state, error = playwright_storage_state(path_obj)
@@ -711,7 +714,11 @@ async def verify_seed_renders(
         # from this module at module load).
         from worldsim.phases.phase_2_reachability import _install_resource_blocker
 
-        await _install_resource_blocker(page)
+        await _install_resource_blocker(
+            page,
+            scoped_extra_http_headers=scoped_extra_http_headers,
+            header_scope_url=site_url,
+        )
         for raw_url in urls:
             target = _with_cache_buster(_resolve_url(raw_url, site_url))
             seen.append(target)

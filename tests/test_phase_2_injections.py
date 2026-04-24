@@ -1155,8 +1155,8 @@ def test_phase_2c_artifact_writer_recomputes_per_site_after_partial_merge(tmp_pa
 
     assert result.summary["verified_count"] == 2
     assert result.summary["per_site"] == {
-        "reddit": {"verified": 1, "infeasible": 0, "skipped": 0},
-        "gitlab": {"verified": 1, "infeasible": 0, "skipped": 0},
+        "reddit": {"verified": 1, "infeasible": 0, "skipped": 0, "unverified": 0},
+        "gitlab": {"verified": 1, "infeasible": 0, "skipped": 0, "unverified": 0},
     }
 
 
@@ -2630,6 +2630,9 @@ async def test_phase_2_skip_feasibility_completes_after_resuming_running_checkpo
     report = json.loads((output_dir / "feasibility_report.json").read_text())
     assert report["source_data_dropped_count"] == 0
     assert report["unverified_count"] == 1
+    assert report["verified_count"] == 0
+    assert report["per_site"]["shopping"]["unverified"] == 1
+    assert report["per_site"]["shopping"]["verified"] == 0
 
 
 @pytest.mark.asyncio
@@ -2674,7 +2677,10 @@ async def test_phase_2_skip_feasibility_preserves_unfiltered_sites(monkeypatch, 
         "id": "reddit-verified",
         "benchmark": "webarena_verified",
         "site": "reddit",
-        "feasibility": {"status": "verified"},
+        "feasibility": {
+            "status": "verified",
+            "last_reverify_skipped_at": "2026-04-24T00:00:00Z",
+        },
     }
     shopping_task = {
         "id": "shopping-task",
@@ -2707,6 +2713,12 @@ async def test_phase_2_skip_feasibility_preserves_unfiltered_sites(monkeypatch, 
     report = json.loads((output_dir / "feasibility_report.json").read_text())
     assert report["verified_count"] == 1
     assert report["unverified_count"] == 1
+    assert report["skipped_already_verified_count"] == 1
+    assert report["per_site"]["reddit"]["skipped"] == 1
+    assert report["per_site"]["shopping"]["unverified"] == 1
+    assert report["per_site"]["shopping"]["verified"] == 0
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["feasibility_skipped_count"] == 1
 
 
 @pytest.mark.asyncio

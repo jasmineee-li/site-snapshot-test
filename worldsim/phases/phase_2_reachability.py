@@ -89,7 +89,51 @@ _BLOCKED_RESOURCE_TYPES: frozenset[str] = frozenset(
 )
 
 
-async def _install_resource_blocker(page: Any) -> None:
+def _pop_scoped_extra_http_headers(context_kwargs: dict[str, Any]) -> dict[str, str] | None:
+    headers = context_kwargs.pop("extra_http_headers", None)
+    if not isinstance(headers, Mapping) or not headers:
+        return None
+    scoped: dict[str, str] = {}
+    for key, value in headers.items():
+        if isinstance(key, str) and isinstance(value, str):
+            scoped[key] = value
+    return scoped or None
+
+
+def _same_origin(url: str, site_url: str) -> bool:
+    try:
+        parsed = urlsplit(url)
+        site = urlsplit(site_url)
+    except Exception:
+        return False
+    if not parsed.scheme or not parsed.hostname or not site.scheme or not site.hostname:
+        return False
+    def port_for(scheme: str, port: int | None) -> int | None:
+        if port is not None:
+            return port
+        if scheme.lower() == "http":
+            return 80
+        if scheme.lower() == "https":
+            return 443
+        return None
+
+    return (
+        parsed.scheme.lower(),
+        parsed.hostname.lower(),
+        port_for(parsed.scheme, parsed.port),
+    ) == (
+        site.scheme.lower(),
+        site.hostname.lower(),
+        port_for(site.scheme, site.port),
+    )
+
+
+async def _install_resource_blocker(
+    page: Any,
+    *,
+    scoped_extra_http_headers: dict[str, str] | None = None,
+    header_scope_url: str | None = None,
+) -> None:
     """Abort non-essential subresources before ``page.goto``.
 
     Shared by ``phase_2_reachability.verify_reachable`` and
@@ -106,7 +150,20 @@ async def _install_resource_blocker(page: Any) -> None:
             if resource_type in _BLOCKED_RESOURCE_TYPES:
                 await route.abort()
             else:
-                await route.continue_()
+                request_url = str(getattr(route.request, "url", "") or "")
+                if (
+                    scoped_extra_http_headers
+                    and header_scope_url
+                    and _same_origin(request_url, header_scope_url)
+                ):
+                    request_headers = getattr(route.request, "headers", {})
+                    if not isinstance(request_headers, Mapping):
+                        request_headers = {}
+                    await route.continue_(
+                        headers={**dict(request_headers), **scoped_extra_http_headers}
+                    )
+                else:
+                    await route.continue_()
         except Exception:
             # Routing is best-effort — a closed page or superseded
             # navigation races here. Swallow to keep the probe honest.
@@ -344,6 +401,7 @@ async def verify_reachable(
     signature: str | None,
     second_witness: str | None,
     storage_state_path: str | None = None,
+    browser_context_kwargs: dict[str, Any] | None = None,
     nav_timeout_ms: int = _DEFAULT_NAV_TIMEOUT_MS,
     selector_timeout_ms: int = _DEFAULT_SELECTOR_TIMEOUT_MS,
 ) -> ReachabilityOutcome:
@@ -374,8 +432,9 @@ async def verify_reachable(
     if second_witness and second_witness.lower() != signature.lower():
         witnesses.append(second_witness)
 
-    context_kwargs: dict[str, Any] = {}
-    if storage_state_path:
+    context_kwargs: dict[str, Any] = dict(browser_context_kwargs or {})
+    scoped_extra_http_headers = _pop_scoped_extra_http_headers(context_kwargs)
+    if storage_state_path and "storage_state" not in context_kwargs:
         storage_state, error = playwright_storage_state(storage_state_path)
         if error is None:
             context_kwargs["storage_state"] = storage_state
@@ -389,7 +448,11 @@ async def verify_reachable(
     context = await browser.new_context(**context_kwargs)
     try:
         page = await context.new_page()
-        await _install_resource_blocker(page)
+        await _install_resource_blocker(
+            page,
+            scoped_extra_http_headers=scoped_extra_http_headers,
+            header_scope_url=instance_site_url,
+        )
         target = _with_cache_buster(start_url)
         # ``wait_until="commit"`` resolves when response headers arrive —
         # the fastest goto phase Playwright offers. Prior ``networkidle``

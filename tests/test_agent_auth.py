@@ -70,7 +70,9 @@ def test_http_headers_interpolate_credentials():
     assert resolved.api_request_context_kwargs == {
         "extra_http_headers": {"Authorization": "Basic alice:x"}
     }
-    assert resolved.browser_context_kwargs == {"headers": {"Authorization": "Basic alice:x"}}
+    assert resolved.browser_context_kwargs == {
+        "extra_http_headers": {"Authorization": "Basic alice:x"}
+    }
 
 
 def test_http_basic_maps_to_context_credentials():
@@ -216,3 +218,18 @@ def test_storage_state_override_allows_phase_0d_root(tmp_path, monkeypatch):
     )
 
     assert resolved == phase_0d
+
+
+def test_storage_state_fallback_rejects_unsafe_site_name(tmp_path, monkeypatch):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    escaped = state_dir / "escape" / "storage_state.json"
+    escaped.parent.mkdir(parents=True)
+    _write_storage_state(escaped)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="../escape",
+    )
+
+    assert resolved is None

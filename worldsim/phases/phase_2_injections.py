@@ -954,7 +954,7 @@ async def _run_feasibility_stage(
             feasibility_completed_at=completed_at,
             feasibility_verified_count=summary["verified_count"],
             feasibility_infeasible_count=summary["infeasible_count"],
-            feasibility_skipped_count=0,
+            feasibility_skipped_count=int(summary.get("skipped_already_verified_count") or 0),
             feasibility_unverified_count=summary["unverified_count"],
             feasibility_dropped_source_data_count=len(artifact_result.dropped_source_data),
             feasibility_skipped_via_flag=True,
@@ -968,7 +968,9 @@ async def _run_feasibility_stage(
                 "feasibility_completed_at": completed_at,
                 "feasibility_verified_count": summary["verified_count"],
                 "feasibility_infeasible_count": summary["infeasible_count"],
-                "feasibility_skipped_count": 0,
+                "feasibility_skipped_count": int(
+                    summary.get("skipped_already_verified_count") or 0
+                ),
                 "feasibility_unverified_count": summary["unverified_count"],
                 "feasibility_dropped_source_data_count": len(artifact_result.dropped_source_data),
                 "feasibility_skipped_via_flag": True,
@@ -1099,7 +1101,7 @@ async def _run_feasibility_stage(
 
     verified_count = summary["verified_count"]
     infeasible_count = summary["infeasible_count"]
-    skipped_count = len(report.skipped_already_verified)
+    skipped_count = int(summary.get("skipped_already_verified_count") or 0)
     fresh_count = verified_count - skipped_count
     logger.info(
         "Phase 2c complete: %d admitted (%d fresh + %d reused via idempotency) / "
@@ -1266,6 +1268,7 @@ def _phase_2c_report_summary_with_artifacts(
     summary["infeasible_count"] = len(infeasible)
     if allow_unverified:
         summary["unverified_count"] = _count_feasibility_status(verified, "unverified")
+    summary["skipped_already_verified_count"] = _count_idempotency_skipped(verified)
     summary["source_data_dropped_count"] = len(dropped_source_data)
     summary["source_data_dropped_by_kind"] = _source_data_dropped_by_kind(dropped_source_data)
     summary["per_site"] = _phase_2c_per_site_counts(verified, infeasible)
@@ -1274,6 +1277,15 @@ def _phase_2c_report_summary_with_artifacts(
 
 def _count_feasibility_status(records: list[dict[str, Any]], status: str) -> int:
     return sum(1 for record in records if _feasibility_status(record) == status)
+
+
+def _count_idempotency_skipped(records: list[dict[str, Any]]) -> int:
+    return sum(
+        1
+        for record in records
+        if isinstance(record.get("feasibility"), dict)
+        and "last_reverify_skipped_at" in record["feasibility"]
+    )
 
 
 def _source_data_dropped_by_kind(dropped_source_data: list[dict[str, Any]]) -> dict[str, int]:
@@ -1290,18 +1302,26 @@ def _phase_2c_per_site_counts(
     infeasible: list[dict[str, Any]],
 ) -> dict[str, dict[str, int]]:
     per_site: dict[str, dict[str, int]] = {}
-    for record in verified:
+
+    def bucket_for(record: dict[str, Any]) -> dict[str, int]:
         site = str(record.get("site") or "").strip().lower() or "unknown"
-        bucket = per_site.setdefault(site, {"verified": 0, "infeasible": 0, "skipped": 0})
+        return per_site.setdefault(
+            site,
+            {"verified": 0, "infeasible": 0, "skipped": 0, "unverified": 0},
+        )
+
+    for record in verified:
+        bucket = bucket_for(record)
         feasibility = record.get("feasibility") if isinstance(record, dict) else None
-        if isinstance(feasibility, dict) and "last_reverify_skipped_at" in feasibility:
+        status = _feasibility_status(record)
+        if status == "unverified":
+            bucket["unverified"] += 1
+        elif isinstance(feasibility, dict) and "last_reverify_skipped_at" in feasibility:
             bucket["skipped"] += 1
-        else:
+        elif status == "verified":
             bucket["verified"] += 1
     for record in infeasible:
-        site = str(record.get("site") or "").strip().lower() or "unknown"
-        bucket = per_site.setdefault(site, {"verified": 0, "infeasible": 0, "skipped": 0})
-        bucket["infeasible"] += 1
+        bucket_for(record)["infeasible"] += 1
     return per_site
 
 

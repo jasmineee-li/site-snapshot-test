@@ -312,6 +312,102 @@ def test_resolve_benign_storage_state_path_ignores_nested_path_for_non_storage_a
     assert resolved is None
 
 
+def test_resolve_benign_browser_context_auth_supports_http_headers():
+    context, reason = feas._resolve_benign_browser_context_auth(
+        _gitlab_instance(
+            agent_auth={
+                "type": "http_headers",
+                "http_headers": {"headers": {"X-User": "${credentials.username}"}},
+                "authentication": {"credentials": {"username": "alice", "password": "pw"}},
+            }
+        )
+    )
+
+    assert reason is None
+    assert context == {"extra_http_headers": {"X-User": "alice"}}
+
+
+@pytest.mark.asyncio
+async def test_run_render_check_passes_resolved_agent_auth(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    async def fake_verify_seed_renders(**kwargs):
+        captured.update(kwargs)
+        return feas.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="auth probe body",
+            snippet="auth probe body",
+        )
+
+    monkeypatch.setattr(feas, "verify_seed_renders", fake_verify_seed_renders)
+
+    outcome = await feas._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed={
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "auth probe body"},
+                }
+            ]
+        },
+        metadata={"read_surface_urls": ["https://gitlab.example/project/-/issues/1"]},
+        instance=_gitlab_instance(
+            agent_auth={
+                "type": "http_headers",
+                "http_headers": {"headers": {"X-User": "${credentials.username}"}},
+                "authentication": {"credentials": {"username": "alice", "password": "pw"}},
+            }
+        ),
+    )
+
+    assert outcome.ok
+    assert captured["browser_context_kwargs"] == {"extra_http_headers": {"X-User": "alice"}}
+
+
+@pytest.mark.asyncio
+async def test_run_reachability_check_fails_closed_on_unusable_declared_auth(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    missing = tmp_path / "missing.json"
+
+    outcome = await feas._run_reachability_check(
+        browser=object(),
+        render_semaphore=None,
+        task={
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "start_url_resolved": "https://gitlab.example/project/-/issues/1",
+            }
+        },
+        seed={
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "auth probe body"},
+                }
+            ]
+        },
+        metadata={},
+        instance=_gitlab_instance(
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(missing)},
+            }
+        ),
+        render_outcome=feas.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="auth probe body",
+            snippet="auth probe body",
+        ),
+    )
+
+    assert outcome.reachability == "unreachable"
+    assert outcome.kind == "auth_missing"
+
+
 def test_preflight_request_context_uses_agent_http_headers():
     context, reason = feas._preflight_request_context_options(
         _gitlab_instance(

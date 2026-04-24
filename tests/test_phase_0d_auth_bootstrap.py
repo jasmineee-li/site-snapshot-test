@@ -83,6 +83,13 @@ def _setup_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, 
     return state_dir, bench, profiles
 
 
+def test_phase_0d_paths_reject_unsafe_site_name(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="not safe"):
+        bootstrap.phase_0d_artifact_path("../gitlab", state_dir=tmp_path)
+    with pytest.raises(ValueError, match="not safe"):
+        bootstrap.phase_0d_completion_path("gitlab/../x", state_dir=tmp_path)
+
+
 def test_reacquire_storage_state_uses_form_login_and_canonical_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -640,6 +647,27 @@ class TestContractFailures:
         # Skipped, not failed.
         assert rc == 0
         assert not (state_dir / "phase_0d" / "gitlab" / "storage_state.json").exists()
+
+    def test_unsafe_site_name_is_rejected_before_output_write(self, tmp_path, monkeypatch):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _write_generator(bench, "scripts/make_auth.py", _GOOD_GENERATOR)
+        _write_context(
+            profiles,
+            "..",
+            auth_mechanism={
+                "type": "storage_state",
+                "storage_state": {
+                    "path": "auth/state.json",
+                    "generator_script": "scripts/make_auth.py",
+                },
+            },
+        )
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench)))
+
+        assert rc == 1
+        assert not (state_dir / "storage_state.json").exists()
+        assert not (state_dir / "phase_0d" / "storage_state.json").exists()
 
     def test_relative_generator_script_escape_is_rejected(self, tmp_path, monkeypatch):
         state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)

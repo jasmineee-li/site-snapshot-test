@@ -74,6 +74,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from worldsim.agent_auth import safe_phase_0d_site_name
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 from worldsim.state import get_state_dir, save_state
@@ -203,10 +204,15 @@ async def run(args: argparse.Namespace) -> int:
     failures: list[tuple[str, str]] = []
 
     for spec in site_specs:
-        site_output = output_dir / spec.site_name
+        try:
+            artifact_path = phase_0d_artifact_path(spec.site_name, state_dir=state_dir)
+            completion_path = phase_0d_completion_path(spec.site_name, state_dir=state_dir)
+        except ValueError as exc:
+            logger.error("Phase 0d failed for site %r: %s", spec.site_name, exc)
+            failures.append((spec.site_name, str(exc)))
+            continue
+        site_output = artifact_path.parent
         site_output.mkdir(parents=True, exist_ok=True)
-        artifact_path = site_output / "storage_state.json"
-        completion_path = site_output / "completion.json"
 
         site_url = site_urls.get(spec.site_name, "")
         try:
@@ -348,9 +354,10 @@ async def reacquire_storage_state(
     reuses Phase 0d's generator/form-login machinery instead of duplicating
     login flows in later phases.
     """
-    site = str(site_name).strip().lower()
-    if not site:
-        raise AuthBootstrapError("site_name must be non-empty")
+    raw_site = str(site_name).strip().lower()
+    site, site_error = safe_phase_0d_site_name(raw_site)
+    if site_error is not None or site is None:
+        raise AuthBootstrapError(site_error or "site_name must be non-empty")
     if not isinstance(instance, dict):
         raise AuthBootstrapError("instance must be a dict")
 
@@ -1061,14 +1068,20 @@ async def _bootstrap_via_form_login(
 
 def phase_0d_artifact_path(site_name: str, state_dir: Path | None = None) -> Path:
     """Return the canonical artifact path for a site's Phase 0d output."""
+    site, site_error = safe_phase_0d_site_name(site_name)
+    if site_error is not None or site is None:
+        raise ValueError(site_error or "site_name must be non-empty")
     base = Path(state_dir) if state_dir is not None else get_state_dir()
-    return base / "phase_0d" / site_name / "storage_state.json"
+    return base / "phase_0d" / site / "storage_state.json"
 
 
 def phase_0d_completion_path(site_name: str, state_dir: Path | None = None) -> Path:
     """Return the canonical completion marker path for a site's Phase 0d output."""
+    site, site_error = safe_phase_0d_site_name(site_name)
+    if site_error is not None or site is None:
+        raise ValueError(site_error or "site_name must be non-empty")
     base = Path(state_dir) if state_dir is not None else get_state_dir()
-    return base / "phase_0d" / site_name / "completion.json"
+    return base / "phase_0d" / site / "completion.json"
 
 
 def _phase_0d_state_metadata(

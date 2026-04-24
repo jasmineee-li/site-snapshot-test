@@ -59,7 +59,7 @@ import re
 import shutil
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from html.parser import HTMLParser
@@ -1200,12 +1200,22 @@ def _seed_target_site(task: dict[str, Any]) -> str:
     return delivery_site or str(task.get("site", "")).strip()
 
 
-def _seed_target_benchmark(task: dict[str, Any]) -> str:
+def _seed_target_benchmark(task: dict[str, Any], *metadata_sources: Mapping[str, Any]) -> str:
     values: list[Any] = [
         task.get("benchmark"),
         task.get("benchmark_name"),
         task.get("benchmark_adapter"),
     ]
+    for source in metadata_sources:
+        if not isinstance(source, Mapping):
+            continue
+        values.extend(
+            (
+                source.get("benchmark"),
+                source.get("benchmark_name"),
+                source.get("benchmark_adapter"),
+            )
+        )
     seed = task.get("adversarial_data_seed")
     if isinstance(seed, dict):
         for call in seed.get("editor_calls", []):
@@ -1218,11 +1228,13 @@ def _seed_target_benchmark(task: dict[str, Any]) -> str:
                     call.get("benchmark_adapter"),
                 )
             )
-    first_raw = next((str(value).strip() for value in values if str(value or "").strip()), None)
     try:
-        return infer_benchmark_name(values) or first_raw or "webarena_verified"
-    except ValueError:
-        return first_raw or "webarena_verified"
+        benchmark = infer_benchmark_name(values)
+    except ValueError as exc:
+        raise ValueError(f"invalid adversarial seed benchmark metadata: {exc}") from exc
+    if benchmark is None:
+        raise ValueError("adversarial seed is missing benchmark metadata")
+    return benchmark
 
 
 def _seed_target_sites(tasks: list[dict[str, Any]]) -> list[str]:
@@ -2273,7 +2285,7 @@ async def run_adversarial_task(
                     preflight = await preflight_adversarial_seed(
                         preflight_seed,
                         seed_instance_dict,
-                        benchmark=_seed_target_benchmark(task),
+                        benchmark=_seed_target_benchmark(task, seed_instance_dict),
                         base_state_cache=seed_probe_cache,
                     )
                 except ValueError as exc:
@@ -4304,7 +4316,6 @@ def _probe_seed_base_state_for_task_targets(
         seed = task.get("adversarial_data_seed")
         if not _seed_uses_editor_calls(seed):
             continue
-        seed_benchmark = _seed_target_benchmark(task)
         seed_site = _seed_target_site(task)
         if not seed_site:
             continue
@@ -4316,6 +4327,11 @@ def _probe_seed_base_state_for_task_targets(
             )
             continue
         instance_dict = instance.model_dump()
+        try:
+            seed_benchmark = _seed_target_benchmark(task, instance_dict)
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
         cache_key = _probe_seed_cache_key(instance_dict, benchmark=seed_benchmark)
         if cache_key in seen_cache_keys:
             continue

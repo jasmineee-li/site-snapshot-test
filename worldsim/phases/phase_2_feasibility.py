@@ -872,7 +872,18 @@ async def _run_reachability_check(
     signature = render_outcome.matched_signature or render_signature(seed)
     rendered_payload = _first_rendered_payload(seed)
     second_witness = derive_second_witness(rendered_payload, signature)
-    storage_state_path = _resolve_benign_storage_state_path(instance)
+    browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
+    if auth_error is not None:
+        return ReachabilityOutcome.unreachable(
+            kind=_auth_probe_failure_kind(auth_error),
+            detail=auth_error,
+            url=site_url,
+            witnesses_missing=tuple(
+                witness
+                for witness in (signature, second_witness)
+                if isinstance(witness, str) and witness
+            ),
+        )
 
     async def _do() -> ReachabilityOutcome:
         try:
@@ -882,7 +893,7 @@ async def _run_reachability_check(
                 instance_site_url=site_url,
                 signature=signature,
                 second_witness=second_witness,
-                storage_state_path=storage_state_path,
+                browser_context_kwargs=browser_context_kwargs,
             )
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("phase 2c reachability probe crashed")
@@ -1346,6 +1357,40 @@ def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
     return str(path) if path is not None else None
 
 
+def _resolve_benign_browser_context_auth(
+    instance: dict[str, Any],
+) -> tuple[dict[str, Any], str | None]:
+    """Return browser context auth kwargs for Phase 2c browser probes.
+
+    No configured ``agent_auth`` preserves the legacy anonymous probe path.
+    Declared-but-unusable auth returns an explicit reason so callers fail
+    closed instead of silently probing as an anonymous visitor.
+    """
+    agent_auth = instance.get("agent_auth")
+    if not isinstance(agent_auth, dict) or not str(agent_auth.get("type") or "").strip():
+        return {}, None
+    benchmark_root = (
+        Path(str(instance["benchmark_root"])) if instance.get("benchmark_root") else None
+    )
+    resolved = resolve_agent_auth(
+        agent_auth,
+        site_name=str(instance.get("site_name") or ""),
+        site_url=str(instance.get("site_url") or ""),
+        benchmark_root=benchmark_root,
+        storage_state_override=instance.get("storage_state_path"),
+    )
+    if resolved.unusable_reason is not None:
+        return {}, resolved.unusable_reason
+    return dict(resolved.browser_context_kwargs), None
+
+
+def _auth_probe_failure_kind(reason: str) -> str:
+    lowered = reason.lower()
+    if "missing" in lowered or "not found" in lowered or "no usable artifact" in lowered:
+        return "auth_missing"
+    return "auth_unusable"
+
+
 async def _run_render_check(
     *,
     browser: Any,
@@ -1375,7 +1420,14 @@ async def _run_render_check(
             if value not in (None, ""):
                 write_tokens[key] = value
 
-    storage_state_path = _resolve_benign_storage_state_path(instance)
+    browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
+    if auth_error is not None:
+        return RenderOutcome.failed(
+            kind=_auth_probe_failure_kind(auth_error),
+            detail=auth_error,
+            urls_tried=[],
+            per_url_errors={},
+        )
 
     async def _do() -> RenderOutcome:
         try:
@@ -1385,7 +1437,7 @@ async def _run_render_check(
                 site_name=site_name,
                 site_url=site_url,
                 signature=signature,
-                storage_state_path=storage_state_path,
+                browser_context_kwargs=browser_context_kwargs,
                 write_tokens=write_tokens or None,
             )
         except Exception as exc:  # pragma: no cover - defensive

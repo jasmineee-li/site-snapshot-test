@@ -72,6 +72,7 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     task, missing = prepare_task_for_execution(
         {
             "id": "adv-1",
+            "benchmark": "webarena_verified",
             "benign_task_id": "benign-1",
             "site": "shopping",
             "sites": ["shopping", "gitlab"],
@@ -91,6 +92,73 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     )
     assert missing == []
     return task, instances
+
+
+def test_seed_target_benchmark_requires_metadata():
+    with pytest.raises(ValueError, match="missing benchmark metadata"):
+        phase_4_adversarial._seed_target_benchmark(
+            {
+                "site": "gitlab",
+                "adversarial_data_seed": {
+                    "editor_calls": [{"site": "gitlab", "method": "create_issue_note"}]
+                },
+            }
+        )
+
+
+def test_seed_target_benchmark_rejects_mixed_metadata():
+    with pytest.raises(ValueError, match="mixed benchmark metadata"):
+        phase_4_adversarial._seed_target_benchmark(
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "adversarial_data_seed": {
+                    "editor_calls": [
+                        {
+                            "benchmark": "stwebagentbench",
+                            "site": "gitlab",
+                            "method": "create_issue_note",
+                        }
+                    ]
+                },
+            }
+        )
+
+
+def test_seed_target_benchmark_normalizes_aliases():
+    assert (
+        phase_4_adversarial._seed_target_benchmark(
+            {
+                "benchmark_name": "WebArena Verified",
+                "site": "gitlab",
+                "adversarial_data_seed": {
+                    "editor_calls": [
+                        {
+                            "benchmark": "webarena-verified",
+                            "site": "gitlab",
+                            "method": "create_issue_note",
+                        }
+                    ]
+                },
+            }
+        )
+        == "webarena_verified"
+    )
+
+
+def test_seed_target_benchmark_uses_instance_metadata_fallback():
+    assert (
+        phase_4_adversarial._seed_target_benchmark(
+            {
+                "site": "gitlab",
+                "adversarial_data_seed": {
+                    "editor_calls": [{"site": "gitlab", "method": "create_issue_note"}]
+                },
+            },
+            {"benchmark_name": "WebArena Verified"},
+        )
+        == "webarena_verified"
+    )
 
 
 def test_pvpo_endpoint_preflight_errors_require_dedicated_urls_for_active_sites():
@@ -4044,6 +4112,7 @@ async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_re
     for index in range(100):
         candidate = {
             "id": f"adv-fallback-{index}",
+            "benchmark": "webarena_verified",
             "benign_task_id": "benign-1",
             "site": "shopping",
             "instruction": "Find the order",
@@ -4147,6 +4216,7 @@ async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_r
     for index in range(100):
         candidate = {
             "id": f"adv-cross-site-{index}",
+            "benchmark": "webarena_verified",
             "benign_task_id": "benign-1",
             "site": "shopping",
             "instruction": "Find the order",
@@ -4179,6 +4249,7 @@ async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_r
     gitlab_task, missing = prepare_task_for_execution(
         {
             "id": "adv-gitlab-1",
+            "benchmark": "webarena_verified",
             "benign_task_id": "benign-1",
             "site": "gitlab",
             "instruction": "Check the issue",
@@ -4645,11 +4716,12 @@ async def test_preflight_adversarial_seed_converts_runtime_errors_to_mismatches(
 @pytest.mark.asyncio
 async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
+    task["benchmark"] = "WebArena Verified"
     task["adversarial_data_seed"] = {
         "mechanism": "editor",
         "editor_calls": [
             {
-                "benchmark": "custom_benchmark",
+                "benchmark": "webarena-verified",
                 "site": "shopping",
                 "method": "create_product_review",
                 "args": {"entity_pk_value": 7, "detail": "payload"},
@@ -4693,7 +4765,7 @@ async def test_run_adversarial_task_threads_seed_benchmark_into_preflight(monkey
     )
 
     assert result["outcome"] == "seed_preflight_mismatch"
-    assert captured["benchmark"] == "custom_benchmark"
+    assert captured["benchmark"] == "webarena_verified"
 
 
 @pytest.mark.asyncio
