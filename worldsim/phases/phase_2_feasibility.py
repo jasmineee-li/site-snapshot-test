@@ -876,9 +876,15 @@ async def _run_reachability_check(
     """
     benign_target_resource = task.get("benign_target_resource")
     site_url = str(instance.get("site_url") or "").strip()
-    signature = render_signature(seed, metadata)
-    rendered_payload = _first_rendered_payload(seed)
-    second_witness = derive_second_witness(rendered_payload, signature)
+    url_token = _required_url_token(task)
+    if url_token is not None:
+        signature = url_token
+        prose_source = render_outcome.rendered_body_text or _first_rendered_payload(seed)
+        second_witness = derive_second_witness(prose_source, signature)
+    else:
+        signature = render_signature(seed, metadata)
+        rendered_payload = render_outcome.rendered_body_text or _first_rendered_payload(seed)
+        second_witness = derive_second_witness(rendered_payload, signature)
     browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
     if auth_error is not None:
         return ReachabilityOutcome.unreachable(
@@ -894,7 +900,7 @@ async def _run_reachability_check(
 
     async def _do() -> ReachabilityOutcome:
         try:
-            return await verify_reachable(
+            outcome = await verify_reachable(
                 browser=browser,
                 benign_target_resource=benign_target_resource,
                 instance_site_url=site_url,
@@ -902,6 +908,23 @@ async def _run_reachability_check(
                 second_witness=second_witness,
                 browser_context_kwargs=browser_context_kwargs,
             )
+            if (
+                url_token is not None
+                and outcome.kind == "witnesses_absent"
+                and url_token in (outcome.witnesses_matched or ())
+            ):
+                logger.info(
+                    "phase 2c reachability: URL gate satisfied, prose advisory "
+                    "missing (task=%s url=%s missing=%s)",
+                    task.get("id"),
+                    url_token,
+                    outcome.witnesses_missing,
+                )
+                return ReachabilityOutcome.direct(
+                    url=outcome.url_tried,
+                    witnesses_matched=outcome.witnesses_matched,
+                )
+            return outcome
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("phase 2c reachability probe crashed")
             return ReachabilityOutcome.unreachable(
@@ -914,6 +937,22 @@ async def _run_reachability_check(
         return await _do()
     async with render_semaphore:
         return await _do()
+
+
+def _required_url_token(task: dict[str, Any]) -> str | None:
+    """Return the first URL value from task.required_tokens, or None."""
+    tokens = task.get("required_tokens")
+    if not isinstance(tokens, list):
+        return None
+    for entry in tokens:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("kind") != "url":
+            continue
+        value = entry.get("value")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
 
 
 def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
