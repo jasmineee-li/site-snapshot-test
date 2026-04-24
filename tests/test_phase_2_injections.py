@@ -2444,7 +2444,9 @@ async def test_phase_2_skip_feasibility_clears_stale_infeasible_sidecar(monkeypa
     output_path = output_dir / "adversarial_tasks.json"
     output_path.write_text(json.dumps([_finalized_plan_task()]))
     infeasible_path = output_dir / "adversarial_tasks.infeasible.json"
-    infeasible_path.write_text(json.dumps([{"id": "stale", "feasibility": {"status": "infeasible"}}]))
+    infeasible_path.write_text(
+        json.dumps([{"id": "stale", "feasibility": {"status": "infeasible"}}])
+    )
 
     rc = await phase_2_injections._run_feasibility_stage(
         args=Namespace(
@@ -3828,3 +3830,109 @@ class TestRecoverOrphanedShards:
         # Must escape the host root and point at the concrete entity.
         assert recovered_url != "https://reddit.local"
         assert "/f/books/12345" in recovered_url
+
+    def test_backfills_project_name_template_from_path(self, tmp_path: Path):
+        """Orphan shards from pre-template-standardization runs carry
+        ``project_path_template`` on editor_calls[].args but not the
+        paired ``project_name_template`` that GitLab's editor
+        arg-validator requires. Recovery must derive the name template
+        from the path's leaf so Phase 2c doesn't fail these orphans with
+        ``invalid_args: project_id or project_name_template is required``.
+        """
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        orphan = {
+            **self._plan("adv-name-backfill"),
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "start_url_resolved": "https://gitlab.local",
+                "anchors": {
+                    "project_path": "a11yproject/a11yproject.com",
+                    "issue_iid": 1064,
+                },
+            },
+            "adversarial_data_seed": {
+                "editor_calls": [
+                    {
+                        "method": "create_issue_note",
+                        "args": {
+                            "project_path_template": "a11yproject/a11yproject.com",
+                            # project_name_template intentionally missing.
+                        },
+                    }
+                ],
+            },
+        }
+        (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([orphan]))
+        merged, recovered = phase_2_injections._recover_orphaned_shards(
+            shards_dir, [], allowed_sites={"gitlab"}
+        )
+        assert recovered == ["adv-name-backfill"]
+        recovered_args = merged[0]["adversarial_data_seed"]["editor_calls"][0]["args"]
+        assert recovered_args["project_path_template"] == "a11yproject/a11yproject.com"
+        assert recovered_args["project_name_template"] == "a11yproject.com"
+
+    def test_preserves_existing_project_name_template(self, tmp_path: Path):
+        """Backfill must not stomp an already-populated template."""
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        orphan = {
+            **self._plan("adv-already-named"),
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "start_url_resolved": "https://gitlab.local",
+                "anchors": {
+                    "project_path": "byteblaze/dotfiles",
+                    "issue_iid": 7,
+                },
+            },
+            "adversarial_data_seed": {
+                "editor_calls": [
+                    {
+                        "method": "create_issue_note",
+                        "args": {
+                            "project_path_template": "byteblaze/dotfiles",
+                            "project_name_template": "webagent-task-{salt}",
+                        },
+                    }
+                ],
+            },
+        }
+        (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([orphan]))
+        merged, _ = phase_2_injections._recover_orphaned_shards(
+            shards_dir, [], allowed_sites={"gitlab"}
+        )
+        recovered_args = merged[0]["adversarial_data_seed"]["editor_calls"][0]["args"]
+        assert recovered_args["project_name_template"] == "webagent-task-{salt}"
+
+    def test_name_backfill_skipped_for_non_gitlab(self, tmp_path: Path):
+        """The backfill is gitlab-specific — reddit orphans have no
+        project_name_template concept and must not acquire one."""
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        orphan = {
+            **self._plan("adv-reddit-passthrough", site="reddit"),
+            "benign_target_resource": {
+                "kind": "reddit_post",
+                "start_url_resolved": "https://reddit.local",
+                "anchors": {"forum_slug": "books", "post_id": 12345},
+            },
+            "adversarial_data_seed": {
+                "editor_calls": [
+                    {
+                        "method": "create_reddit_comment",
+                        "args": {
+                            # Pathological payload but must pass through
+                            # untouched — reddit does not use this field.
+                            "project_path_template": "someone/something",
+                        },
+                    }
+                ],
+            },
+        }
+        (shards_dir / "reddit-shard-0.json").write_text(json.dumps([orphan]))
+        merged, _ = phase_2_injections._recover_orphaned_shards(
+            shards_dir, [], allowed_sites={"reddit"}
+        )
+        recovered_args = merged[0]["adversarial_data_seed"]["editor_calls"][0]["args"]
+        assert "project_name_template" not in recovered_args

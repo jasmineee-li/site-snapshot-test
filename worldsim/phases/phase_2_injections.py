@@ -2386,6 +2386,33 @@ def _reconstruct_orphan_start_urls(orphans: list[dict[str, Any]]) -> None:
         if reconstructed and reconstructed != resource.get("start_url_resolved"):
             resource["start_url_resolved"] = reconstructed
             task["benign_target_resource"] = resource
+        # Orphan shards from pre-template-standardization runs carry
+        # ``project_path_template`` in ``editor_calls[].args`` but
+        # never populated the paired ``project_name_template`` that
+        # the GitLab editor's arg-validator requires. Both fields are
+        # derivable from each other — the template is the leaf segment
+        # of the path (see ``worldsim/editors/gitlab.py`` for the
+        # forward derivation) — so backfill here keeps orphan recovery
+        # symmetric with Phase 2a's original generation contract and
+        # avoids the ``invalid_args: "project_id or
+        # project_name_template is required"`` failure downstream.
+        if site_kind == "gitlab":
+            editor_calls = task.get("adversarial_data_seed", {}).get("editor_calls")
+            if isinstance(editor_calls, list):
+                for call in editor_calls:
+                    if not isinstance(call, dict):
+                        continue
+                    args = call.get("args")
+                    if not isinstance(args, dict):
+                        continue
+                    if args.get("project_name_template"):
+                        continue
+                    path_template = args.get("project_path_template")
+                    if not isinstance(path_template, str) or "/" not in path_template:
+                        continue
+                    leaf = path_template.rsplit("/", 1)[-1]
+                    if leaf:
+                        args["project_name_template"] = leaf
 
 
 def _merge_preserving_unfiltered_sites(
