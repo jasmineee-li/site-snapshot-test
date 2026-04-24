@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from worldsim.agent_auth import _resolve_declared_storage_state_path
+from worldsim.atomic_io import write_json_atomic
 from worldsim.benchmark_capabilities import normalize_benchmark_name
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 
@@ -190,34 +192,17 @@ def _resolve_storage_state_artifact_for_preflight(
     if raw_path is None:
         return None, None
 
-    declared = Path(raw_path)
-    if declared.is_absolute():
-        declared_path = declared
-    else:
-        if benchmark_root is None:
-            return None, StorageStatePreflightError(
-                site_name=instance.site_name,
-                declared_path=raw_path,
-                message=(
-                    "relative auth_mechanism.storage_state.path requires --benchmark so "
-                    "the runtime can resolve the artifact safely"
-                ),
-            )
-        root = Path(benchmark_root)
-        declared_path = root / declared
-        # Containment check uses resolved paths (to catch `../` escapes via
-        # symlinks), but the returned path is the unresolved logical form
-        # so symlinks inside benchmark_root (e.g. vendors/ → /home/ubuntu/vendors
-        # on r5) don't pin the existence check to a physical tree that
-        # Phase 0d never wrote to.
-        try:
-            declared_path.resolve().relative_to(root.resolve())
-        except ValueError:
-            return None, StorageStatePreflightError(
-                site_name=instance.site_name,
-                declared_path=raw_path,
-                message=(f"storage_state path {raw_path!r} resolves outside benchmark root {root}"),
-            )
+    declared_path, resolve_error = _resolve_declared_storage_state_path(
+        raw_path,
+        benchmark_root=benchmark_root,
+        site_name=instance.site_name,
+    )
+    if resolve_error is not None or declared_path is None:
+        return None, StorageStatePreflightError(
+            site_name=instance.site_name,
+            declared_path=raw_path,
+            message=resolve_error or "storage_state path could not be resolved",
+        )
 
     if declared_path.exists():
         return declared_path, None
@@ -556,6 +541,7 @@ async def ensure_storage_state(
             _extract_form_login_recipe,
             _SiteSpec,
             phase_0d_artifact_path,
+            phase_0d_completion_path,
         )
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -601,6 +587,20 @@ async def ensure_storage_state(
             f"storage_state_stale: auto-mint storage_state failed for {instance.site_name}: {exc}"
         ) from exc
     write_storage_state_meta(output_path, mechanism="form_login_auto_heal")
+    write_json_atomic(
+        phase_0d_completion_path(instance.site_name),
+        {
+            "site": instance.site_name,
+            "input_hash": None,
+            "artifact_path": str(output_path),
+            "dispatch": "form_login_auto_heal",
+            "generator_script": None,
+            "form_login": form_login,
+            "agent_context_source": str(spec.agent_context_source),
+            "site_url": instance.site_url,
+            "auto_minted_at": datetime.now(UTC).isoformat(),
+        },
+    )
     if not storage_state_is_fresh(output_path):
         raise RuntimeError(
             f"storage_state_stale: auto-minted storage_state for {instance.site_name} is still stale"

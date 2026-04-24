@@ -55,7 +55,7 @@ def test_find_host_bound_storage_state_mismatches_detects_old_host(tmp_path: Pat
         )
     ]
 
-    mismatches = find_host_bound_storage_state_mismatches(instances)
+    mismatches = find_host_bound_storage_state_mismatches(instances, benchmark_root=tmp_path)
     assert len(mismatches) == 1
     assert mismatches[0].site_name == "gitlab"
     assert mismatches[0].recorded_hosts == ("18.117.99.179",)
@@ -80,7 +80,7 @@ def test_find_host_bound_storage_state_mismatches_allows_matching_parent_domain(
         )
     ]
 
-    assert find_host_bound_storage_state_mismatches(instances) == []
+    assert find_host_bound_storage_state_mismatches(instances, benchmark_root=tmp_path) == []
 
 
 def test_find_host_bound_storage_state_mismatches_rejects_mixed_hosts(
@@ -108,7 +108,7 @@ def test_find_host_bound_storage_state_mismatches_rejects_mixed_hosts(
         )
     ]
 
-    mismatches = find_host_bound_storage_state_mismatches(instances)
+    mismatches = find_host_bound_storage_state_mismatches(instances, benchmark_root=tmp_path)
     assert len(mismatches) == 1
     assert mismatches[0].recorded_hosts == ("3.12.221.9", "evil.test")
 
@@ -157,7 +157,7 @@ def test_apply_skip_auth_for_host_bound_storage_states_rewrites_only_mismatched_
         }
     )
 
-    mismatches = find_host_bound_storage_state_mismatches(config.instances)
+    mismatches = find_host_bound_storage_state_mismatches(config.instances, benchmark_root=tmp_path)
     updated = apply_skip_auth_for_host_bound_storage_states(config, mismatches)
 
     gitlabs = [instance for instance in updated.instances if instance.site_name == "gitlab"]
@@ -186,7 +186,32 @@ def test_inspect_storage_state_preflight_reports_missing_relative_path_without_b
 
     assert report.mismatches == ()
     assert len(report.errors) == 1
-    assert "requires --benchmark" in report.errors[0].message
+    assert "requires a benchmark root" in report.errors[0].message
+
+
+def test_inspect_storage_state_preflight_rejects_absolute_path_outside_allowed_roots(
+    tmp_path: Path,
+) -> None:
+    state_path = tmp_path / "outside-state.json"
+    _write_storage_state(state_path, domain="3.12.221.9")
+
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": str(state_path)},
+            },
+        )
+    ]
+
+    report = inspect_storage_state_preflight(instances, benchmark_root=tmp_path / "bench")
+
+    assert report.mismatches == ()
+    assert len(report.errors) == 1
+    assert "outside allowed roots" in report.errors[0].message
 
 
 def test_inspect_storage_state_preflight_reports_invalid_json(tmp_path: Path) -> None:
@@ -205,7 +230,7 @@ def test_inspect_storage_state_preflight_reports_invalid_json(tmp_path: Path) ->
         )
     ]
 
-    report = inspect_storage_state_preflight(instances)
+    report = inspect_storage_state_preflight(instances, benchmark_root=tmp_path)
 
     assert report.mismatches == ()
     assert len(report.errors) == 1
@@ -306,7 +331,7 @@ def test_find_host_bound_storage_state_mismatches_is_instance_specific_for_multi
         ),
     ]
 
-    mismatches = find_host_bound_storage_state_mismatches(instances)
+    mismatches = find_host_bound_storage_state_mismatches(instances, benchmark_root=tmp_path)
 
     assert len(mismatches) == 1
     assert mismatches[0].instance_hosts == ("host-b.example.com",)
@@ -328,7 +353,7 @@ def test_inspect_storage_state_preflight_reports_empty_artifact(tmp_path: Path) 
         )
     ]
 
-    report = inspect_storage_state_preflight(instances)
+    report = inspect_storage_state_preflight(instances, benchmark_root=tmp_path)
 
     assert report.mismatches == ()
     assert len(report.errors) == 1
@@ -362,7 +387,7 @@ def test_ensure_storage_state_raises_when_artifact_is_stale_and_auto_mint_disabl
         asyncio.run(
             ensure_storage_state(
                 instance,
-                benchmark_root=None,
+                benchmark_root=tmp_path,
                 benchmark_name="WebArena Verified",
             )
         )
@@ -381,7 +406,8 @@ def test_ensure_storage_state_auto_mint_uses_current_sitespec_shape(
     monkeypatch.setenv("WORLDSIM_AUTO_MINT_STORAGE_STATE", "true")
 
     benchmark_root = tmp_path / "bench"
-    stale_path = tmp_path / "stale-state.json"
+    benchmark_root.mkdir()
+    stale_path = benchmark_root / "stale-state.json"
     _write_storage_state(stale_path, domain="3.12.221.9")
     write_storage_state_meta(
         stale_path,
@@ -457,7 +483,7 @@ def test_ensure_storage_state_auto_mints_missing_webarena_artifact(
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
     monkeypatch.setenv("WORLDSIM_AUTO_MINT_STORAGE_STATE", "true")
 
-    missing_path = tmp_path / "missing-state.json"
+    missing_path = "auth/missing-state.json"
     instance = BenchmarkInstance(
         site_name="gitlab",
         site_url="http://3.12.221.9:8023",
@@ -465,7 +491,7 @@ def test_ensure_storage_state_auto_mints_missing_webarena_artifact(
         agent_auth={
             "type": "storage_state",
             "storage_state": {
-                "path": str(missing_path),
+                "path": missing_path,
                 "form_login": {
                     "login_url": "/users/sign_in",
                     "username_selector": "#user_login",
@@ -496,3 +522,6 @@ def test_ensure_storage_state_auto_mints_missing_webarena_artifact(
     )
 
     assert result == state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    report = inspect_storage_state_preflight([instance], benchmark_root=tmp_path / "bench")
+    assert report.errors == ()
+    assert report.mismatches == ()

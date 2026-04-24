@@ -1553,3 +1553,25 @@ async def test_phase_1_run_marks_failed_state_when_manifest_is_invalid_json(monk
     state = load_state()
     assert state["status"] == "failed"
     assert state["reason"] == "invalid_manifest"
+
+
+@pytest.mark.asyncio
+async def test_phase_1_run_rejects_mixed_manifest_benchmark_metadata(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    benchmark_root = tmp_path / "bench"
+    benchmark_root.mkdir()
+    phase_0a = tmp_path / "phase_0a"
+    phase_0a.mkdir()
+    manifest = _manifest(benchmark_root)
+    manifest["benchmark_adapter"] = "st-webagentbench"
+    (phase_0a / "BENCHMARK_MANIFEST.json").write_text(json.dumps(manifest))
+
+    rc = await phase_1_tasks.run(
+        Namespace(config=None, benchmark=None, generate_novel=False, resume=False)
+    )
+
+    assert rc == 1
+    state = load_state()
+    assert state["status"] == "failed"
+    assert state["reason"] == "unsupported_benchmark"
+    assert "mixed benchmark metadata" in state["error"]

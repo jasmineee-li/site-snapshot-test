@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from worldsim.benchmark_capabilities import get_benchmark_capabilities
+from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.phases.phase_1_mode_a import build_mode_a_tasks
 from worldsim.phases.phase_1_mode_b import (
@@ -223,14 +223,15 @@ def _resolve_benchmark_root(
 
 
 def _manifest_benchmark_name(manifest: dict[str, Any]) -> str:
-    for key in ("benchmark_name", "benchmark", "benchmark_adapter"):
-        raw = manifest.get(key)
-        if isinstance(raw, str) and raw.strip():
-            capabilities = get_benchmark_capabilities(raw)
-            if not capabilities.phase_1_supported:
-                raise ValueError(f"benchmark {capabilities.canonical_name!r} does not support Phase 1")
-            return capabilities.canonical_name
-    raise ValueError("Phase 0a manifest is missing benchmark metadata")
+    benchmark_name = infer_benchmark_name(
+        manifest.get(key) for key in ("benchmark_name", "benchmark", "benchmark_adapter")
+    )
+    if benchmark_name is None:
+        raise ValueError("Phase 0a manifest is missing benchmark metadata")
+    capabilities = get_benchmark_capabilities(benchmark_name)
+    if not capabilities.phase_1_supported:
+        raise ValueError(f"benchmark {capabilities.canonical_name!r} does not support Phase 1")
+    return capabilities.canonical_name
 
 
 def _stamp_benchmark_metadata(

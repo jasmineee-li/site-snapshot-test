@@ -2916,7 +2916,7 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "failed"
     assert state["reason"] == "storage_state_preflight_error"
-    assert any("requires --benchmark" in error for error in state["storage_state_preflight_errors"])
+    assert any("storage_state artifact missing" in error for error in state["storage_state_preflight_errors"])
 
 
 @pytest.mark.asyncio

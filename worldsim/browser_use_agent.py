@@ -713,6 +713,7 @@ class _ScopedHeaderAuthInjector:
         self.headers = dict(headers)
         self._browser_session: Any = None
         self._enabled_targets: set[str] = set()
+        self._enabled_sessions: dict[str, Any] = {}
         self._poll_task: asyncio.Task | None = None
         self._continue_tasks: set[asyncio.Task] = set()
         self._running = False
@@ -754,6 +755,28 @@ class _ScopedHeaderAuthInjector:
                 session_id=session.session_id,
             )
             self._enabled_targets.add(target_id)
+            self._enabled_sessions[target_id] = session
+
+    async def stop(self) -> None:
+        self._running = False
+        if self._poll_task is not None:
+            self._poll_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._poll_task
+            self._poll_task = None
+        if self._continue_tasks:
+            await asyncio.gather(*list(self._continue_tasks), return_exceptions=True)
+            self._continue_tasks.clear()
+        for session in list(self._enabled_sessions.values()):
+            fetch = getattr(getattr(session.cdp_client, "send", None), "Fetch", None)
+            disable = getattr(fetch, "disable", None)
+            if callable(disable):
+                try:
+                    await disable(session_id=session.session_id)
+                except Exception:
+                    logger.debug("scoped http_headers Fetch.disable failed", exc_info=True)
+        self._enabled_sessions.clear()
+        self._enabled_targets.clear()
 
     def _on_request_paused(
         self,
@@ -1260,6 +1283,7 @@ class BrowserUseAgent:
             if self._session is not None:
                 # Clean up temp profile dir before killing to avoid /tmp accumulation
                 self._cleanup_temp_profile(self._session)
+                await self._stop_scoped_header_auth()
                 try:
                     await self._cleanup_external_cdp_state(self._session)
                 except Exception as e:
@@ -1296,6 +1320,7 @@ class BrowserUseAgent:
             # Clean up temp profile dir before killing to avoid /tmp accumulation
             self._cleanup_temp_profile(self._session)
             try:
+                await self._stop_scoped_header_auth()
                 await self._cleanup_external_cdp_state(self._session)
                 await self._session.kill()
             except Exception as e:
@@ -1307,6 +1332,18 @@ class BrowserUseAgent:
             self._primary_target_id = None
             self._browser_runtime = {}
             self._preserve_remote_auth_state = False
+
+    async def _stop_scoped_header_auth(self) -> None:
+        if self._session is None:
+            return
+        injector = getattr(self._session, "_worldsim_scoped_header_auth", None)
+        if injector is None:
+            return
+        try:
+            await injector.stop()
+        finally:
+            with suppress(AttributeError):
+                delattr(self._session, "_worldsim_scoped_header_auth")
 
     async def _reset_remote_browser_for_task(self, session: Any) -> None:
         """Reset a worker-owned remote browser to one fresh blank target."""

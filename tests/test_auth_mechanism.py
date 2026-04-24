@@ -471,12 +471,16 @@ class TestResolveAuth:
             def __init__(self):
                 self.enabled = []
                 self.continued = []
+                self.disabled = []
 
             async def enable(self, params, *, session_id):
                 self.enabled.append((params, session_id))
 
             async def continueRequest(self, params, *, session_id):
                 self.continued.append((params, session_id))
+
+            async def disable(self, *, session_id):
+                self.disabled.append(session_id)
 
         class _Send:
             def __init__(self):
@@ -526,9 +530,6 @@ class TestResolveAuth:
             "session-1",
         )
         await asyncio.sleep(0)
-        injector._running = False
-        if injector._poll_task is not None:
-            injector._poll_task.cancel()
 
         same, other = session.cdp_client.send.Fetch.continued
         assert same[0]["headers"] == [
@@ -536,6 +537,8 @@ class TestResolveAuth:
             {"name": "X-Postmill-Auto-Login", "value": "alice:pw"},
         ]
         assert "headers" not in other[0]
+        await injector.stop()
+        assert session.cdp_client.send.Fetch.disabled == ["session-1"]
 
     def test_per_task_refresh_true_raises_not_implemented(self, tmp_path: Path):
         """Schema-legal but runtime-unimplemented. Fail fast instead of silently stale."""

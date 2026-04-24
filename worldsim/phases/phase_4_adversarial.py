@@ -1602,6 +1602,8 @@ async def run(args: argparse.Namespace) -> int:
         logger.error("--instances JSON file required for Phase 4")
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+    if benchmark_root is None:
+        benchmark_root = config.benchmark_codebase
     pvpo_endpoint_errors = _pvpo_endpoint_preflight_errors(
         config.instances,
         active_sites=active_sites,
@@ -1651,6 +1653,10 @@ async def run(args: argparse.Namespace) -> int:
                 )
                 continue
             if healed_path is not None:
+                auth = instance.agent_auth if isinstance(instance.agent_auth, dict) else None
+                storage_state = auth.get("storage_state") if isinstance(auth, dict) else None
+                if isinstance(storage_state, dict):
+                    storage_state["path"] = str(healed_path)
                 logger.info(
                     "auto-healed storage_state for %s at %s",
                     instance.site_name,
