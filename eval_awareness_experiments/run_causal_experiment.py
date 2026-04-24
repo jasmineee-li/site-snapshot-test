@@ -26,11 +26,12 @@ import sys
 from itertools import product
 from pathlib import Path
 
+from eval_awareness_experiments.extra_instructions import PRESETS
 from eval_awareness_experiments.injection_modifier import ALL_CONDITIONS
 
 DEFAULT_MODELS = ["anthropic/claude-opus-4.7:thinking"]
 ALL_BENCHMARKS = ["doomarena", "wasp", "agentdojo", "injecagent", "eia"]
-ALL_PRESETS = ["none", "scratchpad", "scratchpad_green", "motive"]
+ALL_PRESETS = sorted(PRESETS.keys())
 ALL_STAGES = ["all", "run-only", "judge-only"]
 
 
