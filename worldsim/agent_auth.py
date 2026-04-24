@@ -204,6 +204,7 @@ def resolve_storage_state_path(
             path, error = _resolve_declared_storage_state_path(
                 nested.strip(),
                 benchmark_root=benchmark_root,
+                site_name=site_name,
             )
             if error is not None:
                 logger.warning("agent auth: %s", error)
@@ -270,24 +271,50 @@ def _validate_storage_state_override_path(
     return f"storage_state override path {path} is outside allowed roots: {roots}"
 
 
+def _phase_0d_site_root(site_name: str) -> tuple[Path | None, str | None]:
+    safe_site, site_error = safe_phase_0d_site_name(site_name)
+    if site_error is not None:
+        return None, site_error
+    return (
+        Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs")
+        / "phase_0d"
+        / safe_site
+    ).resolve(), None
+
+
 def _resolve_declared_storage_state_path(
     raw_path: str,
     *,
     benchmark_root: Path | None,
+    site_name: str,
 ) -> tuple[Path | None, str | None]:
     path = Path(raw_path)
+    state_root, site_error = _phase_0d_site_root(site_name)
+    if site_error is not None:
+        return None, site_error
+    allowed_absolute_roots = [root for root in (Path(benchmark_root).resolve() if benchmark_root else None, state_root) if root is not None]
     if path.is_absolute():
-        if benchmark_root is not None:
-            root = Path(benchmark_root).resolve()
+        resolved = path.resolve()
+        for root in allowed_absolute_roots:
             try:
-                path.resolve().relative_to(root)
+                resolved.relative_to(root)
+                return path, None
             except ValueError:
-                return None, (
-                    f"declared storage_state path {raw_path} is outside benchmark root {root}"
-                )
-        return path, None
+                continue
+        roots = ", ".join(str(root) for root in allowed_absolute_roots)
+        return None, f"declared storage_state path {raw_path} is outside allowed roots: {roots}"
     if benchmark_root is None:
-        return path, None
+        resolved = path.resolve()
+        if state_root is not None:
+            try:
+                resolved.relative_to(state_root)
+                return path, None
+            except ValueError:
+                pass
+        return None, (
+            "relative declared storage_state path requires a benchmark root unless it "
+            "resolves under the Phase 0d site auth root"
+        )
     root = Path(benchmark_root)
     candidate = root / path
     try:
@@ -360,12 +387,23 @@ def storage_state_preflight_error_for_payload(
 
     cookie_hosts = storage_state_cookie_hosts(payload)
     origin_hosts = storage_state_origin_hosts(payload)
+    mismatched_cookie_hosts = [
+        host for host in cookie_hosts if not cookie_domain_matches_host(host, live_host)
+    ]
+    if mismatched_cookie_hosts:
+        return (
+            f"storage_state {path_obj} cookie domains are host-bound to "
+            f"{sorted(mismatched_cookie_hosts)} and do not match live host {live_host!r}"
+        )
+    mismatched_origin_hosts = [
+        host for host in origin_hosts if not cookie_domain_matches_host(host, live_host)
+    ]
+    if mismatched_origin_hosts:
+        return (
+            f"storage_state {path_obj} origins include hosts outside live host "
+            f"{live_host!r}: {sorted(mismatched_origin_hosts)}"
+        )
     if cookie_hosts:
-        if not any(cookie_domain_matches_host(host, live_host) for host in cookie_hosts):
-            return (
-                f"storage_state {path_obj} cookie domains are host-bound to "
-                f"{sorted(cookie_hosts)} and do not match live host {live_host!r}"
-            )
         return None
     if not any(cookie_domain_matches_host(recorded, live_host) for recorded in origin_hosts):
         return (

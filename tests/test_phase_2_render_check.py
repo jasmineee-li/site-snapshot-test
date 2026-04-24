@@ -741,10 +741,14 @@ class _FakeRequestContext:
         self._responses = dict(responses)
         self.calls: list[tuple[str, float]] = []
         self.header_calls: list[tuple[str, dict[str, str] | None]] = []
+        self.kwarg_calls: list[dict[str, object]] = []
 
-    async def get(self, url, *, timeout, headers=None):
+    async def get(self, url, *, timeout, max_redirects=None, headers=None):
         self.calls.append((url, timeout))
         self.header_calls.append((url, headers))
+        self.kwarg_calls.append(
+            {"url": url, "timeout": timeout, "max_redirects": max_redirects, "headers": headers}
+        )
         if url in self._responses:
             return self._responses[url]
         return _FakeRequestResponse(status=404, body="not found")
@@ -816,6 +820,7 @@ async def test_ryw_fastpath_matches_note_id_in_discussions_json():
     # Exactly one RYW fetch — no spurious retries.
     assert page.request.calls == [(json_url, pytest.approx(10000, abs=1))]
     assert page.request.header_calls == [(json_url, None)]
+    assert page.request.kwarg_calls[0]["max_redirects"] == 0
 
 
 @pytest.mark.asyncio
@@ -847,6 +852,7 @@ async def test_ryw_fastpath_forwards_scoped_http_headers_to_same_origin_json():
 
     assert outcome.ok is True
     assert page.request.header_calls == [(json_url, {"X-User": "alice"})]
+    assert page.request.kwarg_calls[0]["max_redirects"] == 0
 
 
 @pytest.mark.asyncio

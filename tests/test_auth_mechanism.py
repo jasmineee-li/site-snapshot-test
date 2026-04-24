@@ -10,6 +10,7 @@ Covers:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from argparse import Namespace
 from pathlib import Path
@@ -21,6 +22,7 @@ from worldsim.browser_use_agent import (
     AuthArtifactMissingError,
     _phase_0d_fallback_path,
     _resolve_auth,
+    _ScopedHeaderAuthInjector,
 )
 from worldsim.main import _dispatch_phase, _unknown_auth_sites, build_parser
 
@@ -189,15 +191,27 @@ class TestResolveAuth:
         assert deferred == []
 
     def test_storage_state_absolute_path(self, tmp_path: Path):
+        bench = tmp_path / "bench"
+        bench.mkdir()
+        artifact = bench / "state.json"
+        artifact.write_text("{}", encoding="utf-8")
+        auth = {
+            "type": "storage_state",
+            "storage_state": {"path": str(artifact)},
+        }
+        kwargs, deferred = _resolve_auth(auth, task=None, benchmark_root=bench)
+        assert kwargs == {"storage_state": {}}
+        assert deferred == []
+
+    def test_storage_state_absolute_path_requires_benchmark_root(self, tmp_path: Path):
         artifact = tmp_path / "state.json"
         artifact.write_text("{}", encoding="utf-8")
         auth = {
             "type": "storage_state",
             "storage_state": {"path": str(artifact)},
         }
-        kwargs, deferred = _resolve_auth(auth, task=None, benchmark_root=None)
-        assert kwargs == {"storage_state": {}}
-        assert deferred == []
+        with pytest.raises(AuthArtifactMissingError, match="requires a benchmark root"):
+            _resolve_auth(auth, task=None, benchmark_root=None)
 
     def test_storage_state_relative_path_resolves_against_benchmark_root(self, tmp_path: Path):
         bench = tmp_path / "bench"
@@ -246,7 +260,9 @@ class TestResolveAuth:
             _resolve_auth(auth, task=None, benchmark_root=bench)
 
     def test_storage_state_rejects_host_bound_cookie_for_other_site(self, tmp_path: Path):
-        artifact = tmp_path / "state.json"
+        bench = tmp_path / "bench"
+        bench.mkdir()
+        artifact = bench / "state.json"
         artifact.write_text(
             json.dumps(
                 {
@@ -271,28 +287,32 @@ class TestResolveAuth:
             _resolve_auth(
                 auth,
                 task=None,
-                benchmark_root=None,
+                benchmark_root=bench,
                 site_url="http://gitlab.test",
             )
 
     def test_storage_state_missing_raises(self, tmp_path: Path):
+        bench = tmp_path / "bench"
+        bench.mkdir()
         auth = {
             "type": "storage_state",
-            "storage_state": {"path": str(tmp_path / "does-not-exist.json")},
+            "storage_state": {"path": str(bench / "does-not-exist.json")},
         }
         with pytest.raises(AuthArtifactMissingError):
-            _resolve_auth(auth, task=None, benchmark_root=None)
+            _resolve_auth(auth, task=None, benchmark_root=bench)
 
     def test_storage_state_missing_with_generator_raises_informative(self, tmp_path: Path):
+        bench = tmp_path / "bench"
+        bench.mkdir()
         auth = {
             "type": "storage_state",
             "storage_state": {
-                "path": str(tmp_path / "nope.json"),
+                "path": str(bench / "nope.json"),
                 "generator_script": "scripts/make_auth.py",
             },
         }
         with pytest.raises(AuthArtifactMissingError) as exc:
-            _resolve_auth(auth, task=None, benchmark_root=None)
+            _resolve_auth(auth, task=None, benchmark_root=bench)
         assert "scripts/make_auth.py" in str(exc.value)
 
     def test_http_basic_maps_to_http_credentials(self):
@@ -300,9 +320,28 @@ class TestResolveAuth:
             "type": "http_basic",
             "http_basic": {"username": "admin", "password": "s3cret"},
         }
-        kwargs, deferred = _resolve_auth(auth, task=None, benchmark_root=None)
-        assert kwargs == {"http_credentials": {"username": "admin", "password": "s3cret"}}
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://site.test/start",
+        )
+        assert kwargs == {
+            "http_credentials": {
+                "username": "admin",
+                "password": "s3cret",
+                "origin": "http://site.test",
+            }
+        }
         assert deferred == []
+
+    def test_http_basic_requires_site_url_for_origin_scope(self):
+        auth = {
+            "type": "http_basic",
+            "http_basic": {"username": "admin", "password": "s3cret"},
+        }
+        with pytest.raises(AuthArtifactMissingError, match="valid site_url"):
+            _resolve_auth(auth, task=None, benchmark_root=None)
 
     @pytest.mark.parametrize(
         "mech_type",
@@ -328,11 +367,14 @@ class TestResolveAuth:
                 "credentials": {"username": "emma.lopez@gmail.com", "password": "Password.123"}
             },
         }
-        kwargs, deferred = _resolve_auth(auth, task=None, benchmark_root=None)
-        assert kwargs == {
-            "headers": {"X-M2-Customer-Auto-Login": "emma.lopez@gmail.com:Password.123"}
-        }
-        assert deferred == []
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
 
     def test_http_headers_preserves_static_values_without_credentials(self):
         auth = {
@@ -343,9 +385,22 @@ class TestResolveAuth:
                 }
             },
         }
-        kwargs, deferred = _resolve_auth(auth, task=None, benchmark_root=None)
-        assert kwargs == {"headers": {"X-Static-Token": "fixed-token"}}
-        assert deferred == []
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
+
+    def test_http_headers_requires_site_url_for_origin_scope(self):
+        auth = {
+            "type": "http_headers",
+            "http_headers": {"headers": {"X-Static-Token": "fixed-token"}},
+        }
+        with pytest.raises(AuthArtifactMissingError, match="valid site_url"):
+            _resolve_auth(auth, task=None, benchmark_root=None)
 
     def test_http_headers_rejects_missing_credentials_for_placeholders(self):
         auth = {
@@ -369,6 +424,89 @@ class TestResolveAuth:
         with pytest.raises(AuthArtifactMissingError):
             _resolve_auth(auth, task=None, benchmark_root=None)
 
+    @pytest.mark.asyncio
+    async def test_scoped_header_injector_adds_headers_only_same_origin(self):
+        class _RegisterFetch:
+            def __init__(self):
+                self.handler = None
+
+            def requestPaused(self, handler):
+                self.handler = handler
+
+        class _Register:
+            def __init__(self):
+                self.Fetch = _RegisterFetch()
+
+        class _FetchSend:
+            def __init__(self):
+                self.enabled = []
+                self.continued = []
+
+            async def enable(self, params, *, session_id):
+                self.enabled.append((params, session_id))
+
+            async def continueRequest(self, params, *, session_id):
+                self.continued.append((params, session_id))
+
+        class _Send:
+            def __init__(self):
+                self.Fetch = _FetchSend()
+
+        class _CDPClient:
+            def __init__(self):
+                self.register = _Register()
+                self.send = _Send()
+
+        class _Target:
+            target_id = "target-1"
+
+        class _SessionManager:
+            def get_all_page_targets(self):
+                return [_Target()]
+
+        class _CDPSession:
+            def __init__(self, client):
+                self.cdp_client = client
+                self.session_id = "session-1"
+
+        class _BrowserSession:
+            def __init__(self):
+                self.cdp_client = _CDPClient()
+                self.session_manager = _SessionManager()
+
+            async def get_or_create_cdp_session(self, target_id, focus=False):
+                return _CDPSession(self.cdp_client)
+
+        session = _BrowserSession()
+        injector = _ScopedHeaderAuthInjector(
+            origin="http://reddit.test",
+            headers={"X-Postmill-Auto-Login": "alice:pw"},
+        )
+        await injector.start(session)
+        handler = session.cdp_client.register.Fetch.handler
+        handler(
+            {
+                "requestId": "same",
+                "request": {"url": "http://reddit.test/f/books", "headers": {"A": "B"}},
+            },
+            "session-1",
+        )
+        handler(
+            {"requestId": "other", "request": {"url": "http://evil.test/", "headers": {}}},
+            "session-1",
+        )
+        await asyncio.sleep(0)
+        injector._running = False
+        if injector._poll_task is not None:
+            injector._poll_task.cancel()
+
+        same, other = session.cdp_client.send.Fetch.continued
+        assert same[0]["headers"] == [
+            {"name": "A", "value": "B"},
+            {"name": "X-Postmill-Auto-Login", "value": "alice:pw"},
+        ]
+        assert "headers" not in other[0]
+
     def test_per_task_refresh_true_raises_not_implemented(self, tmp_path: Path):
         """Schema-legal but runtime-unimplemented. Fail fast instead of silently stale."""
         artifact = tmp_path / "state.json"
@@ -385,7 +523,9 @@ class TestResolveAuth:
         assert "per_task_refresh" in str(exc.value)
 
     def test_per_task_refresh_false_is_fine(self, tmp_path: Path):
-        artifact = tmp_path / "state.json"
+        bench = tmp_path / "bench"
+        bench.mkdir()
+        artifact = bench / "state.json"
         artifact.write_text("{}", encoding="utf-8")
         auth = {
             "type": "storage_state",
@@ -394,7 +534,7 @@ class TestResolveAuth:
                 "per_task_refresh": False,
             },
         }
-        kwargs, _ = _resolve_auth(auth, task=None, benchmark_root=None)
+        kwargs, _ = _resolve_auth(auth, task=None, benchmark_root=bench)
         assert kwargs == {"storage_state": {}}
 
     def test_phase_0d_fallback_used_when_declared_path_missing(

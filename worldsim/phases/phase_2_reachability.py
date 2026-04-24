@@ -175,9 +175,14 @@ async def _install_resource_blocker(
                 else:
                     await route.continue_()
         except Exception:
-            # Routing is best-effort — a closed page or superseded
-            # navigation races here. Swallow to keep the probe honest.
-            logger.debug("phase 2c route handler swallowed exception", exc_info=True)
+            # Always resolve the intercepted route. For auth-scoped requests,
+            # fail closed instead of continuing without credentials or leaving
+            # the route pending until the outer navigation timeout fires.
+            logger.debug("phase 2c route handler aborting after exception", exc_info=True)
+            try:
+                await route.abort()
+            except Exception:
+                logger.debug("phase 2c route abort after handler exception failed", exc_info=True)
 
     await page.route("**/*", _handler)
 

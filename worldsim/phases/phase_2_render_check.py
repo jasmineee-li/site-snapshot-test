@@ -470,7 +470,10 @@ async def _gitlab_note_ryw_fastpath(
         target_url,
     )
     try:
-        request_kwargs: dict[str, Any] = {"timeout": max(1000, int(timeout_ms))}
+        request_kwargs: dict[str, Any] = {
+            "timeout": max(1000, int(timeout_ms)),
+            "max_redirects": 0,
+        }
         if scoped_extra_http_headers and header_scope_url:
             from worldsim.phases.phase_2_reachability import _same_origin
 

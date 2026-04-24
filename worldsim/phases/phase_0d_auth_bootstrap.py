@@ -395,7 +395,7 @@ async def reacquire_storage_state(
 
     authentication = auth.get("authentication")
     credentials = authentication.get("credentials") if isinstance(authentication, dict) else None
-    output_path = phase_0d_artifact_path(site)
+    output_path = phase_0d_instance_artifact_path(site, instance)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = output_path.with_name(f".{output_path.name}.{uuid.uuid4().hex}.tmp")
     if tmp_path.exists():
@@ -1073,6 +1073,25 @@ def phase_0d_artifact_path(site_name: str, state_dir: Path | None = None) -> Pat
         raise ValueError(site_error or "site_name must be non-empty")
     base = Path(state_dir) if state_dir is not None else get_state_dir()
     return base / "phase_0d" / site / "storage_state.json"
+
+
+def _phase_0d_instance_key(instance: dict[str, Any]) -> str:
+    raw = "|".join(
+        str(instance.get(key) or "")
+        for key in ("site_url", "replica_name", "replica_index", "storage_state_path")
+    )
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    return f"instance_{digest}"
+
+
+def phase_0d_instance_artifact_path(
+    site_name: str,
+    instance: dict[str, Any],
+    state_dir: Path | None = None,
+) -> Path:
+    """Return the runtime-refresh artifact path for one concrete instance."""
+    site_root = phase_0d_artifact_path(site_name, state_dir=state_dir).parent
+    return site_root / "instances" / _phase_0d_instance_key(instance) / "storage_state.json"
 
 
 def phase_0d_completion_path(site_name: str, state_dir: Path | None = None) -> Path:

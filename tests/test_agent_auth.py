@@ -24,13 +24,16 @@ def _write_storage_state(path, *, domain="gitlab.test", same_site="no_restrictio
 
 
 def test_storage_state_success_normalizes_same_site(tmp_path):
-    path = tmp_path / "storage_state.json"
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    path = benchmark_root / "storage_state.json"
     _write_storage_state(path)
 
     resolved = resolve_agent_auth(
         {"type": "storage_state", "storage_state": {"path": str(path)}},
         site_name="gitlab",
         site_url="http://gitlab.test",
+        benchmark_root=benchmark_root,
     )
 
     assert resolved.usable
@@ -42,17 +45,48 @@ def test_storage_state_success_normalizes_same_site(tmp_path):
 
 
 def test_storage_state_rejects_host_bound_cookie_for_other_host(tmp_path):
-    path = tmp_path / "storage_state.json"
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    path = benchmark_root / "storage_state.json"
     _write_storage_state(path, domain="old-gitlab.test")
 
     resolved = resolve_agent_auth(
         {"type": "storage_state", "storage_state": {"path": str(path)}},
         site_name="gitlab",
         site_url="http://gitlab.test",
+        benchmark_root=benchmark_root,
     )
 
     assert not resolved.usable
     assert "do not match live host" in (resolved.unusable_reason or "")
+
+
+def test_storage_state_rejects_mixed_cookie_hosts(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    path = benchmark_root / "storage_state.json"
+    path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {"name": "session", "value": "abc", "domain": "gitlab.test"},
+                    {"name": "other", "value": "secret", "domain": "other.test"},
+                ],
+                "origins": [{"origin": "http://gitlab.test", "localStorage": []}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    resolved = resolve_agent_auth(
+        {"type": "storage_state", "storage_state": {"path": str(path)}},
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        benchmark_root=benchmark_root,
+    )
+
+    assert not resolved.usable
+    assert "other.test" in (resolved.unusable_reason or "")
 
 
 def test_http_headers_interpolate_credentials():
@@ -166,6 +200,37 @@ def test_absolute_declared_storage_state_cannot_escape_benchmark_root(tmp_path, 
     )
 
     assert resolved is None
+
+
+def test_declared_storage_state_requires_containment_root(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    outside = tmp_path / "outside" / "storage_state.json"
+    outside.parent.mkdir()
+    _write_storage_state(outside)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(outside)}},
+        site_name="gitlab",
+    )
+
+    assert resolved is None
+
+
+def test_declared_storage_state_allows_phase_0d_root_without_benchmark_root(
+    tmp_path, monkeypatch
+):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    phase_0d = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    phase_0d.parent.mkdir(parents=True)
+    _write_storage_state(phase_0d)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(phase_0d)}},
+        site_name="gitlab",
+    )
+
+    assert resolved == phase_0d
 
 
 def test_storage_state_override_cannot_escape_allowed_roots(tmp_path, monkeypatch):

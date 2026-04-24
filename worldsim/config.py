@@ -14,6 +14,11 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from worldsim.benchmark_capabilities import (
+    infer_benchmark_name,
+    infer_instances_config_benchmark,
+    normalize_benchmark_name,
+)
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import merge_placeholder_maps
 from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
@@ -383,6 +388,65 @@ class BenchmarkConfig(BaseModel):
         description="Absolute path to the benchmark's source tree. Used in "
         "Phase 0 (read-only reconnaissance). Must exist on disk.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_benchmark_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if str(data.get("benchmark_name") or "").strip():
+            benchmark_name = str(data.get("benchmark_name") or "").strip()
+            try:
+                canonical_benchmark_name = infer_benchmark_name([benchmark_name])
+            except ValueError:
+                canonical_benchmark_name = None
+            alias_values = [
+                data.get("benchmark"),
+                data.get("benchmark_adapter"),
+            ]
+            raw_instances = data.get("instances")
+            if isinstance(raw_instances, list):
+                for instance in raw_instances:
+                    if not isinstance(instance, dict):
+                        continue
+                    alias_values.extend(
+                        (
+                            instance.get("benchmark"),
+                            instance.get("benchmark_name"),
+                            instance.get("benchmark_adapter"),
+                        )
+                    )
+            if any(str(value or "").strip() for value in alias_values):
+                if canonical_benchmark_name is None:
+                    normalized_top = normalize_benchmark_name(benchmark_name)
+                    normalized_aliases = {
+                        normalize_benchmark_name(value)
+                        for value in alias_values
+                        if str(value or "").strip()
+                    }
+                    if normalized_aliases - {normalized_top}:
+                        raise ValueError(
+                            "mixed benchmark metadata: "
+                            f"{sorted(normalized_aliases | {normalized_top})}"
+                        )
+                    return data
+                inferred = infer_benchmark_name([benchmark_name, *alias_values])
+                if inferred != canonical_benchmark_name:
+                    raise ValueError(
+                        "mixed benchmark metadata: "
+                        f"{sorted({normalize_benchmark_name(benchmark_name), inferred or ''})}"
+                    )
+            if canonical_benchmark_name is None:
+                return data
+            normalized = dict(data)
+            normalized["benchmark_name"] = canonical_benchmark_name
+            return normalized
+        inferred = infer_instances_config_benchmark(data)
+        if inferred is None:
+            return data
+        normalized = dict(data)
+        normalized.setdefault("benchmark_name", inferred)
+        return normalized
 
     @model_validator(mode="after")
     def _require_non_empty_instances(self) -> BenchmarkConfig:

@@ -246,6 +246,7 @@ def test_resolve_benign_storage_state_path_prefers_nested_agent_auth(tmp_path):
 
     resolved = feas._resolve_benign_storage_state_path(
         _gitlab_instance(
+            benchmark_root=str(tmp_path),
             agent_auth={
                 "type": "storage_state",
                 "storage_state": {"path": str(state_path)},
@@ -436,10 +437,12 @@ def test_preflight_request_context_rejects_host_bound_storage_state(tmp_path):
 
     context, reason = feas._preflight_request_context_options(
         _gitlab_instance(
+            benchmark_root=str(tmp_path),
             site_url="http://new.example:8023",
             storage_state_path=str(state_path),
             agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
-        )
+        ),
+        benchmark_root=tmp_path,
     )
 
     assert context == {}
@@ -462,9 +465,11 @@ def test_preflight_request_context_rejects_host_bound_cookies_even_with_matching
 
     context, reason = feas._preflight_request_context_options(
         _gitlab_instance(
+            benchmark_root=str(tmp_path),
             storage_state_path=str(state_path),
             agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
-        )
+        ),
+        benchmark_root=tmp_path,
     )
 
     assert context == {}
@@ -518,9 +523,11 @@ def test_preflight_request_context_normalizes_storage_state_samesite(tmp_path):
 
     context, reason = feas._preflight_request_context_options(
         _gitlab_instance(
+            benchmark_root=str(tmp_path),
             storage_state_path=str(state_path),
             agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
-        )
+        ),
+        benchmark_root=tmp_path,
     )
 
     assert reason is None
@@ -565,9 +572,11 @@ def test_preflight_request_context_reads_storage_state_once(tmp_path, monkeypatc
 
     context, reason = feas._preflight_request_context_options(
         _gitlab_instance(
+            benchmark_root=str(tmp_path),
             storage_state_path=str(state_path),
             agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
-        )
+        ),
+        benchmark_root=tmp_path,
     )
 
     assert reason is None
@@ -594,9 +603,11 @@ def test_preflight_request_context_skips_unsupported_storage_state_samesite(tmp_
 
     context, reason = feas._preflight_request_context_options(
         _gitlab_instance(
+            benchmark_root=str(tmp_path),
             storage_state_path=str(state_path),
             agent_auth={"type": "storage_state", "storage_state": {"path": str(state_path)}},
-        )
+        ),
+        benchmark_root=tmp_path,
     )
 
     assert context == {}
@@ -717,6 +728,7 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp
             instances_by_site={
                 "gitlab": [
                     _gitlab_instance(
+                        benchmark_root=str(tmp_path),
                         storage_state_path=str(state_path),
                         agent_auth={
                             "type": "storage_state",
@@ -725,6 +737,7 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp
                     )
                 ]
             },
+            benchmark_root=tmp_path,
         )
 
     assert len(fake_request.calls) == 1
@@ -818,6 +831,7 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
         instances_by_site={
             "gitlab": [
                 _gitlab_instance(
+                    benchmark_root=str(tmp_path),
                     storage_state_path=str(old_state),
                     agent_auth={
                         "type": "storage_state",
@@ -826,6 +840,7 @@ async def test_preflight_refreshes_stale_gitlab_storage_state(tmp_path, monkeypa
                 )
             ]
         },
+        benchmark_root=tmp_path,
     )
 
     assert dropped == []
@@ -894,6 +909,7 @@ async def test_preflight_skips_source_data_quarantine_when_gitlab_refresh_still_
         instances_by_site={
             "gitlab": [
                 _gitlab_instance(
+                    benchmark_root=str(tmp_path),
                     storage_state_path=str(state_path),
                     agent_auth={
                         "type": "storage_state",
@@ -902,6 +918,7 @@ async def test_preflight_skips_source_data_quarantine_when_gitlab_refresh_still_
                 )
             ]
         },
+        benchmark_root=tmp_path,
     )
 
     assert dropped == []

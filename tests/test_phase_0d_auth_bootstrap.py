@@ -18,6 +18,7 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -90,7 +91,7 @@ def test_phase_0d_paths_reject_unsafe_site_name(tmp_path: Path) -> None:
         bootstrap.phase_0d_completion_path("gitlab/../x", state_dir=tmp_path)
 
 
-def test_reacquire_storage_state_uses_form_login_and_canonical_path(
+def test_reacquire_storage_state_uses_form_login_and_instance_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     state_dir, _bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
@@ -129,7 +130,11 @@ def test_reacquire_storage_state_uses_form_login_and_canonical_path(
 
     result = asyncio.run(bootstrap.reacquire_storage_state(site_name="gitlab", instance=instance))
 
-    expected = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    expected = bootstrap.phase_0d_instance_artifact_path(
+        "gitlab",
+        instance,
+        state_dir=state_dir,
+    )
     assert result == expected
     assert json.loads(expected.read_text()) == {"cookies": [{"name": "session"}]}
     assert captured == {
@@ -138,6 +143,54 @@ def test_reacquire_storage_state_uses_form_login_and_canonical_path(
         "declared_path": "logs/phase_0d/gitlab/storage_state.json",
         "site_url": "http://gitlab.test",
     }
+
+
+def test_reacquire_storage_state_is_instance_scoped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_dir, _bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
+
+    async def fake_bootstrap_via_form_login(*, spec, site_url, output_path):
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps({"cookies": [{"domain": site_url}]}))
+
+    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_bootstrap_via_form_login)
+
+    def instance(site_url: str) -> dict[str, Any]:
+        return {
+            "site_name": "gitlab",
+            "site_url": site_url,
+            "agent_auth": {
+                "type": "storage_state",
+                "storage_state": {
+                    "path": "logs/phase_0d/gitlab/storage_state.json",
+                    "form_login": {
+                        "login_url": "/users/sign_in",
+                        "username_selector": "#user_login",
+                        "password_selector": "#user_password",
+                        "submit_selector": "input[type=submit]",
+                        "success_url_substring": "/-/profile",
+                    },
+                },
+                "authentication": {
+                    "credentials": {"username": "root", "password": "password"},
+                },
+            },
+        }
+
+    first = instance("http://gitlab-a.test")
+    second = instance("http://gitlab-b.test")
+
+    first_path = asyncio.run(bootstrap.reacquire_storage_state(site_name="gitlab", instance=first))
+    second_path = asyncio.run(
+        bootstrap.reacquire_storage_state(site_name="gitlab", instance=second)
+    )
+
+    assert first_path != second_path
+    assert first_path.parent.parent.parent == state_dir / "phase_0d" / "gitlab"
+    assert json.loads(first_path.read_text())["cookies"][0]["domain"] == "http://gitlab-a.test"
+    assert json.loads(second_path.read_text())["cookies"][0]["domain"] == "http://gitlab-b.test"
+    assert not (state_dir / "phase_0d" / "gitlab" / "storage_state.json").exists()
 
 
 def test_reacquire_storage_state_requires_login_recipe(

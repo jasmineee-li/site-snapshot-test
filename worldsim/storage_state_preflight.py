@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from worldsim.benchmark_capabilities import normalize_benchmark_name
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 
 logger = logging.getLogger(__name__)
@@ -493,7 +494,7 @@ def _auto_mint_allowed(benchmark_name: str | None) -> bool:
     if override in {"0", "false", "no"}:
         return False
     # Default: true only for WebArena Verified (dummy creds in repo).
-    if isinstance(benchmark_name, str) and benchmark_name.strip() == "WebArena Verified":
+    if normalize_benchmark_name(benchmark_name) == "webarena_verified":
         return True
     return False
 

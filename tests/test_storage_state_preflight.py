@@ -8,6 +8,7 @@ import pytest
 
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
 from worldsim.storage_state_preflight import (
+    _auto_mint_allowed,
     apply_skip_auth_for_host_bound_storage_states,
     ensure_storage_state,
     find_host_bound_storage_state_mismatches,
@@ -29,6 +30,13 @@ def _write_storage_state(path: Path, *, domain: str) -> None:
         "origins": [],
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_auto_mint_allows_canonical_webarena_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("WORLDSIM_AUTO_MINT_STORAGE_STATE", raising=False)
+
+    assert _auto_mint_allowed("WebArena Verified")
+    assert _auto_mint_allowed("webarena_verified")
 
 
 def test_find_host_bound_storage_state_mismatches_detects_old_host(tmp_path: Path) -> None:

@@ -44,6 +44,7 @@ class _Route:
         *,
         url: str = "http://live/resource",
         headers: dict[str, str] | None = None,
+        fetch_error: Exception | None = None,
     ) -> None:
         self.request = _Request(resource_type, url=url, headers=headers)
         self.aborted = False
@@ -52,6 +53,7 @@ class _Route:
         self.fetch_kwargs: dict[str, Any] | None = None
         self.fulfill_kwargs: dict[str, Any] | None = None
         self.fetch_response = object()
+        self.fetch_error = fetch_error
 
     async def abort(self) -> None:
         self.aborted = True
@@ -62,6 +64,8 @@ class _Route:
 
     async def fetch(self, **kwargs: Any) -> object:
         self.fetch_kwargs = kwargs
+        if self.fetch_error is not None:
+            raise self.fetch_error
         return self.fetch_response
 
     async def fulfill(self, **kwargs: Any) -> None:
@@ -258,6 +262,32 @@ def test_reachability_passes_http_headers_as_playwright_extra_headers() -> None:
     assert page.routed_requests[0].fetch_kwargs is not None
     assert page.routed_requests[0].fetch_kwargs["headers"]["X-User"] == "alice"
     assert page.routed_requests[0].fetch_kwargs["max_redirects"] == 0
+
+
+def test_route_blocker_aborts_when_scoped_header_fetch_fails() -> None:
+    page = _ProbePage()
+    asyncio.run(
+        reach._install_resource_blocker(
+            page,
+            scoped_extra_http_headers={"X-User": "alice"},
+            header_scope_url="http://live",
+        )
+    )
+    handler = page.route_handler
+    assert handler is not None
+    route = _Route(
+        "document",
+        url="http://live/foo/-/issues/1",
+        headers={"Existing": "yes"},
+        fetch_error=RuntimeError("network closed"),
+    )
+
+    asyncio.run(handler(route))
+
+    assert route.aborted
+    assert route.fetch_kwargs is not None
+    assert route.fetch_kwargs["max_redirects"] == 0
+    assert not route.continued
 
 
 # ---------------------------------------------------------------------------

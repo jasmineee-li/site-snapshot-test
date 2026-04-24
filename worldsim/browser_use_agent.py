@@ -704,19 +704,123 @@ def _origins_from_network_trace(trace: list[dict[str, Any]]) -> set[str]:
     return origins
 
 
+class _ScopedHeaderAuthInjector:
+    """CDP Fetch-based same-origin header injector for BrowserUse runtime auth."""
+
+    def __init__(self, *, origin: str, headers: dict[str, str]) -> None:
+        self.origin = origin
+        self.headers = dict(headers)
+        self._browser_session: Any = None
+        self._enabled_targets: set[str] = set()
+        self._poll_task: asyncio.Task | None = None
+        self._continue_tasks: set[asyncio.Task] = set()
+        self._running = False
+
+    async def start(self, browser_session: Any) -> None:
+        self._browser_session = browser_session
+        client = getattr(browser_session, "cdp_client", None)
+        if client is None:
+            raise AuthArtifactMissingError("CDP client unavailable for scoped http_headers auth")
+        client.register.Fetch.requestPaused(self._on_request_paused)
+        self._running = True
+        await self._enable_current_page_sessions()
+        self._poll_task = asyncio.create_task(
+            self._poll_sessions(),
+            name="scoped-header-auth-injector",
+        )
+
+    async def _poll_sessions(self) -> None:
+        try:
+            while self._running:
+                await self._enable_current_page_sessions()
+                await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            raise
+
+    async def _enable_current_page_sessions(self) -> None:
+        session_manager = getattr(self._browser_session, "session_manager", None)
+        if session_manager is None:
+            return
+        for target in session_manager.get_all_page_targets():
+            target_id = getattr(target, "target_id", None)
+            if not target_id or target_id in self._enabled_targets:
+                continue
+            session = await self._browser_session.get_or_create_cdp_session(
+                target_id, focus=False
+            )
+            await session.cdp_client.send.Fetch.enable(
+                {"patterns": [{"urlPattern": "*", "requestStage": "Request"}]},
+                session_id=session.session_id,
+            )
+            self._enabled_targets.add(target_id)
+
+    def _on_request_paused(
+        self,
+        event: dict[str, Any],
+        session_id: str | None = None,
+    ) -> None:
+        if not self._running:
+            return
+        task = asyncio.create_task(self._continue_request(event, session_id))
+        self._continue_tasks.add(task)
+        task.add_done_callback(self._continue_tasks.discard)
+
+    async def _continue_request(
+        self,
+        event: dict[str, Any],
+        session_id: str | None,
+    ) -> None:
+        request_id = event.get("requestId")
+        if not request_id:
+            return
+        request = event.get("request")
+        request_url = request.get("url") if isinstance(request, dict) else ""
+        params: dict[str, Any] = {"requestId": request_id}
+        if _origin_from_url(str(request_url or "")) == self.origin:
+            existing = request.get("headers") if isinstance(request, dict) else {}
+            existing_headers = (
+                {str(k): str(v) for k, v in existing.items()}
+                if isinstance(existing, dict)
+                else {}
+            )
+            params["headers"] = [
+                {"name": name, "value": value}
+                for name, value in {**existing_headers, **self.headers}.items()
+            ]
+        try:
+            await self._browser_session.cdp_client.send.Fetch.continueRequest(
+                params,
+                session_id=session_id,
+            )
+        except Exception:
+            logger.debug("scoped http_headers continueRequest failed", exc_info=True)
+
+
+def _scoped_header_auth_action(origin: str, headers: dict[str, str]):
+    async def _action(browser_session: Any) -> None:
+        injector = _ScopedHeaderAuthInjector(origin=origin, headers=headers)
+        await injector.start(browser_session)
+        browser_session._worldsim_scoped_header_auth = injector
+
+    return _action
+
+
 def _resolve_storage_state_path(raw_path: str, benchmark_root: Path | None) -> Path:
     """Resolve a storage-state artifact path and enforce benchmark-root containment."""
     path = Path(raw_path)
     if path.is_absolute():
-        if benchmark_root is not None:
-            resolved_root = Path(benchmark_root).resolve()
-            resolved = path.resolve()
-            try:
-                resolved.relative_to(resolved_root)
-            except ValueError as exc:
-                raise AuthArtifactMissingError(
-                    f"storage_state path {raw_path!r} resolves outside benchmark root {resolved_root}"
-                ) from exc
+        if benchmark_root is None:
+            raise AuthArtifactMissingError(
+                "absolute auth_mechanism.storage_state.path requires a benchmark root; "
+                "pass --benchmark so the runtime can validate containment"
+            )
+        resolved_root = Path(benchmark_root).resolve()
+        try:
+            path.resolve().relative_to(resolved_root)
+        except ValueError as exc:
+            raise AuthArtifactMissingError(
+                f"storage_state path {raw_path!r} resolves outside benchmark root {resolved_root}"
+            ) from exc
         return path
     if benchmark_root is None:
         raise AuthArtifactMissingError(
@@ -878,7 +982,16 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 "auth_mechanism.http_basic requires non-empty username/password"
             )
-        session_kwargs["http_credentials"] = {"username": username, "password": password}
+        origin = _origin_from_url(site_url or "")
+        if not origin:
+            raise AuthArtifactMissingError(
+                "auth_mechanism.http_basic requires a valid site_url to scope credentials"
+            )
+        session_kwargs["http_credentials"] = {
+            "username": username,
+            "password": password,
+            "origin": origin,
+        }
         return session_kwargs, deferred_actions
 
     if mech_type == "http_headers":
@@ -916,10 +1029,12 @@ def _resolve_auth(
                 )
             else:
                 resolved[name] = value
-        # NB: Browser Use's BrowserSession uses `headers=` (not Playwright's
-        # `extra_http_headers=`); the kwarg is forwarded to the Playwright
-        # context internally.
-        session_kwargs["headers"] = resolved
+        origin = _origin_from_url(site_url or "")
+        if not origin:
+            raise AuthArtifactMissingError(
+                "auth_mechanism.http_headers requires a valid site_url to scope headers"
+            )
+        deferred_actions.append(_scoped_header_auth_action(origin, resolved))
         return session_kwargs, deferred_actions
 
     # Defensive fallback: an unknown-but-enumerated type slipped through.
