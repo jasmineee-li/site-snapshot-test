@@ -740,9 +740,11 @@ class _FakeRequestContext:
     def __init__(self, responses: dict[str, _FakeRequestResponse]) -> None:
         self._responses = dict(responses)
         self.calls: list[tuple[str, float]] = []
+        self.header_calls: list[tuple[str, dict[str, str] | None]] = []
 
-    async def get(self, url, *, timeout):
+    async def get(self, url, *, timeout, headers=None):
         self.calls.append((url, timeout))
+        self.header_calls.append((url, headers))
         if url in self._responses:
             return self._responses[url]
         return _FakeRequestResponse(status=404, body="not found")
@@ -813,6 +815,38 @@ async def test_ryw_fastpath_matches_note_id_in_discussions_json():
     assert outcome.matched_signature == "note_id=42"
     # Exactly one RYW fetch — no spurious retries.
     assert page.request.calls == [(json_url, pytest.approx(10000, abs=1))]
+    assert page.request.header_calls == [(json_url, None)]
+
+
+@pytest.mark.asyncio
+async def test_ryw_fastpath_forwards_scoped_http_headers_to_same_origin_json():
+    url = "http://gitlab.test/proj/-/issues/5"
+    json_url = url + "/discussions.json"
+    json_responses = {
+        json_url: _FakeRequestResponse(
+            status=200,
+            body='[{"id":"abc","notes":[{"id":42,"body":"Raising priority..."}]}]',
+        ),
+    }
+    page = _RYWPage(
+        bodies=["shell only, no note text"] * 60,
+        final_body="shell only, no note text",
+        json_responses=json_responses,
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="Raising priority on issue",
+        write_tokens={"note_id": 42},
+        browser_context_kwargs={"extra_http_headers": {"X-User": "alice"}},
+    )
+
+    assert outcome.ok is True
+    assert page.request.header_calls == [(json_url, {"X-User": "alice"})]
 
 
 @pytest.mark.asyncio

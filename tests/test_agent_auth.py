@@ -87,9 +87,27 @@ def test_http_basic_maps_to_context_credentials():
 
     assert resolved.usable
     assert resolved.api_request_context_kwargs == {
-        "http_credentials": {"username": "alice", "password": "pw"}
+        "http_credentials": {
+            "username": "alice",
+            "password": "pw",
+            "origin": "http://site.test",
+        }
     }
     assert resolved.browser_context_kwargs == resolved.api_request_context_kwargs
+
+
+def test_http_basic_requires_valid_origin():
+    resolved = resolve_agent_auth(
+        {
+            "type": "http_basic",
+            "http_basic": {"username": "alice", "password": "pw"},
+        },
+        site_name="site",
+        site_url="",
+    )
+
+    assert not resolved.usable
+    assert "valid HTTP origin" in (resolved.unusable_reason or "")
 
 
 def test_declared_storage_state_without_artifact_is_unusable(tmp_path, monkeypatch):

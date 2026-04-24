@@ -426,6 +426,8 @@ async def _gitlab_note_ryw_fastpath(
     site_name: str,
     write_tokens: dict[str, Any] | None,
     timeout_ms: int,
+    scoped_extra_http_headers: dict[str, str] | None = None,
+    header_scope_url: str | None = None,
 ) -> RenderOutcome | None:
     """Read-your-write fallback for GitLab issue / MR notes.
 
@@ -468,7 +470,13 @@ async def _gitlab_note_ryw_fastpath(
         target_url,
     )
     try:
-        response = await page.request.get(json_url, timeout=max(1000, int(timeout_ms)))
+        request_kwargs: dict[str, Any] = {"timeout": max(1000, int(timeout_ms))}
+        if scoped_extra_http_headers and header_scope_url:
+            from worldsim.phases.phase_2_reachability import _same_origin
+
+            if _same_origin(json_url, header_scope_url):
+                request_kwargs["headers"] = scoped_extra_http_headers
+        response = await page.request.get(json_url, **request_kwargs)
     except Exception as exc:
         logger.debug(
             "phase 2c render check: RYW fetch of %s raised %s: %s",
@@ -831,6 +839,8 @@ async def verify_seed_renders(
                     site_name=site_name,
                     write_tokens=write_tokens,
                     timeout_ms=selector_timeout_ms,
+                    scoped_extra_http_headers=scoped_extra_http_headers,
+                    header_scope_url=site_url,
                 )
                 if ryw_hit is not None:
                     return ryw_hit

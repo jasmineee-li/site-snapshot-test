@@ -108,6 +108,7 @@ def _same_origin(url: str, site_url: str) -> bool:
         return False
     if not parsed.scheme or not parsed.hostname or not site.scheme or not site.hostname:
         return False
+
     def port_for(scheme: str, port: int | None) -> int | None:
         if port is not None:
             return port
@@ -159,9 +160,18 @@ async def _install_resource_blocker(
                     request_headers = getattr(route.request, "headers", {})
                     if not isinstance(request_headers, Mapping):
                         request_headers = {}
-                    await route.continue_(
-                        headers={**dict(request_headers), **scoped_extra_http_headers}
-                    )
+                    headers = {**dict(request_headers), **scoped_extra_http_headers}
+                    fetch = getattr(route, "fetch", None)
+                    fulfill = getattr(route, "fulfill", None)
+                    if callable(fetch) and callable(fulfill):
+                        response = await fetch(headers=headers, max_redirects=0)
+                        await fulfill(response=response)
+                    else:
+                        logger.warning(
+                            "phase 2c route cannot inject scoped headers without "
+                            "route.fetch/route.fulfill; continuing without auth headers"
+                        )
+                        await route.continue_()
                 else:
                     await route.continue_()
         except Exception:

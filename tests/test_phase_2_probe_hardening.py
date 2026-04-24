@@ -49,6 +49,9 @@ class _Route:
         self.aborted = False
         self.continued = False
         self.continue_kwargs: dict[str, Any] = {}
+        self.fetch_kwargs: dict[str, Any] | None = None
+        self.fulfill_kwargs: dict[str, Any] | None = None
+        self.fetch_response = object()
 
     async def abort(self) -> None:
         self.aborted = True
@@ -56,6 +59,13 @@ class _Route:
     async def continue_(self, **kwargs: Any) -> None:
         self.continued = True
         self.continue_kwargs = kwargs
+
+    async def fetch(self, **kwargs: Any) -> object:
+        self.fetch_kwargs = kwargs
+        return self.fetch_response
+
+    async def fulfill(self, **kwargs: Any) -> None:
+        self.fulfill_kwargs = kwargs
 
 
 class _ProbePage:
@@ -196,8 +206,13 @@ def test_render_check_passes_http_headers_as_playwright_extra_headers() -> None:
 
     assert outcome.ok
     assert browser.context_kwargs == [{}]
-    assert page.routed_requests[0].continue_kwargs["headers"]["Existing"] == "yes"
-    assert page.routed_requests[0].continue_kwargs["headers"]["X-User"] == "alice"
+    assert page.routed_requests[0].fetch_kwargs is not None
+    assert page.routed_requests[0].fetch_kwargs["headers"]["Existing"] == "yes"
+    assert page.routed_requests[0].fetch_kwargs["headers"]["X-User"] == "alice"
+    assert page.routed_requests[0].fetch_kwargs["max_redirects"] == 0
+    assert page.routed_requests[0].fulfill_kwargs == {
+        "response": page.routed_requests[0].fetch_response
+    }
 
 
 def test_route_blocker_strips_http_headers_from_off_origin_requests() -> None:
@@ -217,6 +232,7 @@ def test_route_blocker_strips_http_headers_from_off_origin_requests() -> None:
 
     assert route.continued
     assert route.continue_kwargs == {}
+    assert route.fetch_kwargs is None
 
 
 def test_reachability_passes_http_headers_as_playwright_extra_headers() -> None:
@@ -239,7 +255,9 @@ def test_reachability_passes_http_headers_as_playwright_extra_headers() -> None:
 
     assert outcome.reachability == "reachable_direct"
     assert browser.context_kwargs == [{}]
-    assert page.routed_requests[0].continue_kwargs["headers"]["X-User"] == "alice"
+    assert page.routed_requests[0].fetch_kwargs is not None
+    assert page.routed_requests[0].fetch_kwargs["headers"]["X-User"] == "alice"
+    assert page.routed_requests[0].fetch_kwargs["max_redirects"] == 0
 
 
 # ---------------------------------------------------------------------------

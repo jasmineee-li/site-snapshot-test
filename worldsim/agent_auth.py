@@ -54,6 +54,13 @@ def safe_phase_0d_site_name(site_name: object) -> tuple[str | None, str | None]:
     return site, None
 
 
+def _http_auth_origin(site_url: str) -> tuple[str | None, str | None]:
+    parsed = urlsplit(str(site_url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None, f"site_url {site_url!r} is not a valid HTTP origin for http_basic auth"
+    return f"{parsed.scheme}://{parsed.netloc}", None
+
+
 def resolve_agent_auth(
     agent_auth: Mapping[str, Any] | None,
     *,
@@ -144,7 +151,10 @@ def resolve_agent_auth(
                 {},
                 "http_basic auth declared without username/password",
             )
-        credentials = {"username": username, "password": password}
+        origin, error = _http_auth_origin(site_url)
+        if error is not None:
+            return ResolvedAgentAuth(auth_type, {}, {}, error)
+        credentials = {"username": username, "password": password, "origin": origin}
         return ResolvedAgentAuth(
             auth_type,
             {"http_credentials": credentials},
