@@ -42,6 +42,7 @@ def run_causal_experiment(
     tasks_per_split: int | None,
     stage: str,
     judge_model: str | None,
+    judges: list[str] | None,
     output_base: Path,
     dry_run: bool,
 ) -> None:
@@ -76,6 +77,8 @@ def run_causal_experiment(
         ]
         if judge_model:
             cmd.extend(["--judge-model", judge_model])
+        if judges:
+            cmd.extend(["--judges", *judges])
         if tasks_per_split is not None:
             cmd.extend(["--tasks-per-split", str(tasks_per_split)])
 
@@ -129,6 +132,9 @@ def main() -> None:
     parser.add_argument("--stage", default="all", choices=ALL_STAGES)
     parser.add_argument("--judge-model", default=None,
                         help="Judge model for stage 2 (defaults to pipeline default).")
+    parser.add_argument("--judges", nargs="+", default=None,
+                        help="Judge names (e.g. test_awareness_steering verbalized_awareness "
+                             "purpose_continue_5q). Omit to use pipeline defaults.")
     parser.add_argument("--output-base", type=Path,
                         default=Path("eval_awareness_experiments/results/causal"))
     parser.add_argument("--dry-run", action="store_true")
@@ -142,6 +148,7 @@ def main() -> None:
         tasks_per_split=args.tasks_per_split,
         stage=args.stage,
         judge_model=args.judge_model,
+        judges=args.judges,
         output_base=args.output_base,
         dry_run=args.dry_run,
     )
