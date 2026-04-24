@@ -87,7 +87,7 @@ from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import infer_benchmark_name
 from worldsim.browser_use_agent import AgentResult, AgentRunner
-from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_configured_agent_auth
+from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_effective_agent_auth
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.failpoints import crash_if_enabled
@@ -146,6 +146,7 @@ from worldsim.seeding import (
 from worldsim.site_lock import task_lock
 from worldsim.state import get_state_dir, save_state
 from worldsim.storage_state_preflight import (
+    StorageStatePreflightError,
     apply_skip_auth_for_host_bound_storage_states,
     inspect_storage_state_preflight,
 )
@@ -1621,21 +1622,64 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
+    from worldsim.storage_state_preflight import ensure_storage_state
+
+    healed_any = False
+    storage_state_resolution_errors: list[StorageStatePreflightError] = []
+    for instance in config.instances:
+        auth = instance.agent_auth if isinstance(instance.agent_auth, dict) else None
+        if not isinstance(auth, dict) or auth.get("type") != "storage_state":
+            continue
+        storage_state = auth.get("storage_state")
+        declared_path = (
+            str(storage_state.get("path") or "")
+            if isinstance(storage_state, dict)
+            else ""
+        )
+        try:
+            healed_path = await ensure_storage_state(
+                instance,
+                benchmark_root=benchmark_root,
+                benchmark_name=config.benchmark_name,
+            )
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning(
+                "auto-mint storage_state raised for %s: %s",
+                instance.site_name,
+                exc,
+            )
+            storage_state_resolution_errors.append(
+                StorageStatePreflightError(
+                    site_name=instance.site_name,
+                    declared_path=declared_path,
+                    message=str(exc),
+                )
+            )
+            continue
+        if healed_path is not None:
+            storage_state = auth.get("storage_state")
+            if isinstance(storage_state, dict):
+                previous_path = storage_state.get("path")
+                storage_state["path"] = str(healed_path)
+                healed_any = healed_any or previous_path != str(healed_path)
+            logger.info(
+                "resolved storage_state for %s at %s",
+                instance.site_name,
+                healed_path,
+            )
+
     preflight = inspect_storage_state_preflight(
         config.instances,
         benchmark_root=benchmark_root,
     )
-    preflight_errors = list(preflight.errors)
+    preflight_errors = [*storage_state_resolution_errors, *list(preflight.errors)]
     host_bound_mismatches = list(preflight.mismatches)
-    # Auto-heal: for each errored site that has form_login configured and the
-    # active benchmark opts into auto-mint, try a one-shot Playwright login
-    # and re-run the preflight. WebArena Verified opts in by default (dummy
-    # creds in repo); other benchmarks require WORLDSIM_AUTO_MINT_STORAGE_STATE=1.
+    # Auto-heal: if preflight discovered resolution/load errors after the
+    # general freshness pass, retry errored sites once and re-run preflight.
+    # WebArena Verified opts in by default (dummy creds in repo); other
+    # benchmarks require WORLDSIM_AUTO_MINT_STORAGE_STATE=1.
     if preflight_errors:
-        from worldsim.storage_state_preflight import ensure_storage_state
-
         errored_sites = {error.site_name for error in preflight_errors}
-        healed_any = False
         for instance in config.instances:
             if instance.site_name not in errored_sites:
                 continue
@@ -1663,13 +1707,13 @@ async def run(args: argparse.Namespace) -> int:
                     healed_path,
                 )
                 healed_any = True
-        if healed_any:
-            preflight = inspect_storage_state_preflight(
-                config.instances,
-                benchmark_root=benchmark_root,
-            )
-            preflight_errors = list(preflight.errors)
-            host_bound_mismatches = list(preflight.mismatches)
+    if healed_any:
+        preflight = inspect_storage_state_preflight(
+            config.instances,
+            benchmark_root=benchmark_root,
+        )
+        preflight_errors = [*storage_state_resolution_errors, *list(preflight.errors)]
+        host_bound_mismatches = list(preflight.mismatches)
     if preflight_errors:
         error_lines = [
             f"site {error.site_name!r}: {error.message} (declared path {error.declared_path!r})"
@@ -2584,7 +2628,7 @@ def _collect_agent_auth_runtime_errors(
         profile = site_profiles.get(str(instance.site_name))
         if not isinstance(profile, dict) or not profile_requires_agent_auth(profile):
             continue
-        if not has_configured_agent_auth(instance.agent_auth):
+        if not has_effective_agent_auth(instance.agent_auth):
             errors.append(
                 f"site {instance.site_name!r} requires agent_auth in instances.json "
                 "because BENCHMARK_PROFILE has authed_user injection surfaces"

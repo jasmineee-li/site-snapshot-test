@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -107,12 +108,33 @@ def test_resolve_auth_falls_back_when_declared_storage_state_is_wrong_host(
     session_kwargs, deferred = browser_use_agent._resolve_auth(
         {"type": "storage_state", "storage_state": {"path": str(declared)}},
         {"site": "gitlab"},
-        benchmark_root=None,
+        benchmark_root=tmp_path,
         site_url="http://gitlab.example",
     )
 
     assert session_kwargs["storage_state"]["cookies"][0]["domain"] == "gitlab.example"
     assert session_kwargs["storage_state"]["cookies"][0]["sameSite"] == "Lax"
+    assert deferred == []
+
+
+def test_resolve_auth_prefers_valid_declared_storage_state_over_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    declared = tmp_path / "declared.json"
+    fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
+    _write_storage_state(declared, domain="gitlab.example")
+    _write_storage_state(fallback, domain="old.example")
+    monkeypatch.setattr(browser_use_agent, "_phase_0d_fallback_path", lambda _task: fallback)
+
+    session_kwargs, deferred = browser_use_agent._resolve_auth(
+        {"type": "storage_state", "storage_state": {"path": str(declared)}},
+        {"site": "gitlab"},
+        benchmark_root=tmp_path,
+        site_url="http://gitlab.example",
+    )
+
+    assert session_kwargs["storage_state"]["cookies"][0]["domain"] == "gitlab.example"
     assert deferred == []
 
 
@@ -134,6 +156,24 @@ def test_resolve_auth_validates_phase_0d_fallback_storage_state(
             site_url="http://gitlab.example",
         )
     assert "do not match live host" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_scoped_header_shutdown_suppresses_poll_task_errors():
+    injector = browser_use_agent._ScopedHeaderAuthInjector(
+        origin="http://gitlab.test",
+        headers={"X-Test": "1"},
+    )
+
+    async def fail_poll():
+        raise RuntimeError("poll failed")
+
+    injector._running = True
+    injector._poll_task = asyncio.create_task(fail_poll())
+    await asyncio.sleep(0)
+
+    await injector.stop()
+    assert injector._poll_task is None
 
 
 @pytest.mark.asyncio

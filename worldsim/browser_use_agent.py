@@ -24,13 +24,14 @@ from typing import Any, Protocol
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
 from worldsim.agent_auth import (
+    _resolve_declared_storage_state_path,
     playwright_storage_state,
     read_storage_state_payload,
     resolve_agent_auth_headers,
     storage_state_preflight_error_for_payload,
 )
 from worldsim.atomic_io import write_json_atomic
-from worldsim.config import has_configured_agent_auth
+from worldsim.config import has_configured_agent_auth, has_effective_agent_auth
 from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 logger = logging.getLogger(__name__)
@@ -761,11 +762,29 @@ class _ScopedHeaderAuthInjector:
         self._running = False
         if self._poll_task is not None:
             self._poll_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._poll_task
+            try:
+                await asyncio.wait_for(self._poll_task, timeout=1)
+            except asyncio.CancelledError:
+                pass
+            except TimeoutError:
+                logger.debug("scoped http_headers poll task did not stop before timeout")
+            except Exception:
+                logger.debug("scoped http_headers poll task failed during shutdown", exc_info=True)
             self._poll_task = None
         if self._continue_tasks:
-            await asyncio.gather(*list(self._continue_tasks), return_exceptions=True)
+            done, pending = await asyncio.wait(self._continue_tasks, timeout=1)
+            for task in done:
+                with suppress(asyncio.CancelledError):
+                    exc = task.exception()
+                    if exc is not None:
+                        logger.debug(
+                            "scoped http_headers continueRequest failed during shutdown",
+                            exc_info=(type(exc), exc, exc.__traceback__),
+                        )
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
             self._continue_tasks.clear()
         for session in list(self._enabled_sessions.values()):
             fetch = getattr(getattr(session.cdp_client, "send", None), "Fetch", None)
@@ -829,37 +848,52 @@ def _scoped_header_auth_action(origin: str, headers: dict[str, str]):
     return _action
 
 
-def _resolve_storage_state_path(raw_path: str, benchmark_root: Path | None) -> Path:
+def _resolve_storage_state_path(
+    raw_path: str,
+    benchmark_root: Path | None,
+    *,
+    site_name: str,
+) -> Path:
     """Resolve a storage-state artifact path and enforce benchmark-root containment."""
-    path = Path(raw_path)
-    if path.is_absolute():
+    if not site_name:
+        path = Path(raw_path)
+        if path.is_absolute():
+            if benchmark_root is None:
+                raise AuthArtifactMissingError(
+                    "absolute auth_mechanism.storage_state.path requires a benchmark root; "
+                    "pass --benchmark so the runtime can validate containment"
+                )
+            resolved_root = Path(benchmark_root).resolve()
+            try:
+                path.resolve().relative_to(resolved_root)
+            except ValueError as exc:
+                raise AuthArtifactMissingError(
+                    f"storage_state path {raw_path!r} resolves outside benchmark root {resolved_root}"
+                ) from exc
+            return path
         if benchmark_root is None:
             raise AuthArtifactMissingError(
-                "absolute auth_mechanism.storage_state.path requires a benchmark root; "
-                "pass --benchmark so the runtime can validate containment"
+                "relative auth_mechanism.storage_state.path requires a benchmark root; "
+                "pass --benchmark so the runtime can resolve the artifact safely"
             )
         resolved_root = Path(benchmark_root).resolve()
+        resolved = (resolved_root / path).resolve()
         try:
-            path.resolve().relative_to(resolved_root)
+            resolved.relative_to(resolved_root)
         except ValueError as exc:
             raise AuthArtifactMissingError(
                 f"storage_state path {raw_path!r} resolves outside benchmark root {resolved_root}"
             ) from exc
-        return path
-    if benchmark_root is None:
-        raise AuthArtifactMissingError(
-            "relative auth_mechanism.storage_state.path requires a benchmark root; "
-            "pass --benchmark so the runtime can resolve the artifact safely"
-        )
-    resolved_root = Path(benchmark_root).resolve()
-    resolved = (resolved_root / path).resolve()
-    try:
-        resolved.relative_to(resolved_root)
-    except ValueError as exc:
-        raise AuthArtifactMissingError(
-            f"storage_state path {raw_path!r} resolves outside benchmark root {resolved_root}"
-        ) from exc
-    return resolved
+        return resolved
+
+    path, error = _resolve_declared_storage_state_path(
+        raw_path,
+        benchmark_root=benchmark_root,
+        site_name=site_name,
+    )
+    if error is not None or path is None:
+        raise AuthArtifactMissingError(error or "storage_state path could not be resolved")
+    return path
 
 
 def _storage_state_site_error(path: Path, site_url: str | None) -> str | None:
@@ -952,7 +986,29 @@ def _resolve_auth(
                 "auth_mechanism.storage_state.path is empty; validator should have caught this"
             )
         bootstrap_path = _phase_0d_fallback_path(task)
+        site_name = str(task.get("site") or "") if isinstance(task, dict) else ""
         bootstrap_error: AuthArtifactMissingError | None = None
+        declared_error: AuthArtifactMissingError | None = None
+        try:
+            path = _resolve_storage_state_path(
+                raw_path.strip(),
+                benchmark_root,
+                site_name=site_name,
+            )
+        except AuthArtifactMissingError as exc:
+            path = None
+            declared_error = exc
+        # storage_state wins over any form_login that may coexist (plan §5 edges).
+        if path is not None and path.exists():
+            error = _storage_state_site_error(path, site_url)
+            if error is None:
+                session_kwargs["storage_state"] = _storage_state_context_value(path)
+                return session_kwargs, deferred_actions
+            declared_error = AuthArtifactMissingError(error)
+
+        if declared_error is not None and path is None:
+            raise declared_error
+
         if bootstrap_path is not None:
             try:
                 _validate_storage_state_for_site(bootstrap_path, site_url)
@@ -965,16 +1021,10 @@ def _resolve_auth(
                     bootstrap_path,
                     exc,
                 )
-        # If the declared path resolves outside benchmark_root (e.g. the
-        # operator re-routed it to logs/phase_0d/<site>/storage_state.json
-        # under state_dir), fall back to the phase_0d artifact when present.
-        # The preflight in worldsim/storage_state_preflight.py already does
-        # this; mirror the fallback here so agent launch stays consistent.
-        try:
-            path = _resolve_storage_state_path(raw_path.strip(), benchmark_root)
-        except AuthArtifactMissingError:
-            raise
-        # storage_state wins over any form_login that may coexist (plan §5 edges).
+
+        if path is None:
+            raise declared_error or AuthArtifactMissingError("storage_state path could not be resolved")
+
         if not path.exists():
             generator = sub.get("generator_script")
             if bootstrap_error is not None:
@@ -992,11 +1042,7 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 f"storage_state artifact missing at {path} and no generator_script declared"
             )
-        error = _storage_state_site_error(path, site_url)
-        if error is not None:
-            raise AuthArtifactMissingError(error)
-        session_kwargs["storage_state"] = _storage_state_context_value(path)
-        return session_kwargs, deferred_actions
+        raise declared_error or AuthArtifactMissingError(str(path))
 
     if mech_type == "http_basic":
         sub = auth_mechanism.get("http_basic") or {}
@@ -1118,7 +1164,7 @@ class BrowserUseAgent:
             origin for origin in (_origin_from_url(url) for url in (start_urls or [])) if origin
         }
         trusted_origin = _origin_from_url(server_url)
-        if has_configured_agent_auth(auth_mechanism) and trusted_origin:
+        if has_effective_agent_auth(auth_mechanism) and trusted_origin:
             off_origin = sorted(origin for origin in self._task_origins if origin != trusted_origin)
             if off_origin:
                 raise AuthArtifactMissingError(
@@ -1341,6 +1387,8 @@ class BrowserUseAgent:
             return
         try:
             await injector.stop()
+        except Exception:
+            logger.warning("scoped http_headers auth shutdown failed", exc_info=True)
         finally:
             with suppress(AttributeError):
                 delattr(self._session, "_worldsim_scoped_header_auth")

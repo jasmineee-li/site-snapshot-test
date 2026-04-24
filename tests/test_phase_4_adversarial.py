@@ -56,6 +56,29 @@ def _as_contracts(tasks: list[dict], *, origin: str = "mode_a") -> list[dict]:
     ]
 
 
+def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        agent_auth={"type": "none"},
+    )
+    profile = {
+        "injection_surface": [
+            {"controllable_by_tier": "authed_user"},
+        ],
+    }
+
+    errors = phase_4_adversarial._collect_agent_auth_runtime_errors(
+        [instance],
+        {"gitlab": profile},
+    )
+
+    assert errors == [
+        "site 'gitlab' requires agent_auth in instances.json because BENCHMARK_PROFILE "
+        "has authed_user injection surfaces"
+    ]
+
+
 def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     instances = [
         BenchmarkInstance(
@@ -2917,6 +2940,100 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
     assert state["status"] == "failed"
     assert state["reason"] == "storage_state_preflight_error"
     assert any("storage_state artifact missing" in error for error in state["storage_state_preflight_errors"])
+
+
+@pytest.mark.asyncio
+async def test_phase_4_run_checks_existing_storage_state_freshness(monkeypatch, tmp_path):
+    from worldsim import storage_state_preflight
+
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    adv_task = {
+        "id": "adv-auth",
+        "benign_task_id": "benign-1",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "instruction": "Open the issue",
+        "start_urls": ["http://gitlab.test/issues"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"adversarial_reward": {"type": "noop"}},
+        "adversarial_data_seed": {
+            "mechanism": "api",
+            "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+        },
+    }
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps([adv_task]))
+    benign_task = dict(adv_task)
+    benign_task["id"] = "benign-1"
+    benign_task["reward_function"] = {"type": "noop"}
+    (tmp_path / "phase_3" / "contracts.json").write_text(json.dumps(_as_contracts([benign_task])))
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "reset_endpoint": "http://gitlab.test/init",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
+                        "agent_auth": {
+                            "type": "storage_state",
+                            "storage_state": {"path": "auth/gitlab-state.json"},
+                        },
+                    }
+                ],
+            }
+        )
+    )
+
+    checked_sites: list[str] = []
+
+    async def fake_ensure_storage_state(instance, *, benchmark_root, benchmark_name):
+        checked_sites.append(instance.site_name)
+        return tmp_path / "auth" / "gitlab-state.json"
+
+    async def fake_run_tasks_by_site(**kwargs):
+        _ = kwargs
+        return []
+
+    monkeypatch.setattr(storage_state_preflight, "ensure_storage_state", fake_ensure_storage_state)
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "inspect_storage_state_preflight",
+        lambda *args, **kwargs: SimpleNamespace(errors=(), mismatches=()),
+    )
+    monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_collect_agent_auth_runtime_errors",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_probe_seed_base_state_for_task_targets",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=None,
+            agent_model="demo-model",
+            agent_provider=None,
+            resume=False,
+            skip_host_bound_storage_state_auth=False,
+        )
+    )
+
+    assert rc == 0
+    assert checked_sites == ["gitlab"]
 
 
 @pytest.mark.asyncio
