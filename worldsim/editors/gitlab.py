@@ -909,27 +909,41 @@ class GitlabEditor(BaseSiteEditor):
         if args.get("bio") in (None, "") and args.get("name") in (None, ""):
             raise EditorError("invalid_args", "gitlab user profile update requires bio or name")
 
+    # GitLab editor methods accept any of three project selectors —
+    # ``project_id`` (live ID), ``project_name_template`` (create-on-demand),
+    # or ``project_path_template`` (resolve existing ``namespace/repo``).
+    # All three are declared in each method's @editor_method ``bindings``
+    # and consumed by ``_ensure_project``; the arg-validators below must
+    # accept the same selector set so Option-A tasks anchored to an
+    # existing benign project (which carry ``project_path_template``
+    # rather than ``project_name_template``) aren't rejected at ingest.
+    _PROJECT_SELECTORS: tuple[str, ...] = (
+        "project_id",
+        "project_name_template",
+        "project_path_template",
+    )
+
     def _validate_issue_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "title_template")
-        self._require_any_selector(args, "project_id", "project_name_template")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
 
     def _validate_issue_note_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "note_body")
-        self._require_any_selector(args, "project_id", "project_name_template")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
         self._require_any_selector(args, "issue_iid", "issue_title_template")
 
     def _validate_merge_request_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "title_template", "source_branch")
-        self._require_any_selector(args, "project_id", "project_name_template")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
 
     def _validate_merge_request_note_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "note_body")
-        self._require_any_selector(args, "project_id", "project_name_template")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
         self._require_any_selector(args, "mr_iid", "mr_title_template")
 
     def _validate_repo_file_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "branch", "path", "content")
-        self._require_any_selector(args, "project_id", "project_name_template")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
 
     @staticmethod
     def _require_any_selector(args: dict[str, Any], *selectors: str) -> None:

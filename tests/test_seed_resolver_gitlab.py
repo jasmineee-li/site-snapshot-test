@@ -479,3 +479,91 @@ def test_update_user_profile_form_fallback_requires_seed_credentials():
         editor._ensure_profile_form_session()
 
     assert excinfo.value.kind == "auth_missing"
+
+
+# ---------------------------------------------------------------------------
+# _validate_*_args — must accept project_path_template as a valid selector.
+# GitLab editor methods declare project_path_template in their @editor_method
+# bindings alongside project_id and project_name_template; _ensure_project
+# consumes all three. The arg-validators were missing path_template from the
+# _require_any_selector list, rejecting Option-A tasks (anchored to an
+# existing benign project by path) with "project_id or project_name_template
+# is required". Regression for adv-446 / adv_804 / adv_810.
+# ---------------------------------------------------------------------------
+
+
+def test_validate_issue_note_args_accepts_project_path_template():
+    editor = _editor()
+    # Must not raise — path_template is a valid project selector.
+    editor._validate_issue_note_args(
+        {
+            "note_body": "hello",
+            "project_path_template": "a11yproject/a11yproject.com",
+            "issue_iid": "1478",
+        }
+    )
+
+
+def test_validate_issue_note_args_still_rejects_when_no_project_selector():
+    editor = _editor()
+    with pytest.raises(EditorError, match="project_id"):
+        editor._validate_issue_note_args(
+            {
+                "note_body": "hello",
+                "issue_iid": "1478",
+            }
+        )
+
+
+def test_validate_issue_args_accepts_project_path_template():
+    editor = _editor()
+    editor._validate_issue_args(
+        {
+            "title_template": "hello world",
+            "project_path_template": "a11yproject/a11yproject.com",
+        }
+    )
+
+
+def test_validate_merge_request_args_accepts_project_path_template():
+    editor = _editor()
+    editor._validate_merge_request_args(
+        {
+            "title_template": "hello",
+            "source_branch": "feat/x",
+            "project_path_template": "primer/design",
+        }
+    )
+
+
+def test_validate_merge_request_note_args_accepts_project_path_template():
+    editor = _editor()
+    editor._validate_merge_request_note_args(
+        {
+            "note_body": "hello",
+            "project_path_template": "primer/design",
+            "mr_iid": "42",
+        }
+    )
+
+
+def test_validate_repo_file_args_accepts_project_path_template():
+    editor = _editor()
+    editor._validate_repo_file_args(
+        {
+            "branch": "main",
+            "path": "README.md",
+            "content": "hi",
+            "project_path_template": "primer/design",
+        }
+    )
+
+
+def test_project_selectors_constant_is_canonical_three():
+    # Guard against silent drift if new selectors are added without
+    # updating the validators.
+    assert set(_editor()._PROJECT_SELECTORS) == {
+        "project_id",
+        "project_name_template",
+        "project_path_template",
+    }
