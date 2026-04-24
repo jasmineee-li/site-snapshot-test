@@ -567,3 +567,158 @@ def test_project_selectors_constant_is_canonical_three():
         "project_name_template",
         "project_path_template",
     }
+
+
+# ---------------------------------------------------------------------------
+# _ensure_project path-template lookup. The @editor_method bindings,
+# the method signatures, and the arg-validators all accept
+# project_path_template as a valid project selector — but _ensure_project
+# was only wired up to look up by project_id and fall through to
+# create-on-demand via project_name_template. Option-A tasks anchored to
+# an existing benign project carry path_template (no project_id on disk)
+# and expected attach-by-path semantics, not create-on-demand.
+# ---------------------------------------------------------------------------
+
+
+def test_ensure_project_resolves_existing_project_by_path_template(monkeypatch):
+    editor = _editor()
+    captured_paths: list[str] = []
+
+    def fake_get(path, *, allow_missing=False):
+        captured_paths.append(path)
+        return {
+            "id": 42,
+            "path_with_namespace": "a11yproject/a11yproject.com",
+            "default_branch": "main",
+        }
+
+    monkeypatch.setattr(editor, "_gitlab_get_json", fake_get)
+    # Must NOT call create_project when path_template resolves.
+    monkeypatch.setattr(
+        editor,
+        "create_project",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("create_project must not run")),
+    )
+
+    result = editor._ensure_project(
+        project_id=None,
+        project_name_template=None,
+        project_path_template="a11yproject/a11yproject.com",
+        project_description_template=None,
+    )
+    assert result == {
+        "project_id": 42,
+        "project_path": "a11yproject/a11yproject.com",
+        "default_branch": "main",
+    }
+    # URL-encoded — GitLab accepts namespace%2Fpath on /api/v4/projects/:id.
+    assert captured_paths == ["/api/v4/projects/a11yproject%2Fa11yproject.com"]
+
+
+def test_ensure_project_prefers_id_over_path_template(monkeypatch):
+    """When both are present, project_id wins — numeric IDs are
+    authoritative and cheaper to resolve (no URL encoding)."""
+    editor = _editor()
+    captured_paths: list[str] = []
+
+    def fake_get(path, *, allow_missing=False):
+        captured_paths.append(path)
+        return {
+            "id": 99,
+            "path_with_namespace": "byteblaze/dotfiles",
+            "default_branch": "main",
+        }
+
+    monkeypatch.setattr(editor, "_gitlab_get_json", fake_get)
+
+    editor._ensure_project(
+        project_id=99,
+        project_name_template=None,
+        project_path_template="different/path",
+        project_description_template=None,
+    )
+    # Only the id lookup should fire; path_template lookup must not.
+    assert captured_paths == ["/api/v4/projects/99"]
+
+
+def test_ensure_project_falls_through_to_create_when_no_lookup_keys(monkeypatch):
+    """With only project_name_template set, the method must create a
+    new project — path_template lookup is optional, not a blocker."""
+    editor = _editor()
+
+    def fake_create(**kwargs):
+        return {
+            "project_id": 7,
+            "project_path": kwargs["name_template"],
+        }
+
+    monkeypatch.setattr(editor, "create_project", fake_create)
+    monkeypatch.setattr(
+        editor,
+        "_gitlab_get_json",
+        lambda path, *, allow_missing=False: {
+            "id": 7,
+            "path_with_namespace": "user/webagent-task-x",
+            "default_branch": "main",
+        },
+    )
+
+    result = editor._ensure_project(
+        project_id=None,
+        project_name_template="webagent-task-x",
+        project_path_template=None,
+        project_description_template=None,
+    )
+    assert result["project_id"] == 7
+
+
+def test_ensure_project_error_message_lists_all_three_selectors(monkeypatch):
+    """Negative case: none of the three selectors populated → error
+    mentions all three so the operator can fix the task shape."""
+    editor = _editor()
+    monkeypatch.setattr(editor, "_gitlab_get_json", lambda path, *, allow_missing=False: None)
+
+    with pytest.raises(EditorError) as excinfo:
+        editor._ensure_project(
+            project_id=None,
+            project_name_template=None,
+            project_path_template=None,
+            project_description_template=None,
+        )
+    msg = str(excinfo.value)
+    assert "project_id" in msg
+    assert "project_name_template" in msg
+    assert "project_path_template" in msg
+
+
+def test_ensure_project_falls_back_to_create_when_path_template_lookup_404s(monkeypatch):
+    """If the path points at a project that doesn't exist on the live
+    replica and name_template is also populated, fall through and
+    create. This matches the existing behavior for project_id misses.
+    """
+    editor = _editor()
+    # GET returns None (404 / not-a-dict) for the path lookup.
+    monkeypatch.setattr(
+        editor,
+        "_gitlab_get_json",
+        lambda path, *, allow_missing=False: None
+        if "missing" in path
+        else {"id": 5, "path_with_namespace": "x/fallback", "default_branch": "main"},
+    )
+
+    created: list[dict[str, Any]] = []
+
+    def fake_create(**kwargs):
+        created.append(kwargs)
+        return {"project_id": 5, "project_path": "x/fallback"}
+
+    monkeypatch.setattr(editor, "create_project", fake_create)
+
+    result = editor._ensure_project(
+        project_id=None,
+        project_name_template="fallback-name",
+        project_path_template="ns/missing",
+        project_description_template=None,
+    )
+    assert created and created[0]["name_template"] == "fallback-name"
+    assert result["project_id"] == 5

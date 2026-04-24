@@ -1039,8 +1039,25 @@ class GitlabEditor(BaseSiteEditor):
         project_path_template: str | None,
         project_description_template: str | None,
     ) -> dict[str, Any]:
-        if project_id not in (None, ""):
-            project = self._gitlab_get_json(f"/api/v4/projects/{self._quote(project_id)}")
+        # Resolution priority for the three project selectors:
+        #   1. project_id — numeric ID (authoritative).
+        #   2. project_path_template — namespace/path of an existing
+        #      project. Option-A tasks anchored to a real benign project
+        #      always carry this (no project_id on disk — it's assigned
+        #      per-replica at runtime) and expect the editor to attach
+        #      to the existing project, NOT create a new one.
+        #   3. project_name_template — CREATE-ON-DEMAND. Falls through
+        #      when the other two aren't populated; produces a new
+        #      ``webagent-task-*`` project scoped to the current user.
+        # Previously only (1) and (3) were wired up in this method, so
+        # a task whose only populated selector was path_template hit
+        # the ``project_name_template or project_id is required`` guard
+        # even though the @editor_method bindings and the method
+        # signature both document path_template as a valid selector.
+        for lookup_key in (project_id, project_path_template):
+            if lookup_key in (None, ""):
+                continue
+            project = self._gitlab_get_json(f"/api/v4/projects/{self._quote(str(lookup_key))}")
             if isinstance(project, dict):
                 return {
                     "project_id": project["id"],
@@ -1048,7 +1065,10 @@ class GitlabEditor(BaseSiteEditor):
                     "default_branch": str(project.get("default_branch") or "main"),
                 }
         if not project_name_template:
-            raise EditorError("invalid_args", "project_name_template or project_id is required")
+            raise EditorError(
+                "invalid_args",
+                "project_name_template, project_id, or project_path_template is required",
+            )
         created = self.create_project(
             name_template=project_name_template,
             path_template=project_path_template,
