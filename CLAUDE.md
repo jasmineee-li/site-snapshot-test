@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow
+
+- Always `git push` after every atomic commit on a non-main branch. Durable
+  authorization: the user has pre-approved pushing here, so don't re-ask per
+  commit. Protected: never push to `main` / `master` without explicit
+  confirmation.
+
 ## Project Overview
 
 This is a monorepo for evaluating AI agent behaviors in controlled web environments. It combines multiple components:
