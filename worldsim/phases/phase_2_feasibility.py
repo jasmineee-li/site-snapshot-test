@@ -84,6 +84,19 @@ _PER_REPLICA_CAP_FALLBACK = 6
 _BROWSER_PROBE_CAP = 8
 _PREFLIGHT_AUTH_REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
 
+# RenderOutcome.kind value the render-check sets when the seed wrote OK
+# but the signature was not visible in any read-surface URL within the
+# body-poll window. Hoisted as a constant so the retry-once gate below
+# stays grep-friendly and tests can pin the kind without importing
+# verify_seed_renders' classifier internals.
+_RENDER_UNVERIFIED_KIND = "render_unverified"
+# Single retry breather for the render-check on its first miss. Targets
+# GitLab's slow write-to-visible tail (sidekiq + page-cache invalidation)
+# under Phase 2c's 16-way renderer contention. 3 s is short enough not
+# to balloon Phase 2c wall time on the 1-3 task-per-run flake band, long
+# enough to clear the typical sidekiq queue depth observed on r5.
+_RENDER_UNVERIFIED_RETRY_DELAY_S = 3.0
+
 # Launch flags applied to every per-task Chromium. ``--disable-dev-shm-usage``
 # moves shared memory from ``/dev/shm`` (64 MiB Docker default) to
 # ``/tmp``; harmless on bare-metal Linux and essential in containers —
@@ -729,6 +742,28 @@ async def _verify_one(
                 metadata=metadata,
                 instance=instance,
             )
+            # Render-unverified means the seed wrote successfully but the
+            # signature did not appear in any read-surface URL within the
+            # body-poll window. On loaded GitLab hosts this is dominated
+            # by sidekiq indexer + page-cache invalidation tail; the seed
+            # IS visible a few seconds later. Give the platform one
+            # 3-second breather and re-run the check so single-run jitter
+            # (typically 1-3 tasks per Phase 2c) doesn't gate admission.
+            # The exponential-backoff body poll already handles the fast
+            # tail; this retry covers the slow tail (>20 s sidekiq).
+            if (
+                render_outcome is not None
+                and not render_outcome.ok
+                and render_outcome.kind == _RENDER_UNVERIFIED_KIND
+            ):
+                await asyncio.sleep(_RENDER_UNVERIFIED_RETRY_DELAY_S)
+                render_outcome = await _run_render_check(
+                    browser=browser,
+                    render_semaphore=render_semaphore,
+                    seed=seed,
+                    metadata=metadata,
+                    instance=instance,
+                )
             if render_outcome is not None and render_outcome.ok:
                 # Option A reachability only applies to tasks whose benign
                 # target resource is known — legacy datasets without the
