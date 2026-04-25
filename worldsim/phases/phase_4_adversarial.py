@@ -65,10 +65,12 @@ from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
 from worldsim import outcome_taxonomy
+from worldsim.agent_auth import resolve_agent_auth_headers
 from worldsim.agent_config import (
     DEFAULT_MODEL,
     RUNTIME_METADATA_KEY,
@@ -2671,6 +2673,30 @@ def _collect_agent_auth_runtime_errors(
                 f"site {instance.site_name!r} requires agent_auth in instances.json "
                 "because BENCHMARK_PROFILE has authed_user injection surfaces"
             )
+            continue
+        auth = instance.agent_auth if isinstance(instance.agent_auth, dict) else {}
+        auth_type = str(auth.get("type") or "").strip()
+        if auth_type == "http_headers":
+            try:
+                resolve_agent_auth_headers(auth)
+            except RuntimeError as exc:
+                errors.append(
+                    f"site {instance.site_name!r} has invalid http_headers agent_auth: {exc}"
+                )
+                continue
+            parsed = urlparse(str(instance.site_url or ""))
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                errors.append(
+                    f"site {instance.site_name!r} has invalid site_url for http_headers "
+                    "agent_auth scoping"
+                )
+        elif auth_type == "http_basic":
+            parsed = urlparse(str(instance.site_url or ""))
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                errors.append(
+                    f"site {instance.site_name!r} has invalid site_url for http_basic "
+                    "agent_auth scoping"
+                )
     return errors
 
 
@@ -4048,16 +4074,18 @@ def _agent_context_with_instance_auth(
         return merged or None
     if str(instance_agent_auth.get("type", "")).strip() == "none":
         return merged or None
-    if "authentication" not in merged:
-        authentication = instance_agent_auth.get("authentication")
-        if isinstance(authentication, dict):
-            merged["authentication"] = json.loads(json.dumps(authentication))
-        else:
-            merged["authentication"] = {
-                "pre_authenticated": True,
-                "credentials": None,
-                "description": "Pre-authenticated via deployment config.",
-            }
+    if has_effective_agent_auth(instance_agent_auth):
+        merged["authentication"] = {
+            "pre_authenticated": True,
+            "credentials": None,
+            "description": "Pre-authenticated via deployment config.",
+        }
+    elif "authentication" not in merged:
+        merged["authentication"] = {
+            "pre_authenticated": True,
+            "credentials": None,
+            "description": "Pre-authenticated via deployment config.",
+        }
     return merged or None
 
 

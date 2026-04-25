@@ -422,6 +422,55 @@ async def test_network_trace_recorder_adopts_new_page_targets():
     assert adopted_targets == {"target-1", "target-2"}
 
 
+def test_network_trace_redacts_configured_auth_header_names():
+    redacted = browser_use_agent._NetworkTraceRecorder._redact_trace_entry(
+        {
+            "url": "http://reddit.test/f/news",
+            "query_params": {},
+            "headers": {
+                "X-Postmill-Auto-Login": "alice:pw",
+                "X-Visible": "ok",
+            },
+            "response_headers": {},
+        },
+        sensitive_header_names={"X-Postmill-Auto-Login"},
+    )
+
+    assert redacted["headers"]["X-Postmill-Auto-Login"] == "<redacted>"
+    assert redacted["headers"]["X-Visible"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_redacted(
+    monkeypatch, tmp_path
+):
+    recorder = browser_use_agent._NetworkTraceRecorder(
+        SimpleNamespace(cdp_client=None),
+        tmp_path,
+        sensitive_header_names={"X-Postmill-Auto-Login"},
+    )
+    monkeypatch.setattr(
+        recorder,
+        "_finalize_trace",
+        lambda: [
+            {
+                "url": "http://reddit.test/f/news",
+                "query_params": {"q": ["needle"]},
+                "headers": {"X-Postmill-Auto-Login": "alice:pw"},
+                "response_headers": {},
+                "post_data": "payload=needle",
+            }
+        ],
+    )
+    monkeypatch.setattr(recorder, "_write_trace", lambda trace: None)
+
+    trace = await recorder.stop()
+
+    assert trace[0]["headers"]["X-Postmill-Auto-Login"] == "<redacted>"
+    assert trace[0]["query_params"] == {"q": ["needle"]}
+    assert trace[0]["post_data"] == "payload=needle"
+
+
 @pytest.mark.asyncio
 async def test_reset_remote_browser_for_task_closes_old_pages_and_creates_fresh_target():
     agent = browser_use_agent.BrowserUseAgent(llm=object())
@@ -656,9 +705,17 @@ async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.Monk
             return []
 
     class FakeRecorder:
-        def __init__(self, browser_session, task_dir, *, target_filter=None):
+        def __init__(
+            self,
+            browser_session,
+            task_dir,
+            *,
+            target_filter=None,
+            sensitive_header_names=None,
+        ):
             _ = browser_session, task_dir
             observed["target_filter"] = set(target_filter or ())
+            observed["sensitive_header_names"] = set(sensitive_header_names or ())
 
         async def start(self):
             return None

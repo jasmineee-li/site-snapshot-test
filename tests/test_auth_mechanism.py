@@ -3,7 +3,7 @@
 Covers:
 - Validator acceptance and rejection paths for the new schema.
 - ``_resolve_auth`` dispatcher mapping for the first batch
-  (``storage_state``, ``http_basic``, ``none``).
+  (``storage_state``, ``http_basic``, ``http_headers``, ``none``).
 - Stub types raise ``NotImplementedError``.
 - CLI ``--allow-unknown-auth`` gate behavior.
 """
@@ -315,7 +315,7 @@ class TestResolveAuth:
             _resolve_auth(auth, task=None, benchmark_root=bench)
         assert "scripts/make_auth.py" in str(exc.value)
 
-    def test_http_basic_maps_to_http_credentials(self):
+    def test_http_basic_maps_to_scoped_authorization_header(self):
         auth = {
             "type": "http_basic",
             "http_basic": {"username": "admin", "password": "s3cret"},
@@ -326,14 +326,8 @@ class TestResolveAuth:
             benchmark_root=None,
             site_url="http://site.test/start",
         )
-        assert kwargs == {
-            "http_credentials": {
-                "username": "admin",
-                "password": "s3cret",
-                "origin": "http://site.test",
-            }
-        }
-        assert deferred == []
+        assert kwargs == {}
+        assert len(deferred) == 1
 
     def test_http_basic_requires_site_url_for_origin_scope(self):
         auth = {
@@ -354,7 +348,8 @@ class TestResolveAuth:
         # Message should mention the type and point at the plan.
         assert mech_type in str(exc.value)
 
-    def test_http_headers_runtime_fails_closed_after_valid_interpolation(self):
+    def test_http_headers_resolves_with_credentials_interpolation(self):
+        """http_headers uses the scoped injector and interpolates credentials."""
         auth = {
             "type": "http_headers",
             "http_headers": {
@@ -366,13 +361,14 @@ class TestResolveAuth:
                 "credentials": {"username": "emma.lopez@gmail.com", "password": "Password.123"}
             },
         }
-        with pytest.raises(AuthArtifactMissingError, match="not supported by BrowserUse runtime"):
-            _resolve_auth(
-                auth,
-                task=None,
-                benchmark_root=None,
-                site_url="http://reddit.test",
-            )
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
 
     def test_http_headers_preserves_static_values_without_credentials(self):
         auth = {
@@ -383,13 +379,14 @@ class TestResolveAuth:
                 }
             },
         }
-        with pytest.raises(AuthArtifactMissingError, match="not supported by BrowserUse runtime"):
-            _resolve_auth(
-                auth,
-                task=None,
-                benchmark_root=None,
-                site_url="http://reddit.test",
-            )
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
 
     def test_http_headers_accepts_username_only_placeholder(self):
         auth = {
@@ -397,13 +394,14 @@ class TestResolveAuth:
             "headers": {"X-User": "${credentials.username}"},
             "authentication": {"credentials": {"username": "alice"}},
         }
-        with pytest.raises(AuthArtifactMissingError, match="not supported by BrowserUse runtime"):
-            _resolve_auth(
-                auth,
-                task=None,
-                benchmark_root=None,
-                site_url="http://reddit.test",
-            )
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
 
     def test_http_headers_accepts_password_only_placeholder(self):
         auth = {
@@ -411,20 +409,21 @@ class TestResolveAuth:
             "headers": {"X-Password": "${credentials.password}"},
             "authentication": {"credentials": {"password": "secret"}},
         }
-        with pytest.raises(AuthArtifactMissingError, match="not supported by BrowserUse runtime"):
-            _resolve_auth(
-                auth,
-                task=None,
-                benchmark_root=None,
-                site_url="http://reddit.test",
-            )
+        kwargs, deferred = _resolve_auth(
+            auth,
+            task=None,
+            benchmark_root=None,
+            site_url="http://reddit.test",
+        )
+        assert kwargs == {}
+        assert len(deferred) == 1
 
     def test_http_headers_requires_site_url_for_origin_scope(self):
         auth = {
             "type": "http_headers",
             "http_headers": {"headers": {"X-Static-Token": "fixed-token"}},
         }
-        with pytest.raises(AuthArtifactMissingError, match="not supported by BrowserUse runtime"):
+        with pytest.raises(AuthArtifactMissingError, match="valid site_url"):
             _resolve_auth(auth, task=None, benchmark_root=None)
 
     def test_http_headers_rejects_missing_credentials_for_placeholders(self):
@@ -526,6 +525,19 @@ class TestResolveAuth:
         )
         await asyncio.sleep(0)
 
+        assert session.cdp_client.send.Fetch.enabled == [
+            (
+                {
+                    "patterns": [
+                        {
+                            "urlPattern": "http://reddit.test/*",
+                            "requestStage": "Request",
+                        }
+                    ]
+                },
+                "session-1",
+            )
+        ]
         same, other = session.cdp_client.send.Fetch.continued
         assert same[0]["headers"] == [
             {"name": "A", "value": "B"},

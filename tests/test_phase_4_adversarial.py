@@ -79,6 +79,80 @@ def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
     ]
 
 
+def test_agent_auth_runtime_gate_accepts_http_headers_for_authed_surfaces():
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.test",
+        agent_auth={
+            "type": "http_headers",
+            "http_headers": {"headers": {"X-Postmill-Auto-Login": "user:pw"}},
+        },
+    )
+    profile = {
+        "injection_surface": [
+            {"controllable_by_tier": "authed_user"},
+        ],
+    }
+
+    errors = phase_4_adversarial._collect_agent_auth_runtime_errors(
+        [instance],
+        {"reddit": profile},
+    )
+
+    assert errors == []
+
+
+def test_agent_auth_runtime_gate_rejects_unresolvable_http_headers():
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.test",
+        agent_auth={
+            "type": "http_headers",
+            "http_headers": {"headers": {"X-User": "${credentials.username}"}},
+        },
+    )
+    profile = {
+        "injection_surface": [
+            {"controllable_by_tier": "authed_user"},
+        ],
+    }
+
+    errors = phase_4_adversarial._collect_agent_auth_runtime_errors(
+        [instance],
+        {"reddit": profile},
+    )
+
+    assert len(errors) == 1
+    assert "invalid http_headers agent_auth" in errors[0]
+
+
+def test_agent_context_with_instance_auth_redacts_runtime_credentials():
+    context = {
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "alice", "password": "secret"},
+            "description": "Use the seeded account.",
+        }
+    }
+    agent_auth = {
+        "type": "http_headers",
+        "http_headers": {
+            "headers": {"X-Postmill-Auto-Login": "${credentials.username}:secret"}
+        },
+        "authentication": {
+            "credentials": {"username": "alice", "password": "secret"},
+        },
+    }
+
+    merged = phase_4_adversarial._agent_context_with_instance_auth(context, agent_auth)
+
+    assert merged["authentication"] == {
+        "pre_authenticated": True,
+        "credentials": None,
+        "description": "Pre-authenticated via deployment config.",
+    }
+
+
 def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     instances = [
         BenchmarkInstance(

@@ -11,6 +11,7 @@ artifacts such as network traces stay isolated per task directory.
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import os
 import re
@@ -51,6 +52,7 @@ _SENSITIVE_HEADER_SUBSTRINGS = (
     "secret",
     "session",
     "auth",
+    "login",
     "cookie",
     "csrf",
     "key",
@@ -137,6 +139,7 @@ class _NetworkTraceRecorder:
         task_dir: Path,
         *,
         target_filter: set[str] | None = None,
+        sensitive_header_names: set[str] | None = None,
     ) -> None:
         self._browser_session = browser_session
         self._task_dir = Path(task_dir)
@@ -145,6 +148,9 @@ class _NetworkTraceRecorder:
         self._poll_task: asyncio.Task | None = None
         self._enabled_targets: set[str] = set()
         self._target_filter = target_filter
+        self._sensitive_header_names = {
+            str(name).lower() for name in (sensitive_header_names or set()) if str(name).strip()
+        }
         # Raw CDP entries keyed by requestId.
         self._requests: dict[str, dict[str, Any]] = {}
         # Top-frame navigation events for C1b URL matching + HAR pages[].
@@ -191,10 +197,25 @@ class _NetworkTraceRecorder:
             self._poll_task = None
 
         trace = self._finalize_trace()
+        redacted_trace = [
+            self._redact_trace_entry(
+                entry,
+                sensitive_header_names=self._sensitive_header_names,
+            )
+            for entry in trace
+        ]
+        evaluator_trace = [
+            self._redact_trace_entry(
+                entry,
+                sensitive_header_names=self._sensitive_header_names,
+                redact_payloads=False,
+            )
+            for entry in trace
+        ]
         # Persist only redacted wire artifacts; downstream sandboxes may stage
         # network.har wholesale from the trajectory directory.
-        self._write_trace([self._redact_trace_entry(entry) for entry in trace])
-        return trace
+        self._write_trace(redacted_trace)
+        return evaluator_trace
 
     # ------------------------------------------------------------------
     # Session discovery
@@ -580,28 +601,51 @@ class _NetworkTraceRecorder:
             logger.warning("Failed to write network.har: %s", e)
 
     @classmethod
-    def _redact_trace_entry(cls, entry: dict[str, Any]) -> dict[str, Any]:
+    def _redact_trace_entry(
+        cls,
+        entry: dict[str, Any],
+        *,
+        sensitive_header_names: set[str] | None = None,
+        redact_payloads: bool = True,
+    ) -> dict[str, Any]:
         """Redact sensitive wire data before persisting trajectory artifacts."""
         redacted = dict(entry)
-        redacted["url"] = cls._redact_url(redacted.get("url", ""))
-        redacted["query_params"] = cls._redact_query_params(redacted.get("query_params", {}))
-        redacted["headers"] = cls._redact_headers(redacted.get("headers", {}))
-        redacted["response_headers"] = cls._redact_headers(redacted.get("response_headers", {}))
-        if redacted.get("post_data") is not None:
+        if redact_payloads:
+            redacted["url"] = cls._redact_url(redacted.get("url", ""))
+            redacted["query_params"] = cls._redact_query_params(
+                redacted.get("query_params", {})
+            )
+        redacted["headers"] = cls._redact_headers(
+            redacted.get("headers", {}),
+            sensitive_header_names=sensitive_header_names,
+        )
+        redacted["response_headers"] = cls._redact_headers(
+            redacted.get("response_headers", {}),
+            sensitive_header_names=sensitive_header_names,
+        )
+        if redact_payloads and redacted.get("post_data") is not None:
             redacted["post_data"] = "<redacted>"
-        if redacted.get("response_cookies"):
+        if redact_payloads and redacted.get("response_cookies"):
             redacted["response_cookies"] = {
                 key: "<redacted>" for key in redacted["response_cookies"]
             }
         return redacted
 
     @classmethod
-    def _redact_headers(cls, headers: dict[str, Any]) -> dict[str, Any]:
+    def _redact_headers(
+        cls,
+        headers: dict[str, Any],
+        *,
+        sensitive_header_names: set[str] | None = None,
+    ) -> dict[str, Any]:
         """Redact sensitive header values while preserving non-secret metadata."""
         redacted: dict[str, Any] = {}
+        configured_sensitive = {
+            str(name).lower() for name in (sensitive_header_names or set()) if str(name).strip()
+        }
         for key, value in headers.items():
             lower = str(key).lower()
-            if lower in _SENSITIVE_HEADER_NAMES or any(
+            if lower in configured_sensitive or lower in _SENSITIVE_HEADER_NAMES or any(
                 marker in lower for marker in _SENSITIVE_HEADER_SUBSTRINGS
             ):
                 redacted[str(key)] = "<redacted>"
@@ -726,7 +770,7 @@ class _ScopedHeaderAuthInjector:
             raise AuthArtifactMissingError("CDP client unavailable for scoped http_headers auth")
         client.register.Fetch.requestPaused(self._on_request_paused)
         self._running = True
-        await self._enable_current_page_sessions()
+        await self._enable_current_page_sessions(require_enabled=True)
         self._poll_task = asyncio.create_task(
             self._poll_sessions(),
             name="scoped-header-auth-injector",
@@ -735,28 +779,63 @@ class _ScopedHeaderAuthInjector:
     async def _poll_sessions(self) -> None:
         try:
             while self._running:
-                await self._enable_current_page_sessions()
+                try:
+                    await self._enable_current_page_sessions()
+                except Exception:
+                    logger.debug("scoped http_headers poll iteration failed", exc_info=True)
                 await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             raise
 
-    async def _enable_current_page_sessions(self) -> None:
+    async def _enable_current_page_sessions(self, *, require_enabled: bool = False) -> None:
         session_manager = getattr(self._browser_session, "session_manager", None)
         if session_manager is None:
+            if require_enabled:
+                raise AuthArtifactMissingError(
+                    "scoped http_headers auth could not attach: session_manager unavailable"
+                )
             return
+        errors: list[Exception] = []
         for target in session_manager.get_all_page_targets():
             target_id = getattr(target, "target_id", None)
             if not target_id or target_id in self._enabled_targets:
                 continue
-            session = await self._browser_session.get_or_create_cdp_session(
-                target_id, focus=False
-            )
-            await session.cdp_client.send.Fetch.enable(
-                {"patterns": [{"urlPattern": "*", "requestStage": "Request"}]},
-                session_id=session.session_id,
-            )
+            try:
+                session = await asyncio.wait_for(
+                    self._browser_session.get_or_create_cdp_session(
+                        target_id, focus=False
+                    ),
+                    timeout=2,
+                )
+                await asyncio.wait_for(
+                    session.cdp_client.send.Fetch.enable(
+                        {
+                            "patterns": [
+                                {
+                                    "urlPattern": f"{self.origin}/*",
+                                    "requestStage": "Request",
+                                }
+                            ]
+                        },
+                        session_id=session.session_id,
+                    ),
+                    timeout=2,
+                )
+            except Exception as exc:
+                logger.debug(
+                    "scoped http_headers Fetch.enable failed for target %s",
+                    target_id,
+                    exc_info=True,
+                )
+                errors.append(exc)
+                continue
             self._enabled_targets.add(target_id)
             self._enabled_sessions[target_id] = session
+        if require_enabled and not self._enabled_sessions:
+            message = "scoped http_headers auth could not attach to any page target"
+            if errors:
+                raise AuthArtifactMissingError(message) from errors[0]
+            raise AuthArtifactMissingError(message)
 
     async def stop(self) -> None:
         self._running = False
@@ -850,6 +929,20 @@ def _scoped_header_auth_action(origin: str, headers: dict[str, str]):
     return _action
 
 
+def _auth_sensitive_header_names(auth_mechanism: dict[str, Any] | None) -> set[str]:
+    if not isinstance(auth_mechanism, dict):
+        return set()
+    mech_type = str(auth_mechanism.get("type") or "").strip()
+    if mech_type == "http_basic":
+        return {"Authorization"}
+    if mech_type == "http_headers":
+        try:
+            return set(resolve_agent_auth_headers(auth_mechanism))
+        except RuntimeError:
+            return set()
+    return set()
+
+
 def _resolve_storage_state_path(
     raw_path: str,
     benchmark_root: Path | None,
@@ -923,7 +1016,7 @@ def _storage_state_context_value(path: Path) -> str | dict[str, Any]:
 # Stable enum of first-batch implementations. Types outside this set are schema-
 # legal (validator accepts them) but raise ``NotImplementedError`` at runtime
 # until their dispatcher arm is written. See plan §8 rollout order.
-_IMPLEMENTED_AUTH_TYPES = frozenset({"storage_state", "http_basic", "none"})
+_IMPLEMENTED_AUTH_TYPES = frozenset({"storage_state", "http_basic", "http_headers", "none"})
 _UNIMPLEMENTED_AUTH_TYPES = frozenset({"form_login", "pre_auth_script", "client_cert"})
 
 
@@ -940,7 +1033,8 @@ def _resolve_auth(
     async callables that receive the started session (unused for the first
     batch — reserved for ``form_login`` / ``pre_auth_script``).
 
-    First-batch implementations: ``storage_state``, ``http_basic``, ``none``.
+    First-batch implementations: ``storage_state``, ``http_basic``, ``http_headers``,
+    ``none``.
     ``unknown`` also no-ops (runtime has already been gated by
     ``--allow-unknown-auth`` in ``main.py``).
 
@@ -965,7 +1059,7 @@ def _resolve_auth(
         raise NotImplementedError(
             f"auth_mechanism.type={mech_type!r} is schema-legal but the runtime "
             "dispatcher has not been implemented yet. See plan §8 — only "
-            "storage_state, http_basic, and none ship in the first batch."
+            "storage_state, http_basic, http_headers, and none ship in the first batch."
         )
 
     if mech_type == "storage_state":
@@ -1059,22 +1153,24 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 "auth_mechanism.http_basic requires a valid site_url to scope credentials"
             )
-        session_kwargs["http_credentials"] = {
-            "username": username,
-            "password": password,
-            "origin": origin,
-        }
+        encoded = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
+        deferred_actions.append(
+            _scoped_header_auth_action(origin, {"Authorization": f"Basic {encoded}"})
+        )
         return session_kwargs, deferred_actions
 
     if mech_type == "http_headers":
         try:
-            resolve_agent_auth_headers(auth_mechanism)
+            resolved = resolve_agent_auth_headers(auth_mechanism)
         except RuntimeError as exc:
             raise AuthArtifactMissingError(str(exc)) from exc
-        raise AuthArtifactMissingError(
-            "auth_mechanism.http_headers is not supported by BrowserUse runtime because "
-            "CDP Fetch cannot be enabled for every new target before its first request"
-        )
+        origin = _origin_from_url(site_url or "")
+        if not origin:
+            raise AuthArtifactMissingError(
+                "auth_mechanism.http_headers requires a valid site_url to scope headers"
+            )
+        deferred_actions.append(_scoped_header_auth_action(origin, resolved))
+        return session_kwargs, deferred_actions
 
     # Defensive fallback: an unknown-but-enumerated type slipped through.
     raise NotImplementedError(f"auth_mechanism.type={mech_type!r} has no runtime dispatcher")
@@ -1187,6 +1283,13 @@ class BrowserUseAgent:
             benchmark_root=benchmark_root,
             site_url=server_url,
         )
+        auth_sensitive_header_names = _auth_sensitive_header_names(auth_mechanism)
+        if deferred_auth_actions and len(start_urls or []) > 1:
+            raise AuthArtifactMissingError(
+                "authenticated BrowserUse run with header-based auth cannot safely "
+                "open multiple start_urls because new-tab first requests may precede "
+                "CDP Fetch attachment"
+            )
         self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
 
         # PVPO integration: Phase 4 binds each worker to its own chrome-
@@ -1245,7 +1348,7 @@ class BrowserUseAgent:
             # Run any deferred auth actions (e.g. future form_login flow) after
             # session.start() succeeds and after any remote-browser reset has
             # produced a fresh task-owned target. No-op for the first batch
-            # (storage_state / http_basic / none).
+            # (storage_state / http_basic / http_headers / none).
             for action in deferred_auth_actions:
                 await action(self._session)
 
@@ -1253,6 +1356,7 @@ class BrowserUseAgent:
                 self._session,
                 task_dir,
                 target_filter=self._owned_target_ids,
+                sensitive_header_names=auth_sensitive_header_names,
             )
             await network_recorder.start()
 

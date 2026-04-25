@@ -542,8 +542,8 @@ The agent context schema is benchmark-agnostic. ``requires_structured_output`` i
 | `type` | Sub-object keys | Runtime behavior |
 | :---- | :---- | :---- |
 | `storage_state` | `path`, optional nested `form_login` | passes `storage_state=<abs_path>` to `BrowserSession(...)` |
-| `http_basic` | `username`, `password` | sets `http_credentials={"username": ..., "password": ...}` |
-| `http_headers` | `headers` (string-to-string map) | sets `headers=` on `BrowserSession` |
+| `http_basic` | `username`, `password` | applies an origin-scoped `Authorization: Basic ...` header via CDP Fetch |
+| `http_headers` | `headers` (string-to-string map) | applies origin-scoped request headers via CDP Fetch |
 | `none` | `notes` | no-op |
 | `unknown` | `notes` | gated by `--allow-unknown-auth` |
 

@@ -244,7 +244,7 @@ def has_effective_agent_auth(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
     auth_type = str(value.get("type", "")).strip()
-    return auth_type in {"storage_state", "http_basic"}
+    return auth_type in {"storage_state", "http_basic", "http_headers"}
 
 
 class BenchmarkInstance(BaseModel):
