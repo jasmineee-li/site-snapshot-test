@@ -105,6 +105,11 @@ async def test_browser_use_agent_emits_pvpo_artifacts_over_cdp(
     import browser_use
 
     payload = "PVPO visible payload 123"
+    # This integration smoke may run against a manually-started local
+    # chrome-headless-shell without Docker restart supervision. The dedicated
+    # rigor-host preflight covers recycle supervision; keep this test focused
+    # on artifact capture and avoid killing the developer's endpoint.
+    monkeypatch.setenv("WORLDSIM_PVPO_BROWSER_RECYCLE", "0")
     html = f"""
 <!doctype html>
 <html>

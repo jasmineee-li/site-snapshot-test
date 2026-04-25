@@ -702,6 +702,28 @@ async def test_cleanup_external_cdp_state_clears_storage_state_auth_after_task()
 
 
 @pytest.mark.asyncio
+async def test_recycle_external_pvpo_browser_updates_runtime(monkeypatch: pytest.MonkeyPatch):
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    expected = {"recycle_status": "recycled", "recycle_up_observed": True}
+
+    async def recycle(session, cdp_url):
+        assert session == "session"
+        assert cdp_url == "http://127.0.0.1:9222"
+        return expected
+
+    monkeypatch.setattr(
+        "worldsim.phase_4.pvpo_browser_lifecycle.recycle_pvpo_browser_after_task",
+        recycle,
+    )
+
+    await agent._recycle_external_pvpo_browser("session")
+
+    assert agent._browser_runtime["pvpo_browser_recycle"] == expected
+    assert agent._browser_runtime["pvpo_browser_recycle_status"] == "recycled"
+
+
+@pytest.mark.asyncio
 async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, tmp_path):
     import browser_use
 
@@ -767,6 +789,11 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
     monkeypatch.setattr(
         runner,
         "_cleanup_external_cdp_state",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_recycle_external_pvpo_browser",
         AsyncMock(return_value=None),
     )
 
@@ -874,6 +901,11 @@ async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.Monk
         "_make_pvpo_step_callback",
         lambda *args, **kwargs: AsyncMock(),
     )
+    monkeypatch.setattr(
+        browser_use_agent.BrowserUseAgent,
+        "_recycle_external_pvpo_browser",
+        AsyncMock(return_value=None),
+    )
 
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     result = await agent.run(
@@ -935,6 +967,11 @@ async def test_run_cleans_up_session_when_remote_reset_fails(
         browser_use_agent.BrowserUseAgent,
         "_reset_remote_browser_for_task",
         AsyncMock(side_effect=RuntimeError("reset boom")),
+    )
+    monkeypatch.setattr(
+        browser_use_agent.BrowserUseAgent,
+        "_recycle_external_pvpo_browser",
+        AsyncMock(return_value=None),
     )
 
     agent = browser_use_agent.BrowserUseAgent(llm=object())

@@ -1566,10 +1566,16 @@ class BrowserUseAgent:
                     await self._cleanup_external_cdp_state(self._session)
                 except Exception as e:
                     logger.warning("Remote PVPO browser cleanup failed: %s", e)
+                try:
+                    await self._recycle_external_pvpo_browser(self._session)
+                except Exception as e:
+                    logger.warning("Remote PVPO browser recycle failed: %s", e)
                 finally:
                     _write_browser_runtime_artifact(task_dir, self._browser_runtime)
                 try:
-                    await self._session.kill()
+                    await asyncio.wait_for(self._session.kill(), timeout=5)
+                except TimeoutError:
+                    logger.warning("BrowserSession kill timed out for %s", task_dir)
                 except Exception as e:
                     logger.warning("BrowserSession kill failed: %s", e)
                 self._session = None
@@ -1599,8 +1605,20 @@ class BrowserUseAgent:
             self._cleanup_temp_profile(self._session)
             try:
                 await self._stop_scoped_header_auth()
+            except Exception as e:
+                logger.warning("scoped http_headers auth shutdown failed: %s", e)
+            try:
                 await self._cleanup_external_cdp_state(self._session)
-                await self._session.kill()
+            except Exception as e:
+                logger.warning("Remote PVPO browser cleanup failed: %s", e)
+            try:
+                await self._recycle_external_pvpo_browser(self._session)
+            except Exception as e:
+                logger.warning("Remote PVPO browser recycle failed: %s", e)
+            try:
+                await asyncio.wait_for(self._session.kill(), timeout=5)
+            except TimeoutError:
+                logger.warning("BrowserSession kill timed out")
             except Exception as e:
                 logger.warning("BrowserSession kill failed: %s", e)
             self._session = None
@@ -1709,6 +1727,20 @@ class BrowserUseAgent:
                 "cleanup_target_ids": closed_target_ids,
                 "cleanup_origins": sorted(self._task_origins),
                 "cleanup_preserved_auth_state": False,
+            }
+        )
+
+    async def _recycle_external_pvpo_browser(self, session: Any) -> None:
+        """Hard-reset the dedicated PVPO browser process after task cleanup."""
+        if not self._pvpo_cdp_url:
+            return
+        from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
+
+        recycle_artifact = await recycle_pvpo_browser_after_task(session, self._pvpo_cdp_url)
+        self._browser_runtime.update(
+            {
+                "pvpo_browser_recycle": recycle_artifact,
+                "pvpo_browser_recycle_status": recycle_artifact.get("recycle_status"),
             }
         )
 
