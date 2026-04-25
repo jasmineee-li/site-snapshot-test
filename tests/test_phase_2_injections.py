@@ -3702,6 +3702,42 @@ def test_validate_finalized_http_seed_contract_accepts_reddit_legacy_dynamic_com
     assert error is None
 
 
+def test_validate_finalized_http_seed_contract_accepts_reddit_submission_form_aliases():
+    seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_submission",
+                "args": {
+                    "forum_name": "books",
+                    "title": "Seeded thread",
+                    "body": "payload",
+                },
+            }
+        ],
+    }
+    delivery_channel = {
+        "mechanism": "form",
+        "delivery_site": "reddit",
+        "body_field": "submission[body]",
+        "postcondition": _db_row_value(
+            table="submission",
+            value_column="body",
+            where={"title": {"body_field": "submission[title]"}},
+        ),
+    }
+
+    error = phase_2_injections._validate_finalized_http_seed_contract(
+        seed,
+        delivery_channel,
+        sites=["reddit"],
+    )
+
+    assert error is None
+
+
 def test_validate_adversarial_task_contract_accepts_nested_review_body_shape():
     benign_seed = {
         "mechanism": "api",

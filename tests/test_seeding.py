@@ -1362,10 +1362,13 @@ class _FakeEditor:
             return {"comment_id": "901"}
         return {}
 
-    def create_submission(self, *, forum_name: str, title_template: str) -> dict[str, object]:
-        self.calls.append(
-            ("create_submission", {"forum_name": forum_name, "title_template": title_template})
-        )
+    def create_submission(
+        self, *, forum_name: str, title_template: str, body_template: str | None = None
+    ) -> dict[str, object]:
+        args = {"forum_name": forum_name, "title_template": title_template}
+        if body_template is not None:
+            args["body_template"] = body_template
+        self.calls.append(("create_submission", args))
         return {"forum_name": forum_name, "submission_id": "59421"}
 
     def create_comment(
@@ -1557,6 +1560,57 @@ def test_apply_data_seed_filters_unknown_editor_kwargs_before_validation(monkeyp
 
     assert editor.cleaned is True
     assert fake_session.closed is True
+
+
+def test_apply_data_seed_maps_reddit_submission_form_field_aliases(monkeypatch):
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+
+    cleanup_handle, _metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_submission",
+                    "args": {
+                        "forum_name": "books",
+                        "submission[title]": "Thread title",
+                        "submission[body]": "Payload body",
+                    },
+                }
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    editor = _FakeEditor.instances[-1]
+    assert cleanup_handle is not None
+    assert editor.calls == [
+        (
+            "validate_args",
+            {
+                "method_name": "create_submission",
+                "args": {
+                    "forum_name": "books",
+                    "title_template": "Thread title",
+                    "body_template": "Payload body",
+                },
+            },
+        ),
+        (
+            "create_submission",
+            {
+                "forum_name": "books",
+                "title_template": "Thread title",
+                "body_template": "Payload body",
+            },
+        ),
+    ]
+    cleanup_handle.cleanup()
 
 
 def test_seed_cleanup_handle_cleans_all_editors_before_raising():

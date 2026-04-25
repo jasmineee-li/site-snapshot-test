@@ -607,6 +607,20 @@ def preflight_editor_seed_calls(
                     )
                     method_name = rendered["method"]
                     args = rendered["args"]
+                    editor_method = getattr(editor, method_name, None)
+                    if callable(editor_method):
+                        args = _filter_editor_method_args(
+                            editor_method,
+                            args,
+                            editor_site_name=str(call.get("site", "")).strip() or "unknown",
+                            method_name=str(method_name),
+                        )
+                        unresolved = sorted(_seed_placeholder_names(args))
+                        if unresolved:
+                            raise RuntimeError(
+                                "editor call has unresolved template placeholders: "
+                                + ", ".join(unresolved)
+                            )
                     editor.validate_args(method_name, args)
                     preview = editor.preview_context(method_name, args)
                     if isinstance(preview, dict):
@@ -1646,7 +1660,18 @@ def _editor_arg_name(call: Any, canonical_name: str) -> str | None:
             "user[bio]": "bio",
             "user[name]": "name",
         },
-        ("reddit", "create_submission"): {"title": "title_template", "body": "body_template"},
+        ("reddit", "create_forum"): {
+            "name": "name_template",
+            "description": "description_template",
+            "forum[name]": "name_template",
+            "forum[description]": "description_template",
+        },
+        ("reddit", "create_submission"): {
+            "title": "title_template",
+            "body": "body_template",
+            "submission[title]": "title_template",
+            "submission[body]": "body_template",
+        },
         ("reddit", "create_comment"): {"body": "body"},
         ("reddit", "update_user_bio"): {"bio": "bio_text"},
         ("shopping", "create_product_review"): {"detail": "detail", "title": "title"},

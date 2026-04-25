@@ -4160,11 +4160,9 @@ def _find_unresolved_http_seed_reference(
 def _call_body_field_value(call: dict[str, Any], body_key: str, field_name: str) -> Any:
     editor_args = call.get("args")
     if isinstance(editor_args, dict):
-        if field_name in editor_args:
-            return editor_args[field_name]
-        alias = _editor_arg_name(call, field_name)
-        if alias and alias in editor_args:
-            return editor_args[alias]
+        for candidate in _editor_body_field_candidates(call, field_name):
+            if candidate in editor_args:
+                return editor_args[candidate]
         return _find_nested_field(editor_args, field_name)
     body = call.get(body_key)
     if isinstance(body, dict):
@@ -4174,6 +4172,32 @@ def _call_body_field_value(call: dict[str, Any], body_key: str, field_name: str)
         if isinstance(nested_review, dict) and field_name in nested_review:
             return nested_review[field_name]
     return None
+
+
+def _editor_body_field_candidates(call: dict[str, Any], field_name: str) -> list[str]:
+    """Return equivalent editor arg names for a delivery body field.
+
+    Reddit/Postmill is the motivating case: profile delivery channels use
+    concrete Symfony form names (``submission[title]``), the editor contract
+    exposes LLM-facing names (``title``), and the Python editor method accepts
+    implementation names (``title_template``). Postcondition validation should
+    treat those as one field without hard-coding a special case in each caller.
+    """
+
+    out: list[str] = []
+
+    def add(value: str | None) -> None:
+        if isinstance(value, str) and value and value not in out:
+            out.append(value)
+
+    add(field_name)
+    primary_alias = _editor_arg_name(call, field_name)
+    add(primary_alias)
+    if primary_alias is not None:
+        for canonical_name, arg_name in _editor_arg_alias_pairs(call):
+            if arg_name == primary_alias:
+                add(canonical_name)
+    return out
 
 
 def _has_conflicting_nested_review_body(call: dict[str, Any], body_key: str) -> bool:
@@ -4510,6 +4534,11 @@ def _call_body_field_entries(call: dict[str, Any], body_key: str) -> list[tuple[
             if arg_name in editor_args and canonical_name not in field_names:
                 fields.append((canonical_name, editor_args[arg_name], arg_name))
                 field_names.add(canonical_name)
+        for field_name, value, source_name in list(fields):
+            for equivalent in _editor_body_field_candidates(call, field_name):
+                if equivalent not in field_names:
+                    fields.append((equivalent, value, source_name))
+                    field_names.add(equivalent)
         dynamic_field = editor_args.get("field")
         if isinstance(dynamic_field, str) and dynamic_field.strip() and "value" in editor_args:
             fields.append((dynamic_field.strip(), editor_args["value"], "value"))
