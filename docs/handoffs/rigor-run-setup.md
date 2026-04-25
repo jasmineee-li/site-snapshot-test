@@ -14,7 +14,9 @@ zero hand-patching.
    2. Playwright Chromium + system libs.
    3. one `pvpo-chrome` Docker container per configured `pvpo_cdp_url`
       (content-hash stamped; rebuilds only when
-      `worldsim/docker/chrome-headless-shell.Dockerfile` changes).
+      `worldsim/docker/chrome-headless-shell.Dockerfile` changes; containers
+      are `--restart unless-stopped` because Phase 4 recycles the browser
+      process after every task).
    4. Artifact sync (`logs/phase_0c`, `logs/phase_2/adversarial_tasks.json`,
       `logs/phase_3/contracts.json`). Prefer `aws s3 sync` from
       `s3://benchmark-archives/worldsim-runs/<run_id>/` — same-region intra
@@ -37,6 +39,7 @@ zero hand-patching.
 | check | failure remediation |
 |---|---|
 | every configured `pvpo_cdp_url` reachable and unique | rerun setup step 3 |
+| each loopback `pvpo-chrome-<port>` has restart policy `unless-stopped` | rerun setup step 3 |
 | Magento base_url matches proxy origin | rerun `sync_magento_base_urls.py` |
 | `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` (setup step 5) |
 | evaluator venv imports `webarena_verified` | rerun setup step 1 |
@@ -58,6 +61,15 @@ Browser-Use connects via `BrowserSession(cdp_url=...)`.
 Phase 4 no longer supports a shared remote PVPO browser. Each instance
 carries its own `pvpo_cdp_url`, and setup/preflight treat duplicate
 endpoint assignment as a hard error.
+
+Phase 4 also treats each dedicated PVPO browser as single-task-use. Browser
+Use sessions close tabs and contexts, but the remote `chrome-headless-shell`
+process survives the session. Under `--enable-begin-frame-control`, leaked
+renderer state can keep consuming CPU after the task ends. The runner now sends
+CDP `Browser.close` at task teardown and waits for `/json/version` to disappear
+and return on the same port. Docker's restart policy supplies the fresh process.
+Use `WORLDSIM_PVPO_BROWSER_RECYCLE=0` only for local smoke tests against a
+manually-started Chrome without restart supervision.
 
 ## Magento base_url drift: root cause + defense in depth
 
@@ -101,6 +113,10 @@ double-check the slug against the provider's current catalog.
   at the same endpoint. Check `pytest -m preflight tests/preflight`, then
   inspect the corresponding `docker logs pvpo-chrome-<port> | tail -40` and
   `curl http://127.0.0.1:<port>/json/version`.
+- **Host load climbs after each completed trajectory**: check
+  `browser_runtime.json` for `pvpo_browser_recycle_status`. Anything other
+  than `recycled` means the browser process was not observed restarting; rerun
+  setup step 3 and inspect the `pvpo-chrome-<port>` restart policy.
 - **Magento 502 / base_url shows `3.12.221.9:7770`**: the compose env var
   regression returned. Run `docker exec webarena-verified-shopping_0 env
   | grep WA_ENV_CTRL_EXTERNAL_SITE_URL` — must show the proxy port.

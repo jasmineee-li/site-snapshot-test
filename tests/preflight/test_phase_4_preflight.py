@@ -80,6 +80,58 @@ def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
             )
 
 
+def test_pvpo_cdp_containers_are_restart_supervised() -> None:
+    """Managed PVPO containers must restart after runtime Browser.close recycling."""
+    config = _load_instances_config()
+    if config is None:
+        pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
+    try:
+        from worldsim.config import BenchmarkConfig
+    except ImportError as exc:
+        pytest.skip(f"worldsim modules unavailable: {exc}")
+
+    parsed = BenchmarkConfig.model_validate(config)
+    checked_ports: set[int] = set()
+    for instance in parsed.instances:
+        raw_url = instance.pvpo_cdp_url
+        assert raw_url is not None
+        parsed_url = urlparse(raw_url)
+        host = (parsed_url.hostname or "").lower()
+        if host not in {"127.0.0.1", "localhost", "::1"}:
+            continue
+        assert parsed_url.port is not None
+        if parsed_url.port in checked_ports:
+            continue
+        checked_ports.add(parsed_url.port)
+        container_name = f"pvpo-chrome-{parsed_url.port}"
+        try:
+            completed = subprocess.run(
+                [
+                    "docker",
+                    "inspect",
+                    "--format",
+                    "{{.HostConfig.RestartPolicy.Name}}",
+                    container_name,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        except FileNotFoundError:
+            pytest.fail("docker is not installed; rerun setup_phase4_on_host.sh step 3")
+        assert completed.returncode == 0, (
+            f"PVPO container {container_name} is missing. "
+            "Rerun setup_phase4_on_host.sh step 3."
+        )
+        assert completed.stdout.strip() == "unless-stopped", (
+            f"PVPO container {container_name} has restart policy "
+            f"{completed.stdout.strip()!r}; expected 'unless-stopped'. "
+            "Rerun setup_phase4_on_host.sh step 3 so Phase 4 can recycle "
+            "the browser after each task without losing the endpoint."
+        )
+
+
 # test_magento_base_urls_resolved removed 2026-04-21 with the WASP-aligned
 # scoping decision (see docs/handoffs/wasp-aligned-scoping-decision.md).
 
