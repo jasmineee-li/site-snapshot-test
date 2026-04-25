@@ -81,7 +81,7 @@ def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
 
 
 def test_pvpo_cdp_containers_are_restart_supervised() -> None:
-    """Managed PVPO containers must restart after runtime Browser.close recycling."""
+    """Managed PVPO containers must support per-task docker restart recycling."""
     config = _load_instances_config()
     if config is None:
         pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")

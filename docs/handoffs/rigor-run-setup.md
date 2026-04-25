@@ -65,11 +65,13 @@ endpoint assignment as a hard error.
 Phase 4 also treats each dedicated PVPO browser as single-task-use. Browser
 Use sessions close tabs and contexts, but the remote `chrome-headless-shell`
 process survives the session. Under `--enable-begin-frame-control`, leaked
-renderer state can keep consuming CPU after the task ends. The runner now sends
-CDP `Browser.close` at task teardown and waits for `/json/version` to disappear
-and return on the same port. Docker's restart policy supplies the fresh process.
-Use `WORLDSIM_PVPO_BROWSER_RECYCLE=0` only for local smoke tests against a
-manually-started Chrome without restart supervision.
+renderer state can keep consuming CPU after the task ends. For managed loopback
+endpoints, the runner now restarts `pvpo-chrome-<port>` with `docker restart`
+at task teardown and waits for `/json/version` to return on the same port. CDP
+`Browser.close` is only a fallback for unmanaged endpoints; it does not reliably
+kill the supervised parent process on r5. Use `WORLDSIM_PVPO_BROWSER_RECYCLE=0`
+only for local smoke tests against a manually-started Chrome without restart
+supervision.
 
 ## Magento base_url drift: root cause + defense in depth
 
@@ -115,8 +117,9 @@ double-check the slug against the provider's current catalog.
   `curl http://127.0.0.1:<port>/json/version`.
 - **Host load climbs after each completed trajectory**: check
   `browser_runtime.json` for `pvpo_browser_recycle_status`. Anything other
-  than `recycled` means the browser process was not observed restarting; rerun
-  setup step 3 and inspect the `pvpo-chrome-<port>` restart policy.
+  than `recycled` means the browser process was not restarted cleanly; rerun
+  setup step 3 and inspect the `pvpo-chrome-<port>` restart policy plus
+  `docker_restart_*` fields in the runtime artifact.
 - **Magento 502 / base_url shows `3.12.221.9:7770`**: the compose env var
   regression returned. Run `docker exec webarena-verified-shopping_0 env
   | grep WA_ENV_CTRL_EXTERNAL_SITE_URL` — must show the proxy port.

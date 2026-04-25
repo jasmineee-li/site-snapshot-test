@@ -11,20 +11,25 @@ process, not a tab close.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
+import shutil
 import time
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
 
 _RECYCLE_ENV = "WORLDSIM_PVPO_BROWSER_RECYCLE"
+_RECYCLE_MODE_ENV = "WORLDSIM_PVPO_BROWSER_RECYCLE_MODE"
 _RECYCLE_TIMEOUT_ENV = "WORLDSIM_PVPO_BROWSER_RECYCLE_TIMEOUT_S"
 _DEFAULT_RECYCLE_TIMEOUT_S = 20.0
 _CLOSE_TIMEOUT_S = 3.0
 _POLL_INTERVAL_S = 0.1
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 def pvpo_browser_recycle_enabled() -> bool:
@@ -69,24 +74,55 @@ async def recycle_pvpo_browser_after_task(
 ) -> dict[str, Any]:
     """Hard-recycle a dedicated PVPO browser endpoint after one task.
 
-    The function is intentionally CDP-only.  It sends ``Browser.close`` to the
-    remote endpoint, then waits for ``/json/version`` to disappear and return.
-    On the rigor hosts, the ``pvpo-chrome-*`` Docker containers have
-    ``--restart unless-stopped``, so closing Chrome exits the container entrypoint
-    and Docker immediately recreates a clean browser process on the same port.
+    Rigor hosts manage loopback PVPO endpoints as ``pvpo-chrome-<port>`` Docker
+    containers.  For those endpoints, the authoritative reset is
+    ``docker restart``; CDP ``Browser.close`` can disconnect clients without
+    terminating the supervised ``chrome-headless-shell`` parent process.  CDP
+    close remains a fallback for unmanaged/non-Docker endpoints.
 
     Returns a small artifact payload suitable for ``browser_runtime.json``.
     """
     started = time.monotonic()
+    budget = timeout_s if timeout_s is not None else pvpo_browser_recycle_timeout_s()
+    requested_mode = _recycle_mode()
+    container_name = _managed_container_name_for_cdp_url(cdp_url)
     payload: dict[str, Any] = {
         "recycle_enabled": pvpo_browser_recycle_enabled(),
         "recycle_cdp_url": cdp_url,
+        "recycle_mode": requested_mode,
+        "recycle_method": None,
+        "recycle_container": container_name,
         "recycle_status": "disabled",
         "recycle_down_observed": False,
         "recycle_up_observed": False,
         "recycle_elapsed_s": 0.0,
     }
     if not payload["recycle_enabled"] or not cdp_url:
+        return payload
+
+    if requested_mode in {"auto", "docker"} and container_name:
+        docker_payload = await _restart_managed_container(
+            container_name,
+            cdp_url,
+            timeout_s=budget,
+        )
+        payload.update(docker_payload)
+        if docker_payload.get("recycle_status") == "recycled":
+            payload["recycle_elapsed_s"] = round(time.monotonic() - started, 3)
+            return payload
+        if requested_mode == "docker":
+            payload["recycle_elapsed_s"] = round(time.monotonic() - started, 3)
+            return payload
+
+    if requested_mode == "docker" and not container_name:
+        payload.update(
+            {
+                "recycle_method": "docker_restart",
+                "recycle_status": "failed",
+                "recycle_failure": f"no managed pvpo-chrome container convention for {cdp_url!r}",
+                "recycle_elapsed_s": round(time.monotonic() - started, 3),
+            }
+        )
         return payload
 
     close_error: str | None = None
@@ -99,7 +135,7 @@ async def recycle_pvpo_browser_after_task(
         close_error = f"{type(exc).__name__}: {exc}"
         logger.debug("pvpo browser recycle: Browser.close returned %s", close_error)
 
-    budget = timeout_s if timeout_s is not None else pvpo_browser_recycle_timeout_s()
+    payload["recycle_method"] = "cdp_browser_close"
     down_timeout = min(max(budget * 0.4, 2.0), 8.0)
     down_observed = await _wait_for_endpoint_state(
         cdp_url,
@@ -140,6 +176,121 @@ async def recycle_pvpo_browser_after_task(
     if close_error:
         payload["recycle_close_error"] = close_error
     return payload
+
+
+def _recycle_mode() -> str:
+    raw = os.environ.get(_RECYCLE_MODE_ENV, "").strip().lower()
+    if raw in {"auto", "docker", "cdp"}:
+        return raw
+    if raw:
+        logger.warning("%s=%r is invalid; using auto", _RECYCLE_MODE_ENV, raw)
+    return "auto"
+
+
+def _managed_container_name_for_cdp_url(cdp_url: str) -> str | None:
+    try:
+        parsed = urlparse(cdp_url)
+    except Exception:
+        return None
+    host = (parsed.hostname or "").strip().lower()
+    if host not in _LOOPBACK_HOSTS or parsed.port is None:
+        return None
+    return f"pvpo-chrome-{parsed.port}"
+
+
+async def _restart_managed_container(
+    container_name: str,
+    cdp_url: str,
+    *,
+    timeout_s: float,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "recycle_method": "docker_restart",
+        "recycle_status": "failed",
+        "recycle_down_observed": False,
+        "recycle_up_observed": False,
+    }
+    if shutil.which("docker") is None:
+        payload["recycle_failure"] = "docker executable not found"
+        return payload
+
+    restart_task = asyncio.create_task(
+        _run_docker_restart(container_name, timeout_s=timeout_s),
+        name=f"pvpo-docker-restart-{container_name}",
+    )
+    down_task = asyncio.create_task(
+        _wait_for_endpoint_state(
+            cdp_url,
+            reachable=False,
+            timeout_s=min(max(timeout_s * 0.5, 2.0), timeout_s),
+        ),
+        name=f"pvpo-wait-down-{container_name}",
+    )
+    try:
+        docker_result = await restart_task
+    finally:
+        if not down_task.done():
+            down_task.cancel()
+    down_observed = False
+    try:
+        down_observed = await down_task
+    except asyncio.CancelledError:
+        down_observed = False
+
+    payload.update(
+        {
+            "recycle_down_observed": down_observed,
+            "docker_restart_returncode": docker_result["returncode"],
+            "docker_restart_stdout": docker_result["stdout"][:500],
+            "docker_restart_stderr": docker_result["stderr"][:500],
+        }
+    )
+    if docker_result["returncode"] != 0:
+        payload["recycle_failure"] = "docker restart failed"
+        return payload
+
+    up_observed = await _wait_for_endpoint_state(
+        cdp_url,
+        reachable=True,
+        timeout_s=max(0.1, timeout_s),
+    )
+    payload["recycle_up_observed"] = up_observed
+    if up_observed:
+        payload["recycle_status"] = "recycled"
+    else:
+        payload["recycle_failure"] = "endpoint did not return after docker restart"
+    return payload
+
+
+async def _run_docker_restart(container_name: str, *, timeout_s: float) -> dict[str, Any]:
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "docker",
+            "restart",
+            container_name,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as exc:
+        return {"returncode": 127, "stdout": "", "stderr": str(exc)}
+    try:
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout_s)
+    except TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            process.kill()
+        stdout, stderr = await process.communicate()
+        return {
+            "returncode": 124,
+            "stdout": stdout.decode("utf-8", errors="replace").strip(),
+            "stderr": (
+                stderr.decode("utf-8", errors="replace").strip() or "docker restart timed out"
+            ),
+        }
+    return {
+        "returncode": int(process.returncode or 0),
+        "stdout": stdout.decode("utf-8", errors="replace").strip(),
+        "stderr": stderr.decode("utf-8", errors="replace").strip(),
+    }
 
 
 async def _send_browser_close(session: Any) -> None:

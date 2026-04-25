@@ -54,13 +54,15 @@ The `url_placeholders` map resolves benchmark-specific URL tokens (e.g., `__SHOP
 
 For parallel evaluation, the user provides multiple instances of the same site (on different ports). We distribute workers across them. Setting up these instances is the user's responsibility, following the benchmark's own documentation. For Phase 4 rigor runs, each execution instance also needs its own dedicated `pvpo_cdp_url`; workers must not share one remote browser endpoint.
 Those PVPO endpoints are process-isolated task resources, not long-lived browser
-profiles. After each task, the agent runner sends CDP `Browser.close` to the
-dedicated `chrome-headless-shell` endpoint and waits for the supervisor to bring
-`/json/version` back on the same port. The setup script therefore starts
-`pvpo-chrome-<port>` containers with `--restart unless-stopped`, and preflight
-fails if that restart policy is absent. This hard browser recycle is required
-because soft tab/context cleanup can leave a BeginFrame-controlled renderer
-busy-spinning after the Browser-Use session ends.
+profiles. After each task, the agent runner restarts the managed
+`pvpo-chrome-<port>` container for loopback endpoints and waits for
+`/json/version` to return on the same port. CDP `Browser.close` is only a
+fallback for unmanaged endpoints; on the rigor hosts it can disconnect clients
+without killing the supervised `chrome-headless-shell` parent process. The setup
+script starts `pvpo-chrome-<port>` containers with `--restart unless-stopped`,
+and preflight fails if that restart policy is absent. This hard browser recycle
+is required because soft tab/context cleanup can leave a BeginFrame-controlled
+renderer busy-spinning after the Browser-Use session ends.
 
 Three instances-config variants are checked in at the repo root and selected via `--instances`:
 
