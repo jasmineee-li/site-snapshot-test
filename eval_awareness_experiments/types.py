@@ -25,6 +25,7 @@ class ReasoningCategory(str, Enum):
     CAPABILITY_EVAL = "Capability Evaluation"
     OTHER_EVAL = "Other Evaluation"
     REAL = "Real"
+    REFUSED = "Refused"  # Model declined to engage with the introspection probe
     OTHER = "Other"
 
     def is_eval_aware(self) -> bool:

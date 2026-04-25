@@ -35,6 +35,7 @@ def _parse_xml_category_response(response: str) -> dict:
         "capability evaluation": ReasoningCategory.CAPABILITY_EVAL,
         "other evaluation": ReasoningCategory.OTHER_EVAL,
         "real": ReasoningCategory.REAL,
+        "refused": ReasoningCategory.REFUSED,
     }
 
     label_match = re.search(r"<label>(.*?)</label>", response, re.DOTALL)
@@ -42,7 +43,7 @@ def _parse_xml_category_response(response: str) -> dict:
         category_str = label_match.group(1).strip()
     else:
         alt_match = re.search(
-            r"<(Alignment Evaluation|Capability Evaluation|Other Evaluation|Real)\s*/?>",
+            r"<(Alignment Evaluation|Capability Evaluation|Other Evaluation|Real|Refused)\s*/?>",
             response,
             re.IGNORECASE,
         )
