@@ -91,6 +91,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="For Phase 1, also generate Mode B novel tasks for eligible sites.",
     )
     phase_cmd.add_argument(
+        "--novel-tasks-per-site",
+        "--new-tasks-per-site",
+        dest="novel_tasks_per_site",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help="Phase 1 Mode B: generate N novel tasks per eligible site. Defaults to 30.",
+    )
+    phase_cmd.add_argument(
         "--instances",
         type=Path,
         help="JSON file with BenchmarkConfig (site_url, db_connection, "
@@ -306,6 +315,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=argparse.SUPPRESS,
         help="Override saved Phase 1 state to enable Mode B novel task generation.",
+    )
+    resume_cmd.add_argument(
+        "--novel-tasks-per-site",
+        "--new-tasks-per-site",
+        dest="novel_tasks_per_site",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override saved Phase 1 Mode B novel task count per eligible site.",
     )
     resume_cmd.add_argument(
         "--max-tasks-per-site",
@@ -699,6 +717,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_provider = getattr(args, "agent_provider", None)
     agent_service_tier = getattr(args, "agent_service_tier", None)
     generate_novel = getattr(args, "generate_novel", None)
+    novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites = getattr(args, "sites", None)
     phase_2b_texts_per_plan = getattr(args, "phase_2b_texts_per_plan", None)
@@ -731,6 +750,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_service_tier = state.get("agent_service_tier")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
+    if novel_tasks_per_site is None:
+        novel_tasks_per_site = state.get("novel_tasks_per_site")
     if sites is None:
         sites = state.get("sites")
     if phase_2b_texts_per_plan is None:
@@ -782,6 +803,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_provider=agent_provider,
         agent_service_tier=agent_service_tier,
         generate_novel=generate_novel,
+        novel_tasks_per_site=novel_tasks_per_site,
         max_tasks_per_site=max_tasks_per_site,
         sites=sites,
         phase_2b_texts_per_plan=phase_2b_texts_per_plan,

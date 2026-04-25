@@ -12,6 +12,7 @@ from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_be
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.phases.phase_1_mode_a import build_mode_a_tasks
 from worldsim.phases.phase_1_mode_b import (
+    DEFAULT_NOVEL_TASKS_PER_SITE,
     MODE_B_RESUME_METADATA_PATH,
     EligibleSiteProfile,
     compute_mode_b_resume_fingerprint,
@@ -51,6 +52,9 @@ async def run(args: argparse.Namespace) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     generate_novel = bool(getattr(args, "generate_novel", False))
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
+    novel_tasks_per_site = (
+        getattr(args, "novel_tasks_per_site", None) or DEFAULT_NOVEL_TASKS_PER_SITE
+    )
     sites_filter_raw = getattr(args, "sites", None)
     sites_filter = _parse_sites_filter(sites_filter_raw)
 
@@ -68,6 +72,7 @@ async def run(args: argparse.Namespace) -> int:
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
+            novel_tasks_per_site=novel_tasks_per_site,
             error=str(exc),
         )
         return 1
@@ -82,6 +87,7 @@ async def run(args: argparse.Namespace) -> int:
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
+            novel_tasks_per_site=novel_tasks_per_site,
         )
         return 1
 
@@ -100,6 +106,7 @@ async def run(args: argparse.Namespace) -> int:
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
+            novel_tasks_per_site=novel_tasks_per_site,
         )
         return 1
     try:
@@ -113,6 +120,7 @@ async def run(args: argparse.Namespace) -> int:
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
+            novel_tasks_per_site=novel_tasks_per_site,
             error=str(exc),
         )
         return 1
@@ -127,6 +135,7 @@ async def run(args: argparse.Namespace) -> int:
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
         sites=sites_filter_raw,
+        novel_tasks_per_site=novel_tasks_per_site,
     )
 
     profiles_dir = get_state_dir() / "phase_0c"
@@ -145,6 +154,7 @@ async def run(args: argparse.Namespace) -> int:
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
+            novel_tasks_per_site=novel_tasks_per_site,
         )
         return 1
 
@@ -163,6 +173,7 @@ async def run(args: argparse.Namespace) -> int:
             resume=bool(getattr(args, "resume", False)),
             sandbox_model=sandbox_model,
             site_filter=sites_filter,
+            novel_tasks_per_site=novel_tasks_per_site,
         )
         if novel_tasks is None:
             return 1
@@ -177,6 +188,7 @@ async def run(args: argparse.Namespace) -> int:
             manifest=manifest,
             sandbox_model=sandbox_model,
             site_filter=sites_filter,
+            novel_tasks_per_site=novel_tasks_per_site,
         )
 
     save_state(
@@ -192,6 +204,7 @@ async def run(args: argparse.Namespace) -> int:
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
         sites=sites_filter_raw,
+        novel_tasks_per_site=novel_tasks_per_site,
     )
     cost_tracker.log_phase_summary("phase_1")
     cost_tracker.save(state_dir / "cost_report.json")
@@ -275,6 +288,7 @@ def _save_phase_1_running_state(
     generate_novel: bool,
     sandbox_model: str,
     sites: str | None = None,
+    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> None:
     """Persist the start of Phase 1 for resume support."""
     save_state(
@@ -286,6 +300,7 @@ def _save_phase_1_running_state(
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
         sites=sites,
+        novel_tasks_per_site=novel_tasks_per_site,
     )
 
 
@@ -297,6 +312,7 @@ def _save_phase_1_failure_state(
     generate_novel: bool,
     sandbox_model: str,
     sites: str | None = None,
+    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     mode_a_task_count: int | None = None,
     error: str | None = None,
 ) -> None:
@@ -307,6 +323,7 @@ def _save_phase_1_failure_state(
         "manifest_path": str(manifest_path),
         "generate_novel": generate_novel,
         "sandbox_model": sandbox_model,
+        "novel_tasks_per_site": novel_tasks_per_site,
     }
     if sites is not None:
         payload["sites"] = sites
@@ -331,6 +348,7 @@ async def _maybe_generate_mode_b_tasks(
     resume: bool,
     sandbox_model: str,
     site_filter: set[str] | None,
+    novel_tasks_per_site: int,
 ) -> list[dict[str, Any]] | None:
     """Return Mode B tasks, reusing merged output when already present."""
     existing_novel_tasks = _reuse_existing_novel_tasks_if_valid(
@@ -341,6 +359,7 @@ async def _maybe_generate_mode_b_tasks(
         resume=resume,
         sandbox_model=sandbox_model,
         site_filter=site_filter,
+        novel_tasks_per_site=novel_tasks_per_site,
     )
     if existing_novel_tasks is not None:
         return existing_novel_tasks
@@ -352,6 +371,7 @@ async def _maybe_generate_mode_b_tasks(
             output_dir=output_dir,
             sandbox_model=sandbox_model,
             site_filter=site_filter,
+            novel_tasks_per_site=novel_tasks_per_site,
         )
     except Exception as exc:
         _save_phase_1_failure_state(
@@ -361,6 +381,7 @@ async def _maybe_generate_mode_b_tasks(
             manifest_path=manifest_path,
             generate_novel=True,
             sandbox_model=sandbox_model,
+            novel_tasks_per_site=novel_tasks_per_site,
             mode_a_task_count=mode_a_task_count,
         )
         logger.error("Phase 1B failed: %s", exc)
@@ -376,6 +397,7 @@ def _reuse_existing_novel_tasks_if_valid(
     resume: bool,
     sandbox_model: str,
     site_filter: set[str] | None,
+    novel_tasks_per_site: int,
 ) -> list[dict[str, Any]] | None:
     """Reuse merged Mode B output only on resume and only after provenance checks."""
     if not resume:
@@ -393,6 +415,7 @@ def _reuse_existing_novel_tasks_if_valid(
     validation_errors = validate_existing_novel_tasks(
         existing_novel_tasks,
         eligible_sites=eligible_sites,
+        expected_task_count=novel_tasks_per_site,
     )
     if validation_errors:
         logger.warning(
@@ -409,6 +432,7 @@ def _reuse_existing_novel_tasks_if_valid(
     current_fingerprint = compute_mode_b_resume_fingerprint(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         eligible_sites=eligible_sites,
+        novel_tasks_per_site=novel_tasks_per_site,
     )
 
     metadata = _load_mode_b_resume_metadata(resume_metadata_path)
@@ -424,6 +448,7 @@ def _reuse_existing_novel_tasks_if_valid(
         existing_novel_tasks=existing_novel_tasks,
         eligible_sites=eligible_sites,
         shared_inputs_fingerprint=shared_inputs_fingerprint,
+        novel_tasks_per_site=novel_tasks_per_site,
     ):
         logger.info(
             "Phase 1B: merged output already contains %d valid novel tasks and matches current per-site caches, skipping generation on resume",
@@ -444,6 +469,7 @@ def _write_mode_b_resume_metadata(
     manifest: dict[str, Any],
     sandbox_model: str,
     site_filter: set[str] | None,
+    novel_tasks_per_site: int,
 ) -> None:
     eligible_sites = _load_mode_b_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
@@ -458,10 +484,12 @@ def _write_mode_b_resume_metadata(
                 sandbox_model=sandbox_model,
             ),
             eligible_sites=eligible_sites,
+            novel_tasks_per_site=novel_tasks_per_site,
         ),
         "benchmark_path": str(benchmark_root),
         "eligible_sites": [site.site_name for site in eligible_sites],
         "sandbox_model": sandbox_model,
+        "novel_tasks_per_site": novel_tasks_per_site,
     }
     metadata_path.write_text(json.dumps(payload, indent=2))
 
@@ -472,6 +500,7 @@ def _merged_output_matches_current_site_caches(
     existing_novel_tasks: list[dict[str, Any]],
     eligible_sites: list[EligibleSiteProfile],
     shared_inputs_fingerprint: str,
+    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> bool:
     cached_tasks: list[dict[str, Any]] = []
     for site in eligible_sites:
@@ -482,7 +511,9 @@ def _merged_output_matches_current_site_caches(
             cache_fingerprint=compute_site_cache_fingerprint(
                 shared_inputs_fingerprint=shared_inputs_fingerprint,
                 site=site,
+                novel_tasks_per_site=novel_tasks_per_site,
             ),
+            expected_task_count=novel_tasks_per_site,
         )
         if cached_result is None:
             return False

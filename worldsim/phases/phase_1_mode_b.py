@@ -63,6 +63,7 @@ async def run_mode_b(
     output_dir: Path,
     sandbox_model: str = "claude-sonnet-4-6",
     site_filter: Iterable[str] | None = None,
+    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> list[dict[str, Any]]:
     """Generate Mode B novel tasks for eligible sites."""
     state_dir = get_state_dir()
@@ -91,6 +92,7 @@ async def run_mode_b(
         eligible_sites=eligible_sites,
         output_dir=output_dir,
         shared_inputs_fingerprint=shared_inputs_fingerprint,
+        novel_tasks_per_site=novel_tasks_per_site,
     )
     if cached_results is not None:
         logger.info(
@@ -117,8 +119,10 @@ async def run_mode_b(
                 cache_fingerprint=compute_site_cache_fingerprint(
                     shared_inputs_fingerprint=shared_inputs_fingerprint,
                     site=site,
+                    novel_tasks_per_site=novel_tasks_per_site,
                 ),
                 sandbox_model=sandbox_model,
+                novel_tasks_per_site=novel_tasks_per_site,
             )
             for site in eligible_sites
         ],
@@ -198,6 +202,7 @@ async def generate_novel_tasks_for_site(
     output_dir: Path,
     cache_fingerprint: str,
     sandbox_model: str = "claude-sonnet-4-6",
+    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> SiteNovelTaskResult:
     """Generate and validate novel tasks for one site."""
     intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
@@ -210,6 +215,7 @@ async def generate_novel_tasks_for_site(
         profile=site.profile,
         cache_fingerprint=cache_fingerprint,
         expected_agent_context=agent_context,
+        expected_task_count=novel_tasks_per_site,
     )
     if cached_result is not None:
         return cached_result
@@ -217,7 +223,7 @@ async def generate_novel_tasks_for_site(
     logger.info("Phase 1B: launching novel-task sandbox for site %r", site.site_name)
     base_prompt = render_generate_benign_tasks_prompt(
         site_name=site.site_name,
-        num_tasks=DEFAULT_NOVEL_TASKS_PER_SITE,
+        num_tasks=novel_tasks_per_site,
     )
     prompt = base_prompt
     last_errors: list[str] = []
@@ -261,6 +267,7 @@ async def generate_novel_tasks_for_site(
             generated_tasks,
             site_name=site.site_name,
             profile=site.profile,
+            expected_task_count=novel_tasks_per_site,
         )
         if not errors:
             sorted_tasks = sort_novel_tasks(
@@ -318,6 +325,7 @@ def load_cached_novel_tasks(
     profile: dict[str, Any],
     cache_fingerprint: str,
     expected_agent_context: dict[str, Any] | None = None,
+    expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> SiteNovelTaskResult | None:
     """Return a validated cached per-site result when available."""
     if not intermediate_path.exists():
@@ -346,7 +354,7 @@ def load_cached_novel_tasks(
         cached_tasks,
         site_name=site_name,
         profile=profile,
-        expected_task_count=DEFAULT_NOVEL_TASKS_PER_SITE,
+        expected_task_count=expected_task_count,
     )
     if errors:
         logger.warning(
@@ -400,6 +408,7 @@ def validate_existing_novel_tasks(
     novel_tasks: list[dict[str, Any]],
     *,
     eligible_sites: list[EligibleSiteProfile],
+    expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> list[str]:
     """Validate merged-output novel tasks against the current eligible-site set."""
     tasks_by_site: dict[str, list[dict[str, Any]]] = {}
@@ -426,7 +435,7 @@ def validate_existing_novel_tasks(
             site_tasks,
             site_name=site_name,
             profile=site.profile,
-            expected_task_count=DEFAULT_NOVEL_TASKS_PER_SITE,
+            expected_task_count=expected_task_count,
         )
         errors.extend(site_errors)
 
@@ -438,6 +447,7 @@ def _load_all_cached_site_results(
     eligible_sites: list[EligibleSiteProfile],
     output_dir: Path,
     shared_inputs_fingerprint: str,
+    novel_tasks_per_site: int,
 ) -> list[SiteNovelTaskResult] | None:
     """Return cached per-site results when every eligible site cache validates."""
     cached_results: list[SiteNovelTaskResult] = []
@@ -452,8 +462,10 @@ def _load_all_cached_site_results(
             cache_fingerprint=compute_site_cache_fingerprint(
                 shared_inputs_fingerprint=shared_inputs_fingerprint,
                 site=site,
+                novel_tasks_per_site=novel_tasks_per_site,
             ),
             expected_agent_context=agent_context,
+            expected_task_count=novel_tasks_per_site,
         )
         if cached_result is None:
             return None
@@ -489,6 +501,7 @@ def compute_site_cache_fingerprint(
     *,
     shared_inputs_fingerprint: str,
     site: EligibleSiteProfile,
+    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> str:
     """Return a content-based digest for one site's cached novel-task output."""
     agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
@@ -502,7 +515,7 @@ def compute_site_cache_fingerprint(
         "site_name": site.site_name,
         "profile": site.profile,
         "agent_context_digest": agent_context_digest,
-        "task_count": DEFAULT_NOVEL_TASKS_PER_SITE,
+        "task_count": novel_tasks_per_site,
     }
     return _stable_json_digest(payload)
 
@@ -549,6 +562,7 @@ def compute_mode_b_resume_fingerprint(
     *,
     shared_inputs_fingerprint: str,
     eligible_sites: list[EligibleSiteProfile],
+    novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> str:
     """Return a deterministic digest for merged-output resume reuse."""
     payload = {
@@ -559,6 +573,7 @@ def compute_mode_b_resume_fingerprint(
                 "fingerprint": compute_site_cache_fingerprint(
                     shared_inputs_fingerprint=shared_inputs_fingerprint,
                     site=site,
+                    novel_tasks_per_site=novel_tasks_per_site,
                 ),
             }
             for site in sorted(eligible_sites, key=lambda item: item.site_name)

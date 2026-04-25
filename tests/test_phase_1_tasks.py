@@ -136,6 +136,7 @@ def _mode_b_resume_metadata(
     manifest,
     eligible_sites,
     sandbox_model: str = "claude-sonnet-4-6",
+    novel_tasks_per_site: int = phase_1_mode_b.DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> dict:
     shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
@@ -146,6 +147,7 @@ def _mode_b_resume_metadata(
         "fingerprint": phase_1_mode_b.compute_mode_b_resume_fingerprint(
             shared_inputs_fingerprint=shared_inputs_fingerprint,
             eligible_sites=eligible_sites,
+            novel_tasks_per_site=novel_tasks_per_site,
         ),
         "benchmark_path": str(benchmark_root),
         "eligible_sites": [site.site_name for site in eligible_sites],
@@ -158,6 +160,7 @@ def _site_cache_metadata(
     manifest,
     site,
     sandbox_model: str = "claude-sonnet-4-6",
+    novel_tasks_per_site: int = phase_1_mode_b.DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> dict:
     shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
@@ -168,6 +171,7 @@ def _site_cache_metadata(
         "fingerprint": phase_1_mode_b.compute_site_cache_fingerprint(
             shared_inputs_fingerprint=shared_inputs_fingerprint,
             site=site,
+            novel_tasks_per_site=novel_tasks_per_site,
         ),
         "site_name": site.site_name,
     }
@@ -224,6 +228,16 @@ def test_build_parser_accepts_generate_novel_flag():
     args = parser.parse_args(["phase", "1", "--generate-novel"])
 
     assert args.generate_novel is True
+
+
+def test_build_parser_accepts_novel_tasks_per_site_aliases():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(["phase", "1", "--novel-tasks-per-site", "50"])
+    alias_args = parser.parse_args(["phase", "1", "--new-tasks-per-site", "24"])
+
+    assert args.novel_tasks_per_site == 50
+    assert alias_args.novel_tasks_per_site == 24
 
 
 def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
@@ -1081,6 +1095,34 @@ def test_compute_site_cache_fingerprint_changes_when_agent_context_changes(tmp_p
     assert first != second
 
 
+def test_compute_site_cache_fingerprint_changes_when_task_count_changes(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = _manifest(benchmark_root)
+    site = phase_1_mode_b.EligibleSiteProfile(
+        site_name="shopping",
+        profile_path=tmp_path / "BENCHMARK_PROFILE_shopping.json",
+        profile=_profile(uncovered=["surface-1"]),
+    )
+
+    shared_inputs_fingerprint = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+    )
+    first = phase_1_mode_b.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared_inputs_fingerprint,
+        site=site,
+        novel_tasks_per_site=30,
+    )
+    second = phase_1_mode_b.compute_site_cache_fingerprint(
+        shared_inputs_fingerprint=shared_inputs_fingerprint,
+        site=site,
+        novel_tasks_per_site=50,
+    )
+
+    assert first != second
+
+
 def test_compute_mode_b_shared_inputs_fingerprint_changes_when_sandbox_model_changes(tmp_path):
     benchmark_root = tmp_path / "benchmark"
     benchmark_root.mkdir()
@@ -1159,7 +1201,13 @@ async def test_run_mode_b_fails_closed_when_any_site_errors(monkeypatch, tmp_pat
     )
 
     async def fake_generate_novel_tasks_for_site(
-        *, site, benchmark_volume, output_dir, cache_fingerprint, sandbox_model
+        *,
+        site,
+        benchmark_volume,
+        output_dir,
+        cache_fingerprint,
+        sandbox_model,
+        novel_tasks_per_site,
     ):
         if site.site_name == "gitlab":
             return phase_1_mode_b.SiteNovelTaskResult(
