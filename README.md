@@ -199,11 +199,9 @@ export OPENROUTER_API_KEY=sk-or-v1-...
 uv run python -m worldsim.main phase 4 --instances instances.json \
   --agent-provider openrouter --agent-model gpt-5.4-mini
 
-# Phase 2 runs three internal stages sequentially:
-# 2a plan generation in Modal sandboxes, 2b host-side text fill, then 2c
-# feasibility verification against a live dev instance. Use --skip-feasibility
-# for fast dev iteration (Phase 4 runs in grace mode in that case); omit it
-# for shipping runs.
+# Phase 2 runs exposure-contract materialization, API 2a strategy planning,
+# host-side 2b text fill, then 2c feasibility + read-surface verification.
+# Use --skip-feasibility only for fast dev iteration; omit it for shipping runs.
 uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 

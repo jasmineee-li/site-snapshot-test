@@ -186,7 +186,7 @@ async def run_claude_in_sandbox(
 
 **Operational model note.** There are three independent model knobs in the pipeline and they default to different providers:
 
-- **Sandbox model** (Modal prompt-generation, profiling, Phase 2a fallback, placement-fix): `claude-sonnet-4-6`, set via `--sandbox-model`. Bump to `claude-opus-4-6` for confirmation runs once pipeline behavior is stable. Phase 2a defaults to direct Anthropic Messages API calls (`--phase-2a-runtime api`) and uses Modal only when explicitly requested with `--phase-2a-runtime modal`. The Phase 4 refusal judge, variant generator, Transcript Purpose classifier, and VEA judge do **not** run in the sandbox — they all issue direct Anthropic Messages API calls sharing the same `sandbox_model` value (see `worldsim/phase_4/{judge_api,variant_api,transcript_purpose_api,verbalized_eval_awareness_api}.py`). The legacy sandbox-side `probe_ecological_validity` + `_run_ecological_validity_fix_loop` were deleted in the 2026-04-19 PVPO cutover; the single-screenshot `run_p_eval_api` (5-probe vision call) was then replaced by an IPI-AER Needham 5-PQ `p(eval)` metric, which was itself replaced by Apollo Research's Transcript Purpose classifier on 2026-04-19.
+- **Sandbox model** (Modal prompt-generation, profiling, placement-fix): `claude-sonnet-4-6`, set via `--sandbox-model`. Bump to `claude-opus-4-6` for confirmation runs once pipeline behavior is stable. Phase 2a uses direct Anthropic Messages API calls only; there is no Modal planner fallback because placement is host-owned through exposure contracts. The Phase 4 refusal judge, variant generator, Transcript Purpose classifier, and VEA judge do **not** run in the sandbox — they all issue direct Anthropic Messages API calls sharing the same `sandbox_model` value (see `worldsim/phase_4/{judge_api,variant_api,transcript_purpose_api,verbalized_eval_awareness_api}.py`). The legacy sandbox-side `probe_ecological_validity` + `_run_ecological_validity_fix_loop` were deleted in the 2026-04-19 PVPO cutover; the single-screenshot `run_p_eval_api` (5-probe vision call) was then replaced by an IPI-AER Needham 5-PQ `p(eval)` metric, which was itself replaced by Apollo Research's Transcript Purpose classifier on 2026-04-19.
 - **Agent model** (Browser Use evaluation in Phase 4): `gemini-3-flash-preview` on Google, set via `--agent-model` and `--agent-provider` (`google | openai | anthropic | openrouter`). Provider auto-detects from the model name when `--agent-provider` is omitted. Each provider requires its own API key env var (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`).
 - **Phase 2b text-fill model** (host-side payload-text generation): independently configurable via `--phase-2-text-model`; falls back to a default derived from the sandbox model family when unset.
 
@@ -251,7 +251,7 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 - `--agent-model <name>` (default `gemini-3-flash-preview`): LLM used by Browser Use in Phase 4.
 - `--agent-provider {google,openai,anthropic,openrouter}`: provider for the agent model. Auto-detected when omitted.
-- `--sandbox-model <name>` (default `claude-sonnet-4-6`): Claude model used inside Modal sandboxes (Phase 0c, Phase 1 Mode B, Phase 2a only when `--phase-2a-runtime modal`) and as the model-family knob for host-side Claude API calls.
+- `--sandbox-model <name>` (default `claude-sonnet-4-6`): Claude model used inside Modal sandboxes (Phase 0c, Phase 1 Mode B) and as the model-family knob for host-side Claude API calls.
 
 **Phase 1**:
 
@@ -259,9 +259,6 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 **Phase 2**:
 
-- `--phase-2-sandbox-concurrency <N>`: cap on concurrent legacy Phase 2a planning sandboxes when `--phase-2a-runtime modal`. Defaults to a conservative in-code value tuned for Modal burst limits.
-- `--phase-2a-runtime {api,modal}` (default `api`): generate Phase 2a strategy plans through host-side Anthropic Messages API calls, or fall back to the legacy Modal Claude Code planner for parity/debugging.
-- `--phase-2-launch-jitter-ms <MS>`: deterministic per-shard launch jitter, used to smooth burst traffic when many sandbox shards would otherwise start in the same tick.
 - `--phase-2b-texts-per-plan <N>` (default 1): number of payload-text variants Phase 2b generates per validated 2a plan. The first variant is selected by default; additional variants survive on disk for offline comparison.
 - `--phase-2-text-fill-concurrency <N>`: cap on concurrent host-side text-fill API calls during Phase 2b.
 - `--phase-2-text-model <name>`: host-side text-fill model, independent of `--sandbox-model`.
@@ -705,7 +702,7 @@ Phase 2 generates adversarial injections for every benign task whose contract is
 **Implementation.** Phase 2 is one orchestrator phase (`phase 2`) with three internal stages that run sequentially:
 
 1. **Exposure contract materialization (local, deterministic).** Before any LLM call, the host resolves each benign task to a `benign_target_resource`, builds an `exposure_contract` from that resource plus the editor registry, and persists `logs/phase_2/exposure_contracts.json` and `logs/phase_2/exposure_ineligible.json`. The contract, not the model, owns `editor_method`, `target_surface_id`, `payload_arg`, `editor_args_template`, `required_tokens`, and the benign read-surface verification URL. Listing tasks are eligible only when the payload can be witnessed on the listing/dashboard DOM itself; v1 deliberately does not claim transitive reachability through seeded detail pages.
-2. **Phase 2a (strategy planning).** Default runtime is host-side direct Anthropic Messages API (`--phase-2a-runtime api`): one forced-tool call per shard emits strategy-only plans. Modal Claude Code remains available with `--phase-2a-runtime modal` for legacy parity and profiling. In both modes the model chooses framing, concealment, attack objective, and adversarial reward intent; it does not choose placement, editor args, `target_surface_id`, `delivery_mechanism`, or `seed_template`.
+2. **Phase 2a (strategy planning).** Runtime is host-side direct Anthropic Messages API: one forced-tool call per shard emits strategy-only plans. The model chooses framing, concealment, attack objective, and adversarial reward intent; it does not choose placement, editor args, `target_surface_id`, `delivery_mechanism`, or `seed_template`.
 3. **Phase 2b (host-side async, text fill).** After 2a's strategy plans are merged and validated, the host materializes `seed_template` from the exposure contract, then generates one or more payload-text candidates per plan using the configured text model. `--phase-2b-texts-per-plan` controls the candidate count (default 1); `--phase-2-text-fill-concurrency` caps local text-fill parallelism; all Phase 2 API calls also share the global host-side API semaphore. 2b writes `payload_texts`, `selected_payload_index`, and `payload_text_diagnostics` onto each task, then materializes `adversarial_data_seed` by substituting the selected candidate into `seed_template`.
 4. **Phase 2c (host-side async, feasibility verification).** Covered in its own section below. Runs automatically after 2b unless `--skip-feasibility` is set.
 

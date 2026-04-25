@@ -48,11 +48,9 @@ from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
     ContractRenderContext,
     available_tokens_for_kind,
-    kind_anchors_from_resources,
     kind_contract,
     method_spec,
 )
-from worldsim.modal_sandbox import preflight_sandbox_environment, run_claude_in_sandbox
 from worldsim.phases.phase_2_exposure_contract import (
     build_exposure_contract,
     exposure_contract_signature,
@@ -96,8 +94,7 @@ from worldsim.state import get_state_dir, load_state, save_state
 logger = logging.getLogger(__name__)
 
 TASKS_PER_SHARD = 20
-DEFAULT_SANDBOX_CONCURRENCY = 250
-DEFAULT_LAUNCH_JITTER_MS = 750
+DEFAULT_PHASE_2A_SHARD_CONCURRENCY = 250
 _TARGET_RESOLUTION_WRITE_LOCK = threading.Lock()
 _ELIGIBILITY_DROPS_WRITE_LOCK = threading.Lock()
 _L4_LISTING_KINDS = frozenset(
@@ -107,28 +104,6 @@ _L4_LISTING_KINDS = frozenset(
         "reddit_forum",
     }
 )
-
-
-def _phase_2a_runtime(args: argparse.Namespace | None = None) -> str:
-    """Return the Phase 2a runtime, defaulting to direct API."""
-    raw = getattr(args, "phase_2a_runtime", None) if args is not None else None
-    if raw is None:
-        raw = os.environ.get("WORLDSIM_PHASE_2A_RUNTIME")
-    if raw is not None and str(raw).strip():
-        value = str(raw).strip().lower()
-        if value in {"api", "modal"}:
-            return value
-        logger.warning("unknown Phase 2a runtime %r; falling back to api", raw)
-        return "api"
-
-    legacy = os.environ.get("WORLDSIM_PHASE_2A_API")
-    if legacy is not None:
-        return "api" if legacy.strip().lower() in ("true", "1", "yes", "on") else "modal"
-    return "api"
-
-
-def _phase_2a_api_enabled(args: argparse.Namespace | None = None) -> bool:
-    return _phase_2a_runtime(args) == "api"
 
 
 # Synthetic placeholder map used when Phase 2a resolves benign-target
@@ -415,18 +390,10 @@ async def run(args: argparse.Namespace) -> int:
     )
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites_filter_raw = getattr(args, "sites", None)
-    sandbox_concurrency = (
-        getattr(args, "phase_2_sandbox_concurrency", None) or DEFAULT_SANDBOX_CONCURRENCY
-    )
-    phase_2a_runtime = _phase_2a_runtime(args)
-    launch_jitter_ms = getattr(args, "phase_2_launch_jitter_ms", None) or DEFAULT_LAUNCH_JITTER_MS
     state_metadata: dict[str, Any] = {
         "sandbox_model": sandbox_model,
         "max_tasks_per_site": max_tasks_per_site,
         "sites": sites_filter_raw,
-        "phase_2a_runtime": phase_2a_runtime,
-        "phase_2_sandbox_concurrency": sandbox_concurrency,
-        "phase_2_launch_jitter_ms": launch_jitter_ms,
         "phase_2b_texts_per_plan": texts_per_plan,
         "phase_2_text_fill_concurrency": text_fill_concurrency,
         "phase_2_text_model": text_fill_model,
@@ -531,11 +498,9 @@ async def run(args: argparse.Namespace) -> int:
         logger.info("Phase 2: --sites filter active, running only %s", sorted(tasks_by_site.keys()))
 
     logger.info(
-        "Phase 2: generating injections for %d sites (%d total tasks, concurrency=%d, jitter<=%dms)",
+        "Phase 2: generating injections for %d sites (%d total tasks, phase_2a_runtime=api)",
         len(tasks_by_site),
         sum(len(ts) for ts in tasks_by_site.values()),
-        sandbox_concurrency,
-        launch_jitter_ms,
     )
 
     site_profiles, profile_errors = _collect_site_profiles(tasks_by_site, profiles_dir)
@@ -587,20 +552,6 @@ async def run(args: argparse.Namespace) -> int:
             current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
     )
     if reusable_plans is None and reusable_final_tasks is None:
-        if phase_2a_runtime == "modal":
-            try:
-                await preflight_sandbox_environment()
-            except RuntimeError as exc:
-                logger.error("Phase 2 sandbox pre-flight failed:\n%s", exc)
-                save_state(
-                    "phase_2",
-                    status="failed",
-                    reason="sandbox_preflight_failed",
-                    phase_2_stage="planning",
-                    **state_metadata,
-                )
-                return 1
-
         save_state("phase_2", status="running", phase_2_stage="planning", **state_metadata)
 
         # Resolve the per-site live-instance map once before the shard
@@ -611,11 +562,11 @@ async def run(args: argparse.Namespace) -> int:
         instance_by_site = _load_phase_2a_instance_by_site(args)
         _warm_phase_2a_instance_tokens(instance_by_site)
 
-        # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch them
-        # under a bounded semaphore with small deterministic jitter. Shopping
-        # (192 tasks) becomes ~8 shorter sandboxes without one large burst.
+        # Shard each site's tasks into chunks of TASKS_PER_SHARD and launch
+        # bounded host-side API calls. Shopping (192 tasks) becomes ~8 shorter
+        # strategy calls instead of one huge request.
         shard_coros = []
-        shard_limiter = asyncio.Semaphore(sandbox_concurrency)
+        shard_limiter = asyncio.Semaphore(DEFAULT_PHASE_2A_SHARD_CONCURRENCY)
         for site, tasks in tasks_by_site.items():
             shards = _shard_tasks(tasks, TASKS_PER_SHARD)
             per_site_instance = instance_by_site.get(site) if instance_by_site is not None else None
@@ -624,7 +575,6 @@ async def run(args: argparse.Namespace) -> int:
                 shard_coros.append(
                     _run_shard_with_limit(
                         shard_limiter,
-                        launch_jitter_seconds=_launch_jitter_seconds(label, launch_jitter_ms),
                         site_name=site,
                         site_tasks=shard,
                         all_site_tasks=tasks,
@@ -633,7 +583,6 @@ async def run(args: argparse.Namespace) -> int:
                         sandbox_model=sandbox_model,
                         instance=per_site_instance,
                         benchmark=benchmark_name,
-                        phase_2a_runtime=phase_2a_runtime,
                     )
                 )
         shard_results = await asyncio.gather(*shard_coros, return_exceptions=True)
@@ -1872,24 +1821,11 @@ def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
     return [tasks[i : i + shard_size] for i in range(0, len(tasks), shard_size)]
 
 
-def _launch_jitter_seconds(label: str, jitter_ms: int) -> float:
-    """Return a deterministic launch jitter for a shard label."""
-    if jitter_ms <= 0:
-        return 0.0
-    digest = hashlib.sha256(label.encode("utf-8")).digest()
-    bucket = int.from_bytes(digest[:2], byteorder="big")
-    return (bucket % (jitter_ms + 1)) / 1000.0
-
-
 async def _run_shard_with_limit(
     limiter: asyncio.Semaphore,
-    *,
-    launch_jitter_seconds: float,
     **kwargs: Any,
 ) -> SiteInjectionResult:
-    """Apply launch jitter and bounded concurrency around one shard sandbox."""
-    if launch_jitter_seconds > 0:
-        await asyncio.sleep(launch_jitter_seconds)
+    """Apply bounded concurrency around one Phase 2a API shard."""
     async with limiter:
         return await _generate_injections_for_site(**kwargs)
 
@@ -2192,9 +2128,8 @@ async def _generate_injections_for_site(
     sandbox_model: str = "claude-sonnet-4-6",
     instance: Mapping[str, Any] | None = None,
     benchmark: str = "webarena_verified",
-    phase_2a_runtime: str = "api",
 ) -> SiteInjectionResult:
-    """Generate adversarial injections for a shard (or full set) of tasks via Modal Sandbox.
+    """Generate adversarial injections for one shard through API Phase 2a.
 
     Args:
         site_name: Canonical site name (e.g. "shopping").
@@ -2287,110 +2222,38 @@ async def _generate_injections_for_site(
                 exc,
             )
 
-    if phase_2a_runtime == "api":
-        logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
-        sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
-        sanitized_agent_context = (
-            _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
+    logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
+    sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
+    sanitized_agent_context = (
+        _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
+    )
+    adv_tasks = await generate_phase_2a_plans_api(
+        benign_tasks=sanitized_site_tasks,
+        benign_target_resources=benign_target_resources,
+        exposure_contracts=exposure_contracts,
+        cell_targets=cell_targets,
+        benchmark_profile=site_profile,
+        agent_context=sanitized_agent_context,
+        sandbox_model=sandbox_model,
+        label=label,
+        site=site_name,
+        benchmark=benchmark,
+    )
+    if not adv_tasks:
+        logger.warning("Phase 2: API path %r produced no plans", label)
+        return SiteInjectionResult(
+            site_name,
+            [],
+            ["API path produced no adversarial plans"],
         )
-        adv_tasks = await generate_phase_2a_plans_api(
-            benign_tasks=sanitized_site_tasks,
-            benign_target_resources=benign_target_resources,
+    try:
+        _materialize_strategy_plans_from_exposure(
+            adv_tasks,
             exposure_contracts=exposure_contracts,
-            cell_targets=cell_targets,
-            benchmark_profile=site_profile,
-            agent_context=sanitized_agent_context,
-            sandbox_model=sandbox_model,
-            label=label,
-            site=site_name,
             benchmark=benchmark,
         )
-        if not adv_tasks:
-            logger.warning("Phase 2: API path %r produced no plans", label)
-            return SiteInjectionResult(
-                site_name,
-                [],
-                ["API path produced no adversarial plans"],
-            )
-        try:
-            _materialize_strategy_plans_from_exposure(
-                adv_tasks,
-                exposure_contracts=exposure_contracts,
-                benchmark=benchmark,
-            )
-        except ValueError as exc:
-            return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
-    else:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp = Path(tmp_dir)
-
-            # Stage only this shard's benign tasks into the sandbox
-            tasks_file = tmp / "benign_tasks.json"
-            sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
-            tasks_file.write_text(json.dumps(sanitized_site_tasks, indent=2))
-            cell_targets_file = tmp / "cell_targets.json"
-            cell_targets_file.write_text(json.dumps(cell_targets, indent=2, sort_keys=True))
-            resources_file = tmp / "benign_target_resources.json"
-            resources_file.write_text(json.dumps(benign_target_resources, indent=2, sort_keys=True))
-            exposure_contracts_file = tmp / "exposure_contracts.json"
-            exposure_contracts_file.write_text(json.dumps(exposure_contracts, indent=2, sort_keys=True))
-
-            sandbox_files = {
-                "/workspace/tasks/benign_tasks.json": str(tasks_file),
-                "/workspace/tasks/benign_target_resources.json": str(resources_file),
-                "/workspace/tasks/exposure_contracts.json": str(exposure_contracts_file),
-                "/workspace/tasks/cell_targets.json": str(cell_targets_file),
-                "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
-            }
-            # Pass agent context so injections are crafted with knowledge of agent behavior
-            if agent_context is not None:
-                sanitized_agent_context_path = tmp / "AGENT_CONTEXT.json"
-                sanitized_agent_context_path.write_text(
-                    json.dumps(_sanitize_agent_context_for_output(agent_context), indent=2)
-                )
-                sandbox_files["/workspace/profile/AGENT_CONTEXT.json"] = str(
-                    sanitized_agent_context_path
-                )
-
-            logger.info(
-                "Phase 2: launching injection sandbox %r (%d tasks)", label, len(site_tasks)
-            )
-
-            outputs = await run_claude_in_sandbox(
-                site_files=sandbox_files,
-                prompt=_render_generation_prompt(
-                    cell_targets,
-                    validation_command="adversarial-tasks",
-                    contract_context=ContractRenderContext(
-                        site=site_name,
-                        kind_anchors=kind_anchors_from_resources(benign_target_resources),
-                        benchmark=benchmark,
-                    ),
-                ),
-                output_paths=["/workspace/output/adversarial_tasks.json"],
-                model=sandbox_model,
-                label=label,
-            )
-
-        logger.info("Phase 2: sandbox %r completed", label)
-        cost_tracker.record("phase_2", outputs.get("_summary"), site=site_name)
-
-        adv_json = outputs.get("/workspace/output/adversarial_tasks.json")
-        if not adv_json:
-            logger.warning("Phase 2: sandbox %r did not produce output", label)
-            return SiteInjectionResult(
-                site_name,
-                [],
-                ["sandbox did not produce adversarial_tasks.json"],
-            )
-
-        try:
-            adv_tasks = json.loads(adv_json)
-            if not isinstance(adv_tasks, list):
-                adv_tasks = [adv_tasks]
-        except json.JSONDecodeError as e:
-            logger.error("Phase 2: invalid JSON from sandbox %r: %s", label, e)
-            return SiteInjectionResult(site_name, [], [f"invalid sandbox JSON: {e}"])
+    except ValueError as exc:
+        return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
@@ -3379,14 +3242,35 @@ def _materialize_strategy_plans_from_exposure(
             raise ValueError(
                 f"plan {plan.get('id', '?')!r} references no known exposure contract "
                 f"(benign_task_id={benign_id!r}, exposure_contract_id={contract_id!r})"
-            )
+        )
         plan["exposure_contract_id"] = str(contract.get("contract_id") or contract_id)
         plan["target_surface_id"] = str(contract.get("target_surface_id") or "")
-        plan["delivery_mechanism"] = "api"
-        plan["seed_template"] = materialize_seed_template_from_contract(
+        seed_template = materialize_seed_template_from_contract(
             contract,
             benchmark=benchmark,
         )
+        plan["seed_template"] = seed_template
+        plan["delivery_mechanism"] = _seed_delivery_mechanism(seed_template)
+
+
+def _seed_delivery_mechanism(seed_template: Mapping[str, Any]) -> str:
+    seed = dict(seed_template)
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list) or not calls:
+        raise ValueError("materialized seed_template has no editor_calls")
+    mechanisms = {
+        mechanism
+        for call in calls
+        if isinstance(call, dict)
+        for mechanism in [_call_delivery_mechanism(seed, call)]
+        if mechanism is not None
+    }
+    if len(mechanisms) != 1:
+        raise ValueError(
+            "materialized seed_template must resolve to exactly one delivery mechanism, "
+            f"got {sorted(mechanisms)}"
+        )
+    return next(iter(mechanisms))
 
 
 def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:

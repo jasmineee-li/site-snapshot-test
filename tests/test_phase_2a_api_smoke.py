@@ -380,32 +380,6 @@ async def test_overgeneration_request_in_prompt(monkeypatch: pytest.MonkeyPatch)
     assert str(expected_request) in system_text
 
 
-# ---------------------------------------------------------------------------
-# Wiring: WORLDSIM_PHASE_2A_API flag controls the branch in
-# `_generate_injections_for_site`. We assert the helper here; the live
-# branch is exercised in the integration smoke (runbook).
-# ---------------------------------------------------------------------------
-
-
-class TestApiFlag:
-    def test_default_on(self, monkeypatch: pytest.MonkeyPatch):
-        from worldsim.phases.phase_2_injections import _phase_2a_api_enabled
-
-        monkeypatch.delenv("WORLDSIM_PHASE_2A_API", raising=False)
-        monkeypatch.delenv("WORLDSIM_PHASE_2A_RUNTIME", raising=False)
-        assert _phase_2a_api_enabled() is True
-
-    @pytest.mark.parametrize("value", ["true", "True", "TRUE", "1", "yes"])
-    def test_truthy_values_enable(self, monkeypatch: pytest.MonkeyPatch, value: str):
-        from worldsim.phases.phase_2_injections import _phase_2a_api_enabled
-
-        monkeypatch.setenv("WORLDSIM_PHASE_2A_API", value)
-        assert _phase_2a_api_enabled() is True
-
-    @pytest.mark.parametrize("value", ["false", "0", "no", "", "  ", "anything-else"])
-    def test_legacy_falsey_values_keep_modal(self, monkeypatch: pytest.MonkeyPatch, value: str):
-        from worldsim.phases.phase_2_injections import _phase_2a_api_enabled
-
-        monkeypatch.setenv("WORLDSIM_PHASE_2A_API", value)
-        monkeypatch.delenv("WORLDSIM_PHASE_2A_RUNTIME", raising=False)
-        assert _phase_2a_api_enabled() is False
+# Phase 2a has no runtime switch after the exposure-contract cutover. The
+# API path is production, and Modal is intentionally not available as a
+# planner fallback because it lets the model own placement.

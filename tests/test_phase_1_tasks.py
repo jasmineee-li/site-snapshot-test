@@ -235,22 +235,28 @@ def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
     assert args.sandbox_model == "claude-opus-4-6"
 
 
-def test_build_parser_accepts_phase_2_traffic_shaping_flags():
+def test_build_parser_rejects_removed_phase_2a_modal_flags():
     parser = worldsim_main.build_parser()
 
-    args = parser.parse_args(
-        [
-            "phase",
-            "2",
-            "--phase-2-sandbox-concurrency",
-            "3",
-            "--phase-2-launch-jitter-ms",
-            "500",
-        ]
-    )
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "phase",
+                "2",
+                "--phase-2a-runtime",
+                "modal",
+            ]
+        )
 
-    assert args.phase_2_sandbox_concurrency == 3
-    assert args.phase_2_launch_jitter_ms == 500
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "phase",
+                "2",
+                "--phase-2-sandbox-concurrency",
+                "3",
+            ]
+        )
 
 
 def test_build_parser_accepts_phase_2_text_fill_flags():
@@ -277,8 +283,8 @@ def test_build_parser_accepts_phase_2_text_fill_flags():
 def test_phase_2_help_mentions_sequential_2a_2b_stages():
     parser = worldsim_main.build_parser()
     help_text = " ".join(_subparser(parser, "phase").format_help().split())
-    assert "Phase 2 is one command with two internal stages" in help_text
-    assert "2a planning in Modal sandboxes, then 2b host-side text fill" in help_text
+    assert "Phase 2 is one command with two internal model stages" in help_text
+    assert "2a host-side API strategy planning, then 2b host-side text fill" in help_text
     assert "there are no separate --phase-2a-only or --phase-2b-only flags" in help_text
 
 
@@ -290,7 +296,6 @@ def test_resume_help_mentions_phase_2_stage_resume():
     assert "re-enters the saved internal sub-stage automatically" in description
     assert "2a planning or 2b text fill" in description
     assert "There are no separate --phase-2a-only or --phase-2b-only flags" in description
-    assert "Override the saved Phase 2a planning sandbox concurrency on resume." in help_text
     assert "Override the saved Phase 2b text-fill model on resume." in help_text
 
 
