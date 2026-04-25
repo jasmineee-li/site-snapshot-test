@@ -439,9 +439,7 @@ async def run(args: argparse.Namespace) -> int:
         )
         capabilities = get_benchmark_capabilities(benchmark_name)
         if not capabilities.phase_2_supported:
-            raise ValueError(
-                f"benchmark {benchmark_name!r} does not support WorldSim v5 Phase 2"
-            )
+            raise ValueError(f"benchmark {benchmark_name!r} does not support WorldSim v5 Phase 2")
     except ValueError as exc:
         logger.error("Phase 2 benchmark gate failed: %s", exc)
         save_state(
@@ -549,7 +547,7 @@ async def run(args: argparse.Namespace) -> int:
             current_sandbox_model=sandbox_model,
             current_text_model=text_fill_model,
             current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
-    )
+        )
     if reusable_plans is None and reusable_final_tasks is None:
         save_state("phase_2", status="running", phase_2_stage="planning", **state_metadata)
 
@@ -1399,7 +1397,9 @@ def _extract_instances_list(payload: Any) -> list[dict[str, Any]]:
     are wrapper dicts; some fixtures (and older tooling) hand back a flat list.
     """
     if isinstance(payload, list):
-        return [_normalize_instance_record(item, None) for item in payload if isinstance(item, dict)]
+        return [
+            _normalize_instance_record(item, None) for item in payload if isinstance(item, dict)
+        ]
     if isinstance(payload, dict):
         nested = payload.get("instances")
         try:
@@ -1493,9 +1493,7 @@ def _gate_phase_2c_benchmark(
         )
     capabilities = get_benchmark_capabilities(task_benchmark)
     if not capabilities.phase_2_feasibility_supported:
-        raise ValueError(
-            f"benchmark {task_benchmark!r} does not support WorldSim v5 Phase 2c"
-        )
+        raise ValueError(f"benchmark {task_benchmark!r} does not support WorldSim v5 Phase 2c")
     return capabilities.canonical_name
 
 
@@ -1508,9 +1506,7 @@ def _gate_phase_2_skip_benchmark(task_records: list[dict[str, Any]]) -> str:
     if not capabilities.phase_2_supported:
         raise ValueError(f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2")
     if not capabilities.phase_2_feasibility_supported:
-        raise ValueError(
-            f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2c"
-        )
+        raise ValueError(f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2c")
     return capabilities.canonical_name
 
 
@@ -3008,9 +3004,7 @@ def _phase_2a_eligible_tasks(
     for task in site_tasks:
         task_id = str(task.get("id") or "")
         exposure_contract = (
-            exposure_contracts.get(task_id)
-            if isinstance(exposure_contracts, Mapping)
-            else None
+            exposure_contracts.get(task_id) if isinstance(exposure_contracts, Mapping) else None
         )
         if isinstance(exposure_contract, Mapping):
             eligibility = exposure_contract.get("eligibility")
@@ -3233,15 +3227,13 @@ def _materialize_strategy_plans_from_exposure(
         benign_id = str(plan.get("benign_task_id") or "")
         contract_id = str(plan.get("exposure_contract_id") or "")
         contract = (
-            contracts_by_id.get(contract_id)
-            if contract_id
-            else exposure_contracts.get(benign_id)
+            contracts_by_id.get(contract_id) if contract_id else exposure_contracts.get(benign_id)
         )
         if not isinstance(contract, Mapping):
             raise ValueError(
                 f"plan {plan.get('id', '?')!r} references no known exposure contract "
                 f"(benign_task_id={benign_id!r}, exposure_contract_id={contract_id!r})"
-        )
+            )
         plan["exposure_contract_id"] = str(contract.get("contract_id") or contract_id)
         plan["target_surface_id"] = str(contract.get("target_surface_id") or "")
         seed_template = materialize_seed_template_from_contract(
@@ -4337,9 +4329,8 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
                     source_name, value.count(PAYLOAD_PLACEHOLDER)
                 )
         placeholder_fields: set[str] = set()
-        for source_name, field_names in placeholder_fields_by_source.items():
-            aliased_fields = {field_name for field_name in field_names if field_name != source_name}
-            placeholder_fields.update(aliased_fields or field_names)
+        for _source_name, field_names in placeholder_fields_by_source.items():
+            placeholder_fields.update(field_names)
         placeholder_count = sum(placeholder_counts_by_source.values())
         if placeholder_count <= 0:
             continue
@@ -4395,8 +4386,7 @@ def _body_field_matches_placeholder(
         return body_field == "submission[body]" and "body" in placeholder_fields
     if editor_key == ("reddit", "create_comment"):
         return bool(
-            "body" in placeholder_fields
-            and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(body_field)
+            "body" in placeholder_fields and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(body_field)
         )
     return False
 
@@ -4725,9 +4715,7 @@ def _editor_arg_name(call: dict[str, Any], canonical_name: str) -> str | None:
     if (
         (not _call_has_benchmark_metadata(call) or _editor_delivery_contract_key(call) is not None)
         and editor_key == ("reddit", "create_comment")
-        and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
-        canonical_name
-        )
+        and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(canonical_name)
     ):
         return "body"
     for canonical, arg_name in _editor_arg_alias_pairs(call):
@@ -4739,10 +4727,14 @@ def _editor_arg_name(call: dict[str, Any], canonical_name: str) -> str | None:
 def _call_delivery_mechanism(seed: dict[str, Any], call: dict[str, Any]) -> str | None:
     if _editor_delivery_binding(call) is not None:
         editor_key = _editor_delivery_key(call)
-        if editor_key is not None and (editor_key[0] == "reddit" or editor_key in {
-            ("shopping", "update_customer_profile"),
-            ("shopping_admin", "update_admin_profile"),
-        }):
+        if editor_key is not None and (
+            editor_key[0] == "reddit"
+            or editor_key
+            in {
+                ("shopping", "update_customer_profile"),
+                ("shopping_admin", "update_admin_profile"),
+            }
+        ):
             return "form"
         return "api"
     contract_key = _editor_delivery_contract_key(call)
