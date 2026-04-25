@@ -54,7 +54,7 @@ python -m eval_awareness_experiments.run_causal_experiment \
 - Each combo: shell out to `run_safety_pipeline.py` which (stage 1) runs GLM-5
   through the tool-calling loop on 20 AgentDojo tasks, then (stage 2) applies
   VEA + 5PQ judges over the resulting trajectories.
-- Output: `eval_awareness_experiments/results/causal/agentdojo/baseline/{none,scratchpad_bare,scratchpad_private}/z-ai_glm-5_thinking/`
+- Output: `eval_awareness_experiments/results/new_results/agentdojo/baseline/{none,scratchpad_bare,scratchpad_private}/z-ai_glm-5_thinking/`
 
 ## 2. InjecAgent (also pure Python)
 
@@ -116,7 +116,7 @@ python -m eval_awareness_experiments.run_causal_experiment \
 ```
 
 **Shape:** 4 benchmarks × 3 presets = 12 combos, runs serially. Matrix log
-saved to `eval_awareness_experiments/results/causal/causal_experiment_log.json`.
+saved to `eval_awareness_experiments/results/new_results/causal_experiment_log.json`.
 
 ## Dry-run (print the commands without executing)
 
@@ -154,6 +154,6 @@ That's 4 presets → 4 × n_splits × 20 trajectories per benchmark.
   - Browser (doomarena/wasp): `results/browsergym/study_*/`
   - Tool-calling (agentdojo/injecagent): `results/toolcalling/<bench>/<split>/<run_name>/`
 - **Stage-2 judge JSONL:**
-  `eval_awareness_experiments/results/causal/<bench>/<condition>/<preset>/<model_slug>/<bench>/<split>/trajectory_awareness_results.jsonl`
-- **Matrix log:** `eval_awareness_experiments/results/causal/causal_experiment_log.json`
+  `eval_awareness_experiments/results/new_results/<bench>/<condition>/<preset>/<model_slug>/<bench>/<split>/trajectory_awareness_results.jsonl`
+- **Matrix log:** `eval_awareness_experiments/results/new_results/causal_experiment_log.json`
   — one entry per combo with status (`ok` / `failed:N` / `dry_run`).

@@ -137,7 +137,7 @@ def main() -> None:
                         help="Judge names (e.g. test_awareness_steering verbalized_awareness "
                              "purpose_continue_5q). Omit to use pipeline defaults.")
     parser.add_argument("--output-base", type=Path,
-                        default=Path("eval_awareness_experiments/results/causal"))
+                        default=Path("eval_awareness_experiments/results/new_results"))
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
