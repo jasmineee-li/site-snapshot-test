@@ -821,21 +821,21 @@ async def verify_reachable(
             await _wait_for_body_text(page, witnesses, selector_timeout_ms)
         matched, missing = await _body_witness_match(page, witnesses)
         if not missing:
+            # The visual probe is advisory at Phase 2c. Phase 4 PVPO measures
+            # actual on-screen encounter via begin-frame ink-occupancy and is
+            # the authoritative encounter gate; Phase 2c admits any task whose
+            # witnesses are present in the rendered DOM body text. We still
+            # capture visual_evidence in the outcome for telemetry and to flag
+            # tasks whose witnesses were present in body text but appeared to
+            # have zero rendered geometry on the probe (often a false negative
+            # when content is laid out asynchronously after the body-text
+            # poll satisfies, but useful as a hint when all visual probes
+            # disagree with PVPO encounter results).
             visual = await _visual_witness_match(page, witnesses)
-            if visual.get("visual_reachable") is True:
-                return ReachabilityOutcome.direct(
-                    url=start_url,
-                    witnesses_matched=matched,
-                    visual_reachable=True,
-                    visual_evidence=visual,
-                )
-            return ReachabilityOutcome.unreachable(
-                kind="payload_witness_off_surface",
-                detail="witnesses are present in DOM but not viewport-visible on benign entry point",
+            return ReachabilityOutcome.direct(
                 url=start_url,
                 witnesses_matched=matched,
-                witnesses_missing=(),
-                visual_reachable=False,
+                visual_reachable=bool(visual.get("visual_reachable")),
                 visual_evidence=visual,
             )
         if exposure_mode.startswith("bounded_transitive"):
@@ -885,26 +885,16 @@ async def verify_reachable(
                 await _wait_for_body_text(page, witnesses, selector_timeout_ms)
             target_matched, target_missing = await _body_witness_match(page, witnesses)
             if not target_missing:
+                # See note on the direct path: Phase 2c uses the visual probe
+                # as advisory telemetry only; Phase 4 PVPO is the authoritative
+                # encounter gate.
                 target_visual = await _visual_witness_match(page, witnesses)
-                if target_visual.get("visual_reachable") is not True:
-                    return ReachabilityOutcome.unreachable(
-                        kind="payload_witness_off_surface",
-                        detail=(
-                            "witnesses are present after bounded transition but "
-                            "not viewport-visible on exposure target"
-                        ),
-                        url=target_url,
-                        witnesses_matched=target_matched,
-                        witnesses_missing=(),
-                        visual_reachable=False,
-                        visual_evidence=target_visual,
-                    )
                 return ReachabilityOutcome.transitive(
                     entry_url=start_url,
                     target_url=target_url,
                     edge_href=edge["href"],
                     witnesses_matched=target_matched,
-                    visual_reachable=True,
+                    visual_reachable=bool(target_visual.get("visual_reachable")),
                     visual_evidence=target_visual,
                 )
             return ReachabilityOutcome.unreachable(
