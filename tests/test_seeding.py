@@ -1509,6 +1509,50 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
     assert editor.cleaned is False
     assert fake_session.closed is False
 
+
+def test_apply_data_seed_filters_unknown_editor_kwargs_before_validation(monkeypatch):
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+
+    cleanup_handle, _metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "args": {
+                        "forum_name": "books",
+                        "submission_id": "59421",
+                        "body": "payload",
+                        "sticky": True,
+                        "comment_position": "{missing_position}",
+                    },
+                }
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    editor = _FakeEditor.instances[-1]
+    assert cleanup_handle is not None
+    assert editor.calls == [
+        (
+            "validate_args",
+            {
+                "method_name": "create_comment",
+                "args": {"forum_name": "books", "submission_id": "59421", "body": "payload"},
+            },
+        ),
+        (
+            "create_comment",
+            {"forum_name": "books", "submission_id": "59421", "body": "payload"},
+        ),
+    ]
+
     cleanup_handle.cleanup()
 
     assert editor.cleaned is True
@@ -2175,23 +2219,33 @@ def test_sandbox_validator_accepts_nested_review_body_field_reference():
     assert error is None
 
 
-def test_render_editor_seed_call_rejects_unresolved_placeholders():
+def test_apply_data_seed_rejects_unresolved_placeholders_in_supported_editor_kwargs(monkeypatch):
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+
     with pytest.raises(
         RuntimeError,
         match="editor call has unresolved template placeholders: missing_submission",
     ):
-        seeding._render_editor_seed_call(
+        seeding.apply_data_seed(
             {
-                "benchmark": "webarena_verified",
-                "site": "reddit",
-                "method": "create_comment",
-                "args": {
-                    "forum_name": "books",
-                    "submission_id": "{missing_submission}",
-                    "body": "payload",
-                },
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "reddit",
+                        "method": "create_comment",
+                        "args": {
+                            "forum_name": "books",
+                            "submission_id": "{missing_submission}",
+                            "body": "payload",
+                        },
+                    }
+                ],
             },
-            seed_context={},
+            {"site_name": "reddit", "site_url": "http://reddit.test"},
         )
 
 

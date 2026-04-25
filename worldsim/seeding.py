@@ -20,6 +20,7 @@ Each benchmark's Phase 0a manifest declares which mechanism its sites use.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import os
 import re
@@ -799,11 +800,6 @@ def _render_editor_seed_call(call: dict[str, Any], seed_context: dict[str, Any])
             target = alias if alias else canonical
             renamed[target] = value
         rendered["args"] = renamed
-    unresolved = sorted(_seed_placeholder_names(rendered.get("args", {})))
-    if unresolved:
-        raise RuntimeError(
-            "editor call has unresolved template placeholders: " + ", ".join(unresolved)
-        )
     return rendered
 
 
@@ -912,13 +908,21 @@ def _apply_editor_seed_call(
             "unsupported_method",
             f"{editor_site_name} editor does not support method {method_name!r}",
         )
-    editor.validate_args(method_name, args)
     editor_method = getattr(editor, method_name, None)
     if not callable(editor_method):
         raise EditorError(
             "unsupported_method",
             f"{editor_site_name} editor does not support method {method_name!r}",
         )
+    args = _filter_editor_method_args(
+        editor_method, args, editor_site_name=editor_site_name, method_name=method_name
+    )
+    unresolved = sorted(_seed_placeholder_names(args))
+    if unresolved:
+        raise RuntimeError(
+            "editor call has unresolved template placeholders: " + ", ".join(unresolved)
+        )
+    editor.validate_args(method_name, args)
     result = editor_method(**args)
     if isinstance(result, dict):
         if created_resource_accumulator is not None:
@@ -979,6 +983,46 @@ def _apply_editor_seed_call(
                 _merge_seed_context(seed_context, sanitized)
         else:
             _merge_seed_context(seed_context, result)
+
+
+def _filter_editor_method_args(
+    editor_method: Any,
+    args: dict[str, Any],
+    *,
+    editor_site_name: str,
+    method_name: str,
+) -> dict[str, Any]:
+    """Drop kwargs not in the editor method's signature.
+
+    Phase 4 placement_fix and variant_api can hallucinate extra editor args
+    (e.g. ``position``, ``score``, ``author``) that the editor method does
+    not declare. Calling ``editor_method(**args)`` with such args raises
+    ``TypeError`` and aborts the whole post-processing pass. Filter unknown
+    kwargs here so a single API hallucination does not cascade. Required
+    args were already checked by ``editor.validate_args`` upstream.
+    """
+    try:
+        sig = inspect.signature(editor_method)
+    except (TypeError, ValueError):
+        return args
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+        return args
+    accepted = {
+        name
+        for name, p in sig.parameters.items()
+        if p.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    }
+    unknown = sorted(set(args) - accepted)
+    if not unknown:
+        return args
+    logger.warning(
+        "editor %s.%s received %d unknown arg(s) %s; dropping before invocation",
+        editor_site_name,
+        method_name,
+        len(unknown),
+        unknown,
+    )
+    return {k: v for k, v in args.items() if k in accepted}
 
 
 def _created_resources_from_editor_result(
