@@ -3,13 +3,13 @@
  * Per-character visibility + viewport-bg-color query for the Paint-Verified
  * Payload Oracle.
  *
- * Caller injects the seeded payload text via ``__WORLDSIM_PAYLOAD_JSON__``
- * substitution (JSON-encoded at the call site). This query locates the
- * payload on the page by substring-matching text nodes via TreeWalker —
- * we do NOT depend on any DOM attribute or wrapping element being
- * preserved by the site. This matters because many production sites
- * (Magento, reddit, gitlab) sanitize HTML in UGC fields: a ``<span
- * data-worldsim-payload>`` wrapper is frequently stripped before rendering.
+ * Caller injects ordered attack witnesses via
+ * ``__WORLDSIM_WITNESSES_JSON__`` substitution (JSON-encoded at the call
+ * site). This query locates the first witness on the page by normalized
+ * substring-matching text nodes via TreeWalker — we do NOT depend on any DOM
+ * attribute or wrapping element being preserved by the site. This matters
+ * because many production sites (Magento, reddit, gitlab) sanitize HTML in
+ * UGC fields and rewrite Markdown/links before rendering.
  *
  * Returns an object with:
  *
@@ -27,19 +27,25 @@
  *     distinguish "payload was rendered somewhere else in the DOM"
  *     (matchFound=true) from "payload never reached the DOM"
  *     (matchFound=false).
+ *   - ``matchedWitnessId`` / ``matchedWitnessText``: which attack witness
+ *     was found. Host-side artifacts persist this for run postmortems.
+ *   - ``pageUrl``: current ``window.location.href`` for host-side filtering
+ *     of off-surface pages.
  *
  * Range-based per-char rects keep OpenType ligature shaping intact. No
  * DOM mutation of the live payload.
  *
  * @typedef {{x:number,y:number,w:number,h:number}} Rect
  * @typedef {{r:number,g:number,b:number}} Rgb
+ * @typedef {{id:string, text:string}} Witness
  * @typedef {{i:number,char:string,isSpace:boolean,layoutVisible:boolean,liveRect:Rect|null}} CharResult
- * @typedef {{entries:CharResult[], backgroundColor:Rgb, matchFound:boolean, matchOffset:number}} QueryResult
+ * @typedef {{id:string,text:string,offset:number}} WitnessMatch
+ * @typedef {{entries:CharResult[], backgroundColor:Rgb, matchFound:boolean, matchOffset:number, matchedWitnessId:string|null, matchedWitnessText:string|null, pageUrl:string}} QueryResult
  */
 
 (() => {
-  /** @type {string} */
-  const payloadText = __WORLDSIM_PAYLOAD_JSON__;
+  /** @type {Witness[]} */
+  const witnesses = __WORLDSIM_WITNESSES_JSON__;
 
   /** @returns {QueryResult} */
   function emptyResult() {
@@ -48,10 +54,15 @@
       backgroundColor: { r: 255, g: 255, b: 255 },
       matchFound: false,
       matchOffset: -1,
+      matchedWitnessId: null,
+      matchedWitnessText: null,
+      pageUrl: String(window.location.href || ""),
     };
   }
 
-  if (!payloadText) return emptyResult();
+  if (!Array.isArray(witnesses) || witnesses.length === 0) {
+    return emptyResult();
+  }
 
   // Walk every renderable text node and linearize them into one corpus
   // string + a parallel ``charMap`` from global character offset to
@@ -82,107 +93,185 @@
   /** @type {Text[]} */
   const textNodes = [];
   /** @type {{nodeIndex:number, offset:number}[]} */
-  const charMap = [];
-  let corpus = "";
+  const normalizedCharMap = [];
+  let normalizedCorpus = "";
   while (walker.nextNode()) {
     const node = /** @type {Text} */ (walker.currentNode);
     const content = node.textContent || "";
     if (!content) continue;
     const nodeIndex = textNodes.length;
     textNodes.push(node);
-    for (let o = 0; o < content.length; o++) {
-      charMap.push({ nodeIndex, offset: o });
-    }
-    corpus += content;
+    appendNormalized(content, nodeIndex);
   }
 
-  const matchOffset = corpus.indexOf(payloadText);
-  if (matchOffset < 0) {
+  const matches = findWitnessMatches(normalizedCorpus, witnesses);
+  if (matches.length === 0) {
     // Payload wasn't rendered anywhere in the DOM. The host treats this as
     // zero coverage — routed to placement-fix.
     return emptyResult();
   }
 
-  // Anchor for visibility / background resolution: parent element of the
-  // first matched character's source text node. When the match spans
-  // multiple inline runs, all chars share the same nearest block ancestor
-  // (otherwise the page broke layout rules) so this is a sound base
-  // reference even though per-char ``ancestor`` may differ.
-  const firstSourceInfo = charMap[matchOffset];
-  const firstSourceNode = textNodes[firstSourceInfo.nodeIndex];
-  const matchNode = firstSourceNode;
+  let selected = buildMatchResult(matches[0]);
+  for (const candidate of matches) {
+    const result = buildMatchResult(candidate);
+    if (hasVisibleNonSpaceEntry(result.entries)) {
+      selected = result;
+      break;
+    }
+  }
+  return selected;
 
-  /** @type {CharResult[]} */
-  const entries = [];
+  /**
+   * Append content to normalizedCorpus while preserving a map from each
+   * normalized char back to its source text-node char. Whitespace runs become
+   * one ASCII space, matching Python-side witness normalization.
+   *
+   * @param {string} content
+   * @param {number} nodeIndex
+   */
+  function appendNormalized(content, nodeIndex) {
+    for (let o = 0; o < content.length; o++) {
+      const ch = content[o];
+      if (/\s/.test(ch)) {
+        if (
+          normalizedCorpus.length === 0 ||
+          normalizedCorpus[normalizedCorpus.length - 1] === " "
+        ) {
+          continue;
+        }
+        normalizedCorpus += " ";
+        normalizedCharMap.push({ nodeIndex, offset: o });
+        continue;
+      }
+      normalizedCorpus += ch;
+      normalizedCharMap.push({ nodeIndex, offset: o });
+    }
+  }
 
-  const range = document.createRange();
-  const viewportW = window.innerWidth;
-  const viewportH = window.innerHeight;
+  /**
+   * @param {string} haystack
+   * @param {Witness[]} candidates
+   * @returns {WitnessMatch[]}
+   */
+  function findWitnessMatches(haystack, candidates) {
+    /** @type {WitnessMatch[]} */
+    const matches = [];
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate.text !== "string") continue;
+      const text = normalizeText(candidate.text);
+      if (!text) continue;
+      let offset = haystack.indexOf(text);
+      while (offset >= 0) {
+        matches.push({
+          id: typeof candidate.id === "string" ? candidate.id : "witness",
+          text,
+          offset,
+        });
+        offset = haystack.indexOf(text, offset + Math.max(text.length, 1));
+      }
+      if (matches.length > 0) return matches;
+    }
+    return matches;
+  }
 
-  for (let i = 0; i < payloadText.length; i++) {
-    const char = payloadText[i];
-    if (/\s/.test(char)) {
+  /**
+   * @param {WitnessMatch} match
+   * @returns {QueryResult}
+   */
+  function buildMatchResult(match) {
+    const matchOffset = match.offset;
+    const witnessText = match.text;
+    const firstSourceInfo = normalizedCharMap[matchOffset];
+    const firstSourceNode = textNodes[firstSourceInfo.nodeIndex];
+
+    /** @type {CharResult[]} */
+    const entries = [];
+    const range = document.createRange();
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+
+    for (let i = 0; i < witnessText.length; i++) {
+      const char = witnessText[i];
+      if (/\s/.test(char)) {
+        entries.push({
+          i,
+          char,
+          isSpace: true,
+          layoutVisible: false,
+          liveRect: null,
+        });
+        continue;
+      }
+
+      const sourceInfo = normalizedCharMap[matchOffset + i];
+      const sourceNode = textNodes[sourceInfo.nodeIndex];
+      range.setStart(sourceNode, sourceInfo.offset);
+      range.setEnd(sourceNode, sourceInfo.offset + 1);
+      const liveRect = range.getBoundingClientRect();
+
+      const inViewport =
+        liveRect.width > 0 &&
+        liveRect.height > 0 &&
+        liveRect.right > 0 &&
+        liveRect.bottom > 0 &&
+        liveRect.left < viewportW &&
+        liveRect.top < viewportH;
+
+      const ancestor = sourceNode.parentElement;
+      const ancestorVisible = ancestor
+        ? ancestor.checkVisibility({
+            opacityProperty: true,
+            visibilityProperty: true,
+            contentVisibilityAuto: true,
+          })
+        : false;
+
+      let notOccluded = false;
+      if (inViewport && ancestorVisible && ancestor) {
+        const cx = liveRect.left + liveRect.width / 2;
+        const cy = liveRect.top + liveRect.height / 2;
+        const topEl = document.elementFromPoint(cx, cy);
+        notOccluded =
+          topEl === ancestor || (topEl !== null && ancestor.contains(topEl));
+      }
+
+      const layoutVisible = inViewport && ancestorVisible && notOccluded;
+
       entries.push({
         i,
         char,
-        isSpace: true,
-        layoutVisible: false,
-        liveRect: null,
+        isSpace: false,
+        layoutVisible,
+        liveRect: layoutVisible ? serializeRect(liveRect) : null,
       });
-      continue;
     }
 
-    const sourceInfo = charMap[matchOffset + i];
-    const sourceNode = textNodes[sourceInfo.nodeIndex];
-    range.setStart(sourceNode, sourceInfo.offset);
-    range.setEnd(sourceNode, sourceInfo.offset + 1);
-    const liveRect = range.getBoundingClientRect();
-
-    const inViewport =
-      liveRect.width > 0 &&
-      liveRect.height > 0 &&
-      liveRect.right > 0 &&
-      liveRect.bottom > 0 &&
-      liveRect.left < viewportW &&
-      liveRect.top < viewportH;
-
-    // Visibility / occlusion are evaluated against THIS char's source
-    // node parent — not the first match's parent — so that an inline-
-    // wrapped run (e.g. an `<a>` inside a `<p>`) that's hidden by CSS
-    // gets correctly classified as not layout-visible even if other
-    // chars in the same payload are visible.
-    const ancestor = sourceNode.parentElement;
-    const ancestorVisible = ancestor
-      ? ancestor.checkVisibility({
-          opacityProperty: true,
-          visibilityProperty: true,
-          contentVisibilityAuto: true,
-        })
-      : false;
-
-    let notOccluded = false;
-    if (inViewport && ancestorVisible && ancestor) {
-      const cx = liveRect.left + liveRect.width / 2;
-      const cy = liveRect.top + liveRect.height / 2;
-      const topEl = document.elementFromPoint(cx, cy);
-      notOccluded =
-        topEl === ancestor || (topEl !== null && ancestor.contains(topEl));
-    }
-
-    const layoutVisible = inViewport && ancestorVisible && notOccluded;
-
-    entries.push({
-      i,
-      char,
-      isSpace: false,
-      layoutVisible,
-      liveRect: layoutVisible ? serializeRect(liveRect) : null,
-    });
+    return {
+      entries,
+      backgroundColor: resolveBackgroundColor(firstSourceNode.parentElement),
+      matchFound: true,
+      matchOffset,
+      matchedWitnessId: match.id,
+      matchedWitnessText: witnessText,
+      pageUrl: String(window.location.href || ""),
+    };
   }
 
-  const backgroundColor = resolveBackgroundColor(matchNode.parentElement);
+  /**
+   * @param {CharResult[]} entries
+   * @returns {boolean}
+   */
+  function hasVisibleNonSpaceEntry(entries) {
+    return entries.some((entry) => !entry.isSpace && entry.layoutVisible);
+  }
 
-  return { entries, backgroundColor, matchFound: true, matchOffset };
+  /**
+   * @param {string} str
+   * @returns {string}
+   */
+  function normalizeText(str) {
+    return str.replace(/\s+/g, " ").trim();
+  }
 
   /**
    * @param {DOMRect} r

@@ -64,13 +64,14 @@ def test_pvpo_query_js_uses_multinode_linearization():
     structural change at the JS-source level.
     """
     js = build_pvpo_query_js("anything")
-    # Linearization markers — corpus assembly + charMap lookup table.
-    assert "const charMap" in js
-    assert "let corpus" in js
+    # Linearization markers — normalized corpus + source lookup table.
+    assert "const normalizedCharMap" in js
+    assert "let normalizedCorpus" in js
     # Single match against the linearized corpus, not per-node loop.
-    assert "corpus.indexOf(payloadText)" in js
+    assert "findWitnessMatches(normalizedCorpus, witnesses)" in js
+    assert "hasVisibleNonSpaceEntry(result.entries)" in js
     # No remaining substitution token.
-    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
+    assert "__WORLDSIM_WITNESSES_JSON__" not in js
     # Per-char ancestor uses the source text node's parent so inline-
     # wrapped runs (e.g. an `<a>` inside a `<p>`) are individually
     # visibility-checked rather than inheriting the first match's parent.
@@ -93,12 +94,27 @@ def test_unwrap_runtime_evaluate_happy_path():
             },
         }
     }
-    entries, bg, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
+    (
+        entries,
+        bg,
+        issue_class,
+        issue_message,
+        match_found,
+        match_offset,
+        matched_id,
+        matched_text,
+        page_url,
+    ) = _unwrap_runtime_evaluate(raw)
     assert len(entries) == 1
     assert entries[0]["char"] == "a"
     assert bg == (240, 241, 242)
     assert issue_class is None
     assert issue_message is None
+    assert match_found is False
+    assert match_offset == -1
+    assert matched_id is None
+    assert matched_text is None
+    assert page_url is None
 
 
 def test_unwrap_runtime_evaluate_missing_value_falls_back_to_defaults():
@@ -107,18 +123,33 @@ def test_unwrap_runtime_evaluate_missing_value_falls_back_to_defaults():
         (255, 255, 255),
         "runtime_evaluate_malformed",
         "missing result.value object",
+        False,
+        -1,
+        None,
+        None,
+        None,
     )
     assert _unwrap_runtime_evaluate({}) == (
         [],
         (255, 255, 255),
         "runtime_evaluate_malformed",
         "missing result.value object",
+        False,
+        -1,
+        None,
+        None,
+        None,
     )
     assert _unwrap_runtime_evaluate({"result": {"type": "object", "value": "not-a-dict"}}) == (
         [],
         (255, 255, 255),
         "runtime_evaluate_malformed",
         "result.value is not a dict",
+        False,
+        -1,
+        None,
+        None,
+        None,
     )
 
 
@@ -129,7 +160,7 @@ def test_unwrap_runtime_evaluate_malformed_bg_falls_back():
             "value": {"entries": [], "backgroundColor": "not-a-dict"},
         }
     }
-    entries, bg, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
+    entries, bg, issue_class, issue_message, *_ = _unwrap_runtime_evaluate(raw)
     assert entries == []
     assert bg == (255, 255, 255)
     assert issue_class == "runtime_evaluate_malformed"
@@ -146,7 +177,7 @@ def test_unwrap_runtime_evaluate_non_list_entries_marks_issue():
             },
         }
     }
-    entries, bg, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
+    entries, bg, issue_class, issue_message, *_ = _unwrap_runtime_evaluate(raw)
     assert entries == []
     assert bg == (1, 2, 3)
     assert issue_class == "runtime_evaluate_malformed"
@@ -168,6 +199,11 @@ async def test_atomic_capture_sequences_cdp_calls_and_extracts_bg():
                     "value": {
                         "entries": [_entry(0, "a", layout_visible=True, live=(10, 10, 5, 5))],
                         "backgroundColor": {"r": 250, "g": 251, "b": 252},
+                        "matchFound": True,
+                        "matchOffset": 12,
+                        "matchedWitnessId": "required_url:0",
+                        "matchedWitnessText": "attacker.invalid/a",
+                        "pageUrl": "http://gitlab.test/issues/1",
                     },
                 }
             }
@@ -186,6 +222,10 @@ async def test_atomic_capture_sequences_cdp_calls_and_extracts_bg():
     assert capture.screenshot_png == png
     assert capture.background_color == (250, 251, 252)
     assert capture.visibility_vec[0]["char"] == "a"
+    assert capture.match_found is True
+    assert capture.match_offset == 12
+    assert capture.matched_witness_id == "required_url:0"
+    assert capture.page_url == "http://gitlab.test/issues/1"
 
     methods = [c.args[0] for c in cdp.send.call_args_list]
     assert methods == [
@@ -388,6 +428,11 @@ def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
         clip=Rect(x=0, y=0, w=200, h=100),
         issue_class="runtime_evaluate_malformed",
         issue_message="entries is not a list",
+        match_found=True,
+        match_offset=4,
+        matched_witness_id="witness:0",
+        matched_witness_text="payload",
+        page_url="http://gitlab.test/issues/1",
     )
     save_step_artifacts(tmp_path, step_idx=3, capture=capture)
 
@@ -401,6 +446,11 @@ def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
     assert pvpo_json["has_damage"] is True
     assert pvpo_json["issue_class"] == "runtime_evaluate_malformed"
     assert pvpo_json["issue_message"] == "entries is not a list"
+    assert pvpo_json["match_found"] is True
+    assert pvpo_json["match_offset"] == 4
+    assert pvpo_json["matched_witness_id"] == "witness:0"
+    assert pvpo_json["matched_witness_text"] == "payload"
+    assert pvpo_json["page_url"] == "http://gitlab.test/issues/1"
     assert pvpo_json["clip"] == {"x": 0, "y": 0, "w": 200, "h": 100}
     assert pvpo_json["background_color"] == [128, 129, 130]
     assert pvpo_json["visibility_vec"][0]["char"] == "a"
@@ -417,6 +467,7 @@ def test_pvpo_query_js_contract_markers_present():
     # Content-match anchor strategy replaced the attribute-based anchor.
     assert "createTreeWalker" in js
     assert "matchFound" in js
+    assert "matchedWitnessId" in js
     # Reference container was removed in the ink-occupancy cutover; the
     # attribute-anchor strategy was removed in the content-match cutover.
     # (The string ``data-worldsim-payload`` survives in a comment explaining
@@ -426,7 +477,7 @@ def test_pvpo_query_js_contract_markers_present():
     assert "document.querySelector('[data-worldsim-payload" not in js
     # Payload is inlined JSON-encoded, not as a raw string (quoting-safe).
     assert "some payload text" in js
-    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
+    assert "__WORLDSIM_WITNESSES_JSON__" not in js
 
 
 def test_build_pvpo_query_js_json_encodes_quotes_and_backslashes():
@@ -436,12 +487,12 @@ def test_build_pvpo_query_js_json_encodes_quotes_and_backslashes():
     assert '"has \\"quotes\\"' in js
     assert "\\\\ backslash" in js
     # The substitution token must be gone.
-    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
+    assert "__WORLDSIM_WITNESSES_JSON__" not in js
 
 
 def test_build_pvpo_query_js_empty_payload_still_valid():
     js = build_pvpo_query_js("")
     # Empty payload → query short-circuits to emptyResult() inside the IIFE.
     # But the template must still parse (substitution applied cleanly).
-    assert "__WORLDSIM_PAYLOAD_JSON__" not in js
-    assert '""' in js
+    assert "__WORLDSIM_WITNESSES_JSON__" not in js
+    assert "[]" in js

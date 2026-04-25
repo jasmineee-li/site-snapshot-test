@@ -40,24 +40,33 @@ logger = logging.getLogger(__name__)
 
 
 _PVPO_QUERY_JS_TEMPLATE: str = (Path(__file__).parent / "pvpo_query.js").read_text(encoding="utf-8")
-_PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_PAYLOAD_JSON__"
+_PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_WITNESSES_JSON__"
 _PVPO_CAPTURE_SUMMARY_FILENAME = "capture_summary.json"
 
 
-def build_pvpo_query_js(payload_text: str) -> str:
-    """Return the PVPO per-step JS with ``payload_text`` inlined as a JSON literal.
+def build_pvpo_query_js(
+    payload_text: str,
+    *,
+    witness_texts: list[str] | None = None,
+) -> str:
+    """Return the PVPO per-step JS with attack witnesses inlined as JSON.
 
-    The query uses substring matching against every text node in the DOM to
-    locate the rendered payload — we do not depend on any HTML wrapper or
-    data-attribute being preserved by the site. ``payload_text`` is JSON-
-    encoded so characters like quotes and backslashes remain valid JS
-    strings.
+    The query uses normalized substring matching against every text node in
+    the DOM to locate an attack-specific witness.  ``payload_text`` is kept as
+    a legacy fallback; callers should pass ``witness_texts`` derived from
+    Phase 2's required tokens / framing / concealment witnesses.
     """
-    return _PVPO_QUERY_JS_TEMPLATE.replace(_PAYLOAD_SUBSTITUTION_TOKEN, json.dumps(payload_text))
+    values = witness_texts if witness_texts is not None else [payload_text]
+    witnesses = [
+        {"id": f"witness:{idx}", "text": value}
+        for idx, value in enumerate(values)
+        if isinstance(value, str) and value
+    ]
+    return _PVPO_QUERY_JS_TEMPLATE.replace(_PAYLOAD_SUBSTITUTION_TOKEN, json.dumps(witnesses))
 
 
 # Back-compat: the old constant returned a non-parameterized JS blob. Anything
-# that still imports it now gets a query that matches an empty string (no
+# that still imports it now gets a query with no witnesses (no
 # match → empty result). New callers should use ``build_pvpo_query_js``.
 PVPO_QUERY_JS: str = build_pvpo_query_js("")
 
@@ -95,8 +104,13 @@ class StepCapture:
     background_color: tuple[int, int, int]
     has_damage: bool
     clip: Rect
+    page_url: str | None = None
     issue_class: str | None = None
     issue_message: str | None = None
+    match_found: bool = False
+    match_offset: int = -1
+    matched_witness_id: str | None = None
+    matched_witness_text: str | None = None
 
 
 async def atomic_capture_with_visibility(
@@ -104,6 +118,7 @@ async def atomic_capture_with_visibility(
     *,
     viewport_rect: Rect,
     payload_text: str = "",
+    witness_texts: list[str] | None = None,
     capturing: asyncio.Event | None = None,
     cdp_timeout_s: float | None = None,
 ) -> StepCapture:
@@ -117,11 +132,11 @@ async def atomic_capture_with_visibility(
             screenshot is clipped to this rect; post-composite capture
             means anything outside the viewport would not be in the frame
             even if the clip were larger.
-        payload_text: the seeded payload string. The JS query substring-
-            matches this against text nodes in the DOM to locate the
-            rendered payload — no HTML wrapper or data-attribute is
-            required. When empty, the query returns an empty result
-            (caller should provide the payload when one is known).
+        payload_text: legacy fallback witness. Prefer ``witness_texts``.
+        witness_texts: ordered attack-specific witnesses. The JS query
+            normalized-substring matches these against text nodes in the DOM
+            to locate the rendered payload — no HTML wrapper or data-attribute
+            is required.
         capturing: optional :class:`asyncio.Event` shared with the
             per-session frame pump (:mod:`worldsim.phase_4.pvpo_frame_pump`)
             so the pump pauses its own ``beginFrame`` ticks while this
@@ -143,7 +158,7 @@ async def atomic_capture_with_visibility(
         (no layout mutation occurred). We trust them and log for
         observability — scope locked per handoff §9.
     """
-    query_js = build_pvpo_query_js(payload_text)
+    query_js = build_pvpo_query_js(payload_text, witness_texts=witness_texts)
     cdp = normalize_cdp_session(cdp_session)
 
     async def _send(method: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -166,7 +181,17 @@ async def atomic_capture_with_visibility(
             "Runtime.evaluate",
             {"expression": query_js, "returnByValue": True, "awaitPromise": True},
         )
-        visibility_vec, background_color, issue_class, issue_message = _unwrap_runtime_evaluate(raw)
+        (
+            visibility_vec,
+            background_color,
+            issue_class,
+            issue_message,
+            match_found,
+            match_offset,
+            matched_witness_id,
+            matched_witness_text,
+            page_url,
+        ) = _unwrap_runtime_evaluate(raw)
         if issue_class is not None:
             logger.warning(
                 "pvpo: Runtime.evaluate returned malformed visibility payload (%s); "
@@ -210,8 +235,13 @@ async def atomic_capture_with_visibility(
         background_color=background_color,
         has_damage=has_damage,
         clip=viewport_rect,
+        page_url=page_url,
         issue_class=issue_class,
         issue_message=issue_message,
+        match_found=match_found,
+        match_offset=match_offset,
+        matched_witness_id=matched_witness_id,
+        matched_witness_text=matched_witness_text,
     )
 
 
@@ -220,7 +250,17 @@ _DEFAULT_BG: tuple[int, int, int] = (255, 255, 255)
 
 def _unwrap_runtime_evaluate(
     raw: dict[str, Any],
-) -> tuple[list[dict[str, Any]], tuple[int, int, int], str | None, str | None]:
+) -> tuple[
+    list[dict[str, Any]],
+    tuple[int, int, int],
+    str | None,
+    str | None,
+    bool,
+    int,
+    str | None,
+    str | None,
+    str | None,
+]:
     """Extract ``(entries, background_color)`` from a ``Runtime.evaluate`` result.
 
     The JS query returns ``{entries: [...], backgroundColor: {r, g, b}}``.
@@ -230,10 +270,30 @@ def _unwrap_runtime_evaluate(
     """
     result = raw.get("result") or {}
     if result.get("type") != "object" or "value" not in result:
-        return [], _DEFAULT_BG, "runtime_evaluate_malformed", "missing result.value object"
+        return (
+            [],
+            _DEFAULT_BG,
+            "runtime_evaluate_malformed",
+            "missing result.value object",
+            False,
+            -1,
+            None,
+            None,
+            None,
+        )
     value = result["value"]
     if not isinstance(value, dict):
-        return [], _DEFAULT_BG, "runtime_evaluate_malformed", "result.value is not a dict"
+        return (
+            [],
+            _DEFAULT_BG,
+            "runtime_evaluate_malformed",
+            "result.value is not a dict",
+            False,
+            -1,
+            None,
+            None,
+            None,
+        )
     entries = value.get("entries") or []
     issue_message: str | None = None
     if not isinstance(entries, list):
@@ -243,14 +303,45 @@ def _unwrap_runtime_evaluate(
     if not isinstance(bg, dict):
         if issue_message is None:
             issue_message = "backgroundColor is not a dict"
-        return entries, _DEFAULT_BG, "runtime_evaluate_malformed", issue_message
+        return (
+            entries,
+            _DEFAULT_BG,
+            "runtime_evaluate_malformed",
+            issue_message,
+            bool(value.get("matchFound")),
+            _match_offset(value.get("matchOffset")),
+            _optional_str(value.get("matchedWitnessId")),
+            _optional_str(value.get("matchedWitnessText")),
+            _optional_str(value.get("pageUrl")),
+        )
     try:
         bg_rgb = (int(bg.get("r", 255)), int(bg.get("g", 255)), int(bg.get("b", 255)))
     except (TypeError, ValueError):
         bg_rgb = _DEFAULT_BG
         if issue_message is None:
             issue_message = "backgroundColor channels are not integers"
-    return entries, bg_rgb, ("runtime_evaluate_malformed" if issue_message else None), issue_message
+    return (
+        entries,
+        bg_rgb,
+        ("runtime_evaluate_malformed" if issue_message else None),
+        issue_message,
+        bool(value.get("matchFound")),
+        _match_offset(value.get("matchOffset")),
+        _optional_str(value.get("matchedWitnessId")),
+        _optional_str(value.get("matchedWitnessText")),
+        _optional_str(value.get("pageUrl")),
+    )
+
+
+def _match_offset(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return -1
+
+
+def _optional_str(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
 
 
 def capture_summary_path(trajectory_dir: Path) -> Path:
@@ -328,8 +419,13 @@ def save_step_artifacts(
                 "visibility_vec": capture.visibility_vec,
                 "background_color": list(capture.background_color),
                 "has_damage": capture.has_damage,
+                "page_url": capture.page_url,
                 "issue_class": capture.issue_class,
                 "issue_message": capture.issue_message,
+                "match_found": capture.match_found,
+                "match_offset": capture.match_offset,
+                "matched_witness_id": capture.matched_witness_id,
+                "matched_witness_text": capture.matched_witness_text,
                 "clip": {
                     "x": capture.clip.x,
                     "y": capture.clip.y,

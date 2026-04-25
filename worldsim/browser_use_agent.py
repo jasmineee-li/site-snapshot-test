@@ -111,6 +111,7 @@ class AgentRunner(Protocol):
         benchmark_root: Path | None = None,
         task_site: str | None = None,
         payload_text: str | None = None,
+        payload_witnesses: list[str] | None = None,
         pvpo_cdp_url: str | None = None,
     ) -> AgentResult: ...
 
@@ -1377,6 +1378,7 @@ class BrowserUseAgent:
         benchmark_root: Path | None = None,
         task_site: str | None = None,
         payload_text: str | None = None,
+        payload_witnesses: list[str] | None = None,
         pvpo_cdp_url: str | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
@@ -1504,6 +1506,7 @@ class BrowserUseAgent:
                     self._session,
                     task_dir,
                     payload_text,
+                    payload_witnesses=payload_witnesses,
                     owned_target_ids=self._owned_target_ids,
                     capturing=capturing,
                 )
@@ -1988,6 +1991,7 @@ def _make_pvpo_step_callback(
     task_dir: Path,
     payload_text: str | None,
     *,
+    payload_witnesses: list[str] | None = None,
     owned_target_ids: set[str] | None = None,
     capturing: asyncio.Event | None = None,
 ):
@@ -2012,15 +2016,15 @@ def _make_pvpo_step_callback(
     ``_copy_history_screenshots`` after the agent finishes, and encounter
     detection reports zero coverage — routing to placement-fix.
 
-    When ``payload_text`` is None or empty, PVPO capture is disabled (we
-    have nothing to locate in the DOM). This is the benign-task / no-seed
-    case.
+    When ``payload_text`` and ``payload_witnesses`` are both absent, PVPO
+    capture is disabled (we have nothing to locate in the DOM). This is the
+    benign-task / no-seed case.
 
     See ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3 and
     the Implementation Status section documenting the content-match
     anchor strategy.
     """
-    if not payload_text:
+    if not payload_text and not payload_witnesses:
         from worldsim.phase_4.pvpo_capture import initial_capture_summary, save_capture_summary
 
         save_capture_summary(task_dir, initial_capture_summary(payload_present=False))
@@ -2164,6 +2168,7 @@ def _make_pvpo_step_callback(
                 cdp_session,
                 viewport_rect=viewport_rect,
                 payload_text=payload_text,
+                witness_texts=payload_witnesses,
                 capturing=capturing,
                 cdp_timeout_s=timeout_s,
             )
