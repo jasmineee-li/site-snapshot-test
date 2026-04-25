@@ -1547,6 +1547,13 @@ class _ReadSurfaceEditor(_FakeEditor):
         return {
             "forum_name": forum_name,
             "submission_id": "59421",
+            "created_resource": {
+                "role": "seed_render_surface",
+                "kind": "submission",
+                "id": "59421",
+                "url": "http://reddit.test/f/books/59421",
+                "parent_url": "http://reddit.test/f/books",
+            },
             "read_surface_urls": [
                 "http://reddit.test/f/books/59421",
                 "/f/books/59421",
@@ -1776,6 +1783,15 @@ def test_apply_data_seed_hoists_write_tokens_into_metadata(monkeypatch):
     cleanup_handle.cleanup()
     assert metadata.get("submission_id") == "59421"
     assert metadata.get("comment_id") == "901"
+    assert metadata["created_resource"] == {
+        "role": "seed_render_surface",
+        "kind": "submission",
+        "id": "59421",
+        "url": "http://reddit.test/f/books/59421",
+        "parent_url": "http://reddit.test/f/books",
+        "editor_method": "reddit.create_submission",
+    }
+    assert metadata["created_resources"] == [metadata["created_resource"]]
     # Other token slots stay absent when the editor doesn't emit them.
     assert "note_id" not in metadata
     assert "review_id" not in metadata

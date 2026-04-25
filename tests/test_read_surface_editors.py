@@ -189,6 +189,13 @@ def test_reddit_create_submission_emits_host_and_path_forms(monkeypatch):
         "http://reddit.test/f/books/59421",
         "/f/books/59421",
     ]
+    assert result["created_resource"] == {
+        "role": "seed_render_surface",
+        "kind": "submission",
+        "id": "59421",
+        "url": "http://reddit.test/f/books/59421",
+        "parent_url": "http://reddit.test/f/books",
+    }
     assert result["read_surface_provenance_source"] == "editor_constructed"
 
 
@@ -224,6 +231,13 @@ class _RecordingFakeEditor:
         return {
             "forum_name": forum_name,
             "submission_id": "9999",
+            "created_resource": {
+                "role": "seed_render_surface",
+                "kind": "submission",
+                "id": "9999",
+                "url": f"http://fake.test/f/{forum_name}/9999",
+                "parent_url": f"http://fake.test/f/{forum_name}",
+            },
             "read_surface_urls": [
                 f"http://fake.test/f/{forum_name}/9999",
                 f"/f/{forum_name}/9999",
@@ -287,6 +301,15 @@ def test_apply_data_seed_returns_tuple_with_metadata(monkeypatch):
         "http://fake.test/f/books/9999",
         "/f/books/9999",
     ]
+    assert metadata["created_resource"] == {
+        "role": "seed_render_surface",
+        "kind": "submission",
+        "id": "9999",
+        "url": "http://fake.test/f/books/9999",
+        "parent_url": "http://fake.test/f/books",
+        "editor_method": "reddit.create_submission",
+    }
+    assert metadata["created_resources"] == [metadata["created_resource"]]
     assert metadata["read_surface_provenance"]["source"] == "editor_constructed"
     # §12.9: editor_method is a list so multi-call seeds can attribute each
     # contribution; single-call seeds land as a one-element list.

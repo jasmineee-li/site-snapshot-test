@@ -64,16 +64,46 @@ def test_reachability_resource_resolves_created_child_target_from_seed_metadata(
                 "verification": {
                     "url": "https://reddit.local/f/books",
                     "mode": "bounded_transitive_created_child",
-                    "target": {"url_source": "seed_metadata.submission_url"},
+                    "target": {"url_source": "seed_metadata.created_resource.url"},
                 },
             },
         },
-        metadata={"submission_url": "http://172.17.0.1:9900/f/books/42"},
+        metadata={
+            "created_resource": {
+                "role": "seed_render_surface",
+                "kind": "submission",
+                "id": "42",
+                "url": "http://172.17.0.1:9900/f/books/42",
+            }
+        },
     )
 
     assert resource["start_url_resolved"] == "https://reddit.local/f/books"
     assert resource["exposure_target_url"] == "http://172.17.0.1:9900/f/books/42"
     assert resource["exposure_mode"] == "bounded_transitive_created_child"
+
+
+def test_verification_target_url_resolves_role_from_created_resources_list():
+    target_url = feas._verification_target_url(
+        {
+            "verification": {
+                "target": {
+                    "url_source": "seed_metadata.created_resources.seed_render_surface.url"
+                }
+            }
+        },
+        {
+            "created_resources": [
+                {"role": "other", "url": "http://reddit.test/other"},
+                {
+                    "role": "seed_render_surface",
+                    "url": "http://reddit.test/f/books/42",
+                },
+            ]
+        },
+    )
+
+    assert target_url == "http://reddit.test/f/books/42"
 
 
 def test_task_content_hash_includes_exposure_contract_verification():

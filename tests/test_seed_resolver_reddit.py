@@ -218,6 +218,13 @@ def test_create_submission_backfills_required_media_type(monkeypatch):
         "forum_name": "books",
         "submission_id": "123",
         "submission_url": "http://reddit.test/f/books/123",
+        "created_resource": {
+            "role": "seed_render_surface",
+            "kind": "submission",
+            "id": "123",
+            "url": "http://reddit.test/f/books/123",
+            "parent_url": "http://reddit.test/f/books",
+        },
         "read_surface_urls": [
             "http://reddit.test/f/books/123",
             "/f/books/123",

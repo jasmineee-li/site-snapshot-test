@@ -46,7 +46,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 1,
+        "version": 2,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -56,6 +56,7 @@ def exposure_contract_signature() -> dict[str, Any]:
         ],
         "payload_arg_preference": list(PREFERRED_PAYLOAD_ARGS),
         "token_preference": list(PREFERRED_TOKEN_ORDER),
+        "created_child_target_source": "seed_metadata.created_resource.url",
     }
 
 
@@ -231,7 +232,7 @@ def _verification_contract(
         }
     elif mode == "bounded_transitive_created_child":
         verification["target"] = {
-            "url_source": "seed_metadata.submission_url",
+            "url_source": "seed_metadata.created_resource.url",
             "role": "seed_render_surface",
         }
         verification["transition"] = {

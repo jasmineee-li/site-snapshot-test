@@ -1012,10 +1012,33 @@ def _verification_target_url(contract: dict[str, Any], metadata: dict[str, Any])
     if not isinstance(source, str) or not source.startswith("seed_metadata."):
         return None
     key = source.removeprefix("seed_metadata.")
-    value = metadata.get(key)
+    value = _metadata_path_value(metadata, key)
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
+
+
+def _metadata_path_value(metadata: dict[str, Any], path: str) -> Any:
+    current: Any = metadata
+    for part in path.split("."):
+        if isinstance(current, dict):
+            current = current.get(part)
+            continue
+        if isinstance(current, list):
+            selected: Any = None
+            if part.isdigit():
+                index = int(part)
+                if 0 <= index < len(current):
+                    selected = current[index]
+            else:
+                for item in current:
+                    if isinstance(item, dict) and item.get("role") == part:
+                        selected = item
+                        break
+            current = selected
+            continue
+        return None
+    return current
 
 
 def _required_url_token(task: dict[str, Any]) -> str | None:

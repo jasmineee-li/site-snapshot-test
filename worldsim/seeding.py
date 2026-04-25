@@ -345,6 +345,7 @@ def apply_data_seed(
     cleanup_handle: SeedCleanupHandle | None = None
     read_surface_accumulator: list[str] = []
     read_surface_provenance: dict[str, Any] = {}
+    created_resource_accumulator: list[dict[str, Any]] = []
     try:
         if mechanism in {"api", "form"}:
             _perform_web_login_if_needed(session, instance, mechanism)
@@ -366,6 +367,7 @@ def apply_data_seed(
                 editor_instances=editor_instances,
                 read_surface_accumulator=read_surface_accumulator,
                 read_surface_provenance=read_surface_provenance,
+                created_resource_accumulator=created_resource_accumulator,
             )
         metadata: dict[str, Any] = {}
         # Handoff §5.5: task-author explicit override unions with editor
@@ -402,6 +404,10 @@ def apply_data_seed(
                 metadata["read_surface_provenance"] = provenance
             elif read_surface_provenance:
                 metadata["read_surface_provenance"] = read_surface_provenance
+        created_resources = _dedupe_created_resources(created_resource_accumulator)
+        if created_resources:
+            metadata["created_resources"] = created_resources
+            metadata["created_resource"] = _primary_created_resource(created_resources)
         # Hoist authoritative write-identifier tokens from the merged
         # seed_context into metadata so downstream verifiers (render-check
         # read-your-write fastpath) can match server-reported IDs instead
@@ -881,6 +887,7 @@ def _apply_editor_seed_call(
     editor_instances: dict[tuple[str, str], Any],
     read_surface_accumulator: list[str] | None = None,
     read_surface_provenance: dict[str, Any] | None = None,
+    created_resource_accumulator: list[dict[str, Any]] | None = None,
 ) -> None:
     from datetime import UTC, datetime
 
@@ -899,20 +906,28 @@ def _apply_editor_seed_call(
     )
     method_name = str(rendered["method"]).strip()
     args = rendered["args"]
+    editor_site_name = str(getattr(editor, "site_name", rendered.get("site") or "")).strip()
     if method_name.startswith("_") or method_name not in editor.supported_methods:
         raise EditorError(
             "unsupported_method",
-            f"{editor.site_name} editor does not support method {method_name!r}",
+            f"{editor_site_name} editor does not support method {method_name!r}",
         )
     editor.validate_args(method_name, args)
     editor_method = getattr(editor, method_name, None)
     if not callable(editor_method):
         raise EditorError(
             "unsupported_method",
-            f"{editor.site_name} editor does not support method {method_name!r}",
+            f"{editor_site_name} editor does not support method {method_name!r}",
         )
     result = editor_method(**args)
     if isinstance(result, dict):
+        if created_resource_accumulator is not None:
+            created_resource_accumulator.extend(
+                _created_resources_from_editor_result(
+                    result,
+                    editor_method=f"{editor_site_name}.{method_name}",
+                )
+            )
         # C1b read-surface URLs must NOT round-trip through seed_context
         # (namespace-flat; multi-call seeds would clobber each other — §12.9).
         surface_urls = result.get("read_surface_urls")
@@ -929,7 +944,7 @@ def _apply_editor_seed_call(
             provenance_source = str(
                 result.get("read_surface_provenance_source") or "editor_api_response"
             )
-            editor_method_str = f"{editor.site_name}.{method_name}"
+            editor_method_str = f"{editor_site_name}.{method_name}"
             if not read_surface_provenance:
                 read_surface_provenance.update(
                     {
@@ -964,6 +979,69 @@ def _apply_editor_seed_call(
                 _merge_seed_context(seed_context, sanitized)
         else:
             _merge_seed_context(seed_context, result)
+
+
+def _created_resources_from_editor_result(
+    result: dict[str, Any],
+    *,
+    editor_method: str,
+) -> list[dict[str, Any]]:
+    """Extract generic created-resource descriptors from an editor result.
+
+    Editors own site-specific write semantics. Callers should not need to
+    know that a Postmill-created resource is called a submission or that a
+    GitLab-created resource is called an issue. This helper preserves the
+    editor-declared, generic transition targets that Phase 2c can later use
+    for exposure verification.
+    """
+    raw_items: list[Any] = []
+    raw_single = result.get("created_resource")
+    if isinstance(raw_single, dict):
+        raw_items.append(raw_single)
+    raw_many = result.get("created_resources")
+    if isinstance(raw_many, list):
+        raw_items.extend(raw_many)
+
+    resources: list[dict[str, Any]] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        resource: dict[str, Any] = {}
+        for key in ("role", "kind", "id", "url", "parent_url"):
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                resource[key] = value.strip()
+            elif key == "id" and value not in (None, ""):
+                resource[key] = str(value)
+        if not isinstance(resource.get("url"), str):
+            continue
+        resource.setdefault("role", "created_resource")
+        resource["editor_method"] = editor_method
+        resources.append(resource)
+    return resources
+
+
+def _dedupe_created_resources(resources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for resource in resources:
+        key = (
+            str(resource.get("role") or ""),
+            str(resource.get("kind") or ""),
+            str(resource.get("url") or ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(dict(resource))
+    return deduped
+
+
+def _primary_created_resource(resources: list[dict[str, Any]]) -> dict[str, Any]:
+    for resource in resources:
+        if resource.get("role") == "seed_render_surface":
+            return dict(resource)
+    return dict(resources[-1])
 
 
 def _call_reference(call: dict[str, Any]) -> str | None:

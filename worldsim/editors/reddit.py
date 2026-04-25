@@ -260,10 +260,18 @@ class RedditEditor(BaseSiteEditor):
             refresh_on_rejection=build_form_submission,
         )
         submission_id = self._extract_submission_id(response)
+        submission_url = f"{self._site_url()}/f/{forum_name}/{submission_id}"
         return {
             "forum_name": forum_name,
             "submission_id": submission_id,
-            "submission_url": f"{self._site_url()}/f/{forum_name}/{submission_id}",
+            "submission_url": submission_url,
+            "created_resource": {
+                "role": "seed_render_surface",
+                "kind": "submission",
+                "id": submission_id,
+                "url": submission_url,
+                "parent_url": f"{self._site_url()}/f/{forum_name}",
+            },
             "read_surface_urls": _reddit_surface_urls(
                 self._site_url(), [f"/f/{forum_name}/{submission_id}"]
             ),

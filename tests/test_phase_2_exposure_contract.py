@@ -152,4 +152,6 @@ def test_reddit_forum_builds_created_child_contract_from_registry():
     assert contract["editor_method"] == "create_submission"
     assert contract["payload_arg"] == "body"
     assert contract["verification"]["entry"]["url"] == "https://reddit.local/f/deeplearning"
-    assert contract["verification"]["target"]["url_source"] == "seed_metadata.submission_url"
+    assert contract["verification"]["target"]["url_source"] == (
+        "seed_metadata.created_resource.url"
+    )
