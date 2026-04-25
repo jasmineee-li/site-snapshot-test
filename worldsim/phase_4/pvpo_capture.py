@@ -105,6 +105,7 @@ async def atomic_capture_with_visibility(
     viewport_rect: Rect,
     payload_text: str = "",
     capturing: asyncio.Event | None = None,
+    cdp_timeout_s: float | None = None,
 ) -> StepCapture:
     """Run the virtual-time-paused visibility query + ``beginFrame`` screenshot.
 
@@ -126,6 +127,9 @@ async def atomic_capture_with_visibility(
             so the pump pauses its own ``beginFrame`` ticks while this
             atomic capture is in flight. Set on entry, cleared in
             ``finally`` regardless of success.
+        cdp_timeout_s: optional timeout applied to each CDP command. The
+            Phase 4 Browser-Use callback sets this so saturated hosts degrade
+            PVPO capture instead of spending the whole 180s Browser-Use step.
 
     Returns:
         :class:`StepCapture` with decoded PNG bytes, the raw visibility
@@ -141,6 +145,13 @@ async def atomic_capture_with_visibility(
     """
     query_js = build_pvpo_query_js(payload_text)
     cdp = normalize_cdp_session(cdp_session)
+
+    async def _send(method: str, params: dict[str, Any]) -> dict[str, Any]:
+        request = cdp.send(method, params)
+        if cdp_timeout_s is None:
+            return await request
+        return await asyncio.wait_for(request, timeout=cdp_timeout_s)
+
     # The pump attaches an ``asyncio.Lock`` to the capturing Event so the
     # atomic capture and the pump can serialize their beginFrame calls.
     # Older callers that passed a bare Event without the attribute still
@@ -149,9 +160,9 @@ async def atomic_capture_with_visibility(
     beginframe_lock = getattr(capturing, "beginframe_lock", None) if capturing is not None else None
     if capturing is not None:
         capturing.set()
-    await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
     try:
-        raw = await cdp.send(
+        await _send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
+        raw = await _send(
             "Runtime.evaluate",
             {"expression": query_js, "returnByValue": True, "awaitPromise": True},
         )
@@ -172,9 +183,9 @@ async def atomic_capture_with_visibility(
         }
         if beginframe_lock is not None:
             async with beginframe_lock:
-                frame = await cdp.send("HeadlessExperimental.beginFrame", begin_frame_params)
+                frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
         else:
-            frame = await cdp.send("HeadlessExperimental.beginFrame", begin_frame_params)
+            frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
 
         has_damage = bool(frame.get("hasDamage", True))
         if not has_damage:
@@ -186,7 +197,9 @@ async def atomic_capture_with_visibility(
         screenshot_png = base64.b64decode(png_b64) if png_b64 else b""
     finally:
         try:
-            await cdp.send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
+            await _send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
+        except Exception as exc:
+            logger.warning("pvpo: failed to resume virtual time after capture: %s", exc)
         finally:
             if capturing is not None:
                 capturing.clear()

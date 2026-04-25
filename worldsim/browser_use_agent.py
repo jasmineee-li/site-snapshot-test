@@ -70,6 +70,8 @@ _CDP_VIEWPORT_JS = """
   h: Math.max(0, Number(window.innerHeight || 0))
 }))()
 """
+_PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
+_PVPO_CDP_TIMEOUT_DEFAULT_S = 5.0
 _CLEAR_PAGE_STORAGE_JS = """
 (() => {
   try { window.localStorage.clear(); } catch (_) {}
@@ -1073,11 +1075,61 @@ def _validate_storage_state_for_site(path: Path, site_url: str | None) -> None:
         raise AuthArtifactMissingError(error)
 
 
-def _storage_state_context_value(path: Path) -> str | dict[str, Any]:
+def _storage_state_context_value(path: Path, *, runtime_dir: Path | None = None) -> str:
+    """Return a Browser-Use storage_state path after validating/normalizing JSON.
+
+    Browser-Use accepts inline dicts for initial auth, but its
+    StorageStateWatchdog needs a real file path for save-back. Phase 4 also
+    runs many workers concurrently, so when a task directory is available we
+    materialize a per-task copy instead of letting workers race on the shared
+    Phase 0d artifact.
+    """
     storage_state, error = playwright_storage_state(path)
     if error is not None:
         raise AuthArtifactMissingError(error)
-    return storage_state
+    if not isinstance(storage_state, dict):
+        return str(storage_state)
+    if runtime_dir is None:
+        target = path
+    else:
+        target = runtime_dir / "storage_state.json"
+    write_json_atomic(target, storage_state)
+    return str(target.resolve())
+
+
+def _pvpo_cdp_timeout_s() -> float:
+    raw = os.environ.get(_PVPO_CDP_TIMEOUT_ENV, "").strip()
+    if not raw:
+        return _PVPO_CDP_TIMEOUT_DEFAULT_S
+    try:
+        timeout_s = float(raw)
+    except ValueError:
+        logger.warning(
+            "%s=%r is not a number; using %.1fs",
+            _PVPO_CDP_TIMEOUT_ENV,
+            raw,
+            _PVPO_CDP_TIMEOUT_DEFAULT_S,
+        )
+        return _PVPO_CDP_TIMEOUT_DEFAULT_S
+    if timeout_s <= 0:
+        logger.warning(
+            "%s=%r is not positive; using %.1fs",
+            _PVPO_CDP_TIMEOUT_ENV,
+            raw,
+            _PVPO_CDP_TIMEOUT_DEFAULT_S,
+        )
+        return _PVPO_CDP_TIMEOUT_DEFAULT_S
+    return timeout_s
+
+
+async def _await_pvpo_cdp(awaitable: Any, *, timeout_s: float) -> Any:
+    return await asyncio.wait_for(awaitable, timeout=timeout_s)
+
+
+def _pvpo_issue_message(exc: BaseException, *, timeout_s: float) -> str:
+    if isinstance(exc, TimeoutError):
+        return f"timed out after {timeout_s:.2f}s"
+    return str(exc)
 
 
 # Stable enum of first-batch implementations. Types outside this set are schema-
@@ -1092,6 +1144,7 @@ def _resolve_auth(
     task: dict[str, Any] | None,
     benchmark_root: Path | None,
     site_url: str | None = None,
+    storage_state_runtime_dir: Path | None = None,
 ) -> tuple[dict[str, Any], list[Any]]:
     """Translate an ``auth_mechanism`` dict into BrowserSession kwargs + deferred actions.
 
@@ -1165,7 +1218,10 @@ def _resolve_auth(
         if path is not None and path.exists():
             error = _storage_state_site_error(path, site_url)
             if error is None:
-                session_kwargs["storage_state"] = _storage_state_context_value(path)
+                session_kwargs["storage_state"] = _storage_state_context_value(
+                    path,
+                    runtime_dir=storage_state_runtime_dir,
+                )
                 return session_kwargs, deferred_actions
             declared_error = AuthArtifactMissingError(error)
 
@@ -1175,7 +1231,10 @@ def _resolve_auth(
         if bootstrap_path is not None:
             try:
                 _validate_storage_state_for_site(bootstrap_path, site_url)
-                session_kwargs["storage_state"] = _storage_state_context_value(bootstrap_path)
+                session_kwargs["storage_state"] = _storage_state_context_value(
+                    bootstrap_path,
+                    runtime_dir=storage_state_runtime_dir,
+                )
                 return session_kwargs, deferred_actions
             except AuthArtifactMissingError as exc:
                 bootstrap_error = exc
@@ -1351,6 +1410,7 @@ class BrowserUseAgent:
             task=resolve_task,
             benchmark_root=benchmark_root,
             site_url=server_url,
+            storage_state_runtime_dir=task_dir / "auth",
         )
         auth_sensitive_header_names = _auth_sensitive_header_names(auth_mechanism)
         if deferred_auth_actions and len(start_urls or []) > 1:
@@ -2002,12 +2062,17 @@ def _make_pvpo_step_callback(
         save_capture_summary(task_dir, capture_summary)
 
     async def _callback(state_summary: Any, agent_output: Any, step_idx: int) -> None:
+        timeout_s = _pvpo_cdp_timeout_s()
         capture_summary["steps_seen"] += 1
         save_capture_summary(task_dir, capture_summary)
         try:
-            page = await session.get_current_page()
+            page = await _await_pvpo_cdp(session.get_current_page(), timeout_s=timeout_s)
         except Exception as exc:  # pragma: no cover - CDP unavailable
-            _record_issue("current_page_unavailable", step_idx, str(exc))
+            _record_issue(
+                "current_page_unavailable",
+                step_idx,
+                _pvpo_issue_message(exc, timeout_s=timeout_s),
+            )
             return
         if page is None:
             _record_issue(
@@ -2022,20 +2087,37 @@ def _make_pvpo_step_callback(
         if owned_target_ids is not None:
             owned_target_ids.add(target_id)
         try:
-            cdp_session = await session.get_or_create_cdp_session(target_id=target_id, focus=False)
+            cdp_session = await _await_pvpo_cdp(
+                session.get_or_create_cdp_session(target_id=target_id, focus=False),
+                timeout_s=timeout_s,
+            )
         except Exception as exc:  # pragma: no cover - CDP unavailable
-            _record_issue("cdp_session_unavailable", step_idx, str(exc))
+            _record_issue(
+                "cdp_session_unavailable",
+                step_idx,
+                _pvpo_issue_message(exc, timeout_s=timeout_s),
+            )
             return
 
         try:
             if target_id not in pages_prepared:
-                await inject_animation_killer(page, cdp_session)
+                await _await_pvpo_cdp(
+                    inject_animation_killer(page, cdp_session),
+                    timeout_s=timeout_s,
+                )
                 pages_prepared.add(target_id)
         except Exception as exc:
-            _record_issue("animation_killer_failed", step_idx, str(exc))
+            _record_issue(
+                "animation_killer_failed",
+                step_idx,
+                _pvpo_issue_message(exc, timeout_s=timeout_s),
+            )
 
         try:
-            viewport = await runtime_evaluate_value(cdp_session, _CDP_VIEWPORT_JS)
+            viewport = await _await_pvpo_cdp(
+                runtime_evaluate_value(cdp_session, _CDP_VIEWPORT_JS),
+                timeout_s=timeout_s,
+            )
             if not isinstance(viewport, dict):
                 raise RuntimeError(
                     f"viewport probe returned {type(viewport).__name__}, expected object"
@@ -2051,6 +2133,7 @@ def _make_pvpo_step_callback(
                 viewport_rect=viewport_rect,
                 payload_text=payload_text,
                 capturing=capturing,
+                cdp_timeout_s=timeout_s,
             )
             save_step_artifacts(task_dir, step_idx, capture)
             if capture.issue_class is not None:
@@ -2061,7 +2144,11 @@ def _make_pvpo_step_callback(
                 )
             _record_capture_success(step_idx, capture.issue_class)
         except Exception as exc:
-            _record_issue("capture_failed", step_idx, str(exc))
+            _record_issue(
+                "capture_failed",
+                step_idx,
+                _pvpo_issue_message(exc, timeout_s=timeout_s),
+            )
 
     return _callback
 

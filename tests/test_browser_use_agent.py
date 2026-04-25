@@ -112,8 +112,10 @@ def test_resolve_auth_falls_back_when_declared_storage_state_is_wrong_host(
         site_url="http://gitlab.example",
     )
 
-    assert session_kwargs["storage_state"]["cookies"][0]["domain"] == "gitlab.example"
-    assert session_kwargs["storage_state"]["cookies"][0]["sameSite"] == "Lax"
+    storage_state = json.loads(Path(session_kwargs["storage_state"]).read_text())
+    assert Path(session_kwargs["storage_state"]) == fallback.resolve()
+    assert storage_state["cookies"][0]["domain"] == "gitlab.example"
+    assert storage_state["cookies"][0]["sameSite"] == "Lax"
     assert deferred == []
 
 
@@ -134,7 +136,34 @@ def test_resolve_auth_prefers_valid_declared_storage_state_over_fallback(
         site_url="http://gitlab.example",
     )
 
-    assert session_kwargs["storage_state"]["cookies"][0]["domain"] == "gitlab.example"
+    storage_state = json.loads(Path(session_kwargs["storage_state"]).read_text())
+    assert Path(session_kwargs["storage_state"]) == declared.resolve()
+    assert storage_state["cookies"][0]["domain"] == "gitlab.example"
+    assert deferred == []
+
+
+def test_resolve_auth_materializes_per_task_storage_state_copy(
+    tmp_path: Path,
+):
+    declared = tmp_path / "declared.json"
+    runtime_dir = tmp_path / "task" / "auth"
+    _write_storage_state(declared, domain="gitlab.example")
+
+    session_kwargs, deferred = browser_use_agent._resolve_auth(
+        {"type": "storage_state", "storage_state": {"path": str(declared)}},
+        {"site": "gitlab"},
+        benchmark_root=tmp_path,
+        site_url="http://gitlab.example",
+        storage_state_runtime_dir=runtime_dir,
+    )
+
+    runtime_path = Path(session_kwargs["storage_state"])
+    assert runtime_path == (runtime_dir / "storage_state.json").resolve()
+    assert runtime_path.exists()
+    runtime_payload = json.loads(runtime_path.read_text())
+    source_payload = json.loads(declared.read_text())
+    assert runtime_payload["cookies"][0]["sameSite"] == "Lax"
+    assert "sameSite" not in source_payload["cookies"][0]
     assert deferred == []
 
 
@@ -263,6 +292,7 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
         viewport_rect=Rect(x=0, y=0, w=640, h=480),
         payload_text="payload text",
         capturing=None,
+        cdp_timeout_s=5.0,
     )
 
     summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
@@ -271,6 +301,33 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
     assert summary["steps_captured"] == 1
     assert (tmp_path / "pvpo" / "step_1.json").exists()
     assert (tmp_path / "screenshots" / "step_1.png").read_bytes() == b"png-bytes"
+
+
+@pytest.mark.asyncio
+async def test_pvpo_callback_degrades_on_cdp_timeout(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class SlowSession:
+        async def get_current_page(self):
+            await asyncio.sleep(0.05)
+            return SimpleNamespace()
+
+    monkeypatch.setenv("WORLDSIM_PVPO_CDP_TIMEOUT_S", "0.01")
+    callback = browser_use_agent._make_pvpo_step_callback(
+        SlowSession(),
+        tmp_path,
+        "payload text",
+    )
+
+    await callback(SimpleNamespace(), SimpleNamespace(), 1)
+
+    summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
+    assert summary["status"] == "degraded"
+    assert summary["steps_seen"] == 1
+    assert summary["steps_captured"] == 0
+    assert summary["first_issue_class"] == "current_page_unavailable"
+    assert "timed out after 0.01s" in summary["first_issue_message"]
 
 
 @pytest.mark.asyncio
