@@ -195,6 +195,7 @@ class ReachabilityOutcome:
     url_tried: str
     witnesses_matched: tuple[str, ...]
     witnesses_missing: tuple[str, ...]
+    path_evidence: dict[str, Any] | None = None
 
     @classmethod
     def direct(cls, *, url: str, witnesses_matched: tuple[str, ...]) -> ReachabilityOutcome:
@@ -205,6 +206,30 @@ class ReachabilityOutcome:
             url_tried=url,
             witnesses_matched=witnesses_matched,
             witnesses_missing=(),
+        )
+
+    @classmethod
+    def transitive(
+        cls,
+        *,
+        entry_url: str,
+        target_url: str,
+        edge_href: str,
+        witnesses_matched: tuple[str, ...],
+    ) -> ReachabilityOutcome:
+        return cls(
+            reachability="reachable_transitively",
+            kind="",
+            detail="both witnesses present after bounded transition from entry URL",
+            url_tried=target_url,
+            witnesses_matched=witnesses_matched,
+            witnesses_missing=(),
+            path_evidence={
+                "entry_url": entry_url,
+                "target_url": target_url,
+                "edge_href": edge_href,
+                "depth": 1,
+            },
         )
 
     @classmethod
@@ -239,6 +264,8 @@ class ReachabilityOutcome:
             out["witnesses_matched"] = list(self.witnesses_matched)
         if self.witnesses_missing:
             out["witnesses_missing"] = list(self.witnesses_missing)
+        if self.path_evidence:
+            out["path_evidence"] = dict(self.path_evidence)
         return out
 
 
@@ -334,6 +361,104 @@ def resolve_start_url(
 
 def _selector_for_kind(kind: str) -> str | None:
     return _SITE_SELECTORS.get(kind)
+
+
+def _same_origin_url(left: str, right: str) -> bool:
+    try:
+        left_parts = urlsplit(left)
+        right_parts = urlsplit(right)
+    except Exception:
+        return False
+    return (
+        left_parts.scheme.lower(),
+        left_parts.netloc.lower(),
+    ) == (
+        right_parts.scheme.lower(),
+        right_parts.netloc.lower(),
+    )
+
+
+def _normalized_path_for_compare(url: str) -> str:
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return ""
+    path = parsed.path or "/"
+    return path.rstrip("/") or "/"
+
+
+def _href_matches_target(href: str, target_url: str) -> bool:
+    if not href or not target_url or not _same_origin_url(href, target_url):
+        return False
+    href_path = _normalized_path_for_compare(href)
+    target_path = _normalized_path_for_compare(target_url)
+    if not href_path or not target_path:
+        return False
+    # GitLab issue/MR links usually match exactly. Postmill submission
+    # links often add a slug suffix after the numeric id, so allow a
+    # strict path-prefix match at a slash boundary in either direction.
+    return (
+        href_path == target_path
+        or href_path.startswith(f"{target_path}/")
+        or target_path.startswith(f"{href_path}/")
+    )
+
+
+async def _visible_target_anchor(page: Any, target_url: str) -> dict[str, str] | None:
+    try:
+        anchors = await page.locator("a[href]").evaluate_all(
+            """els => els.map((el) => ({
+                href: el.href || "",
+                text: (el.textContent || "").trim(),
+                visible: !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
+            }))"""
+        )
+    except Exception:
+        logger.debug("phase 2c reachability: failed to enumerate entry links", exc_info=True)
+        return None
+    if not isinstance(anchors, list):
+        return None
+    for anchor in anchors:
+        if not isinstance(anchor, Mapping):
+            continue
+        href = str(anchor.get("href") or "")
+        if not anchor.get("visible"):
+            continue
+        if _href_matches_target(href, target_url):
+            return {
+                "href": href,
+                "text": str(anchor.get("text") or "")[:200],
+            }
+    return None
+
+
+async def _wait_for_visible_target_anchor(
+    page: Any,
+    target_url: str,
+    timeout_ms: int,
+) -> dict[str, str] | None:
+    deadline = time.monotonic() + (timeout_ms / 1000.0)
+    while time.monotonic() < deadline:
+        edge = await _visible_target_anchor(page, target_url)
+        if edge is not None:
+            return edge
+        try:
+            await page.wait_for_timeout(_SEARCH_POLL_INTERVAL_MS)
+        except Exception:
+            break
+    return await _visible_target_anchor(page, target_url)
+
+
+async def _body_witness_match(page: Any, witnesses: Iterable[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    try:
+        body_text = await page.text_content("body") or ""
+    except Exception:
+        body_text = ""
+    normalized_body = _normalize_for_match(body_text)
+    witnesses_tuple = tuple(w for w in witnesses if isinstance(w, str) and w)
+    matched = tuple(w for w in witnesses_tuple if _normalize_for_match(w) in normalized_body)
+    missing = tuple(w for w in witnesses_tuple if _normalize_for_match(w) not in normalized_body)
+    return matched, missing
 
 
 def _normalize_for_match(text: str | None) -> str:
@@ -446,6 +571,10 @@ async def verify_reachable(
     witnesses = [signature]
     if second_witness and second_witness.lower() != signature.lower():
         witnesses.append(second_witness)
+    exposure_mode = str(benign_target_resource.get("exposure_mode") or "")
+    target_url = resolve_start_url(
+        benign_target_resource.get("exposure_target_url"), instance_site_url
+    )
 
     context_kwargs: dict[str, Any] = dict(browser_context_kwargs or {})
     scoped_extra_http_headers = _pop_scoped_extra_http_headers(context_kwargs)
@@ -511,25 +640,72 @@ async def verify_reachable(
             "gitlab_dashboard_list",
         }:
             await _wait_for_body_text(page, witnesses, selector_timeout_ms)
-        try:
-            body_text = await page.text_content("body") or ""
-        except Exception as exc:
-            return ReachabilityOutcome.unreachable(
-                kind="body_read_failed",
-                detail=f"text_content body: {exc.__class__.__name__}: {exc}",
-                url=start_url,
-            )
-        # Match render_check's whitespace-normalizing comparison
-        # (phase_2_render_check._normalize). Plain ``.lower()`` here
-        # missed 30+ witnesses_absent failures where the body had
-        # collapsed newlines / indented whitespace that did not line up
-        # with the raw signature's whitespace. Normalize both sides and
-        # the match behaves identically to render_check's.
-        normalized_body = _normalize_for_match(body_text)
-        matched = tuple(w for w in witnesses if _normalize_for_match(w) in normalized_body)
-        missing = tuple(w for w in witnesses if _normalize_for_match(w) not in normalized_body)
+        matched, missing = await _body_witness_match(page, witnesses)
         if not missing:
             return ReachabilityOutcome.direct(url=start_url, witnesses_matched=matched)
+        if exposure_mode.startswith("bounded_transitive"):
+            if not isinstance(target_url, str) or not target_url.strip():
+                return ReachabilityOutcome.unreachable(
+                    kind="no_transition_target",
+                    detail="bounded transitive exposure has no target URL",
+                    url=start_url,
+                    witnesses_matched=matched,
+                    witnesses_missing=missing,
+                )
+            edge = await _wait_for_visible_target_anchor(page, target_url, selector_timeout_ms)
+            if edge is None:
+                return ReachabilityOutcome.unreachable(
+                    kind="no_allowed_transition",
+                    detail="entry page has no visible same-origin link to exposure target",
+                    url=start_url,
+                    witnesses_matched=matched,
+                    witnesses_missing=missing,
+                )
+            try:
+                await page.goto(target_url, timeout=nav_timeout_ms, wait_until="commit")
+            except Exception as exc:
+                return ReachabilityOutcome.unreachable(
+                    kind="transition_nav_failed",
+                    detail=f"goto {target_url}: {exc.__class__.__name__}: {exc}",
+                    url=target_url,
+                    witnesses_matched=matched,
+                    witnesses_missing=missing,
+                )
+            target_selector = _selector_for_kind(kind)
+            if target_selector:
+                try:
+                    await page.wait_for_selector(target_selector, timeout=selector_timeout_ms)
+                except Exception:
+                    logger.debug(
+                        "phase 2c reachability: selector %r not found on transitive target %s",
+                        target_selector,
+                        target_url,
+                    )
+            if kind in {
+                "gitlab_issue",
+                "gitlab_mr",
+                "gitlab_search_result",
+                "gitlab_dashboard_list",
+            }:
+                await _wait_for_body_text(page, witnesses, selector_timeout_ms)
+            target_matched, target_missing = await _body_witness_match(page, witnesses)
+            if not target_missing:
+                return ReachabilityOutcome.transitive(
+                    entry_url=start_url,
+                    target_url=target_url,
+                    edge_href=edge["href"],
+                    witnesses_matched=target_matched,
+                )
+            return ReachabilityOutcome.unreachable(
+                kind="transitive_witnesses_absent",
+                detail=(
+                    f"target body missing {len(target_missing)}/{len(witnesses)} "
+                    "witnesses after bounded transition"
+                ),
+                url=target_url,
+                witnesses_matched=target_matched,
+                witnesses_missing=target_missing,
+            )
         return ReachabilityOutcome.unreachable(
             kind="witnesses_absent",
             detail=(

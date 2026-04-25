@@ -903,7 +903,7 @@ async def _run_reachability_check(
     substring for RYW passes. Second witness is derived from the seed
     body text via ``phase_2_reachability.derive_second_witness``.
     """
-    benign_target_resource = _reachability_resource_for_task(task)
+    benign_target_resource = _reachability_resource_for_task(task, metadata=metadata)
     site_url = str(instance.get("site_url") or "").strip()
     url_token = _required_url_token(task)
     if url_token is not None:
@@ -968,7 +968,11 @@ async def _run_reachability_check(
         return await _do()
 
 
-def _reachability_resource_for_task(task: dict[str, Any]) -> dict[str, Any] | None:
+def _reachability_resource_for_task(
+    task: dict[str, Any],
+    *,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
     """Project an exposure contract into the existing reachability probe shape."""
     resource = task.get("benign_target_resource")
     projected = dict(resource) if isinstance(resource, dict) else {}
@@ -981,6 +985,9 @@ def _reachability_resource_for_task(task: dict[str, Any]) -> dict[str, Any] | No
     )
     if isinstance(verification_url, str) and verification_url.strip():
         projected["start_url_resolved"] = verification_url
+    target_url = _verification_target_url(contract, metadata or {})
+    if target_url:
+        projected["exposure_target_url"] = target_url
     kind = contract.get("kind")
     if isinstance(kind, str) and kind.strip():
         projected["kind"] = kind
@@ -989,6 +996,26 @@ def _reachability_resource_for_task(task: dict[str, Any]) -> dict[str, Any] | No
     projected["exposure_contract_id"] = contract.get("contract_id")
     projected["exposure_mode"] = contract.get("mode")
     return projected
+
+
+def _verification_target_url(contract: dict[str, Any], metadata: dict[str, Any]) -> str | None:
+    verification = contract.get("verification")
+    if not isinstance(verification, dict):
+        return None
+    target = verification.get("target")
+    if not isinstance(target, dict):
+        return None
+    direct = target.get("url")
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip()
+    source = target.get("url_source")
+    if not isinstance(source, str) or not source.startswith("seed_metadata."):
+        return None
+    key = source.removeprefix("seed_metadata.")
+    value = metadata.get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
 
 
 def _required_url_token(task: dict[str, Any]) -> str | None:

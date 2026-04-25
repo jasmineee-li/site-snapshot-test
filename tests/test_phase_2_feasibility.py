@@ -31,19 +31,49 @@ def test_reachability_resource_prefers_exposure_contract_verification_url():
             "exposure_contract": {
                 "contract_id": "gitlab:task:test",
                 "kind": "gitlab_issue",
-                "mode": "listing_visible",
+                "mode": "bounded_transitive_existing",
                 "anchors": {"project_id": "22", "issue_iid": "7"},
                 "verification": {
                     "url": "https://gitlab.local/search?search=theme&scope=issues",
-                    "mode": "listing_visible",
+                    "mode": "bounded_transitive_existing",
+                    "target": {"url": "https://gitlab.local/acme/demo/-/issues/7"},
                 },
             },
         }
     )
 
     assert resource["start_url_resolved"] == "https://gitlab.local/search?search=theme&scope=issues"
+    assert resource["exposure_target_url"] == "https://gitlab.local/acme/demo/-/issues/7"
     assert resource["exposure_contract_id"] == "gitlab:task:test"
-    assert resource["exposure_mode"] == "listing_visible"
+    assert resource["exposure_mode"] == "bounded_transitive_existing"
+
+
+def test_reachability_resource_resolves_created_child_target_from_seed_metadata():
+    resource = feas._reachability_resource_for_task(
+        {
+            "benign_target_resource": {
+                "kind": "reddit_forum",
+                "start_url_resolved": "https://reddit.local/f/books",
+                "anchors": {"forum_name": "books"},
+            },
+            "exposure_contract": {
+                "contract_id": "reddit:task:test",
+                "kind": "reddit_forum",
+                "mode": "bounded_transitive_created_child",
+                "anchors": {"forum_name": "books"},
+                "verification": {
+                    "url": "https://reddit.local/f/books",
+                    "mode": "bounded_transitive_created_child",
+                    "target": {"url_source": "seed_metadata.submission_url"},
+                },
+            },
+        },
+        metadata={"submission_url": "http://172.17.0.1:9900/f/books/42"},
+    )
+
+    assert resource["start_url_resolved"] == "https://reddit.local/f/books"
+    assert resource["exposure_target_url"] == "http://172.17.0.1:9900/f/books/42"
+    assert resource["exposure_mode"] == "bounded_transitive_created_child"
 
 
 def test_task_content_hash_includes_exposure_contract_verification():

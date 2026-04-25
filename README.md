@@ -205,6 +205,11 @@ uv run python -m worldsim.main phase 4 --instances instances.json \
 uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 
+# On r5, regenerate instances from configs/benchmark_hosts/r5.yaml instead of
+# hand-editing IPs: the generated site_url values use orchestrator_host
+# (172.17.0.1), and Phase 0d must be re-minted against that same file so
+# storage_state cookie domains match the runtime host view.
+
 # Re-verify an already-generated dataset against a fresh dev host:
 uv run python -m worldsim.main phase 2c \
   --feasibility-instances instances.smoke.json

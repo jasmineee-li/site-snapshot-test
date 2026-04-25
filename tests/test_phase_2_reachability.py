@@ -30,6 +30,34 @@ def test_resolve_start_url_passthrough_when_live_url_empty():
     assert reach.resolve_start_url(url, "") == url
 
 
+def test_href_matches_target_allows_reddit_slug_suffix():
+    assert reach._href_matches_target(
+        "http://172.17.0.1:9900/f/books/42/a-useful-slug",
+        "http://172.17.0.1:9900/f/books/42",
+    )
+
+
+def test_href_matches_target_requires_same_origin():
+    assert not reach._href_matches_target(
+        "http://evil.example/f/books/42/a-useful-slug",
+        "http://172.17.0.1:9900/f/books/42",
+    )
+
+
+def test_transitive_outcome_records_path_evidence():
+    outcome = reach.ReachabilityOutcome.transitive(
+        entry_url="http://site/f/books",
+        target_url="http://site/f/books/42",
+        edge_href="http://site/f/books/42/a-slug",
+        witnesses_matched=("needle",),
+    )
+
+    assert outcome.reachability == "reachable_transitively"
+    evidence = outcome.evidence()
+    assert evidence["path_evidence"]["entry_url"] == "http://site/f/books"
+    assert evidence["path_evidence"]["depth"] == 1
+
+
 def test_gitlab_issue_selector_waits_on_note_element():
     # Regression for the reachability witness-timing bug: the previous
     # selector (``.issuable-list, .issue-details``) resolved as soon as

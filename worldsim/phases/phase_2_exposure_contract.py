@@ -12,6 +12,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
@@ -36,13 +37,23 @@ DIRECT_KINDS = frozenset({"gitlab_issue", "gitlab_mr", "reddit_submission"})
 LISTING_SOURCE_KINDS = frozenset(
     {"gitlab_search_result", "gitlab_dashboard_list", "reddit_forum", "reddit_dashboard_list"}
 )
+TRANSITIVE_EXISTING_SOURCE_KINDS = frozenset(
+    {"gitlab_search_result", "gitlab_dashboard_list", "reddit_dashboard_list"}
+)
+CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 
 
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
         "version": 1,
-        "modes": ["direct_detail", "listing_visible", "ineligible"],
+        "modes": [
+            "direct_detail",
+            "inline_listing",
+            "bounded_transitive_existing",
+            "bounded_transitive_created_child",
+            "ineligible",
+        ],
         "payload_arg_preference": list(PREFERRED_PAYLOAD_ARGS),
         "token_preference": list(PREFERRED_TOKEN_ORDER),
     }
@@ -80,12 +91,12 @@ def build_exposure_contract(
     if not isinstance(kind, str) or not kind:
         return base
 
-    mode = _mode_for_resource(resource, kind)
+    mode, ineligible_reason = _mode_for_resource(resource, kind)
     if mode == "ineligible":
         base["mode"] = "ineligible"
         base["eligibility"] = {
             "status": "ineligible",
-            "reason": f"kind_not_supported_for_exposure:{kind}",
+            "reason": ineligible_reason or f"kind_not_supported_for_exposure:{kind}",
         }
         return base
     if not base["benign_read_url"]:
@@ -107,6 +118,7 @@ def build_exposure_contract(
             continue
         payload_arg = template.pop("__payload_arg__")
         target_surface_id = spec.surface_id_per_kind.get(kind, spec.method)
+        verification = _verification_contract(resource, mode, base["benign_read_url"], kind)
         base.update(
             {
                 "mode": mode,
@@ -115,12 +127,7 @@ def build_exposure_contract(
                 "payload_arg": payload_arg,
                 "editor_args_template": template,
                 "required_tokens": sorted(available),
-                "verification": {
-                    "url": base["benign_read_url"],
-                    "mode": mode,
-                    "selector_hint": _selector_hint(kind, mode),
-                    "witness_policy": "signature_plus_second_witness",
-                },
+                "verification": verification,
                 "eligibility": {"status": "eligible"},
             }
         )
@@ -178,15 +185,93 @@ def _benign_read_url(resource: Mapping[str, Any]) -> str | None:
     return str(value) if isinstance(value, str) and value.strip() else None
 
 
-def _mode_for_resource(resource: Mapping[str, Any], kind: str) -> str:
+def _mode_for_resource(resource: Mapping[str, Any], kind: str) -> tuple[str, str | None]:
     source_kind = resource.get("source_listing_kind")
-    if isinstance(source_kind, str) and source_kind in LISTING_SOURCE_KINDS:
-        return "listing_visible"
+    if isinstance(source_kind, str) and source_kind in TRANSITIVE_EXISTING_SOURCE_KINDS:
+        if _transitive_entry_supported(source_kind, resource):
+            return "bounded_transitive_existing", None
+        return (
+            "ineligible",
+            f"unsupported_transitive_entry:{source_kind}",
+        )
     if kind in DIRECT_KINDS:
-        return "direct_detail"
+        return "direct_detail", None
+    if kind in CREATE_CHILD_LISTING_KINDS:
+        return "bounded_transitive_created_child", None
     if kind in LISTING_SOURCE_KINDS:
-        return "listing_visible"
-    return "ineligible"
+        return "inline_listing", None
+    return "ineligible", f"kind_not_supported_for_exposure:{kind}"
+
+
+def _verification_contract(
+    resource: Mapping[str, Any],
+    mode: str,
+    benign_read_url: str,
+    kind: str,
+) -> dict[str, Any]:
+    verification: dict[str, Any] = {
+        "url": benign_read_url,
+        "entry": {"url": benign_read_url, "role": "benign_entry"},
+        "mode": mode,
+        "selector_hint": _selector_hint(kind, mode),
+        "witness_policy": "signature_plus_second_witness",
+    }
+    if mode == "bounded_transitive_existing":
+        target_url = resource.get("seeded_detail_url") or resource.get("start_url_resolved")
+        if isinstance(target_url, str) and target_url.strip():
+            verification["target"] = {
+                "url": target_url,
+                "role": "seed_render_surface",
+            }
+        verification["transition"] = {
+            "type": "visible_link",
+            "max_depth": 1,
+            "same_origin": True,
+            "edge_role": _edge_role_for_kind(kind),
+        }
+    elif mode == "bounded_transitive_created_child":
+        verification["target"] = {
+            "url_source": "seed_metadata.submission_url",
+            "role": "seed_render_surface",
+        }
+        verification["transition"] = {
+            "type": "visible_link",
+            "max_depth": 1,
+            "same_origin": True,
+            "edge_role": "created_child_detail",
+        }
+    return verification
+
+
+def _edge_role_for_kind(kind: str) -> str:
+    if kind == "gitlab_issue":
+        return "issue_detail"
+    if kind == "gitlab_mr":
+        return "merge_request_detail"
+    if kind == "reddit_submission":
+        return "submission_detail"
+    return "detail"
+
+
+def _transitive_entry_supported(source_kind: str, resource: Mapping[str, Any]) -> bool:
+    url = resource.get("benign_read_url") or resource.get("start_url_resolved")
+    if not isinstance(url, str) or not url.strip():
+        return False
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return False
+    path = parsed.path or "/"
+    if source_kind == "gitlab_search_result":
+        # A project root is not a search/list surface. Admitting arbitrary
+        # project-root -> issue links reintroduces the commit-count bug:
+        # the agent can complete the benign task without reading issues.
+        return path == "/search" or path.endswith("/-/issues") or path.endswith("/-/merge_requests")
+    if source_kind == "gitlab_dashboard_list":
+        return path.startswith("/dashboard/")
+    if source_kind == "reddit_dashboard_list":
+        return path.startswith("/user/")
+    return False
 
 
 def _viable_specs(
@@ -341,6 +426,8 @@ def _selector_hint(kind: str, mode: str) -> str | None:
         return ".note, .timeline-entry, .issuable"
     if kind == "reddit_submission":
         return ".comment, .submission"
-    if mode == "listing_visible":
+    if mode == "inline_listing":
+        return ".issuable-list, .submission, body"
+    if mode.startswith("bounded_transitive"):
         return ".issuable-list, .submission, body"
     return None

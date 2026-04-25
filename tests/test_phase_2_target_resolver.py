@@ -16,6 +16,7 @@ from worldsim.phases.phase_2_target_resolver import (
     VIEWPORT_BUDGET_CHARS,
     _benign_probe_instance,
     derive_benign_target_resource,
+    resolve_tasks,
 )
 from worldsim.placeholders import placeholders_for_site_urls
 
@@ -785,7 +786,7 @@ def test_l4_mr_search_projects_to_mr_records():
     assert records[0]["anchors"]["mr_iid"] == "7"
 
 
-def test_l4_reddit_forum_expands_to_submission_records():
+def test_l4_reddit_forum_stays_forum_for_created_child_exposure():
     resource = {
         "kind": "reddit_forum",
         "anchors": {"forum_name": "books"},
@@ -794,17 +795,18 @@ def test_l4_reddit_forum_expands_to_submission_records():
         "encounter_requirements": {"viewport_budget_chars": 600},
         "layer": "L1",
     }
-    items = [
-        {"_item_kind": "reddit_submission", "id": "59421", "title": "Top paper on lithography"},
-        {"_item_kind": "reddit_submission", "id": "59422", "title": "Another one"},
-    ]
     records = asyncio.run(
-        resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=5)
+        resolve_l4(
+            resource,
+            {},
+            {"site_url": "x"},
+            probe_fn=_make_listing_probe(
+                [{"_item_kind": "reddit_submission", "id": "59421", "title": "ignored"}]
+            ),
+            top_n=5,
+        )
     )
-    assert [r["kind"] for r in records] == ["reddit_submission", "reddit_submission"]
-    assert records[0]["anchors"]["forum_name"] == "books"
-    assert records[0]["anchors"]["submission_id"] == "59421"
-    assert records[0]["attach_surfaces"][0]["surface_id"] == "comment_body_thread"
+    assert records == [resource]
 
 
 def test_l4_empty_probe_returns_empty_list_so_caller_excludes_task():
@@ -839,14 +841,44 @@ def test_l4_probe_exception_returns_error_record():
     assert "L4 probe raised" in records[0]["reason"]
 
 
+def test_resolve_tasks_does_not_l4_expand_reddit_forum():
+    task = _reddit_task(
+        task_id="forum-read",
+        eval_url=None,
+        start_urls=["__REDDIT__/f/books"],
+    )
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("reddit_forum should not require L4 listing probe")
+
+    out = asyncio.run(
+        resolve_tasks(
+            [task],
+            PLACEHOLDERS,
+            {"site_url": "https://reddit.local"},
+            listing_probe_fn=fail_if_called,
+        )
+    )
+    record = out["forum-read"][0]
+    assert record["kind"] == "reddit_forum"
+    assert record["anchors"] == {"forum_name": "books"}
+
+
 def test_l4_respects_top_n_override():
     resource = {
-        "kind": "reddit_forum",
-        "anchors": {"forum_name": "books"},
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "theme", "scope": "issues"},
         "layer": "L1",
     }
     items = [
-        {"_item_kind": "reddit_submission", "id": str(i), "title": f"post {i}"} for i in range(10)
+        {
+            "_item_kind": "gitlab_issue",
+            "project_id": 1,
+            "iid": str(i),
+            "web_url": f"https://gitlab.local/org/repo/-/issues/{i}",
+            "title": f"issue {i}",
+        }
+        for i in range(10)
     ]
     records = asyncio.run(
         resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=2)
@@ -856,15 +888,23 @@ def test_l4_respects_top_n_override():
 
 def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
     resource = {
-        "kind": "reddit_forum",
-        "anchors": {"forum_name": "books"},
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "theme", "scope": "issues"},
         "layer": "L1",
     }
     captured: dict[str, int] = {}
 
     async def fake_default_listing_probe(resource, task, instance, *, limit=None):
         captured["limit"] = limit
-        return [{"_item_kind": "reddit_submission", "id": "1", "title": "post 1"}]
+        return [
+            {
+                "_item_kind": "gitlab_issue",
+                "project_id": 1,
+                "iid": "1",
+                "web_url": "https://gitlab.local/org/repo/-/issues/1",
+                "title": "issue 1",
+            }
+        ]
 
     monkeypatch.setattr(
         "worldsim.phases.phase_2_target_resolver._default_listing_probe",
@@ -880,12 +920,19 @@ def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
 def test_l4_env_top_n_override(monkeypatch):
     monkeypatch.setenv("WORLDSIM_L4_TOP_N", "4")
     resource = {
-        "kind": "reddit_forum",
-        "anchors": {"forum_name": "books"},
+        "kind": "gitlab_search_result",
+        "anchors": {"query": "theme", "scope": "issues"},
         "layer": "L1",
     }
     items = [
-        {"_item_kind": "reddit_submission", "id": str(i), "title": f"post {i}"} for i in range(10)
+        {
+            "_item_kind": "gitlab_issue",
+            "project_id": 1,
+            "iid": str(i),
+            "web_url": f"https://gitlab.local/org/repo/-/issues/{i}",
+            "title": f"issue {i}",
+        }
+        for i in range(10)
     ]
     records = asyncio.run(
         resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items))
@@ -949,13 +996,6 @@ class TestAnchorContractConformance:
         task = _gitlab_task(eval_url="__GITLAB__/byteblaze/a11yproject/-/issues/17")
         record = derive_benign_target_resource(task, PLACEHOLDERS)
         assert record["kind"] == "gitlab_issue"
-
-
-# ---------------------------------------------------------------------
-# Batch dispatcher (resolve_tasks) — orchestrates L1-L4 over a list
-# ---------------------------------------------------------------------
-
-from worldsim.phases.phase_2_target_resolver import resolve_tasks  # noqa: E402
 
 
 class TestResolveTasks:

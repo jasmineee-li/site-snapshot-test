@@ -101,7 +101,6 @@ _L4_LISTING_KINDS = frozenset(
     {
         "gitlab_search_result",
         "gitlab_dashboard_list",
-        "reddit_forum",
     }
 )
 

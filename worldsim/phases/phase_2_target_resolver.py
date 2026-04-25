@@ -11,14 +11,15 @@ Four-layer pipeline, cheap first:
 * L1 — regex over ``reward_function.eval[].expected.url`` (gold source).
 * L2 — regex over resolved ``start_urls`` (fallback when eval lacks a URL).
 * L3 — LLM intent parse + live API probe (added in the L3 commit).
-* L4 — dynamic listing resolution for search / dashboard / forum kinds.
+* L4 — dynamic listing resolution for GitLab search / dashboard kinds.
 
 L1 + L2 are deterministic and synchronous. L3 calls Anthropic
 Messages API on the host (auth precedence mirrors
 :mod:`worldsim.phase_4.anthropic_client`) and executes a live probe
-against the benchmark instance. L4 expands listing-kind records
-(gitlab_search_result / gitlab_dashboard_list / reddit_forum) into N
-concrete item records.
+against the benchmark instance. L4 expands GitLab listing-kind records
+(gitlab_search_result / gitlab_dashboard_list) into N concrete item
+records. Reddit forum records remain forum-level resources because the
+editor can create a new visible child submission under that forum.
 """
 
 from __future__ import annotations
@@ -1104,17 +1105,18 @@ async def resolve_l3(
 # L4 — dynamic listing expansion
 # -----------------------------------------------------------------------
 #
-# Listing-kind records (gitlab_search_result / gitlab_dashboard_list /
-# reddit_forum) carry a query or dashboard anchor but no concrete item
-# IDs. L4 calls the listing endpoint as the benign user and emits
-# ``top_n`` concrete item records (e.g. one record per top-3 issue
-# matching the search). 2a attaches one seed per record; 2c verifies
-# any-of reachability; Phase 4 counts any-of encounter.
+# Listing-kind records (gitlab_search_result / gitlab_dashboard_list)
+# carry a query or dashboard anchor but no concrete item IDs. L4 calls
+# the listing endpoint as the benign user and emits ``top_n`` concrete
+# item records (e.g. one record per top-3 issue matching the search).
+# Reddit forum listings are not L4-expanded: the editor registry can
+# create a new submission under the forum, and Phase 2c verifies that
+# created child through a bounded transition from the forum listing.
 #
 # top_n defaults to 3; ``WORLDSIM_L4_TOP_N`` env overrides for a given run.
 
 _LISTING_KINDS: frozenset[ResourceKind] = frozenset(
-    {"gitlab_search_result", "gitlab_dashboard_list", "reddit_forum"}
+    {"gitlab_search_result", "gitlab_dashboard_list"}
 )
 
 # Listing probe function: (resource, task, instance) -> list of items

@@ -160,7 +160,7 @@ async def test_live_l4_lists_gitlab_issues_in_populated_project(gitlab_placehold
     assert records[0]["kind"] in {"gitlab_issue", "gitlab_mr"}
 
 
-async def test_live_l4_lists_reddit_forum_submissions(reddit_placeholders):
+async def test_live_reddit_forum_stays_created_child_exposure_not_l4(reddit_placeholders):
     instance, _ = reddit_placeholders
     # Point at an actually-live reddit replica port on the current host.
     # instances.smoke.json still carries the legacy-topology port 9999,
@@ -188,10 +188,7 @@ async def test_live_l4_lists_reddit_forum_submissions(reddit_placeholders):
         "layer": "L1",
     }
     records = await resolve_l4(resource, {}, instance, top_n=3)
-    if not records:
-        pytest.skip("forum 'books' returned no submissions; sitewide data may differ")
-    assert records[0]["kind"] == "reddit_submission"
-    assert records[0]["anchors"]["submission_id"].isdigit()
+    assert records == [resource]
 
 
 @_SKIP_NO_CREDS
