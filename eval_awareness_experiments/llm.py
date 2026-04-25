@@ -45,7 +45,14 @@ class LLM:
         print(result.message.text)
     """
 
-    def __init__(self, model: str, max_tokens: int = 4096, thinking: bool = False, concurrency: int = 64):
+    def __init__(
+        self,
+        model: str,
+        max_tokens: int = 4096,
+        thinking: bool = False,
+        concurrency: int = 64,
+        temperature: float | None = None,
+    ):
         # Strip :thinking suffix and enable thinking mode
         if model.endswith(":thinking"):
             model = model.removesuffix(":thinking")
@@ -53,6 +60,9 @@ class LLM:
         self.model = model
         self.max_tokens = max_tokens
         self.thinking = thinking
+        # When None, fall through to whatever the underlying provider defaults
+        # to. Judges should pass temperature=0 for reproducibility.
+        self.temperature = temperature
         self._semaphore = asyncio.Semaphore(concurrency)
         self._client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
@@ -144,14 +154,13 @@ class LLM:
         return GenerateResult(message=_Message(text=text))
 
     def _extra_kwargs(self) -> dict:
-        """Build extra kwargs for the API call (e.g. thinking/reasoning)."""
-        if not self.thinking:
-            return {}
-        return {
-            "extra_body": {
-                "reasoning": {"effort": "high"},
-            },
-        }
+        """Build extra kwargs for the API call (e.g. thinking/reasoning, temperature)."""
+        kwargs: dict = {}
+        if self.thinking:
+            kwargs["extra_body"] = {"reasoning": {"effort": "high"}}
+        if self.temperature is not None:
+            kwargs["temperature"] = self.temperature
+        return kwargs
 
     def __repr__(self) -> str:
         return f"LLM(model={self.model!r})"

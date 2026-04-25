@@ -11,6 +11,11 @@ from eval_awareness_experiments.types import JudgeResult, Transcript
 
 DEFAULT_MAX_CONCURRENCY = 50
 
+# Judges are doing classification, not creative writing — sampling diversity
+# buys nothing and inflates variance across runs. Pin to 0 by default so
+# repeated judge calls over the same transcript give the same label.
+JUDGE_DEFAULT_TEMPERATURE = 0.0
+
 
 class BaseJudge(ABC):
     """Base class for eval awareness judges.
@@ -18,6 +23,10 @@ class BaseJudge(ABC):
     Two model roles:
     - grader_model (actor): Used for continuation/generation
     - classifier_model: Used for analyzing/classifying responses
+
+    String-named models are wrapped in `LLM(..., temperature=0)` for
+    reproducibility. Pre-built `LLM` instances are used as-is — callers
+    that pass one in are responsible for its sampling settings.
     """
 
     name: str = "base"
@@ -29,18 +38,19 @@ class BaseJudge(ABC):
         grader_model: LLM | str,
         classifier_model: LLM | str | None = None,
         max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
+        judge_temperature: float = JUDGE_DEFAULT_TEMPERATURE,
         **kwargs,
     ):
         if grader_model is None:
             raise ValueError("grader_model must be specified")
         if isinstance(grader_model, str):
-            grader_model = LLM(grader_model)
+            grader_model = LLM(grader_model, temperature=judge_temperature)
         self.grader_model = grader_model
 
         if classifier_model is None:
             self.classifier_model = grader_model
         elif isinstance(classifier_model, str):
-            self.classifier_model = LLM(classifier_model)
+            self.classifier_model = LLM(classifier_model, temperature=judge_temperature)
         else:
             self.classifier_model = classifier_model
 
