@@ -95,6 +95,30 @@ def _phase4_exposure_fields(
     }
 
 
+def test_exposure_admission_requires_matching_evidence_contract_id():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["contract_id"] = "gitlab:other:test"
+
+    assert (
+        phase_4_adversarial._exposure_admission_error(task)
+        == "exposure_contract_id_mismatch"
+    )
+
+
+def test_exposure_admission_requires_matching_verification_payload():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["verification"] = {
+        "url": "http://gitlab.test/different",
+        "mode": "direct_detail",
+        "witness_policy": "dom_text",
+    }
+
+    assert (
+        phase_4_adversarial._exposure_admission_error(task)
+        == "exposure_verification_mismatch"
+    )
+
+
 def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
     instance = BenchmarkInstance(
         site_name="gitlab",

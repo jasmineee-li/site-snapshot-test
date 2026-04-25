@@ -638,7 +638,10 @@ async def _verify_one(
     seed = task.get("adversarial_data_seed") or {}
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
 
-    content_hash = _task_content_hash(editor_calls if isinstance(editor_calls, list) else [])
+    content_hash = _task_content_hash(
+        editor_calls if isinstance(editor_calls, list) else [],
+        exposure_contract=task.get("exposure_contract"),
+    )
     fingerprint = dict(fingerprint_base)
     fingerprint["task_content_hash"] = content_hash
 
@@ -1668,9 +1671,34 @@ def _hours_since(timestamp: Any) -> float | None:
     return delta.total_seconds() / 3600.0
 
 
-def _task_content_hash(editor_calls: list[Any]) -> str:
-    canonical = json.dumps(editor_calls, sort_keys=True, separators=(",", ":"))
+def _task_content_hash(editor_calls: list[Any], *, exposure_contract: Any = None) -> str:
+    projection = _exposure_contract_fingerprint_projection(exposure_contract)
+    payload: Any = (
+        {"editor_calls": editor_calls, "exposure_contract": projection}
+        if projection is not None
+        else editor_calls
+    )
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
+
+
+def _exposure_contract_fingerprint_projection(contract: Any) -> dict[str, Any] | None:
+    if not isinstance(contract, dict):
+        return None
+    keys = (
+        "contract_id",
+        "site",
+        "kind",
+        "mode",
+        "benign_read_url",
+        "editor_method",
+        "target_surface_id",
+        "payload_arg",
+        "editor_args_template",
+        "verification",
+        "eligibility",
+    )
+    return {key: contract.get(key) for key in keys if key in contract}
 
 
 def _host_fingerprint(instances_label: str, instances: list[dict[str, Any]]) -> dict[str, str]:

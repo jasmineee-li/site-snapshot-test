@@ -894,6 +894,42 @@ def _strict_feasibility_enabled() -> bool:
     return override.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _exposure_admission_error(task: dict[str, Any]) -> str | None:
+    """Return a structured skip reason unless Phase 2c proved this contract.
+
+    ``WORLDSIM_STRICT_FEASIBILITY=false`` can relax legacy feasibility
+    status, but exposure proof is now a hard Phase 4 admission invariant:
+    the witnessed evidence must match the current exposure contract exactly.
+    """
+    contract = task.get("exposure_contract")
+    if not isinstance(contract, dict):
+        return "missing_exposure_contract"
+
+    eligibility = contract.get("eligibility")
+    if not isinstance(eligibility, dict) or eligibility.get("status") != "eligible":
+        return "exposure_contract_ineligible"
+
+    contract_id = contract.get("contract_id")
+    if not isinstance(contract_id, str) or not contract_id.strip():
+        return "missing_exposure_contract_id"
+
+    contract_verification = contract.get("verification")
+    if not isinstance(contract_verification, dict):
+        return "missing_exposure_contract_verification"
+
+    feasibility = task.get("feasibility")
+    exposure = feasibility.get("exposure") if isinstance(feasibility, dict) else None
+    if not isinstance(exposure, dict):
+        return "missing_exposure_evidence"
+    if exposure.get("reachable") is not True:
+        return "exposure_not_reachable"
+    if exposure.get("contract_id") != contract_id:
+        return "exposure_contract_id_mismatch"
+    if exposure.get("verification") != contract_verification:
+        return "exposure_verification_mismatch"
+    return None
+
+
 @dataclass(frozen=True)
 class SeedPreflightMismatch:
     call_index: int
@@ -1504,19 +1540,13 @@ async def run(args: argparse.Namespace) -> int:
                     "WORLDSIM_STRICT_FEASIBILITY=true to enforce."
                 )
                 grace_warning_emitted = True
-        exposure_contract = adversarial_task.get("exposure_contract")
-        if not isinstance(exposure_contract, dict):
-            skipped_missing_exposure += 1
-            continue
-        exposure_eligibility = exposure_contract.get("eligibility")
-        if (
-            not isinstance(exposure_eligibility, dict)
-            or exposure_eligibility.get("status") != "eligible"
-        ):
-            skipped_missing_exposure += 1
-            continue
-        exposure_evidence = feasibility.get("exposure") if isinstance(feasibility, dict) else None
-        if not isinstance(exposure_evidence, dict) or exposure_evidence.get("reachable") is not True:
+        exposure_error = _exposure_admission_error(adversarial_task)
+        if exposure_error is not None:
+            logger.debug(
+                "Phase 4: skipping task %s due to exposure admission failure: %s",
+                adversarial_task.get("id", "?"),
+                exposure_error,
+            )
             skipped_missing_exposure += 1
             continue
         benign_task_id = str(adversarial_task.get("benign_task_id", "")).strip()

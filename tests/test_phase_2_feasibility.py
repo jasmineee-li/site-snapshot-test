@@ -45,6 +45,37 @@ def test_reachability_resource_prefers_exposure_contract_verification_url():
     assert resource["exposure_contract_id"] == "gitlab:task:test"
     assert resource["exposure_mode"] == "listing_visible"
 
+
+def test_task_content_hash_includes_exposure_contract_verification():
+    editor_calls = _task()["adversarial_data_seed"]["editor_calls"]
+    contract = {
+        "contract_id": "gitlab:task:test",
+        "site": "gitlab",
+        "kind": "gitlab_issue",
+        "mode": "direct_detail",
+        "editor_method": "create_issue_note",
+        "target_surface_id": "note_on_issue",
+        "payload_arg": "body",
+        "editor_args_template": {"body": "{{PAYLOAD_TEXT}}"},
+        "verification": {
+            "url": "https://gitlab.local/acme/demo/-/issues/7",
+            "mode": "direct_detail",
+            "witness_policy": "signature_plus_second_witness",
+        },
+        "eligibility": {"status": "eligible"},
+    }
+    changed = {
+        **contract,
+        "verification": {
+            **contract["verification"],
+            "url": "https://gitlab.local/search?search=theme&scope=issues",
+        },
+    }
+
+    assert feas._task_content_hash(editor_calls, exposure_contract=contract) != (
+        feas._task_content_hash(editor_calls, exposure_contract=changed)
+    )
+
 # ---------------------------------------------------------------------------
 # Fixtures / fakes
 # ---------------------------------------------------------------------------
