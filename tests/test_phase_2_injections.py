@@ -3496,7 +3496,7 @@ def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
     assert validated[0]["delivery_mechanism"] == "form"
 
 
-def test_validated_reddit_submission_plan_resolves_create_channel_not_edit_channel():
+def test_reddit_forum_created_child_contract_is_not_materialized_for_phase4():
     contract = build_exposure_contract(
         benign_task_id="reddit-forum-1",
         site="reddit",
@@ -3507,6 +3507,11 @@ def test_validated_reddit_submission_plan_resolves_create_channel_not_edit_chann
             "start_url_resolved": "https://reddit.local/f/books",
         },
     )
+    assert contract["seed_capability"]["status"] == "supported"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_child_surface",
+    }
     plans = [
         {
             "id": "adv-reddit-forum-1",
@@ -3527,29 +3532,13 @@ def test_validated_reddit_submission_plan_resolves_create_channel_not_edit_chann
             },
         }
     ]
-    phase_2_injections._materialize_strategy_plans_from_exposure(
-        plans,
-        exposure_contracts={"reddit-forum-1": contract},
-        benchmark="webarena_verified",
-    )
-    phase_2_injections._merge_immutable_fields(
-        plans,
-        [_reddit_benign_task("reddit-forum-1")],
-        enriched_resources={
-            "reddit-forum-1": {
-                "kind": "reddit_forum",
-                "anchors": {"forum_name": "books"},
-            }
-        },
-        exposure_contracts={"reddit-forum-1": contract},
-    )
 
-    materialized = phase_2_injections._materialize_validated_shard_tasks(
-        plans,
-        _reddit_profile(),
-    )
-
-    assert materialized[0]["delivery_channel"]["path_template"] == "/submit/{forum_name}"
+    with pytest.raises(ValueError, match="ineligible exposure_contract"):
+        phase_2_injections._materialize_strategy_plans_from_exposure(
+            plans,
+            exposure_contracts={"reddit-forum-1": contract},
+            benchmark="webarena_verified",
+        )
 
 
 def test_validate_generated_adversarial_task_rejects_preseeded_feasibility():

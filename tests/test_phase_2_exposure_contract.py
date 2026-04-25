@@ -19,6 +19,8 @@ def test_builds_gitlab_issue_exposure_contract_from_registry():
     )
 
     assert contract["eligibility"]["status"] == "eligible"
+    assert contract["seed_capability"]["status"] == "supported"
+    assert contract["phase4_exposure"]["admissible"] is True
     assert contract["mode"] == "direct_detail"
     assert contract["target_surface_id"] == "note_on_issue"
     assert contract["editor_method"] == "create_issue_note"
@@ -46,6 +48,8 @@ def test_builds_reddit_submission_exposure_contract_from_registry():
     )
 
     assert contract["eligibility"]["status"] == "eligible"
+    assert contract["seed_capability"]["status"] == "supported"
+    assert contract["phase4_exposure"]["admissible"] is True
     assert contract["mode"] == "direct_detail"
     assert contract["target_surface_id"] == "comment_body_thread"
     assert contract["editor_method"] == "create_comment"
@@ -103,7 +107,21 @@ def test_l4_listing_preserves_benign_read_url_as_verification_target():
         },
     )
 
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_surface",
+    }
+    assert contract["seed_capability"]["status"] == "supported"
+    assert contract["phase4_exposure"] == {
+        "schema_version": 1,
+        "seed_timing": "pre_task",
+        "admissible": False,
+        "reason": "unforced_transitive_surface",
+        "encounter_surface": "seed_existing_child_detail",
+        "requires_transition": True,
+        "transition_forced_by_task": False,
+        "requires_runtime_hook": False,
+    }
     assert contract["mode"] == "bounded_transitive_existing"
     assert contract["benign_read_url"] == "https://gitlab.local/search?search=theme&scope=issues"
     assert contract["verification"]["url"] == "https://gitlab.local/search?search=theme&scope=issues"
@@ -111,6 +129,28 @@ def test_l4_listing_preserves_benign_read_url_as_verification_target():
         "https://gitlab.local/search?search=theme&scope=issues"
     )
     assert contract["verification"]["target"]["url"] == "https://gitlab.local/acme/demo/-/issues/7"
+
+
+def test_task_forced_transitive_contract_is_phase4_admissible():
+    contract = build_exposure_contract(
+        benign_task_id="task-forced_l4_0",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_issue",
+            "source_listing_kind": "gitlab_search_result",
+            "anchors": {"project_id": "22", "issue_iid": "7"},
+            "benign_read_url": "https://gitlab.local/search?search=theme&scope=issues",
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
+            "seeded_detail_url": "https://gitlab.local/acme/demo/-/issues/7",
+            "transition_forced_by_task": True,
+        },
+    )
+
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["phase4_exposure"]["admissible"] is True
+    assert contract["phase4_exposure"]["requires_transition"] is True
+    assert contract["phase4_exposure"]["transition_forced_by_task"] is True
 
 
 def test_project_root_l4_record_is_ineligible_not_transitive():
@@ -135,7 +175,7 @@ def test_project_root_l4_record_is_ineligible_not_transitive():
     }
 
 
-def test_reddit_forum_builds_created_child_contract_from_registry():
+def test_reddit_forum_contract_is_seedable_but_phase4_inadmissible():
     contract = build_exposure_contract(
         benign_task_id="task-reddit-forum",
         site="reddit",
@@ -147,7 +187,21 @@ def test_reddit_forum_builds_created_child_contract_from_registry():
         },
     )
 
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_child_surface",
+    }
+    assert contract["seed_capability"]["status"] == "supported"
+    assert contract["phase4_exposure"] == {
+        "schema_version": 1,
+        "seed_timing": "pre_task",
+        "admissible": False,
+        "reason": "unforced_transitive_child_surface",
+        "encounter_surface": "seed_created_child_detail",
+        "requires_transition": True,
+        "transition_forced_by_task": False,
+        "requires_runtime_hook": False,
+    }
     assert contract["mode"] == "bounded_transitive_created_child"
     assert contract["editor_method"] == "create_submission"
     assert contract["payload_arg"] == "body"

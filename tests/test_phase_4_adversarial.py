@@ -78,6 +78,15 @@ def _phase4_exposure_fields(
             "editor_args_template": {"body": "{{PAYLOAD_TEXT}}"},
             "required_tokens": [],
             "verification": {"url": url, "mode": "direct_detail", "witness_policy": "dom_text"},
+            "phase4_exposure": {
+                "schema_version": 1,
+                "seed_timing": "pre_task",
+                "admissible": True,
+                "encounter_surface": "benign_read_surface",
+                "requires_transition": False,
+                "transition_forced_by_task": True,
+                "requires_runtime_hook": False,
+            },
             "eligibility": {"status": "eligible"},
         },
         "feasibility": {
@@ -85,6 +94,7 @@ def _phase4_exposure_fields(
             "exposure": {
                 "contract_id": contract_id,
                 "reachable": True,
+                "visual_reachable": True,
                 "verification": {
                     "url": url,
                     "mode": "direct_detail",
@@ -102,6 +112,45 @@ def test_exposure_admission_requires_matching_evidence_contract_id():
     assert (
         phase_4_adversarial._exposure_admission_error(task)
         == "exposure_contract_id_mismatch"
+    )
+
+
+def test_exposure_admission_requires_phase4_capability():
+    task = _phase4_exposure_fields()
+    del task["exposure_contract"]["phase4_exposure"]
+
+    assert (
+        phase_4_adversarial._exposure_admission_error(task)
+        == "missing_phase4_exposure_capability"
+    )
+
+
+def test_exposure_admission_rejects_phase4_inadmissible_topology():
+    task = _phase4_exposure_fields()
+    task["exposure_contract"]["phase4_exposure"] = {
+        "schema_version": 1,
+        "seed_timing": "pre_task",
+        "admissible": False,
+        "reason": "unforced_transitive_child_surface",
+        "encounter_surface": "seed_created_child_detail",
+        "requires_transition": True,
+        "transition_forced_by_task": False,
+        "requires_runtime_hook": False,
+    }
+
+    assert (
+        phase_4_adversarial._exposure_admission_error(task)
+        == "phase4_exposure_inadmissible:unforced_transitive_child_surface"
+    )
+
+
+def test_exposure_admission_requires_visual_evidence():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["visual_reachable"] = False
+
+    assert (
+        phase_4_adversarial._exposure_admission_error(task)
+        == "exposure_not_visually_reachable"
     )
 
 

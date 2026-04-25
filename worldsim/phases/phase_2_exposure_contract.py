@@ -46,7 +46,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 2,
+        "version": 3,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -54,6 +54,8 @@ def exposure_contract_signature() -> dict[str, Any]:
             "bounded_transitive_created_child",
             "ineligible",
         ],
+        "eligibility_policy": "seed_capability_and_phase4_exposure",
+        "phase4_exposure_schema_version": 1,
         "payload_arg_preference": list(PREFERRED_PAYLOAD_ARGS),
         "token_preference": list(PREFERRED_TOKEN_ORDER),
         "created_child_target_source": "seed_metadata.created_resource.url",
@@ -86,6 +88,14 @@ def build_exposure_contract(
         "kind": kind,
         "anchors": anchors,
         "benign_read_url": _benign_read_url(resource),
+        "seed_capability": {
+            "status": "unsupported",
+            "reason": "unresolved_target_resource",
+        },
+        "phase4_exposure": _phase4_exposure_capability(
+            "ineligible",
+            reason="unresolved_target_resource",
+        ),
         "eligibility": {"status": "ineligible", "reason": "unresolved_target_resource"},
     }
 
@@ -95,13 +105,24 @@ def build_exposure_contract(
     mode, ineligible_reason = _mode_for_resource(resource, kind)
     if mode == "ineligible":
         base["mode"] = "ineligible"
+        reason = ineligible_reason or f"kind_not_supported_for_exposure:{kind}"
+        base["phase4_exposure"] = _phase4_exposure_capability("ineligible", reason=reason)
+        base["seed_capability"] = {"status": "unsupported", "reason": reason}
         base["eligibility"] = {
             "status": "ineligible",
-            "reason": ineligible_reason or f"kind_not_supported_for_exposure:{kind}",
+            "reason": reason,
         }
         return base
     if not base["benign_read_url"]:
         base["mode"] = mode
+        base["phase4_exposure"] = _phase4_exposure_capability(
+            mode,
+            reason="missing_benign_read_url",
+        )
+        base["seed_capability"] = {
+            "status": "unsupported",
+            "reason": "missing_benign_read_url",
+        }
         base["eligibility"] = {
             "status": "ineligible",
             "reason": "missing_benign_read_url",
@@ -120,6 +141,12 @@ def build_exposure_contract(
         payload_arg = template.pop("__payload_arg__")
         target_surface_id = spec.surface_id_per_kind.get(kind, spec.method)
         verification = _verification_contract(resource, mode, base["benign_read_url"], kind)
+        seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
+        phase4_exposure = _phase4_exposure_capability(
+            mode,
+            transition_forced_by_task=_transition_forced_by_task(resource),
+            runtime_hook_available=_phase4_runtime_hook_available(resource),
+        )
         base.update(
             {
                 "mode": mode,
@@ -129,13 +156,27 @@ def build_exposure_contract(
                 "editor_args_template": template,
                 "required_tokens": sorted(available),
                 "verification": verification,
-                "eligibility": {"status": "eligible"},
+                "seed_capability": seed_capability,
+                "phase4_exposure": phase4_exposure,
+                "eligibility": _eligibility_from_capabilities(
+                    seed_capability,
+                    phase4_exposure,
+                ),
             }
         )
         return base
 
     base["mode"] = mode
     base["required_tokens"] = sorted(available)
+    base["phase4_exposure"] = _phase4_exposure_capability(
+        mode,
+        transition_forced_by_task=_transition_forced_by_task(resource),
+        runtime_hook_available=_phase4_runtime_hook_available(resource),
+    )
+    base["seed_capability"] = {
+        "status": "unsupported",
+        "reason": "no_viable_editor_method_under_anchors",
+    }
     base["eligibility"] = {
         "status": "ineligible",
         "reason": "no_viable_editor_method_under_anchors",
@@ -202,6 +243,122 @@ def _mode_for_resource(resource: Mapping[str, Any], kind: str) -> tuple[str, str
     if kind in LISTING_SOURCE_KINDS:
         return "inline_listing", None
     return "ineligible", f"kind_not_supported_for_exposure:{kind}"
+
+
+def _seed_capability(
+    spec: EditorMethodSpec,
+    payload_arg: str,
+    target_surface_id: str,
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "status": "supported",
+        "editor_method": spec.method,
+        "target_surface_id": target_surface_id,
+        "payload_arg": payload_arg,
+        "seed_timing": "pre_task",
+    }
+
+
+def _phase4_exposure_capability(
+    mode: str,
+    *,
+    reason: str | None = None,
+    transition_forced_by_task: bool = False,
+    runtime_hook_available: bool = False,
+) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "schema_version": 1,
+        "seed_timing": "pre_task",
+    }
+    if mode == "direct_detail":
+        base.update(
+            {
+                "admissible": True,
+                "encounter_surface": "benign_read_surface",
+                "requires_transition": False,
+                "transition_forced_by_task": True,
+                "requires_runtime_hook": False,
+            }
+        )
+        return base
+    if mode == "inline_listing":
+        base.update(
+            {
+                "admissible": True,
+                "encounter_surface": "benign_read_surface",
+                "requires_transition": False,
+                "transition_forced_by_task": True,
+                "requires_runtime_hook": False,
+                "requires_visual_evidence": True,
+            }
+        )
+        return base
+    if mode == "bounded_transitive_existing":
+        admissible = transition_forced_by_task or runtime_hook_available
+        base.update(
+            {
+                "admissible": admissible,
+                "encounter_surface": "seed_existing_child_detail",
+                "requires_transition": True,
+                "transition_forced_by_task": transition_forced_by_task,
+                "requires_runtime_hook": runtime_hook_available and not transition_forced_by_task,
+            }
+        )
+        if not admissible:
+            base["reason"] = reason or "unforced_transitive_surface"
+        return base
+    if mode == "bounded_transitive_created_child":
+        admissible = transition_forced_by_task or runtime_hook_available
+        base.update(
+            {
+                "admissible": admissible,
+                "encounter_surface": "seed_created_child_detail",
+                "requires_transition": True,
+                "transition_forced_by_task": transition_forced_by_task,
+                "requires_runtime_hook": runtime_hook_available and not transition_forced_by_task,
+            }
+        )
+        if not admissible:
+            base["reason"] = reason or "unforced_transitive_child_surface"
+        return base
+    base.update(
+        {
+            "admissible": False,
+            "reason": reason or "unsupported_exposure_topology",
+            "encounter_surface": "none",
+            "requires_transition": False,
+            "transition_forced_by_task": False,
+            "requires_runtime_hook": False,
+        }
+    )
+    return base
+
+
+def _eligibility_from_capabilities(
+    seed_capability: Mapping[str, Any],
+    phase4_exposure: Mapping[str, Any],
+) -> dict[str, str]:
+    if seed_capability.get("status") != "supported":
+        return {
+            "status": "ineligible",
+            "reason": str(seed_capability.get("reason") or "seed_capability_unsupported"),
+        }
+    if phase4_exposure.get("admissible") is not True:
+        reason = str(phase4_exposure.get("reason") or "phase4_exposure_inadmissible")
+        return {
+            "status": "ineligible",
+            "reason": f"phase4_exposure:{reason}",
+        }
+    return {"status": "eligible"}
+
+
+def _transition_forced_by_task(resource: Mapping[str, Any]) -> bool:
+    return resource.get("transition_forced_by_task") is True
+
+
+def _phase4_runtime_hook_available(resource: Mapping[str, Any]) -> bool:
+    return resource.get("phase4_runtime_hook_available") is True
 
 
 def _verification_contract(

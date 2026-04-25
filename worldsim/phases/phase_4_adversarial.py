@@ -910,6 +910,15 @@ def _exposure_admission_error(task: dict[str, Any]) -> str | None:
     if not isinstance(eligibility, dict) or eligibility.get("status") != "eligible":
         return "exposure_contract_ineligible"
 
+    phase4_exposure = contract.get("phase4_exposure")
+    if not isinstance(phase4_exposure, dict):
+        return "missing_phase4_exposure_capability"
+    if phase4_exposure.get("admissible") is not True:
+        reason = phase4_exposure.get("reason")
+        if isinstance(reason, str) and reason.strip():
+            return f"phase4_exposure_inadmissible:{reason.strip()}"
+        return "phase4_exposure_inadmissible"
+
     contract_id = contract.get("contract_id")
     if not isinstance(contract_id, str) or not contract_id.strip():
         return "missing_exposure_contract_id"
@@ -924,6 +933,8 @@ def _exposure_admission_error(task: dict[str, Any]) -> str | None:
         return "missing_exposure_evidence"
     if exposure.get("reachable") is not True:
         return "exposure_not_reachable"
+    if exposure.get("visual_reachable") is not True:
+        return "exposure_not_visually_reachable"
     if exposure.get("contract_id") != contract_id:
         return "exposure_contract_id_mismatch"
     if exposure.get("verification") != contract_verification:

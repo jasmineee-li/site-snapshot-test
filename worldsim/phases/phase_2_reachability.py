@@ -196,9 +196,18 @@ class ReachabilityOutcome:
     witnesses_matched: tuple[str, ...]
     witnesses_missing: tuple[str, ...]
     path_evidence: dict[str, Any] | None = None
+    visual_reachable: bool | None = None
+    visual_evidence: dict[str, Any] | None = None
 
     @classmethod
-    def direct(cls, *, url: str, witnesses_matched: tuple[str, ...]) -> ReachabilityOutcome:
+    def direct(
+        cls,
+        *,
+        url: str,
+        witnesses_matched: tuple[str, ...],
+        visual_reachable: bool | None = None,
+        visual_evidence: dict[str, Any] | None = None,
+    ) -> ReachabilityOutcome:
         return cls(
             reachability="reachable_direct",
             kind="",
@@ -206,6 +215,8 @@ class ReachabilityOutcome:
             url_tried=url,
             witnesses_matched=witnesses_matched,
             witnesses_missing=(),
+            visual_reachable=visual_reachable,
+            visual_evidence=visual_evidence,
         )
 
     @classmethod
@@ -216,6 +227,8 @@ class ReachabilityOutcome:
         target_url: str,
         edge_href: str,
         witnesses_matched: tuple[str, ...],
+        visual_reachable: bool | None = None,
+        visual_evidence: dict[str, Any] | None = None,
     ) -> ReachabilityOutcome:
         return cls(
             reachability="reachable_transitively",
@@ -230,6 +243,8 @@ class ReachabilityOutcome:
                 "edge_href": edge_href,
                 "depth": 1,
             },
+            visual_reachable=visual_reachable,
+            visual_evidence=visual_evidence,
         )
 
     @classmethod
@@ -241,6 +256,8 @@ class ReachabilityOutcome:
         url: str,
         witnesses_matched: tuple[str, ...] = (),
         witnesses_missing: tuple[str, ...] = (),
+        visual_reachable: bool | None = None,
+        visual_evidence: dict[str, Any] | None = None,
     ) -> ReachabilityOutcome:
         return cls(
             reachability="unreachable",
@@ -249,6 +266,8 @@ class ReachabilityOutcome:
             url_tried=url,
             witnesses_matched=witnesses_matched,
             witnesses_missing=witnesses_missing,
+            visual_reachable=visual_reachable,
+            visual_evidence=visual_evidence,
         )
 
     def evidence(self) -> dict[str, Any]:
@@ -266,6 +285,10 @@ class ReachabilityOutcome:
             out["witnesses_missing"] = list(self.witnesses_missing)
         if self.path_evidence:
             out["path_evidence"] = dict(self.path_evidence)
+        if self.visual_reachable is not None:
+            out["visual_reachable"] = self.visual_reachable
+        if self.visual_evidence:
+            out["visual_evidence"] = dict(self.visual_evidence)
         return out
 
 
@@ -461,6 +484,157 @@ async def _body_witness_match(page: Any, witnesses: Iterable[str]) -> tuple[tupl
     return matched, missing
 
 
+async def _visual_witness_match(page: Any, witnesses: Iterable[str]) -> dict[str, Any]:
+    normalized_witnesses = tuple(
+        normalized
+        for witness in witnesses
+        for normalized in [_normalize_for_match(witness)]
+        if normalized
+    )
+    if not normalized_witnesses:
+        return {
+            "visual_reachable": True,
+            "witnesses_visible": [],
+            "witnesses_off_surface": [],
+            "witnesses_missing": [],
+        }
+    try:
+        result = await page.evaluate(
+            """
+            (witnesses) => {
+              const walker = document.createTreeWalker(
+                document.body || document.documentElement,
+                NodeFilter.SHOW_TEXT,
+                {
+                  acceptNode(node) {
+                    const p = node.parentElement;
+                    if (!p) return NodeFilter.FILTER_REJECT;
+                    const tag = p.tagName;
+                    if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT") {
+                      return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                  },
+                },
+              );
+              const textNodes = [];
+              const charMap = [];
+              let corpus = "";
+              function appendNormalized(content, nodeIndex) {
+                const lower = String(content || "").toLowerCase();
+                for (let offset = 0; offset < lower.length; offset += 1) {
+                  const ch = lower[offset];
+                  if (/\\s/.test(ch)) {
+                    if (corpus.length === 0 || corpus[corpus.length - 1] === " ") {
+                      continue;
+                    }
+                    corpus += " ";
+                    charMap.push({ nodeIndex, offset });
+                    continue;
+                  }
+                  corpus += ch;
+                  charMap.push({ nodeIndex, offset });
+                }
+              }
+              while (walker.nextNode()) {
+                const node = walker.currentNode;
+                const content = node.textContent || "";
+                if (!content) continue;
+                const nodeIndex = textNodes.length;
+                textNodes.push(node);
+                appendNormalized(content, nodeIndex);
+              }
+              const viewportW = window.innerWidth || 0;
+              const viewportH = window.innerHeight || 0;
+              const range = document.createRange();
+              function occurrenceVisible(offset, length) {
+                for (let i = 0; i < length; i += 1) {
+                  const ch = corpus[offset + i];
+                  if (/\\s/.test(ch)) continue;
+                  const info = charMap[offset + i];
+                  if (!info) continue;
+                  const node = textNodes[info.nodeIndex];
+                  if (!node) continue;
+                  const parent = node.parentElement;
+                  if (!parent) continue;
+                  const style = window.getComputedStyle(parent);
+                  if (
+                    style.display === "none" ||
+                    style.visibility === "hidden" ||
+                    style.opacity === "0"
+                  ) {
+                    continue;
+                  }
+                  range.setStart(node, info.offset);
+                  range.setEnd(node, info.offset + 1);
+                  const rect = range.getBoundingClientRect();
+                  if (
+                    rect.width > 0 &&
+                    rect.height > 0 &&
+                    rect.right > 0 &&
+                    rect.bottom > 0 &&
+                    rect.left < viewportW &&
+                    rect.top < viewportH
+                  ) {
+                    return true;
+                  }
+                }
+                return false;
+              }
+              const visible = [];
+              const offSurface = [];
+              const missing = [];
+              for (const rawWitness of witnesses) {
+                const witness = String(rawWitness || "").replace(/\\s+/g, " ").trim().toLowerCase();
+                if (!witness) continue;
+                let offset = corpus.indexOf(witness);
+                if (offset < 0) {
+                  missing.push(witness);
+                  continue;
+                }
+                let hasVisibleOccurrence = false;
+                while (offset >= 0) {
+                  if (occurrenceVisible(offset, witness.length)) {
+                    hasVisibleOccurrence = true;
+                    break;
+                  }
+                  offset = corpus.indexOf(witness, offset + Math.max(witness.length, 1));
+                }
+                if (hasVisibleOccurrence) {
+                  visible.push(witness);
+                } else {
+                  offSurface.push(witness);
+                }
+              }
+              return {
+                visual_reachable: missing.length === 0 && offSurface.length === 0,
+                witnesses_visible: visible,
+                witnesses_off_surface: offSurface,
+                witnesses_missing: missing,
+                page_url: String(window.location.href || ""),
+                viewport: { width: viewportW, height: viewportH },
+              };
+            }
+            """,
+            list(normalized_witnesses),
+        )
+    except Exception as exc:
+        logger.debug("phase 2c reachability: visual witness probe failed", exc_info=True)
+        return {
+            "visual_reachable": False,
+            "witnesses_visible": [],
+            "witnesses_off_surface": [],
+            "witnesses_missing": list(normalized_witnesses),
+            "probe_error": f"{exc.__class__.__name__}: {exc}",
+        }
+    return result if isinstance(result, dict) else {
+        "visual_reachable": False,
+        "witnesses_visible": [],
+        "witnesses_off_surface": [],
+        "witnesses_missing": list(normalized_witnesses),
+    }
+
+
 def _normalize_for_match(text: str | None) -> str:
     """Collapse whitespace and lowercase, matching render_check semantics.
 
@@ -642,7 +816,23 @@ async def verify_reachable(
             await _wait_for_body_text(page, witnesses, selector_timeout_ms)
         matched, missing = await _body_witness_match(page, witnesses)
         if not missing:
-            return ReachabilityOutcome.direct(url=start_url, witnesses_matched=matched)
+            visual = await _visual_witness_match(page, witnesses)
+            if visual.get("visual_reachable") is True:
+                return ReachabilityOutcome.direct(
+                    url=start_url,
+                    witnesses_matched=matched,
+                    visual_reachable=True,
+                    visual_evidence=visual,
+                )
+            return ReachabilityOutcome.unreachable(
+                kind="payload_witness_off_surface",
+                detail="witnesses are present in DOM but not viewport-visible on benign entry point",
+                url=start_url,
+                witnesses_matched=matched,
+                witnesses_missing=(),
+                visual_reachable=False,
+                visual_evidence=visual,
+            )
         if exposure_mode.startswith("bounded_transitive"):
             if not isinstance(target_url, str) or not target_url.strip():
                 return ReachabilityOutcome.unreachable(
@@ -690,11 +880,27 @@ async def verify_reachable(
                 await _wait_for_body_text(page, witnesses, selector_timeout_ms)
             target_matched, target_missing = await _body_witness_match(page, witnesses)
             if not target_missing:
+                target_visual = await _visual_witness_match(page, witnesses)
+                if target_visual.get("visual_reachable") is not True:
+                    return ReachabilityOutcome.unreachable(
+                        kind="payload_witness_off_surface",
+                        detail=(
+                            "witnesses are present after bounded transition but "
+                            "not viewport-visible on exposure target"
+                        ),
+                        url=target_url,
+                        witnesses_matched=target_matched,
+                        witnesses_missing=(),
+                        visual_reachable=False,
+                        visual_evidence=target_visual,
+                    )
                 return ReachabilityOutcome.transitive(
                     entry_url=start_url,
                     target_url=target_url,
                     edge_href=edge["href"],
                     witnesses_matched=target_matched,
+                    visual_reachable=True,
+                    visual_evidence=target_visual,
                 )
             return ReachabilityOutcome.unreachable(
                 kind="transitive_witnesses_absent",

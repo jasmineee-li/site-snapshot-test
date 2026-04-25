@@ -873,6 +873,7 @@ async def _verify_one(
             feasibility["exposure"] = {
                 "contract_id": exposure_contract.get("contract_id"),
                 "reachable": reachability_outcome.reachability != "unreachable",
+                "visual_reachable": reachability_outcome.visual_reachable is True,
                 "verification": exposure_contract.get("verification"),
             }
     result["feasibility"] = feasibility
@@ -903,6 +904,17 @@ async def _run_reachability_check(
     substring for RYW passes. Second witness is derived from the seed
     body text via ``phase_2_reachability.derive_second_witness``.
     """
+    phase4_exposure_error = _phase4_exposure_inadmissible_reason(task.get("exposure_contract"))
+    if phase4_exposure_error is not None:
+        return ReachabilityOutcome.unreachable(
+            kind=f"phase4_exposure_{phase4_exposure_error}",
+            detail=(
+                "exposure contract is seedable but not admissible for current "
+                f"Phase 4 encounter semantics: {phase4_exposure_error}"
+            ),
+            url=str(instance.get("site_url") or ""),
+        )
+
     benign_target_resource = _reachability_resource_for_task(task, metadata=metadata)
     site_url = str(instance.get("site_url") or "").strip()
     url_token = _required_url_token(task)
@@ -937,22 +949,6 @@ async def _run_reachability_check(
                 second_witness=second_witness,
                 browser_context_kwargs=browser_context_kwargs,
             )
-            if (
-                url_token is not None
-                and outcome.kind == "witnesses_absent"
-                and url_token in (outcome.witnesses_matched or ())
-            ):
-                logger.info(
-                    "phase 2c reachability: URL gate satisfied, prose advisory "
-                    "missing (task=%s url=%s missing=%s)",
-                    task.get("id"),
-                    url_token,
-                    outcome.witnesses_missing,
-                )
-                return ReachabilityOutcome.direct(
-                    url=outcome.url_tried,
-                    witnesses_matched=outcome.witnesses_matched,
-                )
             return outcome
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("phase 2c reachability probe crashed")
@@ -966,6 +962,20 @@ async def _run_reachability_check(
         return await _do()
     async with render_semaphore:
         return await _do()
+
+
+def _phase4_exposure_inadmissible_reason(contract: Any) -> str | None:
+    if not isinstance(contract, dict):
+        return None
+    capability = contract.get("phase4_exposure")
+    if not isinstance(capability, dict):
+        return None
+    if capability.get("admissible") is True:
+        return None
+    reason = capability.get("reason")
+    if isinstance(reason, str) and reason.strip():
+        return reason.strip()
+    return "inadmissible"
 
 
 def _reachability_resource_for_task(
