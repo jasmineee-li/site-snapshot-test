@@ -106,9 +106,7 @@ def test_classify_302_to_sign_in_is_login_redirect():
 def test_classify_login_redirect_redacts_location_query():
     c = _classify_probe(
         status=302,
-        headers={
-            "location": "http://host/users/sign_in?token=secret&return_to=/private"
-        },
+        headers={"location": "http://host/users/sign_in?token=secret&return_to=/private"},
         body_snippet="",
         exception_name=None,
     )
@@ -839,6 +837,52 @@ def test_preflight_context_cache_is_race_safe_for_concurrent_same_key_tasks():
 
     assert factory_calls == 1
     assert len(keep) == 20 and dropped == []
+
+
+def test_preflight_serializes_shared_request_context_probes():
+    class _ContentionContext(_FakeRequestContext):
+        def __init__(self, *, response_map: dict[str, _FakeResponse]) -> None:
+            super().__init__(response_map=response_map)
+            self.active = 0
+            self.max_active = 0
+
+        async def get(self, url: str, *, timeout: float, max_redirects: int) -> _FakeResponse:
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            try:
+                await asyncio.sleep(0.001)
+                return await super().get(url, timeout=timeout, max_redirects=max_redirects)
+            finally:
+                self.active -= 1
+
+    tasks = [
+        _make_task(f"adv_stale_{i}", "reddit", f"https://reddit.local/f/news/{i}") for i in range(3)
+    ]
+    instances_by_site = {"reddit": [{"site_name": "reddit", "site_url": "http://host0:9900"}]}
+    response_map = {
+        f"http://host0:9900/f/news/{task_index}": _FakeResponse(status=404)
+        for task_index in range(3)
+    }
+    request_context = _ContentionContext(response_map=response_map)
+
+    async def _factory(_):
+        return request_context
+
+    _keep, dropped = asyncio.run(
+        preflight_benign_targets(
+            tasks,
+            instances_by_site=instances_by_site,
+            request_context_factory=_factory,
+            concurrency=16,
+        )
+    )
+
+    assert [record["id"] for record in dropped] == [
+        "adv_stale_0",
+        "adv_stale_1",
+        "adv_stale_2",
+    ]
+    assert request_context.max_active == 1
 
 
 def test_preflight_transient_error_passes_task_through():

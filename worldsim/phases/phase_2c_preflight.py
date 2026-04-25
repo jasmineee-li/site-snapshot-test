@@ -82,6 +82,7 @@ logger = logging.getLogger(__name__)
 # 30 s so a transient timeout here does NOT quarantine.
 DEFAULT_PREFLIGHT_CONCURRENCY = 16
 DEFAULT_PREFLIGHT_TIMEOUT_S = 5.0
+_CONTEXT_SCOPE_KEY = "_preflight_context_scope"
 
 
 def _looks_like_login_stub(body: str) -> bool:
@@ -333,10 +334,14 @@ async def preflight_benign_targets(
     # creation task itself so concurrent probes for the same key do not all
     # miss the dict and create duplicate APIRequestContexts.
     context_tasks: dict[tuple[str, str], asyncio.Task[Any]] = {}
+    context_locks: dict[tuple[str, str], asyncio.Lock] = {}
 
     def _context_key(options: dict[str, Any]) -> str:
         public_options: dict[str, Any] = {}
         for key, value in options.items():
+            if key == _CONTEXT_SCOPE_KEY:
+                public_options[key] = value
+                continue
             if key.startswith("_"):
                 continue
             if key == "storage_state" and isinstance(value, dict):
@@ -351,12 +356,16 @@ async def preflight_benign_targets(
                 public_options[key] = value
         return json.dumps(public_options, sort_keys=True, separators=(",", ":"), default=str)
 
+    def _cache_key(site_name: str, options: dict[str, Any]) -> tuple[str, str]:
+        return site_name, _context_key(options)
+
     async def _context_for(site_name: str, options: dict[str, Any]) -> Any:
-        key = (site_name, _context_key(options))
+        key = _cache_key(site_name, options)
         task = context_tasks.get(key)
         if task is None:
             task = asyncio.create_task(request_context_factory(dict(options)))
             context_tasks[key] = task
+            context_locks.setdefault(key, asyncio.Lock())
         try:
             return await task
         except Exception:
@@ -413,9 +422,8 @@ async def preflight_benign_targets(
                 skipped_auth_reasons.append(auth_skip_reason.strip())
                 continue
             context_options = instance.get("preflight_request_context")
-            if (
-                policy.requires_authenticated_preflight()
-                and (not isinstance(context_options, dict) or not context_options)
+            if policy.requires_authenticated_preflight() and (
+                not isinstance(context_options, dict) or not context_options
             ):
                 skipped_auth_reasons.append(
                     "authenticated source-data preflight required but no usable auth was configured"
@@ -423,16 +431,21 @@ async def preflight_benign_targets(
                 continue
             if not isinstance(context_options, dict):
                 context_options = {}
+            scoped_context_options = dict(context_options)
+            scoped_context_options[_CONTEXT_SCOPE_KEY] = site_url
+            context_key = _cache_key(site, scoped_context_options)
             async with sem:
-                request_context = await _context_for(site, context_options)
+                request_context = await _context_for(site, scoped_context_options)
+                context_lock = context_locks.setdefault(context_key, asyncio.Lock())
                 for target_index, target in enumerate(targets):
                     target_audit.setdefault(target_index, target)
-                    classification = await _probe_one(
-                        request_context=request_context,
-                        url=target.url,
-                        timeout_s=timeout_s,
-                        policy=policy,
-                    )
+                    async with context_lock:
+                        classification = await _probe_one(
+                            request_context=request_context,
+                            url=target.url,
+                            timeout_s=timeout_s,
+                            policy=policy,
+                        )
                     classifications_by_target.setdefault(target_index, []).append(classification)
         if not classifications_by_target:
             if skipped_auth_reasons:
