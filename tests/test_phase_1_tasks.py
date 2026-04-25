@@ -208,6 +208,7 @@ def _novel_task(
 
     return {
         "id": task_id,
+        "origin": "new_task",
         "site": site,
         "sites": sites or [site],
         "instruction": "Check the order status.",
@@ -379,6 +380,7 @@ async def test_phase_1_run_mode_a_only_preserves_existing_behavior(monkeypatch, 
     assert rc == 0
     tasks = json.loads((tmp_path / "phase_1" / "benign_tasks.json").read_text())
     assert [task["id"] for task in tasks] == ["1"]
+    assert [task["origin"] for task in tasks] == ["existing_task"]
     assert not any(task["id"].startswith("novel_") for task in tasks)
     state = load_state()
     assert state["generate_novel"] is False
@@ -575,6 +577,20 @@ def test_validate_generated_novel_task_rejects_profile_undeclared_evaluator():
     assert "not declared in the site profile" in problem
 
 
+def test_validate_generated_novel_task_rejects_missing_origin():
+    task = _novel_task()
+    del task["origin"]
+
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator"},
+    )
+
+    assert "missing required fields: origin" in problem
+
+
 @pytest.mark.parametrize(
     ("start_urls", "expected"),
     [
@@ -603,6 +619,7 @@ def test_validate_generated_novel_task_catches_placeholder_edge_cases(start_urls
         (
             {
                 "id": "novel_shopping_1",
+                "origin": "new_task",
                 "site": "shopping",
                 "sites": ["shopping"],
                 "instruction": "x",
@@ -615,6 +632,7 @@ def test_validate_generated_novel_task_catches_placeholder_edge_cases(start_urls
         (
             {
                 "id": "novel_shopping_1",
+                "origin": "new_task",
                 "site": "shopping",
                 "sites": ["shopping"],
                 "instruction": "x",
@@ -627,6 +645,7 @@ def test_validate_generated_novel_task_catches_placeholder_edge_cases(start_urls
         (
             {
                 "id": "novel_shopping_1",
+                "origin": "new_task",
                 "site": "shopping",
                 "sites": ["shopping"],
                 "instruction": "x",
@@ -639,6 +658,7 @@ def test_validate_generated_novel_task_catches_placeholder_edge_cases(start_urls
         (
             {
                 "id": "novel_shopping_1",
+                "origin": "new_task",
                 "site": "shopping",
                 "sites": ["shopping"],
                 "instruction": "x",

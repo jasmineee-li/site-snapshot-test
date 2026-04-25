@@ -10,6 +10,7 @@ from worldsim.seeding import validate_data_seed
 
 _NOVEL_TASK_REQUIRED_FIELDS = (
     "id",
+    "origin",
     "site",
     "sites",
     "instruction",
@@ -90,6 +91,9 @@ def validate_generated_novel_task(
     task_id_pattern = re.compile(rf"^novel_{re.escape(site_name)}_\d+$")
     if not task_id_pattern.match(str(task["id"])):
         return f"{prefix} id must match novel_{site_name}_<n>"
+
+    if task.get("origin") != "new_task":
+        return f"{prefix} origin must be 'new_task'"
 
     if task.get("site") != site_name:
         return f"{prefix} site must be {site_name!r}"

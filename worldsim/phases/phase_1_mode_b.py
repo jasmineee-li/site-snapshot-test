@@ -239,8 +239,11 @@ async def generate_novel_tasks_for_site(
         except json.JSONDecodeError as exc:
             return SiteNovelTaskResult(site.site_name, [], [f"invalid sandbox JSON: {exc}"])
 
+        generated_tasks = (
+            _stamp_new_task_origin(raw_tasks) if isinstance(raw_tasks, list) else raw_tasks
+        )
         validated_tasks, errors = validate_generated_novel_tasks(
-            raw_tasks,
+            generated_tasks,
             site_name=site.site_name,
             profile=site.profile,
         )
@@ -280,6 +283,17 @@ async def generate_novel_tasks_for_site(
         [],
         last_errors or ["sandbox produced no novel tasks"],
     )
+
+
+def _stamp_new_task_origin(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Stamp generated tasks with their Phase 1 source before caching."""
+    stamped: list[dict[str, Any]] = []
+    for task in tasks:
+        item = json.loads(json.dumps(task))
+        if isinstance(item, dict):
+            item["origin"] = "new_task"
+        stamped.append(item)
+    return stamped
 
 
 def load_cached_novel_tasks(

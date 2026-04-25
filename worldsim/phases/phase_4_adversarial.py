@@ -778,6 +778,24 @@ def _ecologically_valid(result: dict[str, Any]) -> bool:
         return False
 
 
+def _normalize_task_origin(origin: Any, *, task: dict[str, Any] | None = None) -> str:
+    """Normalize old and new task-origin names for one release."""
+    raw_origin = str(origin or "").strip()
+    if raw_origin in {"existing_task", "new_task"}:
+        return raw_origin
+    if raw_origin == "mode_a":
+        return "existing_task"
+    if raw_origin == "mode_b":
+        return "new_task"
+
+    task_id = str(task.get("id", "")).strip() if isinstance(task, dict) else ""
+    if task_id.startswith("novel_"):
+        return "new_task"
+    if task_id:
+        return "existing_task"
+    raise ValueError("task origin is missing and cannot be inferred from id")
+
+
 def _log_stratified_summary(final_results: list[dict[str, Any]]) -> None:
     """Reconstruct ``ClassifiedOutcome``s from persisted result dicts and
     log the handoff §12 stratified summary block.
@@ -1537,7 +1555,7 @@ async def run(args: argparse.Namespace) -> int:
             exhausted_contract_ids.add(entry_id)
     grace_warning_emitted = False
     strict_feasibility = _strict_feasibility_enabled()
-    admitted_by_origin: dict[str, int] = {"mode_a": 0, "mode_b": 0}
+    admitted_by_origin: dict[str, int] = {"existing_task": 0, "new_task": 0}
     for adversarial_task in adversarial_tasks:
         feasibility = adversarial_task.get("feasibility")
         feasibility_status = feasibility.get("status") if isinstance(feasibility, dict) else None
@@ -1582,18 +1600,18 @@ async def run(args: argparse.Namespace) -> int:
         except (KeyError, TypeError, ValueError) as exc:
             rebase_errors.append(f"{adversarial_task.get('id', '?')}: {exc}")
             continue
-        origin = str(entry.get("origin", "mode_b"))
+        origin = _normalize_task_origin(entry.get("origin"), task=entry.get("task"))
         rebuilt["origin"] = origin
         admitted_by_origin[origin] = admitted_by_origin.get(origin, 0) + 1
         tasks.append(rebuilt)
     logger.info(
-        "Phase 4: admitted %d/%d adversarial tasks (mode_a=%d, mode_b=%d); "
+        "Phase 4: admitted %d/%d adversarial tasks (existing_task=%d, new_task=%d); "
         "skipped %d with invalid benign contract, %d with unknown benign_task_id, "
         "%d infeasible, %d unverified, %d without eligible exposure (strict=%s)",
         len(tasks),
         len(adversarial_tasks),
-        admitted_by_origin.get("mode_a", 0),
-        admitted_by_origin.get("mode_b", 0),
+        admitted_by_origin.get("existing_task", 0),
+        admitted_by_origin.get("new_task", 0),
         skipped_invalid,
         skipped_orphan,
         skipped_infeasible,
@@ -1650,17 +1668,17 @@ async def run(args: argparse.Namespace) -> int:
     if max_tasks_per_site is not None:
         pre_cap = len(tasks)
         tasks = cap_tasks_per_site(tasks, max_tasks_per_site)
-        post_cap_by_origin: dict[str, int] = {"mode_a": 0, "mode_b": 0}
+        post_cap_by_origin: dict[str, int] = {"existing_task": 0, "new_task": 0}
         for task in tasks:
-            origin = str(task.get("origin", ""))
+            origin = _normalize_task_origin(task.get("origin"), task=task)
             post_cap_by_origin[origin] = post_cap_by_origin.get(origin, 0) + 1
         logger.info(
-            "Phase 4: capped to %d/%d tasks (max %d per site; post-cap mode_a=%d, mode_b=%d)",
+            "Phase 4: capped to %d/%d tasks (max %d per site; post-cap existing_task=%d, new_task=%d)",
             len(tasks),
             pre_cap,
             max_tasks_per_site,
-            post_cap_by_origin.get("mode_a", 0),
-            post_cap_by_origin.get("mode_b", 0),
+            post_cap_by_origin.get("existing_task", 0),
+            post_cap_by_origin.get("new_task", 0),
         )
     active_sites = {
         normalize_site_name(str(task.get("site", ""))) for task in tasks if task.get("site")
@@ -2093,7 +2111,10 @@ async def run(args: argparse.Namespace) -> int:
     errors = sum(1 for r in final_results if r["final_status"] == "error")
     inconclusive = sum(1 for r in final_results if r["final_status"] == "inconclusive")
 
-    task_origin_by_id = {str(task.get("id", "")): str(task.get("origin", "")) for task in tasks}
+    task_origin_by_id = {
+        str(task.get("id", "")): _normalize_task_origin(task.get("origin"), task=task)
+        for task in tasks
+    }
     scorable = [
         r
         for r in final_results
@@ -2128,7 +2149,7 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     per_origin: dict[str, dict[str, Any]] = {}
-    for origin_key in ("mode_a", "mode_b"):
+    for origin_key in ("existing_task", "new_task"):
         origin_scorable = [
             r for r in scorable if task_origin_by_id.get(str(r.get("task_id", ""))) == origin_key
         ]

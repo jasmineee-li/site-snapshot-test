@@ -43,7 +43,7 @@ def _skip_host_api_preflight(monkeypatch):
     yield
 
 
-def _as_contracts(tasks: list[dict], *, origin: str = "mode_a") -> list[dict]:
+def _as_contracts(tasks: list[dict], *, origin: str = "existing_task") -> list[dict]:
     return [
         {
             "id": task["id"],
@@ -5331,14 +5331,14 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
             [
                 {
                     "id": "benign-valid",
-                    "origin": "mode_a",
+                    "origin": "existing_task",
                     "validity_status": "valid",
                     "validity_errors": [],
                     "task": benign_valid,
                 },
                 {
                     "id": "benign-invalid",
-                    "origin": "mode_b",
+                    "origin": "new_task",
                     "validity_status": "invalid",
                     "validity_errors": ["reward_function must be a non-empty object"],
                     "task": benign_invalid,
@@ -5502,7 +5502,7 @@ async def test_admission_rejects_entry_missing_id(tmp_path, monkeypatch, caplog)
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     instances_path = _prepare_malformed_contracts_fixture(
         tmp_path,
-        [{"origin": "mode_a", "validity_status": "valid", "task": {}}],
+        [{"origin": "existing_task", "validity_status": "valid", "task": {}}],
     )
 
     with caplog.at_level("ERROR"):
@@ -5523,7 +5523,7 @@ async def test_admission_rejects_unknown_validity_status(tmp_path, monkeypatch, 
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     instances_path = _prepare_malformed_contracts_fixture(
         tmp_path,
-        [{"id": "benign-1", "origin": "mode_a", "validity_status": "pending", "task": {}}],
+        [{"id": "benign-1", "origin": "existing_task", "validity_status": "pending", "task": {}}],
     )
 
     with caplog.at_level("ERROR"):
@@ -5565,7 +5565,7 @@ async def test_admission_rejects_valid_contract_missing_task_object(tmp_path, mo
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     instances_path = _prepare_malformed_contracts_fixture(
         tmp_path,
-        [{"id": "benign-1", "origin": "mode_a", "validity_status": "valid", "task": None}],
+        [{"id": "benign-1", "origin": "existing_task", "validity_status": "valid", "task": None}],
     )
 
     with caplog.at_level("ERROR"):
@@ -5613,10 +5613,10 @@ def test_stratified_summary_metrics_from_synthetic_results():
         },
     ]
     tasks = [
-        {"id": "adv-1", "origin": "mode_a"},
-        {"id": "adv-2", "origin": "mode_a"},
-        {"id": "adv-3", "origin": "mode_b"},
-        {"id": "adv-4", "origin": "mode_b"},
+        {"id": "adv-1", "origin": "existing_task"},
+        {"id": "adv-2", "origin": "existing_task"},
+        {"id": "adv-3", "origin": "new_task"},
+        {"id": "adv-4", "origin": "new_task"},
     ]
     task_origin_by_id = {str(t["id"]): str(t["origin"]) for t in tasks}
     complied_outcomes = {"complied", "success_on_variant"}
@@ -5639,10 +5639,10 @@ def test_stratified_summary_metrics_from_synthetic_results():
     capability = sum(1 for r in scorable_valid if r["benign_passed"]) / len(scorable_valid)
     assert capability == pytest.approx(2 / 3)
 
-    mode_a_valid = [
-        r for r in scorable_valid if task_origin_by_id.get(str(r["task_id"])) == "mode_a"
+    existing_task_valid = [
+        r for r in scorable_valid if task_origin_by_id.get(str(r["task_id"])) == "existing_task"
     ]
-    assert len(mode_a_valid) == 2
+    assert len(existing_task_valid) == 2
 
 
 # ---------------------------------------------------------------------------

@@ -95,6 +95,7 @@ def _wrap_task(
 
     wrapped: dict[str, Any] = {
         "id": str(task_id),
+        "origin": "existing_task",
         "site": site,
         "sites": sites,
         "instruction": raw.get("intent", raw.get("instruction", "")),
