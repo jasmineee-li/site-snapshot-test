@@ -109,10 +109,7 @@ def test_exposure_admission_requires_matching_evidence_contract_id():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["contract_id"] = "gitlab:other:test"
 
-    assert (
-        phase_4_adversarial._exposure_admission_error(task)
-        == "exposure_contract_id_mismatch"
-    )
+    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_contract_id_mismatch"
 
 
 def test_exposure_admission_requires_phase4_capability():
@@ -120,8 +117,7 @@ def test_exposure_admission_requires_phase4_capability():
     del task["exposure_contract"]["phase4_exposure"]
 
     assert (
-        phase_4_adversarial._exposure_admission_error(task)
-        == "missing_phase4_exposure_capability"
+        phase_4_adversarial._exposure_admission_error(task) == "missing_phase4_exposure_capability"
     )
 
 
@@ -144,14 +140,11 @@ def test_exposure_admission_rejects_phase4_inadmissible_topology():
     )
 
 
-def test_exposure_admission_requires_visual_evidence():
+def test_exposure_admission_visual_reachable_advisory():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["visual_reachable"] = False
 
-    assert (
-        phase_4_adversarial._exposure_admission_error(task)
-        == "exposure_not_visually_reachable"
-    )
+    assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
 def test_exposure_admission_requires_matching_verification_payload():
@@ -162,10 +155,7 @@ def test_exposure_admission_requires_matching_verification_payload():
         "witness_policy": "dom_text",
     }
 
-    assert (
-        phase_4_adversarial._exposure_admission_error(task)
-        == "exposure_verification_mismatch"
-    )
+    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_verification_mismatch"
 
 
 def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
@@ -248,9 +238,7 @@ def test_agent_context_with_instance_auth_redacts_runtime_credentials():
     }
     agent_auth = {
         "type": "http_headers",
-        "http_headers": {
-            "headers": {"X-Postmill-Auto-Login": "${credentials.username}:secret"}
-        },
+        "http_headers": {"headers": {"X-Postmill-Auto-Login": "${credentials.username}:secret"}},
         "authentication": {
             "credentials": {"username": "alice", "password": "secret"},
         },
@@ -3130,7 +3118,10 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["status"] == "failed"
     assert state["reason"] == "storage_state_preflight_error"
-    assert any("storage_state artifact missing" in error for error in state["storage_state_preflight_errors"])
+    assert any(
+        "storage_state artifact missing" in error
+        for error in state["storage_state_preflight_errors"]
+    )
 
 
 @pytest.mark.asyncio

@@ -933,8 +933,11 @@ def _exposure_admission_error(task: dict[str, Any]) -> str | None:
         return "missing_exposure_evidence"
     if exposure.get("reachable") is not True:
         return "exposure_not_reachable"
-    if exposure.get("visual_reachable") is not True:
-        return "exposure_not_visually_reachable"
+    # visual_reachable is advisory: Phase 2c's DOM-walk visual probe is a
+    # static-layout snapshot that produces false negatives on async-rendered
+    # content. Phase 4 PVPO measures actual on-screen encounter via
+    # HeadlessExperimental.beginFrame ink-occupancy and is the authoritative
+    # encounter gate, so we don't reject on visual_reachable here.
     if exposure.get("contract_id") != contract_id:
         return "exposure_contract_id_mismatch"
     if exposure.get("verification") != contract_verification:
@@ -1691,9 +1694,7 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     capabilities = get_benchmark_capabilities(run_benchmark or config.benchmark_name)
     if capabilities.phase_4_mode != "worldsim_v5":
-        message = (
-            f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
-        )
+        message = f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
         logger.error("Phase 4 benchmark metadata gate failed: %s", message)
         save_state(
             "phase_4",
@@ -1730,9 +1731,7 @@ async def run(args: argparse.Namespace) -> int:
             continue
         storage_state = auth.get("storage_state")
         declared_path = (
-            str(storage_state.get("path") or "")
-            if isinstance(storage_state, dict)
-            else ""
+            str(storage_state.get("path") or "") if isinstance(storage_state, dict) else ""
         )
         try:
             healed_path = await ensure_storage_state(
