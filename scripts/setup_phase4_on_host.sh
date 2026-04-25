@@ -7,7 +7,7 @@
 #
 # The script codifies everything the operator had to do by hand on the
 # 2026-04-20 r5 setup. Run order matters: uv/venvs → playwright system
-# deps → pvpo-chrome container → artifact sync → storage_state mint →
+# deps → pvpo-chrome container → artifact sync → Phase 0d storage_state mint →
 # Magento base_url sync → preflight gate.
 #
 # Usage:
@@ -41,7 +41,7 @@ Options:
   --artifacts-source <uri>   s3://, ssh://, or /local/path for phase_0c/2/3
   --skip-pvpo-container      skip step 3 (PVPO Docker container)
   --skip-magento-sync        deprecated no-op (step 6 removed 2026-04-21)
-  --skip-gitlab-mint         skip step 5 (login_gitlab_r5.py)
+  --skip-gitlab-mint         skip step 5 (Phase 0d storage_state mint)
   -h, --help                 show this help
 USAGE
 }
@@ -296,11 +296,10 @@ if [[ "$SKIP_GITLAB_MINT" -eq 0 ]]; then
     # loopback vs r5 public IP, or a previous host) are invisible at
     # mint-time but fail the runtime preflight with host_bound_storage_state.
     # Re-minting costs ~30s; debugging a stale artifact costs a whole run.
-    log "step 5: mint gitlab Phase 0d storage_state (unconditional)"
-    STATE_FILE="$STATE_DIR/phase_0d/gitlab/storage_state.json"
-    GITLAB_HOST="${GITLAB_HOST:-http://${ORCHESTRATOR_HOST}:8023}" \
-        GITLAB_STORAGE_STATE_PATH="$STATE_FILE" \
-        uv run python "$REPO_ROOT/scripts/login_gitlab_r5.py"
+    log "step 5: mint Phase 0d storage_state from $INSTANCES (unconditional)"
+    uv run python -m worldsim.main phase 0d \
+        --benchmark "$REPO_ROOT/vendors/webarena-verified" \
+        --instances "$REPO_ROOT/$INSTANCES"
 fi
 
 # Step 6 (Magento base_url sync) was removed 2026-04-21 with the

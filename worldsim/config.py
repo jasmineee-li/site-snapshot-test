@@ -382,6 +382,14 @@ class BenchmarkConfig(BaseModel):
 
     benchmark_name: str
     instances: list[BenchmarkInstance]
+    host_access: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Optional host-binding metadata emitted by deployment generators. "
+            "Records the externally advertised host and the orchestrator-local "
+            "runtime host that site_url/reset_endpoint/storage_state are bound to."
+        ),
+    )
     verification_proxy: VerificationProxy | None = Field(
         None,
         description="Optional authenticated reverse proxy config for Phase 0c. "

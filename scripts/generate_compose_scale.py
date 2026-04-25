@@ -384,6 +384,7 @@ def build_instances_config(
     *,
     base_config: dict[str, Any],
     records: list[dict[str, Any]],
+    host_access: dict[str, Any],
     orchestrator_host: str,
     proxy_token: str | None,
     proxy_port_offset: int,
@@ -398,6 +399,7 @@ def build_instances_config(
     non-existent proxy port and aborts Phase 4 startup.
     """
     output = json.loads(json.dumps(base_config))
+    output["host_access"] = dict(host_access)
     base_instances = output.get("instances")
     if not isinstance(base_instances, list) or not base_instances:
         raise ValueError("base config must contain a non-empty instances array")
@@ -683,6 +685,14 @@ def main() -> int:
     instances_config = build_instances_config(
         base_config=base_config,
         records=records,
+        host_access={
+            "source": str(args.host_config or "cli"),
+            "advertise_host": host_cfg.advertise_host,
+            "orchestrator_host": host_cfg.orchestrator_host,
+            "runtime_host": host_cfg.orchestrator_host,
+            "bind_host": host_cfg.bind_host,
+            "db_bind_host": host_cfg.db_bind_host,
+        },
         orchestrator_host=host_cfg.orchestrator_host,
         proxy_token=args.proxy_token,
         proxy_port_offset=proxy_offset,

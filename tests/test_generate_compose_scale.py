@@ -156,6 +156,14 @@ def test_generate_compose_scale_preserves_runtime_contract(tmp_path: Path) -> No
     }
     assert instances_config["url_placeholders"]["__SHOPPING__"] == "http://203.0.113.10:7770"
     assert instances_config["url_placeholders"]["__WIKIPEDIA__"] == "http://203.0.113.10:8888"
+    assert instances_config["host_access"] == {
+        "source": str(host_config_path),
+        "advertise_host": "203.0.113.10",
+        "orchestrator_host": "203.0.113.10",
+        "runtime_host": "203.0.113.10",
+        "bind_host": "0.0.0.0",
+        "db_bind_host": "0.0.0.0",
+    }
 
     proxy_ports = (tmp_path / "proxy_ports.conf").read_text().splitlines()
     assert "shopping_0:7770:17770" in proxy_ports
@@ -745,6 +753,8 @@ def test_generate_compose_scale_uses_orchestrator_host_for_all_runtime_urls(
     # url_placeholders must match site_url so agent prompts don't reference
     # unreachable hosts.
     assert instances_config["url_placeholders"]["__GITLAB__"] == "http://172.17.0.1:8023"
+    assert instances_config["host_access"]["advertise_host"] == "3.12.221.9"
+    assert instances_config["host_access"]["runtime_host"] == "172.17.0.1"
     # env-ctrl's self-advertised URL (WA_ENV_CTRL_EXTERNAL_SITE_URL) also uses
     # orchestrator_host — clients read this value and navigate to it.
     compose = yaml.safe_load((tmp_path / "compose.scale.yml").read_text())

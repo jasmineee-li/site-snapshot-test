@@ -612,9 +612,11 @@ async def run_phase_0c(manifest, sandbox_map, benchmark_root, output_dir):
         storage_state.json
         completion.json        # {input_hash, generated_at, dispatch, site, ...}
 
-**Idempotency.** `completion.json` stores a SHA-256 of the inputs (site name, credentials, declared path, generator script bytes, form_login recipe). A re-run is a no-op when the existing artifact is non-empty JSON and the input hash matches. Credential or script rotations automatically trigger regeneration.
+**Idempotency.** `completion.json` stores a SHA-256 of the inputs (site name, credentials, declared path, generator script bytes, form_login recipe, and live `site_url`). A re-run is a no-op only when the existing artifact is non-empty JSON, the input hash matches, and the artifact's recorded cookie/origin hosts still match the live `site_url`. Credential, script, or host-view rotations automatically trigger regeneration.
 
-**CLI.** `uv run python -m worldsim.main phase 0d --benchmark vendors/<benchmark> [--instances instances.json]`. The `--instances` flag is optional; when present, the bootstrapper passes the site's live `site_url` to generators.
+**CLI.** `uv run python -m worldsim.main phase 0d --benchmark vendors/<benchmark> [--instances instances.json]`. The `--instances` flag is optional for legacy code-reading flows, but rigor runs must pass the same generated instances file that Phase 2c/4 will use. When Phase 0c profiles are not present, Phase 0d can still bootstrap directly from `agent_auth` recipes in that instances file.
+
+**Host binding.** Generated r5 instance files include `host_access` metadata with `advertise_host` and `orchestrator_host`. Runtime URLs (`site_url`, `reset_endpoint`, DB URLs, placeholders) use `orchestrator_host`. Phase 0d validates produced `storage_state` artifacts against that same host view and rejects mixed-host artifacts, for example cookies/origins split across `127.0.0.1`, `172.17.0.1`, and the public EC2 IP.
 
 **Non-goals.** Phase 0d does not manage benchmark environment lifecycles. It does not cope with CAPTCHA / OTP / SSO flows (use a `pre_auth_script` or a hand-written `generator_script` for those). It does not implement `per_task_refresh` (runtime raises `NotImplementedError` if a site sets it true).
 

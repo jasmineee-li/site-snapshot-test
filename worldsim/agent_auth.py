@@ -385,6 +385,19 @@ def storage_state_preflight_error_for_payload(
     if not live_host:
         return f"instance site_url {site_url!r} has no host"
 
+    matching_hosts = [
+        host for host in recorded_hosts if cookie_domain_matches_host(host, live_host)
+    ]
+    foreign_hosts = [
+        host for host in recorded_hosts if not cookie_domain_matches_host(host, live_host)
+    ]
+    if matching_hosts and foreign_hosts:
+        return (
+            f"storage_state {path_obj} mixes live host {live_host!r} records "
+            f"{sorted(matching_hosts)} with foreign recorded hosts {sorted(foreign_hosts)}; "
+            "re-run Phase 0d against the current generated instances file"
+        )
+
     cookie_hosts = storage_state_cookie_hosts(payload)
     origin_hosts = storage_state_origin_hosts(payload)
     mismatched_cookie_hosts = [

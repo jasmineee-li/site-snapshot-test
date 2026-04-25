@@ -112,6 +112,29 @@ def _instance_host(instance: BenchmarkInstance) -> str | None:
     return None
 
 
+def _mixed_host_binding_error(
+    *,
+    artifact_path: Path,
+    payload: dict[str, Any],
+    instance_host: str,
+) -> str | None:
+    recorded_hosts = _recorded_hosts(payload)
+    matching_hosts = [
+        host for host in recorded_hosts if _cookie_domain_matches_host(host, instance_host)
+    ]
+    foreign_hosts = [
+        host for host in recorded_hosts if not _cookie_domain_matches_host(host, instance_host)
+    ]
+    if not matching_hosts or not foreign_hosts:
+        return None
+    return (
+        f"storage_state_mixed_hosts: artifact {artifact_path} mixes live host "
+        f"{instance_host!r} records {sorted(matching_hosts)} with foreign recorded "
+        f"hosts {sorted(foreign_hosts)}; re-run Phase 0d against the current "
+        "generated instances file"
+    )
+
+
 def _artifact_is_structurally_usable(payload: dict[str, Any]) -> tuple[bool, str | None]:
     cookies = payload.get("cookies")
     origins = payload.get("origins")
@@ -338,6 +361,23 @@ def inspect_storage_state_preflight(
         if dedupe_key in seen_mismatches:
             continue
         seen_mismatches.add(dedupe_key)
+
+        mixed_error = _mixed_host_binding_error(
+            artifact_path=artifact_path,
+            payload=payload,
+            instance_host=instance_host,
+        )
+        if mixed_error is not None:
+            error = StorageStatePreflightError(
+                site_name=instance.site_name,
+                declared_path=raw_path,
+                message=mixed_error,
+            )
+            error_key = (error.site_name, error.declared_path, error.message)
+            if error_key not in seen_errors:
+                seen_errors.add(error_key)
+                errors.append(error)
+            continue
 
         if all(
             _cookie_domain_matches_host(recorded_host, instance_host)

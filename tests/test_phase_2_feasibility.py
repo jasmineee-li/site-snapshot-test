@@ -835,7 +835,7 @@ def test_preflight_request_context_rejects_host_bound_cookies_even_with_matching
 
     assert context == {}
     assert reason is not None
-    assert "cookie domains are host-bound" in reason
+    assert "mixes live host" in reason
     assert "old.example" in reason
 
 

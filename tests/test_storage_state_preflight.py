@@ -108,9 +108,11 @@ def test_find_host_bound_storage_state_mismatches_rejects_mixed_hosts(
         )
     ]
 
-    mismatches = find_host_bound_storage_state_mismatches(instances, benchmark_root=tmp_path)
-    assert len(mismatches) == 1
-    assert mismatches[0].recorded_hosts == ("3.12.221.9", "evil.test")
+    report = inspect_storage_state_preflight(instances, benchmark_root=tmp_path)
+    assert report.mismatches == ()
+    assert len(report.errors) == 1
+    assert "storage_state_mixed_hosts" in report.errors[0].message
+    assert "evil.test" in report.errors[0].message
 
 
 def test_apply_skip_auth_for_host_bound_storage_states_rewrites_only_mismatched_storage_state(

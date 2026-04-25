@@ -74,7 +74,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from worldsim.agent_auth import safe_phase_0d_site_name
+from worldsim.agent_auth import (
+    read_storage_state_payload,
+    safe_phase_0d_site_name,
+    storage_state_preflight_error_for_payload,
+    storage_state_recorded_hosts,
+)
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 from worldsim.state import get_state_dir, save_state
@@ -149,23 +154,12 @@ async def run(args: argparse.Namespace) -> int:
 
     state_dir = get_state_dir()
     profiles_dir = state_dir / "phase_0c"
-    if not profiles_dir.exists():
-        logger.error(
-            "Phase 0d requires Phase 0c output at %s — run phase 0c first",
-            profiles_dir,
-        )
-        return 1
 
-    output_dir = state_dir / "phase_0d"
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Map site -> live site_url when the operator supplied --instances. We do
-    # not *require* --instances for 0d because a generator may hard-code its
-    # own endpoint; but when present, we prefer it.
+    # Build maps from instances.json before the Phase 0c gate. A generated
+    # instances file is now the preferred auth source for rigor runs: it binds
+    # site_url, reset_endpoint, and storage_state generation to the same
+    # orchestrator-local host view.
     site_urls = _load_site_urls(getattr(args, "instances", None))
-
-    # Build a map of site_name -> agent_auth from instances.json so Phase 0d
-    # can bootstrap storage_state even when Phase 0c no longer outputs auth.
     instance_agent_auths: dict[str, dict[str, Any]] = {}
     instances_path = getattr(args, "instances", None)
     if instances_path is not None:
@@ -173,13 +167,24 @@ async def run(args: argparse.Namespace) -> int:
             config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
             for inst in config.instances:
                 if has_configured_agent_auth(inst.agent_auth):
-                    instance_agent_auths[inst.site_name] = inst.agent_auth
+                    instance_agent_auths.setdefault(inst.site_name, inst.agent_auth)
         except (OSError, ValueError) as exc:
             logger.warning(
                 "Phase 0d: failed to load instances.json agent_auth from %s: %s",
                 instances_path,
                 exc,
             )
+
+    if not profiles_dir.exists() and not instance_agent_auths:
+        logger.error(
+            "Phase 0d requires Phase 0c output at %s or an --instances file with "
+            "storage_state/form_login agent_auth recipes",
+            profiles_dir,
+        )
+        return 1
+
+    output_dir = state_dir / "phase_0d"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     site_specs = list(_collect_storage_state_specs(profiles_dir, instance_agent_auths))
     if not site_specs:
@@ -222,12 +227,26 @@ async def run(args: argparse.Namespace) -> int:
             failures.append((spec.site_name, str(exc)))
             continue
         if _is_idempotent_skip(artifact_path, completion_path, input_hash):
-            logger.info(
-                "Phase 0d: skipping site %r (artifact present and input hash matches)",
-                spec.site_name,
-            )
-            skipped.append({"site": spec.site_name, "reason": "up_to_date"})
-            continue
+            try:
+                _validate_storage_state_artifact(
+                    spec=spec,
+                    artifact_path=artifact_path,
+                    site_url=site_url,
+                )
+            except AuthBootstrapError as exc:
+                logger.warning(
+                    "Phase 0d: existing artifact for site %r matches input hash but "
+                    "failed host validation; regenerating: %s",
+                    spec.site_name,
+                    exc,
+                )
+            else:
+                logger.info(
+                    "Phase 0d: skipping site %r (artifact present and input hash matches)",
+                    spec.site_name,
+                )
+                skipped.append({"site": spec.site_name, "reason": "up_to_date"})
+                continue
         try:
             dispatch = _choose_dispatch(spec, benchmark_root=benchmark)
         except AuthBootstrapError as exc:
@@ -289,6 +308,17 @@ async def run(args: argparse.Namespace) -> int:
                 spec.declared_path or "<unspecified>",
             )
             skipped.append({"site": spec.site_name, "reason": reason})
+            continue
+
+        try:
+            _validate_storage_state_artifact(
+                spec=spec,
+                artifact_path=artifact_path,
+                site_url=site_url,
+            )
+        except AuthBootstrapError as exc:
+            logger.error("Phase 0d failed for site %r: %s", spec.site_name, exc)
+            failures.append((spec.site_name, str(exc)))
             continue
 
         _write_json_atomic(
@@ -460,7 +490,10 @@ def _load_site_urls(instances_path: str | Path | None) -> dict[str, str]:
     except Exception as exc:
         logger.warning("Phase 0d: failed to parse instances file %s: %s", path, exc)
         return {}
-    return {instance.site_name: instance.site_url for instance in config.instances}
+    urls: dict[str, str] = {}
+    for instance in config.instances:
+        urls.setdefault(instance.site_name, instance.site_url)
+    return urls
 
 
 def _collect_storage_state_specs(
@@ -482,30 +515,43 @@ def _collect_storage_state_specs(
         instance_agent_auths = {}
     seen: set[str] = set()
 
-    for path in sorted(profiles_dir.glob("AGENT_CONTEXT_*.json")):
-        site_name = path.stem.replace("AGENT_CONTEXT_", "")
+    if profiles_dir.exists():
+        for path in sorted(profiles_dir.glob("AGENT_CONTEXT_*.json")):
+            site_name = path.stem.replace("AGENT_CONTEXT_", "")
+            if site_name in seen:
+                continue
+            spec = _spec_from_context(
+                site_name, path, instance_agent_auth=instance_agent_auths.get(site_name)
+            )
+            if spec is not None:
+                seen.add(site_name)
+                yield spec
+
+        for child in sorted(profiles_dir.iterdir()):
+            if not child.is_dir():
+                continue
+            nested = child / "AGENT_CONTEXT.json"
+            if not nested.exists():
+                continue
+            if child.name in seen:
+                continue
+            spec = _spec_from_context(
+                child.name, nested, instance_agent_auth=instance_agent_auths.get(child.name)
+            )
+            if spec is not None:
+                seen.add(child.name)
+                yield spec
+
+    for site_name, auth in sorted(instance_agent_auths.items()):
         if site_name in seen:
             continue
-        spec = _spec_from_context(
-            site_name, path, instance_agent_auth=instance_agent_auths.get(site_name)
+        spec = _spec_from_instance_agent_auth(
+            site_name,
+            auth,
+            context_path=profiles_dir / site_name / "AGENT_CONTEXT.json",
         )
         if spec is not None:
             seen.add(site_name)
-            yield spec
-
-    for child in sorted(profiles_dir.iterdir()):
-        if not child.is_dir():
-            continue
-        nested = child / "AGENT_CONTEXT.json"
-        if not nested.exists():
-            continue
-        if child.name in seen:
-            continue
-        spec = _spec_from_context(
-            child.name, nested, instance_agent_auth=instance_agent_auths.get(child.name)
-        )
-        if spec is not None:
-            seen.add(child.name)
             yield spec
 
 
@@ -547,6 +593,71 @@ def _extract_form_login_recipe(mech: dict[str, Any]) -> dict[str, Any] | None:
     return normalized
 
 
+def _spec_from_agent_auth(
+    site_name: str,
+    mech: dict[str, Any],
+    *,
+    context_path: Path,
+    fallback_credentials: Any = None,
+) -> _SiteSpec | None:
+    mech_type = mech.get("type")
+    if mech_type not in ("storage_state", "form_login"):
+        return None
+
+    auth_block = mech.get("authentication")
+    credentials = auth_block.get("credentials") if isinstance(auth_block, dict) else None
+    if credentials is None:
+        credentials = fallback_credentials
+    form_login_recipe = _extract_form_login_recipe(mech)
+
+    if mech_type == "storage_state":
+        sub = mech.get("storage_state") or {}
+        if not isinstance(sub, dict):
+            return None
+        declared_path = sub.get("path")
+        if not isinstance(declared_path, str) or not declared_path.strip():
+            return None
+        generator_script = sub.get("generator_script")
+        if generator_script is not None and not isinstance(generator_script, str):
+            generator_script = None
+        per_task_refresh = bool(sub.get("per_task_refresh"))
+        notes = sub.get("notes") if isinstance(sub.get("notes"), str) else None
+        return _SiteSpec(
+            site_name=site_name,
+            mech_type="storage_state",
+            declared_path=declared_path.strip(),
+            generator_script=generator_script.strip() if generator_script else None,
+            form_login=form_login_recipe,
+            per_task_refresh=per_task_refresh,
+            credentials=credentials,
+            agent_context_source=context_path,
+            notes=notes,
+        )
+
+    if form_login_recipe is None:
+        return None
+    return _SiteSpec(
+        site_name=site_name,
+        mech_type="form_login",
+        declared_path="",
+        generator_script=None,
+        form_login=form_login_recipe,
+        per_task_refresh=False,
+        credentials=credentials,
+        agent_context_source=context_path,
+        notes=None,
+    )
+
+
+def _spec_from_instance_agent_auth(
+    site_name: str,
+    auth: dict[str, Any],
+    *,
+    context_path: Path,
+) -> _SiteSpec | None:
+    return _spec_from_agent_auth(site_name, auth, context_path=context_path)
+
+
 def _spec_from_context(
     site_name: str,
     context_path: Path,
@@ -575,54 +686,17 @@ def _spec_from_context(
     )
     if not isinstance(mech, dict):
         return None
-    mech_type = mech.get("type")
-    if mech_type not in ("storage_state", "form_login"):
-        return None
-
-    auth_block = mech.get("authentication") if isinstance(instance_agent_auth, dict) else (
-        mech.get("authentication") or data.get("authentication") or {}
-    )
-    credentials = auth_block.get("credentials") if isinstance(auth_block, dict) else None
-    form_login_recipe = _extract_form_login_recipe(mech)
-
-    if mech_type == "storage_state":
-        sub = mech.get("storage_state") or {}
-        if not isinstance(sub, dict):
-            return None
-        declared_path = sub.get("path")
-        if not isinstance(declared_path, str) or not declared_path.strip():
-            return None
-        generator_script = sub.get("generator_script")
-        if generator_script is not None and not isinstance(generator_script, str):
-            generator_script = None
-        per_task_refresh = bool(sub.get("per_task_refresh"))
-        notes = sub.get("notes") if isinstance(sub.get("notes"), str) else None
-        return _SiteSpec(
-            site_name=site_name,
-            mech_type="storage_state",
-            declared_path=declared_path.strip(),
-            generator_script=generator_script.strip() if generator_script else None,
-            form_login=form_login_recipe,
-            per_task_refresh=per_task_refresh,
-            credentials=credentials,
-            agent_context_source=context_path,
-            notes=notes,
+    fallback_credentials = None
+    if not isinstance(instance_agent_auth, dict):
+        auth_block = data.get("authentication") or {}
+        fallback_credentials = (
+            auth_block.get("credentials") if isinstance(auth_block, dict) else None
         )
-
-    # mech_type == "form_login": no benchmark-declared artifact path. Phase 0d
-    # still writes to its canonical logs/phase_0d/<site>/storage_state.json.
-    if form_login_recipe is None:
-        return None
-    return _SiteSpec(
-        site_name=site_name,
-        mech_type="form_login",
-        declared_path="",
-        generator_script=None,
-        form_login=form_login_recipe,
-        per_task_refresh=False,
-        credentials=credentials,
-        agent_context_source=context_path,
-        notes=None,
+    return _spec_from_agent_auth(
+        site_name,
+        mech,
+        context_path=context_path,
+        fallback_credentials=fallback_credentials,
     )
 
 
@@ -946,6 +1020,34 @@ def _trust_declared_path(
             f"trust-path failed: declared storage_state at {resolved} is not valid JSON: {exc}"
         ) from exc
     output_path.write_text(raw, encoding="utf-8")
+
+
+def _validate_storage_state_artifact(
+    *,
+    spec: _SiteSpec,
+    artifact_path: Path,
+    site_url: str,
+) -> None:
+    """Validate that a produced artifact is usable for the declared live host."""
+    payload, error = read_storage_state_payload(artifact_path)
+    if error is not None:
+        raise AuthBootstrapError(error)
+    if site_url:
+        host_error = storage_state_preflight_error_for_payload(
+            artifact_path,
+            payload,
+            site_url,
+        )
+        if host_error is not None:
+            raise AuthBootstrapError(host_error)
+        return
+    if storage_state_recorded_hosts(payload):
+        logger.warning(
+            "Phase 0d: generated storage_state for site %r without --instances; "
+            "host binding could not be validated. Rigor runs should pass the "
+            "same generated instances file used by Phase 2c/4.",
+            spec.site_name,
+        )
 
 
 async def _bootstrap_via_form_login(

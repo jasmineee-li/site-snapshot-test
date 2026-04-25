@@ -225,7 +225,14 @@ def test_reacquire_storage_state_requires_login_recipe(
 _GOOD_GENERATOR = """
 def generate(credentials, site_url, output_path, **kwargs):
     import json
-    output_path.write_text(json.dumps({"cookies": [], "origins": [], "test_marker": "v1"}))
+    from urllib.parse import urlsplit
+    host = urlsplit(site_url).hostname or "gitlab.test"
+    origin = site_url or f"http://{host}"
+    output_path.write_text(json.dumps({
+        "cookies": [{"name": "session", "value": "abc", "domain": host, "path": "/"}],
+        "origins": [{"origin": origin, "localStorage": []}],
+        "test_marker": "v1",
+    }))
 """
 
 
@@ -257,7 +264,14 @@ def generate(credentials, site_url, output_path, **kwargs):
 _ASYNC_GENERATOR = """
 async def generate(credentials, site_url, output_path, **kwargs):
     import json
-    output_path.write_text(json.dumps({"cookies": [], "via": "async"}))
+    from urllib.parse import urlsplit
+    host = urlsplit(site_url).hostname or "reddit.test"
+    origin = site_url or f"http://{host}"
+    output_path.write_text(json.dumps({
+        "cookies": [{"name": "session", "value": "abc", "domain": host, "path": "/"}],
+        "origins": [{"origin": origin, "localStorage": []}],
+        "via": "async",
+    }))
 """
 
 
@@ -408,7 +422,22 @@ class TestHappyPath:
 
         async def fake_form_login(*, spec, site_url, output_path):
             captured["spec"] = spec
-            output_path.write_text(json.dumps({"cookies": [], "origins": []}), encoding="utf-8")
+            output_path.write_text(
+                json.dumps(
+                    {
+                        "cookies": [
+                            {
+                                "name": "session",
+                                "value": "abc",
+                                "domain": "map.test",
+                                "path": "/",
+                            }
+                        ],
+                        "origins": [{"origin": "http://map.test", "localStorage": []}],
+                    }
+                ),
+                encoding="utf-8",
+            )
 
         monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
 
@@ -419,6 +448,242 @@ class TestHappyPath:
             "username": "instance-user",
             "password": "instance-pass",
         }
+
+    def test_run_can_bootstrap_from_instances_without_phase_0c_profiles(
+        self, tmp_path, monkeypatch
+    ):
+        state_dir = tmp_path / "logs"
+        bench = tmp_path / "benchmark"
+        state_dir.mkdir()
+        bench.mkdir()
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+        instances_path = tmp_path / "instances.json"
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "WebArena Verified",
+                    "benchmark_codebase": str(bench),
+                    "instances": [
+                        {
+                            "site_name": "gitlab",
+                            "site_url": "http://172.17.0.1:8023",
+                            "agent_auth": {
+                                "type": "storage_state",
+                                "storage_state": {
+                                    "path": "logs/phase_0d/gitlab/storage_state.json",
+                                    "form_login": {
+                                        "login_url": "/users/sign_in",
+                                        "username_selector": "#user_login",
+                                        "password_selector": "#user_password",
+                                        "submit_selector": "input[type=submit]",
+                                        "success_url_substring": "/-/profile",
+                                    },
+                                },
+                                "authentication": {
+                                    "credentials": {
+                                        "username": "root",
+                                        "password": "password",
+                                    }
+                                },
+                            },
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        captured: dict[str, object] = {}
+
+        async def fake_form_login(*, spec, site_url, output_path):
+            captured["site_url"] = site_url
+            captured["credentials"] = spec.credentials
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(
+                    {
+                        "cookies": [
+                            {
+                                "name": "_gitlab_session",
+                                "value": "abc",
+                                "domain": "172.17.0.1",
+                                "path": "/",
+                            }
+                        ],
+                        "origins": [{"origin": "http://172.17.0.1:8023", "localStorage": []}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+        monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+
+        assert rc == 0
+        assert captured == {
+            "site_url": "http://172.17.0.1:8023",
+            "credentials": {"username": "root", "password": "password"},
+        }
+        assert (state_dir / "phase_0d" / "gitlab" / "storage_state.json").exists()
+
+    def test_run_uses_first_same_site_instance_for_phase_0d_mint(
+        self, tmp_path, monkeypatch
+    ):
+        state_dir = tmp_path / "logs"
+        bench = tmp_path / "benchmark"
+        state_dir.mkdir()
+        bench.mkdir()
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+        auth = {
+            "type": "storage_state",
+            "storage_state": {
+                "path": "logs/phase_0d/gitlab/storage_state.json",
+                "form_login": {
+                    "login_url": "/users/sign_in",
+                    "username_selector": "#user_login",
+                    "password_selector": "#user_password",
+                    "submit_selector": "input[type=submit]",
+                    "success_url_substring": "/-/profile",
+                },
+            },
+            "authentication": {
+                "credentials": {
+                    "username": "root",
+                    "password": "password",
+                }
+            },
+        }
+        instances_path = tmp_path / "instances.scale.json"
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "WebArena Verified",
+                    "benchmark_codebase": str(bench),
+                    "instances": [
+                        {
+                            "site_name": "gitlab",
+                            "site_url": "http://172.17.0.1:8023",
+                            "agent_auth": auth,
+                        },
+                        {
+                            "site_name": "gitlab",
+                            "site_url": "http://172.17.0.1:8033",
+                            "agent_auth": auth,
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        captured: dict[str, object] = {}
+
+        async def fake_form_login(*, spec, site_url, output_path):
+            captured["site_url"] = site_url
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(
+                    {
+                        "cookies": [
+                            {
+                                "name": "_gitlab_session",
+                                "value": "abc",
+                                "domain": "172.17.0.1",
+                                "path": "/",
+                            }
+                        ],
+                        "origins": [{"origin": "http://172.17.0.1:8023", "localStorage": []}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+        monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+
+        assert rc == 0
+        assert captured["site_url"] == "http://172.17.0.1:8023"
+
+    def test_run_rejects_mixed_host_storage_state_after_bootstrap(
+        self, tmp_path, monkeypatch
+    ):
+        state_dir = tmp_path / "logs"
+        bench = tmp_path / "benchmark"
+        state_dir.mkdir()
+        bench.mkdir()
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+        instances_path = tmp_path / "instances.json"
+        instances_path.write_text(
+            json.dumps(
+                {
+                    "benchmark_name": "WebArena Verified",
+                    "benchmark_codebase": str(bench),
+                    "instances": [
+                        {
+                            "site_name": "gitlab",
+                            "site_url": "http://172.17.0.1:8023",
+                            "agent_auth": {
+                                "type": "storage_state",
+                                "storage_state": {
+                                    "path": "logs/phase_0d/gitlab/storage_state.json",
+                                    "form_login": {
+                                        "login_url": "/users/sign_in",
+                                        "username_selector": "#user_login",
+                                        "password_selector": "#user_password",
+                                        "submit_selector": "input[type=submit]",
+                                        "success_url_substring": "/-/profile",
+                                    },
+                                },
+                                "authentication": {
+                                    "credentials": {
+                                        "username": "root",
+                                        "password": "password",
+                                    }
+                                },
+                            },
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        async def fake_form_login(*, spec, site_url, output_path):
+            _ = spec, site_url
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                json.dumps(
+                    {
+                        "cookies": [
+                            {
+                                "name": "_gitlab_session",
+                                "value": "abc",
+                                "domain": "172.17.0.1",
+                                "path": "/",
+                            },
+                            {
+                                "name": "stale",
+                                "value": "abc",
+                                "domain": "3.12.221.9",
+                                "path": "/",
+                            },
+                        ],
+                        "origins": [{"origin": "http://127.0.0.1:8023", "localStorage": []}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+        monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+
+        assert rc == 1
+        state = json.loads((state_dir / "pipeline_state.json").read_text())
+        assert state["status"] == "failed"
+        assert "mixes live host" in state["failures"][0]["error"]
 
     def test_spec_from_context_does_not_fallback_to_phase_0c_credentials_when_instance_auth_present(
         self, tmp_path
