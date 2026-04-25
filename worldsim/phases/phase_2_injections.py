@@ -53,6 +53,14 @@ from worldsim.editors._registry import (
     method_spec,
 )
 from worldsim.modal_sandbox import preflight_sandbox_environment, run_claude_in_sandbox
+from worldsim.phases.phase_2_exposure_contract import (
+    build_exposure_contract,
+    exposure_contract_signature,
+    materialize_seed_template_from_contract,
+)
+from worldsim.phases.phase_2_exposure_contract import (
+    signature_hash as exposure_contract_signature_hash,
+)
 from worldsim.phases.phase_2_feasibility import (
     FAILPOINT_DATASET,
     FAILPOINT_DROPPED_SOURCE_DATA,
@@ -101,15 +109,26 @@ _L4_LISTING_KINDS = frozenset(
 )
 
 
-def _phase_2a_api_enabled() -> bool:
-    """Return True iff WORLDSIM_PHASE_2A_API is set to a truthy value.
+def _phase_2a_runtime(args: argparse.Namespace | None = None) -> str:
+    """Return the Phase 2a runtime, defaulting to direct API."""
+    raw = getattr(args, "phase_2a_runtime", None) if args is not None else None
+    if raw is None:
+        raw = os.environ.get("WORLDSIM_PHASE_2A_RUNTIME")
+    if raw is not None and str(raw).strip():
+        value = str(raw).strip().lower()
+        if value in {"api", "modal"}:
+            return value
+        logger.warning("unknown Phase 2a runtime %r; falling back to api", raw)
+        return "api"
 
-    When true, ``_generate_injections_for_site`` skips the Modal sandbox
-    and calls ``generate_phase_2a_plans_api`` (Shape C: single-turn forced
-    tool-use). Default false; the sandbox path stays the production path
-    until the smoke diff in step 4 of the migration plan justifies a flip.
-    """
-    return os.environ.get("WORLDSIM_PHASE_2A_API", "").strip().lower() in ("true", "1", "yes")
+    legacy = os.environ.get("WORLDSIM_PHASE_2A_API")
+    if legacy is not None:
+        return "api" if legacy.strip().lower() in ("true", "1", "yes", "on") else "modal"
+    return "api"
+
+
+def _phase_2a_api_enabled(args: argparse.Namespace | None = None) -> bool:
+    return _phase_2a_runtime(args) == "api"
 
 
 # Synthetic placeholder map used when Phase 2a resolves benign-target
@@ -399,17 +418,20 @@ async def run(args: argparse.Namespace) -> int:
     sandbox_concurrency = (
         getattr(args, "phase_2_sandbox_concurrency", None) or DEFAULT_SANDBOX_CONCURRENCY
     )
+    phase_2a_runtime = _phase_2a_runtime(args)
     launch_jitter_ms = getattr(args, "phase_2_launch_jitter_ms", None) or DEFAULT_LAUNCH_JITTER_MS
     state_metadata: dict[str, Any] = {
         "sandbox_model": sandbox_model,
         "max_tasks_per_site": max_tasks_per_site,
         "sites": sites_filter_raw,
+        "phase_2a_runtime": phase_2a_runtime,
         "phase_2_sandbox_concurrency": sandbox_concurrency,
         "phase_2_launch_jitter_ms": launch_jitter_ms,
         "phase_2b_texts_per_plan": texts_per_plan,
         "phase_2_text_fill_concurrency": text_fill_concurrency,
         "phase_2_text_model": text_fill_model,
         "phase_2a_resolution_signature": _phase_2a_resolution_signature(args),
+        "exposure_contract_signature": exposure_contract_signature(),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     plans_path = output_dir / "adversarial_plans.json"
@@ -563,20 +585,21 @@ async def run(args: argparse.Namespace) -> int:
             current_sandbox_model=sandbox_model,
             current_text_model=text_fill_model,
             current_phase_2a_resolution_signature=state_metadata["phase_2a_resolution_signature"],
-        )
+    )
     if reusable_plans is None and reusable_final_tasks is None:
-        try:
-            await preflight_sandbox_environment()
-        except RuntimeError as exc:
-            logger.error("Phase 2 sandbox pre-flight failed:\n%s", exc)
-            save_state(
-                "phase_2",
-                status="failed",
-                reason="sandbox_preflight_failed",
-                phase_2_stage="planning",
-                **state_metadata,
-            )
-            return 1
+        if phase_2a_runtime == "modal":
+            try:
+                await preflight_sandbox_environment()
+            except RuntimeError as exc:
+                logger.error("Phase 2 sandbox pre-flight failed:\n%s", exc)
+                save_state(
+                    "phase_2",
+                    status="failed",
+                    reason="sandbox_preflight_failed",
+                    phase_2_stage="planning",
+                    **state_metadata,
+                )
+                return 1
 
         save_state("phase_2", status="running", phase_2_stage="planning", **state_metadata)
 
@@ -610,6 +633,7 @@ async def run(args: argparse.Namespace) -> int:
                         sandbox_model=sandbox_model,
                         instance=per_site_instance,
                         benchmark=benchmark_name,
+                        phase_2a_runtime=phase_2a_runtime,
                     )
                 )
         shard_results = await asyncio.gather(*shard_coros, return_exceptions=True)
@@ -1600,6 +1624,7 @@ def _phase_2a_resolution_signature(args: argparse.Namespace) -> dict[str, Any]:
         "no_l3_l4": bool(getattr(args, "no_l3_l4", False)),
         "instances_path": str(instances_arg) if instances_arg else None,
         "instances_sha256": None,
+        "exposure_contract_signature": exposure_contract_signature_hash(),
     }
     if not instances_arg:
         return signature
@@ -2167,6 +2192,7 @@ async def _generate_injections_for_site(
     sandbox_model: str = "claude-sonnet-4-6",
     instance: Mapping[str, Any] | None = None,
     benchmark: str = "webarena_verified",
+    phase_2a_runtime: str = "api",
 ) -> SiteInjectionResult:
     """Generate adversarial injections for a shard (or full set) of tasks via Modal Sandbox.
 
@@ -2226,16 +2252,19 @@ async def _generate_injections_for_site(
     # expansion actually happened.
     if any(L4_TASK_ID_SUFFIX in str(t.get("id", "")) for t in site_tasks):
         all_site_tasks = site_tasks
-    # Pre-shard feasibility filter: drop tasks whose resolved kind has
-    # zero addressable editor methods on this site (commit 7 of the
-    # contract registry refactor). Dashboard-list kinds stay eligible —
-    # create_issue_note / create_comment have free-text body bindings
-    # that accept the @{benign_user_handle} mention routing.
+    exposure_contracts = _build_exposure_contracts_for_shard(
+        site_tasks=site_tasks,
+        benign_target_resources=benign_target_resources,
+        site=site_name,
+        benchmark=benchmark,
+    )
+    _persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
     site_tasks, eligibility_drops = _phase_2a_eligible_tasks_for_benchmark(
         site_tasks,
         benign_target_resources,
         site_name,
         benchmark=benchmark,
+        exposure_contracts=exposure_contracts,
     )
     if eligibility_drops:
         _write_eligibility_drops(site_name, eligibility_drops)
@@ -2258,7 +2287,7 @@ async def _generate_injections_for_site(
                 exc,
             )
 
-    if _phase_2a_api_enabled():
+    if phase_2a_runtime == "api":
         logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
         sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
         sanitized_agent_context = (
@@ -2267,6 +2296,7 @@ async def _generate_injections_for_site(
         adv_tasks = await generate_phase_2a_plans_api(
             benign_tasks=sanitized_site_tasks,
             benign_target_resources=benign_target_resources,
+            exposure_contracts=exposure_contracts,
             cell_targets=cell_targets,
             benchmark_profile=site_profile,
             agent_context=sanitized_agent_context,
@@ -2282,6 +2312,14 @@ async def _generate_injections_for_site(
                 [],
                 ["API path produced no adversarial plans"],
             )
+        try:
+            _materialize_strategy_plans_from_exposure(
+                adv_tasks,
+                exposure_contracts=exposure_contracts,
+                benchmark=benchmark,
+            )
+        except ValueError as exc:
+            return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
     else:
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp = Path(tmp_dir)
@@ -2294,10 +2332,13 @@ async def _generate_injections_for_site(
             cell_targets_file.write_text(json.dumps(cell_targets, indent=2, sort_keys=True))
             resources_file = tmp / "benign_target_resources.json"
             resources_file.write_text(json.dumps(benign_target_resources, indent=2, sort_keys=True))
+            exposure_contracts_file = tmp / "exposure_contracts.json"
+            exposure_contracts_file.write_text(json.dumps(exposure_contracts, indent=2, sort_keys=True))
 
             sandbox_files = {
                 "/workspace/tasks/benign_tasks.json": str(tasks_file),
                 "/workspace/tasks/benign_target_resources.json": str(resources_file),
+                "/workspace/tasks/exposure_contracts.json": str(exposure_contracts_file),
                 "/workspace/tasks/cell_targets.json": str(cell_targets_file),
                 "/workspace/profile/BENCHMARK_PROFILE.json": str(profile_path),
             }
@@ -2357,6 +2398,7 @@ async def _generate_injections_for_site(
         adv_tasks,
         all_site_tasks,
         enriched_resources=benign_target_resources,
+        exposure_contracts=exposure_contracts,
     )
 
     validated, errors = _validate_generated_adversarial_tasks(
@@ -2421,6 +2463,7 @@ def _merge_immutable_fields(
     benign_tasks: list[dict],
     *,
     enriched_resources: Mapping[str, Mapping[str, Any]] | None = None,
+    exposure_contracts: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> None:
     """Copy immutable fields from benign tasks into adversarial task dicts.
 
@@ -2473,6 +2516,11 @@ def _merge_immutable_fields(
                 benign_task,
                 _PHASE_2A_SYNTHETIC_PLACEHOLDERS,
                 benchmark=_benchmark_for_option_a_plan(adv_task),
+            )
+
+        if exposure_contracts is not None and benign_id in exposure_contracts:
+            adv_task["exposure_contract"] = json.loads(
+                json.dumps(dict(exposure_contracts[benign_id]))
             )
 
         # Handle reward_function construction.
@@ -3069,6 +3117,7 @@ def _phase_2a_eligible_tasks(
     site: str,
     *,
     benchmark: str = "webarena_verified",
+    exposure_contracts: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[list[dict], list[dict[str, Any]]]:
     """Split a shard's tasks into (eligible, dropped).
 
@@ -3096,6 +3145,31 @@ def _phase_2a_eligible_tasks(
     dropped: list[dict[str, Any]] = []
     for task in site_tasks:
         task_id = str(task.get("id") or "")
+        exposure_contract = (
+            exposure_contracts.get(task_id)
+            if isinstance(exposure_contracts, Mapping)
+            else None
+        )
+        if isinstance(exposure_contract, Mapping):
+            eligibility = exposure_contract.get("eligibility")
+            status = eligibility.get("status") if isinstance(eligibility, Mapping) else None
+            if status != "eligible":
+                dropped.append(
+                    {
+                        "task_id": task_id,
+                        "kind": exposure_contract.get("kind"),
+                        "reason": (
+                            str(eligibility.get("reason"))
+                            if isinstance(eligibility, Mapping)
+                            else "exposure_contract_ineligible"
+                        ),
+                        "anchors": dict(exposure_contract.get("anchors") or {}),
+                        "available_tokens": list(exposure_contract.get("required_tokens") or []),
+                        "contract_id": exposure_contract.get("contract_id"),
+                    }
+                )
+                continue
+
         record = benign_target_resources.get(task_id) or {}
         kind = record.get("kind") if isinstance(record, dict) else None
         anchors_raw = record.get("anchors") if isinstance(record, dict) else None
@@ -3185,6 +3259,7 @@ def _phase_2a_eligible_tasks_for_benchmark(
     site: str,
     *,
     benchmark: str,
+    exposure_contracts: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[list[dict], list[dict[str, Any]]]:
     try:
         return _phase_2a_eligible_tasks(
@@ -3192,11 +3267,126 @@ def _phase_2a_eligible_tasks_for_benchmark(
             benign_target_resources,
             site,
             benchmark=benchmark,
+            exposure_contracts=exposure_contracts,
         )
     except TypeError as exc:
-        if "unexpected keyword argument 'benchmark'" not in str(exc):
+        if "unexpected keyword argument" not in str(exc):
             raise
         return _phase_2a_eligible_tasks(site_tasks, benign_target_resources, site)
+
+
+def _build_exposure_contracts_for_shard(
+    *,
+    site_tasks: list[dict],
+    benign_target_resources: Mapping[str, Mapping[str, Any]],
+    site: str,
+    benchmark: str,
+) -> dict[str, dict[str, Any]]:
+    contracts: dict[str, dict[str, Any]] = {}
+    for task in site_tasks:
+        task_id = str(task.get("id") or "")
+        if not task_id:
+            continue
+        contracts[task_id] = build_exposure_contract(
+            benign_task_id=task_id,
+            site=site,
+            benchmark=benchmark,
+            benign_target_resource=benign_target_resources.get(task_id),
+        )
+    return contracts
+
+
+def _persist_exposure_contracts(
+    *,
+    site_name: str,
+    contracts: Mapping[str, Mapping[str, Any]],
+) -> None:
+    try:
+        out_dir = get_state_dir() / "phase_2"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / "exposure_contracts.json"
+        ineligible_path = out_dir / "exposure_ineligible.json"
+        with _ELIGIBILITY_DROPS_WRITE_LOCK:
+            existing: dict[str, Any] = {}
+            if path.exists():
+                try:
+                    raw = json.loads(path.read_text())
+                    if isinstance(raw, dict):
+                        existing = raw
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2: exposure_contracts.json at %s is malformed; overwriting",
+                        path,
+                    )
+            existing.setdefault(site_name, {}).update(
+                {str(key): dict(value) for key, value in contracts.items()}
+            )
+            write_json_atomic(path, existing)
+
+            ineligible_existing: dict[str, list[dict[str, Any]]] = {}
+            if ineligible_path.exists():
+                try:
+                    raw = json.loads(ineligible_path.read_text())
+                    if isinstance(raw, dict):
+                        ineligible_existing = raw
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2: exposure_ineligible.json at %s is malformed; overwriting",
+                        ineligible_path,
+                    )
+            site_ineligible = [
+                dict(contract)
+                for contract in contracts.values()
+                if isinstance(contract.get("eligibility"), Mapping)
+                and contract["eligibility"].get("status") != "eligible"
+            ]
+            if site_ineligible:
+                ineligible_existing.setdefault(site_name, []).extend(site_ineligible)
+                write_json_atomic(ineligible_path, ineligible_existing)
+    except Exception as exc:
+        logger.warning(
+            "Phase 2a: could not persist exposure contracts for site %r: %s",
+            site_name,
+            exc,
+        )
+
+
+def _materialize_strategy_plans_from_exposure(
+    plans: list[dict[str, Any]],
+    *,
+    exposure_contracts: Mapping[str, Mapping[str, Any]],
+    benchmark: str,
+) -> None:
+    contracts_by_id = {
+        str(contract.get("contract_id") or ""): contract for contract in exposure_contracts.values()
+    }
+    host_owned_fields = {"seed_template", "target_surface_id", "delivery_mechanism"}
+    for plan in plans:
+        forbidden_fields = sorted(host_owned_fields.intersection(plan))
+        if forbidden_fields:
+            raise ValueError(
+                f"strategy plan {plan.get('id', '?')!r} included host-owned placement "
+                f"fields: {', '.join(forbidden_fields)}"
+            )
+        benign_id = str(plan.get("benign_task_id") or "")
+        contract_id = str(plan.get("exposure_contract_id") or "")
+        contract = (
+            contracts_by_id.get(contract_id)
+            if contract_id
+            else exposure_contracts.get(benign_id)
+        )
+        if not isinstance(contract, Mapping):
+            raise ValueError(
+                f"plan {plan.get('id', '?')!r} references no known exposure contract "
+                f"(benign_task_id={benign_id!r}, exposure_contract_id={contract_id!r})"
+            )
+        plan["exposure_contract_id"] = str(contract.get("contract_id") or contract_id)
+        plan["target_surface_id"] = str(contract.get("target_surface_id") or "")
+        plan["delivery_mechanism"] = "api"
+        plan["seed_template"] = materialize_seed_template_from_contract(
+            contract,
+            benchmark=benchmark,
+        )
 
 
 def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
@@ -3439,20 +3629,17 @@ def _is_option_a_site(task: dict) -> bool:
 
 
 def _validate_option_a_placement(plan: dict, task_name: str) -> str | None:
-    """Dual-run wrapper: runs both validators, writes discrepancy NDJSON,
-    returns the verdict dictated by :func:`_rigorous_option_a_enabled`.
+    """Validate Option A placement using the editor-method registry.
 
-    Legacy enforced by default until commit 8's flag flip. The registry
-    validator's output is logged on every discrepancy regardless, so the
-    behavior delta is auditable before the flip.
+    The legacy validator still runs for discrepancy logging, but the
+    registry verdict is the production verdict. Placement is no longer a
+    prompt-owned contract.
     """
     legacy_verdict = _validate_option_a_placement_legacy(plan, task_name)
     new_verdict = _validate_option_a_placement_registry(plan, task_name)
     if legacy_verdict != new_verdict:
         _log_validator_discrepancy(plan, task_name, legacy_verdict, new_verdict)
-    if _rigorous_option_a_enabled():
-        return new_verdict
-    return legacy_verdict
+    return new_verdict
 
 
 def _validate_option_a_placement_legacy(plan: dict, task_name: str) -> str | None:

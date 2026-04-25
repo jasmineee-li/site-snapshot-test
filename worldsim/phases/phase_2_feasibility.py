@@ -793,7 +793,26 @@ async def _verify_one(
                 # target resource is known — legacy datasets without the
                 # field are skipped so this commit doesn't regress them.
                 resource = task.get("benign_target_resource")
-                if isinstance(resource, dict) and resource.get("kind") is not None:
+                exposure_contract = task.get("exposure_contract")
+                if isinstance(exposure_contract, dict):
+                    eligibility = exposure_contract.get("eligibility")
+                    if not isinstance(eligibility, dict) or eligibility.get("status") != "eligible":
+                        reachability_outcome = ReachabilityOutcome.unreachable(
+                            kind="exposure_contract_ineligible",
+                            detail="task exposure_contract is missing eligible status",
+                            url=str(instance.get("site_url") or ""),
+                        )
+                    else:
+                        reachability_outcome = await _run_reachability_check(
+                            browser=browser,
+                            render_semaphore=render_semaphore,
+                            task=task,
+                            seed=seed,
+                            metadata=metadata,
+                            instance=instance,
+                            render_outcome=render_outcome,
+                        )
+                elif isinstance(resource, dict) and resource.get("kind") is not None:
                     reachability_outcome = await _run_reachability_check(
                         browser=browser,
                         render_semaphore=render_semaphore,
@@ -846,6 +865,13 @@ async def _verify_one(
     if reachability_outcome is not None:
         feasibility["reachability"] = reachability_outcome.reachability
         feasibility["reachability_evidence"] = reachability_outcome.evidence()
+        exposure_contract = task.get("exposure_contract")
+        if isinstance(exposure_contract, dict):
+            feasibility["exposure"] = {
+                "contract_id": exposure_contract.get("contract_id"),
+                "reachable": reachability_outcome.reachability != "unreachable",
+                "verification": exposure_contract.get("verification"),
+            }
     result["feasibility"] = feasibility
     return result
 
@@ -874,7 +900,7 @@ async def _run_reachability_check(
     substring for RYW passes. Second witness is derived from the seed
     body text via ``phase_2_reachability.derive_second_witness``.
     """
-    benign_target_resource = task.get("benign_target_resource")
+    benign_target_resource = _reachability_resource_for_task(task)
     site_url = str(instance.get("site_url") or "").strip()
     url_token = _required_url_token(task)
     if url_token is not None:
@@ -937,6 +963,29 @@ async def _run_reachability_check(
         return await _do()
     async with render_semaphore:
         return await _do()
+
+
+def _reachability_resource_for_task(task: dict[str, Any]) -> dict[str, Any] | None:
+    """Project an exposure contract into the existing reachability probe shape."""
+    resource = task.get("benign_target_resource")
+    projected = dict(resource) if isinstance(resource, dict) else {}
+    contract = task.get("exposure_contract")
+    if not isinstance(contract, dict):
+        return projected or None
+    verification = contract.get("verification")
+    verification_url = (
+        verification.get("url") if isinstance(verification, dict) else contract.get("benign_read_url")
+    )
+    if isinstance(verification_url, str) and verification_url.strip():
+        projected["start_url_resolved"] = verification_url
+    kind = contract.get("kind")
+    if isinstance(kind, str) and kind.strip():
+        projected["kind"] = kind
+    if "anchors" not in projected and isinstance(contract.get("anchors"), dict):
+        projected["anchors"] = dict(contract["anchors"])
+    projected["exposure_contract_id"] = contract.get("contract_id")
+    projected["exposure_mode"] = contract.get("mode")
+    return projected
 
 
 def _required_url_token(task: dict[str, Any]) -> str | None:

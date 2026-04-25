@@ -56,6 +56,45 @@ def _as_contracts(tasks: list[dict], *, origin: str = "mode_a") -> list[dict]:
     ]
 
 
+def _phase4_exposure_fields(
+    *,
+    benign_task_id: str = "benign-1",
+    site: str = "gitlab",
+    url: str = "http://gitlab.test/issues",
+) -> dict:
+    contract_id = f"{site}:{benign_task_id}:test"
+    return {
+        "exposure_contract": {
+            "contract_id": contract_id,
+            "benign_task_id": benign_task_id,
+            "site": site,
+            "kind": "test_surface",
+            "mode": "direct_detail",
+            "anchors": {},
+            "benign_read_url": url,
+            "editor_method": "test.editor",
+            "target_surface_id": "test_surface",
+            "payload_arg": "body",
+            "editor_args_template": {"body": "{{PAYLOAD_TEXT}}"},
+            "required_tokens": [],
+            "verification": {"url": url, "mode": "direct_detail", "witness_policy": "dom_text"},
+            "eligibility": {"status": "eligible"},
+        },
+        "feasibility": {
+            "status": "verified",
+            "exposure": {
+                "contract_id": contract_id,
+                "reachable": True,
+                "verification": {
+                    "url": url,
+                    "mode": "direct_detail",
+                    "witness_policy": "dom_text",
+                },
+            },
+        },
+    }
+
+
 def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():
     instance = BenchmarkInstance(
         site_name="gitlab",
@@ -2871,6 +2910,10 @@ async def test_phase_4_run_fails_on_malformed_sql_seed(monkeypatch, tmp_path):
                         "mechanism": "sql",
                         "statements": ["INSERT INTO products (id) VALUES (1)"],
                     },
+                    **_phase4_exposure_fields(
+                        site="shopping",
+                        url="http://shopping.test/orders",
+                    ),
                 }
             ]
         )
@@ -2944,6 +2987,7 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
                         "mechanism": "api",
                         "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
                     },
+                    **_phase4_exposure_fields(),
                 }
             ]
         )
@@ -3037,6 +3081,7 @@ async def test_phase_4_run_checks_existing_storage_state_freshness(monkeypatch, 
             "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
         },
     }
+    adv_task.update(_phase4_exposure_fields())
     (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps([adv_task]))
     benign_task = dict(adv_task)
     benign_task["id"] = "benign-1"
@@ -3129,7 +3174,7 @@ async def test_phase_4_run_rejects_non_worldsim_v5_benchmark(monkeypatch, tmp_pa
             "mechanism": "api",
             "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
         },
-        "feasibility": {"status": "verified"},
+        **_phase4_exposure_fields(),
     }
     benign_task = dict(adv_task)
     benign_task["id"] = "benign-1"
@@ -3191,6 +3236,7 @@ async def test_phase_4_run_clears_storage_error_after_retry_success(monkeypatch,
             "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
         },
     }
+    adv_task.update(_phase4_exposure_fields())
     benign_task = dict(adv_task)
     benign_task["id"] = "benign-1"
     benign_task["reward_function"] = {"type": "noop"}
@@ -3287,6 +3333,7 @@ async def test_phase_4_run_agent_runtime_error_precedes_host_api_preflight(monke
                         "mechanism": "api",
                         "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
                     },
+                    **_phase4_exposure_fields(),
                 }
             ]
         )
@@ -3376,6 +3423,7 @@ async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mism
                         "mechanism": "api",
                         "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
                     },
+                    **_phase4_exposure_fields(),
                 }
             ]
         )
@@ -3490,6 +3538,10 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
                         "mechanism": "api",
                         "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
                     },
+                    **_phase4_exposure_fields(
+                        site="shopping",
+                        url="http://shopping.test/orders",
+                    ),
                 }
             ]
         )
@@ -4146,6 +4198,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
                         "mechanism": "api",
                         "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
                     },
+                    **_phase4_exposure_fields(benign_task_id="benign-gitlab"),
                 },
                 {
                     "id": "adv-shopping",
@@ -4160,6 +4213,11 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
                         "mechanism": "api",
                         "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 2}}],
                     },
+                    **_phase4_exposure_fields(
+                        benign_task_id="benign-shopping",
+                        site="shopping",
+                        url="http://shopping.test/orders",
+                    ),
                 },
             ]
         )
@@ -4692,6 +4750,10 @@ async def test_phase_4_run_marks_all_error_results_failed(monkeypatch, tmp_path)
                         "mechanism": "api",
                         "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
                     },
+                    **_phase4_exposure_fields(
+                        site="shopping",
+                        url="http://shopping.test/orders",
+                    ),
                 }
             ]
         )
@@ -5167,6 +5229,11 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
                 "mechanism": "api",
                 "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
             },
+            **_phase4_exposure_fields(
+                benign_task_id="benign-valid",
+                site="shopping",
+                url="http://shopping.test/orders",
+            ),
         },
         {
             "id": "adv-invalid-benign",
@@ -5180,6 +5247,11 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
                 "mechanism": "api",
                 "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
             },
+            **_phase4_exposure_fields(
+                benign_task_id="benign-invalid",
+                site="shopping",
+                url="http://shopping.test/orders",
+            ),
         },
         {
             "id": "adv-orphan",
@@ -5193,6 +5265,11 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
                 "mechanism": "api",
                 "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
             },
+            **_phase4_exposure_fields(
+                benign_task_id="benign-missing",
+                site="shopping",
+                url="http://shopping.test/orders",
+            ),
         },
     ]
     (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps(adversarial_tasks))

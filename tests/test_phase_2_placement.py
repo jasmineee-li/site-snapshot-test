@@ -466,12 +466,11 @@ class TestDualRunFlag:
         assert reason is not None, "new validator should reject"
         assert "selector group" in reason
 
-    def test_flag_off_enforces_legacy_verdict(
+    def test_flag_off_still_enforces_registry_verdict(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Explicit opt-out: WORLDSIM_RIGOROUS_OPTION_A=false still works
-        as a break-glass override post-flag-flip, in case a production
-        run needs to fall back to the legacy verdict."""
+        """The registry validator is production authority; the env flag only
+        controls legacy comparison logging and no longer changes admission."""
         monkeypatch.setenv("WORLDSIM_RIGOROUS_OPTION_A", "false")
         monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
         plan = _base_gitlab_plan()
@@ -481,7 +480,8 @@ class TestDualRunFlag:
             "body": "x",
         }
         reason = phase_2_injections._validate_option_a_placement(plan, "plan")
-        assert reason is None, "legacy validator should accept when env var forces flag off"
+        assert reason is not None, "registry validator should remain authoritative"
+        assert "selector group" in reason
 
 
 # --- malformed-token rejection (Bug B) ---------------------------------

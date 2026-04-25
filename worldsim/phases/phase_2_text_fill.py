@@ -21,6 +21,8 @@ from typing import Any
 
 import requests
 
+from worldsim.phase_4.anthropic_client import call_with_retry, get_client, normalize_model_for_auth
+from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import validate_data_seed
 
@@ -381,86 +383,40 @@ async def _generate_single_payload(
         for variant in TEXT_FILL_PROMPT_VARIANTS
     ]
     errors: list[dict[str, Any]] = []
-    primary_available = _openrouter_available()
-    fallback_available = _anthropic_available()
 
     for prompt_variant, prompt in prompts:
-        if primary_available:
-            try:
-                raw = await asyncio.to_thread(_call_openrouter, prompt, model)
-            except Exception as exc:  # pragma: no cover - network path exercised via mocks
-                errors.append(
-                    {"variant": prompt_variant, "auth_path": "openrouter", "error": str(exc)}
-                )
-            else:
-                if is_refusal(raw):
-                    errors.append(
-                        {"variant": prompt_variant, "auth_path": "openrouter", "error": "refused"}
-                    )
-                else:
-                    parsed, parse_error = _parse_text_fill_response(raw)
-                    if parse_error is None:
-                        validation_errors = validate_text_post_hoc(parsed, task)
-                        if not validation_errors:
-                            parsed["auth_path"] = "openrouter"
-                            parsed["attempt"] = prompt_variant
-                            return parsed, {"status": "ok", "errors": errors}
-                        errors.append(
-                            {
-                                "variant": prompt_variant,
-                                "auth_path": "openrouter",
-                                "error": "post_hoc_failed",
-                                "details": validation_errors,
-                            }
-                        )
-                    else:
-                        errors.append(
-                            {
-                                "variant": prompt_variant,
-                                "auth_path": "openrouter",
-                                "error": "parse_failed",
-                                "details": parse_error,
-                            }
-                        )
-
-    if fallback_available:
-        for prompt_variant, prompt in prompts:
-            try:
-                raw, auth_path = await asyncio.to_thread(_call_anthropic_fallback, prompt, model)
-            except Exception as exc:  # pragma: no cover - network path exercised via mocks
-                errors.append(
-                    {"variant": prompt_variant, "auth_path": "fallback", "error": str(exc)}
-                )
-                continue
-            if is_refusal(raw):
-                errors.append(
-                    {"variant": prompt_variant, "auth_path": auth_path, "error": "refused"}
-                )
-                continue
-            parsed, parse_error = _parse_text_fill_response(raw)
-            if parse_error is None:
-                validation_errors = validate_text_post_hoc(parsed, task)
-                if not validation_errors:
-                    parsed["auth_path"] = auth_path
-                    parsed["attempt"] = prompt_variant
-                    return parsed, {"status": "ok", "errors": errors}
-                errors.append(
-                    {
-                        "variant": prompt_variant,
-                        "auth_path": auth_path,
-                        "error": "post_hoc_failed",
-                        "details": validation_errors,
-                    }
-                )
-            else:
-                errors.append(
-                    {
-                        "variant": prompt_variant,
-                        "auth_path": auth_path,
-                        "error": "parse_failed",
-                        "details": parse_error,
-                    }
-                )
+        try:
+            raw, auth_path = await _call_text_fill_api(prompt, model)
+        except Exception as exc:  # pragma: no cover - network path exercised via mocks
+            errors.append({"variant": prompt_variant, "auth_path": "shared_api", "error": str(exc)})
+            continue
+        if is_refusal(raw):
+            errors.append({"variant": prompt_variant, "auth_path": auth_path, "error": "refused"})
+            continue
+        parsed, parse_error = _parse_text_fill_response(raw)
+        if parse_error is None:
+            validation_errors = validate_text_post_hoc(parsed, task)
+            if not validation_errors:
+                parsed["auth_path"] = auth_path
+                parsed["attempt"] = prompt_variant
+                return parsed, {"status": "ok", "errors": errors}
+            errors.append(
+                {
+                    "variant": prompt_variant,
+                    "auth_path": auth_path,
+                    "error": "post_hoc_failed",
+                    "details": validation_errors,
+                }
+            )
+        else:
+            errors.append(
+                {
+                    "variant": prompt_variant,
+                    "auth_path": auth_path,
+                    "error": "parse_failed",
+                    "details": parse_error,
+                }
+            )
 
     return (None, {"status": "failed", "errors": errors})
 
@@ -635,6 +591,29 @@ def _parse_text_fill_response(raw_text: str) -> tuple[dict[str, Any], str | None
     if not isinstance(parsed, dict):
         return ({}, "text fill response must be a JSON object")
     return (parsed, None)
+
+
+async def _call_text_fill_api(prompt: str, model: str) -> tuple[str, str]:
+    """Call the shared Anthropic-compatible client used by Phase 4 APIs."""
+    client = get_client()
+
+    async def _call() -> Any:
+        async with get_api_semaphore():
+            return await client.messages.create(
+                model=normalize_model_for_auth(model),
+                max_tokens=1200,
+                temperature=0.7,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+    response = await call_with_retry(_call, retries=3, label="phase2b-text-fill")
+    parts: list[str] = []
+    for item in getattr(response, "content", []) or []:
+        if getattr(item, "type", None) == "text":
+            parts.append(str(getattr(item, "text", "")))
+        elif isinstance(item, dict) and item.get("type") == "text":
+            parts.append(str(item.get("text") or ""))
+    return ("".join(parts), "shared_api")
 
 
 def _openrouter_available() -> bool:

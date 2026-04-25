@@ -19,6 +19,32 @@ from worldsim.editors import EditorError
 from worldsim.phases import phase_2_feasibility as feas
 from worldsim.phases import phase_2c_preflight
 
+
+def test_reachability_resource_prefers_exposure_contract_verification_url():
+    resource = feas._reachability_resource_for_task(
+        {
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
+                "anchors": {"project_id": "22", "issue_iid": "7"},
+            },
+            "exposure_contract": {
+                "contract_id": "gitlab:task:test",
+                "kind": "gitlab_issue",
+                "mode": "listing_visible",
+                "anchors": {"project_id": "22", "issue_iid": "7"},
+                "verification": {
+                    "url": "https://gitlab.local/search?search=theme&scope=issues",
+                    "mode": "listing_visible",
+                },
+            },
+        }
+    )
+
+    assert resource["start_url_resolved"] == "https://gitlab.local/search?search=theme&scope=issues"
+    assert resource["exposure_contract_id"] == "gitlab:task:test"
+    assert resource["exposure_mode"] == "listing_visible"
+
 # ---------------------------------------------------------------------------
 # Fixtures / fakes
 # ---------------------------------------------------------------------------

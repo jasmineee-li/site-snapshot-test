@@ -1469,6 +1469,7 @@ async def run(args: argparse.Namespace) -> int:
     skipped_orphan = 0
     skipped_infeasible = 0
     skipped_unverified = 0
+    skipped_missing_exposure = 0
     sites_filter_set = (
         {site.strip() for site in sites_filter_raw.split(",") if site.strip()}
         if isinstance(sites_filter_raw, str) and sites_filter_raw.strip()
@@ -1503,6 +1504,21 @@ async def run(args: argparse.Namespace) -> int:
                     "WORLDSIM_STRICT_FEASIBILITY=true to enforce."
                 )
                 grace_warning_emitted = True
+        exposure_contract = adversarial_task.get("exposure_contract")
+        if not isinstance(exposure_contract, dict):
+            skipped_missing_exposure += 1
+            continue
+        exposure_eligibility = exposure_contract.get("eligibility")
+        if (
+            not isinstance(exposure_eligibility, dict)
+            or exposure_eligibility.get("status") != "eligible"
+        ):
+            skipped_missing_exposure += 1
+            continue
+        exposure_evidence = feasibility.get("exposure") if isinstance(feasibility, dict) else None
+        if not isinstance(exposure_evidence, dict) or exposure_evidence.get("reachable") is not True:
+            skipped_missing_exposure += 1
+            continue
         benign_task_id = str(adversarial_task.get("benign_task_id", "")).strip()
         if not benign_task_id:
             rebase_errors.append(f"{adversarial_task.get('id', '?')}: missing benign_task_id")
@@ -1528,7 +1544,7 @@ async def run(args: argparse.Namespace) -> int:
     logger.info(
         "Phase 4: admitted %d/%d adversarial tasks (mode_a=%d, mode_b=%d); "
         "skipped %d with invalid benign contract, %d with unknown benign_task_id, "
-        "%d infeasible, %d unverified (strict=%s)",
+        "%d infeasible, %d unverified, %d without eligible exposure (strict=%s)",
         len(tasks),
         len(adversarial_tasks),
         admitted_by_origin.get("mode_a", 0),
@@ -1537,6 +1553,7 @@ async def run(args: argparse.Namespace) -> int:
         skipped_orphan,
         skipped_infeasible,
         skipped_unverified,
+        skipped_missing_exposure,
         strict_feasibility,
     )
     if rebase_errors:
@@ -1568,6 +1585,7 @@ async def run(args: argparse.Namespace) -> int:
                 adversarially_exhausted_contract_ids=sorted(exhausted_contract_ids),
                 skipped_infeasible=skipped_infeasible,
                 skipped_unverified=skipped_unverified,
+                skipped_missing_exposure=skipped_missing_exposure,
                 **state_metadata,
             )
             return 1
@@ -1576,6 +1594,9 @@ async def run(args: argparse.Namespace) -> int:
             "phase_4",
             status="failed",
             reason="no_validated_adversarial_tasks",
+            skipped_infeasible=skipped_infeasible,
+            skipped_unverified=skipped_unverified,
+            skipped_missing_exposure=skipped_missing_exposure,
             **state_metadata,
         )
         return 1

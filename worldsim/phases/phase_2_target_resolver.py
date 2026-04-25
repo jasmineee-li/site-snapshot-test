@@ -1240,9 +1240,15 @@ def _project_item_to_record(
     item_kind = item.get("_item_kind")
     if item_kind not in ("gitlab_issue", "gitlab_mr", "reddit_submission"):
         return None
+    source_listing_kind = base.get("kind")
+    source_listing_url = base.get("start_url_resolved")
     record = dict(base)
     record["kind"] = item_kind
     record["layer"] = "L4"
+    if isinstance(source_listing_kind, str) and source_listing_kind:
+        record["source_listing_kind"] = source_listing_kind
+    if isinstance(source_listing_url, str) and source_listing_url.strip():
+        record["benign_read_url"] = source_listing_url
     site_kind: Literal["gitlab", "reddit"] = (
         "reddit" if item_kind == "reddit_submission" else "gitlab"
     )
@@ -1284,15 +1290,16 @@ def _project_item_to_record(
     record["encounter_requirements"] = _encounter_requirements(item_kind, {}, anchors)
     # Viewport budget stays constant.
     record["encounter_requirements"].setdefault("viewport_budget_chars", VIEWPORT_BUDGET_CHARS)
-    # Point start_url_resolved at the concrete item (not the listing)
-    # so Phase 2c's reachability probe navigates to the page where the
-    # seed lives.
+    # Keep both URLs. The concrete item URL is where the seed is attached;
+    # the benign_read_url is the page the benign task actually asks the
+    # agent to observe. Phase 2c's exposure contract must verify the latter.
     if placeholders is not None:
         reconstructed = _reconstruct_start_url_from_anchors(
             site_kind, item_kind, anchors, placeholders
         )
         if reconstructed:
             record["start_url_resolved"] = reconstructed
+            record["seeded_detail_url"] = reconstructed
     return record
 
 

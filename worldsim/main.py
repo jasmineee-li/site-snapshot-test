@@ -148,6 +148,13 @@ def build_parser() -> argparse.ArgumentParser:
         "to the listed sites only.",
     )
     phase_cmd.add_argument(
+        "--phase-2a-runtime",
+        choices=("api", "modal"),
+        default="api",
+        help="Phase 2a planning runtime. Defaults to direct host API; use "
+        "'modal' for the legacy Claude Code sandbox path.",
+    )
+    phase_cmd.add_argument(
         "--phase-2-sandbox-concurrency",
         type=_positive_int,
         default=None,
@@ -337,6 +344,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="SITE[,SITE...]",
         help="Override the saved site filter on resume.",
+    )
+    resume_cmd.add_argument(
+        "--phase-2a-runtime",
+        choices=("api", "modal"),
+        default=argparse.SUPPRESS,
+        help="Resume: override the saved Phase 2a planning runtime.",
     )
     resume_cmd.add_argument(
         "--phase-2-sandbox-concurrency",
@@ -732,6 +745,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     generate_novel = getattr(args, "generate_novel", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites = getattr(args, "sites", None)
+    phase_2a_runtime = getattr(args, "phase_2a_runtime", None)
     phase_2_sandbox_concurrency = getattr(args, "phase_2_sandbox_concurrency", None)
     phase_2_launch_jitter_ms = getattr(args, "phase_2_launch_jitter_ms", None)
     phase_2b_texts_per_plan = getattr(args, "phase_2b_texts_per_plan", None)
@@ -766,6 +780,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel = state.get("generate_novel", False)
     if sites is None:
         sites = state.get("sites")
+    if phase_2a_runtime is None:
+        phase_2a_runtime = state.get("phase_2a_runtime", "api")
     if phase_2_sandbox_concurrency is None:
         phase_2_sandbox_concurrency = state.get("phase_2_sandbox_concurrency")
     if phase_2_launch_jitter_ms is None:
@@ -821,6 +837,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel=generate_novel,
         max_tasks_per_site=max_tasks_per_site,
         sites=sites,
+        phase_2a_runtime=phase_2a_runtime,
         phase_2_sandbox_concurrency=phase_2_sandbox_concurrency,
         phase_2_launch_jitter_ms=phase_2_launch_jitter_ms,
         phase_2b_texts_per_plan=phase_2b_texts_per_plan,
