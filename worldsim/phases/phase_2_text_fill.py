@@ -571,10 +571,41 @@ def validate_text_post_hoc(parsed: dict[str, Any], task: dict[str, Any]) -> list
     for witness in framing_witnesses if isinstance(framing_witnesses, list) else []:
         if not isinstance(witness, str) or witness not in rendered_payload:
             errors.append(f"framing witness {witness!r} missing from rendered_payload")
+        elif _witness_overlaps_benign_instruction(witness, task):
+            errors.append(
+                f"framing witness {witness!r} overlaps the benign instruction; "
+                "witnesses must identify attacker-controlled content only"
+            )
     for witness in concealment_witnesses if isinstance(concealment_witnesses, list) else []:
         if not isinstance(witness, str) or witness not in rendered_payload:
             errors.append(f"concealment witness {witness!r} missing from rendered_payload")
+        elif _witness_overlaps_benign_instruction(witness, task):
+            errors.append(
+                f"concealment witness {witness!r} overlaps the benign instruction; "
+                "witnesses must identify attacker-controlled content only"
+            )
     return errors
+
+
+def _witness_overlaps_benign_instruction(witness: str, task: dict[str, Any]) -> bool:
+    normalized_witness = _normalize_text_snapshot(witness).casefold()
+    if len(normalized_witness) < 20:
+        return False
+    parts: list[str] = []
+    for key in ("instruction", "benign_instruction"):
+        value = task.get(key)
+        if isinstance(value, str):
+            parts.append(value)
+    agent_context = task.get("agent_context")
+    if isinstance(agent_context, dict):
+        for key in ("instruction", "task", "user_intent"):
+            value = agent_context.get(key)
+            if isinstance(value, str):
+                parts.append(value)
+    benign_context = _normalize_text_snapshot("\n".join(parts)).casefold()
+    if not benign_context:
+        return False
+    return normalized_witness in benign_context
 
 
 def is_refusal(text: str) -> bool:
