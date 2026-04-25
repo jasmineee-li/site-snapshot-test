@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -61,6 +62,7 @@ async def run_mode_b(
     benchmark_root: Path,
     output_dir: Path,
     sandbox_model: str = "claude-sonnet-4-6",
+    site_filter: Iterable[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Generate Mode B novel tasks for eligible sites."""
     state_dir = get_state_dir()
@@ -74,6 +76,7 @@ async def run_mode_b(
     eligible_sites = load_mode_b_eligible_sites(
         profiles_dir=profiles_dir,
         manifest_eval_types=manifest_eval_types,
+        site_filter=site_filter,
     )
     if not eligible_sites:
         logger.info("Phase 1B: no eligible sites found, nothing to generate")
@@ -151,12 +154,17 @@ def load_mode_b_eligible_sites(
     *,
     profiles_dir: Path,
     manifest_eval_types: list[str],
+    site_filter: Iterable[str] | None = None,
 ) -> list[EligibleSiteProfile]:
     """Return validated site profiles that still have uncovered surfaces."""
     eligible: list[EligibleSiteProfile] = []
+    site_filter_set = _normalize_site_filter(site_filter)
 
     for profile_path in sorted(profiles_dir.glob("BENCHMARK_PROFILE_*.json")):
         site_name = profile_path.stem.removeprefix("BENCHMARK_PROFILE_")
+        if site_filter_set is not None and site_name not in site_filter_set:
+            logger.info("Phase 1B: skipping site %r due to --sites filter", site_name)
+            continue
         profile = load_and_validate_profile(
             site_name,
             profile_path,
@@ -174,6 +182,13 @@ def load_mode_b_eligible_sites(
             logger.info("Phase 1B: skipping site %r (no uncovered injection surfaces)", site_name)
 
     return eligible
+
+
+def _normalize_site_filter(site_filter: Iterable[str] | None) -> set[str] | None:
+    if site_filter is None:
+        return None
+    normalized = {str(site).strip() for site in site_filter if str(site).strip()}
+    return normalized or None
 
 
 async def generate_novel_tasks_for_site(

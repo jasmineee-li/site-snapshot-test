@@ -406,6 +406,23 @@ def test_load_mode_b_eligible_sites_only_returns_profiles_with_uncovered_surface
     assert [site.site_name for site in eligible] == ["shopping"]
 
 
+def test_load_mode_b_eligible_sites_honors_site_filter(tmp_path):
+    profiles_dir = tmp_path / "phase_0c"
+    profiles_dir.mkdir()
+    for site_name in ("gitlab", "reddit", "shopping"):
+        profile = _profile(uncovered=["surface-1"])
+        profile["site_name"] = site_name
+        (profiles_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(json.dumps(profile))
+
+    eligible = phase_1_mode_b.load_mode_b_eligible_sites(
+        profiles_dir=profiles_dir,
+        manifest_eval_types=["NetworkEventEvaluator", "AgentResponseEvaluator"],
+        site_filter={"gitlab", "reddit"},
+    )
+
+    assert [site.site_name for site in eligible] == ["gitlab", "reddit"]
+
+
 @pytest.mark.asyncio
 async def test_generate_novel_tasks_for_site_reuses_valid_cached_output(monkeypatch, tmp_path):
     output_dir = tmp_path / "phase_1"

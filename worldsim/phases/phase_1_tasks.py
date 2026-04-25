@@ -51,6 +51,8 @@ async def run(args: argparse.Namespace) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     generate_novel = bool(getattr(args, "generate_novel", False))
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
+    sites_filter_raw = getattr(args, "sites", None)
+    sites_filter = _parse_sites_filter(sites_filter_raw)
 
     manifest_path = args.config or (state_dir / "phase_0a" / "BENCHMARK_MANIFEST.json")
     try:
@@ -65,6 +67,7 @@ async def run(args: argparse.Namespace) -> int:
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
+            sites=sites_filter_raw,
             error=str(exc),
         )
         return 1
@@ -78,6 +81,7 @@ async def run(args: argparse.Namespace) -> int:
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
+            sites=sites_filter_raw,
         )
         return 1
 
@@ -95,6 +99,7 @@ async def run(args: argparse.Namespace) -> int:
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
+            sites=sites_filter_raw,
         )
         return 1
     try:
@@ -107,6 +112,7 @@ async def run(args: argparse.Namespace) -> int:
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
+            sites=sites_filter_raw,
             error=str(exc),
         )
         return 1
@@ -120,6 +126,7 @@ async def run(args: argparse.Namespace) -> int:
         benchmark_name=benchmark_name,
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
+        sites=sites_filter_raw,
     )
 
     profiles_dir = get_state_dir() / "phase_0c"
@@ -137,6 +144,7 @@ async def run(args: argparse.Namespace) -> int:
             manifest_path=Path(manifest_path),
             generate_novel=generate_novel,
             sandbox_model=sandbox_model,
+            sites=sites_filter_raw,
         )
         return 1
 
@@ -154,6 +162,7 @@ async def run(args: argparse.Namespace) -> int:
             benchmark_resume_metadata_path=resume_metadata_path,
             resume=bool(getattr(args, "resume", False)),
             sandbox_model=sandbox_model,
+            site_filter=sites_filter,
         )
         if novel_tasks is None:
             return 1
@@ -167,6 +176,7 @@ async def run(args: argparse.Namespace) -> int:
             benchmark_root=benchmark_root,
             manifest=manifest,
             sandbox_model=sandbox_model,
+            site_filter=sites_filter,
         )
 
     save_state(
@@ -181,6 +191,7 @@ async def run(args: argparse.Namespace) -> int:
         manifest_path=str(manifest_path),
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
+        sites=sites_filter_raw,
     )
     cost_tracker.log_phase_summary("phase_1")
     cost_tracker.save(state_dir / "cost_report.json")
@@ -205,6 +216,16 @@ def _load_manifest(manifest_path: Path) -> dict[str, Any] | None:
     if not isinstance(manifest, dict):
         raise ValueError(f"Manifest at {manifest_path} must be a JSON object")
     return manifest
+
+
+def _parse_sites_filter(value: Any) -> set[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        parsed = {site.strip() for site in value.split(",") if site.strip()}
+        return parsed or None
+    parsed = {str(site).strip() for site in value if str(site).strip()}
+    return parsed or None
 
 
 def _resolve_benchmark_root(
@@ -253,6 +274,7 @@ def _save_phase_1_running_state(
     benchmark_name: str,
     generate_novel: bool,
     sandbox_model: str,
+    sites: str | None = None,
 ) -> None:
     """Persist the start of Phase 1 for resume support."""
     save_state(
@@ -263,6 +285,7 @@ def _save_phase_1_running_state(
         manifest_path=str(manifest_path),
         generate_novel=generate_novel,
         sandbox_model=sandbox_model,
+        sites=sites,
     )
 
 
@@ -273,6 +296,7 @@ def _save_phase_1_failure_state(
     manifest_path: Path,
     generate_novel: bool,
     sandbox_model: str,
+    sites: str | None = None,
     mode_a_task_count: int | None = None,
     error: str | None = None,
 ) -> None:
@@ -284,6 +308,8 @@ def _save_phase_1_failure_state(
         "generate_novel": generate_novel,
         "sandbox_model": sandbox_model,
     }
+    if sites is not None:
+        payload["sites"] = sites
     if benchmark_root is not None:
         payload["benchmark_path"] = str(benchmark_root)
     if mode_a_task_count is not None:
@@ -304,6 +330,7 @@ async def _maybe_generate_mode_b_tasks(
     benchmark_resume_metadata_path: Path,
     resume: bool,
     sandbox_model: str,
+    site_filter: set[str] | None,
 ) -> list[dict[str, Any]] | None:
     """Return Mode B tasks, reusing merged output when already present."""
     existing_novel_tasks = _reuse_existing_novel_tasks_if_valid(
@@ -313,6 +340,7 @@ async def _maybe_generate_mode_b_tasks(
         resume_metadata_path=benchmark_resume_metadata_path,
         resume=resume,
         sandbox_model=sandbox_model,
+        site_filter=site_filter,
     )
     if existing_novel_tasks is not None:
         return existing_novel_tasks
@@ -323,6 +351,7 @@ async def _maybe_generate_mode_b_tasks(
             benchmark_root=benchmark_root,
             output_dir=output_dir,
             sandbox_model=sandbox_model,
+            site_filter=site_filter,
         )
     except Exception as exc:
         _save_phase_1_failure_state(
@@ -346,6 +375,7 @@ def _reuse_existing_novel_tasks_if_valid(
     resume_metadata_path: Path,
     resume: bool,
     sandbox_model: str,
+    site_filter: set[str] | None,
 ) -> list[dict[str, Any]] | None:
     """Reuse merged Mode B output only on resume and only after provenance checks."""
     if not resume:
@@ -358,6 +388,7 @@ def _reuse_existing_novel_tasks_if_valid(
     eligible_sites = _load_mode_b_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
         manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
+        site_filter=site_filter,
     )
     validation_errors = validate_existing_novel_tasks(
         existing_novel_tasks,
@@ -412,10 +443,12 @@ def _write_mode_b_resume_metadata(
     benchmark_root: Path,
     manifest: dict[str, Any],
     sandbox_model: str,
+    site_filter: set[str] | None,
 ) -> None:
     eligible_sites = _load_mode_b_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
         manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
+        site_filter=site_filter,
     )
     payload = {
         "fingerprint": compute_mode_b_resume_fingerprint(
