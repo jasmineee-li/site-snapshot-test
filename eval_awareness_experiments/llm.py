@@ -13,6 +13,8 @@ from pathlib import Path
 
 from openai import AsyncOpenAI
 
+from eval_awareness_experiments.retry import call_with_retry
+
 # Load .env from project root if present
 _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
@@ -52,6 +54,7 @@ class LLM:
         thinking: bool = False,
         concurrency: int = 64,
         temperature: float | None = None,
+        retries: int = 3,
     ):
         # Strip :thinking suffix and enable thinking mode
         if model.endswith(":thinking"):
@@ -63,10 +66,14 @@ class LLM:
         # When None, fall through to whatever the underlying provider defaults
         # to. Judges should pass temperature=0 for reproducibility.
         self.temperature = temperature
+        self.retries = retries
         self._semaphore = asyncio.Semaphore(concurrency)
         self._client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=os.getenv("OPENROUTER_API_KEY"),
+            # Disable SDK-level retry: call_with_retry does the retry policy,
+            # and SDK retries would hold the semaphore through every attempt.
+            max_retries=0,
         )
 
     async def generate(
@@ -92,13 +99,19 @@ class LLM:
         if response_format:
             kwargs["response_format"] = response_format
 
-        async with self._semaphore:
-            resp = await self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                **kwargs,
-            )
+        # Semaphore lives inside _do so the slot is released during retry
+        # backoff sleeps — otherwise N concurrent retries would starve every
+        # other in-flight call.
+        async def _do():
+            async with self._semaphore:
+                return await self._client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    **kwargs,
+                )
+
+        resp = await call_with_retry(_do, retries=self.retries, label=f"llm:{self.model}")
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
 
@@ -143,13 +156,18 @@ class LLM:
 
         messages = [{"role": "user", "content": content}]
 
-        async with self._semaphore:
-            resp = await self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                **self._extra_kwargs(),
-            )
+        async def _do():
+            async with self._semaphore:
+                return await self._client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    **self._extra_kwargs(),
+                )
+
+        resp = await call_with_retry(
+            _do, retries=self.retries, label=f"llm:{self.model}:img"
+        )
         text = resp.choices[0].message.content or ""
         return GenerateResult(message=_Message(text=text))
 

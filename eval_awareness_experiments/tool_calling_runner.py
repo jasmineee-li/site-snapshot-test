@@ -22,6 +22,7 @@ from typing import Any, Awaitable, Callable
 from openai import AsyncOpenAI
 
 from eval_awareness_experiments.injection_modifier import InjectionCondition
+from eval_awareness_experiments.retry import call_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,7 @@ class ToolCallingRunner:
         max_tokens: int = 8192,
         temperature: float = 0.1,
         concurrency: int = 16,
+        retries: int = 3,
     ):
         self.thinking = model_name.endswith(":thinking")
         self.model_name = model_name.removesuffix(":thinking") if self.thinking else model_name
@@ -122,6 +124,7 @@ class ToolCallingRunner:
         self.max_turns = max_turns
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.retries = retries
         self._semaphore = asyncio.Semaphore(concurrency)
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
@@ -129,6 +132,9 @@ class ToolCallingRunner:
         self._client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
+            # SDK retries off — call_with_retry owns the policy and needs to
+            # release the semaphore between attempts.
+            max_retries=0,
         )
 
     async def run_task(
@@ -179,15 +185,22 @@ class ToolCallingRunner:
         hit_max_turns = False
 
         for turn_idx in range(self.max_turns):
-            async with self._semaphore:
-                resp = await self._client.chat.completions.create(
-                    model=self.model_name,
-                    messages=messages,
-                    tools=tools if tools else None,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    **self._extra_kwargs(),
-                )
+            async def _do_turn():
+                async with self._semaphore:
+                    return await self._client.chat.completions.create(
+                        model=self.model_name,
+                        messages=messages,
+                        tools=tools if tools else None,
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        **self._extra_kwargs(),
+                    )
+
+            resp = await call_with_retry(
+                _do_turn,
+                retries=self.retries,
+                label=f"toolcall:{benchmark}:{task_id}:t{turn_idx}",
+            )
             msg = resp.choices[0].message
             thought = (getattr(msg, "reasoning", None) or "") or ""
             content = msg.content or ""
