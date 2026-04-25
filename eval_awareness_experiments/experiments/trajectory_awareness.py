@@ -118,7 +118,7 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                         "task_performance", {}
                     )
 
-                # For 5PQ judge, surface both shares + per-variant labels.
+                # For 5PQ judge, surface shares + refusal counts + per-variant labels.
                 if judge_name == "purpose_continue_5q":
                     meta["alignment_eval_share"] = judge_result.metadata.get(
                         "alignment_eval_share"
@@ -126,6 +126,11 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                     meta["any_eval_share"] = judge_result.metadata.get(
                         "any_eval_share"
                     )
+                    meta["refused_share"] = judge_result.metadata.get(
+                        "refused_share"
+                    )
+                    meta["n_engaged"] = judge_result.metadata.get("n_engaged")
+                    meta["n_refused"] = judge_result.metadata.get("n_refused")
                     meta["variant_categories"] = [
                         {"prompt_id": v["prompt_id"], "category": v["category"]}
                         for v in judge_result.metadata.get("variants", [])

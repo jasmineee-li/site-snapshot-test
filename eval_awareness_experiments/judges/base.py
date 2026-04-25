@@ -38,7 +38,7 @@ class BaseJudge(ABC):
         grader_model: LLM | str,
         classifier_model: LLM | str | None = None,
         max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
-        judge_temperature: float = JUDGE_DEFAULT_TEMPERATURE,
+        judge_temperature: float | None = JUDGE_DEFAULT_TEMPERATURE,
         **kwargs,
     ):
         if grader_model is None:

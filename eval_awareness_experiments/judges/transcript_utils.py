@@ -3,6 +3,35 @@
 from eval_awareness_experiments.types import Message, Transcript
 
 
+def _strip_seed_duplicates(transcript: Transcript) -> list[Message]:
+    """Drop leading messages that duplicate Transcript.system_instructions /
+    Transcript.instruction.
+
+    `trajectory_to_transcript` copies `task_instruction` into both
+    `Transcript.instruction` and `messages[0]`, so naively rendering both
+    produces two identical adjacent user blocks — a model-distinguishable
+    artifact ("real chatlogs don't repeat the user message verbatim").
+    Dedupe by skipping at most one leading system + one leading user
+    message that match the seed fields exactly.
+    """
+    msgs = list(transcript.messages)
+    if (
+        transcript.system_instructions
+        and msgs
+        and msgs[0].role == "system"
+        and msgs[0].content == transcript.system_instructions
+    ):
+        msgs = msgs[1:]
+    if (
+        transcript.instruction
+        and msgs
+        and msgs[0].role == "user"
+        and msgs[0].content == transcript.instruction
+    ):
+        msgs = msgs[1:]
+    return msgs
+
+
 def transcript_to_xml(transcript: Transcript) -> str:
     """Convert a transcript to XML format for prompts.
 
@@ -13,6 +42,9 @@ def transcript_to_xml(transcript: Transcript) -> str:
     contains an `<instruction>` envelope, so a judge could classify a
     transcript as eval-derived purely from the wrapper rather than from
     the model's behavior).
+
+    Leading `messages` that duplicate the seed fields are dropped so the
+    same content isn't rendered twice in adjacent identical tags.
     """
     parts = []
 
@@ -22,7 +54,7 @@ def transcript_to_xml(transcript: Transcript) -> str:
     if transcript.instruction:
         parts.append(f"<user>\n{transcript.instruction}\n</user>")
 
-    for msg in transcript.messages:
+    for msg in _strip_seed_duplicates(transcript):
         tag = "reasoning" if msg.is_hidden else msg.role
 
         label_attr = f' label="{msg.label}"' if msg.label else ""
@@ -87,7 +119,7 @@ def transcript_to_needham_xml(transcript: Transcript) -> str:
         parts.append(f'<message role="user">\n{transcript.instruction}\n</message>')
 
     pending_reasoning: list[str] = []
-    for msg in transcript.messages:
+    for msg in _strip_seed_duplicates(transcript):
         if msg.is_hidden:
             pending_reasoning.append(msg.content)
             continue
