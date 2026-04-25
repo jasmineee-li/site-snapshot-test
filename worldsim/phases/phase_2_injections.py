@@ -4321,6 +4321,7 @@ def _extract_attack_write(seed: Any) -> dict[str, Any] | None:
             continue
         matches.append(
             {
+                "editor_key": _editor_delivery_key(call),
                 "mechanism": call_mechanism,
                 "resource": f"path:{method.strip().upper()} {_normalize_delivery_path(path)}",
                 "fields": set(field_values.keys()),
@@ -4350,7 +4351,30 @@ def _entry_matches_attack_write(entry: dict[str, Any], attack_write: dict[str, A
     ):
         return False
     placeholder_fields = attack_write.get("placeholder_fields")
-    return isinstance(placeholder_fields, set) and body_field in placeholder_fields
+    editor_key = attack_write.get("editor_key")
+    return isinstance(placeholder_fields, set) and _body_field_matches_placeholder(
+        body_field,
+        placeholder_fields,
+        editor_key=editor_key if isinstance(editor_key, tuple) else None,
+    )
+
+
+def _body_field_matches_placeholder(
+    body_field: str,
+    placeholder_fields: set[str],
+    *,
+    editor_key: tuple[str, str] | None,
+) -> bool:
+    if body_field in placeholder_fields:
+        return True
+    if editor_key == ("reddit", "create_submission"):
+        return body_field == "submission[body]" and "body" in placeholder_fields
+    if editor_key == ("reddit", "create_comment"):
+        return bool(
+            "body" in placeholder_fields
+            and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(body_field)
+        )
+    return False
 
 
 def _validate_discriminating_payload(

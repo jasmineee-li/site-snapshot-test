@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from worldsim.phases import phase_2_target_resolver as resolver
 from worldsim.phases.phase_2_target_resolver import (
     VIEWPORT_BUDGET_CHARS,
     _benign_probe_instance,
@@ -201,10 +202,28 @@ def test_gitlab_dashboard_todos_l1_from_array_of_urls():
 
 
 def test_gitlab_dashboard_merge_requests_l1():
-    task = _gitlab_task(eval_url="__GITLAB__/dashboard/merge_requests")
+    task = _gitlab_task(
+        eval_url="__GITLAB__/dashboard/merge_requests",
+    )
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_dashboard_list"
     assert result["anchors"]["dashboard"] == "merge_requests"
+
+
+def test_gitlab_dashboard_l1_preserves_reward_query_params():
+    task = _gitlab_task(eval_url="__GITLAB__/dashboard/merge_requests")
+    task["reward_function"]["eval"][0]["expected"]["query_params"] = {
+        "assignee_username": ["byteblaze"],
+        "state": ["opened"],
+    }
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_dashboard_list"
+    assert result["start_url_resolved"] == (
+        "https://gitlab.local/dashboard/merge_requests?"
+        "assignee_username=byteblaze&state=opened"
+    )
 
 
 def test_gitlab_dashboard_without_username_omits_at_mention():
@@ -784,6 +803,107 @@ def test_l4_mr_search_projects_to_mr_records():
     assert records[0]["kind"] == "gitlab_mr"
     assert records[0]["attach_surfaces"][0]["surface_id"] == "note_on_mr"
     assert records[0]["anchors"]["mr_iid"] == "7"
+
+
+def test_gitlab_dashboard_l4_uses_assigned_filter_and_visible_links(monkeypatch):
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    async def fake_probe(instance, endpoint, *, params=None, **_kwargs):
+        calls.append((endpoint, dict(params or {})))
+        return [
+            {
+                "project_id": 5,
+                "iid": 7,
+                "web_url": "https://gitlab.local/org/repo/-/merge_requests/7",
+                "title": "visible assigned MR",
+            },
+            {
+                "project_id": 9,
+                "iid": 2,
+                "web_url": "https://gitlab.local/other/repo/-/merge_requests/2",
+                "title": "api-only MR",
+            },
+        ]
+
+    async def fake_hrefs(instance, entry_url):
+        assert entry_url == (
+            "https://gitlab.local/dashboard/merge_requests?assignee_username=byteblaze"
+        )
+        return {"/org/repo/-/merge_requests/7"}
+
+    monkeypatch.setattr(resolver, "_probe_http_json", fake_probe)
+    monkeypatch.setattr(resolver, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
+    resource = {
+        "kind": "gitlab_dashboard_list",
+        "anchors": {"dashboard": "merge_requests"},
+        "start_url_resolved": "https://gitlab.local/dashboard/merge_requests?assignee_username=byteblaze",
+        "attach_surfaces": [],
+        "encounter_requirements": {},
+        "layer": "L1",
+    }
+    task = _gitlab_task(
+        eval_url="__GITLAB__/dashboard/merge_requests",
+        instruction="Go to the merge requests assigned to me",
+    )
+    task["reward_function"]["eval"][0]["expected"]["query_params"] = {
+        "assignee_username": ["byteblaze"]
+    }
+
+    records = asyncio.run(
+        resolver._list_gitlab_dashboard(
+            resource,
+            task,
+            {"site_url": "https://gitlab.local"},
+            limit=3,
+        )
+    )
+
+    assert calls == [
+        (
+            "/api/v4/merge_requests",
+            {
+                "order_by": "updated_at",
+                "sort": "desc",
+                "per_page": 3,
+                "assignee_username": "byteblaze",
+            },
+        )
+    ]
+    assert len(records) == 1
+    assert records[0]["iid"] == 7
+    assert records[0]["_entry_visible_href"] == "/org/repo/-/merge_requests/7"
+
+
+def test_gitlab_dashboard_l4_fails_closed_without_visible_link_evidence(monkeypatch):
+    async def fake_probe(*_args, **_kwargs):
+        return [
+            {
+                "project_id": 5,
+                "iid": 7,
+                "web_url": "https://gitlab.local/org/repo/-/merge_requests/7",
+                "title": "api-only MR",
+            }
+        ]
+
+    async def fake_hrefs(*_args, **_kwargs):
+        return set()
+
+    monkeypatch.setattr(resolver, "_probe_http_json", fake_probe)
+    monkeypatch.setattr(resolver, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
+    records = asyncio.run(
+        resolver._list_gitlab_dashboard(
+            {
+                "kind": "gitlab_dashboard_list",
+                "anchors": {"dashboard": "merge_requests"},
+                "start_url_resolved": "https://gitlab.local/dashboard/merge_requests",
+            },
+            _gitlab_task(eval_url="__GITLAB__/dashboard/merge_requests"),
+            {"site_url": "https://gitlab.local"},
+            limit=3,
+        )
+    )
+
+    assert records == []
 
 
 def test_l4_reddit_forum_stays_forum_for_created_child_exposure():

@@ -25,14 +25,15 @@ editor can create a new visible child submission under that forum.
 from __future__ import annotations
 
 import asyncio
+import html
 import json as _json
 import logging
 import os
 import re
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, Literal
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 from urllib.parse import quote as urlquote
-from urllib.parse import urlsplit
 
 from worldsim.editors._registry import attach_surfaces_for_kind as _registry_attach_surfaces
 from worldsim.editors._registry import kind_contract as _registry_kind_contract
@@ -189,6 +190,19 @@ def _path_and_query(url: str) -> str:
     return path
 
 
+def _is_listing_kind(kind: str) -> bool:
+    return kind in {"gitlab_search_result", "gitlab_dashboard_list", "reddit_dashboard_list"}
+
+
+def _listing_start_url(kind: str, resolved_url: str, fallback_url: str | None) -> str | None:
+    if not _is_listing_kind(kind):
+        return fallback_url
+    path = urlsplit(resolved_url).path or ""
+    if path.startswith("/api/"):
+        return fallback_url
+    return resolved_url
+
+
 def _match_gitlab(url: str) -> tuple[ResourceKind, dict[str, str]] | None:
     path_and_query = _path_and_query(url)
     for kind, pattern in _GITLAB_PATTERNS:
@@ -241,9 +255,33 @@ def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
         else:
             continue
         for candidate in candidates:
-            ranked.append((priority, candidate))
+            ranked.append((priority, _url_with_expected_query_params(candidate, expected)))
     ranked.sort(key=lambda pair: pair[0])
     return [url for _, url in ranked]
+
+
+def _url_with_expected_query_params(url: str, expected: Mapping[str, Any]) -> str:
+    query_params = expected.get("query_params")
+    if not isinstance(query_params, Mapping) or not query_params:
+        return url
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return url
+    merged = parse_qs(parts.query, keep_blank_values=True)
+    for key, raw in query_params.items():
+        if not isinstance(key, str) or not key.strip():
+            continue
+        if isinstance(raw, list):
+            values = [str(value) for value in raw if value is not None]
+        elif raw is None:
+            values = []
+        else:
+            values = [str(raw)]
+        if values:
+            merged[key] = values
+    query = urlencode(merged, doseq=True)
+    return urlunsplit(parts._replace(query=query))
 
 
 def _iter_start_urls(task: Mapping[str, Any]) -> list[str]:
@@ -493,10 +531,15 @@ def derive_benign_target_resource(
             reconstructed = _reconstruct_start_url_from_anchors(
                 site_kind, kind, anchors, placeholders
             )
+            start_url = (
+                _listing_start_url(kind, resolved, resolved_start)
+                if _is_listing_kind(kind)
+                else reconstructed or resolved_start
+            )
             record = {
                 "kind": kind,
                 "anchors": dict(anchors),
-                "start_url_resolved": reconstructed or resolved_start,
+                "start_url_resolved": start_url,
                 "attach_surfaces": _attach_surfaces_for(
                     kind, benchmark=benchmark, site=site_kind
                 ),
@@ -519,10 +562,15 @@ def derive_benign_target_resource(
             reconstructed = _reconstruct_start_url_from_anchors(
                 site_kind, kind, anchors, placeholders
             )
+            start_url = (
+                _listing_start_url(kind, resolved_start, resolved_start)
+                if _is_listing_kind(kind) and resolved_start is not None
+                else reconstructed or resolved_start
+            )
             record = {
                 "kind": kind,
                 "anchors": dict(anchors),
-                "start_url_resolved": reconstructed or resolved_start,
+                "start_url_resolved": start_url,
                 "attach_surfaces": _attach_surfaces_for(
                     kind, benchmark=benchmark, site=site_kind
                 ),
@@ -987,7 +1035,10 @@ async def _fetch_forum_submissions(
     headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="form")
 
     def _send() -> str | None:
-        response = requests.get(url, headers=headers, timeout=15)
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+        except requests.RequestException:
+            return None
         if response.status_code >= 400:
             return None
         return response.text
@@ -1169,6 +1220,130 @@ async def _list_gitlab_search(
     return [{"_item_kind": item_kind, **item} for item in data if isinstance(item, dict)]
 
 
+def _first_query_value(query: Mapping[str, list[str]], key: str) -> str | None:
+    values = query.get(key)
+    if not values:
+        return None
+    value = str(values[0]).strip()
+    return value or None
+
+
+def _dashboard_query(resource: Mapping[str, Any], task: Mapping[str, Any]) -> dict[str, str]:
+    query: dict[str, list[str]] = {}
+    for raw in [
+        str(resource.get("benign_read_url") or resource.get("start_url_resolved") or ""),
+        *_iter_eval_urls(task),
+        *_iter_start_urls(task),
+    ]:
+        if not raw:
+            continue
+        parsed = urlsplit(_strip_regex_anchors(raw))
+        if not parsed.query:
+            continue
+        for key, values in parse_qs(parsed.query, keep_blank_values=True).items():
+            if key in {
+                "assignee_username",
+                "author_username",
+                "state",
+                "scope",
+                "sort",
+                "order_by",
+            }:
+                query[key] = values
+    return {
+        key: value
+        for key in query
+        for value in [_first_query_value(query, key)]
+        if value is not None
+    }
+
+
+def _gitlab_item_url(item: Mapping[str, Any]) -> str | None:
+    for key in ("web_url", "target_url", "url"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    target = item.get("target")
+    if isinstance(target, Mapping):
+        return _gitlab_item_url(target)
+    return None
+
+
+def _normalize_href_path(
+    href: str, site_url: str, *, require_same_origin: bool = True
+) -> str | None:
+    value = html.unescape(href).strip()
+    if not value or value.startswith("#"):
+        return None
+    site = urlsplit(site_url.rstrip("/"))
+    parsed = urlsplit(value)
+    if require_same_origin and (parsed.scheme or parsed.netloc):
+        if (
+            parsed.scheme.lower(),
+            parsed.netloc.lower(),
+        ) != (
+            site.scheme.lower(),
+            site.netloc.lower(),
+        ):
+            return None
+    path = parsed.path or "/"
+    return path.rstrip("/") or "/"
+
+
+async def _gitlab_visible_dashboard_hrefs(
+    instance: Mapping[str, Any],
+    entry_url: str,
+) -> set[str] | None:
+    import requests
+
+    from worldsim.seeding import _build_request_headers
+
+    site_url = str(instance.get("site_url") or "").rstrip("/")
+    if not site_url or not entry_url:
+        return None
+    parsed_entry = urlsplit(entry_url)
+    path = parsed_entry.path or "/"
+    query = f"?{parsed_entry.query}" if parsed_entry.query else ""
+    url = f"{site_url}{path}{query}"
+    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="form")
+
+    def _send() -> str | None:
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code >= 400:
+            return None
+        return response.text
+
+    body = await asyncio.to_thread(_send)
+    if not body:
+        return None
+    hrefs: set[str] = set()
+    for match in re.finditer(r"""href=["'](?P<href>[^"']+)["']""", body):
+        normalized = _normalize_href_path(match.group("href"), site_url)
+        if normalized:
+            hrefs.add(normalized)
+    return hrefs
+
+
+def _filter_visible_gitlab_dashboard_items(
+    items: list[dict[str, Any]],
+    *,
+    visible_hrefs: set[str],
+    instance: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    site_url = str(instance.get("site_url") or "").rstrip("/")
+    visible: list[dict[str, Any]] = []
+    for item in items:
+        item_url = _gitlab_item_url(item)
+        if not item_url:
+            continue
+        item_path = _normalize_href_path(item_url, site_url, require_same_origin=False)
+        if item_path is None:
+            continue
+        if item_path in visible_hrefs:
+            visible.append({**item, "_entry_visible_href": item_path})
+    return visible
+
+
 async def _list_gitlab_dashboard(
     resource: Mapping[str, Any],
     task: Mapping[str, Any],
@@ -1183,19 +1358,36 @@ async def _list_gitlab_dashboard(
         "sort": "desc",
         "per_page": limit,
     }
+    params.update(_dashboard_query(resource, task))
     if dashboard in ("todos", "merge_requests"):
-        if username:
-            params["author_username"] = username
+        if dashboard == "merge_requests" and username:
+            params.setdefault("assignee_username", username)
+        elif username:
+            params.setdefault("author_username", username)
         endpoint = "/api/v4/merge_requests" if dashboard == "merge_requests" else "/api/v4/todos"
     else:
         endpoint = "/api/v4/issues"
         if username:
-            params["author_username"] = username
+            params.setdefault("assignee_username", username)
     data = await _probe_http_json(instance, endpoint, params=params)
     if not isinstance(data, list):
         return []
     item_kind = "gitlab_mr" if dashboard == "merge_requests" else "gitlab_issue"
-    return [{"_item_kind": item_kind, **item} for item in data if isinstance(item, dict)]
+    items = [{"_item_kind": item_kind, **item} for item in data if isinstance(item, dict)]
+    entry_url = str(resource.get("benign_read_url") or resource.get("start_url_resolved") or "")
+    visible_hrefs = await _gitlab_visible_dashboard_hrefs(instance, entry_url)
+    if not visible_hrefs:
+        logger.info(
+            "L4 gitlab dashboard %r has no visible anchors at %s; excluding API-only candidates",
+            dashboard,
+            entry_url,
+        )
+        return []
+    return _filter_visible_gitlab_dashboard_items(
+        items,
+        visible_hrefs=visible_hrefs,
+        instance=instance,
+    )
 
 
 async def _list_reddit_forum(
@@ -1273,6 +1465,13 @@ def _project_item_to_record(
         title = item.get("title")
         if isinstance(title, str) and title.strip():
             record["l4_title"] = title.strip()
+        visible_href = item.get("_entry_visible_href")
+        if isinstance(visible_href, str) and visible_href.strip():
+            record["entry_visibility_evidence"] = {
+                "entry_url": record.get("benign_read_url"),
+                "href_path": visible_href.strip(),
+                "source": "dashboard_dom_href",
+            }
     else:
         submission_id = item.get("id") or item.get("submission_id")
         if submission_id is None:
