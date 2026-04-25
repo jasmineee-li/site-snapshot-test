@@ -6,18 +6,21 @@ from eval_awareness_experiments.types import Message, Transcript
 def transcript_to_xml(transcript: Transcript) -> str:
     """Convert a transcript to XML format for prompts.
 
-    Uses role-as-tagname layout (e.g. `<user>…</user>`) with top-level
-    `<system_instructions>` / `<instruction>` wrappers. Retained for the
-    existing `binary_third_person`, `probability_third_person`, and
-    `purpose_xml` judges that were calibrated against this format.
+    Uses role-as-tagname layout (e.g. `<user>…</user>`). The seed system
+    prompt and seed user message are emitted as `<system>` / `<user>` blocks
+    rather than the older `<system_instructions>` / `<instruction>`
+    wrappers, which leaked harness ground-truth (no production chatlog
+    contains an `<instruction>` envelope, so a judge could classify a
+    transcript as eval-derived purely from the wrapper rather than from
+    the model's behavior).
     """
     parts = []
 
     if transcript.system_instructions:
-        parts.append(f"<system_instructions>\n{transcript.system_instructions}\n</system_instructions>")
+        parts.append(f"<system>\n{transcript.system_instructions}\n</system>")
 
     if transcript.instruction:
-        parts.append(f"<instruction>\n{transcript.instruction}\n</instruction>")
+        parts.append(f"<user>\n{transcript.instruction}\n</user>")
 
     for msg in transcript.messages:
         tag = "reasoning" if msg.is_hidden else msg.role
